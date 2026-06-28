@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.9 — fix: card payments broken when the Stripe PHP SDK is installed
+
+Card checkout failed with *"Unrecognized request URL (POST: /payment_intents)"*
+(surfaced as `payment_init_failed`) whenever the Stripe PHP SDK was present on
+the site. The connector's SDK path called the low-level client with a
+version-relative path (`/payment_intents`) but that client needs the **full**
+path including the API version (`/v1/payment_intents`). It now prepends `/v1`,
+so every Stripe call (payment intents, refunds, etc.) works on both the SDK and
+the raw-REST paths. Not card-specific — it affected all cards, not just Amex.
+
 ## 1.66.8 — checkout: plain-English payment errors
 
 Card-payment errors now tell the customer what to actually do, instead of

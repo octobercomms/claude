@@ -181,7 +181,12 @@ final class StripeConnector {
             try {
                 $client = new \Stripe\StripeClient(self::secret());
                 $opts   = ['api_key' => self::secret()];
-                $resp   = $client->request(strtolower($method), $path, $params, $opts);
+                // The low-level client expects the full API path *including* the
+                // version segment; our paths are version-relative (e.g.
+                // "/payment_intents") to match the REST fallback's API_BASE, so
+                // prepend "/v1" here. Without it Stripe rejects the call with
+                // "Unrecognized request URL (POST: /payment_intents)".
+                $resp   = $client->request(strtolower($method), '/v1' . $path, $params, $opts);
                 return $resp->toArray();
             } catch (\Throwable $e) {
                 Logger::log('Stripe SDK error', ['path' => $path, 'error' => $e->getMessage()]);
