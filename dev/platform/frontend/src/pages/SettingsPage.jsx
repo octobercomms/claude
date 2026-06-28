@@ -284,6 +284,40 @@ const CATEGORIES = [
   { title: 'Other', description: 'Webhooks, stealth scraping and platform alerts.' },
 ];
 
+// Two-level navigation (mirrors OMI's suite pages): three top-level sections,
+// each with sub-tabs. Connection sub-tabs that show provider keys map to one or
+// more of the CATEGORIES above; the rest render a dedicated panel.
+const SECTIONS = [
+  { key: 'connections', label: 'Connections', subs: [
+    { k: 'costs', label: 'Costs & usage' },
+    { k: 'ai', label: 'AI & email' },
+    { k: 'ads', label: 'Ad platforms' },
+    { k: 'commerce', label: 'E-commerce & data' },
+    { k: 'outreach', label: 'Outreach finders' },
+    { k: 'integrations', label: 'Integrations' },
+    { k: 'other', label: 'Other' },
+  ] },
+  { key: 'workspace', label: 'Workspace', subs: [
+    { k: 'contacts', label: 'Contacts' },
+    { k: 'publications', label: 'Publications' },
+    { k: 'tags', label: 'Tags' },
+    { k: 'strategy', label: 'Strategy templates' },
+  ] },
+  { key: 'account', label: 'Account', subs: [
+    { k: 'users', label: 'Users & access' },
+    { k: 'security', label: 'Security' },
+  ] },
+];
+// Sub-tab → which CATEGORIES of provider-key groups it shows.
+const SUBTAB_CATS = {
+  ai: ['AI & Email'],
+  ads: ['Ad Platforms'],
+  commerce: ['Ecommerce & Inventory', 'SEO'],
+  outreach: ['Outreach'],
+  other: ['Other'],
+};
+const ALL_SUBS = SECTIONS.flatMap(s => s.subs.map(x => x.k));
+
 export default function SettingsPage() {
   const [values, setValues] = useState({});
   const [revealed, setRevealed] = useState(false);
@@ -298,7 +332,12 @@ export default function SettingsPage() {
   const [testingFs, setTestingFs] = useState(false);
   const [fsTestMsg, setFsTestMsg] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
-  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'general');
+  const [tab, setTab] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t === 'general') return 'costs';      // legacy deep links
+    if (t === 'aimodels') return 'ai';
+    return ALL_SUBS.includes(t) ? t : 'costs';
+  });
 
   function switchTab(next) {
     setTab(next);
@@ -423,25 +462,22 @@ export default function SettingsPage() {
       </header>
 
       <div className="tabs">
-        {[
-          { key: 'general', label: 'General' },
-          { key: 'aimodels', label: 'AI models' },
-          { key: 'integrations', label: 'Integrations' },
-          { key: 'contacts', label: 'Contacts' },
-          { key: 'publications', label: 'Publications' },
-          { key: 'tags', label: 'Tags' },
-          { key: 'users', label: 'Users & access' },
-          { key: 'strategy', label: 'Strategy templates' },
-          { key: 'security', label: 'Security' },
-        ].map(t => (
-          <button key={t.key} onClick={() => switchTab(t.key)}
-            className={`tab ${tab === t.key ? "active" : ""}`}>
-            {t.label}
+        {SECTIONS.map(s => (
+          <button key={s.key} onClick={() => switchTab(s.subs[0].k)}
+            className={`tab ${s.subs.some(x => x.k === tab) ? 'active' : ''}`}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <div className="tabs tabs-sub">
+        {(SECTIONS.find(s => s.subs.some(x => x.k === tab)) || SECTIONS[0]).subs.map(x => (
+          <button key={x.k} onClick={() => switchTab(x.k)}
+            className={`tab ${tab === x.k ? 'active' : ''}`}>
+            {x.label}
           </button>
         ))}
       </div>
 
-      {tab === 'aimodels' && <AiModelsPanel />}
       {tab === 'integrations' && <IntegrationsPage embedded />}
       {tab === 'contacts' && <ContactsLibrary />}
       {tab === 'publications' && <PublicationsPanel />}
@@ -449,26 +485,26 @@ export default function SettingsPage() {
       {tab === 'users' && <ManageUsersPage embedded />}
       {tab === 'security' && <SecurityPanel />}
       {tab === 'strategy' && <StrategyTemplatesPanel />}
-      {tab !== 'contacts' && tab !== 'publications' && tab !== 'users' && tab !== 'tags' && tab !== 'integrations' && tab !== 'security' && tab !== 'strategy' && (<>
+      {tab === 'costs' && (<>
       <CostsPanel />
       <CostLogPanel />
       <KeywordSpendPanel />
       <PrAddonPanel />
+      </>)}
 
-      <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 12px' }}>
-        Tap a category to expand its integrations. Each block has its own Save button.
-      </p>
+      {tab === 'ai' && <AiModelsPanel />}
 
-      {/* Categorised integration cards — collapsible, multi-column grid */}
+      {SUBTAB_CATS[tab] && (<>
+      {/* Provider keys for this section — one or more categories. */}
       <form onSubmit={e => e.preventDefault()} autoComplete="off">
         {/* Dummy fields to prevent browser autofill from hitting real inputs */}
         <input type="text" name="username" style={{ display: 'none' }} autoComplete="username" readOnly />
         <input type="password" name="password" style={{ display: 'none' }} autoComplete="current-password" readOnly />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
-          {CATEGORIES.map(cat => {
+          {CATEGORIES.filter(cat => SUBTAB_CATS[tab].includes(cat.title)).map(cat => {
             const groupsInCat = KEY_GROUPS.filter(g => g.category === cat.title);
-            const open = !!openCategories[cat.title];
+            const open = openCategories[cat.title] !== false;
             const configuredCount = groupsInCat.filter(g => g.keys.some(k => values[k.key] === '••••••••')).length;
 
             return (
