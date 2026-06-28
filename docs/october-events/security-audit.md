@@ -11,6 +11,40 @@ no customer-to-customer IDOR, prepared SQL everywhere, encrypted secrets at rest
 a properly email-scoped public support chat. Three findings need attention before
 they bite, headed by the **door check-in** and the **admin settings secret leak**.
 
+---
+
+## Re-audit — v1.66.15 (concurrency & scale focus)
+
+The original P1–P4 below were **remediated** (random PINs, masked secrets, capability
+gating, platform CSP/headers — shipped in the earlier hardening PRs and the 1.66.10
+secret-field fix). This re-audit covers the ticketing code added since (partial/
+transaction refunds, the Transactions and Failed-payments tabs, event-wide capacity,
+manual orders) and the question: **can it handle ~1,000 concurrent buyers?**
+
+**Security stayed clean** — no critical holes. Every `admin_post` handler is
+capability + nonce gated; refunds/deletes aren't buyer-reachable; new SQL is all
+prepared or int-cast; the new admin views escape output; secrets remain encrypted +
+masked. The real risk is **concurrency**, not security:
+
+| Sev | Finding | Evidence | Fix |
+|-----|---------|----------|-----|
+| ❌ Critical | **Overselling.** Capacity guard reads `event_sold_count()` then inserts with **no lock/transaction anywhere** (grep `GET_LOCK`/`START TRANSACTION`/`FOR UPDATE` = 0). 1,000 concurrent buyers all read "under cap" and all insert. | `Orders::create()` (count→insert), `TicketTypes::availability()` | Per-event `GET_LOCK` around count+insert — **1.66.16** |
+| ⚠️ High | **Double-issue.** Stripe webhook + client `/ticket-confirm` both create orders for one payment; idempotency is check-then-act and `payment_id` is non-unique. | `RestApi` confirm/webhook → `Orders::create_cart()` | Per-payment `GET_LOCK` around the cart idempotency check — **1.66.16** |
+| ⚠️ Med | **Promo over-redemption** under load (separate read of `max_uses` then increment). | `Promo::increment_usage`, `Orders::create()` | Atomic conditional `UPDATE … WHERE used_count < max_uses` — **1.66.16** |
+| Low | Per-ticket insert return value unchecked / no token-clash retry. | `Orders::create()` ticket loop | Check + retry — **1.66.16** |
+| ⚠️ High (perf) | **Redundant counts.** `availability()` runs the event-wide COUNT-JOIN **once per ticket type** every checkout render, uncached. | `Checkout::render()` loop → `event_sold_count()` | Per-request memoization — **1.66.17** |
+| ⚠️ Med-High (perf) | **Missing composite indexes** — `orders(event_id,status)`, `tickets(order_id,status)`/`(event_id,status)`, `checkins(event_id,venue_name,ticket_id)`. Scans/filesorts at scale. | `Schema.php` (single-column keys only) | Add keys + bump `OE_DB_VERSION` — **1.66.17** |
+| ⚠️ Med (perf) | Check-in log screen = ~5 aggregate queries/load. | `render_checkin_log()` | Index + transient-cache chart aggregates — **1.66.17** |
+| ⚠️ Low (sec) | Unthrottled public read routes: `checkin-events`, `volunteer-shifts`, `map`, `confirm-payment`; Failed-payments "Refresh" nonce unverified. | `RestApi.php` | Add `rl()` + verify nonce — **1.66.17** |
+
+**Deploy notes:** keep the site behind Cloudflare (IP limiters trust
+`CF-Connecting-IP`); `GET_LOCK` is server-global on standard MySQL/MariaDB and the
+locks **fail open** (proceed if unobtainable) so they can never block sales.
+
+With 1.66.16 + 1.66.17 in, a 1,000-person on-sale is safe from overselling and fast.
+
+---
+
 ## Top priorities (fix first)
 
 | # | Severity | Finding | Fix |

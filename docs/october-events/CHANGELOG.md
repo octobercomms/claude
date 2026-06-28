@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.16 — concurrency: stop overselling / double-issue under load
+
+A security + scale audit (see `docs/october-events/security-audit.md`) found the
+ticketing path had no concurrency protection — fine day-to-day, a problem when a
+big on-sale sends hundreds of buyers at once. Fixed:
+
+- **No more overselling.** The capacity check + ticket issue is now serialized
+  per event with a MySQL advisory lock, so concurrent buyers can't all read
+  "under capacity" and blow past the limit.
+- **No more double-issued tickets.** Order creation is serialized per payment, so
+  a Stripe webhook and the browser confirmation can't both create a set of
+  tickets for the same payment.
+- **Promo codes respect their limit under load** — a use is only recorded while
+  the code is under `max_uses` (atomic), so a capped code can't be over-redeemed
+  by simultaneous checkouts.
+- Ticket inserts are now checked and retry on the (vanishingly rare) token
+  clash, instead of silently skipping.
+
+The locks **fail open** — if one can't be acquired they proceed rather than ever
+block a sale. (Requires the site's database to be standard MySQL/MariaDB.)
+
 ## 1.66.15 — manual registration: clearer event picker
 
 The "Add a registration manually" event dropdown used to silently hide any event

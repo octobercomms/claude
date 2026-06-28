@@ -67,12 +67,19 @@ final class Promo {
         return round($subtotal * $pct / 100, 2);
     }
 
-    public static function increment_usage(int $promo_id): void {
+    /**
+     * Redeem one use. Atomic + capped: the UPDATE only lands while the code is
+     * under its max_uses, so concurrent checkouts can't push a limited code past
+     * its cap. Returns true if a use was recorded. (0 / null max_uses = unlimited.)
+     */
+    public static function increment_usage(int $promo_id): bool {
         global $wpdb;
-        $wpdb->query($wpdb->prepare(
-            "UPDATE " . Schema::promos() . " SET used_count = used_count + 1 WHERE id = %d",
+        $rows = $wpdb->query($wpdb->prepare(
+            "UPDATE " . Schema::promos() . " SET used_count = used_count + 1
+             WHERE id = %d AND (max_uses IS NULL OR max_uses = 0 OR used_count < max_uses)",
             $promo_id
         ));
+        return (int) $rows > 0;
     }
 
     public static function save(array $data, int $id = 0): int {
