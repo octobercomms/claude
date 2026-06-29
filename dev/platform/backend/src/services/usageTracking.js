@@ -260,6 +260,45 @@ const POLLERS = [
       return { raw: { note: 'No public balance endpoint — track via dashboard.' } };
     },
   },
+  {
+    name: 'deepseek',
+    label: 'DeepSeek',
+    async poll() {
+      const key = await getSetting('DEEPSEEK_API_KEY');
+      if (!key) return null;
+      const { data } = await axios.get('https://api.deepseek.com/user/balance', {
+        headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+      });
+      const infos = data.balance_infos || [];
+      const info = infos.find(i => i.currency === 'USD') || infos[0] || {};
+      return {
+        balance_remaining: info.total_balance != null ? Number(info.total_balance) : null,
+        currency: info.currency || 'USD',
+        unit_label: 'credits',
+        raw: data,
+      };
+    },
+  },
+  {
+    name: 'openai',
+    label: 'OpenAI (Whisper)',
+    async poll() {
+      const key = await getSetting('OPENAI_API_KEY');
+      if (!key) return null;
+      // OpenAI retired its balance API — show metered month-to-date spend that
+      // OMI logged instead (Whisper transcription for the swipe file + captions).
+      const pool = require('../db');
+      const { rows } = await pool.query(
+        "SELECT COALESCE(SUM(cost_usd), 0)::float AS spent FROM api_cost_events WHERE provider = 'openai' AND ts >= date_trunc('month', now())"
+      );
+      return {
+        cost_this_period: rows[0]?.spent || 0,
+        currency: 'USD',
+        unit_label: 'spent',
+        raw: { note: 'No balance API — metered spend OMI logged this month.' },
+      };
+    },
+  },
 ];
 
 async function pollOne(spec) {
