@@ -133,7 +133,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   const [client, setClient] = useState(null);
   // When embedded (inside Owned → Email), use a separate ?etab= key so we don't
   // fight the host page over ?tab=.
-  const [tab, setTab] = useTabParam('overview', ['overview', 'campaigns', 'contacts', 'tasks', 'sending'], embedded ? 'etab' : 'tab');
+  const [tab, setTab] = useTabParam(embedded ? 'campaigns' : 'overview', ['overview', 'campaigns', 'contacts', 'tasks', 'sending'], embedded ? 'etab' : 'tab');
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);
@@ -479,8 +479,8 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         </header>
       )}
 
-      <SuiteTabs tabs={[
-        { key: 'overview',  label: 'Overview',                                                   active: tab === 'overview',  onClick: () => setTab('overview') },
+      <SuiteTabs variant={embedded ? 'sub' : undefined} tabs={[
+        ...(embedded ? [] : [{ key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') }]),
         { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined,            active: tab === 'campaigns', onClick: () => setTab('campaigns') },
         { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,             active: tab === 'contacts',  onClick: () => setTab('contacts') },
         { key: 'tasks',     label: 'Tasks',                                                      active: tab === 'tasks',     onClick: () => setTab('tasks') },
@@ -491,7 +491,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         <OutreachTasksPanel />
       )}
 
-      {tab === 'overview' && (
+      {!embedded && tab === 'overview' && (
         <div className="stack stack-lg">
         <SuiteOverview
           tagline="Run cold outreach from your own domain."
