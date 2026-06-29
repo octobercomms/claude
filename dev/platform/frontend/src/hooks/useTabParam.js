@@ -5,15 +5,17 @@ import { useSearchParams } from 'react-router-dom';
 // switching tabs doesn't pile up browser history), and validates against an
 // optional allow-list, falling back to the default for unknown values.
 // The default tab clears the param so the bare URL = the default view.
-export function useTabParam(defaultKey, valid) {
+// `paramName` lets an embedded page use a different query key (e.g. 'etab') so a
+// page-within-a-page doesn't fight the host over ?tab=.
+export function useTabParam(defaultKey, valid, paramName = 'tab') {
   const [searchParams, setSearchParams] = useSearchParams();
-  const raw = searchParams.get('tab');
+  const raw = searchParams.get(paramName);
   const tab = valid ? (valid.includes(raw) ? raw : defaultKey) : (raw || defaultKey);
 
   const setTab = (next) => setSearchParams(prev => {
     const p = new URLSearchParams(prev);
-    if (next === defaultKey) p.delete('tab');
-    else p.set('tab', next);
+    if (next === defaultKey) p.delete(paramName);
+    else p.set(paramName, next);
     return p;
   }, { replace: true });
 

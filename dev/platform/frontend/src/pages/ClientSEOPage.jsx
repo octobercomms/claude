@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { api } from '../utils/api';
 import ClarityCroPanel from '../components/ClarityCroPanel';
 import FormsTab from '../components/FormsTab';
+import ClientOutreachPage from './ClientOutreachPage';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import SuiteTabs from '../components/SuiteTabs';
@@ -619,6 +620,8 @@ export default function ClientSEOPage() {
     'local_gap', 'local_schema', 'local_keywords', 'local_xray', 'local_playbook', 'local_outliers', 'local_gbp',
     // Convert — turn visitors into leads (CRO + Forms)
     'cro', 'forms',
+    // Email — the embedded Outreach suite (manages its own ?etab=)
+    'email',
   ]);
 
   // Redirect stale deep links to their new homes after the AI Overviews
@@ -733,6 +736,7 @@ export default function ClientSEOPage() {
           find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
           local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_outliers: 'local', local_gbp: 'local',
           cro: 'convert', forms: 'convert',
+          email: 'email',
         };
         const currentGroup = GROUP_OF[activeTab] || 'overview';
         const topTabs = [
@@ -742,6 +746,7 @@ export default function ClientSEOPage() {
           { key: 'content',  label: 'Content',  active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
           { key: 'local',    label: 'Local',    active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
           { key: 'convert',  label: 'Convert',  active: currentGroup === 'convert',  onClick: () => setActiveTab('cro') },
+          { key: 'email',    label: 'Email',    active: currentGroup === 'email',    onClick: () => setActiveTab('email') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
           ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
@@ -803,6 +808,9 @@ export default function ClientSEOPage() {
       {/* Convert — turn visitors into leads. */}
       {activeTab === 'cro' && <ClarityCroPanel clientId={id} />}
       {activeTab === 'forms' && <FormsTab clientId={id} connectors={connectors} />}
+
+      {/* Email — the full Outreach suite, embedded (uses its own ?etab=). */}
+      {activeTab === 'email' && <ClientOutreachPage embedded clientId={id} />}
       {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}
