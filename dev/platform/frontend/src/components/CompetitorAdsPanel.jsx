@@ -59,7 +59,7 @@ export default function CompetitorAdsPanel({ clientId }) {
   if (!loaded) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
 
   return (
-    <div style={{ maxWidth: 920 }}>
+    <div>
       <p className="body mb-4" style={{ maxWidth: 640 }}>
         Pull a competitor's live Google ads from the Ads Transparency Center and let Claude read what angles & offers they're
         testing, which have run longest (their likely winners), and how to counter — feeding your ad creative.

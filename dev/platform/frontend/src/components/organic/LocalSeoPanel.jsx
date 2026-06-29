@@ -153,57 +153,64 @@ export default function LocalSeoPanel({ clientId, tool }) {
       <h2 className="h2">{meta.title}</h2>
       <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 16px', maxWidth: 780 }}>{meta.blurb}</p>
 
-      {/* Input */}
-      <div className="card" style={{ marginBottom: 18, maxWidth: 780 }}>
-        <div style={{ display: 'grid', gap: 12 }}>
-          {meta.fields.map(f => (
-            <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span className="field-label">{f.label}</span>
-              {f.kind === 'urls'
-                ? <textarea className="input" style={{ minHeight: 70, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
-                    value={form[f.key] || ''} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))} placeholder={f.placeholder} />
-                : <input className="input" value={form[f.key] || ''} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))}
-                    onKeyDown={e => { if (e.key === 'Enter' && f.kind !== 'urls' && canRun && !running) runNow(); }} placeholder={f.placeholder} />}
-            </label>
-          ))}
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <button className="btn btn-primary" onClick={runNow} disabled={running || !canRun}>
-            {running ? 'Running…' : meta.run}
-          </button>
-        </div>
-      </div>
-
-      {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
-
-      {loading ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>
-      ) : !runs.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>No runs yet — fill in the form above and run it.</div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22 }}>
-          <div>
-            <div className="h3" style={{ marginBottom: 8 }}>History</div>
-            {runs.map(r => (
-              <div key={r.id} className="card" style={{ padding: 10, marginBottom: 8, cursor: 'pointer', background: r.id === activeId ? 'var(--accent-soft)' : 'var(--surface)' }}
-                onClick={() => setActiveId(r.id)}>
-                <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.3, wordBreak: 'break-word' }}>{r.title || '(run)'}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>{fmtWhen(r.created_at)}</div>
-              </div>
+      <div className="lsp-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 400px) 1fr', gap: 24, alignItems: 'start' }}>
+        {/* Input — left column */}
+        <div className="card" style={{ position: 'sticky', top: 12 }}>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {meta.fields.map(f => (
+              <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span className="field-label">{f.label}</span>
+                {f.kind === 'urls'
+                  ? <textarea className="input" style={{ minHeight: 70, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+                      value={form[f.key] || ''} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))} placeholder={f.placeholder} />
+                  : <input className="input" value={form[f.key] || ''} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter' && f.kind !== 'urls' && canRun && !running) runNow(); }} placeholder={f.placeholder} />}
+              </label>
             ))}
           </div>
-          <div>
-            {activeRun && (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-                  <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteRun(activeRun.id)}>Delete</button>
-                </div>
-                <ToolResult tool={tool} output={activeRun.output_json || {}} />
-              </>
-            )}
+          <div style={{ marginTop: 14 }}>
+            <button className="btn btn-primary" onClick={runNow} disabled={running || !canRun}>
+              {running ? 'Running…' : meta.run}
+            </button>
           </div>
         </div>
-      )}
+
+        {/* Results — right column, fills the page width */}
+        <div>
+          {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
+
+          {loading ? (
+            <div className="card" style={{ color: 'var(--text-subtle)', padding: 28, fontSize: 13 }}>Loading…</div>
+          ) : !runs.length ? (
+            <div className="card" style={{ color: 'var(--text-subtle)', padding: 28, fontSize: 13, textAlign: 'center' }}>
+              No runs yet — fill in the form and run it. Results appear here.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20, alignItems: 'start' }}>
+              <div>
+                <div className="h3" style={{ marginBottom: 8 }}>History</div>
+                {runs.map(r => (
+                  <div key={r.id} className="card" style={{ padding: 10, marginBottom: 8, cursor: 'pointer', background: r.id === activeId ? 'var(--accent-soft)' : 'var(--surface)' }}
+                    onClick={() => setActiveId(r.id)}>
+                    <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.3, wordBreak: 'break-word' }}>{r.title || '(run)'}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>{fmtWhen(r.created_at)}</div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                {activeRun && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteRun(activeRun.id)}>Delete</button>
+                    </div>
+                    <ToolResult tool={tool} output={activeRun.output_json || {}} />
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
