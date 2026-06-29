@@ -45,12 +45,12 @@ export default function ClientAdsPage() {
   const pipelineStep = isPipelineStep ? tab : 'brief';
   // For the top-tab strip we collapse all pipeline sub-tab states into 'pipeline'.
   const normalisedTab = isPipelineGroup ? 'pipeline' : tab;
-  // Which top group is active. Tools collects the standalone analysis views.
-  const TOOLS_TABS = ['strategist', 'audiences', 'competitor_ads'];
+  // Which top group is active. Advisor collects the planning/analysis views.
+  const ADVISOR_TABS = ['strategist', 'audiences', 'competitor_ads'];
   const currentGroup = normalisedTab === 'overview' ? 'overview'
     : normalisedTab === 'performance' ? 'performance'
     : isPipelineGroup ? 'pipeline'
-    : TOOLS_TABS.includes(tab) ? 'tools'
+    : ADVISOR_TABS.includes(tab) ? 'advisor'
     : 'overview';
 
   // Redirect legacy 'creative' / 'pipeline' top-level URLs to the first step.
@@ -205,7 +205,7 @@ export default function ClientAdsPage() {
 
   return (
     <div className="suite-paid">
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Paid media · Google Ads + Meta</span></div>
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Paid</span></div>
       <header className="hero">
         <div>
           <h1 className="display mt-2">Paid</h1>
@@ -213,21 +213,21 @@ export default function ClientAdsPage() {
       </header>
       <SuiteTabs tabs={[
         { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setTab('overview') },
+        { key: 'advisor',     label: 'Advisor',     active: currentGroup === 'advisor',     onClick: () => setTab('strategist') },
+        { key: 'builder',     label: 'Builder',     active: currentGroup === 'pipeline',    onClick: () => setTab('brief') },
         { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setTab('performance') },
-        { key: 'tools',       label: 'Tools',       active: currentGroup === 'tools',       onClick: () => setTab('strategist') },
-        { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setTab('brief') },
       ]} />
-      {currentGroup === 'tools' && (
+      {currentGroup === 'advisor' && (
         <SuiteTabs variant="sub" tabs={[
-          { key: 'strategist',     label: 'Strategist',     active: tab === 'strategist',     onClick: () => setTab('strategist') },
-          { key: 'audiences',      label: 'Audiences',      active: tab === 'audiences',      onClick: () => setTab('audiences') },
-          { key: 'competitor_ads', label: 'Competitor ads', active: tab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
+          { key: 'strategist',     label: 'Briefing',    active: tab === 'strategist',     onClick: () => setTab('strategist') },
+          { key: 'audiences',      label: 'Audiences',   active: tab === 'audiences',      onClick: () => setTab('audiences') },
+          { key: 'competitor_ads', label: 'Competitors', active: tab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
         ]} />
       )}
       {isPipelineGroup && (
         <SuiteTabs variant="sub" tabs={[
           { key: 'brief',    label: '1 · Brief',    active: pipelineStep === 'brief',    onClick: () => setTab('brief') },
-          { key: 'concepts', label: '2 · Concepts', active: pipelineStep === 'concepts', onClick: () => setTab('concepts') },
+          { key: 'concepts', label: '2 · Concept', active: pipelineStep === 'concepts', onClick: () => setTab('concepts') },
           { key: 'render',   label: '3 · Render',   active: pipelineStep === 'render',   onClick: () => setTab('render') },
           { key: 'approve',  label: '4 · Approve',  active: pipelineStep === 'approve',  onClick: () => setTab('approve') },
           { key: 'launch',   label: '5 · Launch',   active: pipelineStep === 'launch',   onClick: () => setTab('launch') },
