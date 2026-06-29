@@ -68,6 +68,8 @@ export default function ClientSocialPage() {
     'brainstorm', 'plans', 'publish', 'learn',
     // discovery → manual outreach
     'discover',
+    // swipe file (reel → ideas)
+    'swipe',
   ]);
 
   // Redirect legacy deep links to their new homes.

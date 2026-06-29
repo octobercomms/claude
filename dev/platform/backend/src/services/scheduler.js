@@ -22,6 +22,12 @@ const social = require('./social');
 const socialPublisher = require('./socialPublisher');
 const usageTracking = require('./usageTracking');
 const strategistReport = require('./strategistReport');
+const swipeProcessor = require('./swipeProcessor');
+
+// Swipe file (reel → ideas): drain the queue every minute. Items are normally
+// kicked the moment they're added; this is the safety net (missed kick, or the
+// OpenAI key added after items were already queued). No-op without a key.
+cron.schedule('* * * * *', () => { swipeProcessor.processQueue().catch(() => {}); });
 
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {

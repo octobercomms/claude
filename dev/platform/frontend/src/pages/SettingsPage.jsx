@@ -21,6 +21,14 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'OpenAI (transcription)',
+    category: 'AI',
+    hint: 'Powers Whisper speech-to-text — the Swipe file ("reel → ideas") transcribes pasted videos with it, and the video caption stage uses it too. ~$0.006 per minute of audio (about half a cent per reel). Get a key at platform.openai.com → API keys (add a little billing credit).',
+    keys: [
+      { key: 'OPENAI_API_KEY', label: 'OpenAI API Key', placeholder: 'sk-… — enables reel transcription', type: 'password' },
+    ],
+  },
+  {
     title: 'Replicate (Flux 1.1 Pro)',
     category: 'AI',
     hint: 'Used by the Social tab to generate post images. Pay-per-call, around $0.04 per image. Get a token at replicate.com/account/api-tokens.',

@@ -30,6 +30,10 @@ const SETTINGS_KEYS = [
   'CLAUDE_API_KEY', 'ANTHROPIC_ADMIN_KEY',
   // DeepSeek — selectable per question in the AI Data Analyst (cheap/fast model).
   'DEEPSEEK_API_KEY',
+  // OpenAI — used for Whisper speech-to-text (the Swipe-file "reel → ideas"
+  // transcription, and the video caption stage on the worker). Paste the key
+  // here and the platform transcribes pasted reels itself.
+  'OPENAI_API_KEY',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
   'REPLICATE_API_TOKEN', 'IDEOGRAM_API_KEY',
   'ADOBE_CLIENT_ID', 'ADOBE_CLIENT_SECRET',
