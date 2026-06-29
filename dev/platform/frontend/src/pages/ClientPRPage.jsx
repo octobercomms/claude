@@ -413,9 +413,9 @@ export default function ClientPRPage() {
 
   return (
     <div className="suite-client-pr">
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Press coverage &amp; journalists</span></div>
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Earned</span></div>
       <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
-        <h1 className="display">PR</h1>
+        <h1 className="display">Earned</h1>
       </header>
 
       {/* Tab labels show natural totals (coverage rows / journalist heads)
@@ -429,8 +429,8 @@ export default function ClientPRPage() {
         { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
         { key: 'coverage', label: `Coverage${log.length ? ` (${log.length})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
         { key: 'journalists', label: `Journalists${journalists.length ? ` (${journalists.length})` : ''}`, active: tab === 'journalists', onClick: () => setTab('journalists') },
-        { key: 'press', label: `Press releases${releases.length ? ` (${releases.length})` : ''}`, active: tab === 'press', onClick: () => setTab('press') },
-        { key: 'reports', label: 'Reports', active: tab === 'reports', onClick: () => setTab('reports') },
+        { key: 'press', label: `Releases${releases.length ? ` (${releases.length})` : ''}`, active: tab === 'press', onClick: () => setTab('press') },
+        { key: 'reports', label: 'Portal', active: tab === 'reports', onClick: () => setTab('reports') },
       ]} />
 
       {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p></div>}
