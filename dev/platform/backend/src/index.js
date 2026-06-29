@@ -183,6 +183,7 @@ app.use('/api/seo', require('./routes/seoSuite'));
 app.use('/api/social', require('./routes/social'));
 app.use('/api/ig-outreach', require('./routes/igOutreach'));
 app.use('/api/swipe-file', require('./routes/swipeFile'));
+app.use('/api/heygen', require('./routes/heygen'));
 app.use('/api/brand', require('./routes/brandAssets'));
 app.use('/api/ad-creatives', require('./routes/adCreatives'));
 app.use('/api/approvals', require('./routes/approvals'));

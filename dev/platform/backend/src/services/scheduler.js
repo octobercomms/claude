@@ -23,6 +23,11 @@ const socialPublisher = require('./socialPublisher');
 const usageTracking = require('./usageTracking');
 const strategistReport = require('./strategistReport');
 const swipeProcessor = require('./swipeProcessor');
+const heygen = require('./heygen');
+
+// HeyGen reels render async — poll the still-processing ones every minute and
+// fill in finished video URLs. No-op without a HeyGen key.
+cron.schedule('* * * * *', () => { heygen.pollPending().catch(() => {}); });
 
 // Swipe file (reel → ideas): drain the queue every minute. Items are normally
 // kicked the moment they're added; this is the safety net (missed kick, or the

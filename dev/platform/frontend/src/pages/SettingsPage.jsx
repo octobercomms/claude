@@ -30,6 +30,14 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'HeyGen (AI avatar reels)',
+    category: 'AI',
+    hint: 'AI avatar / Digital Twin reels from a script — the video suite. Pay-as-you-go (~$1/min of 720–1080p video, no subscription). Create your Digital Twin in the HeyGen app first, then it appears in the picker. Get a key at heygen.com → Settings → API.',
+    keys: [
+      { key: 'HEYGEN_API_KEY', label: 'HeyGen API Key', placeholder: 'heygen.com → Settings → API', type: 'password' },
+    ],
+  },
+  {
     title: 'Replicate (Flux 1.1 Pro)',
     category: 'AI',
     hint: 'Used by the Social tab to generate post images. Pay-per-call, around $0.04 per image. Get a token at replicate.com/account/api-tokens.',

@@ -40,6 +40,8 @@ const SETTINGS_KEYS = [
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
   'REPLICATE_API_TOKEN', 'IDEOGRAM_API_KEY',
   'ELEVENLABS_API_KEY',
+  // HeyGen — AI avatar / Digital Twin reels (the video suite). Pay-as-you-go.
+  'HEYGEN_API_KEY',
   'APIFY_API_TOKEN',
   // Camofox stealth browser (shared scraping fallback). CAMOFOX_URL is the
   // sidecar's base URL (e.g. http://127.0.0.1:3100); CAMOFOX_API_KEY is the
