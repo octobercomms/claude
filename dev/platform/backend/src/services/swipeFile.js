@@ -76,7 +76,7 @@ async function claimNext(workerId) {
   const { rows } = await pool.query(
     `UPDATE swipe_items SET status = 'processing', claimed_by = $1, claimed_at = NOW()
        WHERE id = (SELECT id FROM swipe_items WHERE status = 'queued' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1)
-     RETURNING id, url, platform`,
+     RETURNING id, url, platform, client_id`,
     [workerId]
   );
   return rows[0] || null;

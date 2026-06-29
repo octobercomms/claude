@@ -44,7 +44,8 @@ callClaude({ system, user, max_tokens, model, feature, clientId })
 - `getSetting(key)` reads `platform_settings`, **AES-256-GCM decrypts**, and
   falls back to `process.env`. `encrypt`/`decrypt` use `ENCRYPTION_KEY`.
 - ~30+ keys: provider API keys, OAuth secrets, service-account JSON, balances
-  (e.g. `SERPER_CREDITS`), `AI_MODEL_MAP`, `DEEPSEEK_API_KEY`.
+  (e.g. `SERPER_CREDITS`), `AI_MODEL_MAP`, `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`
+  (Whisper transcription — the swipe-file processor reads it from here).
 - **Bootstrap-only** secrets (DB creds, `JWT_SECRET`, `ENCRYPTION_KEY`, admin
   seed) come from `.env`, not the store.
 
