@@ -59,6 +59,18 @@ async function uploadOutput(projectId, filePath) {
   return data; // { output_url }
 }
 
+// ── Swipe file (reel → ideas) ──
+async function claimSwipe() {
+  const { data } = await http.post('/swipe/claim', { worker_id: config.workerId });
+  return data.item || null; // { id, url, platform } | null
+}
+async function submitSwipeTranscript(id, body) {
+  await http.post(`/swipe/${id}/transcript`, body);
+}
+async function failSwipe(id, message) {
+  await http.post(`/swipe/${id}/fail`, { error: String(message || '').slice(0, 1900) });
+}
+
 function streamToFile(stream, destPath) {
   return new Promise((resolve, reject) => {
     const out = fs.createWriteStream(destPath);
@@ -72,4 +84,5 @@ function streamToFile(stream, destPath) {
 module.exports = {
   claim, downloadClip, getBrandKit, downloadBrandAsset, reportProbe,
   completeJob, submitGrade, failJob, uploadOutput,
+  claimSwipe, submitSwipeTranscript, failSwipe,
 };

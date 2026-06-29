@@ -14,6 +14,7 @@ const crypto = require('crypto');
 const multer = require('multer');
 const pool = require('../db');
 const videoProjects = require('../services/videoProjects');
+const swipeFile = require('../services/swipeFile');
 
 const router = express.Router();
 
@@ -136,6 +137,22 @@ router.post('/projects/:id/output', upload.single('file'), async (req, res) => {
     await videoProjects.patchProject(req.params.id, { output_url });
     res.json({ ok: true, output_url });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Swipe file (reel → ideas) ──
+// The worker polls this when there's no video job. It downloads + transcribes
+// the reel; the platform then generates the Claude idea card + emails it.
+router.post('/swipe/claim', async (req, res) => {
+  try { res.json({ item: await swipeFile.claimNext(req.body?.worker_id || 'worker') }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/swipe/:id/transcript', async (req, res) => {
+  try { await swipeFile.saveTranscript(parseInt(req.params.id, 10), req.body || {}); res.json({ ok: true }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/swipe/:id/fail', async (req, res) => {
+  try { await swipeFile.failItem(parseInt(req.params.id, 10), req.body?.error); res.json({ ok: true }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

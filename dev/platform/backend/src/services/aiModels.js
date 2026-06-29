@@ -35,6 +35,7 @@ const FEATURES = [
     { key: 'dm_bot_draft', label: 'DM bot — live drafts', sensitive: true },
     { key: 'dm_bot_templates', label: 'DM bot — templates', sensitive: false },
     { key: 'ig_outreach_draft', label: 'IG outreach drafts', sensitive: false },
+    { key: 'swipe_idea_card', label: 'Swipe-file idea cards', sensitive: false },
   ] },
   { group: 'SEO & visibility', items: [
     { key: 'ai_seo_keywords', label: 'AI SEO keywords', sensitive: false },

@@ -46,7 +46,9 @@ across AI engines) · `ai_seo_keyword_targets` / `ai_seo_article_scans`
 `social_batches` / `social_posts` (generated post sets) · `social_post_plans`
 (conversational planner output) · `social_post_publications` (per-platform
 scheduled rows; partial index on pending) · `competitor_posts` (weekly competitor
-scrape) · `social_dm_bot` / `social_dm_templates` (DM autoresponder persona + replies).
+scrape) · `social_dm_bot` / `social_dm_templates` (DM autoresponder persona + replies) ·
+`swipe_items` ("reel → ideas" swipe file: paste a video URL → worker downloads
+(yt-dlp) + transcribes (Whisper) → Claude idea card; doubles as the worker queue).
 
 ### Outreach & email
 `outreach_contacts` (contact universe + verification fields) ·

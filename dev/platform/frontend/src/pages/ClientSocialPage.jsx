@@ -15,6 +15,7 @@ import SuiteTabs from '../components/SuiteTabs';
 import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
+import SwipeFilePanel from '../components/SwipeFilePanel';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -390,6 +391,7 @@ export default function ClientSocialPage() {
           // view — it lives as its own top-level tab, not under Performance.
           dm_bot: 'dm_bot',
           discover: 'discover',
+          swipe: 'swipe',
         };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
@@ -398,6 +400,7 @@ export default function ClientSocialPage() {
           { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setSocialTab('brainstorm') },
           { key: 'dm_bot',      label: 'DM bot',      active: currentGroup === 'dm_bot',      onClick: () => setSocialTab('dm_bot') },
           { key: 'discover',    label: 'Discover',    active: currentGroup === 'discover',    onClick: () => setSocialTab('discover') },
+          { key: 'swipe',       label: 'Swipe file',  active: currentGroup === 'swipe',       onClick: () => setSocialTab('swipe') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
@@ -547,6 +550,7 @@ export default function ClientSocialPage() {
       {socialTab === 'dm_bot' && <SocialDmBotPanel clientId={id} />}
 
       {socialTab === 'discover' && <IgOutreachPanel clientId={id} />}
+      {socialTab === 'swipe' && <SwipeFilePanel clientId={id} />}
 
       {socialTab === 'competitors' && (
         <div className="stack-lg">

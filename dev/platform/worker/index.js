@@ -23,6 +23,7 @@ const STAGES = {
   grade: require('./stages/grade'),
   export: require('./stages/export'),
 };
+const processSwipe = require('./stages/swipe');
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 let stopping = false;
@@ -32,7 +33,16 @@ async function runOnce() {
     console.error(`[worker] claim failed: ${err.message}`);
     return null;
   });
-  if (!claimed || !claimed.job) return false;
+  if (!claimed || !claimed.job) {
+    // No video job — see if there's a swipe-file (reel → ideas) item to process.
+    const item = await api.claimSwipe().catch(err => {
+      console.error(`[worker] swipe claim failed: ${err.message}`);
+      return null;
+    });
+    if (!item) return false;
+    await processSwipe(item, api);
+    return true;
+  }
 
   const { job } = claimed;
   const handler = STAGES[job.stage];
