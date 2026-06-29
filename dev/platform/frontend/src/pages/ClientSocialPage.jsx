@@ -390,10 +390,10 @@ export default function ClientSocialPage() {
             { key: 'discover', label: 'Discover' },
           ],
           measure: [
+            { key: 'perf_insights', label: 'Insights' },
             { key: 'performance',   label: 'Winners' },
             { key: 'competitors',   label: 'Competitors' },
             { key: 'audit',         label: 'AI Audit' },
-            { key: 'perf_insights', label: 'Insights' },
           ],
         };
         const GROUP_OF = {
@@ -410,7 +410,7 @@ export default function ClientSocialPage() {
           { key: 'create',   label: 'Create',   active: currentGroup === 'create',   onClick: () => setSocialTab('swipe') },
           { key: 'schedule', label: 'Schedule', active: currentGroup === 'schedule', onClick: () => setSocialTab('plans') },
           { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
-          { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('performance') },
+          { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
