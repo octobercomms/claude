@@ -13,7 +13,6 @@ import RankingsPage from './pages/RankingsPage';
 import ClientSEOPage from './pages/ClientSEOPage';
 import ClientChatPage from './pages/ClientChatPage';
 import ClientAdsPage from './pages/ClientAdsPage';
-import ClientOutreachPage from './pages/ClientOutreachPage';
 import ClientSalesTrafficPage from './pages/ClientSalesTrafficPage';
 import ClientSocialPage from './pages/ClientSocialPage';
 import ClientAudiencesPage from './pages/ClientAudiencesPage';
@@ -47,6 +46,12 @@ function VideoRedirect() {
   return <Navigate to={`/clients/${id}/social?tab=video`} replace />;
 }
 
+// Email/Outreach moved into Owned → Email; keep the old URL working.
+function OutreachRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/clients/${id}/seo?tab=email`} replace />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -65,7 +70,7 @@ export default function App() {
             <Route path="clients/:id/seo" element={<ClientSEOPage />} />
             <Route path="clients/:id/chat" element={<ClientChatPage />} />
             <Route path="clients/:id/ads" element={<ClientAdsPage />} />
-            <Route path="clients/:id/outreach" element={<ClientOutreachPage />} />
+            <Route path="clients/:id/outreach" element={<OutreachRedirect />} />
             <Route path="clients/:id/sales-traffic" element={<ClientSalesTrafficPage />} />
             <Route path="clients/:id/social" element={<ClientSocialPage />} />
             <Route path="clients/:id/video" element={<VideoRedirect />} />

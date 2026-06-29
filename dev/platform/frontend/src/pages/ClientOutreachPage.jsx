@@ -126,11 +126,14 @@ function CampaignSequence({ campaign, onCampaignChange }) {
   );
 }
 
-export default function ClientOutreachPage() {
-  const { id } = useParams();
+export default function ClientOutreachPage({ embedded = false, clientId: clientIdProp } = {}) {
+  const { id: routeId } = useParams();
+  const id = clientIdProp || routeId;
   const toast = useToast();
   const [client, setClient] = useState(null);
-  const [tab, setTab] = useTabParam('overview', ['overview', 'campaigns', 'contacts', 'tasks', 'sending']);
+  // When embedded (inside Owned → Email), use a separate ?etab= key so we don't
+  // fight the host page over ?tab=.
+  const [tab, setTab] = useTabParam('overview', ['overview', 'campaigns', 'contacts', 'tasks', 'sending'], embedded ? 'etab' : 'tab');
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);
@@ -467,12 +470,14 @@ export default function ClientOutreachPage() {
 
   return (
     <div className="suite-email">
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Email outreach · sequences &amp; mailboxes</span></div>
-      <header className="hero">
-        <div>
-          <h1 className="display mt-2">Email</h1>
-        </div>
-      </header>
+      {!embedded && <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Email outreach · sequences &amp; mailboxes</span></div>}
+      {!embedded && (
+        <header className="hero">
+          <div>
+            <h1 className="display mt-2">Email</h1>
+          </div>
+        </header>
+      )}
 
       <SuiteTabs tabs={[
         { key: 'overview',  label: 'Overview',                                                   active: tab === 'overview',  onClick: () => setTab('overview') },
