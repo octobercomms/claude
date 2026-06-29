@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
+import ClarityCroPanel from '../components/ClarityCroPanel';
+import FormsTab from '../components/FormsTab';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import SuiteTabs from '../components/SuiteTabs';
@@ -288,6 +290,7 @@ export default function ClientSEOPage() {
   const [bulkMsg, setBulkMsg] = useState('');
   const [bulking, setBulking] = useState(false);
   const [newKw, setNewKw] = useState({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: 'United Kingdom', location_code: 2826 });
+  const [connectors, setConnectors] = useState([]); // for the Convert › Forms tab
   const [seoMetrics, setSeoMetrics] = useState([]);
   const [seoMetricEdit, setSeoMetricEdit] = useState({ month: '', moz_da: '', authority_score: '', referring_domains: '', notes: '' });
   const [savingMetrics, setSavingMetrics] = useState(false);
@@ -614,6 +617,8 @@ export default function ClientSEOPage() {
     'find', 'planning', 'draft', 'publish', 'promote',
     // Local SEO toolkit sub-tabs
     'local_gap', 'local_schema', 'local_keywords', 'local_xray', 'local_playbook', 'local_outliers', 'local_gbp',
+    // Convert — turn visitors into leads (CRO + Forms)
+    'cro', 'forms',
   ]);
 
   // Redirect stale deep links to their new homes after the AI Overviews
@@ -632,6 +637,11 @@ export default function ClientSEOPage() {
     }
   }, [activeTab]);
 
+  // Connectors — needed by the Convert › Forms tab to find the October Forms connector.
+  useEffect(() => {
+    api.get(`/connectors/client/${id}`).then(r => setConnectors(Array.isArray(r) ? r : (r.connectors || []))).catch(() => {});
+  }, [id]);
+
   useEffect(() => {
     loadRankMatrix();
   }, []);
@@ -641,10 +651,10 @@ export default function ClientSEOPage() {
   return (
     <div className="suite-organic">
       <DfsAvailabilityBanner />
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Organic search · rankings + Search Console</span></div>
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Owned</span></div>
       <header className="hero">
         <div>
-          <h1 className="display mt-2">Organic</h1>
+          <h1 className="display mt-2">Owned</h1>
         </div>
       </header>
 
@@ -666,10 +676,10 @@ export default function ClientSEOPage() {
           //   Measurement — what's happening today: ranks + GSC + AI visibility
           //   On-page     — health of pages we control: site/content/footprint/wins
           //   Off-page    — authority + links
-          // Performance = reporting/measurement only ("where do we stand
-          // today"). The action-oriented tools moved to Optimise below, so
-          // this group stays a clean read-out rather than a wall of options.
-          performance: [
+          // Search = reporting/measurement only ("where do we stand today").
+          // The action-oriented tools moved to Optimise below, so this group
+          // stays a clean read-out rather than a wall of options.
+          search: [
             { groupLabel: 'Measurement' },
             { key: 'perf_insights', label: 'Insights' },
             { key: 'keywords',      label: 'Keywords' },
@@ -692,7 +702,7 @@ export default function ClientSEOPage() {
             { key: 'ctr_boost',     label: 'CTR boosters' },
             { key: 'ai_seo',        label: 'AI keyword targets' },
           ],
-          pipeline: [
+          content: [
             { key: 'find',     label: '1 · Find' },
             { key: 'planning', label: '2 · Brief' },
             { key: 'draft',    label: '3 · Draft' },
@@ -708,24 +718,30 @@ export default function ClientSEOPage() {
             { key: 'local_outliers', label: 'Ranking outliers' },
             { key: 'local_gbp',      label: 'GBP posts' },
           ],
+          convert: [
+            { key: 'cro',   label: 'CRO' },
+            { key: 'forms', label: 'Forms' },
+          ],
         };
         const GROUP_OF = {
           overview: 'overview',
-          perf_insights: 'performance',
-          keywords: 'performance', gsc: 'performance', authority: 'performance', backlinks: 'performance',
-          ai_visibility: 'performance',
+          perf_insights: 'search',
+          keywords: 'search', gsc: 'search', authority: 'search', backlinks: 'search',
+          ai_visibility: 'search',
           site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
           ctr_boost: 'optimise', ai_seo: 'optimise',
-          find: 'pipeline', planning: 'pipeline', draft: 'pipeline', publish: 'pipeline', promote: 'pipeline',
+          find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
           local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_outliers: 'local', local_gbp: 'local',
+          cro: 'convert', forms: 'convert',
         };
         const currentGroup = GROUP_OF[activeTab] || 'overview';
         const topTabs = [
-          { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setActiveTab('overview') },
-          { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setActiveTab('perf_insights') },
-          { key: 'optimise',    label: 'Optimise',    active: currentGroup === 'optimise',    onClick: () => setActiveTab('site_audit') },
-          { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setActiveTab('find') },
-          { key: 'local',       label: 'Local SEO',   active: currentGroup === 'local',       onClick: () => setActiveTab('local_gap') },
+          { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setActiveTab('overview') },
+          { key: 'search',   label: 'Search',   active: currentGroup === 'search',   onClick: () => setActiveTab('perf_insights') },
+          { key: 'optimise', label: 'Optimise', active: currentGroup === 'optimise', onClick: () => setActiveTab('site_audit') },
+          { key: 'content',  label: 'Content',  active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
+          { key: 'local',    label: 'Local',    active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
+          { key: 'convert',  label: 'Convert',  active: currentGroup === 'convert',  onClick: () => setActiveTab('cro') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
           ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
@@ -783,6 +799,10 @@ export default function ClientSEOPage() {
         />
       )}
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
+
+      {/* Convert — turn visitors into leads. */}
+      {activeTab === 'cro' && <ClarityCroPanel clientId={id} />}
+      {activeTab === 'forms' && <FormsTab clientId={id} connectors={connectors} />}
       {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}

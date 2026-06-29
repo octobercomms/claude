@@ -356,10 +356,10 @@ export default function ClientSocialPage() {
     <div className="suite-social">
       {/* HERO — always visible across tabs. Tab-specific actions sit
           inside each tab's section head instead of a global toolbar. */}
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Social · planning &amp; publishing</span></div>
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Shared</span></div>
       <header className="hero">
         <div>
-          <h1 className="display mt-2">Social</h1>
+          <h1 className="display mt-2">Shared</h1>
         </div>
         <div className="hero-actions">
           <UiButton variant="secondary" size="sm" onClick={toggleAutopilotPaused}>
