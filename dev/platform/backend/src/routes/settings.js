@@ -34,6 +34,9 @@ const SETTINGS_KEYS = [
   // transcription, and the video caption stage on the worker). Paste the key
   // here and the platform transcribes pasted reels itself.
   'OPENAI_API_KEY',
+  // Instagram session cookie (sessionid value) — lets the Swipe-file downloader
+  // fetch Instagram reels as logged-in-you (IG blocks anonymous downloads).
+  'IG_SESSIONID',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
   'REPLICATE_API_TOKEN', 'IDEOGRAM_API_KEY',
   'ELEVENLABS_API_KEY',

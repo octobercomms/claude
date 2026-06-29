@@ -26,6 +26,7 @@ const KEY_GROUPS = [
     hint: 'Powers Whisper speech-to-text — the Swipe file ("reel → ideas") transcribes pasted videos with it, and the video caption stage uses it too. ~$0.006 per minute of audio (about half a cent per reel). Get a key at platform.openai.com → API keys (add a little billing credit).',
     keys: [
       { key: 'OPENAI_API_KEY', label: 'OpenAI API Key', placeholder: 'sk-… — enables reel transcription', type: 'password' },
+      { key: 'IG_SESSIONID', label: 'Instagram session cookie (optional — for Instagram reels)', placeholder: 'sessionid value from your browser cookies for instagram.com — lets the swipe file download IG reels (YouTube/TikTok work without it)', type: 'password' },
     ],
   },
   {

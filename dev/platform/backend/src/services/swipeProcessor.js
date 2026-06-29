@@ -32,10 +32,22 @@ function run(bin, args) {
   });
 }
 
+// Instagram (and some other sites) require a logged-in session to download.
+// If the AM has pasted their Instagram session cookie in Settings, write a
+// minimal Netscape cookies.txt yt-dlp can use; returns the --cookies args (or []).
+function cookieArgs(dir, sessionId) {
+  const sid = String(sessionId || '').trim();
+  if (!sid) return [];
+  const file = path.join(dir, 'cookies.txt');
+  // Netscape format: domain  includeSub  path  secure  expiry  name  value
+  fs.writeFileSync(file, `# Netscape HTTP Cookie File\n.instagram.com\tTRUE\t/\tTRUE\t2147483647\tsessionid\t${sid}\n`);
+  return ['--cookies', file];
+}
+
 // Best-effort title + duration (seconds) in one metadata call.
-async function fetchMeta(url) {
+async function fetchMeta(url, extra = []) {
   try {
-    const out = await run(YTDLP, ['--no-playlist', '--skip-download', '--print', '%(duration)s|%(title)s', url]);
+    const out = await run(YTDLP, [...extra, '--no-playlist', '--skip-download', '--print', '%(duration)s|%(title)s', url]);
     const line = out.split('\n').find(l => l.trim()) || '';
     const sep = line.indexOf('|');
     const durRaw = sep >= 0 ? line.slice(0, sep) : '';
@@ -64,9 +76,11 @@ async function transcribe(audioPath, apiKey) {
 async function processOne(item, apiKey) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `swipe-${item.id}-`));
   try {
-    const { title, duration } = await fetchMeta(item.url);
+    const sid = (await getSetting('IG_SESSIONID')) || process.env.IG_SESSIONID;
+    const cookies = cookieArgs(dir, sid);
+    const { title, duration } = await fetchMeta(item.url, cookies);
     const audioPath = path.join(dir, 'audio.mp3');
-    await run(YTDLP, ['-q', '--no-playlist', '--no-warnings', '-x', '--audio-format', 'mp3', '-o', path.join(dir, 'audio.%(ext)s'), item.url]);
+    await run(YTDLP, [...cookies, '-q', '--no-playlist', '--no-warnings', '-x', '--audio-format', 'mp3', '-o', path.join(dir, 'audio.%(ext)s'), item.url]);
     if (!fs.existsSync(audioPath)) throw new Error('Could not fetch this video (private, age-gated, or login required).');
     const transcript = await transcribe(audioPath, apiKey);
     if (!transcript) throw new Error('No speech could be transcribed from this video.');
