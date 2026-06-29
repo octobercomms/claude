@@ -60,9 +60,10 @@ const TYPE_BG = {
   observation: 'var(--positive-soft)',
 };
 
-export default function ClientChatPage() {
+export default function ClientChatPage({ embedded = false, clientId: clientIdProp } = {}) {
   const toast = useToast();
-  const { id } = useParams();
+  const { id: routeId } = useParams();
+  const id = clientIdProp || routeId;
   const [client, setClient] = useState(null);
   const [messages, setMessages] = useState([]);
   const [contextLog, setContextLog] = useState([]);
@@ -83,7 +84,8 @@ export default function ClientChatPage() {
   const [rangePreset, setRangePreset] = useState('auto');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [tab, setTab] = useTabParam('overview', ['overview', 'chat']);
+  // Embedded inside Data → AI Analyst: use ?ctab= so we don't fight the host over ?tab=.
+  const [tab, setTab] = useTabParam('overview', ['overview', 'chat'], embedded ? 'ctab' : 'tab');
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -242,11 +244,13 @@ export default function ClientChatPage() {
 
   return (
     <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', ...(tab === 'chat' ? { height: 'calc(100vh - 64px)' } : {}) }}>
-      <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>
+      {!embedded && <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>}
       <header className="hero">
+        {!embedded && (
         <div>
           <h1 className="display mt-2">AI Data Analyst</h1>
         </div>
+        )}
         {tab === 'chat' && messages.length > 0 && (
           <div className="hero-actions">
             <button onClick={handleClear} disabled={clearing} className="btn btn-secondary btn-sm">

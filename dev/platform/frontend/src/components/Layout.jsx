@@ -86,7 +86,6 @@ export default function Layout() {
                       bookended by Data (overview/analysis) and Admin. */}
                   <div style={navGroupStyle}>Data</div>
                   <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Sales &amp; Traffic</NavLink>
-                  <NavLink to={`/clients/${clientId}/chat`} style={({ isActive }) => subLinkStyle(isActive)}>AI Data Analyst</NavLink>
                   <div style={navGroupStyle}>Paid</div>
                   <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Ads</NavLink>
                   <div style={navGroupStyle}>Earned</div>
