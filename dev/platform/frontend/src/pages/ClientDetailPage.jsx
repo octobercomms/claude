@@ -321,7 +321,7 @@ export default function ClientDetailPage() {
   // Reports blue; everything else (Brief / Brand / Connectors) is the
   // Setup teal.
   const scopeClass = tab === 'forms' ? 'suite-forms' : tab === 'reports' ? 'suite-reports' : 'suite-setup';
-  const pageTitle = tab === 'forms' ? 'Forms' : tab === 'reports' ? 'Reports' : 'Setup';
+  const pageTitle = 'Admin';
 
   return (
     <div className={scopeClass}>
@@ -332,9 +332,9 @@ export default function ClientDetailPage() {
         </div>
       </header>
 
-      {['details', 'brand', 'connectors', 'setup_overview', 'strategy'].includes(tab) && (
+      {['details', 'brand', 'connectors', 'setup_overview', 'strategy', 'reports'].includes(tab) && (
         <div className="tabs">
-          {[['setup_overview', 'Overview'], ['strategy', 'Strategy'], ['details', 'Brief'], ['brand', 'Brand'], ['connectors', 'Connectors']].map(([key, label]) => (
+          {[['setup_overview', 'Overview'], ['details', 'Setup'], ['connectors', 'Connectors'], ['strategy', 'Strategy'], ['reports', 'Reports']].map(([key, label]) => (
             <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
               className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>
           ))}
@@ -386,10 +386,6 @@ export default function ClientDetailPage() {
         />
       )}
 
-      {tab === 'brand' && (
-        <ClientBrandPage embedded />
-      )}
-
       {tab === 'details' && (
         <form onSubmit={handleSave} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s5)' }}>
           <div className="grid grid-3">
@@ -433,6 +429,13 @@ export default function ClientDetailPage() {
             {!client.domain && <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Set the domain first to use Claude</span>}
           </div>
         </form>
+      )}
+
+      {/* Brand lives inside Setup, below the brief. */}
+      {tab === 'details' && (
+        <div style={{ marginTop: 'var(--s5)' }}>
+          <ClientBrandPage embedded />
+        </div>
       )}
 
       {tab === 'connectors' && (
