@@ -70,14 +70,20 @@ issues fail the job (surfaced in `video_jobs.error`) so a broken render never
 reaches a client. Each detector degrades to "skip" on error — no false failures.
 Complements (doesn't replace) the subjective Claude-Vision grade, and costs nothing.
 
-### 2. Reference / competitor-video analysis — *next, high value*
-Adapt **claude-video** (MIT) as an ingestion primitive: a worker stage or service
-that takes a URL/upload → `yt-dlp` (or our upload) → frame extraction (auto-scaled)
-→ Whisper transcript → Claude. Then apply OpenMontage's framing: return 2–3
-differentiated concepts with **"what it keeps / what it changes"** and a cost
-estimate. Pairs naturally with the Social module's competitor tracking and with
-ad/social creative. Use `callClaude({feature:'video_reference_analysis'})` so it's
-cost-tracked and model-routable.
+### 2. Reference / reel → ideas (swipe file) — *shipped (first slice)*
+Adapted **claude-video** (MIT) as an ingestion primitive: paste a video URL in
+**Social → Swipe file** → the video worker downloads the audio (`yt-dlp`) and
+transcribes it (Whisper) → Claude (`feature: swipe_idea_card`) turns the
+transcript into a reusable **idea card** (hook, summary, why it works, angles to
+steal, tags). Saved to the `swipe_items` table and emailed back. Backed by
+`routes/swipeFile.js` + `services/swipeFile.js` + worker `stages/swipe.js`; the
+table doubles as the worker queue (the worker polls it when no video job is
+pending). **Needs `yt-dlp` installed on the worker box** (new dep; fails an item
+gracefully with a clear message if absent or if IG needs auth).
+
+Still to do here: OpenMontage's framing on top — return 2–3 differentiated
+concepts ("what it keeps / what it changes") + a cost estimate, and pull
+keyframes for visual analysis (not just transcript).
 
 ### 3. Per-project cost estimate + budget cap
 We already log spend to `api_cost_events`. Add a per-project estimate (Whisper +

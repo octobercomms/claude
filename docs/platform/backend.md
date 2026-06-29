@@ -78,6 +78,7 @@ router.use(requireClientAccess({ paramNames: ['clientId'] }));
 - `/api/social` → `social.js` — calendars, plans, AI content gen, publish (Meta/TikTok/LinkedIn). Signed media proxy.
 - `/api/social/dm-webhook` → `dmWebhook.js` — Instagram DM webhook (Meta HMAC; mounted before global limiter).
 - `/api/ig-outreach` → `igOutreach.js` — IG **discovery → manual outreach** queue (searches, prospects, status, drafts, enrich, **client-wide worked list**). See `docs/omi/` and the IG outreach feature.
+- `/api/swipe-file` → `swipeFile.js` — **"reel → ideas" swipe file**: paste a video URL → the video worker downloads (yt-dlp) + transcribes (Whisper) → Claude idea card, saved + emailed back. Worker endpoints live under `/api/video/worker/swipe/*` (`videoWorker.js`).
 
 ### Ads & creatives
 - `/api/ad-creatives` → `adCreatives.js` — AI ad creative batches (image/video).

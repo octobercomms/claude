@@ -853,4 +853,35 @@ async function sendIgDiscoveryDigest({ clientName, searchName, prospects }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest };
+// Reel "swipe file" result — the transcript plus a Claude idea card, mailed back
+// to whoever pasted the URL.
+async function sendSwipeIdea({ to, clientName, url, platform, title, transcript, card }) {
+  if (!to) return;
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const cardHtml = card ? `
+    <div style="background:#f6f6f4;border-radius:10px;padding:16px;margin:12px 0;">
+      ${card.hook ? `<p style="margin:0 0 8px;"><strong>Hook:</strong> ${esc(card.hook)}</p>` : ''}
+      ${card.summary ? `<p style="margin:0 0 8px;"><strong>Summary:</strong> ${esc(card.summary)}</p>` : ''}
+      ${card.why_it_works ? `<p style="margin:0 0 8px;"><strong>Why it works:</strong> ${esc(card.why_it_works)}</p>` : ''}
+      ${card.format ? `<p style="margin:0 0 8px;"><strong>Format:</strong> ${esc(card.format)}</p>` : ''}
+      ${Array.isArray(card.angles) && card.angles.length ? `<p style="margin:8px 0 4px;"><strong>Angles to steal:</strong></p><ul style="margin:0 0 8px;padding-left:18px;">${card.angles.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}
+      ${Array.isArray(card.tags) && card.tags.length ? `<p style="margin:0;color:#666;font-size:12px;">${card.tags.map(esc).join(' · ')}</p>` : ''}
+    </div>` : '<p style="color:#666;">(Idea card unavailable — transcript below.)</p>';
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
+      <h2 style="margin:0 0 4px;">Reel idea${title ? `: ${esc(title)}` : ''}</h2>
+      <p style="margin:0 0 12px;color:#666;font-size:13px;">${esc(platform || '')} · <a href="${esc(url)}">${esc(url)}</a>${clientName ? ` · ${esc(clientName)}` : ''}</p>
+      ${cardHtml}
+      <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:bold;">Full transcript</summary>
+      <p style="white-space:pre-wrap;color:#333;font-size:14px;line-height:1.5;">${esc(transcript)}</p></details>
+      <p style="color:#999;font-size:12px;margin-top:16px;">October Marketing Intelligence · saved to your swipe file in OMI → Social → Swipe file.</p>
+    </div>`;
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: Array.isArray(to) ? to.join(', ') : to,
+    subject: `Reel idea${title ? ` — ${title}` : ''}`,
+    html,
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea };

@@ -37,6 +37,10 @@ const config = {
   // Binaries — override if not on PATH.
   ffmpeg: process.env.FFMPEG_PATH || 'ffmpeg',
   ffprobe: process.env.FFPROBE_PATH || 'ffprobe',
+  // yt-dlp — used by the swipe-file (reel → ideas) flow to fetch a video's
+  // audio for transcription. Optional: if it's not installed, swipe items just
+  // fail with a clear message; the video pipeline is unaffected.
+  ytdlp: process.env.YTDLP_PATH || 'yt-dlp',
 };
 
 function assertConfigured() {
