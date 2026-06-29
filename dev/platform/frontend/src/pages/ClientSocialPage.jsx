@@ -17,6 +17,7 @@ import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
 import SwipeFilePanel from '../components/SwipeFilePanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
+import ClientVideoPage from './ClientVideoPage';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -63,21 +64,22 @@ export default function ClientSocialPage() {
   // links resolve.
   const [socialTab, setSocialTab] = useTabParam('overview', [
     'overview',
-    // performance sub-tabs (perf_insights is the landing — current SocialSuiteOverview)
-    'perf_insights', 'loop', 'performance', 'competitors', 'audit', 'dm_bot',
-    // pipeline sub-tabs
-    'brainstorm', 'plans', 'publish', 'learn',
-    // discovery → manual outreach
-    'discover',
-    // swipe file (reel → ideas)
-    'swipe',
-    // AI reels (HeyGen)
-    'reels',
+    // Create
+    'swipe', 'brainstorm', 'reels', 'video',
+    // Schedule
+    'plans', 'publish',
+    // Engage
+    'dm_bot', 'discover',
+    // Measure
+    'performance', 'competitors', 'audit', 'perf_insights',
+    // legacy aliases kept so old deep links resolve
+    'loop', 'learn',
   ]);
 
   // Redirect legacy deep links to their new homes.
   useEffect(() => {
     if (socialTab === 'loop') setSocialTab('perf_insights');
+    if (socialTab === 'learn') setSocialTab('performance');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socialTab]);
   // Lifted to page level so the SocialSuiteOverview can read it for
@@ -366,48 +368,49 @@ export default function ClientSocialPage() {
         </div>
       </header>
 
-      {/* Four top groups: Overview / Performance (daily hub — Insights,
-          Winners, Competitors, AI Audit) / Pipeline (brainstorm →
-          plan → publish → learn) / DM bot (the always-on engagement
-          automation, lifted out of Performance to its own tab). Sub-tab
-          keys are unchanged so deep links stay valid. A PipelineStrip
-          renders above the sub-tab strip when in Pipeline so the AM sees
-          the full production arc. */}
+      {/* Five top groups in workflow order: Overview / Create (Ideas · Posts ·
+          Reels · Video) / Schedule (Plan · Publish) / Engage (DM bot · Discover) /
+          Measure (Winners · Competitors · AI Audit · Insights). Sub-tab keys are
+          unchanged so deep links stay valid; legacy 'loop'/'learn' redirect. */}
       {(() => {
+        // Workflow order, left → right: Create → Schedule → Engage → Measure.
         const SUB_TABS = {
-          performance: [
-            { key: 'perf_insights', label: 'Insights' },
+          create: [
+            { key: 'swipe',      label: 'Ideas' },
+            { key: 'brainstorm', label: 'Posts' },
+            { key: 'reels',      label: 'Reels' },
+            { key: 'video',      label: 'Video' },
+          ],
+          schedule: [
+            { key: 'plans',   label: 'Plan' },
+            { key: 'publish', label: 'Publish' },
+          ],
+          engage: [
+            { key: 'dm_bot',   label: 'DM bot' },
+            { key: 'discover', label: 'Discover' },
+          ],
+          measure: [
             { key: 'performance',   label: 'Winners' },
             { key: 'competitors',   label: 'Competitors' },
             { key: 'audit',         label: 'AI Audit' },
-          ],
-          pipeline: [
-            { key: 'brainstorm', label: '1 · Brainstorm' },
-            { key: 'plans',      label: '2 · Plan' },
-            { key: 'publish',    label: '3 · Publish' },
-            { key: 'learn',      label: '4 · Learn' },
+            { key: 'perf_insights', label: 'Insights' },
           ],
         };
         const GROUP_OF = {
           overview: 'overview',
-          perf_insights: 'performance', performance: 'performance', competitors: 'performance', audit: 'performance',
-          brainstorm: 'pipeline', plans: 'pipeline', publish: 'pipeline', learn: 'pipeline',
-          // DM bot is an always-on engagement automation, not a reporting
-          // view — it lives as its own top-level tab, not under Performance.
-          dm_bot: 'dm_bot',
-          discover: 'discover',
-          swipe: 'swipe',
-          reels: 'reels',
+          swipe: 'create', brainstorm: 'create', reels: 'create', video: 'create',
+          plans: 'schedule', publish: 'schedule',
+          dm_bot: 'engage', discover: 'engage',
+          performance: 'measure', competitors: 'measure', audit: 'measure', perf_insights: 'measure',
+          learn: 'measure', loop: 'measure',
         };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
-          { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setSocialTab('overview') },
-          { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setSocialTab('perf_insights') },
-          { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setSocialTab('brainstorm') },
-          { key: 'dm_bot',      label: 'DM bot',      active: currentGroup === 'dm_bot',      onClick: () => setSocialTab('dm_bot') },
-          { key: 'discover',    label: 'Discover',    active: currentGroup === 'discover',    onClick: () => setSocialTab('discover') },
-          { key: 'swipe',       label: 'Swipe file',  active: currentGroup === 'swipe',       onClick: () => setSocialTab('swipe') },
-          { key: 'reels',       label: 'AI reels',    active: currentGroup === 'reels',       onClick: () => setSocialTab('reels') },
+          { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
+          { key: 'create',   label: 'Create',   active: currentGroup === 'create',   onClick: () => setSocialTab('swipe') },
+          { key: 'schedule', label: 'Schedule', active: currentGroup === 'schedule', onClick: () => setSocialTab('plans') },
+          { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
+          { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('performance') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
@@ -506,7 +509,7 @@ export default function ClientSocialPage() {
           plans={plans}
           client={client}
           onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
-          onNext={() => setSocialTab('learn')}
+          onNext={() => setSocialTab('performance')}
           onBack={() => setSocialTab('plans')}
         />
       )}
@@ -559,6 +562,7 @@ export default function ClientSocialPage() {
       {socialTab === 'discover' && <IgOutreachPanel clientId={id} />}
       {socialTab === 'swipe' && <SwipeFilePanel clientId={id} />}
       {socialTab === 'reels' && <HeygenReelsPanel clientId={id} />}
+      {socialTab === 'video' && <ClientVideoPage embedded clientId={id} />}
 
       {socialTab === 'competitors' && (
         <div className="stack-lg">

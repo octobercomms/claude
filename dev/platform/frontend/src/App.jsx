@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Layout from './components/Layout';
@@ -16,7 +16,6 @@ import ClientAdsPage from './pages/ClientAdsPage';
 import ClientOutreachPage from './pages/ClientOutreachPage';
 import ClientSalesTrafficPage from './pages/ClientSalesTrafficPage';
 import ClientSocialPage from './pages/ClientSocialPage';
-import ClientVideoPage from './pages/ClientVideoPage';
 import ClientAudiencesPage from './pages/ClientAudiencesPage';
 import ClientAIVisibilityPage from './pages/ClientAIVisibilityPage';
 import ClientBrandPage from './pages/ClientBrandPage';
@@ -42,6 +41,12 @@ function HomeRoute() {
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <HomePage />;
 }
 
+// Video studio moved into Social → Create → Video; keep the old URL working.
+function VideoRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/clients/${id}/social?tab=video`} replace />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -63,7 +68,7 @@ export default function App() {
             <Route path="clients/:id/outreach" element={<ClientOutreachPage />} />
             <Route path="clients/:id/sales-traffic" element={<ClientSalesTrafficPage />} />
             <Route path="clients/:id/social" element={<ClientSocialPage />} />
-            <Route path="clients/:id/video" element={<ClientVideoPage />} />
+            <Route path="clients/:id/video" element={<VideoRedirect />} />
             <Route path="clients/:id/audiences" element={<ClientAudiencesPage />} />
             <Route path="clients/:id/ai-visibility" element={<ClientAIVisibilityPage />} />
             <Route path="clients/:id/brand" element={<ClientBrandPage />} />
