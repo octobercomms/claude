@@ -17,6 +17,7 @@ const prTarget = require('../services/prTarget');
 const prArchive = require('../services/prArchive');
 const prEngage = require('../services/prEngage');
 const prLinkCheck = require('../services/prLinkCheck');
+const prCoverageExtract = require('../services/prCoverageExtract');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -191,6 +192,57 @@ router.post('/clients/:clientId/editorial-log', async (req, res) => {
     }
     res.status(201).json({ id: rows[0].id });
   } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Coverage from a link — step 1: fetch + AI-extract publication / journalist /
+// title / date, and surface this client's still-open entries on the same outlet
+// as merge candidates. Doesn't write anything.
+router.post('/clients/:clientId/coverage/extract', async (req, res) => {
+  try {
+    const fields = await prCoverageExtract.extractFromUrl((req.body || {}).url);
+    const matches = await prCoverageExtract.findOpenMatches(req.params.clientId, fields.publication);
+    res.json({ fields, matches });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Coverage from a link — step 2: log it. With merge_id, flip that open entry to
+// published and fill in the URL/headline/date; otherwise create a new published
+// entry. Either way fire the featured alert.
+router.post('/clients/:clientId/coverage/log', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const f = b.fields || {};
+    const clientId = req.params.clientId;
+    const outletId = f.publication ? await pr.resolveOutlet(f.publication) : null;
+    const contactId = f.journalist ? await pr.resolveContact(f.journalist, outletId) : null;
+
+    if (b.merge_id) {
+      // Merge into an existing open entry (verify it belongs to this client).
+      const { rows: ex } = await db.query('SELECT id FROM pr_editorial_log WHERE id = $1 AND client_id = $2', [b.merge_id, clientId]);
+      if (!ex.length) return res.status(404).json({ error: 'Entry to merge into not found' });
+      await db.query(
+        `UPDATE pr_editorial_log SET status = 'published',
+           story_url = $2,
+           story_title = COALESCE(NULLIF($3, ''), story_title),
+           issue_date = COALESCE($4, issue_date),
+           outlet_id = COALESCE($5, outlet_id),
+           contact_id = COALESCE($6, contact_id)
+         WHERE id = $1`,
+        [b.merge_id, f.url || '', f.title || '', pr.parseDate(f.date), outletId, contactId]
+      );
+      prReports.sendFeaturedAlert(clientId, { outlet: f.publication || '', title: f.title || '', url: f.url || '' }).catch(() => {});
+      return res.json({ id: b.merge_id, merged: true });
+    }
+
+    const { rows } = await db.query(
+      `INSERT INTO pr_editorial_log
+         (client_id, story_title, contact_id, outlet_id, status, issue_date, story_url, source)
+       VALUES ($1,$2,$3,$4,'published',$5,$6,'url-import') RETURNING id`,
+      [clientId, f.title || '', contactId, outletId, pr.parseDate(f.date), f.url || '']
+    );
+    prReports.sendFeaturedAlert(clientId, { outlet: f.publication || '', title: f.title || '', url: f.url || '' }).catch(() => {});
+    res.status(201).json({ id: rows[0].id, merged: false });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Update a log entry (access enforced by router.param('id')).

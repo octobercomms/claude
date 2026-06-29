@@ -54,6 +54,7 @@ const FEATURES = [
     { key: 'lead_scrape', label: 'Lead scrape extract', sensitive: true },
     { key: 'contact_tidy', label: 'Contact tidy', sensitive: true },
     { key: 'gmail_addon_extract', label: 'PR Gmail add-on extract', sensitive: true },
+    { key: 'pr_coverage_extract', label: 'PR coverage-link extract', sensitive: false },
     { key: 'competitor_ads', label: 'Competitor ads analysis', sensitive: false },
   ] },
 ];
