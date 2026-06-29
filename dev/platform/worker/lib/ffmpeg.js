@@ -52,6 +52,18 @@ async function detectSilence(file, db = config.silenceDb, minS = config.silenceM
   return spans;
 }
 
+// Detect black spans via the blackdetect filter → [{start, end}]. Used by the
+// post-render QC gate to catch broken/blank masters before delivery.
+async function detectBlack(file, minS = 0.1, pixTh = 0.10) {
+  const log = await ffmpeg(['-i', file, '-vf', `blackdetect=d=${minS}:pix_th=${pixTh}`, '-an', '-f', 'null', '-']);
+  const spans = [];
+  for (const line of log.split('\n')) {
+    const m = line.match(/black_start:\s*([\d.]+)\s+black_end:\s*([\d.]+)/);
+    if (m) spans.push({ start: Number(m[1]), end: Number(m[2]) });
+  }
+  return spans;
+}
+
 // Invert silent spans into the spoken/kept segments to retain. `aggressive`
 // shrinks the kept windows a touch (used by the grade re-edit loop to tighten).
 function keptSegments(duration, silences, aggressive = 0) {
@@ -67,4 +79,4 @@ function keptSegments(duration, silences, aggressive = 0) {
   return kept;
 }
 
-module.exports = { run, ffmpeg, probe, detectSilence, keptSegments };
+module.exports = { run, ffmpeg, probe, detectSilence, detectBlack, keptSegments };
