@@ -3,7 +3,7 @@
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order, per-variation manage-stock + backorders, sale start/end schedule; merge products; export/import via CSV; two-way Google Sheets sync with conflict detection.
- * Version:     1.14.12
+ * Version:     1.14.13
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.14.12' );
+define( 'OCTWBE_VERSION', '1.14.13' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -626,13 +626,19 @@ class OctBulkEditor {
 
 			case 'sale_from':
 			case 'sale_to':
-				// Sale schedule. Accepts 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM'
-				// (store timezone); blank clears that end of the window.
-				if ( $value !== '' && strtotime( $value ) === false ) {
+				// Sale schedule. Accepts 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM', but
+				// also tolerates whatever Google Sheets sends after it auto-formats
+				// a typed date into a Date object — e.g.
+				// "Mon Jun 29 2026 15:31:00 GMT+0100 (British Summer Time)" or
+				// "6/29/2026 15:31:00". The "(timezone name)" suffix breaks
+				// strtotime(), so strip any "(…)" first, then parse leniently.
+				// Blank clears that end of the window.
+				$raw = trim( preg_replace( '/\([^)]*\)/', '', (string) $value ) );
+				if ( $raw !== '' && strtotime( $raw ) === false ) {
 					return new WP_Error( 'invalid', "Invalid {$field} date '{$value}' for product {$product->get_id()}." );
 				}
 				$setter = $field === 'sale_from' ? 'set_date_on_sale_from' : 'set_date_on_sale_to';
-				$product->{$setter}( $value === '' ? '' : strtotime( $value ) );
+				$product->{$setter}( $raw === '' ? '' : strtotime( $raw ) );
 				break;
 		}
 
