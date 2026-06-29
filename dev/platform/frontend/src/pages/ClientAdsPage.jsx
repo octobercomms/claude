@@ -237,8 +237,8 @@ export default function ClientAdsPage() {
       {normalisedTab === 'overview' && (
         <div className="stack stack-lg">
         <SuiteOverview
-          tagline="Know what your ad spend is doing — and what to do next."
-          description="One live view of Google + Meta, a weekly Claude brief telling you exactly what to action, on-brand ad creative on demand, and audiences built from your own customer data."
+          tagline="See what every pound returns — then make the better ad."
+          description="Live ROAS and profit per campaign, a weekly list of exactly what to change, and a one-line brief turned into on-brand ads ready to launch. No designer, no media-buyer spreadsheet."
           ctaLabel="View live performance"
           onCta={() => setTab('performance')}
           status={[

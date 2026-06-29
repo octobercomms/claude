@@ -346,8 +346,8 @@ export default function ClientDetailPage() {
       {tab === 'setup_overview' && (
         <>
         <SuiteOverview
-          tagline="Everything Claude needs about this client."
-          description="One place for the brief, brand kit, and every connector. Once Setup is complete, every other section pulls live data automatically."
+          tagline="Set it up once. Reap it everywhere."
+          description="The brand, strategy and data connections you define here power every other section — so ads stay on-brand, content stays on-message, and the weekly client report writes itself."
           ctaLabel="Open the brief"
           onCta={() => setSearchParams({ tab: 'details' })}
           flow={[

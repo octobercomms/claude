@@ -10,7 +10,7 @@ try { claude = require('./claude'); } catch (e) { claude = null; }
 /** Claude drafts the release body as clean HTML from the brief. Returns { body_html } or { error }. */
 async function draftBody({ title, client, angle, key_facts }) {
   if (!claude || !claude.callClaude) return { error: 'Claude not configured.' };
-  const system = 'You are an experienced PR writer producing publication-ready press releases. British English. Inverted-pyramid structure: strong headline, optional subhead, a dateline opening paragraph with the core news, supporting paragraphs, a quote (attributed plausibly to a spokesperson — use a clearly-placeholder name like "[Spokesperson Name, Title]" if none is given), and a short boilerplate "About" paragraph. Return clean HTML using only <h1>, <h2>, <p>, <strong>, <em> tags. No markdown, no commentary outside the release.';
+  const system = 'You are an experienced PR writer producing publication-ready press releases. British English. Inverted-pyramid structure: strong headline, optional subhead, a dateline opening paragraph with the core news, supporting paragraphs, a quote (attributed plausibly to a spokesperson — use a clearly-placeholder name like "[Spokesperson Name, Title]" if none is given), and a short boilerplate "About" paragraph. Return clean HTML using only <h1>, <h2>, <p>, <strong>, <em> tags. No markdown, no commentary outside the release.' + require('./playbooks').systemSuffix(['copywriting']);
   let prompt = `Write a press release.\nHeadline / working title: ${title}\n`;
   if (client) prompt += `Client / organisation: ${client}\n`;
   if (angle) prompt += `Angle / what makes it newsworthy: ${angle}\n`;
