@@ -243,24 +243,6 @@ const POLLERS = [
     },
   },
   {
-    name: 'arcads',
-    label: 'Arcads',
-    async poll() {
-      const key = await getSetting('ARCADS_API_KEY');
-      if (!key) return null;
-      return { raw: { note: 'No public balance endpoint — track via dashboard.' } };
-    },
-  },
-  {
-    name: 'adobe',
-    label: 'Adobe Firefly + Photoshop',
-    async poll() {
-      const id = await getSetting('ADOBE_CLIENT_ID');
-      if (!id) return null;
-      return { raw: { note: 'No public balance endpoint — track via dashboard.' } };
-    },
-  },
-  {
     name: 'deepseek',
     label: 'DeepSeek',
     async poll() {

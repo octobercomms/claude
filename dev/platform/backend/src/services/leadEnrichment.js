@@ -13,10 +13,10 @@ const axios = require('axios');
 const { getSetting } = require('../utils/settings');
 const hunter = require('./hunter');
 
-const PROVIDERS = ['apollo', 'peopledatalabs', 'hunter'];
+// Apollo removed from OMI — Hunter + People Data Labs cover deep-find.
+const PROVIDERS = ['peopledatalabs', 'hunter'];
 
 async function keyFor(provider) {
-  if (provider === 'apollo') return getSetting('APOLLO_API_KEY');
   if (provider === 'peopledatalabs') return getSetting('PEOPLEDATALABS_API_KEY');
   if (provider === 'hunter') return getSetting('HUNTER_API_KEY');
   return null;

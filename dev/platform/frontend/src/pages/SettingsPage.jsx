@@ -45,23 +45,6 @@ const KEY_GROUPS = [
     ],
   },
   {
-    title: 'Adobe (Firefly + Photoshop)',
-    category: 'AI',
-    hint: 'Third image option, commercially-safe training data — good for regulated clients. Photoshop generative resize fans one image out to every aspect ratio. Set up a Firefly Services project at developer.adobe.com → Console.',
-    keys: [
-      { key: 'ADOBE_CLIENT_ID', label: 'Adobe Client ID', placeholder: '…', type: 'text' },
-      { key: 'ADOBE_CLIENT_SECRET', label: 'Adobe Client Secret', placeholder: '…', type: 'password' },
-    ],
-  },
-  {
-    title: 'Arcads (UGC video)',
-    category: 'AI',
-    hint: 'UGC-style talking-head video from a script. ~$2 per video. Used per-post on the Social tab — the storyboard\'s voiceover lines become the script by default.',
-    keys: [
-      { key: 'ARCADS_API_KEY', label: 'Arcads API Key', placeholder: '…', type: 'password' },
-    ],
-  },
-  {
     title: 'ElevenLabs (voiceover)',
     category: 'AI',
     hint: 'Text-to-speech voiceovers for storyboards. Pay-per-character (~$0.30/min at creator tier).',
@@ -212,7 +195,7 @@ const KEY_GROUPS = [
   {
     title: 'October Outreach',
     category: 'Outreach',
-    hint: 'Contact-finding APIs for the Outreach module. Hunter and Serper each need one key. Icypeas needs all three (API Key, API Secret and User ID) — copy them from icypeas.com → Settings → API. Hunter, Serper and the free page-scraper cover most lead-finding — Apollo and People Data Labs are optional "deep find" providers that need a PAID plan (their People Search API isn\'t available on free tiers), so leave them blank unless you have one.',
+    hint: 'Contact-finding APIs for the Outreach module. Hunter and Serper each need one key. Icypeas needs all three (API Key, API Secret and User ID) — copy them from icypeas.com → Settings → API. Hunter, Serper and the free page-scraper cover most lead-finding. People Data Labs is an optional extra "deep find" provider — leave it blank unless you have a paid plan.',
     keys: [
       { key: 'HUNTER_API_KEY', label: 'Hunter API Key', placeholder: 'Hunter.io API key', type: 'password' },
       { key: 'ICYPEAS_API_KEY', label: 'Icypeas API Key', placeholder: 'Icypeas API key', type: 'password' },
@@ -220,8 +203,7 @@ const KEY_GROUPS = [
       { key: 'ICYPEAS_USER_ID', label: 'Icypeas User ID', placeholder: 'Icypeas account user ID', type: 'text' },
       { key: 'SERPER_API_KEY', label: 'Serper API Key', placeholder: 'Serper.dev API key', type: 'password' },
       { key: 'SERPER_CREDITS', label: 'Serper credit balance', placeholder: 'e.g. 2385 — read from the Serper dashboard; re-enter after topping up', type: 'text' },
-      { key: 'APOLLO_API_KEY', label: 'Apollo API Key (optional · paid plan)', placeholder: 'apollo.io — needs a paid plan for the People Search API', type: 'password' },
-      { key: 'PEOPLEDATALABS_API_KEY', label: 'People Data Labs API Key (optional · paid plan)', placeholder: 'peopledatalabs.com — paid plan; optional', type: 'password' },
+      { key: 'PEOPLEDATALABS_API_KEY', label: 'People Data Labs API Key (optional · paid plan)', placeholder: 'Contact-finder: company + role → decision-makers, work emails & LinkedIn for outreach. Paid plan; leave blank to use Hunter.', type: 'password' },
       { key: 'SERPAPI_API_KEY', label: 'SerpApi Key', placeholder: 'serpapi.com key (competitor Google Ads / Ads Transparency)', type: 'password' },
     ],
   },
