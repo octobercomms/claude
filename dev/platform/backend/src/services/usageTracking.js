@@ -243,6 +243,18 @@ const POLLERS = [
     },
   },
   {
+    name: 'heygen',
+    label: 'HeyGen',
+    async poll() {
+      const key = await getSetting('HEYGEN_API_KEY');
+      if (!key) return null;
+      const { data } = await axios.get('https://api.heygen.com/v2/user/remaining_quota', { headers: { 'X-Api-Key': key } });
+      const d = data.data || data || {};
+      const credits = d.remaining_quota ?? d.remaining ?? null;
+      return { units_used: null, units_limit: null, unit_label: 'credits', balance_remaining: null, raw: { remaining_quota: credits } };
+    },
+  },
+  {
     name: 'deepseek',
     label: 'DeepSeek',
     async poll() {

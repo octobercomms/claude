@@ -16,6 +16,7 @@ import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
 import SwipeFilePanel from '../components/SwipeFilePanel';
+import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -70,6 +71,8 @@ export default function ClientSocialPage() {
     'discover',
     // swipe file (reel → ideas)
     'swipe',
+    // AI reels (HeyGen)
+    'reels',
   ]);
 
   // Redirect legacy deep links to their new homes.
@@ -394,6 +397,7 @@ export default function ClientSocialPage() {
           dm_bot: 'dm_bot',
           discover: 'discover',
           swipe: 'swipe',
+          reels: 'reels',
         };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
@@ -403,6 +407,7 @@ export default function ClientSocialPage() {
           { key: 'dm_bot',      label: 'DM bot',      active: currentGroup === 'dm_bot',      onClick: () => setSocialTab('dm_bot') },
           { key: 'discover',    label: 'Discover',    active: currentGroup === 'discover',    onClick: () => setSocialTab('discover') },
           { key: 'swipe',       label: 'Swipe file',  active: currentGroup === 'swipe',       onClick: () => setSocialTab('swipe') },
+          { key: 'reels',       label: 'AI reels',    active: currentGroup === 'reels',       onClick: () => setSocialTab('reels') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
@@ -553,6 +558,7 @@ export default function ClientSocialPage() {
 
       {socialTab === 'discover' && <IgOutreachPanel clientId={id} />}
       {socialTab === 'swipe' && <SwipeFilePanel clientId={id} />}
+      {socialTab === 'reels' && <HeygenReelsPanel clientId={id} />}
 
       {socialTab === 'competitors' && (
         <div className="stack-lg">
