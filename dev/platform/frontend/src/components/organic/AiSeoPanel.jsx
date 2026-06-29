@@ -71,12 +71,13 @@ export default function AiSeoPanel({ clientId }) {
   }
 
   return (
-    <div className="stack stack-lg" style={{ maxWidth: 920 }}>
-      <p className="body">
+    <div className="stack stack-lg">
+      <p className="body" style={{ maxWidth: 780 }}>
         Find the keywords competitors win on in AI search (ChatGPT, Claude, Gemini, AI Overviews) and classic SERPs,
         then score your articles against them and get concrete fixes. Owned and in-house — no per-call connector.
       </p>
 
+      <div className="aiseo-grid" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 24, alignItems: 'start' }}>
       {/* 1 · Keyword targets */}
       <div>
         <h3 className="h3 mb-2">AI search keyword targets</h3>
@@ -153,6 +154,7 @@ export default function AiSeoPanel({ clientId }) {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

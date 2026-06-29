@@ -1116,6 +1116,13 @@ select, textarea {
   .strategist-list { max-height: none; }
 }
 
+/* Tool panels: form-left / results-right grids collapse to a single
+   column on narrower viewports, and the sticky form releases. */
+@media (max-width: 900px) {
+  .lsp-grid, .aiseo-grid, .dmbot-grid, .audit-grid { grid-template-columns: 1fr !important; }
+  .lsp-grid > .card { position: static !important; }
+}
+
 /* Briefing list cards — the selected one takes the black "feature"
    treatment so the current briefing is unmistakable. */
 .briefing-card {

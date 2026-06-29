@@ -106,7 +106,7 @@ export default function SocialDmBotPanel({ clientId }) {
   const set = (k, v) => setPersona(p => ({ ...p, [k]: v }));
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 820 }}>
+    <div className="stack-lg">
       <div>
         <div className="caption">DM bot · phase 1</div>
         <div className="h2 mt-2">Instagram auto-reply — the brain & the drafts</div>
@@ -116,6 +116,9 @@ export default function SocialDmBotPanel({ clientId }) {
         </p>
       </div>
 
+      <div className="dmbot-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      {/* Left column: persona + live test */}
+      <div className="stack-lg">
       {/* Persona */}
       <div className="card">
         <div className="caption mb-2">Bot persona</div>
@@ -164,7 +167,10 @@ export default function SocialDmBotPanel({ clientId }) {
           </div>
         )}
       </div>
+      </div>
 
+      {/* Right column: live auto-send + template library */}
+      <div className="stack-lg">
       {/* Go live — Meta auto-send */}
       <div className="card">
         <div className="row between center" style={{ flexWrap: 'wrap', gap: 8 }}>
@@ -264,6 +270,8 @@ export default function SocialDmBotPanel({ clientId }) {
             </div>
           ))}
         </div>
+      </div>
+      </div>
       </div>
     </div>
   );

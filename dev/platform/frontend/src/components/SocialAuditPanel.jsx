@@ -47,7 +47,7 @@ export default function SocialAuditPanel({ clientId }) {
   const d = audit?.data || {};
 
   return (
-    <div className="stack-lg" style={{ maxWidth: 820 }}>
+    <div className="stack-lg">
       <div className="row between center" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div className="caption">AI Audit</div>
@@ -66,18 +66,20 @@ export default function SocialAuditPanel({ clientId }) {
         <div className="stack-lg">
           <div className="body-xs text-subtle">Last run {fmt(audit.generated_at)} · {audit.post_count} posts · last {audit.period_days} days</div>
           {d.summary && <div className="card"><p className="body" style={{ margin: 0 }}>{d.summary}</p></div>}
-          {d.content_mix && (
-            <div><div className="caption" style={{ marginBottom: 6 }}>Content mix</div><p className="body-sm" style={{ margin: 0 }}>{d.content_mix}</p></div>
-          )}
-          {d.best_timing && (
-            <div><div className="caption" style={{ marginBottom: 6 }}>Best timing</div><p className="body-sm" style={{ margin: 0 }}>{d.best_timing}</p></div>
-          )}
-          <List title="What's working" items={d.whats_working} accent="var(--positive, #1a7f37)" />
-          <List title="What's not" items={d.whats_not} accent="var(--negative, #b3261e)" />
-          {d.competitor_read && d.competitor_read !== '—' && (
-            <div><div className="caption" style={{ marginBottom: 6 }}>Competitor read</div><p className="body-sm" style={{ margin: 0 }}>{d.competitor_read}</p></div>
-          )}
-          <List title="Recommendations" items={d.recommendations} />
+          <div className="audit-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s4) var(--s5)', alignItems: 'start' }}>
+            {d.content_mix && (
+              <div><div className="caption" style={{ marginBottom: 6 }}>Content mix</div><p className="body-sm" style={{ margin: 0 }}>{d.content_mix}</p></div>
+            )}
+            {d.best_timing && (
+              <div><div className="caption" style={{ marginBottom: 6 }}>Best timing</div><p className="body-sm" style={{ margin: 0 }}>{d.best_timing}</p></div>
+            )}
+            <List title="What's working" items={d.whats_working} accent="var(--positive, #1a7f37)" />
+            <List title="What's not" items={d.whats_not} accent="var(--negative, #b3261e)" />
+            {d.competitor_read && d.competitor_read !== '—' && (
+              <div><div className="caption" style={{ marginBottom: 6 }}>Competitor read</div><p className="body-sm" style={{ margin: 0 }}>{d.competitor_read}</p></div>
+            )}
+            <List title="Recommendations" items={d.recommendations} />
+          </div>
         </div>
       )}
     </div>
