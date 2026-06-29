@@ -84,8 +84,9 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   const [rangePreset, setRangePreset] = useState('auto');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  // Embedded inside Data → AI Analyst: use ?ctab= so we don't fight the host over ?tab=.
-  const [tab, setTab] = useTabParam('overview', ['overview', 'chat'], embedded ? 'ctab' : 'tab');
+  // Embedded inside Data → AI Analyst: skip the standalone Overview landing and
+  // go straight to chat, and use ?ctab= so we don't fight the host over ?tab=.
+  const [tab, setTab] = useTabParam(embedded ? 'chat' : 'overview', ['overview', 'chat'], embedded ? 'ctab' : 'tab');
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -243,7 +244,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   ];
 
   return (
-    <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', ...(tab === 'chat' ? { height: 'calc(100vh - 64px)' } : {}) }}>
+    <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', ...(tab === 'chat' ? { height: embedded ? 'calc(100vh - 230px)' : 'calc(100vh - 64px)' } : {}) }}>
       {!embedded && <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>}
       <header className="hero">
         {!embedded && (
@@ -260,10 +261,12 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
         )}
       </header>
 
-      <SuiteTabs tabs={[
-        { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
-        { key: 'chat',     label: 'Chat',     active: tab === 'chat',     onClick: () => setTab('chat') },
-      ]} />
+      {!embedded && (
+        <SuiteTabs tabs={[
+          { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
+          { key: 'chat',     label: 'Chat',     active: tab === 'chat',     onClick: () => setTab('chat') },
+        ]} />
+      )}
 
       {tab === 'overview' && (
         <SuiteOverview
