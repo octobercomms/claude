@@ -36,8 +36,7 @@ const SETTINGS_KEYS = [
   'OPENAI_API_KEY',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
   'REPLICATE_API_TOKEN', 'IDEOGRAM_API_KEY',
-  'ADOBE_CLIENT_ID', 'ADOBE_CLIENT_SECRET',
-  'ARCADS_API_KEY', 'ELEVENLABS_API_KEY',
+  'ELEVENLABS_API_KEY',
   'APIFY_API_TOKEN',
   // Camofox stealth browser (shared scraping fallback). CAMOFOX_URL is the
   // sidecar's base URL (e.g. http://127.0.0.1:3100); CAMOFOX_API_KEY is the
@@ -54,7 +53,7 @@ const SETTINGS_KEYS = [
   // Serper has no balance API — the AM types their current dashboard credit
   // balance here and the cost panel ticks it down by the searches OMI logs.
   'SERPER_CREDITS',
-  'APOLLO_API_KEY', 'PEOPLEDATALABS_API_KEY', 'SERPAPI_API_KEY',
+  'PEOPLEDATALABS_API_KEY', 'SERPAPI_API_KEY',
   'OUTREACH_IMAP_HOST', 'OUTREACH_IMAP_PORT', 'OUTREACH_IMAP_USER', 'OUTREACH_IMAP_PASSWORD',
   'N8N_WEBHOOK_BASE_URL',
   'EMAIL_PROVIDER',

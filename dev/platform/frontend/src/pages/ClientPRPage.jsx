@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
+import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
 
 const STATUSES = [
   ['pitched', 'Pitched'], ['pending', 'Pending'], ['no_response', 'No Response'],
@@ -80,6 +81,7 @@ export default function ClientPRPage() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState(null); // null | {id?, ...form}
+  const [urlModal, setUrlModal] = useState(false); // "log coverage from a link"
   const [saving, setSaving] = useState(false);
   const [combinedResult, setCombinedResult] = useState(null);
   // Coverage tab — status filter + sort. Defaults to "all" / newest first
@@ -502,6 +504,7 @@ export default function ClientPRPage() {
         <div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
             <button className="btn btn-primary" onClick={() => startEdit(null)}>+ Add entry</button>
+            <button className="btn btn-secondary" onClick={() => setUrlModal(true)} title="Paste a coverage URL — AI pulls the publication, journalist, headline and date, then asks to merge with a pending pitch or log as new">🔗 From a link</button>
             <input ref={fileRef} type="file" accept=".csv" onChange={(e) => doImport(e, false)} style={{ display: 'none' }} />
             <button className="btn btn-secondary" disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}>{importing ? 'Importing…' : '↑ Import (this client)'}</button>
             <input ref={combinedRef} type="file" accept=".csv" onChange={(e) => doImport(e, true)} style={{ display: 'none' }} />
@@ -900,6 +903,10 @@ export default function ClientPRPage() {
             )}
           </div>
         </div>
+      )}
+
+      {urlModal && (
+        <CoverageFromUrlModal clientId={id} onClose={() => setUrlModal(false)} onSaved={() => { loadData(); }} />
       )}
     </div>
   );
