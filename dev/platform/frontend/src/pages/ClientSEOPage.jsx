@@ -761,8 +761,8 @@ export default function ClientSEOPage() {
 
       {activeTab === 'overview' && (
         <SuiteOverview
-          tagline="Win on Google — and in the AI answers."
-          description="Daily rank tracking and Search Console, plus the new battleground: whether your brand shows up when people ask Claude, ChatGPT, Gemini and Google's AI. Content gaps and backlinks round it out."
+          tagline="Get found where buyers look — and turn the traffic into leads."
+          description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach the right people from your own domain."
           ctaLabel="View keyword ranks"
           onCta={() => setActiveTab('keywords')}
           status={[

@@ -127,8 +127,8 @@ export default function ClientSalesTrafficPage() {
 
       {tab === 'overview' && (
         <SuiteOverview
-          tagline="See how the business is trading — right now."
-          description="Revenue, orders and traffic pulled live from Shopify and Google Analytics the moment you open the page. No reports to wait for, no spreadsheets to build."
+          tagline="Stop building reports. Just ask."
+          description="Live revenue, orders and traffic the second the page loads — and any question answered in plain English, with the numbers to back it up. The analyst who already knows the account."
           ctaLabel="View live KPIs"
           onCta={() => setTab('dashboard')}
           status={[

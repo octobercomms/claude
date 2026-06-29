@@ -425,8 +425,8 @@ export default function ClientSocialPage() {
 
       {socialTab === 'overview' && (
         <SuiteOverview
-          tagline="A month of on-brand posts, on autopilot."
-          description="Claude brainstorms nine posts at a time from your brand brief, competitor signals and trending sounds. Lock the ones you like, schedule them, and autopilot publishes to every channel — then learns from what wins."
+          tagline="A month of on-brand content, mostly on autopilot."
+          description="Brainstorm nine posts at once, film a reel in your own voice, schedule the lot across every channel — then learn what landed so the next batch starts ahead."
           ctaLabel="See performance"
           onCta={() => setSocialTab('loop')}
           status={[

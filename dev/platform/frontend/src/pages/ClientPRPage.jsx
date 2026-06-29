@@ -438,8 +438,8 @@ export default function ClientPRPage() {
       {!loading && tab === 'overview' && (
         <div className="stack stack-lg">
           <SuiteOverview
-            tagline="Earn the coverage — and make every pitch land."
-            description="Your media list, turned into a targeting engine. Track every hit and which journalists actually write about your clients, let Claude build the target list for a story and draft the follow-ups, auto-thank the writers who cover you, and keep your best relationships warm — so the list works as hard as you do."
+            tagline="Never pitch from memory — or lose a hit — again."
+            description="Every pitch, placement and journalist relationship in one log. Coverage records itself from a link, your best targets come ranked, and the client gets a live page of their wins."
             ctaLabel="Find who to pitch"
             onCta={() => setTab('journalists')}
             status={[
