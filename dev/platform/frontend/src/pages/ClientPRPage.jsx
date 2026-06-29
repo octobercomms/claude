@@ -430,7 +430,7 @@ export default function ClientPRPage() {
         { key: 'coverage', label: `Coverage${log.length ? ` (${log.length})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
         { key: 'journalists', label: `Journalists${journalists.length ? ` (${journalists.length})` : ''}`, active: tab === 'journalists', onClick: () => setTab('journalists') },
         { key: 'press', label: `Releases${releases.length ? ` (${releases.length})` : ''}`, active: tab === 'press', onClick: () => setTab('press') },
-        { key: 'reports', label: 'Portal', active: tab === 'reports', onClick: () => setTab('reports') },
+        { key: 'reports', label: 'Reports', active: tab === 'reports', onClick: () => setTab('reports') },
       ]} />
 
       {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p></div>}
