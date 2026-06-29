@@ -20,9 +20,10 @@ const STATUS_LABEL = {
   processing: 'Processing…', graded: 'Graded', done: 'Done', failed: 'Failed',
 };
 
-export default function ClientVideoPage() {
+export default function ClientVideoPage({ embedded = false, clientId: clientIdProp } = {}) {
   const toast = useToast();
-  const { id } = useParams();
+  const { id: routeId } = useParams();
+  const id = clientIdProp || routeId;
   const [projects, setProjects] = useState([]);
   const [active, setActive] = useState(null);   // full project (with clips/jobs)
   const [loading, setLoading] = useState(true);
@@ -109,8 +110,8 @@ export default function ClientVideoPage() {
 
   return (
     <div className="suite-video">
-      <div className="kicker"><span className="pip" /><span>Video Studio · auto-edit</span></div>
-      <header className="hero"><div><h1 className="display mt-2">Video Studio</h1></div></header>
+      {!embedded && <div className="kicker"><span className="pip" /><span>Video Studio · auto-edit</span></div>}
+      {!embedded && <header className="hero"><div><h1 className="display mt-2">Video Studio</h1></div></header>}
       <p style={{ fontSize: 13, color: 'var(--text-subtle)', maxWidth: 720, margin: '0 0 18px' }}>
         Drop raw clips, pick a brand style, and run the auto-edit — it trims dead air, adds captions
         and motion graphics, grades the result, and re-edits until it passes. Rendering runs on the
