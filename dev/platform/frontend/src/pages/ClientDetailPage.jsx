@@ -54,7 +54,7 @@ export default function ClientDetailPage() {
   const [connectors, setConnectors] = useState([]);
   const [reports, setReports] = useState([]);
   const [previewType, setPreviewType] = useState(null);
-  const [reportsTab, setReportsTab] = useState('overview');
+  const [reportsTab, setReportsTab] = useState('generated');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -506,12 +506,6 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {tab === 'reports' && (
-        <SuiteTabs tabs={[
-          { key: 'overview', label: 'Overview', active: reportsTab === 'overview', onClick: () => setReportsTab('overview') },
-          { key: 'generated', label: 'Generate', active: reportsTab === 'generated', onClick: () => setReportsTab('generated') },
-        ]} />
-      )}
 
       {tab === 'reports' && reportsTab === 'overview' && (
         <SuiteOverview
