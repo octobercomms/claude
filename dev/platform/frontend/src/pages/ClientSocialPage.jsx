@@ -491,6 +491,7 @@ export default function ClientSocialPage() {
             onSelectBatch={selectBatch}
             onDeleteBatch={deleteBatch}
             onGenerate={() => setShowBrief(true)}
+            onReuseBrief={(b) => { setBrief(b.brief || ''); setShowBrief(true); }}
             onBulkSchedule={() => setBulkOpen(true)}
             onShareForApproval={shareBatchForApproval}
             generating={generating}
@@ -658,7 +659,7 @@ export default function ClientSocialPage() {
 // brainstorm-only actions (Generate / Bulk schedule / Share for
 // approval) in the section head.
 function BrainstormTab({
-  clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch,
+  clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief,
   onGenerate, onBulkSchedule, onShareForApproval, generating,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, generateMedia, deleteMedia,
@@ -696,9 +697,12 @@ function BrainstormTab({
                 <div className="h3">{new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
                 <div className="body-xs text-subtle mt-2">{b.post_count} posts</div>
                 {b.brief && <div className="body-xs mt-2" style={{ lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
-                {b.id === activeBatchId && (
-                  <button onClick={(e) => { e.stopPropagation(); onDeleteBatch(b.id); }} className="btn btn-danger btn-sm mt-3">Delete batch</button>
-                )}
+                <div className="row wrap mt-3" style={{ gap: 6 }}>
+                  <button onClick={(e) => { e.stopPropagation(); onReuseBrief(b); }} className="btn btn-secondary btn-sm">Reuse brief</button>
+                  {b.id === activeBatchId && (
+                    <button onClick={(e) => { e.stopPropagation(); onDeleteBatch(b.id); }} className="btn btn-danger btn-sm">Delete batch</button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
