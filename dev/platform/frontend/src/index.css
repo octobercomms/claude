@@ -33,6 +33,9 @@
   --accent-soft: rgba(231, 205, 65, 0.12);
   --accent-on: #1a1a1a;
 
+  /* Dark-yellow bento — the filled container behind a section-map flow. */
+  --bento-yellow: #D4B11E;
+
   /* Sanctioned semantic colours — the only third-tier hues allowed
      across the platform. Used for up/down deltas, profit/loss,
      new/lost backlinks, success/error toasts. Everything else has
@@ -459,6 +462,48 @@ button { font-family: inherit; }
 @media (max-width: 720px) {
   .flow { flex-direction: column; }
   .flow-arrow { transform: rotate(90deg); }
+}
+
+/* ─── Section map — section tabs as a flow inside a dark-yellow bento ─── */
+.smap-bento {
+  background: var(--bento-yellow);
+  border-radius: 24px;
+  padding: var(--s7);
+}
+.smap-ring {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-areas:
+    "setup    arR  conn"
+    ".        .    arD"
+    "reports  arL  strat";
+  gap: var(--s4);
+  align-items: stretch;
+}
+.smap-col { display: flex; flex-direction: column; align-items: stretch; gap: var(--s2); }
+.smap-arrow { display: flex; align-items: center; justify-content: center; min-width: 48px; min-height: 48px; }
+.smap-stage {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: var(--s5);
+  box-shadow: 0 2px 0 rgba(26, 26, 26, 0.12);
+}
+.smap-title { font-size: 18px; font-weight: 800; color: var(--text); line-height: 1.15; }
+.smap-sub { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+.smap-nodes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: var(--s3); }
+.smap-node {
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  color: var(--accent-on); background: var(--accent);
+  border: var(--border-w) solid var(--accent);
+  border-radius: var(--r-pill); padding: 9px 18px; line-height: 1.2;
+}
+button.smap-node { cursor: pointer; transition: filter 120ms ease; }
+button.smap-node:hover { filter: brightness(0.9); }
+button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); outline-offset: 2px; }
+.smap-node-sep { color: var(--text-subtle); font-weight: 800; }
+@media (max-width: 760px) {
+  .smap-ring { display: flex; flex-direction: column; gap: var(--s4); }
+  .smap-ring .smap-arrow { display: none; }
 }
 
 /* ─── Sequence Builder (Phase 3) ─────────────────────────────────── */

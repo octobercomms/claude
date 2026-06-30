@@ -350,16 +350,26 @@ export default function ClientDetailPage() {
           description="The brand, strategy and data connections you define here power every other section — so ads stay on-brand, content stays on-message, and the weekly client report writes itself."
           ctaLabel="Open the brief"
           onCta={() => setSearchParams({ tab: 'details' })}
-          flow={[
-            { label: 'Brief',      detail: 'Business, voice, goals' },
-            { label: 'Brand',      detail: 'Logos, fonts, palette' },
-            { label: 'Connectors', detail: 'Live data sources' },
-            { label: 'Powers everything', detail: 'SEO, Paid, Social, Email' },
-          ]}
-          capabilities={[
-            { tag: 'Brief',      title: 'One paragraph, used everywhere', body: 'A short business description grounds every Claude prompt — report copy, ad creative, social posts.' },
-            { tag: 'Brand',      title: 'Brand kit',                     body: 'Logos, product photography, fonts, colour palette, voice guidelines, B-roll, props. Pulled as reference by every AI generator.' },
-            { tag: 'Connectors', title: 'Google, Meta, Shopify, more',    body: 'OAuth-based connectors. Whole-row colour shows status at a glance — green when live, red on error, amber when expired.' },
+          map={[
+            { title: 'Setup', subtitle: 'Client details and the brand kit', nodes: [
+              { label: 'Client brief', onClick: () => setSearchParams({ tab: 'details' }) },
+              { label: 'Brand kit',    onClick: () => setSearchParams({ tab: 'brand' }) },
+            ] },
+            { title: 'Connectors', subtitle: 'Wire up every data source once', nodes: [
+              { label: 'Data connectors', onClick: () => setSearchParams({ tab: 'connectors' }) },
+            ] },
+            { title: 'Strategy', subtitle: 'The thinking behind the work', nodes: [
+              { label: 'SOSTAC',    onClick: () => setSearchParams({ tab: 'strategy' }) },
+              { label: 'Personas',  onClick: () => setSearchParams({ tab: 'strategy' }) },
+              { label: 'SWOT',      onClick: () => setSearchParams({ tab: 'strategy' }) },
+              { label: 'Rival map', onClick: () => setSearchParams({ tab: 'strategy' }) },
+            ] },
+            { title: 'Reports', subtitle: 'Cross-channel client report builder', chained: true, nodes: [
+              { label: 'Templates', onClick: () => setSearchParams({ tab: 'reports' }) },
+              { label: 'Live data', onClick: () => setSearchParams({ tab: 'reports' }) },
+              { label: 'Narrative', onClick: () => setSearchParams({ tab: 'reports' }) },
+              { label: 'PDF/email', onClick: () => setSearchParams({ tab: 'reports' }) },
+            ] },
           ]}
         />
         <div style={{ marginTop: 'var(--s8)' }}>
