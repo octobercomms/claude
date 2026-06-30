@@ -17,7 +17,6 @@ import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
 import SwipeFilePanel from '../components/SwipeFilePanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
-import ClientVideoPage from './ClientVideoPage';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -41,6 +40,7 @@ export default function ClientSocialPage() {
   const [platforms, setPlatforms] = useState(['instagram', 'tiktok']);
   const [postCount, setPostCount] = useState(9);
   const [reelDraft, setReelDraft] = useState(null);
+  const [createView, setCreateView] = useState(null); // null = factory steps | 'reels' = avatar-reel produce overlay
   const [winners, setWinners] = useState([]);
   const [sparkline, setSparkline] = useState([]);
   const [competitorPosts, setCompetitorPosts] = useState([]);
@@ -77,6 +77,10 @@ export default function ClientSocialPage() {
     // legacy aliases kept so old deep links resolve
     'loop', 'learn',
   ]);
+  // The Create group is now one factory (Ideas → Brief → Workbench → Schedule);
+  // all its old leaf tabs resolve into that single experience.
+  const inCreate = ['swipe', 'brainstorm', 'reels', 'video'].includes(socialTab);
+  useEffect(() => { if (!inCreate) setCreateView(null); }, [inCreate]);
 
   // Redirect legacy deep links to their new homes.
   useEffect(() => {
@@ -231,7 +235,7 @@ export default function ClientSocialPage() {
     const vo = (post.storyboard || []).map(f => (f.voiceover || '').trim()).filter(Boolean).join(' ');
     const script = vo || [post.hook, post.caption].filter(Boolean).join('\n\n');
     setReelDraft({ title: (post.hook || '').slice(0, 80), script, ts: Date.now() });
-    setSocialTab('reels');
+    setCreateView('reels');
   }
 
   async function updatePost(postId, patch) {
@@ -431,7 +435,8 @@ export default function ClientSocialPage() {
         return (
           <>
             <SuiteTabs tabs={topTabs} />
-            {subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />}
+            {/* Create has its own stepper (Ideas → Brief → Workbench → Schedule), so it skips the sub-tab bar. */}
+            {subTabs.length > 0 && currentGroup !== 'create' && <SuiteTabs tabs={subTabs} variant="sub" />}
           </>
         );
       })()}
@@ -449,11 +454,11 @@ export default function ClientSocialPage() {
           ]}
           mapLayout="funnel"
           map={[
-            { title: 'Create', subtitle: 'From swipe file to finished asset', nodes: [
-              { label: 'Ideas', onClick: () => setSocialTab('swipe') },
-              { label: 'Posts', onClick: () => setSocialTab('brainstorm') },
-              { label: 'Reels', onClick: () => setSocialTab('reels') },
-              { label: 'Video', onClick: () => setSocialTab('video') },
+            { title: 'Create', subtitle: 'Ideas → Brief → Workbench → Schedule', nodes: [
+              { label: 'Ideas',     onClick: () => setSocialTab('swipe') },
+              { label: 'Brief',     onClick: () => setSocialTab('brainstorm') },
+              { label: 'Workbench', onClick: () => setSocialTab('brainstorm') },
+              { label: 'Schedule',  onClick: () => setSocialTab('brainstorm') },
             ] },
             { title: 'Schedule', subtitle: 'Plan and autopilot to every channel', nodes: [
               { label: 'Plan',    onClick: () => setSocialTab('plans') },
@@ -493,8 +498,14 @@ export default function ClientSocialPage() {
         />
       )}
 
-      {/* PIPELINE → 1 BRAINSTORM */}
-      {socialTab === 'brainstorm' && (
+      {/* CREATE — the social factory: Ideas → Brief → Workbench → Schedule.
+          Reels are absorbed as a per-post "Produce" overlay (createView). */}
+      {inCreate && (createView === 'reels' ? (
+        <div>
+          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 'var(--s4)' }} onClick={() => setCreateView(null)}>← Back to workbench</button>
+          <HeygenReelsPanel clientId={id} draft={reelDraft} />
+        </div>
+      ) : (
         <BrainstormTab
           clientId={id}
           batches={batches}
@@ -511,6 +522,7 @@ export default function ClientSocialPage() {
           shareUrl={shareUrl}
           onDismissShare={() => setShareUrl(null)}
           onGoToSchedule={() => setSocialTab('plans')}
+          ideasContent={<SwipeFilePanel clientId={id} />}
           engagement={engagement}
           mediaByPost={mediaByPost}
           updatePost={updatePost}
@@ -521,7 +533,7 @@ export default function ClientSocialPage() {
           generateMedia={generateMedia}
           deleteMedia={deleteMedia}
         />
-      )}
+      ))}
 
       {/* PIPELINE → 2 PLAN */}
       {socialTab === 'plans' && (
@@ -587,9 +599,6 @@ export default function ClientSocialPage() {
       {socialTab === 'dm_bot' && <SocialDmBotPanel clientId={id} />}
 
       {socialTab === 'discover' && <IgOutreachPanel clientId={id} />}
-      {socialTab === 'swipe' && <SwipeFilePanel clientId={id} />}
-      {socialTab === 'reels' && <HeygenReelsPanel clientId={id} draft={reelDraft} />}
-      {socialTab === 'video' && <ClientVideoPage embedded clientId={id} />}
 
       {socialTab === 'competitors' && (
         <div className="stack-lg">
@@ -675,27 +684,29 @@ export default function ClientSocialPage() {
 function BrainstormTab({
   clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel,
   onGenerate, onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare, onGoToSchedule,
+  ideasContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, generateMedia, deleteMedia,
 }) {
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
-  const [step, setStep] = useState(activeBatchId ? 2 : 1);
+  // The Create factory: 1 Ideas · 2 Brief · 3 Workbench · 4 Schedule.
+  const [step, setStep] = useState(activeBatchId ? 3 : 2);
   const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
 
-  // When a batch first appears (e.g. after generating), advance into Review.
-  useEffect(() => { if (activeBatchId) setStep(s => (s === 1 ? 2 : s)); }, [activeBatchId]);
+  // When a batch first appears (e.g. after generating), jump into the Workbench.
+  useEffect(() => { if (activeBatchId) setStep(s => (s <= 2 ? 3 : s)); }, [activeBatchId]);
 
   const steps = [
-    { title: 'Generate', sub: '9 posts from a brief' },
-    { title: 'Review & refine', sub: 'Edit or refine with Claude' },
-    { title: 'Approve', sub: 'Share a link with the client' },
-    { title: 'Schedule', sub: 'Set cadence & autopilot' },
+    { title: 'Ideas', sub: 'Find reels to emulate' },
+    { title: 'Brief', sub: 'What to make & how many' },
+    { title: 'Workbench', sub: 'Refine & produce' },
+    { title: 'Schedule', sub: 'Autopilot or download' },
   ];
-  // Steps 2–4 need a batch; clamp navigation back to Generate when there isn't one.
+  // Workbench + Schedule need a batch; clamp back to Brief when there isn't one.
   function goStep(n) {
-    if (n > 1 && !activeBatchId) { setStep(1); return; }
+    if (n > 2 && !activeBatchId) { setStep(2); return; }
     setRefiningId(null); setRefineErr(null);
     setStep(n);
   }
@@ -765,8 +776,11 @@ function BrainstormTab({
     <div>
       <Stepper steps={steps} current={step} onStep={goStep} />
 
-      {/* STEP 1 — GENERATE */}
-      {step === 1 && (
+      {/* STEP 1 — IDEAS */}
+      {step === 1 && <div className="panel-step">{ideasContent}</div>}
+
+      {/* STEP 2 — BRIEF */}
+      {step === 2 && (
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
             <div style={{ maxWidth: 560 }}>
@@ -783,7 +797,7 @@ function BrainstormTab({
             <>
               <div className="caption caption-muted mb-3">Past batches — pick one to review</div>
               <BatchRail batches={batches} activeBatchId={activeBatchId} horizontal
-                onSelectBatch={(id) => { onSelectBatch(id); setStep(2); }}
+                onSelectBatch={(id) => { onSelectBatch(id); setStep(3); }}
                 onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
             </>
           ) : (
@@ -794,21 +808,23 @@ function BrainstormTab({
         </div>
       )}
 
-      {/* STEP 2 — REVIEW & REFINE */}
-      {step === 2 && (
+      {/* STEP 3 — WORKBENCH */}
+      {step === 3 && (
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
             <div style={{ maxWidth: 560 }}>
-              <div className="h3">Review &amp; refine your {posts.length} posts</div>
+              <div className="h3">Workbench — refine &amp; produce your {posts.length} posts</div>
               <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                Click a hook or caption to edit it directly, or hit <strong>Refine with Claude</strong> to rework a post in a chat. When the batch looks right, send it for approval.
+                Click a hook or caption to edit it, refine with Claude, or push a post into a generator (image / avatar reel via its Production menu). Send the batch for approval, then schedule.
               </p>
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
               <UiButton variant="secondary" onClick={onGenerate} disabled={generating}>↻ Generate another</UiButton>
-              <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Send for approval →</UiButton>
+              <UiButton variant="secondary" onClick={onShareForApproval} disabled={!posts.length}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
+              <UiButton variant="primary" onClick={() => goStep(4)} disabled={!posts.length}>Schedule →</UiButton>
             </div>
           </div>
+          {shareUrl && <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />}
           <div className="brainstorm-grid">
             <BatchRail batches={batches} activeBatchId={activeBatchId}
               onSelectBatch={onSelectBatch} onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
@@ -818,30 +834,6 @@ function BrainstormTab({
               )}
               {postGrid}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 3 — APPROVE */}
-      {step === 3 && (
-        <div className="panel-step">
-          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
-            <div style={{ maxWidth: 560 }}>
-              <div className="h3">Send for approval</div>
-              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                Create a shareable link so the client can review this batch and approve it — no login needed. Nothing publishes until you schedule it.
-              </p>
-            </div>
-            <div className="row wrap" style={{ gap: 8 }}>
-              <UiButton variant="secondary" onClick={() => goStep(2)}>← Back to review</UiButton>
-              <UiButton variant="primary" onClick={onShareForApproval}>{shareUrl ? 'New link' : 'Create approval link'}</UiButton>
-            </div>
-          </div>
-          {shareUrl
-            ? <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />
-            : <div className="empty" style={{ padding: 'var(--s7)' }}><p className="body">Click <strong>Create approval link</strong> to generate a client-shareable URL for this batch.</p></div>}
-          <div style={{ marginTop: 18 }}>
-            <UiButton variant="primary" onClick={() => goStep(4)}>Continue to schedule →</UiButton>
           </div>
         </div>
       )}
@@ -857,7 +849,7 @@ function BrainstormTab({
               </p>
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
-              <UiButton variant="secondary" onClick={() => goStep(3)}>← Back to approve</UiButton>
+              <UiButton variant="secondary" onClick={() => goStep(3)}>← Back to workbench</UiButton>
               <UiButton variant="primary" onClick={onBulkSchedule} disabled={!hasAutopilotSupported}>📅 Bulk schedule</UiButton>
             </div>
           </div>
