@@ -14,7 +14,18 @@ const STATUS = {
   failed:     { label: 'Failed',       cls: 'chip-warning' },
 };
 
-export default function SwipeFilePanel({ clientId }) {
+// Build a brainstorm brief from a swipe-file idea card so the AM can make
+// posts in the style of a reel they liked.
+function ideaToBrief(it, card = {}) {
+  const lines = [`Make posts inspired by this reel (${it.title || it.url}).`];
+  if (card.hook) lines.push(`Its hook: "${card.hook}".`);
+  if (card.summary) lines.push(`What it does: ${card.summary}`);
+  if (card.why_it_works) lines.push(`Why it works: ${card.why_it_works}`);
+  if (Array.isArray(card.angles) && card.angles.length) lines.push(`Angles to adapt: ${card.angles.join('; ')}.`);
+  return lines.join('\n');
+}
+
+export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
   const toast = useToast();
   const [items, setItems] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -126,6 +137,12 @@ export default function SwipeFilePanel({ clientId }) {
                       <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {card.tags.map((t, i) => <span key={i} className="chip chip-outline" style={{ fontSize: 10 }}>{t}</span>)}
                       </div>
+                    )}
+                    {onUseAsBrief && (
+                      <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }}
+                        onClick={() => onUseAsBrief(ideaToBrief(it, card))}>
+                        ✦ Use as brief →
+                      </button>
                     )}
                   </div>
                 )}
