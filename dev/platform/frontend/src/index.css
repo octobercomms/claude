@@ -600,6 +600,17 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 }
 /* Step panel + brainstorm review grid (collapses to one column on mobile). */
 .panel-step { margin-top: 18px; }
+/* Stepper that sits directly under the section tabs (Paid/Owned Build) needs
+   breathing room before the step panel; Shared's stepper already gets it from
+   the .panel-step below, so we scope this to an explicit wrapper. */
+.stepper-block { margin-bottom: 18px; }
+/* Inline text link rendered inside a sentence (e.g. "pick one on the Brief
+   step") — a button that reads as a link, not a chip. */
+.btn-inline-link {
+  font: inherit; color: var(--accent); background: none; border: none;
+  padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+.btn-inline-link:hover { filter: brightness(0.85); }
 .brainstorm-grid { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; }
 @media (max-width: 760px) { .brainstorm-grid { grid-template-columns: 1fr; } }
 /* Inline "✎ edit" affordance on editable fields. */

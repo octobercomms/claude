@@ -24,8 +24,8 @@ export default function PaidLaunchStep({ pipeline, onBack }) {
       tagline="Hand the approved batch off to Meta Ads Manager or Google. Direct API launch is on the roadmap — for now it's a manual export with the pre-launch checklist."
     >
       {!activeBatch ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
-          No brief selected — pick one on <button onClick={onBack} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)', padding: 0 }}>Step 1 · Brief</button>.
+        <div className="callout" style={{ fontSize: 13 }}>
+          No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : (
         <>

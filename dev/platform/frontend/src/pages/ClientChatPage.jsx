@@ -246,20 +246,24 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   return (
     <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', ...(tab === 'chat' ? { height: embedded ? 'calc(100vh - 230px)' : 'calc(100vh - 64px)' } : {}) }}>
       {!embedded && <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>}
-      <header className="hero">
-        {!embedded && (
-        <div>
-          <h1 className="display mt-2">AI Data Analyst</h1>
-        </div>
-        )}
-        {tab === 'chat' && messages.length > 0 && (
-          <div className="hero-actions">
-            <button onClick={handleClear} disabled={clearing} className="btn btn-secondary btn-sm">
-              {clearing ? 'Clearing…' : 'Clear history'}
-            </button>
+      {/* Skip the hero entirely when embedded with nothing to show — an empty
+          hero draws a stray divider under the parent section's tabs. */}
+      {(!embedded || (tab === 'chat' && messages.length > 0)) && (
+        <header className="hero">
+          {!embedded && (
+          <div>
+            <h1 className="display mt-2">AI Data Analyst</h1>
           </div>
-        )}
-      </header>
+          )}
+          {tab === 'chat' && messages.length > 0 && (
+            <div className="hero-actions">
+              <button onClick={handleClear} disabled={clearing} className="btn btn-secondary btn-sm">
+                {clearing ? 'Clearing…' : 'Clear history'}
+              </button>
+            </div>
+          )}
+        </header>
+      )}
 
       {!embedded && (
         <SuiteTabs tabs={[

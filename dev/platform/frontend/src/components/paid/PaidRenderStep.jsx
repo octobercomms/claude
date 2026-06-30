@@ -14,12 +14,12 @@ export default function PaidRenderStep({ pipeline, onNext, onBack }) {
       tagline="Image and video renders across every aspect ratio you need. Replicate / Ideogram / Firefly for stills; Replicate (Seedance / Wan 2.2) for video. Adobe generative fan-out turns one image into every other size."
     >
       {!activeBatch ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
-          No brief selected — pick one on <button onClick={onBack} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)', padding: 0 }}>Step 1 · Brief</button>.
+        <div className="callout" style={{ fontSize: 13 }}>
+          No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : !creatives.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
-          No concepts on this brief yet. Generate them on Step 1.
+        <div className="callout" style={{ fontSize: 13 }}>
+          No concepts on this brief yet — generate them on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>

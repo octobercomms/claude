@@ -16,8 +16,8 @@ export default function PaidApproveStep({ pipeline, onNext, onBack }) {
       tagline="Generate a public link to share with the client. They review, approve, or request changes — no login required. Link expires after 14 days."
     >
       {!activeBatch ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
-          No brief selected — pick one on <button onClick={onBack} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)', padding: 0 }}>Step 1 · Brief</button>.
+        <div className="callout" style={{ fontSize: 13 }}>
+          No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : (
         <>
