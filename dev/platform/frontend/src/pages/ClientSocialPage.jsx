@@ -522,7 +522,9 @@ export default function ClientSocialPage() {
           shareUrl={shareUrl}
           onDismissShare={() => setShareUrl(null)}
           onGoToSchedule={() => setSocialTab('plans')}
-          ideasContent={<SwipeFilePanel clientId={id} />}
+          ideasContent={(goToBrief) => (
+            <SwipeFilePanel clientId={id} onUseAsBrief={(text) => { setBrief(text); goToBrief(); setShowBrief(true); }} />
+          )}
           engagement={engagement}
           mediaByPost={mediaByPost}
           updatePost={updatePost}
@@ -777,7 +779,7 @@ function BrainstormTab({
       <Stepper steps={steps} current={step} onStep={goStep} />
 
       {/* STEP 1 — IDEAS */}
-      {step === 1 && <div className="panel-step">{ideasContent}</div>}
+      {step === 1 && <div className="panel-step">{typeof ideasContent === 'function' ? ideasContent(() => setStep(2)) : ideasContent}</div>}
 
       {/* STEP 2 — BRIEF */}
       {step === 2 && (
@@ -1891,11 +1893,14 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       )}
 
       {(post.image_urls || []).length > 0 && (
-        <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {post.image_urls.map((u, i) => (
-            <a key={i} href={u} target="_blank" rel="noreferrer">
-              <img src={u} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--card-border)" }} />
-            </a>
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <a href={u} target="_blank" rel="noreferrer">
+                <img src={u} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--card-border)" }} />
+              </a>
+              <a href={u} download target="_blank" rel="noreferrer" style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 700 }}>↓</a>
+            </div>
           ))}
         </div>
       )}
@@ -1915,15 +1920,21 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       {(videos.length > 0 || audios.length > 0) && (
         <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {videos.map(v => (
-            <div key={v.id} style={{ position: 'relative' }}>
-              <video src={v.url} controls style={{ width: 180, borderRadius: 'var(--r-sm)', background: '#000' }} />
-              <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
+            <div key={v.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ position: 'relative' }}>
+                <video src={v.url} controls style={{ width: 180, borderRadius: 'var(--r-sm)', background: '#000' }} />
+                <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
+              </div>
+              <a href={v.url} download target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>↓ Download</a>
             </div>
           ))}
           {audios.map(a => (
-            <div key={a.id} style={{ position: 'relative', width: 220 }}>
-              <audio src={a.url} controls style={{ width: '100%' }} />
-              <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
+            <div key={a.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 220 }}>
+              <div style={{ position: 'relative' }}>
+                <audio src={a.url} controls style={{ width: '100%' }} />
+                <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
+              </div>
+              <a href={a.url} download target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>↓ Download</a>
             </div>
           ))}
         </div>
