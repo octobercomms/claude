@@ -65,7 +65,7 @@ export default function DataFlowMap({ onPerformance, onAnalyst }) {
       <g className="smap-svg-node" role="button" tabIndex={0} onClick={onPerformance}
         onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && onPerformance) { e.preventDefault(); onPerformance(); } }}>
         <rect x="140" y="380" width="320" height="72" rx="16" fill="var(--surface)" stroke="#00000022" strokeWidth="2" />
-        <text x="300" y="414" textAnchor="middle" fontSize="18" fontWeight="800" fill="var(--text)">Performance</text>
+        <text x="300" y="414" textAnchor="middle" fontSize="18" fontWeight="800" fill="var(--text)">Measure</text>
         <text x="300" y="436" textAnchor="middle" fontSize="12.5" fontWeight="600" fill="var(--text-muted)">Revenue, orders, conversion</text>
       </g>
 
@@ -73,7 +73,7 @@ export default function DataFlowMap({ onPerformance, onAnalyst }) {
       <g className="smap-svg-node" role="button" tabIndex={0} onClick={onAnalyst}
         onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && onAnalyst) { e.preventDefault(); onAnalyst(); } }}>
         <rect x="540" y="380" width="320" height="72" rx="16" fill="var(--surface)" stroke="#00000022" strokeWidth="2" />
-        <text x="700" y="414" textAnchor="middle" fontSize="18" fontWeight="800" fill="var(--text)">AI analyst</text>
+        <text x="700" y="414" textAnchor="middle" fontSize="18" fontWeight="800" fill="var(--text)">Analyse</text>
         <text x="700" y="436" textAnchor="middle" fontSize="12.5" fontWeight="600" fill="var(--text-muted)">Chat over your live data</text>
       </g>
 

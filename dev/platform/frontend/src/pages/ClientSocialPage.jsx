@@ -431,7 +431,7 @@ export default function ClientSocialPage() {
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
-          { key: 'create',   label: 'Builder',  active: currentGroup === 'create',   onClick: () => setSocialTab('swipe') },
+          { key: 'create',   label: 'Build',    active: currentGroup === 'create',   onClick: () => setSocialTab('swipe') },
           { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
           { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
         ];

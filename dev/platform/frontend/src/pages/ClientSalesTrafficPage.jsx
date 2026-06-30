@@ -120,8 +120,8 @@ export default function ClientSalesTrafficPage() {
 
       <SuiteTabs tabs={[
         { key: 'overview',  label: 'Overview',     active: tab === 'overview',  onClick: () => setTab('overview') },
-        { key: 'dashboard', label: 'Performance',  active: tab === 'dashboard', onClick: () => setTab('dashboard') },
-        { key: 'analyst',   label: 'AI Analyst',   active: tab === 'analyst',   onClick: () => setTab('analyst') },
+        { key: 'dashboard', label: 'Measure',      active: tab === 'dashboard', onClick: () => setTab('dashboard') },
+        { key: 'analyst',   label: 'Analyse',      active: tab === 'analyst',   onClick: () => setTab('analyst') },
       ]} />
 
       {tab === 'analyst' && <ClientChatPage embedded clientId={id} />}
