@@ -108,9 +108,16 @@ export default function HeygenReelsPanel({ clientId }) {
             <textarea className="input" rows={4} placeholder="Script — what should your avatar say?" value={script} onChange={e => setScript(e.target.value)} />
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               <label className="field" style={{ flex: '1 1 220px' }}>
-                <span className="field-label">Avatar / Digital Twin</span>
+                <span className="field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span>Avatar / Digital Twin</span>
+                  <button type="button" onClick={loadOptions} disabled={reloadingOpts}
+                    className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px' }} title="Pull your latest avatars from HeyGen">
+                    {reloadingOpts ? 'Syncing…' : '↻ Sync'}
+                  </button>
+                </span>
                 <select className="input" value={avatar} onChange={e => setAvatar(e.target.value)}>
-                  {opts.avatars.map(a => <option key={`${a.type}:${a.id}`} value={`${a.type}:${a.id}`}>{a.name}{a.type === 'talking_photo' ? ' (photo)' : ''}</option>)}
+                  {!opts.avatars.length && <option value="">No avatars — make a Digital Twin in HeyGen, then Sync</option>}
+                  {opts.avatars.map(a => <option key={`${a.type}:${a.id}`} value={`${a.type}:${a.id}`}>{a.name}{a.type === 'talking_photo' ? ' (photo)' : a.looks ? ` (${a.looks} looks)` : ''}</option>)}
                 </select>
               </label>
               <label className="field" style={{ flex: '1 1 220px' }}>
