@@ -117,7 +117,7 @@ export default function HeygenReelsPanel({ clientId }) {
                 </span>
                 <select className="input" value={avatar} onChange={e => setAvatar(e.target.value)}>
                   {!opts.avatars.length && <option value="">No avatars — make a Digital Twin in HeyGen, then Sync</option>}
-                  {opts.avatars.map(a => <option key={`${a.type}:${a.id}`} value={`${a.type}:${a.id}`}>{a.name}{a.type === 'talking_photo' ? ' (photo)' : a.looks ? ` (${a.looks} looks)` : ''}</option>)}
+                  {opts.avatars.map(a => <option key={`${a.type}:${a.id}`} value={`${a.type}:${a.id}`}>{a.name}</option>)}
                 </select>
               </label>
               <label className="field" style={{ flex: '1 1 220px' }}>

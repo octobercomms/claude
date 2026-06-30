@@ -45,37 +45,52 @@ async function http() {
   return client;
 }
 
-// The account's own avatars / Digital Twins, via /v2/avatar_group.list. This
-// returns ONLY your groups (small, fast) — unlike /v2/avatars, which also dumps
-// HeyGen's entire public catalogue and reliably times out. Each group is one
-// pickable item; its concrete "look" is resolved at generate time.
-async function listAvatars() {
-  const client = await http();
-  const { data } = await client.get('/v2/avatar_group.list', { params: { include_public: false } });
-  const d = data.data || data || {};
-  const groups = d.avatar_group_list || d.avatar_groups || d.groups || (Array.isArray(d) ? d : []);
-  return groups.map(g => ({
-    id: g.id || g.group_id || g.avatar_group_id,
-    name: g.name || 'Avatar',
-    type: 'avatar_group',
-    preview: g.preview_image_url || g.preview_image || null,
-    looks: g.looks_count ?? g.num_looks ?? null,
-    gender: g.gender || null,
-  })).filter(a => a.id);
-}
-
-// Resolve an avatar group to a concrete look usable by /v2/video/generate.
-async function resolveGroupLook(groupId) {
+// The looks inside one avatar group, each a directly-generatable item.
+async function groupLooks(groupId) {
   const client = await http();
   const { data } = await client.get(`/v2/avatar_group/${groupId}/avatars`);
   const d = data.data || data || {};
   const looks = d.avatar_list || d.avatars || d.looks || (Array.isArray(d) ? d : []);
-  const look = looks[0];
-  if (!look) { const e = new Error('That avatar has no looks set up in HeyGen yet.'); e.status = 400; throw e; }
-  if (look.avatar_id) return { id: look.avatar_id, type: 'avatar' };
-  const tp = look.id || look.talking_photo_id;
-  if (tp) return { id: tp, type: 'talking_photo' };
-  const e = new Error('Could not resolve a look for that avatar.'); e.status = 400; throw e;
+  return looks.map(lk => {
+    const preview = lk.preview_image_url || lk.image_url || lk.preview || null;
+    const name = lk.name || lk.avatar_name || null;
+    if (lk.avatar_id) return { id: lk.avatar_id, type: 'avatar', name, preview };
+    const tp = lk.id || lk.talking_photo_id;
+    return tp ? { id: tp, type: 'talking_photo', name, preview } : null;
+  }).filter(Boolean);
+}
+
+// The account's own avatars / Digital Twins, via /v2/avatar_group.list (only
+// your groups — small/fast, unlike /v2/avatars which dumps the whole public
+// catalogue and times out). Each group's looks are flattened into individual,
+// directly-pickable options so the AM chooses the exact look.
+async function listAvatars() {
+  const client = await http();
+  const { data } = await client.get('/v2/avatar_group.list', { params: { include_public: false } });
+  const d = data.data || data || {};
+  const groups = (d.avatar_group_list || d.avatar_groups || d.groups || (Array.isArray(d) ? d : []))
+    .map(g => ({ id: g.id || g.group_id || g.avatar_group_id, name: g.name || 'Avatar', preview: g.preview_image_url || g.preview_image || null }))
+    .filter(g => g.id);
+  const perGroup = await Promise.all(groups.map(async g => {
+    let looks = [];
+    try { looks = await groupLooks(g.id); } catch { looks = []; }
+    if (!looks.length) return [{ id: g.id, name: g.name, type: 'avatar_group', preview: g.preview }];
+    return looks.map((lk, i) => ({
+      id: lk.id,
+      type: lk.type,
+      name: looks.length > 1 ? `${g.name} · ${lk.name || `Look ${i + 1}`}` : g.name,
+      preview: lk.preview || g.preview,
+    }));
+  }));
+  return perGroup.flat();
+}
+
+// Resolve an avatar group to a concrete look (used only when a group's looks
+// couldn't be pre-fetched and the picker still holds the group id).
+async function resolveGroupLook(groupId) {
+  const looks = await groupLooks(groupId);
+  if (!looks.length) { const e = new Error('That avatar has no looks set up in HeyGen yet.'); e.status = 400; throw e; }
+  return looks[0];
 }
 
 async function listVoices() {
