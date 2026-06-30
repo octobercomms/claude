@@ -40,6 +40,7 @@ export default function ClientSocialPage() {
   const [brief, setBrief] = useState('');
   const [platforms, setPlatforms] = useState(['instagram', 'tiktok']);
   const [postCount, setPostCount] = useState(9);
+  const [reelDraft, setReelDraft] = useState(null);
   const [winners, setWinners] = useState([]);
   const [sparkline, setSparkline] = useState([]);
   const [competitorPosts, setCompetitorPosts] = useState([]);
@@ -221,6 +222,16 @@ export default function ClientSocialPage() {
     } finally {
       setGenerating(false);
     }
+  }
+
+  // Push a brainstorm post into the avatar-reel generator: use its storyboard
+  // voiceover as the spoken script (falling back to hook + caption), then jump
+  // to the Reels step pre-filled so the AM just picks a look + voice.
+  function pushPostToReel(post) {
+    const vo = (post.storyboard || []).map(f => (f.voiceover || '').trim()).filter(Boolean).join(' ');
+    const script = vo || [post.hook, post.caption].filter(Boolean).join('\n\n');
+    setReelDraft({ title: (post.hook || '').slice(0, 80), script, ts: Date.now() });
+    setSocialTab('reels');
   }
 
   async function updatePost(postId, patch) {
@@ -492,6 +503,7 @@ export default function ClientSocialPage() {
           onSelectBatch={selectBatch}
           onDeleteBatch={deleteBatch}
           onGenerate={() => setShowBrief(true)}
+          onMakeReel={pushPostToReel}
           onReuseBrief={(b) => { setBrief(b.brief || ''); setShowBrief(true); }}
           onBulkSchedule={() => setBulkOpen(true)}
           onShareForApproval={shareBatchForApproval}
@@ -576,7 +588,7 @@ export default function ClientSocialPage() {
 
       {socialTab === 'discover' && <IgOutreachPanel clientId={id} />}
       {socialTab === 'swipe' && <SwipeFilePanel clientId={id} />}
-      {socialTab === 'reels' && <HeygenReelsPanel clientId={id} />}
+      {socialTab === 'reels' && <HeygenReelsPanel clientId={id} draft={reelDraft} />}
       {socialTab === 'video' && <ClientVideoPage embedded clientId={id} />}
 
       {socialTab === 'competitors' && (
@@ -661,7 +673,7 @@ export default function ClientSocialPage() {
 // brainstorm-only actions (Generate / Bulk schedule / Share for
 // approval) in the section head.
 function BrainstormTab({
-  clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief,
+  clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel,
   onGenerate, onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare, onGoToSchedule,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, generateMedia, deleteMedia,
@@ -705,6 +717,7 @@ function BrainstormTab({
           onRefreshInsights={() => refreshInsights(refining.id)}
           onRenderTemplates={() => renderTemplates(refining.id)}
           onGenerateMedia={(kind) => generateMedia(refining.id, kind)}
+          onMakeReel={() => onMakeReel && onMakeReel(refining)}
           onDeleteMedia={(mediaId) => deleteMedia(mediaId, refining.id)} />
         <RefineChat
           clientId={clientId}
@@ -736,6 +749,7 @@ function BrainstormTab({
             onRefreshInsights={() => refreshInsights(p.id)}
             onRenderTemplates={() => renderTemplates(p.id)}
             onGenerateMedia={(kind) => generateMedia(p.id, kind)}
+            onMakeReel={() => onMakeReel && onMakeReel(p)}
             onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
           <button onClick={() => setRefiningId(p.id)}
             className="btn btn-secondary btn-sm"
@@ -1825,7 +1839,7 @@ function ShareLinkBanner({ url, onDismiss }) {
   );
 }
 
-function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onDeleteMedia }) {
+function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onDeleteMedia, onMakeReel }) {
   const [open, setOpen] = useState(false);
   const [showImg, setShowImg] = useState(false);
   const [imgPrompt, setImgPrompt] = useState('');
@@ -1927,6 +1941,11 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">Production {showProd ? '▴' : '▾'}</button>
         {showProd && (
         <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {onMakeReel && (
+          <button onClick={onMakeReel} className="btn btn-secondary btn-sm" title="Send this post's script to the avatar-reel generator">
+            🎬 Make avatar reel
+          </button>
+        )}
         <button onClick={() => setOpen(o => !o)} className="btn btn-secondary btn-sm">
           {open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length} frames)`}
         </button>

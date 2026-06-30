@@ -13,7 +13,7 @@ const STATUS = {
   failed:     { label: 'Failed',      cls: 'chip-warning' },
 };
 
-export default function HeygenReelsPanel({ clientId }) {
+export default function HeygenReelsPanel({ clientId, draft }) {
   const toast = useToast();
   const [opts, setOpts] = useState(null);   // { avatars, voices } | null
   const [optsErr, setOptsErr] = useState(null);
@@ -21,6 +21,10 @@ export default function HeygenReelsPanel({ clientId }) {
   const [loaded, setLoaded] = useState(false);
   const [title, setTitle] = useState('');
   const [script, setScript] = useState('');
+  // Pre-fill from a post pushed in via "Make avatar reel" (keyed on draft.ts).
+  useEffect(() => {
+    if (draft) { setTitle(draft.title || ''); setScript(draft.script || ''); }
+  }, [draft?.ts]); // eslint-disable-line react-hooks/exhaustive-deps
   const [avatar, setAvatar] = useState('');
   const [voice, setVoice] = useState('');
   const [busy, setBusy] = useState(false);
