@@ -426,10 +426,10 @@ export default function ClientPRPage() {
           page's "needs attention" rail instead. */}
       <SuiteTabs tabs={[
         { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
-        { key: 'coverage', label: `Coverage${log.length ? ` (${log.length})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
-        { key: 'journalists', label: `Journalists${journalists.length ? ` (${journalists.length})` : ''}`, active: tab === 'journalists', onClick: () => setTab('journalists') },
-        { key: 'press', label: `Releases${releases.length ? ` (${releases.length})` : ''}`, active: tab === 'press', onClick: () => setTab('press') },
-        { key: 'reports', label: 'Portal', active: tab === 'reports', onClick: () => setTab('reports') },
+        { key: 'coverage', label: `Track${log.length ? ` (${log.length})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
+        { key: 'journalists', label: `Pitch${journalists.length ? ` (${journalists.length})` : ''}`, active: tab === 'journalists', onClick: () => setTab('journalists') },
+        { key: 'press', label: `Build${releases.length ? ` (${releases.length})` : ''}`, active: tab === 'press', onClick: () => setTab('press') },
+        { key: 'reports', label: 'Share', active: tab === 'reports', onClick: () => setTab('reports') },
       ]} />
 
       {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p></div>}
@@ -465,24 +465,24 @@ export default function ClientPRPage() {
             }
             mapLayout="grid"
             map={[
-              { title: 'Coverage', subtitle: 'Editorial log, pitch to published', nodes: [
+              { title: 'Track', subtitle: 'Editorial log, pitch to published', nodes: [
                 { label: 'Coverage log', onClick: () => setTab('coverage') },
                 { label: 'Auto monitor', onClick: () => setTab('coverage') },
                 { label: 'Paste link',   onClick: () => setTab('coverage') },
                 { label: 'Link checks',  onClick: () => setTab('coverage') },
               ] },
-              { title: 'Journalists', subtitle: 'Relationship strength, hit-rate, tier', nodes: [
+              { title: 'Pitch', subtitle: 'Relationship strength, hit-rate, tier', nodes: [
                 { label: 'Media DB',        onClick: () => setTab('journalists') },
                 { label: 'Pitch targeting', onClick: () => setTab('journalists') },
                 { label: 'Thank-yous',      onClick: () => setTab('journalists') },
               ] },
-              { title: 'Releases', subtitle: 'Press release pipeline', nodes: [
+              { title: 'Build', subtitle: 'Press release pipeline', nodes: [
                 { label: 'Brief',    onClick: () => setTab('press') },
                 { label: 'Draft',    onClick: () => setTab('press') },
                 { label: 'Sign-off', onClick: () => setTab('press') },
                 { label: 'Pitch',    onClick: () => setTab('press') },
               ] },
-              { title: 'Portal', subtitle: 'What the client sees', nodes: [
+              { title: 'Share', subtitle: 'What the client sees', nodes: [
                 { label: 'Coverage digests', onClick: () => setTab('reports') },
                 { label: 'Featured alerts',  onClick: () => setTab('reports') },
                 { label: 'Live coverage',    onClick: () => setTab('reports') },
