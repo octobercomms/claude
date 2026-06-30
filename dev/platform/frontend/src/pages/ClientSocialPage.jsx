@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
-import SocialBrainstormStep from '../components/social/SocialBrainstormStep';
+import Stepper from '../components/Stepper';
 import SocialPlanStep from '../components/social/SocialPlanStep';
 import SocialPublishStep from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
@@ -482,30 +482,31 @@ export default function ClientSocialPage() {
 
       {/* PIPELINE → 1 BRAINSTORM */}
       {socialTab === 'brainstorm' && (
-        <SocialBrainstormStep onNext={() => setSocialTab('plans')}>
-          <BrainstormTab
-            clientId={id}
-            batches={batches}
-            posts={posts}
-            activeBatchId={activeBatchId}
-            onSelectBatch={selectBatch}
-            onDeleteBatch={deleteBatch}
-            onGenerate={() => setShowBrief(true)}
-            onReuseBrief={(b) => { setBrief(b.brief || ''); setShowBrief(true); }}
-            onBulkSchedule={() => setBulkOpen(true)}
-            onShareForApproval={shareBatchForApproval}
-            generating={generating}
-            engagement={engagement}
-            mediaByPost={mediaByPost}
-            updatePost={updatePost}
-            deletePost={deletePost}
-            publishPost={publishPost}
-            refreshInsights={refreshInsights}
-            renderTemplates={renderTemplates}
-            generateMedia={generateMedia}
-            deleteMedia={deleteMedia}
-          />
-        </SocialBrainstormStep>
+        <BrainstormTab
+          clientId={id}
+          batches={batches}
+          posts={posts}
+          activeBatchId={activeBatchId}
+          onSelectBatch={selectBatch}
+          onDeleteBatch={deleteBatch}
+          onGenerate={() => setShowBrief(true)}
+          onReuseBrief={(b) => { setBrief(b.brief || ''); setShowBrief(true); }}
+          onBulkSchedule={() => setBulkOpen(true)}
+          onShareForApproval={shareBatchForApproval}
+          generating={generating}
+          shareUrl={shareUrl}
+          onDismissShare={() => setShareUrl(null)}
+          onGoToSchedule={() => setSocialTab('plans')}
+          engagement={engagement}
+          mediaByPost={mediaByPost}
+          updatePost={updatePost}
+          deletePost={deletePost}
+          publishPost={publishPost}
+          refreshInsights={refreshInsights}
+          renderTemplates={renderTemplates}
+          generateMedia={generateMedia}
+          deleteMedia={deleteMedia}
+        />
       )}
 
       {/* PIPELINE → 2 PLAN */}
@@ -605,9 +606,6 @@ export default function ClientSocialPage() {
         </div>
       )}
 
-      {shareUrl && (
-        <ShareLinkBanner url={shareUrl} onDismiss={() => setShareUrl(null)} />
-      )}
 
       {showBrief && (
         <BriefModal
@@ -660,122 +658,255 @@ export default function ClientSocialPage() {
 // approval) in the section head.
 function BrainstormTab({
   clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief,
-  onGenerate, onBulkSchedule, onShareForApproval, generating,
+  onGenerate, onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare, onGoToSchedule,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, generateMedia, deleteMedia,
 }) {
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
+  const [step, setStep] = useState(activeBatchId ? 2 : 1);
   const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
+
+  // When a batch first appears (e.g. after generating), advance into Review.
+  useEffect(() => { if (activeBatchId) setStep(s => (s === 1 ? 2 : s)); }, [activeBatchId]);
+
+  const steps = [
+    { title: 'Generate', sub: '9 posts from a brief' },
+    { title: 'Review & refine', sub: 'Edit or refine with Claude' },
+    { title: 'Approve', sub: 'Share a link with the client' },
+    { title: 'Schedule', sub: 'Set cadence & autopilot' },
+  ];
+  // Steps 2–4 need a batch; clamp navigation back to Generate when there isn't one.
+  function goStep(n) {
+    if (n > 1 && !activeBatchId) { setStep(1); return; }
+    setRefiningId(null); setRefineErr(null);
+    setStep(n);
+  }
+
+  const postGrid = refining ? (
+    <div>
+      <div className="row between center mb-3">
+        <button onClick={() => { setRefiningId(null); setRefineErr(null); }} className="btn btn-ghost btn-sm">
+          ← Back to all {posts.length} posts
+        </button>
+        <div className="caption">Refining: {refining.platform} · {refining.kind}{refining.framework ? ` · ${refining.framework}` : ''}</div>
+      </div>
+      {refineErr && <div className="callout callout-danger mb-3">{refineErr}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 'var(--s4)' }}>
+        <PostCard post={refining} engagement={engagement[refining.id]} media={mediaByPost[refining.id] || []}
+          onChange={patch => updatePost(refining.id, patch)}
+          onDelete={() => { setRefiningId(null); deletePost(refining.id); }}
+          onPublish={(url) => publishPost(refining.id, url)}
+          onRefreshInsights={() => refreshInsights(refining.id)}
+          onRenderTemplates={() => renderTemplates(refining.id)}
+          onGenerateMedia={(kind) => generateMedia(refining.id, kind)}
+          onDeleteMedia={(mediaId) => deleteMedia(mediaId, refining.id)} />
+        <RefineChat
+          clientId={clientId}
+          kind="social_post"
+          artifact={renderPostForArtifact(refining)}
+          artifactMeta={`${refining.platform} · ${refining.kind}${refining.framework ? ` · ${refining.framework}` : ''}`}
+          onApplyRevision={(content) => {
+            const partial = parsePostFields(content);
+            if (!partial) {
+              setRefineErr('Could not parse revised post. Ask Claude to use the HOOK/CAPTION/HASHTAGS/STORYBOARD labels.');
+              return;
+            }
+            setRefineErr(null);
+            updatePost(refining.id, partial);
+          }}
+          onClose={() => setRefiningId(null)}
+          compact
+        />
+      </div>
+    </div>
+  ) : (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
+      {posts.map(p => (
+        <div key={p.id} style={{ display: 'flex', flexDirection: 'column' }}>
+          <PostCard post={p} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
+            onChange={patch => updatePost(p.id, patch)}
+            onDelete={() => deletePost(p.id)}
+            onPublish={(url) => publishPost(p.id, url)}
+            onRefreshInsights={() => refreshInsights(p.id)}
+            onRenderTemplates={() => renderTemplates(p.id)}
+            onGenerateMedia={(kind) => generateMedia(p.id, kind)}
+            onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
+          <button onClick={() => setRefiningId(p.id)}
+            className="btn btn-secondary btn-sm"
+            style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+            ✦ Refine with Claude
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div>
-      <div className="row between center wrap mb-4">
-        <div>
-          <div className="caption">Brainstorm</div>
-          <div className="h2 mt-2">9-post batches</div>
-        </div>
-        <div className="row wrap">
-          {hasAutopilotSupported && (
-            <UiButton variant="secondary" onClick={onBulkSchedule}>📅 Bulk schedule</UiButton>
-          )}
-          {activeBatchId && (
-            <UiButton variant="secondary" onClick={onShareForApproval}>Share for approval</UiButton>
-          )}
-          <UiButton variant="primary" onClick={onGenerate} disabled={generating}>
-            {generating ? 'Generating…' : 'Generate 9 posts'}
-          </UiButton>
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 22 }}>
-        <div>
-          <div className="caption caption-muted mb-3">Past batches</div>
-          {!batches.length && <div className="body-sm text-subtle">Nothing yet — click Generate to start.</div>}
-          <div className="stack stack-sm">
-            {batches.map(b => (
-              <div key={b.id} className="card" style={{ padding: 10, cursor: 'pointer', borderColor: b.id === activeBatchId ? 'var(--accent)' : 'var(--border-neutral)' }} onClick={() => onSelectBatch(b.id)}>
-                <div className="h3">{new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
-                <div className="body-xs text-subtle mt-2">{b.post_count} posts</div>
-                {b.brief && <div className="body-xs mt-2" style={{ lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
-                <div className="row wrap mt-3" style={{ gap: 6 }}>
-                  <button onClick={(e) => { e.stopPropagation(); onReuseBrief(b); }} className="btn btn-secondary btn-sm">Reuse brief</button>
-                  {b.id === activeBatchId && (
-                    <button onClick={(e) => { e.stopPropagation(); onDeleteBatch(b.id); }} className="btn btn-danger btn-sm">Delete batch</button>
-                  )}
-                </div>
-              </div>
-            ))}
+      <Stepper steps={steps} current={step} onStep={goStep} />
+
+      {/* STEP 1 — GENERATE */}
+      {step === 1 && (
+        <div className="panel-step">
+          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
+            <div style={{ maxWidth: 560 }}>
+              <div className="h3">Generate a batch</div>
+              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+                Claude proposes 9 posts at once — hook, caption, hashtags, visual concept and a frame-by-frame storyboard, grounded in the brand, Google Trends and what competitors shipped this week.
+              </p>
+            </div>
+            <UiButton variant="primary" onClick={onGenerate} disabled={generating}>
+              {generating ? 'Generating…' : (batches.length ? 'Generate another 9' : 'Generate 9 posts')}
+            </UiButton>
           </div>
-        </div>
-        <div>
-          {!posts.length && batches.length > 0 && (
-            <div className="empty" style={{ padding: 'var(--s7)' }}><p className="body">Pick a batch on the left to see its posts.</p></div>
-          )}
-          {!posts.length && !batches.length && (
+          {batches.length > 0 ? (
+            <>
+              <div className="caption caption-muted mb-3">Past batches — pick one to review</div>
+              <BatchRail batches={batches} activeBatchId={activeBatchId} horizontal
+                onSelectBatch={(id) => { onSelectBatch(id); setStep(2); }}
+                onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
+            </>
+          ) : (
             <ExampleBlock storageKey={`social_brainstorm_example_${clientId}`} title="this is what one of the 9 posts looks like — click Generate for real ones">
               <ExamplePostCard />
             </ExampleBlock>
           )}
-          {refining ? (
-            <div>
-              <div className="row between center mb-3">
-                <button onClick={() => { setRefiningId(null); setRefineErr(null); }} className="btn btn-ghost btn-sm">
-                  ← Back to all {posts.length} posts
-                </button>
-                <div className="caption">Refining: {refining.platform} · {refining.kind}{refining.framework ? ` · ${refining.framework}` : ''}</div>
-              </div>
-              {refineErr && <div className="callout callout-danger mb-3">{refineErr}</div>}
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 'var(--s4)' }}>
-                <PostCard post={refining} engagement={engagement[refining.id]} media={mediaByPost[refining.id] || []}
-                  onChange={patch => updatePost(refining.id, patch)}
-                  onDelete={() => { setRefiningId(null); deletePost(refining.id); }}
-                  onPublish={(url) => publishPost(refining.id, url)}
-                  onRefreshInsights={() => refreshInsights(refining.id)}
-                  onRenderTemplates={() => renderTemplates(refining.id)}
-                  onGenerateMedia={(kind) => generateMedia(refining.id, kind)}
-                  onDeleteMedia={(mediaId) => deleteMedia(mediaId, refining.id)} />
-                <RefineChat
-                  clientId={clientId}
-                  kind="social_post"
-                  artifact={renderPostForArtifact(refining)}
-                  artifactMeta={`${refining.platform} · ${refining.kind}${refining.framework ? ` · ${refining.framework}` : ''}`}
-                  onApplyRevision={(content) => {
-                    const partial = parsePostFields(content);
-                    if (!partial) {
-                      setRefineErr('Could not parse revised post. Ask Claude to use the HOOK/CAPTION/HASHTAGS/STORYBOARD labels.');
-                      return;
-                    }
-                    setRefineErr(null);
-                    updatePost(refining.id, partial);
-                  }}
-                  onClose={() => setRefiningId(null)}
-                  compact
-                />
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
-              {posts.map(p => (
-                <div key={p.id} style={{ display: 'flex', flexDirection: 'column' }}>
-                  <PostCard post={p} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
-                    onChange={patch => updatePost(p.id, patch)}
-                    onDelete={() => deletePost(p.id)}
-                    onPublish={(url) => publishPost(p.id, url)}
-                    onRefreshInsights={() => refreshInsights(p.id)}
-                    onRenderTemplates={() => renderTemplates(p.id)}
-                    onGenerateMedia={(kind) => generateMedia(p.id, kind)}
-                    onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
-                  <button onClick={() => setRefiningId(p.id)}
-                    className="btn btn-secondary btn-sm"
-                    style={{ marginTop: 6, alignSelf: 'flex-start' }}>
-                    ✦ Refine with Claude
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
+      )}
+
+      {/* STEP 2 — REVIEW & REFINE */}
+      {step === 2 && (
+        <div className="panel-step">
+          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
+            <div style={{ maxWidth: 560 }}>
+              <div className="h3">Review &amp; refine your {posts.length} posts</div>
+              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+                Click a hook or caption to edit it directly, or hit <strong>Refine with Claude</strong> to rework a post in a chat. When the batch looks right, send it for approval.
+              </p>
+            </div>
+            <div className="row wrap" style={{ gap: 8 }}>
+              <UiButton variant="secondary" onClick={onGenerate} disabled={generating}>↻ Generate another</UiButton>
+              <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Send for approval →</UiButton>
+            </div>
+          </div>
+          <div className="brainstorm-grid">
+            <BatchRail batches={batches} activeBatchId={activeBatchId}
+              onSelectBatch={onSelectBatch} onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
+            <div>
+              {!posts.length && batches.length > 0 && (
+                <div className="empty" style={{ padding: 'var(--s7)' }}><p className="body">Pick a batch on the left to see its posts.</p></div>
+              )}
+              {postGrid}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3 — APPROVE */}
+      {step === 3 && (
+        <div className="panel-step">
+          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
+            <div style={{ maxWidth: 560 }}>
+              <div className="h3">Send for approval</div>
+              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+                Create a shareable link so the client can review this batch and approve it — no login needed. Nothing publishes until you schedule it.
+              </p>
+            </div>
+            <div className="row wrap" style={{ gap: 8 }}>
+              <UiButton variant="secondary" onClick={() => goStep(2)}>← Back to review</UiButton>
+              <UiButton variant="primary" onClick={onShareForApproval}>{shareUrl ? 'New link' : 'Create approval link'}</UiButton>
+            </div>
+          </div>
+          {shareUrl
+            ? <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />
+            : <div className="empty" style={{ padding: 'var(--s7)' }}><p className="body">Click <strong>Create approval link</strong> to generate a client-shareable URL for this batch.</p></div>}
+          <div style={{ marginTop: 18 }}>
+            <UiButton variant="primary" onClick={() => goStep(4)}>Continue to schedule →</UiButton>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 4 — SCHEDULE */}
+      {step === 4 && (
+        <div className="panel-step">
+          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
+            <div style={{ maxWidth: 560 }}>
+              <div className="h3">Schedule &amp; autopilot</div>
+              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+                Bulk-schedule the approved posts onto a cadence and let autopilot publish them to Instagram, Facebook and LinkedIn. You can fine-tune the plan in the Schedule section.
+              </p>
+            </div>
+            <div className="row wrap" style={{ gap: 8 }}>
+              <UiButton variant="secondary" onClick={() => goStep(3)}>← Back to approve</UiButton>
+              <UiButton variant="primary" onClick={onBulkSchedule} disabled={!hasAutopilotSupported}>📅 Bulk schedule</UiButton>
+            </div>
+          </div>
+          {!hasAutopilotSupported && (
+            <div className="callout callout-warning">Bulk scheduling needs Instagram, Facebook or LinkedIn posts in this batch.</div>
+          )}
+          <div style={{ marginTop: 14 }}>
+            <button className="btn btn-ghost btn-sm" onClick={onGoToSchedule}>Open the Schedule section →</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Past-batches list — a vertical sidebar in Review, or a wrapping row in Generate.
+function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, horizontal }) {
+  if (!batches.length) return <div className="body-sm text-subtle">Nothing yet — click Generate to start.</div>;
+  return (
+    <div>
+      {!horizontal && <div className="caption caption-muted mb-3">Past batches</div>}
+      <div className={horizontal ? 'row wrap' : 'stack stack-sm'} style={horizontal ? { gap: 10 } : undefined}>
+        {batches.map(b => (
+          <div key={b.id} className="card" style={{ padding: 10, cursor: 'pointer', width: horizontal ? 240 : 'auto', borderColor: b.id === activeBatchId ? 'var(--accent)' : 'var(--border-neutral)' }} onClick={() => onSelectBatch(b.id)}>
+            <div className="h3">{new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+            <div className="body-xs text-subtle mt-2">{b.post_count} posts</div>
+            {b.brief && <div className="body-xs mt-2" style={{ lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
+            <div className="row wrap mt-3" style={{ gap: 6 }}>
+              <button onClick={(e) => { e.stopPropagation(); onReuseBrief(b); }} className="btn btn-secondary btn-sm">Reuse brief</button>
+              {b.id === activeBatchId && (
+                <button onClick={(e) => { e.stopPropagation(); onDeleteBatch(b.id); }} className="btn btn-danger btn-sm">Delete batch</button>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
+    </div>
+  );
+}
+
+// Click-to-edit text — shows the value with a small "✎ edit" affordance; the
+// editor saves via onSave(newValue). Used for a post's hook and caption.
+function EditableText({ label, value, multiline, placeholder, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || '');
+  useEffect(() => { if (!editing) setDraft(value || ''); }, [value, editing]);
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="caption mb-2" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span>{label}</span>
+        {!editing && <button type="button" onClick={() => setEditing(true)} className="inline-edit-btn">✎ edit</button>}
+      </div>
+      {editing ? (
+        <div>
+          {multiline
+            ? <textarea className="input" value={draft} onChange={e => setDraft(e.target.value)} style={{ minHeight: 90, width: '100%' }} placeholder={placeholder} />
+            : <input className="input" value={draft} onChange={e => setDraft(e.target.value)} style={{ width: '100%' }} placeholder={placeholder} />}
+          <div className="row" style={{ gap: 6, marginTop: 6 }}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => { onSave(draft); setEditing(false); }}>Save</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setDraft(value || ''); setEditing(false); }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        multiline
+          ? <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{value || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
+          : <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>{value || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
+      )}
     </div>
   );
 }
@@ -1677,6 +1808,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
   const [showPublish, setShowPublish] = useState(false);
   const [publishUrl, setPublishUrl] = useState('');
   const [renderingMedia, setRenderingMedia] = useState(null);
+  const [showProd, setShowProd] = useState(false);
 
   async function handleGenerateMedia(kind) {
     setRenderingMedia(kind);
@@ -1714,15 +1846,8 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', fontSize: 18, lineHeight: 1 }}>×</button>
       </div>
 
-      <div style={{ marginTop: 10 }}>
-        <div className="caption mb-2">HOOK</div>
-        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>{post.hook || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        <div className="caption mb-2">CAPTION</div>
-        <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{post.caption}</div>
-      </div>
+      <EditableText label="HOOK" value={post.hook} onSave={v => onChange({ hook: v })} />
+      <EditableText label="CAPTION" value={post.caption} multiline onSave={v => onChange({ caption: v })} />
 
       {(post.hashtags || []).length > 0 && (
         <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', columnGap: 6, rowGap: 2 }}>
@@ -1769,7 +1894,10 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         </div>
       )}
 
-      <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ marginTop: 12 }}>
+        <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">Production {showProd ? '▴' : '▾'}</button>
+        {showProd && (
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button onClick={() => setOpen(o => !o)} className="btn btn-secondary btn-sm">
           {open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length} frames)`}
         </button>
@@ -1805,6 +1933,8 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         )}
         {post.published_url && (
           <a href={post.published_url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">View live ↗</a>
+        )}
+        </div>
         )}
       </div>
 
