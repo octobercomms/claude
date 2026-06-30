@@ -460,9 +460,8 @@ export default function ClientSocialPage() {
           ]}
           diagram={(
             <SocialFactoryMap
-              onFactory={() => setSocialTab('swipe')}
-              onIdeas={() => setSocialTab('swipe')}
-              onCompetitors={() => setSocialTab('competitors')}
+              onWorkbench={() => setSocialTab('brainstorm')}
+              onPublish={() => setSocialTab('plans')}
               onEngage={() => setSocialTab('dm_bot')}
               onMeasure={() => setSocialTab('perf_insights')}
             />
