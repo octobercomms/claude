@@ -505,6 +505,13 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
   .smap-ring { display: flex; flex-direction: column; gap: var(--s4); }
   .smap-ring .smap-arrow { display: none; }
 }
+/* Bespoke SVG flow diagrams (e.g. Data) inside the bento. */
+.smap-svg { display: block; width: 100%; height: auto; font-family: var(--font); }
+.smap-svg text { font-family: var(--font); }
+.smap-svg-node { cursor: pointer; transition: opacity 120ms ease; }
+.smap-svg-node:hover { opacity: 0.78; }
+.smap-svg-node:focus-visible { outline: none; }
+.smap-svg-node:focus-visible rect { stroke: var(--text); stroke-width: 3; }
 
 /* ─── Sequence Builder (Phase 3) ─────────────────────────────────── */
 /* Vertical timeline. Numbered rail on the left runs continuously

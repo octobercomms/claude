@@ -17,10 +17,12 @@ export default function SuiteOverview({
   flow = [],
   capabilities = [],
   map = [],        // optional section-map flowchart — replaces flow + capabilities
+  diagram = null,  // optional bespoke flow diagram (React node) — same precedence as map
   ctaLabel,
   onCta,
   status = null,   // optional [{ label, value, ok }] live status strip
 }) {
+  const hasCustom = map.length > 0 || !!diagram;
   return (
     <div className="stack stack-lg">
       <Hero tagline={tagline} description={description} ctaLabel={ctaLabel} onCta={onCta} />
@@ -28,12 +30,13 @@ export default function SuiteOverview({
       {status && status.length > 0 && <StatusStrip items={status} />}
 
       {map.length > 0 && <SectionMap stages={map} />}
+      {diagram && <div className="smap-bento">{diagram}</div>}
 
-      {map.length === 0 && flow.length > 0 && (
+      {!hasCustom && flow.length > 0 && (
         <Flow steps={flow} />
       )}
 
-      {map.length === 0 && capabilities.length > 0 && (
+      {!hasCustom && capabilities.length > 0 && (
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
           {capabilities.map((c, i) => {
             const clickable = typeof c.onClick === 'function';

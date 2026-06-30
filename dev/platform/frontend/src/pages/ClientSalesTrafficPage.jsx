@@ -4,6 +4,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Responsi
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
+import DataFlowMap from '../components/DataFlowMap';
 import ClientChatPage from './ClientChatPage';
 import { useCssVar } from '../hooks/useCssVar';
 import { useTabParam } from '../hooks/useTabParam';
@@ -136,18 +137,7 @@ export default function ClientSalesTrafficPage() {
             { label: 'GA4', value: k.sessions ? 'Live' : 'No data', ok: !!k.sessions },
             { label: 'Revenue · 30d', value: fmtMoney(k.revenue || 0), ok: !!k.revenue },
           ]}
-          flow={[
-            { label: 'Shopify + GA4', detail: 'Live connector data' },
-            { label: 'Live KPIs',     detail: 'Six headline metrics' },
-            { label: 'Trends',        detail: '30-day charts' },
-            { label: 'Channels',      detail: 'Where revenue comes from' },
-          ]}
-          capabilities={[
-            { tag: 'Live KPIs',       title: 'Six metrics at a glance', cta: 'View KPIs', onClick: () => setTab('dashboard'), body: 'Revenue, orders, average order value, sessions, users and conversion rate — fresh on every page load.' },
-            { tag: 'Trend chart',     title: 'Spot the spikes & dips',  cta: 'View trends', onClick: () => setTab('dashboard'), body: 'Sales and orders overlaid on one 30-day chart so movement is obvious at a glance.' },
-            { tag: 'Channel split',   title: 'Know where revenue comes from', cta: 'View channels', onClick: () => setTab('dashboard'), body: 'Revenue and traffic broken down by acquisition channel — search, paid, social, direct.' },
-            { tag: 'Date flexibility', title: 'Compare any window',     cta: 'Open dashboard', onClick: () => setTab('dashboard'), body: '7 / 14 / 30 / 90 days, month-to-date, year-to-date, per-month, or a custom range.' },
-          ]}
+          diagram={<DataFlowMap onPerformance={() => setTab('dashboard')} onAnalyst={() => setTab('analyst')} />}
         />
       )}
 
