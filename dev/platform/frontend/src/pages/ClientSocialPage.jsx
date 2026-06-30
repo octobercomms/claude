@@ -6,8 +6,7 @@ import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
 import Stepper from '../components/Stepper';
-import SocialPlanStep from '../components/social/SocialPlanStep';
-import SocialPublishStep from '../components/social/SocialPublishStep';
+import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
 import SuiteOverview from '../components/SuiteOverview';
@@ -78,9 +77,11 @@ export default function ClientSocialPage() {
     // legacy aliases kept so old deep links resolve
     'loop', 'learn',
   ]);
-  // The Create group is now one factory (Ideas → Brief → Workbench → Schedule);
-  // all its old leaf tabs resolve into that single experience.
-  const inCreate = ['swipe', 'brainstorm', 'reels', 'video'].includes(socialTab);
+  // The Create group is now one factory spanning the whole pipeline
+  // (Ideas → Brief → Workbench → Plan → Publish). Schedule is no longer a
+  // separate section — Plan + Publish are the factory's last two steps — so its
+  // old 'plans'/'publish' leaf tabs resolve into that single experience too.
+  const inCreate = ['swipe', 'brainstorm', 'reels', 'video', 'plans', 'publish'].includes(socialTab);
   useEffect(() => { if (!inCreate) setCreateView(null); }, [inCreate]);
 
   // Redirect legacy deep links to their new homes.
@@ -399,23 +400,14 @@ export default function ClientSocialPage() {
         </div>
       </header>
 
-      {/* Five top groups in workflow order: Overview / Create (Ideas · Posts ·
-          Reels · Video) / Schedule (Plan · Publish) / Engage (DM bot · Discover) /
-          Measure (Winners · Competitors · AI Audit · Insights). Sub-tab keys are
-          unchanged so deep links stay valid; legacy 'loop'/'learn' redirect. */}
+      {/* Four top groups in workflow order: Overview / Create / Engage / Measure.
+          Create is now the whole factory — Ideas → Brief → Workbench → Plan →
+          Publish — so Schedule is no longer a separate section; its 'plans'/
+          'publish' keys map into Create (steps 4 & 5) and stay valid as deep
+          links. Legacy 'loop'/'learn' redirect. */}
       {(() => {
-        // Workflow order, left → right: Create → Schedule → Engage → Measure.
+        // Workflow order, left → right: Create → Engage → Measure.
         const SUB_TABS = {
-          create: [
-            { key: 'swipe',      label: 'Ideas' },
-            { key: 'brainstorm', label: 'Posts' },
-            { key: 'reels',      label: 'Reels' },
-            { key: 'video',      label: 'Video' },
-          ],
-          schedule: [
-            { key: 'plans',   label: 'Plan' },
-            { key: 'publish', label: 'Publish' },
-          ],
           engage: [
             { key: 'dm_bot',   label: 'DM bot' },
             { key: 'discover', label: 'Discover' },
@@ -430,7 +422,7 @@ export default function ClientSocialPage() {
         const GROUP_OF = {
           overview: 'overview',
           swipe: 'create', brainstorm: 'create', reels: 'create', video: 'create',
-          plans: 'schedule', publish: 'schedule',
+          plans: 'create', publish: 'create',
           dm_bot: 'engage', discover: 'engage',
           performance: 'measure', competitors: 'measure', audit: 'measure', perf_insights: 'measure',
           learn: 'measure', loop: 'measure',
@@ -439,7 +431,6 @@ export default function ClientSocialPage() {
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
           { key: 'create',   label: 'Create',   active: currentGroup === 'create',   onClick: () => setSocialTab('swipe') },
-          { key: 'schedule', label: 'Schedule', active: currentGroup === 'schedule', onClick: () => setSocialTab('plans') },
           { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
           { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
         ];
@@ -449,7 +440,7 @@ export default function ClientSocialPage() {
         return (
           <>
             <SuiteTabs tabs={topTabs} />
-            {/* Create has its own stepper (Ideas → Brief → Workbench → Schedule), so it skips the sub-tab bar. */}
+            {/* Create has its own stepper (Ideas → Brief → Workbench → Plan → Publish), so it skips the sub-tab bar. */}
             {subTabs.length > 0 && currentGroup !== 'create' && <SuiteTabs tabs={subTabs} variant="sub" />}
           </>
         );
@@ -468,15 +459,12 @@ export default function ClientSocialPage() {
           ]}
           mapLayout="funnel"
           map={[
-            { title: 'Create', subtitle: 'Ideas → Brief → Workbench → Schedule', nodes: [
+            { title: 'Create', subtitle: 'Ideas → Brief → Workbench → Plan → Publish', nodes: [
               { label: 'Ideas',     onClick: () => setSocialTab('swipe') },
               { label: 'Brief',     onClick: () => setSocialTab('brainstorm') },
               { label: 'Workbench', onClick: () => setSocialTab('brainstorm') },
-              { label: 'Schedule',  onClick: () => setSocialTab('brainstorm') },
-            ] },
-            { title: 'Schedule', subtitle: 'Plan and autopilot to every channel', nodes: [
-              { label: 'Plan',    onClick: () => setSocialTab('plans') },
-              { label: 'Publish', onClick: () => setSocialTab('publish') },
+              { label: 'Plan',      onClick: () => setSocialTab('plans') },
+              { label: 'Publish',   onClick: () => setSocialTab('publish') },
             ] },
             { title: 'Engage', subtitle: 'Respond and reach out', nodes: [
               { label: 'DM bot',   onClick: () => setSocialTab('dm_bot') },
@@ -535,9 +523,17 @@ export default function ClientSocialPage() {
           generating={generating}
           shareUrl={shareUrl}
           onDismissShare={() => setShareUrl(null)}
-          onGoToSchedule={() => setSocialTab('plans')}
+          socialTab={socialTab}
+          onNavTab={setSocialTab}
           ideasContent={(goToBrief) => (
             <SwipeFilePanel clientId={id} onUseAsBrief={(text) => { setBrief(text); goToBrief(); setShowBrief(true); }} />
+          )}
+          plansContent={(
+            <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name}
+              onOpen={(planId) => setPlannerOpen({ planId })} onNewPlan={() => setPlannerOpen({ planId: null })} />
+          )}
+          publishContent={(
+            <SocialPublishContent plans={plans} client={client} onOpenPlan={(pid) => setPlannerOpen({ planId: pid })} />
           )}
           engagement={engagement}
           mediaByPost={mediaByPost}
@@ -552,23 +548,8 @@ export default function ClientSocialPage() {
         />
       ))}
 
-      {/* PIPELINE → 2 PLAN */}
-      {socialTab === 'plans' && (
-        <SocialPlanStep onNext={() => setSocialTab('publish')} onBack={() => setSocialTab('brainstorm')}>
-          <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name} onOpen={(planId) => setPlannerOpen({ planId })} onNewPlan={() => setPlannerOpen({ planId: null })} />
-        </SocialPlanStep>
-      )}
-
-      {/* PIPELINE → 3 PUBLISH */}
-      {socialTab === 'publish' && (
-        <SocialPublishStep
-          plans={plans}
-          client={client}
-          onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
-          onNext={() => setSocialTab('performance')}
-          onBack={() => setSocialTab('plans')}
-        />
-      )}
+      {/* PLAN + PUBLISH now render inside the Create factory as steps 4 & 5
+          (see BrainstormTab) — no separate Schedule section. */}
 
       {/* PIPELINE → 4 LEARN — same WinnersPanel as Performance → Winners,
           framed as production feedback to close the loop. */}
@@ -701,17 +682,31 @@ export default function ClientSocialPage() {
 // approval) in the section head.
 function BrainstormTab({
   clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel,
-  onGenerate, onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare, onGoToSchedule,
-  ideasContent,
+  onGenerate, onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare,
+  socialTab, onNavTab, ideasContent, plansContent, publishContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, stitchReel, generateMedia, deleteMedia,
 }) {
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
-  // The Create factory: 1 Ideas · 2 Brief · 3 Workbench · 4 Schedule.
-  const [step, setStep] = useState(activeBatchId ? 3 : 2);
+  // The Create factory now spans the whole pipeline:
+  // 1 Ideas · 2 Brief · 3 Workbench · 4 Plan · 5 Publish.
+  const STEP_TAB = { 1: 'swipe', 2: 'brainstorm', 3: 'brainstorm', 4: 'plans', 5: 'publish' };
+  const stepForTab = (tab) =>
+    tab === 'swipe' ? 1 : tab === 'plans' ? 4 : tab === 'publish' ? 5 : (activeBatchId ? 3 : 2);
+  const [step, setStep] = useState(() => stepForTab(socialTab));
   const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
+
+  // Keep the stepper in sync when the tab changes from outside — deep links,
+  // the Overview map, or "Plan"/"Publish" buttons elsewhere. 'brainstorm' is
+  // left to the batch-aware logic below (it owns the Brief↔Workbench split).
+  useEffect(() => {
+    if (socialTab === 'swipe') setStep(1);
+    else if (socialTab === 'plans') setStep(4);
+    else if (socialTab === 'publish') setStep(5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socialTab]);
 
   // When a batch first appears (e.g. after generating), jump into the Workbench.
   useEffect(() => { if (activeBatchId) setStep(s => (s <= 2 ? 3 : s)); }, [activeBatchId]);
@@ -720,13 +715,17 @@ function BrainstormTab({
     { title: 'Ideas', sub: 'Find reels to emulate' },
     { title: 'Brief', sub: 'What to make & how many' },
     { title: 'Workbench', sub: 'Refine & produce' },
-    { title: 'Schedule', sub: 'Autopilot or download' },
+    { title: 'Plan', sub: 'Lock & schedule' },
+    { title: 'Publish', sub: 'Autopilot ships it' },
   ];
-  // Workbench + Schedule need a batch; clamp back to Brief when there isn't one.
+  // Workbench needs a batch; clamp back to Brief when there isn't one. Plan +
+  // Publish are reachable anytime (they show every scheduled plan, not just this
+  // batch). Navigating also syncs the URL tab so refreshes / deep links land right.
   function goStep(n) {
-    if (n > 2 && !activeBatchId) { setStep(2); return; }
+    if (n === 3 && !activeBatchId) { setStep(2); if (onNavTab && socialTab !== 'brainstorm') onNavTab('brainstorm'); return; }
     setRefiningId(null); setRefineErr(null);
     setStep(n);
+    if (onNavTab && STEP_TAB[n] && STEP_TAB[n] !== socialTab) onNavTab(STEP_TAB[n]);
   }
 
   const postGrid = refining ? (
@@ -797,7 +796,7 @@ function BrainstormTab({
       <Stepper steps={steps} current={step} onStep={goStep} />
 
       {/* STEP 1 — IDEAS */}
-      {step === 1 && <div className="panel-step">{typeof ideasContent === 'function' ? ideasContent(() => setStep(2)) : ideasContent}</div>}
+      {step === 1 && <div className="panel-step">{typeof ideasContent === 'function' ? ideasContent(() => goStep(2)) : ideasContent}</div>}
 
       {/* STEP 2 — BRIEF */}
       {step === 2 && (
@@ -841,7 +840,7 @@ function BrainstormTab({
             <div className="row wrap" style={{ gap: 8 }}>
               <UiButton variant="secondary" onClick={onGenerate} disabled={generating}>↻ Generate another</UiButton>
               <UiButton variant="secondary" onClick={onShareForApproval} disabled={!posts.length}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
-              <UiButton variant="primary" onClick={() => goStep(4)} disabled={!posts.length}>Schedule →</UiButton>
+              <UiButton variant="primary" onClick={() => goStep(4)} disabled={!posts.length}>Plan &amp; schedule →</UiButton>
             </div>
           </div>
           {shareUrl && <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />}
@@ -858,27 +857,44 @@ function BrainstormTab({
         </div>
       )}
 
-      {/* STEP 4 — SCHEDULE */}
+      {/* STEP 4 — PLAN */}
       {step === 4 && (
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
             <div style={{ maxWidth: 560 }}>
-              <div className="h3">Schedule &amp; autopilot</div>
+              <div className="h3">Plan — lock posts onto the calendar</div>
               <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                Bulk-schedule the approved posts onto a cadence and let autopilot publish them to Instagram, Facebook and LinkedIn. You can fine-tune the plan in the Schedule section.
+                Lock the posts you like and drop them on a cadence — default Mon / Wed / Fri at 10am works for most brands. Autopilot takes over from there. Or bulk-schedule the whole batch in one go.
               </p>
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
               <UiButton variant="secondary" onClick={() => goStep(3)}>← Back to workbench</UiButton>
-              <UiButton variant="primary" onClick={onBulkSchedule} disabled={!hasAutopilotSupported}>📅 Bulk schedule</UiButton>
+              <UiButton variant="secondary" onClick={onBulkSchedule} disabled={!hasAutopilotSupported}>📅 Bulk schedule</UiButton>
+              <UiButton variant="primary" onClick={() => goStep(5)}>Publish queue →</UiButton>
             </div>
           </div>
           {!hasAutopilotSupported && (
-            <div className="callout callout-warning">Bulk scheduling needs Instagram, Facebook or LinkedIn posts in this batch.</div>
+            <div className="callout callout-warning" style={{ marginBottom: 14 }}>Bulk scheduling needs Instagram, Facebook or LinkedIn posts in this batch — you can still lock individual posts onto the calendar below.</div>
           )}
-          <div style={{ marginTop: 14 }}>
-            <button className="btn btn-ghost btn-sm" onClick={onGoToSchedule}>Open the Schedule section →</button>
+          {plansContent}
+        </div>
+      )}
+
+      {/* STEP 5 — PUBLISH */}
+      {step === 5 && (
+        <div className="panel-step">
+          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
+            <div style={{ maxWidth: 560 }}>
+              <div className="h3">Publish — autopilot ships on schedule</div>
+              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+                The autopilot publishes scheduled plans to every channel every 5 minutes. Pause it from the top bar if you need to hold the queue.
+              </p>
+            </div>
+            <div className="row wrap" style={{ gap: 8 }}>
+              <UiButton variant="secondary" onClick={() => goStep(4)}>← Back to plan</UiButton>
+            </div>
           </div>
+          {publishContent}
         </div>
       )}
     </div>

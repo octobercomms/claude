@@ -7,7 +7,10 @@ import PipelineStep from '../organic/PipelineStep';
 // 5 min) so there's nothing to do here — this step exists so AMs can
 // SEE the loop closing, and intervene (pause autopilot, edit a plan)
 // from the surfaced links.
-export default function SocialPublishStep({ plans = [], client, onPauseToggle, onOpenPlan, onNext, onBack }) {
+// The bare publish content (autopilot status + upcoming / recently-published
+// queues), with no step chrome — used directly as step 5 of the Create factory
+// stepper. SocialPublishStep wraps it in PipelineStep for any standalone use.
+export function SocialPublishContent({ plans = [], client, onPauseToggle, onOpenPlan }) {
   const now = Date.now();
   const upcoming = (plans || [])
     .filter(p => p.scheduled_at && new Date(p.scheduled_at).getTime() > now)
@@ -20,10 +23,7 @@ export default function SocialPublishStep({ plans = [], client, onPauseToggle, o
   const paused = !!client?.social_autopilot_paused;
 
   return (
-    <PipelineStep
-      num={3} title="Publish" onNext={onNext} nextLabel="Learn from results"
-      tagline="The autopilot publishes scheduled plans to every channel every 5 minutes. Pause it from the top bar if you need to hold the queue."
-    >
+    <>
       <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="caption">Autopilot</div>
@@ -45,7 +45,7 @@ export default function SocialPublishStep({ plans = [], client, onPauseToggle, o
         <div className="card">
           <div className="caption mb-3">Upcoming ({upcoming.length})</div>
           {!upcoming.length ? (
-            <p className="body-sm text-subtle">Nothing scheduled. Lock and schedule posts on step 2 to fill the queue.</p>
+            <p className="body-sm text-subtle">Nothing scheduled. Lock and schedule posts on the Plan step to fill the queue.</p>
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {upcoming.map(p => (
@@ -82,6 +82,17 @@ export default function SocialPublishStep({ plans = [], client, onPauseToggle, o
           )}
         </div>
       </div>
+    </>
+  );
+}
+
+export default function SocialPublishStep({ plans = [], client, onPauseToggle, onOpenPlan, onNext, onBack }) {
+  return (
+    <PipelineStep
+      num={3} title="Publish" onNext={onNext} nextLabel="Learn from results"
+      tagline="The autopilot publishes scheduled plans to every channel every 5 minutes. Pause it from the top bar if you need to hold the queue."
+    >
+      <SocialPublishContent plans={plans} client={client} onPauseToggle={onPauseToggle} onOpenPlan={onOpenPlan} />
     </PipelineStep>
   );
 }
