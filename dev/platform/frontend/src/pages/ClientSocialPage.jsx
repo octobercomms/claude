@@ -36,7 +36,6 @@ export default function ClientSocialPage() {
   const [activeBatchId, setActiveBatchId] = useState(null);
   const [competitors, setCompetitors] = useState([]);
   const [generating, setGenerating] = useState(false);
-  const [showBrief, setShowBrief] = useState(false);
   const [brief, setBrief] = useState('');
   const [platforms, setPlatforms] = useState(['instagram', 'tiktok']);
   const [postCount, setPostCount] = useState(9);
@@ -228,7 +227,6 @@ export default function ClientSocialPage() {
 
   async function generate() {
     setGenerating(true);
-    setShowBrief(false); // close the modal straight away — show a centred "Generating…" overlay instead
     try {
       const { batch, posts: newPosts } = await api.post(`/social/clients/${id}/generate`, { brief, platforms, count: postCount });
       setBatches([batch, ...batches]);
@@ -482,7 +480,7 @@ export default function ClientSocialPage() {
           competitorPosts={competitorPosts}
           sparkline={sparkline}
           onAddCompetitor={() => setSocialTab('competitors')}
-          onGenerate={() => { setSocialTab('brainstorm'); setShowBrief(true); }}
+          onGenerate={() => setSocialTab('brainstorm')}
           onBulkSchedule={() => setBulkOpen(true)}
           onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
           onOpenHookVault={() => setHookVaultOpen(true)}
@@ -504,9 +502,8 @@ export default function ClientSocialPage() {
           activeBatchId={activeBatchId}
           onSelectBatch={selectBatch}
           onDeleteBatch={deleteBatch}
-          onGenerate={() => setShowBrief(true)}
           onMakeReel={pushPostToReel}
-          onReuseBrief={(b) => { setBrief(b.brief || ''); setShowBrief(true); }}
+          onReuseBrief={(b) => setBrief(b.brief || '')}
           onBulkSchedule={() => setBulkOpen(true)}
           onShareForApproval={shareBatchForApproval}
           generating={generating}
@@ -515,7 +512,13 @@ export default function ClientSocialPage() {
           socialTab={socialTab}
           onNavTab={setSocialTab}
           ideasContent={(goToBrief) => (
-            <SwipeFilePanel clientId={id} onUseAsBrief={(text) => { setBrief(text); goToBrief(); setShowBrief(true); }} />
+            <SwipeFilePanel clientId={id} onUseAsBrief={(text) => { setBrief(text); goToBrief(); }} />
+          )}
+          briefContent={(
+            <BriefForm clientId={id} brief={brief} setBrief={setBrief}
+              platforms={platforms} setPlatforms={setPlatforms}
+              count={postCount} setCount={setPostCount}
+              onSubmit={generate} submitting={generating} />
           )}
           plansContent={(
             <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name}
@@ -617,16 +620,6 @@ export default function ClientSocialPage() {
       )}
 
 
-      {showBrief && (
-        <BriefModal
-          clientId={id}
-          onClose={() => setShowBrief(false)}
-          brief={brief} setBrief={setBrief}
-          platforms={platforms} setPlatforms={setPlatforms}
-          count={postCount} setCount={setPostCount}
-          onSubmit={generate} submitting={generating}
-        />
-      )}
       {generating && <GeneratingOverlay count={postCount} />}
       {plannerOpen && (
         <SocialPlannerChat
@@ -671,8 +664,8 @@ export default function ClientSocialPage() {
 // approval) in the section head.
 function BrainstormTab({
   clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel,
-  onGenerate, onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare,
-  socialTab, onNavTab, ideasContent, plansContent, publishContent,
+  onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare,
+  socialTab, onNavTab, ideasContent, briefContent, plansContent, publishContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, stitchReel, generateMedia, deleteMedia,
 }) {
@@ -790,28 +783,26 @@ function BrainstormTab({
       {/* STEP 2 — BRIEF */}
       {step === 2 && (
         <div className="panel-step">
-          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
-            <div style={{ maxWidth: 560 }}>
-              <div className="h3">Generate a batch</div>
-              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                Claude proposes a batch of posts — hook, caption, hashtags, visual concept and a frame-by-frame storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many (1–9) in the brief.
-              </p>
-            </div>
-            <UiButton variant="primary" onClick={onGenerate} disabled={generating}>
-              {generating ? 'Generating…' : (batches.length ? 'Generate another batch' : 'Generate posts')}
-            </UiButton>
+          <div style={{ maxWidth: 640, marginBottom: 16 }}>
+            <div className="h3">Generate a batch</div>
+            <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+              Claude proposes a batch of posts — hook, caption, hashtags, visual concept and a frame-by-frame storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many (1–9), then generate.
+            </p>
           </div>
+          {briefContent}
           {batches.length > 0 ? (
-            <>
+            <div style={{ marginTop: 22 }}>
               <div className="caption caption-muted mb-3">Past batches — pick one to review</div>
               <BatchRail batches={batches} activeBatchId={activeBatchId} horizontal
                 onSelectBatch={(id) => { onSelectBatch(id); setStep(3); }}
                 onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
-            </>
+            </div>
           ) : (
-            <ExampleBlock storageKey={`social_brainstorm_example_${clientId}`} title="this is what one of the 9 posts looks like — click Generate for real ones">
-              <ExamplePostCard />
-            </ExampleBlock>
+            <div style={{ marginTop: 22 }}>
+              <ExampleBlock storageKey={`social_brainstorm_example_${clientId}`} title="this is what one of the 9 posts looks like — click Generate for real ones">
+                <ExamplePostCard />
+              </ExampleBlock>
+            </div>
           )}
         </div>
       )}
@@ -827,22 +818,17 @@ function BrainstormTab({
               </p>
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
-              <UiButton variant="secondary" onClick={onGenerate} disabled={generating}>↻ Generate another</UiButton>
+              <UiButton variant="secondary" onClick={() => goStep(2)} disabled={generating}>↻ Generate another</UiButton>
               <UiButton variant="secondary" onClick={onShareForApproval} disabled={!posts.length}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
               <UiButton variant="primary" onClick={() => goStep(4)} disabled={!posts.length}>Plan &amp; schedule →</UiButton>
             </div>
           </div>
           {shareUrl && <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />}
-          <div className="brainstorm-grid">
-            <BatchRail batches={batches} activeBatchId={activeBatchId}
-              onSelectBatch={onSelectBatch} onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
-            <div>
-              {!posts.length && batches.length > 0 && (
-                <div className="empty" style={{ padding: 'var(--s7)' }}><p className="body">Pick a batch on the left to see its posts.</p></div>
-              )}
-              {postGrid}
+          {!posts.length ? (
+            <div className="empty" style={{ padding: 'var(--s7)' }}>
+              <p className="body">No posts in this batch yet. <button className="btn-inline-link" onClick={() => goStep(2)}>Generate a batch</button> to fill the workbench.</p>
             </div>
-          </div>
+          ) : postGrid}
         </div>
       )}
 
@@ -1275,6 +1261,16 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
     } catch {}
   }
 
+  async function deletePlan(planId) {
+    if (!window.confirm('Delete this plan? It will be removed from the schedule and the autopilot queue.')) return;
+    try {
+      await api.delete(`/social/clients/${clientId}/plans/${planId}`);
+      setPlans(prev => prev.filter(p => p.id !== planId));
+    } catch (e) {
+      alert(`Delete failed: ${e.message}`);
+    }
+  }
+
   if (loading) return null;
 
   if (!plans.length) {
@@ -1397,6 +1393,7 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
                 <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
                 <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ PDF</button>
                 <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ Word</button>
+                <button type="button" onClick={() => deletePlan(p.id)} title="Delete plan" style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--negative)', cursor: 'pointer' }}>✕</button>
               </div>
             </div>
           );
@@ -1543,7 +1540,10 @@ function GeneratingOverlay({ count = 9 }) {
   );
 }
 
-function BriefModal({ clientId, onClose, brief, setBrief, platforms, setPlatforms, count = 9, setCount, onSubmit, submitting }) {
+// The generate form, rendered inline as the Brief step of the Build factory
+// (no longer a modal). Writes the brief, picks count + platforms + optional
+// reference uploads, and kicks off generation.
+function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count = 9, setCount, onSubmit, submitting }) {
   const [uploads, setUploads] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
@@ -1570,55 +1570,51 @@ function BriefModal({ clientId, onClose, brief, setBrief, platforms, setPlatform
     }
   }
   return (
-    <div style={modalStyles.overlay} onClick={onClose}>
-      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 700 }}>Generate posts</h2>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
-          Optional brief — the more specific you are, the more useful the output. Examples:
-          "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy."
-          Leave empty for a balanced batch.
-        </p>
-        <label style={modalStyles.label}>Brief</label>
-        <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={5} style={modalStyles.textarea} placeholder="What's the angle? Any constraints?" />
-        <label style={modalStyles.label}>How many posts</label>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {[1, 2, 3, 4, 5, 6, 9].map(nn => (
-            <button key={nn} type="button" onClick={() => setCount && setCount(nn)}
-              style={{ width: 38, height: 38, borderRadius: 'var(--r-md)', cursor: 'pointer', fontWeight: 800, fontFamily: 'inherit',
-                border: 'var(--border-w) solid ' + (count === nn ? 'var(--accent)' : 'var(--card-border)'),
-                background: count === nn ? 'var(--accent)' : 'var(--surface)', color: 'var(--text)' }}>
-              {nn}
-            </button>
-          ))}
-        </div>
-        <label style={modalStyles.label}>Platforms</label>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {['instagram', 'tiktok', 'linkedin', 'facebook'].map(p => (
-            <button key={p} onClick={() => togglePlatform(p)} type="button" style={platforms.includes(p) ? modalStyles.pillOn : modalStyles.pill}>
-              {p}
-            </button>
-          ))}
-        </div>
-        {clientId && (<>
-          <label style={modalStyles.label}>Your content (optional)</label>
-          <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }}
-            onChange={e => { const f = e.target.files?.[0]; if (f) uploadRef(f); e.target.value = ''; }} />
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-              {uploading ? 'Uploading…' : '⬆ Attach image / clip'}
-            </button>
-            {uploads.map(u => <span key={u.id} style={modalStyles.pill}>{u.kind === 'b_roll_clip' ? '🎬' : '🖼'} {u.name.slice(0, 22)}</span>)}
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0', lineHeight: 1.5 }}>
-            Reference images/clips are saved to this client's brand assets and used to ground the generated posts.
-          </p>
-        </>)}
-        <div style={modalStyles.footer}>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={submitting || !platforms.length}>
-            {submitting ? 'Generating…' : `Generate ${count} post${count === 1 ? '' : 's'}`}
+    <div className="card" style={{ maxWidth: 640 }}>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
+        Optional brief — the more specific you are, the more useful the output. Examples:
+        "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy."
+        Leave empty for a balanced batch.
+      </p>
+      <label style={modalStyles.label}>Brief</label>
+      <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={5} style={modalStyles.textarea} placeholder="What's the angle? Any constraints?" />
+      <label style={modalStyles.label}>How many posts</label>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {[1, 2, 3, 4, 5, 6, 9].map(nn => (
+          <button key={nn} type="button" onClick={() => setCount && setCount(nn)}
+            style={{ width: 38, height: 38, borderRadius: 'var(--r-md)', cursor: 'pointer', fontWeight: 800, fontFamily: 'inherit',
+              border: 'var(--border-w) solid ' + (count === nn ? 'var(--accent)' : 'var(--card-border)'),
+              background: count === nn ? 'var(--accent)' : 'var(--surface)', color: 'var(--text)' }}>
+            {nn}
           </button>
+        ))}
+      </div>
+      <label style={modalStyles.label}>Platforms</label>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {['instagram', 'tiktok', 'linkedin', 'facebook'].map(p => (
+          <button key={p} onClick={() => togglePlatform(p)} type="button" style={platforms.includes(p) ? modalStyles.pillOn : modalStyles.pill}>
+            {p}
+          </button>
+        ))}
+      </div>
+      {clientId && (<>
+        <label style={modalStyles.label}>Your content (optional)</label>
+        <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) uploadRef(f); e.target.value = ''; }} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+            {uploading ? 'Uploading…' : '⬆ Attach image / clip'}
+          </button>
+          {uploads.map(u => <span key={u.id} style={modalStyles.pill}>{u.kind === 'b_roll_clip' ? '🎬' : '🖼'} {u.name.slice(0, 22)}</span>)}
         </div>
+        <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0', lineHeight: 1.5 }}>
+          Reference images/clips are saved to this client's brand assets and used to ground the generated posts.
+        </p>
+      </>)}
+      <div style={{ marginTop: 16 }}>
+        <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={submitting || !platforms.length}>
+          {submitting ? 'Generating…' : `✦ Generate ${count} post${count === 1 ? '' : 's'}`}
+        </button>
       </div>
     </div>
   );
