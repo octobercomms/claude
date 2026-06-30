@@ -67,7 +67,7 @@ const POSTS_TOOL = {
             framework_rationale: { type: 'string', description: 'Why this framework fits this topic + audience.' },
             hook: { type: 'string' },
             caption: { type: 'string' },
-            hashtags: { type: 'array', items: { type: 'string' }, maxItems: 8 },
+            hashtags: { type: 'array', items: { type: 'string' }, maxItems: 5, description: '3–5 highly relevant hashtags only (a couple niche/specific + one or two broader). Never a wall — per Instagram, count does not boost reach.' },
             visual_concept: { type: 'string', description: 'One-paragraph visual direction — composition, palette, mood, key references.' },
             suggested_sound: { type: 'string', description: 'For reels only — the title of a TikTok sound from the trending list provided, if one fits. Leave empty otherwise.' },
             storyboard: {
@@ -180,7 +180,7 @@ ${winners.length
   ? `Posts that have actually performed well for THIS brand in the last 90 days (model the new batch on what's already engaging this audience — don't copy verbatim, lift the angle and structure):\n${winners.map((w, i) => `${i + 1}. [${w.platform} · ${w.kind} · ${w.engagement_rate}% engagement] hook: "${w.hook || '(none)'}" — caption opener: "${(w.caption || '').slice(0, 120)}…"`).join('\n')}`
   : 'No published-post engagement data yet — design on brand + brief + trends alone. After the AM publishes a few of these and marks them published, future batches will draw on what worked.'}
 
-Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + carousel so the AM can choose; if the brief asks for one kind specifically, follow that. Use British English.`;
+Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + carousel so the AM can choose; if the brief asks for one kind specifically, follow that. Use British English. Keep hashtags to 3–5 highly relevant ones per post (see the Instagram playbook) — never a wall.`;
 
   const response = await client().messages.create({
     model: MODEL,

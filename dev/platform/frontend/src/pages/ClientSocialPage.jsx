@@ -1725,8 +1725,8 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       </div>
 
       {(post.hashtags || []).length > 0 && (
-        <div style={{ marginTop: 8 }}>
-          {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 11, marginRight: 6 }}>#{h.replace(/^#/, '')}</span>)}
+        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', columnGap: 6, rowGap: 2 }}>
+          {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 11 }}>#{h.replace(/^#/, '')}</span>)}
         </div>
       )}
 
