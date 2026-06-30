@@ -17,6 +17,7 @@ import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
 import SwipeFilePanel from '../components/SwipeFilePanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
+import AutoEditPanel from '../components/AutoEditPanel';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -738,7 +739,7 @@ function BrainstormTab({
       </div>
       {refineErr && <div className="callout callout-danger mb-3">{refineErr}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 'var(--s4)' }}>
-        <PostCard post={refining} engagement={engagement[refining.id]} media={mediaByPost[refining.id] || []}
+        <PostCard post={refining} clientId={clientId} engagement={engagement[refining.id]} media={mediaByPost[refining.id] || []}
           onChange={patch => updatePost(refining.id, patch)}
           onDelete={() => { setRefiningId(null); deletePost(refining.id); }}
           onPublish={(url) => publishPost(refining.id, url)}
@@ -771,7 +772,7 @@ function BrainstormTab({
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
       {posts.map(p => (
         <div key={p.id} style={{ display: 'flex', flexDirection: 'column' }}>
-          <PostCard post={p} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
+          <PostCard post={p} clientId={clientId} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
             onChange={patch => updatePost(p.id, patch)}
             onDelete={() => deletePost(p.id)}
             onPublish={(url) => publishPost(p.id, url)}
@@ -1886,7 +1887,7 @@ function ShareLinkBanner({ url, onDismiss }) {
   );
 }
 
-function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onStitchReel, onDeleteMedia, onMakeReel }) {
+function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onStitchReel, onDeleteMedia, onMakeReel }) {
   const [open, setOpen] = useState(false);
   const [showImg, setShowImg] = useState(false);
   const [imgPrompt, setImgPrompt] = useState('');
@@ -1899,6 +1900,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
   const [publishUrl, setPublishUrl] = useState('');
   const [renderingMedia, setRenderingMedia] = useState(null);
   const [showProd, setShowProd] = useState(false);
+  const [showAutoEdit, setShowAutoEdit] = useState(false);
 
   async function handleGenerateMedia(kind) {
     setRenderingMedia(kind);
@@ -2024,6 +2026,12 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         <button onClick={() => handleGenerateMedia('video')} disabled={renderingMedia === 'video'} className="btn btn-secondary btn-sm">
           {renderingMedia === 'video' ? 'Rendering UGC…' : 'Generate UGC video'}
         </button>
+        {clientId && (
+          <button onClick={() => setShowAutoEdit(s => !s)} className="btn btn-secondary btn-sm"
+            title="Upload a raw clip and auto-edit it into a finished reel">
+            {showAutoEdit ? 'Cancel auto-edit' : '✂ Auto-edit a clip'}
+          </button>
+        )}
         {(post.storyboard || []).some(f => ['A', 'C', 'G'].includes(f.style)) && (
           <button onClick={async () => {
             setRenderingMedia('templates');
@@ -2127,6 +2135,8 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
           </button>
         </div>
       )}
+
+      {showAutoEdit && clientId && <AutoEditPanel clientId={clientId} post={post} />}
     </div>
   );
 }
