@@ -86,7 +86,7 @@ export default function HeygenReelsPanel({ clientId }) {
       </div>
 
       {optsErr ? (
-        <div className="callout callout-warning" style={{ marginBottom: 'var(--s5)' }}>{optsErr} — add your HeyGen API key in <strong>Settings → AI</strong>.</div>
+        <div className="callout callout-warning" style={{ marginBottom: 'var(--s5)' }}>{optsErr}</div>
       ) : !opts ? (
         <div className="text-subtle" style={{ marginBottom: 'var(--s5)' }}>Loading avatars & voices…</div>
       ) : (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
@@ -9,6 +9,14 @@ export default function Layout() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const mainRef = useRef(null);
+  // Reset the scroll position to the top whenever the route (path) changes, so
+  // landing on a new page starts at the top — not wherever you were before.
+  // Keyed on pathname only, so switching tabs (?tab=…) leaves scroll alone.
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
   const clientMatch = useMatch('/clients/:id');
   const clientSeoMatch = useMatch('/clients/:id/seo');
   const clientChatMatch = useMatch('/clients/:id/chat');
@@ -111,7 +119,7 @@ export default function Layout() {
           <button onClick={handleLogout} className="app-nav-footer-btn">Sign out</button>
         </div>
       </nav>
-      <main className="app-main">
+      <main className="app-main" ref={mainRef}>
         {clientId && <ClientSwitcher clientId={clientId} />}
         <Outlet />
       </main>
