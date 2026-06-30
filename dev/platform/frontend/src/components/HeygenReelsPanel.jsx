@@ -99,7 +99,7 @@ export default function HeygenReelsPanel({ clientId }) {
         <div className="card" style={{ marginBottom: 'var(--s5)' }}>
           {opts.partial && (
             <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <span>{opts.avatars?.length ? 'Voices' : 'Avatars'} couldn’t load from HeyGen this time — it may be busy.</span>
+              <span>{opts.avatars?.length ? 'Voices' : 'Avatars'} couldn’t load — {opts.partial_error || 'HeyGen may be busy.'}</span>
               <button onClick={loadOptions} disabled={reloadingOpts} className="btn btn-secondary btn-sm">{reloadingOpts ? 'Retrying…' : 'Retry'}</button>
             </div>
           )}

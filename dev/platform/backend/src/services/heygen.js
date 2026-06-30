@@ -35,7 +35,12 @@ async function http() {
       const e = new Error('HeyGen rejected the API key. Update it in Settings → AI.');
       e.status = err.response.status; throw e;
     }
-    throw err;
+    // Any other error status — surface HeyGen's own message + the status code
+    // so failures are diagnosable rather than a generic "Request failed".
+    const body = err.response.data || {};
+    const hg = body.error?.message || body.message || (typeof body.error === 'string' ? body.error : null) || err.response.statusText;
+    const e = new Error(`HeyGen error ${err.response.status}${hg ? `: ${hg}` : ''}`);
+    e.status = err.response.status; throw e;
   });
   return client;
 }
@@ -182,7 +187,8 @@ async function getOptions() {
   const aOk = a.status === 'fulfilled' || !!_optsCache.avatars.data;
   const vOk = v.status === 'fulfilled' || !!_optsCache.voices.data;
   if (!aOk && !vOk) throw (a.reason || v.reason || Object.assign(new Error('Could not reach HeyGen.'), { status: 502 }));
-  return { avatars, voices, partial: !aOk || !vOk };
+  const partial_error = !aOk ? (a.reason?.message || null) : !vOk ? (v.reason?.message || null) : null;
+  return { avatars, voices, partial: !aOk || !vOk, partial_error };
 }
 
 // Lightweight connectivity check for Settings → AI. Pings a cheap HeyGen
