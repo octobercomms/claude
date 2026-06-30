@@ -8,12 +8,15 @@
 //
 // Style B / D / E / F are excluded by design — they're filmed by the
 // AM or the client. The platform only auto-renders the no-film styles.
+//
+//   storyboardReel — A/C/G frames stitched into one reel (dynamic duration)
 
 import React from 'react';
 import { Composition, registerRoot } from 'remotion';
 import { StyleA } from './StyleA.jsx';
 import { StyleC } from './StyleC.jsx';
 import { StyleG } from './StyleG.jsx';
+import { StoryboardReel } from './StoryboardReel.jsx';
 
 const FPS = 30;
 const W = 1080;
@@ -61,6 +64,23 @@ const Root = () => (
         brandColour: '#E7CD41',
         textColour: '#ffffff',
         background: '#000000',
+      }}
+    />
+    <Composition
+      id="storyboardReel"
+      component={StoryboardReel}
+      durationInFrames={FPS * 10}
+      fps={FPS}
+      width={W}
+      height={H}
+      defaultProps={{ scenes: [] }}
+      // Total duration = sum of the scene durations, so the reel is exactly as
+      // long as its frames. renderMedia also passes an explicit override.
+      calculateMetadata={({ props }) => {
+        const total = (props.scenes || []).reduce(
+          (n, s) => n + Math.max(1, Math.round(s.durationFrames || 30)), 0,
+        );
+        return { durationInFrames: Math.max(1, total) };
       }}
     />
   </>

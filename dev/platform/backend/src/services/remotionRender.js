@@ -68,49 +68,65 @@ async function renderComposition({ compositionId, inputProps, clientId, duration
   };
 }
 
-// Higher-level convenience — pull style + text from a storyboard frame
-// and a client's brand assets, render the right composition.
-async function renderFrameForPost(post, frame, brandAssets) {
+function brandColourFor(brandAssets) {
+  const palette = (brandAssets || []).find(a => a.kind === 'palette');
+  return palette?.metadata?.colors?.[0] || '#E7CD41';
+}
+
+// Resolve one A/C/G storyboard frame into the composition + props + duration
+// the Video Style System dictates. Shared by the single-frame renderer and the
+// stitched-reel renderer so the grammar lives in exactly one place.
+function resolveFrame(frame, brandColour, fps = 30) {
   if (!['A', 'C', 'G'].includes(frame.style)) {
     throw new Error(`Cannot auto-render style ${frame.style} — only A, C, G are no-film styles.`);
   }
-  const palette = brandAssets.find(a => a.kind === 'palette');
-  const colours = palette?.metadata?.colors || [];
-  const brandColour = colours[0] || '#E7CD41';
-
-  let inputProps, compositionId;
-  const fps = 30;
   const durationFrames = Math.max(1, Math.round((frame.duration_sec || defaultDuration(frame.style)) * fps));
-
+  let compositionId, props;
   if (frame.style === 'A') {
     compositionId = 'styleA';
-    inputProps = {
-      text: frame.on_screen_text || frame.shot || 'Your hook here.',
-      brandColour,
-      textColour: '#ffffff',
-      background: '#000000',
-    };
+    props = { text: frame.on_screen_text || frame.shot || 'Your hook here.', brandColour, textColour: '#ffffff', background: '#000000' };
   } else if (frame.style === 'C') {
     compositionId = 'styleC';
-    inputProps = {
-      text: frame.on_screen_text || frame.shot || 'word.',
-      textColour: '#ffffff',
-      background: '#000000',
-    };
+    props = { text: frame.on_screen_text || frame.shot || 'word.', textColour: '#ffffff', background: '#000000' };
   } else {
     compositionId = 'styleG';
-    inputProps = {
-      cta: frame.on_screen_text || 'octobercomms.com',
-      secondary: frame.voiceover || 'Book a call',
-      brandColour,
-      textColour: '#ffffff',
-      background: '#000000',
-    };
+    props = { cta: frame.on_screen_text || 'octobercomms.com', secondary: frame.voiceover || 'Book a call', brandColour, textColour: '#ffffff', background: '#000000' };
   }
+  return { compositionId, props, durationFrames };
+}
+
+// Higher-level convenience — pull style + text from a storyboard frame
+// and a client's brand assets, render the right composition.
+async function renderFrameForPost(post, frame, brandAssets) {
+  const brandColour = brandColourFor(brandAssets);
+  const { compositionId, props, durationFrames } = resolveFrame(frame, brandColour);
   return renderComposition({
-    compositionId, inputProps,
+    compositionId, inputProps: props,
     clientId: post.client_id,
     durationFrames,
+  });
+}
+
+// Stitch every A/C/G frame of a post's storyboard into ONE vertical reel via
+// the StoryboardReel Series composition — a single MP4 the AM can download or
+// schedule, instead of a pile of separate clips.
+async function renderStoryboardReel(post, brandAssets) {
+  const brandColour = brandColourFor(brandAssets);
+  const fps = 30;
+  const frames = (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style));
+  if (!frames.length) {
+    throw new Error('No A/C/G frames to stitch — only reels with the Video Style System grammar can auto-render.');
+  }
+  const scenes = frames.map(f => {
+    const { props, durationFrames } = resolveFrame(f, brandColour, fps);
+    return { style: f.style, props, durationFrames };
+  });
+  const total = scenes.reduce((n, s) => n + s.durationFrames, 0);
+  return renderComposition({
+    compositionId: 'storyboardReel',
+    inputProps: { scenes },
+    clientId: post.client_id,
+    durationFrames: total,
   });
 }
 
@@ -118,4 +134,4 @@ function defaultDuration(style) {
   return ({ A: 3, C: 1.5, G: 4 }[style] || 3);
 }
 
-module.exports = { renderComposition, renderFrameForPost, ensureBundle };
+module.exports = { renderComposition, renderFrameForPost, renderStoryboardReel, ensureBundle };
