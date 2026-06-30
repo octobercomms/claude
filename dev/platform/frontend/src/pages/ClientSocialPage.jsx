@@ -434,17 +434,28 @@ export default function ClientSocialPage() {
             { label: 'Plans', value: `${plans.length} scheduled`, ok: plans.length > 0 },
             { label: 'Competitors', value: competitors.length ? `${competitors.length} tracked` : 'None added', ok: competitors.length > 0 },
           ]}
-          flow={[
-            { label: 'Brainstorm', detail: '9 posts at a time' },
-            { label: 'Lock plan',  detail: 'Edit, approve, schedule' },
-            { label: 'Autopilot',  detail: 'IG / FB / LinkedIn' },
-            { label: 'Learn',      detail: 'Winners + framework data' },
-          ]}
-          capabilities={[
-            { tag: 'Brainstorm',  title: 'Generate nine at a time',   cta: 'Open brainstorm', onClick: () => setSocialTab('brainstorm'), body: 'Hook, caption, hashtags, visual concept and a frame-by-frame storyboard for each — grounded in the brief.' },
-            { tag: 'Plans',       title: 'Schedule & autopilot',      cta: 'Open plans', onClick: () => setSocialTab('plans'), body: 'Approve posts into a Plan, set the cadence, and autopilot publishes to IG / Facebook / LinkedIn.' },
-            { tag: 'Performance', title: 'Learn what wins',           cta: 'Open performance', onClick: () => setSocialTab('performance'), body: 'Top posts surface as winners and their hooks land in the Hook Vault for reuse across clients.' },
-            { tag: 'Competitors', title: 'Model against rivals',      cta: 'Open competitors', onClick: () => setSocialTab('competitors'), body: 'Weekly competitor scrapes and regional trending sounds feed straight into the next brainstorm.' },
+          mapLayout="funnel"
+          map={[
+            { title: 'Create', subtitle: 'From swipe file to finished asset', nodes: [
+              { label: 'Ideas', onClick: () => setSocialTab('swipe') },
+              { label: 'Posts', onClick: () => setSocialTab('brainstorm') },
+              { label: 'Reels', onClick: () => setSocialTab('reels') },
+              { label: 'Video', onClick: () => setSocialTab('video') },
+            ] },
+            { title: 'Schedule', subtitle: 'Plan and autopilot to every channel', nodes: [
+              { label: 'Plan',    onClick: () => setSocialTab('plans') },
+              { label: 'Publish', onClick: () => setSocialTab('publish') },
+            ] },
+            { title: 'Engage', subtitle: 'Respond and reach out', nodes: [
+              { label: 'DM bot',   onClick: () => setSocialTab('dm_bot') },
+              { label: 'Discover', onClick: () => setSocialTab('discover') },
+            ] },
+            { title: 'Measure', subtitle: 'Insights, winners and what rivals do', nodes: [
+              { label: 'Insights',    onClick: () => setSocialTab('perf_insights') },
+              { label: 'Winners',     onClick: () => setSocialTab('performance') },
+              { label: 'Competitors', onClick: () => setSocialTab('competitors') },
+              { label: 'AI audit',    onClick: () => setSocialTab('audit') },
+            ] },
           ]}
         />
       )}

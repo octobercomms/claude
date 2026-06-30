@@ -409,7 +409,6 @@ export default function ClientPRPage() {
 
   const f = editing || {};
   const setF = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
-  const linkRow = { background: 'none', border: 'none', textAlign: 'left', color: 'var(--accent)', cursor: 'pointer', padding: '2px 0', font: 'inherit', fontSize: 14 };
 
   return (
     <div className="suite-client-pr">
@@ -447,56 +446,49 @@ export default function ClientPRPage() {
               { label: 'Tracked', value: stats ? String(stats.tracked) : '—', ok: !!(stats && stats.tracked) },
               { label: 'Journalists', value: stats ? String(stats.journalists) : '—', ok: !!(stats && stats.journalists) },
             ]}
-            flow={[
-              { label: 'Monitor', detail: 'Google News + Alerts' },
-              { label: 'Log', detail: 'Coverage + journalists' },
-              { label: 'Target', detail: 'AI picks who to pitch' },
-              { label: 'Nurture', detail: 'Thanks + warm notes' },
-            ]}
-            capabilities={[
-              { tag: 'Coverage', title: 'Every hit, in one log', cta: 'Open coverage', onClick: () => setTab('coverage'), body: 'A living editorial log with a public, client-facing coverage page — plus an automatic monitor that finds new pieces for you to confirm.' },
-              { tag: 'Targeting', title: 'Who should I pitch this to?', cta: 'Open journalists', onClick: () => setTab('journalists'), body: 'Paste a release or brief and Claude mines your contacts’ beats and your relationship history to build a ranked, reasoned target list — no more pitching from memory.' },
-              { tag: 'Relationships', title: 'Never go cold', cta: 'Open journalists', onClick: () => setTab('journalists'), body: 'Relationship strength, hit-rate and tier per journalist; auto-thank-yous when you’re covered; and nudges to send a warm note on their latest article.' },
-              { tag: 'Press releases', title: 'Brief → draft → sign-off → pitch', cta: 'Open press releases', onClick: () => setTab('press'), body: 'Write from a brief, let Claude draft the release, get client sign-off on a token link, then spin it straight into a pitch campaign.' },
-              { tag: 'Reports', title: 'Show the value, automatically', cta: 'Open reports', onClick: () => setTab('reports'), body: 'Scheduled coverage digests and “you’ve been featured” alerts to the client, plus a shareable live coverage portal.' },
+            actions={<>
+              <button className="btn btn-primary" onClick={() => { setTab('coverage'); startEdit(null); }}>+ Log coverage</button>
+              <button className="btn btn-secondary" onClick={() => { setTab('press'); newRelease(); }}>+ Press release</button>
+            </>}
+            interstitial={
+              <div className="card">
+                <h3 className="h3 mb-2">Needs attention</h3>
+                {(queue.length || thanks.length || awaitingSignoff || quietCount) ? (
+                  <div className="task-row">
+                    {queue.length ? <button className="task-chip" onClick={() => setTab('coverage')}>🔎 <span><span className="n">{queue.length}</span> coverage item{queue.length === 1 ? '' : 's'} to confirm</span></button> : null}
+                    {thanks.length ? <button className="task-chip" onClick={() => setTab('journalists')}>🟡 <span><span className="n">{thanks.length}</span> thank-you{thanks.length === 1 ? '' : 's'} waiting</span></button> : null}
+                    {awaitingSignoff ? <button className="task-chip" onClick={() => setTab('press')}>✍️ <span><span className="n">{awaitingSignoff}</span> release{awaitingSignoff === 1 ? '' : 's'} awaiting sign-off</span></button> : null}
+                    {quietCount ? <button className="task-chip" onClick={() => setTab('journalists')}>📉 <span><span className="n">{quietCount}</span> key journalist{quietCount === 1 ? '' : 's'} gone quiet</span></button> : null}
+                  </div>
+                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
+              </div>
+            }
+            mapLayout="grid"
+            map={[
+              { title: 'Coverage', subtitle: 'Editorial log, pitch to published', nodes: [
+                { label: 'Coverage log', onClick: () => setTab('coverage') },
+                { label: 'Auto monitor', onClick: () => setTab('coverage') },
+                { label: 'Paste link',   onClick: () => setTab('coverage') },
+                { label: 'Link checks',  onClick: () => setTab('coverage') },
+              ] },
+              { title: 'Journalists', subtitle: 'Relationship strength, hit-rate, tier', nodes: [
+                { label: 'Media DB',        onClick: () => setTab('journalists') },
+                { label: 'Pitch targeting', onClick: () => setTab('journalists') },
+                { label: 'Thank-yous',      onClick: () => setTab('journalists') },
+              ] },
+              { title: 'Releases', subtitle: 'Press release pipeline', nodes: [
+                { label: 'Brief',    onClick: () => setTab('press') },
+                { label: 'Draft',    onClick: () => setTab('press') },
+                { label: 'Sign-off', onClick: () => setTab('press') },
+                { label: 'Pitch',    onClick: () => setTab('press') },
+              ] },
+              { title: 'Portal', subtitle: 'What the client sees', nodes: [
+                { label: 'Coverage digests', onClick: () => setTab('reports') },
+                { label: 'Featured alerts',  onClick: () => setTab('reports') },
+                { label: 'Live coverage',    onClick: () => setTab('reports') },
+              ] },
             ]}
           />
-
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" onClick={() => { setTab('coverage'); startEdit(null); }}>+ Log coverage</button>
-            <button className="btn btn-secondary" onClick={() => { setTab('press'); newRelease(); }}>+ Press release</button>
-          </div>
-
-          <div className="card">
-            <h3 className="h3 mb-2">Needs attention</h3>
-            {(queue.length || thanks.length || awaitingSignoff || quietCount) ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-                {queue.length ? <button onClick={() => setTab('coverage')} style={linkRow}>🔎 {queue.length} coverage item{queue.length === 1 ? '' : 's'} to confirm</button> : null}
-                {thanks.length ? <button onClick={() => setTab('journalists')} style={linkRow}>🟡 {thanks.length} thank-you{thanks.length === 1 ? '' : 's'} waiting</button> : null}
-                {awaitingSignoff ? <button onClick={() => setTab('press')} style={linkRow}>✍️ {awaitingSignoff} release{awaitingSignoff === 1 ? '' : 's'} awaiting sign-off</button> : null}
-                {quietCount ? <button onClick={() => setTab('journalists')} style={linkRow}>📉 {quietCount} key journalist{quietCount === 1 ? '' : 's'} gone quiet</button> : null}
-              </div>
-            ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
-          </div>
-
-          <div className="card">
-            <h3 className="h3 mb-2">Recent coverage</h3>
-            <table className="table">
-              <thead><tr><th>Publication</th><th>Journalist</th><th>Status</th><th>Date</th><th>Story</th></tr></thead>
-              <tbody>
-                {log.slice(0, 6).map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.outlet || '—'}</td>
-                    <td>{r.journalist || '—'}</td>
-                    <td><StatusPill status={r.status} label={r.status_label || r.status} /></td>
-                    <td>{fmtDate(r.issue_date)}</td>
-                    <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 50)}</a> : (r.story_title || '—')}</td>
-                  </tr>
-                ))}
-                {!log.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No coverage yet — use “+ Log coverage”.</td></tr>}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
 

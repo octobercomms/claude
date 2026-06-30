@@ -34,7 +34,7 @@ export default function ClientAdsPage() {
   // 'pipeline' are aliases that resolve to the brief step so old deep
   // links still land sensibly.
   const [tab, setTab] = useTabParam('overview', [
-    'overview', 'performance', 'strategist', 'audiences', 'competitor_ads',
+    'overview', 'performance', 'playbook', 'strategist', 'audiences', 'competitor_ads',
     // pipeline sub-tabs
     'pipeline', 'creative',
     'brief', 'concepts', 'render', 'approve', 'launch',
@@ -46,7 +46,7 @@ export default function ClientAdsPage() {
   // For the top-tab strip we collapse all pipeline sub-tab states into 'pipeline'.
   const normalisedTab = isPipelineGroup ? 'pipeline' : tab;
   // Which top group is active. Advisor collects the planning/analysis views.
-  const ADVISOR_TABS = ['strategist', 'audiences', 'competitor_ads'];
+  const ADVISOR_TABS = ['playbook', 'strategist', 'audiences', 'competitor_ads'];
   const currentGroup = normalisedTab === 'overview' ? 'overview'
     : normalisedTab === 'performance' ? 'performance'
     : isPipelineGroup ? 'pipeline'
@@ -213,12 +213,13 @@ export default function ClientAdsPage() {
       </header>
       <SuiteTabs tabs={[
         { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setTab('overview') },
-        { key: 'advisor',     label: 'Advisor',     active: currentGroup === 'advisor',     onClick: () => setTab('strategist') },
+        { key: 'advisor',     label: 'Advisor',     active: currentGroup === 'advisor',     onClick: () => setTab('playbook') },
         { key: 'builder',     label: 'Builder',     active: currentGroup === 'pipeline',    onClick: () => setTab('brief') },
         { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setTab('performance') },
       ]} />
       {currentGroup === 'advisor' && (
         <SuiteTabs variant="sub" tabs={[
+          { key: 'playbook',       label: 'Playbook',    active: tab === 'playbook',       onClick: () => setTab('playbook') },
           { key: 'strategist',     label: 'Briefing',    active: tab === 'strategist',     onClick: () => setTab('strategist') },
           { key: 'audiences',      label: 'Audiences',   active: tab === 'audiences',      onClick: () => setTab('audiences') },
           { key: 'competitor_ads', label: 'Competitors', active: tab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
@@ -246,22 +247,31 @@ export default function ClientAdsPage() {
             { label: 'Meta Ads',   value: hasMeta ? `${metaEntries.filter(m => !m.error).length} account${metaEntries.filter(m => !m.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasMeta },
             { label: 'Spend · 30d', value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), ok: (googleTotal?.spend || 0) + (metaTotal?.spend || 0) > 0 },
           ]}
-          flow={[
-            { label: 'Connect',  detail: 'Google Ads + Meta Ads' },
-            { label: 'Monitor',  detail: 'Live spend, ROAS, profit' },
-            { label: 'Strategise', detail: 'Weekly Claude briefings' },
-            { label: 'Generate', detail: 'Creative + audiences' },
-          ]}
-          capabilities={[
-            { tag: 'Performance', title: 'See spend, ROAS & profit live', cta: 'Open performance', onClick: () => setTab('performance'), body: 'Every Google + Meta account in one margin-aware dashboard — spend, revenue, ROAS, profit and per-campaign breakdown, no spreadsheet needed.' },
-            { tag: 'Strategist',  title: 'Get told what to action',       cta: 'Open strategist',  onClick: () => setTab('strategist'), body: 'A weekly analyst brief: Claude compares this period to last and writes the to-do list — paused campaigns, budget shifts, what is and isn\'t working.' },
-            { tag: 'Pipeline',    title: 'Generate on-brand ads',         cta: 'Open pipeline',    onClick: () => setTab('pipeline'), body: 'Brief → concepts → renders → approve → launch. Direct-response frameworks (PAS / AIDA / Before-After) across every aspect ratio via Replicate, Ideogram and Firefly — grounded in the brand kit.' },
-            { tag: 'Audiences',   title: 'Build first-party audiences',   cta: 'Open audiences',   onClick: () => setTab('audiences'), body: 'Turn Shopify postcodes or an uploaded customer list into targetable segments, exported as Meta Custom Audiences.' },
+          mapLayout="funnel"
+          map={[
+            { title: 'Advisor', subtitle: 'Briefing, audiences, competitor watch', nodes: [
+              { label: 'Briefing',    onClick: () => setTab('strategist') },
+              { label: 'Audiences',   onClick: () => setTab('audiences') },
+              { label: 'Competitors', onClick: () => setTab('competitor_ads') },
+            ] },
+            { title: 'Builder', subtitle: 'Ad creative pipeline', numbered: true, nodes: [
+              { label: 'Brief',   onClick: () => setTab('brief') },
+              { label: 'Concept', onClick: () => setTab('concepts') },
+              { label: 'Render',  onClick: () => setTab('render') },
+              { label: 'Approve', onClick: () => setTab('approve') },
+              { label: 'Launch',  onClick: () => setTab('launch') },
+            ] },
+            { title: 'Performance', subtitle: 'Spend and return, per campaign', nodes: [
+              { label: 'Google ads', sep: '+', onClick: () => setTab('performance') },
+              { label: 'Meta ads',   sep: '→', onClick: () => setTab('performance') },
+              { label: 'ROAS, profit, spend', onClick: () => setTab('performance') },
+            ] },
           ]}
         />
-        <GoogleAdsPlaybook />
         </div>
       )}
+
+      {tab === 'playbook' && <GoogleAdsPlaybook />}
 
       {isPipelineGroup && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />}
       {normalisedTab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
