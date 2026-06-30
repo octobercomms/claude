@@ -20,7 +20,22 @@ async function apiKey() {
 async function http() {
   const key = await apiKey();
   if (!key) { const e = new Error('HeyGen isn’t configured — add your HeyGen API key in Settings → AI.'); e.status = 400; throw e; }
-  return axios.create({ baseURL: BASE, headers: { 'X-Api-Key': key, 'Content-Type': 'application/json' }, timeout: 30000 });
+  const client = axios.create({ baseURL: BASE, headers: { 'X-Api-Key': key, 'Content-Type': 'application/json' }, timeout: 20000 });
+  // Translate HeyGen transport failures into clear, self-contained messages so
+  // the UI doesn't surface a raw "timeout of NNNNms exceeded" (which wrongly
+  // reads as a missing key when the key is actually set but HeyGen is slow).
+  client.interceptors.response.use(r => r, (err) => {
+    if (err.code === 'ECONNABORTED' || /timeout/i.test(err.message || '') || !err.response) {
+      const e = new Error('HeyGen didn’t respond in time. It may be busy — try again in a moment. If it keeps failing, check your HeyGen API key in Settings → AI.');
+      e.status = 504; throw e;
+    }
+    if (err.response.status === 401 || err.response.status === 403) {
+      const e = new Error('HeyGen rejected the API key. Update it in Settings → AI.');
+      e.status = err.response.status; throw e;
+    }
+    throw err;
+  });
+  return client;
 }
 
 // Avatars (incl. Digital Twins) + talking photos, simplified for the picker.
