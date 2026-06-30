@@ -387,6 +387,37 @@ router.post('/posts/:id/render-templates', async (req, res) => {
   }
 });
 
+// Stitch the whole storyboard (all A/C/G frames) into ONE vertical reel via the
+// StoryboardReel Series composition. Lands as a single social_post_media row
+// (kind='motion', provider='remotion', metadata.stitched=true) so the card
+// shows one downloadable MP4 instead of a pile of clips.
+router.post('/posts/:id/stitch-reel', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const post = rows[0];
+
+    const frames = (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style));
+    if (!frames.length) return res.status(400).json({ error: 'No A/C/G frames in this post — only reels with the Video Style System grammar can be stitched.' });
+
+    const { rows: brandAssets } = await pool.query(
+      'SELECT id, kind, metadata FROM brand_assets WHERE client_id = $1',
+      [post.client_id]
+    );
+
+    const result = await remotionRender.renderStoryboardReel(post, brandAssets);
+    const { rows: row } = await pool.query(
+      `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
+       VALUES ($1, 'motion', 'remotion', $2, $3, $4) RETURNING *`,
+      [post.id, result.url, result.duration_sec, JSON.stringify({ stitched: true, frames: frames.length })]
+    );
+    res.status(201).json({ media: row[0] });
+  } catch (err) {
+    console.error('[remotion] stitch-reel failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 router.get('/posts/:id/brief-url', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT id FROM social_posts WHERE id = $1', [req.params.id]);

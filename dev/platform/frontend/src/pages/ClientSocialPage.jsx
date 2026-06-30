@@ -173,6 +173,19 @@ export default function ClientSocialPage() {
     }
   }
 
+  // Stitch the whole storyboard into ONE reel via Remotion. Returns a single
+  // social_post_media row (kind='motion', stitched) — one downloadable MP4
+  // instead of the separate A/C/G clips.
+  async function stitchReel(postId) {
+    try {
+      const { media } = await api.post(`/social/posts/${postId}/stitch-reel`, {});
+      setMediaByPost(prev => ({ ...prev, [postId]: [...(prev[postId] || []), media] }));
+      toast(`Stitched ${media.metadata?.frames || ''} frames into one reel.`, 'success');
+    } catch (e) {
+      toast(`Stitch failed: ${e.message}`, 'error');
+    }
+  }
+
   async function deleteMedia(mediaId, postId) {
     try {
       await api.delete(`/social/media/${mediaId}`);
@@ -532,6 +545,7 @@ export default function ClientSocialPage() {
           publishPost={publishPost}
           refreshInsights={refreshInsights}
           renderTemplates={renderTemplates}
+          stitchReel={stitchReel}
           generateMedia={generateMedia}
           deleteMedia={deleteMedia}
         />
@@ -689,7 +703,7 @@ function BrainstormTab({
   onGenerate, onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare, onGoToSchedule,
   ideasContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
-  refreshInsights, renderTemplates, generateMedia, deleteMedia,
+  refreshInsights, renderTemplates, stitchReel, generateMedia, deleteMedia,
 }) {
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
@@ -730,6 +744,7 @@ function BrainstormTab({
           onPublish={(url) => publishPost(refining.id, url)}
           onRefreshInsights={() => refreshInsights(refining.id)}
           onRenderTemplates={() => renderTemplates(refining.id)}
+          onStitchReel={() => stitchReel(refining.id)}
           onGenerateMedia={(kind) => generateMedia(refining.id, kind)}
           onMakeReel={() => onMakeReel && onMakeReel(refining)}
           onDeleteMedia={(mediaId) => deleteMedia(mediaId, refining.id)} />
@@ -762,6 +777,7 @@ function BrainstormTab({
             onPublish={(url) => publishPost(p.id, url)}
             onRefreshInsights={() => refreshInsights(p.id)}
             onRenderTemplates={() => renderTemplates(p.id)}
+            onStitchReel={() => stitchReel(p.id)}
             onGenerateMedia={(kind) => generateMedia(p.id, kind)}
             onMakeReel={() => onMakeReel && onMakeReel(p)}
             onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
@@ -1870,7 +1886,7 @@ function ShareLinkBanner({ url, onDismiss }) {
   );
 }
 
-function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onDeleteMedia, onMakeReel }) {
+function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onStitchReel, onDeleteMedia, onMakeReel }) {
   const [open, setOpen] = useState(false);
   const [showImg, setShowImg] = useState(false);
   const [imgPrompt, setImgPrompt] = useState('');
@@ -1889,7 +1905,9 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
     try { await onGenerateMedia(kind); }
     finally { setRenderingMedia(null); }
   }
-  const videos = (media || []).filter(m => m.kind === 'video');
+  // 'motion' = Remotion clips (A/C/G frames + stitched reels); shown in the
+  // same video players as UGC video.
+  const videos = (media || []).filter(m => m.kind === 'video' || m.kind === 'motion');
   const audios = (media || []).filter(m => m.kind === 'audio');
 
   async function generateImage() {
@@ -2012,6 +2030,15 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
             try { await onRenderTemplates(); } finally { setRenderingMedia(null); }
           }} disabled={renderingMedia === 'templates'} className="btn btn-secondary btn-sm">
             {renderingMedia === 'templates' ? 'Rendering A/C/G…' : 'Render A/C/G clips'}
+          </button>
+        )}
+        {onStitchReel && (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style)).length >= 2 && (
+          <button onClick={async () => {
+            setRenderingMedia('stitch');
+            try { await onStitchReel(); } finally { setRenderingMedia(null); }
+          }} disabled={renderingMedia === 'stitch'} className="btn btn-secondary btn-sm"
+            title="Stitch every A/C/G frame into one finished vertical reel">
+            {renderingMedia === 'stitch' ? 'Stitching…' : '🎞 Stitch into one reel'}
           </button>
         )}
         {post.status !== 'published' && (
