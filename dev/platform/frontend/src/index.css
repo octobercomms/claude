@@ -534,6 +534,30 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 .smap-svg-node:focus-visible { outline: none; }
 .smap-svg-node:focus-visible rect { stroke: var(--text); stroke-width: 3; }
 
+/* HeyGen avatar look picker — thumbnail grid. */
+.avatar-grid {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  max-height: 240px; overflow-y: auto;
+  margin-top: 6px; padding: 4px;
+}
+.avatar-thumb {
+  position: relative; width: 76px; height: 100px; padding: 0;
+  border: var(--border-w) solid var(--card-border); border-radius: var(--r-md);
+  overflow: hidden; background: var(--surface-sunken); cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.avatar-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-thumb:hover { border-color: var(--text-subtle); }
+.avatar-thumb.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.avatar-thumb-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--text-subtle); }
+.avatar-thumb-n {
+  position: absolute; bottom: 4px; left: 4px;
+  font-size: 10px; font-weight: 800; color: #fff;
+  background: rgba(20, 20, 20, 0.7); border-radius: var(--r-pill);
+  min-width: 16px; height: 16px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
 /* Spinner — small accent ring for inline loading + overlays. */
 .spinner {
   width: 32px; height: 32px; border-radius: 50%;

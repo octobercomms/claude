@@ -106,27 +106,37 @@ export default function HeygenReelsPanel({ clientId }) {
           <div className="stack stack-sm">
             <input className="input" placeholder="Title (optional)" value={title} onChange={e => setTitle(e.target.value)} />
             <textarea className="input" rows={4} placeholder="Script — what should your avatar say?" value={script} onChange={e => setScript(e.target.value)} />
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-              <label className="field" style={{ flex: '1 1 220px' }}>
-                <span className="field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span>Avatar / Digital Twin</span>
-                  <button type="button" onClick={loadOptions} disabled={reloadingOpts}
-                    className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px' }} title="Pull your latest avatars from HeyGen">
-                    {reloadingOpts ? 'Syncing…' : '↻ Sync'}
-                  </button>
-                </span>
-                <select className="input" value={avatar} onChange={e => setAvatar(e.target.value)}>
-                  {!opts.avatars.length && <option value="">No avatars — make a Digital Twin in HeyGen, then Sync</option>}
-                  {opts.avatars.map(a => <option key={`${a.type}:${a.id}`} value={`${a.type}:${a.id}`}>{a.name}</option>)}
-                </select>
-              </label>
-              <label className="field" style={{ flex: '1 1 220px' }}>
-                <span className="field-label">Voice</span>
-                <select className="input" value={voice} onChange={e => setVoice(e.target.value)}>
-                  {opts.voices.map(v => <option key={v.id} value={v.id}>{v.name}{v.language ? ` · ${v.language}` : ''}</option>)}
-                </select>
-              </label>
+            <div>
+              <span className="field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span>Avatar / Digital Twin{avatar && opts.avatars.find(a => `${a.type}:${a.id}` === avatar) ? ` — ${opts.avatars.find(a => `${a.type}:${a.id}` === avatar).name}` : ''}</span>
+                <button type="button" onClick={loadOptions} disabled={reloadingOpts}
+                  className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px' }} title="Pull your latest avatars from HeyGen">
+                  {reloadingOpts ? 'Syncing…' : '↻ Sync'}
+                </button>
+              </span>
+              {!opts.avatars.length ? (
+                <div className="body-sm text-subtle" style={{ marginTop: 6 }}>No avatars — make a Digital Twin in HeyGen, then Sync.</div>
+              ) : (
+                <div className="avatar-grid">
+                  {opts.avatars.map((a, i) => {
+                    const val = `${a.type}:${a.id}`;
+                    return (
+                      <button type="button" key={val} onClick={() => setAvatar(val)} title={a.name}
+                        className={'avatar-thumb' + (avatar === val ? ' sel' : '')}>
+                        {a.preview ? <img src={a.preview} alt={a.name} loading="lazy" /> : <div className="avatar-thumb-ph">{i + 1}</div>}
+                        <span className="avatar-thumb-n">{i + 1}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
+            <label className="field" style={{ display: 'block' }}>
+              <span className="field-label">Voice</span>
+              <select className="input" value={voice} onChange={e => setVoice(e.target.value)}>
+                {opts.voices.map(v => <option key={v.id} value={v.id}>{v.name}{v.language ? ` · ${v.language}` : ''}</option>)}
+              </select>
+            </label>
             <div><button className="btn btn-primary" onClick={generate} disabled={busy}>{busy ? 'Sending…' : '✦ Generate reel'}</button></div>
           </div>
         </div>
