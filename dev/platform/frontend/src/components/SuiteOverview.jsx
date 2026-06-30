@@ -16,20 +16,27 @@ export default function SuiteOverview({
   description,
   flow = [],
   capabilities = [],
-  map = [],        // optional section-map flowchart — replaces flow + capabilities
-  diagram = null,  // optional bespoke flow diagram (React node) — same precedence as map
+  map = [],          // optional section-map flowchart — replaces flow + capabilities
+  mapLayout = 'ring', // 'ring' (4-stage corner loop) | 'grid' (parallel, no arrows)
+  diagram = null,    // optional bespoke flow diagram (React node) — same precedence as map
   ctaLabel,
   onCta,
-  status = null,   // optional [{ label, value, ok }] live status strip
+  status = null,     // optional [{ label, value, ok }] live status strip
+  actions = null,    // optional node rendered next to the status pills (toolbar)
+  interstitial = null, // optional node between the toolbar and the map
 }) {
   const hasCustom = map.length > 0 || !!diagram;
   return (
     <div className="stack stack-lg">
       <Hero tagline={tagline} description={description} ctaLabel={ctaLabel} onCta={onCta} />
 
-      {status && status.length > 0 && <StatusStrip items={status} />}
+      {(status && status.length > 0) || actions
+        ? <StatusStrip items={status || []} actions={actions} />
+        : null}
 
-      {map.length > 0 && <SectionMap stages={map} />}
+      {interstitial}
+
+      {map.length > 0 && <SectionMap stages={map} layout={mapLayout} />}
       {diagram && <div className="smap-bento">{diagram}</div>}
 
       {!hasCustom && flow.length > 0 && (
@@ -61,8 +68,8 @@ export default function SuiteOverview({
 // Live, per-client status row — shows what's actually wired up in this
 // section (connected sources, counts), so the overview reflects reality
 // rather than reading like a brochure. Green dot = healthy/connected.
-function StatusStrip({ items }) {
-  return (
+function StatusStrip({ items, actions }) {
+  const strip = (
     <div className="suite-status">
       {items.map((s, i) => (
         <div className="suite-status-item" key={i}>
@@ -73,6 +80,8 @@ function StatusStrip({ items }) {
       ))}
     </div>
   );
+  if (!actions) return strip;
+  return <div className="suite-toolbar">{strip}<div className="suite-actions">{actions}</div></div>;
 }
 
 function Hero({ tagline, description, ctaLabel, onCta }) {
@@ -100,7 +109,17 @@ function Hero({ tagline, description, ctaLabel, onCta }) {
 // (Setup TL → Connectors TR → Strategy BR → Reports BL); other counts fall back
 // to a vertical list. DOM order is always flow order, so the narrow-screen
 // stack reads correctly.
-function SectionMap({ stages }) {
+function SectionMap({ stages, layout = 'ring' }) {
+  // Parallel areas (no flow between them) → a plain grid, no arrows.
+  if (layout === 'grid') {
+    return (
+      <div className="smap-bento">
+        <div className="smap-grid">
+          {stages.map((s, i) => <SmapStage key={i} stage={s} />)}
+        </div>
+      </div>
+    );
+  }
   if (stages.length === 4) {
     return (
       <div className="smap-bento">
