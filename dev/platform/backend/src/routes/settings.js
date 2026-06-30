@@ -249,6 +249,16 @@ router.post('/test-flaresolverr', async (req, res) => {
   }
 });
 
+// POST test HeyGen — pings a lightweight HeyGen endpoint with the saved key
+// and reports exactly what happened (ok / no key / bad key / timeout).
+router.post('/test-heygen', async (req, res) => {
+  try {
+    res.json(await require('../services/heygen').testConnection());
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
 // GET account info (username only)
 router.get('/account', async (req, res) => {
   try {

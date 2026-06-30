@@ -32,6 +32,7 @@ const KEY_GROUPS = [
   {
     title: 'HeyGen (AI avatar reels)',
     category: 'AI',
+    test: 'heygen',
     hint: 'AI avatar / Digital Twin reels from a script — the video suite. Pay-as-you-go (~$1/min of 720–1080p video, no subscription). Create your Digital Twin in the HeyGen app first, then it appears in the picker. Get a key at heygen.com → Settings → API.',
     keys: [
       { key: 'HEYGEN_API_KEY', label: 'HeyGen API Key', placeholder: 'heygen.com → Settings → API', type: 'password' },
@@ -336,6 +337,8 @@ export default function SettingsPage() {
   const [dfsTestMsg, setDfsTestMsg] = useState(null);
   const [testingFs, setTestingFs] = useState(false);
   const [fsTestMsg, setFsTestMsg] = useState(null);
+  const [testingHg, setTestingHg] = useState(false);
+  const [hgTestMsg, setHgTestMsg] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
   const [tab, setTab] = useState(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
@@ -456,6 +459,18 @@ export default function SettingsPage() {
       setFsTestMsg({ ok: false, message: err.message });
     } finally {
       setTestingFs(false);
+    }
+  }
+
+  async function handleTestHeyGen() {
+    setTestingHg(true);
+    setHgTestMsg(null);
+    try {
+      setHgTestMsg(await api.post('/settings/test-heygen', {}));
+    } catch (err) {
+      setHgTestMsg({ ok: false, message: err.message });
+    } finally {
+      setTestingHg(false);
     }
   }
 
@@ -621,6 +636,24 @@ export default function SettingsPage() {
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
                               Pings the service and solves a sample page end-to-end. Save the URL first if you've just changed it.
+                            </div>
+                          </div>
+                        )}
+                        {group.test === 'heygen' && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              <button type="button" onClick={handleTestHeyGen} disabled={testingHg}
+                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
+                                {testingHg ? 'Testing… (up to ~20s)' : 'Test connection'}
+                              </button>
+                              {hgTestMsg && (
+                                <span style={{ fontSize: 12, color: hgTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                                  {hgTestMsg.ok ? '✓ ' : '✗ '}{hgTestMsg.message}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                              Pings HeyGen with the saved key. Save the key first if you've just changed it. Tells you if it's the key (✗ rejected) or the connection (✗ didn't respond).
                             </div>
                           </div>
                         )}

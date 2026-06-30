@@ -206,15 +206,16 @@ export default function ClientSocialPage() {
 
   async function generate() {
     setGenerating(true);
+    setShowBrief(false); // close the modal straight away — show a centred "Generating…" overlay instead
     try {
       const { batch, posts: newPosts } = await api.post(`/social/clients/${id}/generate`, { brief, platforms });
       setBatches([batch, ...batches]);
       setActiveBatchId(batch.id);
       setPosts(newPosts);
-      setShowBrief(false);
       setBrief('');
       toast(`Generated ${newPosts.length} posts.`, 'success');
     } catch (e) {
+      // Keep the brief so the AM can reopen Generate and retry without retyping.
       toast(`Generation failed: ${e.message}`, 'error');
     } finally {
       setGenerating(false);
@@ -615,6 +616,7 @@ export default function ClientSocialPage() {
           onSubmit={generate} submitting={generating}
         />
       )}
+      {generating && <GeneratingOverlay />}
       {plannerOpen && (
         <SocialPlannerChat
           clientId={id}
@@ -1489,6 +1491,20 @@ function CompetitorEditor({ competitors, onSave }) {
             <button onClick={() => setEditing(false)} className="btn btn-primary btn-sm">Done</button>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Full-screen "Generating…" overlay shown while a batch is being produced, so
+// the brief modal can close immediately rather than freezing on its button.
+function GeneratingOverlay() {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(20,20,20,0.55)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="card" style={{ textAlign: 'center', padding: 'var(--s8) var(--s9)', maxWidth: 360 }}>
+        <div className="spinner" style={{ margin: '0 auto var(--s4)' }} />
+        <div className="h3">Generating 9 posts…</div>
+        <p className="body-sm text-muted" style={{ marginTop: 6 }}>Claude is writing hooks, captions and storyboards — this usually takes 20–40 seconds.</p>
       </div>
     </div>
   );

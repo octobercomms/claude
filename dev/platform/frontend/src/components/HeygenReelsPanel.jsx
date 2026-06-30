@@ -91,6 +91,11 @@ export default function HeygenReelsPanel({ clientId }) {
         <div className="text-subtle" style={{ marginBottom: 'var(--s5)' }}>Loading avatars & voices…</div>
       ) : (
         <div className="card" style={{ marginBottom: 'var(--s5)' }}>
+          {opts.partial && (
+            <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)' }}>
+              {opts.avatars?.length ? 'Voices' : 'Avatars'} couldn’t load from HeyGen this time — it may be busy. Refresh to try again.
+            </div>
+          )}
           <div className="stack stack-sm">
             <input className="input" placeholder="Title (optional)" value={title} onChange={e => setTitle(e.target.value)} />
             <textarea className="input" rows={4} placeholder="Script — what should your avatar say?" value={script} onChange={e => setScript(e.target.value)} />

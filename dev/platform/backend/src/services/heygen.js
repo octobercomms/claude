@@ -159,4 +159,19 @@ async function pollPending() {
   }
 }
 
-module.exports = { listAvatars, listVoices, remainingQuota, list, generate, retry, refresh, remove, pollPending };
+// Lightweight connectivity check for Settings → AI. Pings a cheap HeyGen
+// endpoint and reports exactly what happened: ok / no key / bad key / timeout.
+async function testConnection() {
+  const key = await apiKey();
+  if (!key) return { ok: false, reason: 'no_key', message: 'No HeyGen API key saved — add one above.' };
+  try {
+    const client = await http();
+    await client.get('/v2/user/remaining_quota');
+    return { ok: true, message: 'Connected to HeyGen — the key works.' };
+  } catch (e) {
+    const reason = e.status === 401 || e.status === 403 ? 'bad_key' : e.status === 504 ? 'timeout' : 'error';
+    return { ok: false, reason, message: e.message };
+  }
+}
+
+module.exports = { listAvatars, listVoices, remainingQuota, list, generate, retry, refresh, remove, pollPending, testConnection };
