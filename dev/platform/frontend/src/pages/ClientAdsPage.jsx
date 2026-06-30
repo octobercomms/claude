@@ -8,6 +8,7 @@ import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
+import Stepper from '../components/Stepper';
 import { useTabParam } from '../hooks/useTabParam';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -40,6 +41,14 @@ export default function ClientAdsPage() {
     'brief', 'concepts', 'render', 'approve', 'launch',
   ]);
   const PIPELINE_STEPS = ['brief', 'concepts', 'render', 'approve', 'launch'];
+  // Shared Stepper metadata for the Build pipeline (mirrors Shared's Builder).
+  const PIPELINE_META = [
+    { title: 'Brief', sub: 'One-line ask' },
+    { title: 'Concept', sub: 'Angles & copy' },
+    { title: 'Render', sub: 'On-brand creative' },
+    { title: 'Approve', sub: 'Sign-off' },
+    { title: 'Launch', sub: 'Push live' },
+  ];
   const isPipelineStep = PIPELINE_STEPS.includes(tab);
   const isPipelineGroup = isPipelineStep || tab === 'pipeline' || tab === 'creative';
   const pipelineStep = isPipelineStep ? tab : 'brief';
@@ -226,13 +235,11 @@ export default function ClientAdsPage() {
         ]} />
       )}
       {isPipelineGroup && (
-        <SuiteTabs variant="sub" tabs={[
-          { key: 'brief',    label: '1 · Brief',    active: pipelineStep === 'brief',    onClick: () => setTab('brief') },
-          { key: 'concepts', label: '2 · Concept', active: pipelineStep === 'concepts', onClick: () => setTab('concepts') },
-          { key: 'render',   label: '3 · Render',   active: pipelineStep === 'render',   onClick: () => setTab('render') },
-          { key: 'approve',  label: '4 · Approve',  active: pipelineStep === 'approve',  onClick: () => setTab('approve') },
-          { key: 'launch',   label: '5 · Launch',   active: pipelineStep === 'launch',   onClick: () => setTab('launch') },
-        ]} />
+        <Stepper
+          steps={PIPELINE_META}
+          current={Math.max(1, PIPELINE_STEPS.indexOf(pipelineStep) + 1)}
+          onStep={n => setTab(PIPELINE_STEPS[n - 1])}
+        />
       )}
 
       {normalisedTab === 'overview' && (
