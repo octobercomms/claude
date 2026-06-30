@@ -44,7 +44,7 @@ export default function ClientAdsPage() {
   // Shared Stepper metadata for the Build pipeline (mirrors Shared's Builder).
   const PIPELINE_META = [
     { title: 'Brief', sub: 'One-line ask' },
-    { title: 'Concept', sub: 'Angles & copy' },
+    { title: 'Draft', sub: 'Angles & copy' },
     { title: 'Render', sub: 'On-brand creative' },
     { title: 'Approve', sub: 'Sign-off' },
     { title: 'Launch', sub: 'Push live' },
@@ -263,7 +263,7 @@ export default function ClientAdsPage() {
             ] },
             { title: 'Build', subtitle: 'Ad creative pipeline', numbered: true, nodes: [
               { label: 'Brief',   onClick: () => setTab('brief') },
-              { label: 'Concept', onClick: () => setTab('concepts') },
+              { label: 'Draft', onClick: () => setTab('concepts') },
               { label: 'Render',  onClick: () => setTab('render') },
               { label: 'Approve', onClick: () => setTab('approve') },
               { label: 'Launch',  onClick: () => setTab('launch') },

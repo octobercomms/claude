@@ -493,7 +493,7 @@ export default function ClientSocialPage() {
           Reels are absorbed as a per-post "Produce" overlay (createView). */}
       {inCreate && (createView === 'reels' ? (
         <div>
-          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 'var(--s4)' }} onClick={() => setCreateView(null)}>← Back to workbench</button>
+          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 'var(--s4)' }} onClick={() => setCreateView(null)}>← Back to Make</button>
           <HeygenReelsPanel clientId={id} draft={reelDraft} />
         </div>
       ) : (
@@ -701,9 +701,9 @@ function BrainstormTab({
   useEffect(() => { if (activeBatchId) setStep(s => (s <= 2 ? 3 : s)); }, [activeBatchId]);
 
   const steps = [
-    { title: 'Ideas', sub: 'Find reels to emulate' },
+    { title: 'Find', sub: 'Reels to emulate' },
     { title: 'Brief', sub: 'What to make & how many' },
-    { title: 'Workbench', sub: 'Refine & produce' },
+    { title: 'Make', sub: 'Refine & produce' },
     { title: 'Plan', sub: 'Lock & schedule' },
     { title: 'Publish', sub: 'Autopilot ships it' },
   ];
@@ -821,7 +821,7 @@ function BrainstormTab({
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
             <div style={{ maxWidth: 560 }}>
-              <div className="h3">Workbench — refine &amp; produce your {posts.length} posts</div>
+              <div className="h3">Make — refine &amp; produce your {posts.length} posts</div>
               <p className="body-sm text-muted" style={{ marginTop: 4 }}>
                 Click a hook or caption to edit it, refine with Claude, or push a post into a generator (image / avatar reel via its Production menu). Send the batch for approval, then schedule.
               </p>
@@ -857,7 +857,7 @@ function BrainstormTab({
               </p>
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
-              <UiButton variant="secondary" onClick={() => goStep(3)}>← Back to workbench</UiButton>
+              <UiButton variant="secondary" onClick={() => goStep(3)}>← Back to Make</UiButton>
               <UiButton variant="secondary" onClick={onBulkSchedule} disabled={!hasAutopilotSupported}>📅 Bulk schedule</UiButton>
               <UiButton variant="primary" onClick={() => goStep(5)}>Publish queue →</UiButton>
             </div>
