@@ -120,6 +120,47 @@ function SectionMap({ stages, layout = 'ring' }) {
       </div>
     );
   }
+
+  // Funnel — vertical, each stage narrower than the last, contents centred.
+  if (layout === 'funnel') {
+    const n = stages.length;
+    return (
+      <div className="smap-bento">
+        <div className="smap-col smap-funnel">
+          {stages.map((s, i) => {
+            const w = n > 1 ? Math.round(100 - (i * 50) / (n - 1)) : 100;
+            return (
+              <React.Fragment key={i}>
+                <SmapStage stage={s} style={{ '--smap-w': w + '%' }} />
+                {i < n - 1 && <SmapArrow dir="down" />}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Snake — serpentine 2-column boustrophedon, arrows follow the path.
+  if (layout === 'snake') return <SnakeMap stages={stages} />;
+
+  // Vertical flow with down-arrows — sequential pipeline of any length.
+  if (layout === 'flow') {
+    return (
+      <div className="smap-bento">
+        <div className="smap-col">
+          {stages.map((s, i) => (
+            <React.Fragment key={i}>
+              <SmapStage stage={s} />
+              {i < stages.length - 1 && <SmapArrow dir="down" />}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Ring — 4-stage corner loop (Admin).
   if (stages.length === 4) {
     return (
       <div className="smap-bento">
@@ -135,6 +176,8 @@ function SectionMap({ stages, layout = 'ring' }) {
       </div>
     );
   }
+
+  // Default: vertical list.
   return (
     <div className="smap-bento">
       <div className="smap-col">
@@ -149,28 +192,68 @@ function SectionMap({ stages, layout = 'ring' }) {
   );
 }
 
-function SmapStage({ stage, area }) {
+// Serpentine layout: rows of two, alternating direction, with down-connectors
+// on the side where each row ends. DOM order stays flow order.
+function SnakeMap({ stages }) {
+  const rows = [];
+  for (let i = 0; i < stages.length; i += 2) rows.push(stages.slice(i, i + 2));
   return (
-    <div className="smap-stage" style={area ? { gridArea: area } : undefined}>
-      <div className="smap-title">{stage.title}</div>
-      {stage.subtitle && <div className="smap-sub">{stage.subtitle}</div>}
-      <div className="smap-nodes">
-        {stage.nodes.map((n, j) => (
-          <React.Fragment key={j}>
-            {typeof n.onClick === 'function'
-              ? <button type="button" className="smap-node" onClick={n.onClick}>{n.label}</button>
-              : <span className="smap-node">{n.label}</span>}
-            {stage.chained && j < stage.nodes.length - 1 && (
-              <span className="smap-node-sep" aria-hidden="true">→</span>
-            )}
-          </React.Fragment>
-        ))}
+    <div className="smap-bento">
+      <div className="snake">
+        {rows.map((row, r) => {
+          const ltr = r % 2 === 0;
+          const [a, b] = row;
+          return (
+            <React.Fragment key={r}>
+              <div className="snake-row">
+                {ltr ? <SmapStage stage={a} /> : (b ? <SmapStage stage={b} /> : <div />)}
+                <div className="snake-cell">{b ? <SmapArrow dir={ltr ? 'right' : 'left'} bare /> : null}</div>
+                {ltr ? (b ? <SmapStage stage={b} /> : <div />) : <SmapStage stage={a} />}
+              </div>
+              {r < rows.length - 1 && (
+                <div className="snake-link">
+                  {ltr ? <><div /><div /><div className="snake-down"><SmapArrow dir="down" bare /></div></>
+                       : <><div className="snake-down"><SmapArrow dir="down" bare /></div><div /><div /></>}
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function SmapArrow({ dir, area }) {
+function SmapStage({ stage, area, style }) {
+  return (
+    <div className="smap-stage" style={{ ...(area ? { gridArea: area } : null), ...style }}>
+      <div className="smap-title">{stage.title}</div>
+      {stage.subtitle && <div className="smap-sub">{stage.subtitle}</div>}
+      <div className="smap-nodes">
+        {stage.nodes.map((n, j) => {
+          const cls = 'smap-node' + (stage.numbered ? ' step' : '');
+          const inner = stage.numbered
+            ? <><span className="num">{j + 1}</span>{n.label}</>
+            : n.label;
+          const node = typeof n.onClick === 'function'
+            ? <button type="button" className={cls} onClick={n.onClick}>{inner}</button>
+            : <span className={cls}>{inner}</span>;
+          const sep = n.sep ?? (stage.chained ? '→' : null);
+          return (
+            <React.Fragment key={j}>
+              {node}
+              {!stage.numbered && sep && j < stage.nodes.length - 1 && (
+                <span className="smap-node-sep" aria-hidden="true">{sep}</span>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function arrowSvg(dir) {
   const horizontal = dir === 'right' || dir === 'left';
   const paths = {
     right: <><path d="M6 13 H 50" stroke="var(--text)" strokeWidth="4" strokeLinecap="round" /><path d="M48 4 L66 13 L48 22 Z" fill="var(--text)" /></>,
@@ -178,11 +261,19 @@ function SmapArrow({ dir, area }) {
     down:  <><path d="M13 8 V 50" stroke="var(--text)" strokeWidth="4" strokeLinecap="round" /><path d="M4 48 L13 66 L22 48 Z" fill="var(--text)" /></>,
   };
   return (
+    <svg width={horizontal ? 68 : 26} height={horizontal ? 26 : 68}
+      viewBox={horizontal ? '0 0 68 26' : '0 0 26 68'} fill="none" aria-hidden="true">
+      {paths[dir]}
+    </svg>
+  );
+}
+
+function SmapArrow({ dir, area, bare }) {
+  if (bare) return arrowSvg(dir);
+  const horizontal = dir === 'right' || dir === 'left';
+  return (
     <div className={'smap-arrow ' + (horizontal ? 'h' : 'v')} style={area ? { gridArea: area } : undefined}>
-      <svg width={horizontal ? 68 : 26} height={horizontal ? 26 : 68}
-        viewBox={horizontal ? '0 0 68 26' : '0 0 26 68'} fill="none" aria-hidden="true">
-        {paths[dir]}
-      </svg>
+      {arrowSvg(dir)}
     </div>
   );
 }

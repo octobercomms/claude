@@ -782,19 +782,48 @@ export default function ClientSEOPage() {
             { label: 'Keywords', value: keywords.length ? `${keywords.length} tracked` : 'None yet', ok: keywords.length > 0 },
             { label: 'Ranking', value: `${keywords.filter(k => k.current_position).length}`, ok: keywords.filter(k => k.current_position).length > 0 },
           ]}
-          flow={[
-            { label: 'Crawl + APIs', detail: 'DataForSEO, GSC, LLMs' },
-            { label: 'Track',        detail: 'Daily across locations' },
-            { label: 'Insights',     detail: 'Gaps, intent, citations' },
-            { label: 'Plan content', detail: 'Briefs ready for Claude' },
-          ]}
-          capabilities={[
-            { tag: 'Keywords',      title: 'See where you rank',       cta: 'Open keywords', onClick: () => setActiveTab('keywords'), body: 'Daily DataForSEO rank tracking across location and device, with intent tags, SERP-feature pills and per-keyword history.' },
-            { tag: 'Search Console', title: 'Clicks & impressions',   cta: 'Open Search Console', onClick: () => setActiveTab('gsc'), body: 'Live GSC queries, pages, CTR and position trends — without leaving the page.' },
-            { tag: 'AI Overviews',  title: 'Track Google AI answers', cta: 'Open AI Overviews', onClick: () => setActiveTab('aio'), body: 'Spot every query where Google\'s AI answer appears, and whether your brand gets cited.' },
-            { tag: 'AI Visibility', title: 'Win the answer engines',  cta: 'Open Visibility', onClick: () => setActiveTab('ai_visibility'), body: 'Share-of-voice across Claude, ChatGPT, Gemini, Perplexity and Google AI for the prompts users actually ask in your category.' },
-            { tag: 'Content gaps',  title: 'Find what to write next',  cta: 'Open Content Gaps', onClick: () => setActiveTab('gaps'), body: 'Side-by-side competitor comparison surfaces the topics they own and you don\'t.' },
-            { tag: 'Backlinks',     title: 'Check your authority',     cta: 'Open Backlinks', onClick: () => setActiveTab('backlinks'), body: 'Domain rank, referring domains, and new + lost links from the DataForSEO backlink index.' },
+          mapLayout="snake"
+          map={[
+            { title: 'Search', subtitle: 'Where you rank and where you get cited', nodes: [
+              { label: 'Rankings',       onClick: () => setActiveTab('keywords') },
+              { label: 'Search Console', onClick: () => setActiveTab('gsc') },
+              { label: 'AI visibility',  onClick: () => setActiveTab('ai_visibility') },
+              { label: 'Authority',      onClick: () => setActiveTab('authority') },
+              { label: 'Backlinks',      onClick: () => setActiveTab('backlinks') },
+            ] },
+            { title: 'Optimise', subtitle: 'Site and content fixes that move the needle', nodes: [
+              { label: 'Site audit',        onClick: () => setActiveTab('site_audit') },
+              { label: 'Content audit',     onClick: () => setActiveTab('content_audit') },
+              { label: 'Quick wins',        onClick: () => setActiveTab('quick_wins') },
+              { label: 'CTR boosters',      onClick: () => setActiveTab('ctr_boost') },
+              { label: 'Keyword footprint', onClick: () => setActiveTab('keyword_footprint') },
+              { label: 'AI keywords',       onClick: () => setActiveTab('ai_seo') },
+            ] },
+            { title: 'Content', subtitle: 'Editorial pipeline', numbered: true, nodes: [
+              { label: 'Find',    onClick: () => setActiveTab('find') },
+              { label: 'Brief',   onClick: () => setActiveTab('planning') },
+              { label: 'Draft',   onClick: () => setActiveTab('draft') },
+              { label: 'Publish', onClick: () => setActiveTab('publish') },
+              { label: 'Promote', onClick: () => setActiveTab('promote') },
+            ] },
+            { title: 'Local', subtitle: 'Win the map and the neighbourhood searches', nodes: [
+              { label: 'GBP',          onClick: () => setActiveTab('local_gbp') },
+              { label: 'Rival X-ray',  onClick: () => setActiveTab('local_xray') },
+              { label: 'Schema',       onClick: () => setActiveTab('local_schema') },
+              { label: 'Buyer intent', onClick: () => setActiveTab('local_keywords') },
+            ] },
+            { title: 'Convert', subtitle: 'Turn visits into leads', nodes: [
+              { label: 'CRO',   onClick: () => setActiveTab('cro') },
+              { label: 'Forms', onClick: () => setActiveTab('forms') },
+            ] },
+            { title: 'Email', subtitle: 'Nurture leads to close', nodes: [
+              { label: 'Campaigns',    onClick: () => setActiveTab('email') },
+              { label: 'Contacts',     onClick: () => setActiveTab('email') },
+              { label: 'Sequences',    onClick: () => setActiveTab('email') },
+              { label: 'Mailbox warm', onClick: () => setActiveTab('email') },
+              { label: 'Sending',      onClick: () => setActiveTab('email') },
+              { label: 'Tasks',        onClick: () => setActiveTab('email') },
+            ] },
           ]}
         />
       )}
