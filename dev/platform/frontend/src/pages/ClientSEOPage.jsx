@@ -320,20 +320,20 @@ export default function ClientSEOPage() {
       setKeywords(kws);
       setTags(t);
       setSeoMetrics(metrics);
-      // Pre-fill edit form with current month
+      // Pre-fill edit form, defaulting the date picker to today (not the 1st).
       const now = new Date();
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      const existing = metrics.find(m => m.month && m.month.startsWith(currentMonth.slice(0, 7)));
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const existing = metrics.find(m => m.month && m.month.startsWith(today.slice(0, 7)));
       if (existing) {
         setSeoMetricEdit({
-          month: currentMonth,
+          month: today,
           moz_da: existing.moz_da ?? '',
           authority_score: existing.authority_score ?? '',
           referring_domains: existing.referring_domains ?? '',
           notes: existing.notes ?? '',
         });
       } else {
-        setSeoMetricEdit(p => ({ ...p, month: currentMonth }));
+        setSeoMetricEdit(p => ({ ...p, month: today }));
       }
     }).finally(() => setLoading(false));
   }, [id]);
@@ -509,6 +509,19 @@ export default function ClientSEOPage() {
       toast('SEO metrics saved', 'success');
     } catch (err) { toast(err.message, 'error'); }
     finally { setSavingMetrics(false); }
+  }
+
+  async function handleDeleteSeoMetric(month) {
+    if (!month || !window.confirm('Delete this month’s metrics? This can’t be undone.')) return;
+    try {
+      await api.delete(`/rankings/seo-metrics/${id}/${month}`);
+      setSeoMetrics(prev => prev.filter(m => (m.month ? m.month.slice(0, 10) : '') !== month));
+      // If the edit form was pointed at the deleted row, clear its values.
+      setSeoMetricEdit(p => (p.month && p.month.slice(0, 7) === month.slice(0, 7)
+        ? { ...p, moz_da: '', authority_score: '', referring_domains: '', notes: '' }
+        : p));
+      toast('Metrics deleted', 'success');
+    } catch (err) { toast(err.message, 'error'); }
   }
 
   async function handleExport() {
@@ -1129,7 +1142,7 @@ export default function ClientSEOPage() {
           <table className="table">
             <thead>
               <tr>
-                {['Month', 'Moz DA', 'Authority Score', 'Referring Domains', 'Notes', 'Edit'].map(h => (
+                {['Month', 'Moz DA', 'Authority Score', 'Referring Domains', 'Notes', 'Actions'].map(h => (
                   <th key={h} >{h}</th>
                 ))}
               </tr>
@@ -1149,19 +1162,26 @@ export default function ClientSEOPage() {
                     <td >{m.referring_domains != null ? Number(m.referring_domains).toLocaleString('en-GB') : '—'}</td>
                     <td style={{ maxWidth: 200, color: 'var(--text-muted)' }}>{m.notes || '—'}</td>
                     <td >
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => {
-                          const iso = m.month ? m.month.slice(0, 10) : '';
-                          setSeoMetricEdit({
-                            month: iso,
-                            moz_da: m.moz_da ?? '',
-                            authority_score: m.authority_score ?? '',
-                            referring_domains: m.referring_domains ?? '',
-                            notes: m.notes ?? '',
-                          });
-                        }}
-                      >Edit</button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            const iso = m.month ? m.month.slice(0, 10) : '';
+                            setSeoMetricEdit({
+                              month: iso,
+                              moz_da: m.moz_da ?? '',
+                              authority_score: m.authority_score ?? '',
+                              referring_domains: m.referring_domains ?? '',
+                              notes: m.notes ?? '',
+                            });
+                          }}
+                        >Edit</button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: 'var(--negative, #b3261e)' }}
+                          onClick={() => handleDeleteSeoMetric(m.month ? m.month.slice(0, 10) : '')}
+                        >Delete</button>
+                      </div>
                     </td>
                   </tr>
                 );
