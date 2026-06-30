@@ -251,7 +251,10 @@ router.get('/export/:clientId', async (req, res) => {
 router.get('/seo-metrics/:clientId', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT * FROM seo_manual_metrics
+      // Return month as a plain YYYY-MM-DD string so it isn't shifted across a
+      // timezone boundary when serialised (a DATE would round-trip as a UTC
+      // timestamp and could roll back a day → previous month).
+      `SELECT *, to_char(month, 'YYYY-MM-DD') AS month FROM seo_manual_metrics
        WHERE client_id = $1
          AND month >= date_trunc('month', CURRENT_DATE - INTERVAL '11 months')
        ORDER BY month DESC`,
@@ -279,7 +282,7 @@ router.put('/seo-metrics/:clientId', async (req, res) => {
          referring_domains = EXCLUDED.referring_domains,
          notes = EXCLUDED.notes,
          updated_at = NOW()
-       RETURNING *`,
+       RETURNING *, to_char(month, 'YYYY-MM-DD') AS month`,
       [req.params.clientId, month, moz_da ?? null, authority_score ?? null, referring_domains ?? null, notes ?? null]
     );
     res.json(rows[0]);
