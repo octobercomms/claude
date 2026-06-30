@@ -779,11 +779,13 @@ export default function ClientSEOPage() {
           <>
             <SuiteTabs tabs={topTabs} />
             {currentGroup === 'content' ? (
-              <Stepper
-                steps={CONTENT_META}
-                current={Math.max(1, CONTENT_KEYS.indexOf(activeTab) + 1)}
-                onStep={n => setActiveTab(CONTENT_KEYS[n - 1])}
-              />
+              <div className="stepper-block">
+                <Stepper
+                  steps={CONTENT_META}
+                  current={Math.max(1, CONTENT_KEYS.indexOf(activeTab) + 1)}
+                  onStep={n => setActiveTab(CONTENT_KEYS[n - 1])}
+                />
+              </div>
             ) : (
               subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />
             )}

@@ -21,12 +21,12 @@ export default function PaidConceptsStep({ pipeline, clientName, clientId, onNex
 
   return (
     <PipelineStep
-      num={2} title="Concepts" onNext={onNext} nextLabel="Render images & video"
+      num={2} title="Draft" onNext={onNext} nextLabel="Render images & video"
       tagline="Review the copy first. Edit, delete weak ones, then render the keepers. No image cost yet."
     >
       {!activeBatch ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
-          No brief selected — pick one on <button onClick={onBack} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)', padding: 0 }}>Step 1 · Brief</button>.
+        <div className="callout" style={{ fontSize: 13 }}>
+          No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : !creatives.length ? (
         <ExampleConcept clientName={clientName} onDismiss={() => {}} />

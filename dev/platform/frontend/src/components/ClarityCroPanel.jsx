@@ -202,14 +202,17 @@ export default function ClarityCroPanel({ clientId }) {
 
   return (
     <div>
-      {/* Site selector */}
+      {/* Site selector — a dropdown rather than a third row of tabs, so we
+          don't stack tabs-under-tabs-under-tabs once a client has many sites. */}
       {sites.length > 1 && (
-        <div className="tabs" style={{ marginTop: 0 }}>
-          {tabs.map(t => (
-            <button key={t.key} className={`tab ${String(selected) === t.key ? 'active' : ''}`} onClick={() => setSelected(t.key === 'all' ? 'all' : Number(t.key))}>
-              {t.flag ? `${t.flag} ` : ''}{t.label}
-            </button>
-          ))}
+        <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <span className="caption">Site</span>
+          <select className="input" style={{ maxWidth: 280 }} value={String(selected)}
+            onChange={e => setSelected(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+            {tabs.map(t => (
+              <option key={t.key} value={t.key}>{t.flag ? `${t.flag} ` : ''}{t.label}</option>
+            ))}
+          </select>
         </div>
       )}
 

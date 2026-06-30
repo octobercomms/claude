@@ -235,11 +235,13 @@ export default function ClientAdsPage() {
         ]} />
       )}
       {isPipelineGroup && (
-        <Stepper
-          steps={PIPELINE_META}
-          current={Math.max(1, PIPELINE_STEPS.indexOf(pipelineStep) + 1)}
-          onStep={n => setTab(PIPELINE_STEPS[n - 1])}
-        />
+        <div className="stepper-block">
+          <Stepper
+            steps={PIPELINE_META}
+            current={Math.max(1, PIPELINE_STEPS.indexOf(pipelineStep) + 1)}
+            onStep={n => setTab(PIPELINE_STEPS[n - 1])}
+          />
+        </div>
       )}
 
       {normalisedTab === 'overview' && (
