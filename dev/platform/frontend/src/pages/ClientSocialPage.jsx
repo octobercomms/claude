@@ -17,6 +17,7 @@ import IgOutreachPanel from '../components/IgOutreachPanel';
 import SwipeFilePanel from '../components/SwipeFilePanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import AutoEditPanel from '../components/AutoEditPanel';
+import SocialFactoryMap from '../components/SocialFactoryMap';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -430,7 +431,7 @@ export default function ClientSocialPage() {
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
-          { key: 'create',   label: 'Create',   active: currentGroup === 'create',   onClick: () => setSocialTab('swipe') },
+          { key: 'create',   label: 'Builder',  active: currentGroup === 'create',   onClick: () => setSocialTab('swipe') },
           { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
           { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
         ];
@@ -457,26 +458,15 @@ export default function ClientSocialPage() {
             { label: 'Plans', value: `${plans.length} scheduled`, ok: plans.length > 0 },
             { label: 'Competitors', value: competitors.length ? `${competitors.length} tracked` : 'None added', ok: competitors.length > 0 },
           ]}
-          mapLayout="funnel"
-          map={[
-            { title: 'Create', subtitle: 'Ideas → Brief → Workbench → Plan → Publish', nodes: [
-              { label: 'Ideas',     onClick: () => setSocialTab('swipe') },
-              { label: 'Brief',     onClick: () => setSocialTab('brainstorm') },
-              { label: 'Workbench', onClick: () => setSocialTab('brainstorm') },
-              { label: 'Plan',      onClick: () => setSocialTab('plans') },
-              { label: 'Publish',   onClick: () => setSocialTab('publish') },
-            ] },
-            { title: 'Engage', subtitle: 'Respond and reach out', nodes: [
-              { label: 'DM bot',   onClick: () => setSocialTab('dm_bot') },
-              { label: 'Discover', onClick: () => setSocialTab('discover') },
-            ] },
-            { title: 'Measure', subtitle: 'Insights, winners and what rivals do', nodes: [
-              { label: 'Insights',    onClick: () => setSocialTab('perf_insights') },
-              { label: 'Winners',     onClick: () => setSocialTab('performance') },
-              { label: 'Competitors', onClick: () => setSocialTab('competitors') },
-              { label: 'AI audit',    onClick: () => setSocialTab('audit') },
-            ] },
-          ]}
+          diagram={(
+            <SocialFactoryMap
+              onFactory={() => setSocialTab('swipe')}
+              onIdeas={() => setSocialTab('swipe')}
+              onCompetitors={() => setSocialTab('competitors')}
+              onEngage={() => setSocialTab('dm_bot')}
+              onMeasure={() => setSocialTab('perf_insights')}
+            />
+          )}
         />
       )}
 
