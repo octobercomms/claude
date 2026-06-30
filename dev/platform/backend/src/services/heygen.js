@@ -78,7 +78,8 @@ async function listAvatars() {
     return looks.map((lk, i) => ({
       id: lk.id,
       type: lk.type,
-      name: looks.length > 1 ? `${g.name} · ${lk.name || `Look ${i + 1}`}` : g.name,
+      // HeyGen look names are generic ("Photo Avatar"), so index them instead.
+      name: looks.length > 1 ? `${g.name} · Look ${i + 1}` : g.name,
       preview: lk.preview || g.preview,
     }));
   }));
