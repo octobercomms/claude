@@ -45,14 +45,37 @@ async function http() {
   return client;
 }
 
-// Avatars (incl. Digital Twins) + talking photos, simplified for the picker.
+// The account's own avatars / Digital Twins, via /v2/avatar_group.list. This
+// returns ONLY your groups (small, fast) — unlike /v2/avatars, which also dumps
+// HeyGen's entire public catalogue and reliably times out. Each group is one
+// pickable item; its concrete "look" is resolved at generate time.
 async function listAvatars() {
   const client = await http();
-  const { data } = await client.get('/v2/avatars');
+  const { data } = await client.get('/v2/avatar_group.list', { params: { include_public: false } });
   const d = data.data || data || {};
-  const avatars = (d.avatars || []).map(a => ({ id: a.avatar_id, name: a.avatar_name || a.avatar_id, type: 'avatar', preview: a.preview_image_url || null, gender: a.gender || null }));
-  const photos = (d.talking_photos || []).map(p => ({ id: p.talking_photo_id, name: p.talking_photo_name || 'Talking photo', type: 'talking_photo', preview: p.preview_image_url || null, gender: null }));
-  return [...avatars, ...photos];
+  const groups = d.avatar_group_list || d.avatar_groups || d.groups || (Array.isArray(d) ? d : []);
+  return groups.map(g => ({
+    id: g.id || g.group_id || g.avatar_group_id,
+    name: g.name || 'Avatar',
+    type: 'avatar_group',
+    preview: g.preview_image_url || g.preview_image || null,
+    looks: g.looks_count ?? g.num_looks ?? null,
+    gender: g.gender || null,
+  })).filter(a => a.id);
+}
+
+// Resolve an avatar group to a concrete look usable by /v2/video/generate.
+async function resolveGroupLook(groupId) {
+  const client = await http();
+  const { data } = await client.get(`/v2/avatar_group/${groupId}/avatars`);
+  const d = data.data || data || {};
+  const looks = d.avatar_list || d.avatars || d.looks || (Array.isArray(d) ? d : []);
+  const look = looks[0];
+  if (!look) { const e = new Error('That avatar has no looks set up in HeyGen yet.'); e.status = 400; throw e; }
+  if (look.avatar_id) return { id: look.avatar_id, type: 'avatar' };
+  const tp = look.id || look.talking_photo_id;
+  if (tp) return { id: tp, type: 'talking_photo' };
+  const e = new Error('Could not resolve a look for that avatar.'); e.status = 400; throw e;
 }
 
 async function listVoices() {
@@ -84,20 +107,29 @@ async function remove(clientId, id) {
 async function generate(clientId, { title, script, avatar_id, avatar_type, avatar_name, voice_id, caption = true }, userId) {
   if (!String(script || '').trim()) { const e = new Error('Add a script for the avatar to say.'); e.status = 400; throw e; }
   if (!avatar_id || !voice_id) { const e = new Error('Pick an avatar and a voice.'); e.status = 400; throw e; }
-  const type = avatar_type === 'talking_photo' ? 'talking_photo' : 'avatar';
+  // An avatar-group selection resolves to a concrete look (talking-photo or
+  // avatar) before we store/submit; other types pass through unchanged.
+  let useId = avatar_id;
+  let type;
+  if (avatar_type === 'avatar_group') {
+    const look = await resolveGroupLook(avatar_id);
+    useId = look.id; type = look.type;
+  } else {
+    type = avatar_type === 'talking_photo' ? 'talking_photo' : 'avatar';
+  }
 
   const { rows } = await pool.query(
     `INSERT INTO heygen_reels (client_id, title, script, avatar_id, avatar_type, avatar_name, voice_id, caption, status, requested_by)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'queued',$9) RETURNING *`,
-    [clientId, title || null, script.trim(), avatar_id, type, avatar_name || null, voice_id, !!caption, userId || null]
+    [clientId, title || null, script.trim(), useId, type, avatar_name || null, voice_id, !!caption, userId || null]
   );
   const reel = rows[0];
 
   try {
     const client = await http();
     const character = type === 'talking_photo'
-      ? { type: 'talking_photo', talking_photo_id: avatar_id }
-      : { type: 'avatar', avatar_id, avatar_style: 'normal' };
+      ? { type: 'talking_photo', talking_photo_id: useId }
+      : { type: 'avatar', avatar_id: useId, avatar_style: 'normal' };
     const body = {
       video_inputs: [{ character, voice: { type: 'text', input_text: script.trim(), voice_id } }],
       dimension: { width: 1080, height: 1920 },
