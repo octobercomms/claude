@@ -184,7 +184,10 @@ Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + car
 
   const response = await client().messages.create({
     model: MODEL,
-    max_tokens: 8192,
+    // Nine full posts with frame-by-frame storyboards are large; 8k truncated
+    // the tool-call JSON mid-batch (stop_reason 'max_tokens'), which left the
+    // posts array empty and saved an empty batch. Give it real headroom.
+    max_tokens: 16000,
     system: require('./claude').cacheableSystem(SYSTEM + require('./playbooks').systemSuffix(['instagram-ranking', 'talking-head', 'visual-treatments'])),
     tools: [POSTS_TOOL],
     tool_choice: { type: 'tool', name: 'propose_posts' },
@@ -195,6 +198,13 @@ Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + car
   const toolUse = response.content.find(b => b.type === 'tool_use' && b.name === 'propose_posts');
   if (!toolUse) throw new Error('Claude did not return a posts batch');
   const posts = toolUse.input?.posts || [];
+  // Never persist an empty batch — surface a clear, retryable error instead of
+  // silently creating a batch with no posts.
+  if (!posts.length) {
+    throw new Error(response.stop_reason === 'max_tokens'
+      ? 'The batch was cut off before any posts came back — please try again.'
+      : 'The model returned no posts — please try again.');
+  }
 
   // Persist as one batch + nine post rows.
   const dbClient = await pool.connect();
