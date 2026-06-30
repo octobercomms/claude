@@ -95,7 +95,9 @@ const POSTS_TOOL = {
   },
 };
 
-async function generateBatch({ clientId, brief, platforms }) {
+async function generateBatch({ clientId, brief, platforms, count }) {
+  // How many posts to produce this batch (1–9; default 9).
+  const n = Math.max(1, Math.min(9, parseInt(count, 10) || 9));
   const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
   const c = rows[0];
   if (!c) throw new Error('Client not found');
@@ -180,16 +182,28 @@ ${winners.length
   ? `Posts that have actually performed well for THIS brand in the last 90 days (model the new batch on what's already engaging this audience — don't copy verbatim, lift the angle and structure):\n${winners.map((w, i) => `${i + 1}. [${w.platform} · ${w.kind} · ${w.engagement_rate}% engagement] hook: "${w.hook || '(none)'}" — caption opener: "${(w.caption || '').slice(0, 120)}…"`).join('\n')}`
   : 'No published-post engagement data yet — design on brand + brief + trends alone. After the AM publishes a few of these and marks them published, future batches will draw on what worked.'}
 
-Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + carousel so the AM can choose; if the brief asks for one kind specifically, follow that. Use British English. Keep hashtags to 3–5 highly relevant ones per post (see the Instagram playbook) — never a wall.`;
+Produce exactly ${n} post${n === 1 ? '' : 's'}. Mix the platforms in scope. Mix reels + static + carousel so the AM can choose; if the brief asks for one kind specifically, follow that. Use British English. Keep hashtags to 3–5 highly relevant ones per post (see the Instagram playbook) — never a wall.`;
+
+  // The propose_posts tool, with the array bounds set to the requested count.
+  const postsTool = {
+    ...POSTS_TOOL,
+    input_schema: {
+      ...POSTS_TOOL.input_schema,
+      properties: {
+        ...POSTS_TOOL.input_schema.properties,
+        posts: { ...POSTS_TOOL.input_schema.properties.posts, minItems: n, maxItems: n },
+      },
+    },
+  };
 
   const response = await client().messages.create({
     model: MODEL,
-    // Nine full posts with frame-by-frame storyboards are large; 8k truncated
-    // the tool-call JSON mid-batch (stop_reason 'max_tokens'), which left the
-    // posts array empty and saved an empty batch. Give it real headroom.
-    max_tokens: 16000,
+    // Full posts with frame-by-frame storyboards are large; 8k truncated the
+    // tool-call JSON mid-batch (stop_reason 'max_tokens'), leaving the posts
+    // array empty. Give it real headroom (scaled loosely to the count).
+    max_tokens: Math.min(16000, 2200 + n * 1600),
     system: require('./claude').cacheableSystem(SYSTEM + require('./playbooks').systemSuffix(['instagram-ranking', 'talking-head', 'visual-treatments'])),
-    tools: [POSTS_TOOL],
+    tools: [postsTool],
     tool_choice: { type: 'tool', name: 'propose_posts' },
     messages: [{ role: 'user', content: userPrompt }],
   });

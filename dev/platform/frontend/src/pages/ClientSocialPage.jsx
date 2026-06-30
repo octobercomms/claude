@@ -39,6 +39,7 @@ export default function ClientSocialPage() {
   const [showBrief, setShowBrief] = useState(false);
   const [brief, setBrief] = useState('');
   const [platforms, setPlatforms] = useState(['instagram', 'tiktok']);
+  const [postCount, setPostCount] = useState(9);
   const [winners, setWinners] = useState([]);
   const [sparkline, setSparkline] = useState([]);
   const [competitorPosts, setCompetitorPosts] = useState([]);
@@ -208,7 +209,7 @@ export default function ClientSocialPage() {
     setGenerating(true);
     setShowBrief(false); // close the modal straight away — show a centred "Generating…" overlay instead
     try {
-      const { batch, posts: newPosts } = await api.post(`/social/clients/${id}/generate`, { brief, platforms });
+      const { batch, posts: newPosts } = await api.post(`/social/clients/${id}/generate`, { brief, platforms, count: postCount });
       setBatches([batch, ...batches]);
       setActiveBatchId(batch.id);
       setPosts(newPosts);
@@ -613,10 +614,11 @@ export default function ClientSocialPage() {
           onClose={() => setShowBrief(false)}
           brief={brief} setBrief={setBrief}
           platforms={platforms} setPlatforms={setPlatforms}
+          count={postCount} setCount={setPostCount}
           onSubmit={generate} submitting={generating}
         />
       )}
-      {generating && <GeneratingOverlay />}
+      {generating && <GeneratingOverlay count={postCount} />}
       {plannerOpen && (
         <SocialPlannerChat
           clientId={id}
@@ -756,11 +758,11 @@ function BrainstormTab({
             <div style={{ maxWidth: 560 }}>
               <div className="h3">Generate a batch</div>
               <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                Claude proposes 9 posts at once — hook, caption, hashtags, visual concept and a frame-by-frame storyboard, grounded in the brand, Google Trends and what competitors shipped this week.
+                Claude proposes a batch of posts — hook, caption, hashtags, visual concept and a frame-by-frame storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many (1–9) in the brief.
               </p>
             </div>
             <UiButton variant="primary" onClick={onGenerate} disabled={generating}>
-              {generating ? 'Generating…' : (batches.length ? 'Generate another 9' : 'Generate 9 posts')}
+              {generating ? 'Generating…' : (batches.length ? 'Generate another batch' : 'Generate posts')}
             </UiButton>
           </div>
           {batches.length > 0 ? (
@@ -1498,26 +1500,26 @@ function CompetitorEditor({ competitors, onSave }) {
 
 // Full-screen "Generating…" overlay shown while a batch is being produced, so
 // the brief modal can close immediately rather than freezing on its button.
-function GeneratingOverlay() {
+function GeneratingOverlay({ count = 9 }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(20,20,20,0.55)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div className="card" style={{ textAlign: 'center', padding: 'var(--s8) var(--s9)', maxWidth: 360 }}>
         <div className="spinner" style={{ margin: '0 auto var(--s4)' }} />
-        <div className="h3">Generating 9 posts…</div>
+        <div className="h3">Generating {count} post{count === 1 ? '' : 's'}…</div>
         <p className="body-sm text-muted" style={{ marginTop: 6 }}>Claude is writing hooks, captions and storyboards — this usually takes 20–40 seconds.</p>
       </div>
     </div>
   );
 }
 
-function BriefModal({ onClose, brief, setBrief, platforms, setPlatforms, onSubmit, submitting }) {
+function BriefModal({ onClose, brief, setBrief, platforms, setPlatforms, count = 9, setCount, onSubmit, submitting }) {
   function togglePlatform(p) {
     setPlatforms(platforms.includes(p) ? platforms.filter(x => x !== p) : [...platforms, p]);
   }
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 700 }}>Generate 9 posts</h2>
+        <h2 style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 700 }}>Generate posts</h2>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
           Optional brief — the more specific you are, the more useful the output. Examples:
           "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy."
@@ -1525,6 +1527,17 @@ function BriefModal({ onClose, brief, setBrief, platforms, setPlatforms, onSubmi
         </p>
         <label style={modalStyles.label}>Brief</label>
         <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={5} style={modalStyles.textarea} placeholder="What's the angle? Any constraints?" />
+        <label style={modalStyles.label}>How many posts</label>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[1, 2, 3, 4, 5, 6, 9].map(nn => (
+            <button key={nn} type="button" onClick={() => setCount && setCount(nn)}
+              style={{ width: 38, height: 38, borderRadius: 'var(--r-md)', cursor: 'pointer', fontWeight: 800, fontFamily: 'inherit',
+                border: 'var(--border-w) solid ' + (count === nn ? 'var(--accent)' : 'var(--card-border)'),
+                background: count === nn ? 'var(--accent)' : 'var(--surface)', color: 'var(--text)' }}>
+              {nn}
+            </button>
+          ))}
+        </div>
         <label style={modalStyles.label}>Platforms</label>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {['instagram', 'tiktok', 'linkedin', 'facebook'].map(p => (
@@ -1536,7 +1549,7 @@ function BriefModal({ onClose, brief, setBrief, platforms, setPlatforms, onSubmi
         <div style={modalStyles.footer}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={submitting || !platforms.length}>
-            {submitting ? 'Generating…' : 'Generate'}
+            {submitting ? 'Generating…' : `Generate ${count} post${count === 1 ? '' : 's'}`}
           </button>
         </div>
       </div>
