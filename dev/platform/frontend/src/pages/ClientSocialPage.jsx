@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -634,6 +634,7 @@ export default function ClientSocialPage() {
 
       {showBrief && (
         <BriefModal
+          clientId={id}
           onClose={() => setShowBrief(false)}
           brief={brief} setBrief={setBrief}
           platforms={platforms} setPlatforms={setPlatforms}
@@ -1520,9 +1521,31 @@ function GeneratingOverlay({ count = 9 }) {
   );
 }
 
-function BriefModal({ onClose, brief, setBrief, platforms, setPlatforms, count = 9, setCount, onSubmit, submitting }) {
+function BriefModal({ clientId, onClose, brief, setBrief, platforms, setPlatforms, count = 9, setCount, onSubmit, submitting }) {
+  const [uploads, setUploads] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
   function togglePlatform(p) {
     setPlatforms(platforms.includes(p) ? platforms.filter(x => x !== p) : [...platforms, p]);
+  }
+  // Reference uploads land in the brand asset banks (prop_image / b_roll_clip),
+  // which the generator already feeds into the prompt — so they ground the batch.
+  async function uploadRef(file) {
+    if (!file || !clientId) return;
+    const kind = file.type.startsWith('video/') ? 'b_roll_clip' : 'prop_image';
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file); fd.append('kind', kind); fd.append('name', file.name);
+      const res = await fetch(`/api/brand/clients/${clientId}/assets`, { method: 'POST', credentials: 'include', body: fd });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+      const asset = await res.json();
+      setUploads(u => [...u, { id: asset.id, name: asset.name, kind }]);
+    } catch (e) {
+      alert(`Upload failed: ${e.message}`);
+    } finally {
+      setUploading(false);
+    }
   }
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
@@ -1554,6 +1577,20 @@ function BriefModal({ onClose, brief, setBrief, platforms, setPlatforms, count =
             </button>
           ))}
         </div>
+        {clientId && (<>
+          <label style={modalStyles.label}>Your content (optional)</label>
+          <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) uploadRef(f); e.target.value = ''; }} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+              {uploading ? 'Uploading…' : '⬆ Attach image / clip'}
+            </button>
+            {uploads.map(u => <span key={u.id} style={modalStyles.pill}>{u.kind === 'b_roll_clip' ? '🎬' : '🖼'} {u.name.slice(0, 22)}</span>)}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0', lineHeight: 1.5 }}>
+            Reference images/clips are saved to this client's brand assets and used to ground the generated posts.
+          </p>
+        </>)}
         <div style={modalStyles.footer}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={submitting || !platforms.length}>
