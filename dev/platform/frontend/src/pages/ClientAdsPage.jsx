@@ -213,9 +213,9 @@ export default function ClientAdsPage() {
       </header>
       <SuiteTabs tabs={[
         { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setTab('overview') },
-        { key: 'advisor',     label: 'Advisor',     active: currentGroup === 'advisor',     onClick: () => setTab('playbook') },
-        { key: 'builder',     label: 'Builder',     active: currentGroup === 'pipeline',    onClick: () => setTab('brief') },
-        { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setTab('performance') },
+        { key: 'advisor',     label: 'Advise',      active: currentGroup === 'advisor',     onClick: () => setTab('playbook') },
+        { key: 'builder',     label: 'Build',       active: currentGroup === 'pipeline',    onClick: () => setTab('brief') },
+        { key: 'performance', label: 'Measure',     active: currentGroup === 'performance', onClick: () => setTab('performance') },
       ]} />
       {currentGroup === 'advisor' && (
         <SuiteTabs variant="sub" tabs={[
@@ -249,19 +249,19 @@ export default function ClientAdsPage() {
           ]}
           mapLayout="funnel"
           map={[
-            { title: 'Advisor', subtitle: 'Briefing, audiences, competitor watch', nodes: [
+            { title: 'Advise', subtitle: 'Briefing, audiences, competitor watch', nodes: [
               { label: 'Briefing',    onClick: () => setTab('strategist') },
               { label: 'Audiences',   onClick: () => setTab('audiences') },
               { label: 'Competitors', onClick: () => setTab('competitor_ads') },
             ] },
-            { title: 'Builder', subtitle: 'Ad creative pipeline', numbered: true, nodes: [
+            { title: 'Build', subtitle: 'Ad creative pipeline', numbered: true, nodes: [
               { label: 'Brief',   onClick: () => setTab('brief') },
               { label: 'Concept', onClick: () => setTab('concepts') },
               { label: 'Render',  onClick: () => setTab('render') },
               { label: 'Approve', onClick: () => setTab('approve') },
               { label: 'Launch',  onClick: () => setTab('launch') },
             ] },
-            { title: 'Performance', subtitle: 'Spend and return, per campaign', nodes: [
+            { title: 'Measure', subtitle: 'Spend and return, per campaign', nodes: [
               { label: 'Google ads', sep: '+', onClick: () => setTab('performance') },
               { label: 'Meta ads',   sep: '→', onClick: () => setTab('performance') },
               { label: 'ROAS, profit, spend', onClick: () => setTab('performance') },

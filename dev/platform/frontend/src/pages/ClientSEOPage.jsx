@@ -756,8 +756,8 @@ export default function ClientSEOPage() {
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setActiveTab('overview') },
           { key: 'search',   label: 'Search',   active: currentGroup === 'search',   onClick: () => setActiveTab('perf_insights') },
           { key: 'optimise', label: 'Optimise', active: currentGroup === 'optimise', onClick: () => setActiveTab('site_audit') },
-          { key: 'content',  label: 'Content',  active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
-          { key: 'local',    label: 'Local',    active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
+          { key: 'content',  label: 'Build',    active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
+          { key: 'local',    label: 'Localise', active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
           { key: 'convert',  label: 'Convert',  active: currentGroup === 'convert',  onClick: () => setActiveTab('cro') },
           { key: 'email',    label: 'Email',    active: currentGroup === 'email',    onClick: () => setActiveTab('email') },
         ];
@@ -799,14 +799,14 @@ export default function ClientSEOPage() {
               { label: 'Keyword footprint', onClick: () => setActiveTab('keyword_footprint') },
               { label: 'AI keywords',       onClick: () => setActiveTab('ai_seo') },
             ] },
-            { title: 'Content', subtitle: 'Editorial pipeline', numbered: true, nodes: [
+            { title: 'Build', subtitle: 'Editorial pipeline', numbered: true, nodes: [
               { label: 'Find',    onClick: () => setActiveTab('find') },
               { label: 'Brief',   onClick: () => setActiveTab('planning') },
               { label: 'Draft',   onClick: () => setActiveTab('draft') },
               { label: 'Publish', onClick: () => setActiveTab('publish') },
               { label: 'Promote', onClick: () => setActiveTab('promote') },
             ] },
-            { title: 'Local', subtitle: 'Win the map and the neighbourhood searches', nodes: [
+            { title: 'Localise', subtitle: 'Win the map and the neighbourhood searches', nodes: [
               { label: 'GBP',          onClick: () => setActiveTab('local_gbp') },
               { label: 'Rival X-ray',  onClick: () => setActiveTab('local_xray') },
               { label: 'Schema',       onClick: () => setActiveTab('local_schema') },
