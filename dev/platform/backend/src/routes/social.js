@@ -155,9 +155,9 @@ router.get('/clients/:clientId/posts', async (req, res) => {
 });
 
 router.post('/clients/:clientId/generate', async (req, res) => {
-  const { brief, platforms } = req.body || {};
+  const { brief, platforms, count } = req.body || {};
   try {
-    const result = await social.generateBatch({ clientId: req.params.clientId, brief, platforms });
+    const result = await social.generateBatch({ clientId: req.params.clientId, brief, platforms, count });
     res.status(201).json(result);
   } catch (err) {
     console.error('[social] generate failed:', err);
