@@ -45,6 +45,13 @@ logo), muted, have visible borders, are **majority text**, or have already been 
 Instagram (reposts). Avoid all of these. Keep the account's recommendation eligibility
 clean (Recommendation Guidelines + Community Standards) so content stays surfaceable.
 
+## Hashtags
+Per Instagram (Mosseri): hashtags do **not** meaningfully boost reach, and stuffing a
+post with them does nothing — relevance and engagement drive distribution, not hashtag
+count. Use **3–5 highly relevant** hashtags: a couple specific/niche (the actual topic,
+place, or technique) plus one or two slightly broader. Never a wall of 15–30. Put them
+at the end of the caption.
+
 ## Cross-cutting priorities (apply to every post we design)
 1. **Saves + shares + sends** are the highest-leverage actions for reach — build a save/
    share reason into the post.

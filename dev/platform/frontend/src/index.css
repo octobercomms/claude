@@ -534,6 +534,50 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 .smap-svg-node:focus-visible { outline: none; }
 .smap-svg-node:focus-visible rect { stroke: var(--text); stroke-width: 3; }
 
+/* ─── Stepper — reusable step indicator/navigator ─── */
+.stepper {
+  display: flex; background: var(--surface);
+  border: var(--border-w) solid var(--card-border); border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.stepper-step {
+  flex: 1; display: flex; gap: 12px; align-items: flex-start; text-align: left;
+  padding: 16px 18px; background: none; cursor: pointer; font-family: inherit;
+  border: none; border-right: var(--border-w) solid var(--card-border);
+  transition: background 120ms ease;
+}
+.stepper-step:last-child { border-right: none; }
+.stepper-step:hover { background: #fafafa; }
+.stepper-step.active { background: var(--accent-soft); }
+.stepper-num {
+  width: 28px; height: 28px; border-radius: 50%; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--text); color: var(--surface); font-weight: 800; font-size: 13px;
+}
+.stepper-step.done .stepper-num { background: var(--positive); color: #fff; }
+.stepper-step.active .stepper-num { background: var(--accent); color: var(--accent-on); }
+.stepper-meta { display: flex; flex-direction: column; }
+.stepper-t { font-weight: 800; font-size: 15px; line-height: 1.1; color: var(--text); }
+.stepper-s { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.3; }
+.stepper-step:focus-visible { outline: var(--border-w) solid var(--accent); outline-offset: -2px; }
+@media (max-width: 720px) {
+  .stepper-step { flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 12px 4px; }
+  .stepper-s { display: none; }
+  .stepper-t { font-size: 11px; }
+  .stepper-num { width: 26px; height: 26px; font-size: 12px; }
+}
+/* Step panel + brainstorm review grid (collapses to one column on mobile). */
+.panel-step { margin-top: 18px; }
+.brainstorm-grid { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; }
+@media (max-width: 760px) { .brainstorm-grid { grid-template-columns: 1fr; } }
+/* Inline "✎ edit" affordance on editable fields. */
+.inline-edit-btn {
+  font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none;
+  color: var(--accent-on); background: var(--accent-soft); border: 1px solid var(--accent);
+  border-radius: var(--r-pill); padding: 1px 8px; cursor: pointer;
+}
+.inline-edit-btn:hover { background: var(--accent); }
+
 /* Overview toolbar — status pills on the left, quick actions on the right. */
 .suite-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; }
 .suite-actions { display: flex; gap: var(--s3); flex-wrap: wrap; }
