@@ -31,13 +31,16 @@ export default function HeygenReelsPanel({ clientId }) {
     catch (e) { toast(e.message, 'error'); }
     finally { setLoaded(true); }
   }
+  const [reloadingOpts, setReloadingOpts] = useState(false);
   async function loadOptions() {
+    setReloadingOpts(true); setOptsErr(null);
     try {
       const r = await api.get(`/heygen/clients/${clientId}/heygen/options`);
       setOpts(r);
       if (r.avatars?.length) setAvatar(`${r.avatars[0].type}:${r.avatars[0].id}`);
       if (r.voices?.length) setVoice(r.voices[0].id);
     } catch (e) { setOptsErr(e.message); }
+    finally { setReloadingOpts(false); }
   }
   useEffect(() => { loadOptions(); loadReels(); /* eslint-disable-next-line */ }, [clientId]);
 
@@ -86,14 +89,18 @@ export default function HeygenReelsPanel({ clientId }) {
       </div>
 
       {optsErr ? (
-        <div className="callout callout-warning" style={{ marginBottom: 'var(--s5)' }}>{optsErr}</div>
+        <div className="callout callout-warning" style={{ marginBottom: 'var(--s5)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span>{optsErr}</span>
+          <button onClick={loadOptions} disabled={reloadingOpts} className="btn btn-secondary btn-sm">{reloadingOpts ? 'Retrying…' : 'Retry'}</button>
+        </div>
       ) : !opts ? (
         <div className="text-subtle" style={{ marginBottom: 'var(--s5)' }}>Loading avatars & voices…</div>
       ) : (
         <div className="card" style={{ marginBottom: 'var(--s5)' }}>
           {opts.partial && (
-            <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)' }}>
-              {opts.avatars?.length ? 'Voices' : 'Avatars'} couldn’t load from HeyGen this time — it may be busy. Refresh to try again.
+            <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span>{opts.avatars?.length ? 'Voices' : 'Avatars'} couldn’t load from HeyGen this time — it may be busy.</span>
+              <button onClick={loadOptions} disabled={reloadingOpts} className="btn btn-secondary btn-sm">{reloadingOpts ? 'Retrying…' : 'Retry'}</button>
             </div>
           )}
           <div className="stack stack-sm">

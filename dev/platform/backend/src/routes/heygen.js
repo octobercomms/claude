@@ -15,18 +15,13 @@ const id = (req) => parseInt(req.params.id, 10);
 
 // Avatars (incl. Digital Twins) + voices for the picker.
 router.get('/clients/:clientId/heygen/options', async (req, res) => {
-  // Load avatars + voices independently so one slow/failed call doesn't take
-  // the whole picker down — return whatever came back, with a partial flag.
-  const [a, v] = await Promise.allSettled([heygen.listAvatars(), heygen.listVoices()]);
-  if (a.status === 'rejected' && v.status === 'rejected') {
-    const err = a.reason || v.reason || {};
-    return res.status(err.status || 502).json({ error: err.message || 'Could not reach HeyGen.' });
+  // Cached, resilient avatars + voices (see heygen.getOptions): one slow/failed
+  // call won't take the whole picker down, and a fresh cache serves instantly.
+  try {
+    res.json(await heygen.getOptions());
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message || 'Could not reach HeyGen.' });
   }
-  res.json({
-    avatars: a.status === 'fulfilled' ? a.value : [],
-    voices: v.status === 'fulfilled' ? v.value : [],
-    partial: a.status === 'rejected' || v.status === 'rejected',
-  });
 });
 
 router.get('/clients/:clientId/heygen/reels', async (req, res) => {

@@ -20,7 +20,9 @@ async function apiKey() {
 async function http() {
   const key = await apiKey();
   if (!key) { const e = new Error('HeyGen isn’t configured — add your HeyGen API key in Settings → AI.'); e.status = 400; throw e; }
-  const client = axios.create({ baseURL: BASE, headers: { 'X-Api-Key': key, 'Content-Type': 'application/json' }, timeout: 20000 });
+  // 45s: the /v2/avatars list (stock + account avatars + talking photos) can be
+  // a large, slow payload — voices and quota come back fast, avatars need room.
+  const client = axios.create({ baseURL: BASE, headers: { 'X-Api-Key': key, 'Content-Type': 'application/json' }, timeout: 45000 });
   // Translate HeyGen transport failures into clear, self-contained messages so
   // the UI doesn't surface a raw "timeout of NNNNms exceeded" (which wrongly
   // reads as a missing key when the key is actually set but HeyGen is slow).
@@ -159,6 +161,30 @@ async function pollPending() {
   }
 }
 
+// Avatars + voices for the picker, cached for an hour. /v2/avatars is a large,
+// slow payload (the whole stock catalogue), so once it loads we hold it rather
+// than re-fetching on every page view; a failed call falls back to any cache.
+const _optsCache = { avatars: { data: null, at: 0 }, voices: { data: null, at: 0 } };
+const OPTS_TTL = 60 * 60 * 1000;
+
+async function listCached(kind) {
+  const c = _optsCache[kind];
+  if (c.data && Date.now() - c.at < OPTS_TTL) return c.data;
+  const data = await (kind === 'avatars' ? listAvatars() : listVoices());
+  c.data = data; c.at = Date.now();
+  return data;
+}
+
+async function getOptions() {
+  const [a, v] = await Promise.allSettled([listCached('avatars'), listCached('voices')]);
+  const avatars = a.status === 'fulfilled' ? a.value : (_optsCache.avatars.data || []);
+  const voices = v.status === 'fulfilled' ? v.value : (_optsCache.voices.data || []);
+  const aOk = a.status === 'fulfilled' || !!_optsCache.avatars.data;
+  const vOk = v.status === 'fulfilled' || !!_optsCache.voices.data;
+  if (!aOk && !vOk) throw (a.reason || v.reason || Object.assign(new Error('Could not reach HeyGen.'), { status: 502 }));
+  return { avatars, voices, partial: !aOk || !vOk };
+}
+
 // Lightweight connectivity check for Settings → AI. Pings a cheap HeyGen
 // endpoint and reports exactly what happened: ok / no key / bad key / timeout.
 async function testConnection() {
@@ -174,4 +200,4 @@ async function testConnection() {
   }
 }
 
-module.exports = { listAvatars, listVoices, remainingQuota, list, generate, retry, refresh, remove, pollPending, testConnection };
+module.exports = { listAvatars, listVoices, getOptions, remainingQuota, list, generate, retry, refresh, remove, pollPending, testConnection };
