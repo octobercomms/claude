@@ -8,6 +8,7 @@ import ClientOutreachPage from './ClientOutreachPage';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import SuiteTabs from '../components/SuiteTabs';
+import Stepper from '../components/Stepper';
 import { useTabParam } from '../hooks/useTabParam';
 
 // Banner shown above the SEO tab listing the data sources that are
@@ -764,10 +765,28 @@ export default function ClientSEOPage() {
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
           ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
         }));
+        // Build (content) is a linear pipeline → render the shared Stepper
+        // instead of a sub-tab strip, matching Shared's and Paid's Build.
+        const CONTENT_KEYS = ['find', 'planning', 'draft', 'publish', 'promote'];
+        const CONTENT_META = [
+          { title: 'Find', sub: 'Topics & keywords' },
+          { title: 'Brief', sub: 'Outline & angle' },
+          { title: 'Draft', sub: 'Write it' },
+          { title: 'Publish', sub: 'Ship the page' },
+          { title: 'Promote', sub: 'Links & distribution' },
+        ];
         return (
           <>
             <SuiteTabs tabs={topTabs} />
-            {subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />}
+            {currentGroup === 'content' ? (
+              <Stepper
+                steps={CONTENT_META}
+                current={Math.max(1, CONTENT_KEYS.indexOf(activeTab) + 1)}
+                onStep={n => setActiveTab(CONTENT_KEYS[n - 1])}
+              />
+            ) : (
+              subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />
+            )}
           </>
         );
       })()}
