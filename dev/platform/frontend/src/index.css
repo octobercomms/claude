@@ -534,6 +534,14 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 .smap-svg-node:focus-visible { outline: none; }
 .smap-svg-node:focus-visible rect { stroke: var(--text); stroke-width: 3; }
 
+/* Spinner — small accent ring for inline loading + overlays. */
+.spinner {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 3px solid var(--card-border); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ─── Stepper — reusable step indicator/navigator ─── */
 .stepper {
   display: flex; background: var(--surface);
