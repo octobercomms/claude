@@ -269,8 +269,10 @@ router.put('/seo-metrics/:clientId', async (req, res) => {
   if (!month) return res.status(400).json({ error: 'month is required (YYYY-MM-DD)' });
   try {
     const { rows } = await pool.query(
+      // Normalise to the first of the month so the day picked never creates a
+      // duplicate row — these metrics are month-keyed by design.
       `INSERT INTO seo_manual_metrics (client_id, month, moz_da, authority_score, referring_domains, notes)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       VALUES ($1, date_trunc('month', $2::date)::date, $3, $4, $5, $6)
        ON CONFLICT (client_id, month) DO UPDATE SET
          moz_da = EXCLUDED.moz_da,
          authority_score = EXCLUDED.authority_score,
@@ -281,6 +283,19 @@ router.put('/seo-metrics/:clientId', async (req, res) => {
       [req.params.clientId, month, moz_da ?? null, authority_score ?? null, referring_domains ?? null, notes ?? null]
     );
     res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a manual SEO metrics row (by its stored month date) for a client
+router.delete('/seo-metrics/:clientId/:month', async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM seo_manual_metrics WHERE client_id = $1 AND month = $2::date',
+      [req.params.clientId, req.params.month]
+    );
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
