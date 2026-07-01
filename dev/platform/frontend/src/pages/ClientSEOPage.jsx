@@ -28,6 +28,7 @@ import QuickWinsPanel from '../components/organic/QuickWinsPanel';
 import CtrBoostPanel from '../components/organic/CtrBoostPanel';
 import ContentAuditPanel from '../components/organic/ContentAuditPanel';
 import KeywordFootprintPanel from '../components/organic/KeywordFootprintPanel';
+import BacklinksPanel from '../components/organic/BacklinksPanel';
 import LocalSeoPanel from '../components/organic/LocalSeoPanel';
 
 const LOCATIONS = [
@@ -201,10 +202,6 @@ export default function ClientSEOPage() {
   const [seoMetrics, setSeoMetrics] = useState([]);
   const [seoMetricEdit, setSeoMetricEdit] = useState({ month: '', moz_da: '', authority_score: '', referring_domains: '', notes: '' });
   const [savingMetrics, setSavingMetrics] = useState(false);
-  const [backlinks, setBacklinks] = useState(null);
-  const [backlinksLoading, setBacklinksLoading] = useState(false);
-  const [backlinksError, setBacklinksError] = useState('');
-  const [backlinksFetched, setBacklinksFetched] = useState(false);
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
   const [kwView, setKwView] = useState('current');
@@ -437,20 +434,6 @@ export default function ClientSEOPage() {
     const a = document.createElement('a'); a.href = url; a.download = 'keywords.csv'; a.click();
   }
 
-  async function loadBacklinks() {
-    setBacklinksLoading(true);
-    setBacklinksError('');
-    try {
-      const data = await api.get(`/rankings/seo-summary/${id}`);
-      setBacklinks(data);
-    } catch (err) {
-      setBacklinksError(err.message);
-    } finally {
-      setBacklinksLoading(false);
-      setBacklinksFetched(true);
-    }
-  }
-
   async function loadRankMatrix() {
     setRankMatrixLoading(true);
     try {
@@ -551,12 +534,6 @@ export default function ClientSEOPage() {
     else if (activeTab === 'aio') setActiveTab('keywords');
     else if (activeTab === 'fanout' || activeTab === 'gaps') setActiveTab('find');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab === 'backlinks' && !backlinksFetched && !backlinksLoading) {
-      loadBacklinks();
-    }
   }, [activeTab]);
 
   // Connectors — needed by the Convert › Forms tab to find the October Forms connector.
@@ -1176,56 +1153,7 @@ export default function ClientSEOPage() {
       )}
 
       {activeTab === 'backlinks' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div className="caption">Backlink Profile{backlinks?.domain ? ` — ${backlinks.domain}` : ''}</div>
-            <button onClick={loadBacklinks} className="btn btn-secondary" disabled={backlinksLoading}>
-              {backlinksLoading ? 'Fetching…' : 'Refresh'}
-            </button>
-          </div>
-
-          {backlinksLoading && !backlinks && (
-            <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Fetching backlink data from DataForSEO…</div>
-          )}
-
-          {backlinksError && (
-            <div className="card text-negative" style={{ fontSize: 13 }}>
-              Couldn't load backlink data: {backlinksError}
-            </div>
-          )}
-
-          {!backlinksError && backlinks?.empty && (
-            <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
-              No backlink data returned for <strong>{backlinks.domain}</strong> yet.
-            </div>
-          )}
-
-          {!backlinksError && backlinks && !backlinks.empty && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-              {[
-                { label: 'Domain Rank', val: backlinks.domain_rank },
-                { label: 'Total Backlinks', val: backlinks.backlinks_total },
-                { label: 'Referring Domains', val: backlinks.referring_domains },
-                { label: 'Referring IPs', val: backlinks.referring_ips },
-                { label: 'New Backlinks', val: backlinks.new_backlinks, color: 'var(--positive)' },
-                { label: 'Lost Backlinks', val: backlinks.lost_backlinks, color: 'var(--negative)' },
-                { label: 'Broken Backlinks', val: backlinks.broken_backlinks },
-                { label: 'Spam Score', val: backlinks.spam_score },
-              ].map(m => (
-                <div key={m.label} className="card">
-                  <div className="metric" style={{ color: m.color || 'var(--text)' }}>
-                    {m.val == null ? '—' : Number(m.val).toLocaleString('en-GB')}
-                  </div>
-                  <div className="caption">{m.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <p style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 12 }}>
-            Live data from DataForSEO for the domain set on the <strong>Details</strong> tab. Each refresh runs a new query.
-          </p>
-        </div>
+        <BacklinksPanel clientId={id} clientName={client?.name} domain={client?.domain} />
       )}
 
     </div>

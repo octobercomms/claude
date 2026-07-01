@@ -1029,6 +1029,68 @@ router.get('/clients/:clientId/dofollow-split', async (req, res) => {
   } catch (err) { res.status(502).json({ error: err.message }); }
 });
 
+// ─── BACKLINKS: SNAPSHOT PANEL (Phase E2, reads E1's dfs_* tables) ──────────
+// These read the persisted 3-day snapshots rather than hitting DFS live, so
+// they're cheap and work even while the API is gated (they just return an
+// empty state until the first sweep has run).
+
+// Latest summary + a trend series (one point per snapshot, last 90 days) for
+// the headline cards and the referring-domains sparkline.
+router.get('/clients/:clientId/backlinks/trend', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { rows: latest } = await pool.query(
+      `SELECT captured_at, backlinks_total, referring_domains_total, dofollow_ratio, spam_score, rank
+         FROM dfs_backlinks_summary
+        WHERE client_id = $1
+        ORDER BY captured_at DESC
+        LIMIT 1`,
+      [clientId]
+    );
+    const { rows: history } = await pool.query(
+      `SELECT captured_at, backlinks_total, referring_domains_total
+         FROM dfs_backlinks_summary
+        WHERE client_id = $1 AND captured_at > NOW() - INTERVAL '90 days'
+        ORDER BY captured_at ASC`,
+      [clientId]
+    );
+    res.json({ latest: latest[0] || null, history });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Top-N referring domains from the most recent snapshot.
+router.get('/clients/:clientId/backlinks/referring-domains', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    // Pin to the latest captured_at so a mid-sweep read can't mix cycles.
+    const { rows: cap } = await pool.query(
+      'SELECT MAX(captured_at) AS captured_at FROM dfs_referring_domains WHERE client_id = $1',
+      [clientId]
+    );
+    const capturedAt = cap[0]?.captured_at;
+    if (!capturedAt) return res.json({ captured_at: null, domains: [] });
+    const { rows } = await pool.query(
+      `SELECT domain, rank, first_seen, last_seen, backlinks_count, dofollow
+         FROM dfs_referring_domains
+        WHERE client_id = $1 AND captured_at = $2
+        ORDER BY rank DESC NULLS LAST, backlinks_count DESC
+        LIMIT $3`,
+      [clientId, capturedAt, limit]
+    );
+    res.json({ captured_at: capturedAt, domains: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Manual "refresh now" — runs a snapshot immediately rather than waiting for
+// the 3-day cron. Gated: pullBacklinks throws a 503 before the cutover.
+router.post('/clients/:clientId/backlinks/refresh', async (req, res) => {
+  try {
+    const result = await require('../services/dfsBacklinks').pullBacklinks(req.params.clientId);
+    res.json(result);
+  } catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+
 // ─── BRAND VOICE PROFILE ───────────────────────────────────────────────────
 // One active profile per client. Re-running marks the previous one
 // inactive (history preserved). Cluster briefs + full drafts read the
