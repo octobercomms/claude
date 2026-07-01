@@ -119,6 +119,21 @@ export default function HeygenReelsPanel({ clientId, draft }) {
           <div className="stack stack-sm">
             <input className="input" placeholder="Title (optional)" value={title} onChange={e => setTitle(e.target.value)} />
             <textarea className="input" rows={4} placeholder="Script — what should your avatar say?" value={script} onChange={e => setScript(e.target.value)} />
+            {(() => {
+              const canPause = !!opts.voices.find(v => v.id === voice)?.supportsPause;
+              return (
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', lineHeight: 1.6, marginTop: -4 }}>
+                  {canPause ? (
+                    <>Pacing: add a pause with <code>[pause 0.5s]</code>, and emphasise words by wrapping them in <code>*asterisks*</code>.{' '}
+                      <button type="button" className="btn-inline-link"
+                        onClick={() => setScript(s => (s ? `${s.trimEnd()} [pause 0.5s] ` : '[pause 0.5s] '))}>Insert pause</button>
+                    </>
+                  ) : (
+                    <>This voice doesn't support pauses — pick a voice marked <strong>⏸ pauses</strong> below for pause &amp; emphasis control.</>
+                  )}
+                </div>
+              );
+            })()}
             <div>
               <span className="field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <span>Avatar / Digital Twin{avatar && opts.avatars.find(a => `${a.type}:${a.id}` === avatar) ? ` — ${opts.avatars.find(a => `${a.type}:${a.id}` === avatar).name}` : ''}</span>
@@ -147,7 +162,7 @@ export default function HeygenReelsPanel({ clientId, draft }) {
             <label className="field" style={{ display: 'block' }}>
               <span className="field-label">Voice</span>
               <select className="input" value={voice} onChange={e => setVoice(e.target.value)}>
-                {opts.voices.map(v => <option key={v.id} value={v.id}>{v.name}{v.language ? ` · ${v.language}` : ''}</option>)}
+                {opts.voices.map(v => <option key={v.id} value={v.id}>{v.name}{v.language ? ` · ${v.language}` : ''}{v.supportsPause ? ' · ⏸ pauses' : ''}</option>)}
               </select>
             </label>
             <div className="field">
