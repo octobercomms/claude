@@ -6,104 +6,9 @@ import ClarityCroPanel from '../components/ClarityCroPanel';
 import FormsTab from '../components/FormsTab';
 import ClientOutreachPage from './ClientOutreachPage';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
 import SuiteTabs from '../components/SuiteTabs';
 import Stepper from '../components/Stepper';
 import { useTabParam } from '../hooks/useTabParam';
-
-// Banner shown above the SEO tab listing the data sources that are
-// gated until DataForSEO drops the $100/mo Backlinks + LLM Mentions
-// commitment on 1 July 2026.
-//
-// Pre-cutover: yellow "coming soon" with the feature list.
-// Post-cutover: green "now available — open the checklist doc" with
-//   a Dismiss button (localStorage-persisted) so once Phase E is in
-//   flight the AM can clear it. Without the dismiss it'd stay forever
-//   and the reminder is the whole point.
-const DFS_DISMISS_KEY = 'dfs_post_unlock_dismissed';
-function DfsAvailabilityBanner() {
-  const { user } = useAuth();
-  const avail = user?.dataforseo_availability;
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(DFS_DISMISS_KEY) === '1'; }
-    catch { return false; }
-  });
-  if (!avail) return null;
-  const when = new Date(avail.enabled_from).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  // Stream the in-repo checklist .md down to the user's machine so they
-  // can stash it somewhere they'll find again on the day. Goes through
-  // /api/docs/* (via api.raw) so the session cookie authenticates the request.
-  async function downloadChecklist() {
-    // Hardcoded so the button still works even on a stale /auth/me
-    // payload that pre-dates the doc_path field. The doc is fetched
-    // by an authed allowlisted route on the server.
-    const filename = 'dataforseo-july-2026.md';
-    try {
-      const res = await api.raw(`/docs/${filename}`);
-      if (!res.ok) throw new Error(`Download failed (${res.status})`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-    } catch (e) {
-      alert(e.message);
-    }
-  }
-  const DOC_FILENAME = 'dataforseo-july-2026.md';
-
-  if (!avail.unlocked) {
-    return (
-      <div className="card mb-4">
-        <div className="caption">Coming {when}</div>
-        <div className="h3 mt-2">DataForSEO Backlinks &amp; LLM Mentions</div>
-        <p className="body-sm mt-3">
-          These data sources need a paid commitment with DataForSEO that we don't currently hold.
-          On {when} both APIs move to pay-as-you-go and the platform will start pulling them
-          automatically. Until then the following won't appear:
-        </p>
-        <ul className="body-sm" style={{ margin: '8px 0 8px 18px', padding: 0 }}>
-          {avail.gated_features.map(f => <li key={f}>{f}</li>)}
-        </ul>
-        <p className="body-xs text-subtle mt-2">
-          Implementation checklist + Phase E PR plan:{' '}
-          <button onClick={downloadChecklist}
-            style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
-            ↓ download {DOC_FILENAME}
-          </button>
-        </p>
-      </div>
-    );
-  }
-
-  if (dismissed) return null;
-  return (
-    <div className="card mb-4" style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-      <div style={{ flex: 1 }}>
-        <div className="caption">Now available</div>
-        <div className="h3 mt-2">✓ DataForSEO Backlinks &amp; LLM Mentions</div>
-        <p className="body-sm mt-3">
-          {avail.post_unlock_message || 'Backlinks + LLM Mentions are now pay-as-you-go.'}
-        </p>
-        <p className="body-xs text-subtle mt-2">
-          Open <code>docs/{DOC_FILENAME}</code> in the repo — or{' '}
-          <button onClick={downloadChecklist}
-            style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
-            ↓ download {DOC_FILENAME}
-          </button>{' '}
-          for the day-of checklist + Phase E PR order.
-        </p>
-      </div>
-      <button
-        onClick={() => { try { localStorage.setItem(DFS_DISMISS_KEY, '1'); } catch {} setDismissed(true); }}
-        className="btn btn-secondary btn-sm">
-        Dismiss
-      </button>
-    </div>
-  );
-}
 
 import {
   IntentBadge, SerpFeaturePills, KeywordHistoryModal,
@@ -667,7 +572,6 @@ export default function ClientSEOPage() {
 
   return (
     <div className="suite-organic">
-      <DfsAvailabilityBanner />
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Owned</span></div>
       <header className="hero">
         <div>
