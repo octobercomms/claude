@@ -151,6 +151,16 @@ router.delete('/releases/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Phase E4 — backlink attribution for this release. Referring domains that
+// first appeared in the 21-day window after the campaign launched, plus how
+// many came from outlets we pitched. Cross-tenant guarded by router.param.
+router.get('/releases/:id/backlink-attribution', async (req, res) => {
+  try {
+    const data = await require('../services/pressAttribution').attributionForRelease(req.params.id);
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Preview the email a specific journalist will receive — generates (or
 // reuses cached) intro + follow-ups, returns the rendered HTML.
 router.post('/releases/:id/preview', async (req, res) => {

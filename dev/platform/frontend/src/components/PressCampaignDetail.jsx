@@ -5,9 +5,22 @@ import { useToast } from '../context/ToastContext';
 // clicks a press-flavoured campaign in the Campaigns tab. Two
 // halves: pick journalists on the left (grouped by their beat /
 // contact_type), preview the personalised pitch on the right.
+// One stat in the attribution strip. `big` bumps the headline metric.
+function AttrStat({ value, label, big }) {
+  return (
+    <div>
+      <div style={{ fontSize: big ? 26 : 20, fontWeight: 700, lineHeight: 1, color: big ? 'var(--accent)' : 'var(--text)' }}>
+        {value == null ? '—' : value}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3 }}>{label}</div>
+    </div>
+  );
+}
+
 export default function PressCampaignDetail({ clientId, campaignId, contacts, onExit }) {
   const toast = useToast();
   const [release, setRelease] = useState(null);
+  const [attribution, setAttribution] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [previewing, setPreviewing] = useState(null);
   const [previewData, setPreviewData] = useState(null);
@@ -19,8 +32,15 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
 
   useEffect(() => {
     setLoadError(null);
+    setAttribution(null);
     api.get(`/press/campaigns/${campaignId}/release`)
-      .then(setRelease)
+      .then(rel => {
+        setRelease(rel);
+        // Backlink attribution (E4) — best-effort; hidden if it errors.
+        api.get(`/press/releases/${rel.id}/backlink-attribution`)
+          .then(setAttribution)
+          .catch(() => setAttribution(null));
+      })
       .catch(e => setLoadError(e.message));
   }, [campaignId]);
 
@@ -124,6 +144,42 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
           {release.source_url && <a href={release.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--accent)', display: 'inline-block', marginTop: 6 }}>↗ source page</a>}
         </div>
       </div>
+
+      {attribution?.launched && (
+        <div style={{ marginTop: 16, padding: 14, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 8 }}>
+            Backlink attribution · {attribution.window_days} days after launch
+          </div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'baseline' }}>
+            <AttrStat value={attribution.new_rds} label="new referring domains" big />
+            <AttrStat value={attribution.dofollow_rds} label="dofollow" />
+            <AttrStat value={attribution.pitched_rds} label="from outlets you pitched" />
+            <AttrStat value={attribution.recipients} label="journalists emailed" />
+            <AttrStat value={attribution.rds_per_recipient == null ? '—' : attribution.rds_per_recipient} label="RDs per recipient" />
+          </div>
+          {attribution.snapshot_captured_at ? (
+            attribution.domains?.length > 0 && (
+              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {attribution.domains.slice(0, 12).map((d, i) => (
+                  <span key={d.domain + i} title={d.pitched ? 'from an outlet you pitched' : ''}
+                    style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: d.pitched ? 'var(--accent-soft)' : 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', color: d.pitched ? 'var(--accent)' : 'var(--text-muted)' }}>
+                    {d.pitched ? '★ ' : ''}{d.domain}
+                  </span>
+                ))}
+                {attribution.domains.length > 12 && <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>+{attribution.domains.length - 12} more</span>}
+              </div>
+            )
+          ) : (
+            <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-subtle)' }}>
+              No backlink snapshot captured for this client yet — figures fill in after the first 3-day sweep.
+            </div>
+          )}
+          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-subtle)' }}>
+            Launched {new Date(attribution.launch_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}.
+            Domains whose first backlink appeared within {attribution.window_days} days of launch. ★ = an outlet on this campaign.
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 18 }}>
         <div>
