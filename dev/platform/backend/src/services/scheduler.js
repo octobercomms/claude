@@ -144,29 +144,24 @@ cron.schedule('30 6 * * 1', async () => {
   await runWeeklyAIOChecks();
 });
 
-// Backlinks refresh: every Monday at 07:30 UTC, after the AIO check.
-// Gated on DataForSEO availability — until 1 July 2026 the Backlinks
-// API requires a $100/mo commitment we don't hold, so this job no-ops
-// until isUnlocked() flips. Once unlocked, walks every active client
-// with a domain and refreshes their backlink profile so the Organic
-// → Backlinks tab shows fresh numbers without a manual click.
-cron.schedule('30 7 * * 1', async () => {
-  const { isUnlocked } = require('./dfsAvailability');
-  if (!isUnlocked()) return;
-  console.log('[Scheduler] Running weekly backlinks refresh…');
+// Backlinks snapshot sweep: every 3 days at 07:30. Phase E1 — walks every
+// active client with a domain and PERSISTS a full backlinks snapshot
+// (summary + top-1000 referring domains + top-100 anchors) stamped with a
+// shared captured_at, so the Backlinks tab (E2) trends over time and the
+// new/lost diff (E3) can compare consecutive cycles.
+//
+// Gated on DataForSEO availability — before 1 July 2026 the Backlinks API
+// required a $100/mo commitment we don't hold, so pullBacklinksAllClients
+// no-ops until isUnlocked() flips. Post-cutover it runs for real.
+// Cadence: 3 days, all clients (~$0.06/client/cycle). Bump to */4 to trim
+// ~25% of the DFS spend if credit usage runs hot.
+cron.schedule('30 7 */3 * *', async () => {
+  console.log('[Scheduler] Running backlinks snapshot sweep (every 3 days)…');
   try {
-    const pool = require('../db');
-    const dataforseo = require('../connectors/dataforseo');
-    const { rows } = await pool.query(
-      "SELECT id, domain FROM clients WHERE active = TRUE AND domain IS NOT NULL AND domain != ''"
-    );
-    for (const c of rows) {
-      try { await dataforseo.fetchBacklinkData(c.domain); }
-      catch (err) {
-        console.warn(`[Backlinks] ${c.domain}: ${err.message}`);
-      }
-    }
-  } catch (err) { console.error('[Backlinks] weekly refresh failed:', err.message); }
+    const r = await require('./dfsBacklinks').pullBacklinksAllClients();
+    if (r.skipped) console.log('[Backlinks] skipped — DataForSEO Backlinks not yet unlocked');
+    else console.log(`[Backlinks] sweep done: ${r.ok}/${r.clients} clients snapshotted`);
+  } catch (err) { console.error('[Backlinks] snapshot sweep failed:', err.message); }
 });
 
 // Usage snapshots: 02:00 daily. Polls each pay-per-use provider's

@@ -313,6 +313,36 @@ async function fetchAnchorTextDistribution(domain, { limit = 100 } = {}) {
   })).filter(a => a.anchor);
 }
 
+// Referring domains — the top domains linking to the client (ordered by
+// their DFS rank). This is the backbone of the Backlinks tab and the
+// new/lost-links diff: each cycle we snapshot the top ~1000 so E3 can
+// diff consecutive captures. DFS caps a single call at 1000 rows.
+async function fetchReferringDomains(domain, { limit = 1000 } = {}) {
+  const client = await getClient();
+  const { data } = await client.post('/backlinks/referring_domains/live', [{
+    target: normalizeDomain(domain),
+    limit: Math.min(limit, 1000),
+    order_by: ['rank,desc'],
+    // Exclude the client's own subdomains from its referring-domain count.
+    backlinks_filters: ['dofollow', '=', true],
+    internal_list_limit: 1,
+  }]);
+  const items = data.tasks?.[0]?.result?.[0]?.items || [];
+  return items.map(i => ({
+    domain: i.domain || null,
+    rank: typeof i.rank === 'number' ? i.rank : null,
+    first_seen: i.first_seen || null,
+    // referring_domains/live exposes last activity as last_seen (falls back
+    // to lost_date when the domain has dropped all its links to us).
+    last_seen: i.last_seen || i.lost_date || null,
+    backlinks_count: i.backlinks || 0,
+    // A referring domain can carry both dofollow and nofollow links; treat
+    // it as dofollow if it sends us at least one followed link.
+    dofollow: (i.backlinks || 0) > (i.backlinks_nofollow || 0),
+    raw: i,
+  })).filter(d => d.domain);
+}
+
 // Dofollow / nofollow split — sample the backlinks index, separating by
 // the dofollow flag. We use a sample (200) rather than full pull because
 // the absolute counts are already in the summary; we just want the
@@ -502,4 +532,4 @@ async function fetchGoogleTrends(keywords, { locationCode = 2826, timeRange = 'p
   };
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchDomainRanks, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchDomainRanks, fetchReferringDomains, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };
