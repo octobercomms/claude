@@ -72,9 +72,10 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
   const [model, setModel] = useState(() => localStorage.getItem('oc_analyst_model') || 'claude-sonnet-4-6');
   useEffect(() => { localStorage.setItem('oc_analyst_model', model); }, [model]);
   const CHAT_MODELS = [
-    { id: 'claude-fable-5',    label: 'Fable',    hint: 'Fastest Claude · quick lookups' },
+    { id: 'claude-haiku-4-5',  label: 'Haiku',    hint: 'Fastest, cheapest Claude · quick lookups' },
     { id: 'claude-sonnet-4-6', label: 'Sonnet',   hint: 'Balanced · default' },
     { id: 'claude-opus-4-8',   label: 'Opus',     hint: 'Deepest analysis' },
+    { id: 'claude-fable-5',    label: 'Fable',    hint: 'Most capable Claude · premium cost' },
     { id: 'deepseek-chat',     label: 'DeepSeek', hint: '⚠ cheap, but sends this client\'s pulled data to DeepSeek — non-sensitive questions only' },
   ];
   const [loading, setLoading] = useState(true);

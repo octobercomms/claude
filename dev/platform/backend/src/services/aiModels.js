@@ -8,10 +8,11 @@ const { getSetting } = require('../utils/settings');
 
 // id → provider, label, relative cost tier, and a one-line note for the tooltip.
 const MODELS = {
-  'claude-fable-5':    { provider: 'anthropic', label: 'Claude Fable',  tier: '$',   note: 'Fast, low-cost Claude — good for simple/bulk tasks.' },
-  'claude-sonnet-4-6': { provider: 'anthropic', label: 'Claude Sonnet', tier: '$$',  note: 'Balanced default — strong quality at mid cost.' },
-  'claude-opus-4-8':   { provider: 'anthropic', label: 'Claude Opus',   tier: '$$$', note: 'Most capable, highest cost — save for hard tasks.' },
-  'deepseek-chat':     { provider: 'deepseek',  label: 'DeepSeek',      tier: '¢',   note: 'Cheapest by far. Data is sent to DeepSeek — avoid for client data.' },
+  'claude-haiku-4-5':  { provider: 'anthropic', label: 'Claude Haiku',  tier: '$',    note: 'Fastest, cheapest Claude — good for simple/bulk tasks.' },
+  'claude-sonnet-4-6': { provider: 'anthropic', label: 'Claude Sonnet', tier: '$$',   note: 'Balanced default — strong quality at mid cost.' },
+  'claude-opus-4-8':   { provider: 'anthropic', label: 'Claude Opus',   tier: '$$$',  note: 'Very capable, high cost — save for hard tasks.' },
+  'claude-fable-5':    { provider: 'anthropic', label: 'Claude Fable',  tier: '$$$$', note: 'Most capable Claude, premium cost (above Opus) — reserve for the hardest work.' },
+  'deepseek-chat':     { provider: 'deepseek',  label: 'DeepSeek',      tier: '¢',    note: 'Cheapest by far. Data is sent to DeepSeek — avoid for client data.' },
 };
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
 
