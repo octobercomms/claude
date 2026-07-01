@@ -31,9 +31,46 @@ function classifyAnchor(anchor, brandTokens) {
   return 'other';
 }
 
+// One column of the new/lost feed — a small referring-domains table with a
+// coloured dot per row and a single date column (first-seen for new,
+// last-seen for lost).
+function ChangeList({ title, colour, dateLabel, rows, dateKey, empty }) {
+  return (
+    <div className="card">
+      <div className="caption" style={{ marginBottom: 12, color: colour }}>{title}</div>
+      {!rows?.length ? (
+        <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{empty}</div>
+      ) : (
+        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ textAlign: 'left', color: 'var(--text-subtle)', borderBottom: '1px solid var(--border)' }}>
+              <th style={{ padding: '6px 8px' }}>Domain</th>
+              <th style={{ padding: '6px 8px', textAlign: 'right' }}>Rank</th>
+              <th style={{ padding: '6px 8px' }}>{dateLabel}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((d, i) => (
+              <tr key={d.domain + i} style={{ borderBottom: '1px solid var(--border-subtle, var(--border))' }}>
+                <td style={{ padding: '6px 8px' }}>
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 3, background: colour, marginRight: 6, verticalAlign: 'middle' }} />
+                  <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{d.domain}</a>
+                </td>
+                <td style={{ padding: '6px 8px', textAlign: 'right' }}>{d.rank == null ? '—' : d.rank}</td>
+                <td style={{ padding: '6px 8px' }}>{fmtDate(d[dateKey])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 export default function BacklinksPanel({ clientId, clientName, domain }) {
   const [trend, setTrend] = useState(null);
   const [rds, setRds] = useState(null);
+  const [changes, setChanges] = useState(null);
   const [anchors, setAnchors] = useState(null);
   const [anchorsMsg, setAnchorsMsg] = useState('');
   const [split, setSplit] = useState(null);
@@ -49,12 +86,14 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
     setErr('');
     // Snapshot reads (cheap, from our tables).
     try {
-      const [t, r] = await Promise.all([
+      const [t, r, c] = await Promise.all([
         api.get(`/seo/clients/${clientId}/backlinks/trend`),
         api.get(`/seo/clients/${clientId}/backlinks/referring-domains?limit=50`),
+        api.get(`/seo/clients/${clientId}/backlinks/changes?limit=100`),
       ]);
       setTrend(t);
       setRds(r);
+      setChanges(c);
     } catch (e) { setErr(e.message); }
     finally { setLoading(false); }
     // Live quick-win reads (may 503 pre-cutover) — independent, non-fatal.
@@ -182,6 +221,36 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
                   ))}
                 </tbody>
               </table>
+            )}
+          </div>
+
+          {/* New / lost referring domains since last snapshot (E3) */}
+          <div style={{ marginBottom: 24 }}>
+            <div className="caption" style={{ marginBottom: 4 }}>Since last snapshot</div>
+            {!changes?.previous ? (
+              <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
+                Only one snapshot so far — the new / lost feed appears once a second cycle has run (the next
+                3-day sweep, or hit <strong>Refresh snapshot</strong> twice).
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <ChangeList
+                  title={`New (${changes.gained.length})`}
+                  colour="var(--positive)"
+                  dateLabel="First seen"
+                  rows={changes.gained}
+                  dateKey="first_seen"
+                  empty="No new referring domains this cycle."
+                />
+                <ChangeList
+                  title={`Lost (${changes.lost.length})`}
+                  colour="var(--negative)"
+                  dateLabel="Last seen"
+                  rows={changes.lost}
+                  dateKey="last_seen"
+                  empty="No lost referring domains this cycle."
+                />
+              </div>
             )}
           </div>
         </>
