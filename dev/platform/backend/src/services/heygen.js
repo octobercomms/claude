@@ -120,9 +120,22 @@ async function remove(clientId, id) {
 }
 
 // Submit a reel to HeyGen and store the job. Vertical 1080×1920, captions on.
-async function generate(clientId, { title, script, avatar_id, avatar_type, avatar_name, voice_id, caption = true }, userId) {
+// Video shapes HeyGen supports (dimension = pixel W×H). 1080 on the short edge;
+// 16:9 renders landscape at 1920×1080. Unknown values fall back to a 9:16 reel.
+const ASPECTS = {
+  '9:16': { width: 1080, height: 1920 }, // reel / story
+  '4:5':  { width: 1080, height: 1350 }, // portrait feed post
+  '1:1':  { width: 1080, height: 1080 }, // square post
+  '16:9': { width: 1920, height: 1080 }, // landscape
+};
+function dimensionFor(aspect) {
+  return ASPECTS[aspect] || ASPECTS['9:16'];
+}
+
+async function generate(clientId, { title, script, avatar_id, avatar_type, avatar_name, voice_id, caption = true, aspect }, userId) {
   if (!String(script || '').trim()) { const e = new Error('Add a script for the avatar to say.'); e.status = 400; throw e; }
   if (!avatar_id || !voice_id) { const e = new Error('Pick an avatar and a voice.'); e.status = 400; throw e; }
+  const aspectRatio = ASPECTS[aspect] ? aspect : '9:16';
   // An avatar-group selection resolves to a concrete look (talking-photo or
   // avatar) before we store/submit; other types pass through unchanged.
   let useId = avatar_id;
@@ -135,9 +148,9 @@ async function generate(clientId, { title, script, avatar_id, avatar_type, avata
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO heygen_reels (client_id, title, script, avatar_id, avatar_type, avatar_name, voice_id, caption, status, requested_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'queued',$9) RETURNING *`,
-    [clientId, title || null, script.trim(), useId, type, avatar_name || null, voice_id, !!caption, userId || null]
+    `INSERT INTO heygen_reels (client_id, title, script, avatar_id, avatar_type, avatar_name, voice_id, caption, aspect_ratio, status, requested_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'queued',$10) RETURNING *`,
+    [clientId, title || null, script.trim(), useId, type, avatar_name || null, voice_id, !!caption, aspectRatio, userId || null]
   );
   const reel = rows[0];
 
@@ -148,7 +161,7 @@ async function generate(clientId, { title, script, avatar_id, avatar_type, avata
       : { type: 'avatar', avatar_id: useId, avatar_style: 'normal' };
     const body = {
       video_inputs: [{ character, voice: { type: 'text', input_text: script.trim(), voice_id } }],
-      dimension: { width: 1080, height: 1920 },
+      dimension: dimensionFor(aspectRatio),
       caption: !!caption,
       title: title || undefined,
     };
@@ -172,7 +185,7 @@ async function retry(clientId, id, userId) {
   const { rows } = await pool.query('SELECT * FROM heygen_reels WHERE client_id = $1 AND id = $2', [clientId, id]);
   const r = rows[0];
   if (!r) { const e = new Error('Reel not found.'); e.status = 404; throw e; }
-  return generate(clientId, { title: r.title, script: r.script, avatar_id: r.avatar_id, avatar_type: r.avatar_type, avatar_name: r.avatar_name, voice_id: r.voice_id, caption: r.caption }, userId)
+  return generate(clientId, { title: r.title, script: r.script, avatar_id: r.avatar_id, avatar_type: r.avatar_type, avatar_name: r.avatar_name, voice_id: r.voice_id, caption: r.caption, aspect: r.aspect_ratio }, userId)
     .then(async (created) => { await pool.query('DELETE FROM heygen_reels WHERE id = $1', [id]); return created; });
 }
 

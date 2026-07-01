@@ -27,8 +27,17 @@ export default function HeygenReelsPanel({ clientId, draft }) {
   }, [draft?.ts]); // eslint-disable-line react-hooks/exhaustive-deps
   const [avatar, setAvatar] = useState('');
   const [voice, setVoice] = useState('');
+  const [aspect, setAspect] = useState('9:16');
   const [busy, setBusy] = useState(false);
   const pollRef = useRef(null);
+
+  // Video shapes HeyGen renders. Label + the platform each suits.
+  const SHAPES = [
+    { id: '9:16', label: 'Reel / Story', dim: '1080×1920' },
+    { id: '4:5',  label: 'Portrait post', dim: '1080×1350' },
+    { id: '1:1',  label: 'Square post',  dim: '1080×1080' },
+    { id: '16:9', label: 'Landscape',    dim: '1920×1080' },
+  ];
 
   async function loadReels() {
     try { const r = await api.get(`/heygen/clients/${clientId}/heygen/reels`); setReels(r.reels || []); }
@@ -63,7 +72,7 @@ export default function HeygenReelsPanel({ clientId, draft }) {
     const avatar_name = opts?.avatars?.find(a => a.id === avatar_id)?.name || null;
     setBusy(true);
     try {
-      const reel = await api.post(`/heygen/clients/${clientId}/heygen/reels`, { title: title.trim(), script: script.trim(), avatar_id, avatar_type, avatar_name, voice_id: voice, caption: true });
+      const reel = await api.post(`/heygen/clients/${clientId}/heygen/reels`, { title: title.trim(), script: script.trim(), avatar_id, avatar_type, avatar_name, voice_id: voice, caption: true, aspect });
       setReels(prev => [reel, ...prev]);
       setScript(''); setTitle('');
       toast('Sent to HeyGen — rendering. It’ll appear below in a minute or two.', 'success');
@@ -141,6 +150,18 @@ export default function HeygenReelsPanel({ clientId, draft }) {
                 {opts.voices.map(v => <option key={v.id} value={v.id}>{v.name}{v.language ? ` · ${v.language}` : ''}</option>)}
               </select>
             </label>
+            <div className="field">
+              <span className="field-label">Shape</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {SHAPES.map(s => (
+                  <button type="button" key={s.id} onClick={() => setAspect(s.id)}
+                    className={'btn btn-sm ' + (aspect === s.id ? 'btn-primary' : 'btn-secondary')}
+                    title={s.dim}>
+                    {s.label} · {s.id}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div><button className="btn btn-primary" onClick={generate} disabled={busy}>{busy ? 'Sending…' : '✦ Generate reel'}</button></div>
           </div>
         </div>
