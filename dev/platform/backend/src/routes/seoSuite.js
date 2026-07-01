@@ -1082,6 +1082,61 @@ router.get('/clients/:clientId/backlinks/referring-domains', async (req, res) =>
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// New / lost referring domains between the two most recent snapshots
+// (Phase E3). The Monday-morning scan feed: which domains started or
+// stopped linking to the client since last cycle. Diffs by domain name
+// across the latest two distinct captured_at values. E1 only snapshots
+// dofollow referring domains, so this is a followed-links diff — the
+// version worth acting on.
+router.get('/clients/:clientId/backlinks/changes', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+    // The two most recent snapshot timestamps.
+    const { rows: caps } = await pool.query(
+      `SELECT DISTINCT captured_at FROM dfs_referring_domains
+        WHERE client_id = $1 ORDER BY captured_at DESC LIMIT 2`,
+      [clientId]
+    );
+    if (caps.length < 2) {
+      // Need two cycles to diff — surface which state we're in so the UI
+      // can explain (no data yet vs only one snapshot so far).
+      return res.json({
+        current: caps[0]?.captured_at || null,
+        previous: null,
+        gained: [],
+        lost: [],
+      });
+    }
+    const [current, previous] = [caps[0].captured_at, caps[1].captured_at];
+    const [gained, lost] = await Promise.all([
+      pool.query(
+        `SELECT domain, rank, first_seen, backlinks_count, dofollow
+           FROM dfs_referring_domains cur
+          WHERE client_id = $1 AND captured_at = $2
+            AND NOT EXISTS (
+              SELECT 1 FROM dfs_referring_domains prev
+               WHERE prev.client_id = $1 AND prev.captured_at = $3 AND prev.domain = cur.domain)
+          ORDER BY rank DESC NULLS LAST, backlinks_count DESC
+          LIMIT $4`,
+        [clientId, current, previous, limit]
+      ),
+      pool.query(
+        `SELECT domain, rank, last_seen, backlinks_count, dofollow
+           FROM dfs_referring_domains prev
+          WHERE client_id = $1 AND captured_at = $2
+            AND NOT EXISTS (
+              SELECT 1 FROM dfs_referring_domains cur
+               WHERE cur.client_id = $1 AND cur.captured_at = $3 AND cur.domain = prev.domain)
+          ORDER BY rank DESC NULLS LAST, backlinks_count DESC
+          LIMIT $4`,
+        [clientId, previous, current, limit]
+      ),
+    ]);
+    res.json({ current, previous, gained: gained.rows, lost: lost.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Manual "refresh now" — runs a snapshot immediately rather than waiting for
 // the 3-day cron. Gated: pullBacklinks throws a 503 before the cutover.
 router.post('/clients/:clientId/backlinks/refresh', async (req, res) => {
