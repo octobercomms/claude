@@ -9,6 +9,7 @@ const reportTemplate = require('../services/reportTemplate');
 const templateRenderer = require('../services/templateRenderer');
 const pdfService = require('../services/pdfService');
 const previewCache = require('../services/previewCache');
+const { toYmdLocal } = require('../utils/dates');
 
 const router = express.Router();
 
@@ -387,26 +388,26 @@ function getDefaultPeriodStart(reportType) {
   const now = new Date();
   if (reportType === 'monthly') {
     const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return firstOfLastMonth.toISOString().split('T')[0];
+    return toYmdLocal(firstOfLastMonth);
   }
   // Weekly: last Monday
   const day = now.getDay();
   const lastMonday = new Date(now);
   lastMonday.setDate(now.getDate() - ((day + 6) % 7) - 7);
-  return lastMonday.toISOString().split('T')[0];
+  return toYmdLocal(lastMonday);
 }
 
 function getDefaultPeriodEnd(reportType) {
   const now = new Date();
   if (reportType === 'monthly') {
     const lastOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-    return lastOfLastMonth.toISOString().split('T')[0];
+    return toYmdLocal(lastOfLastMonth);
   }
   // Weekly: last Sunday
   const day = now.getDay();
   const lastSunday = new Date(now);
   lastSunday.setDate(now.getDate() - ((day + 6) % 7) - 1);
-  return lastSunday.toISOString().split('T')[0];
+  return toYmdLocal(lastSunday);
 }
 
 module.exports = router;

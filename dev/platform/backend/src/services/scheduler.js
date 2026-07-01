@@ -14,6 +14,7 @@ const _origSchedule = cron.schedule.bind(cron);
 cron.schedule = (expr, fn, opts = {}) => _origSchedule(expr, fn, { timezone: PLATFORM_TZ, ...opts });
 const { decrypt } = require('../utils/encryption');
 const reportService = require('./reportService');
+const { toYmdLocal } = require('../utils/dates');
 const dataForSEO = require('../connectors/dataforseo');
 const emailService = require('./emailService');
 const outreachSender = require('./outreachSender');
@@ -572,10 +573,7 @@ function getPeriodDates(reportType) {
   if (reportType === 'monthly') {
     const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const end = new Date(now.getFullYear(), now.getMonth(), 0);
-    return {
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
-    };
+    return { start: toYmdLocal(start), end: toYmdLocal(end) };
   }
   // Weekly: previous Mon–Sun
   const day = now.getDay();
@@ -583,10 +581,7 @@ function getPeriodDates(reportType) {
   lastMonday.setDate(now.getDate() - ((day + 6) % 7) - 7);
   const lastSunday = new Date(lastMonday);
   lastSunday.setDate(lastMonday.getDate() + 6);
-  return {
-    start: lastMonday.toISOString().split('T')[0],
-    end: lastSunday.toISOString().split('T')[0],
-  };
+  return { start: toYmdLocal(lastMonday), end: toYmdLocal(lastSunday) };
 }
 
 // Outreach — send due campaign emails every 3 minutes, in small batches.

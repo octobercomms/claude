@@ -5,6 +5,7 @@ const emailService = require('./emailService');
 const dataCollector = require('./dataCollector');
 const reportTemplate = require('./reportTemplate');
 const templateRenderer = require('./templateRenderer');
+const { toYmdLocal } = require('../utils/dates');
 
 async function generateReport(reportId) {
   const { rows } = await pool.query(
@@ -23,8 +24,8 @@ async function generateReport(reportId) {
     // narrative sections reaching client inboxes.
     await claudeService.verifyApiKey();
 
-    const periodStart = report.period_start.toISOString().split('T')[0];
-    const periodEnd = report.period_end.toISOString().split('T')[0];
+    const periodStart = toYmdLocal(report.period_start);
+    const periodEnd = toYmdLocal(report.period_end);
     const period = formatPeriod(report.report_type, periodStart, periodEnd);
 
     const [collectedData, seoData, chatHistory] = await Promise.all([
@@ -320,8 +321,8 @@ async function sendReport(reportId, overrides = {}) {
 
     const period = formatPeriod(
       report.report_type,
-      report.period_start.toISOString().split('T')[0],
-      report.period_end.toISOString().split('T')[0]
+      toYmdLocal(report.period_start),
+      toYmdLocal(report.period_end)
     );
 
     if (report.report_type === 'monthly') {
