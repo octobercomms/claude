@@ -96,8 +96,21 @@ async function resolveGroupLook(groupId) {
 
 async function listVoices() {
   const client = await http();
+  // v3/voices reports `support_pause` (SSML <break> support) per voice — used to
+  // gate the pacing controls. Fall back to v2 if v3 is unavailable.
+  try {
+    const { data } = await client.get('/v3/voices?engine=starfish');
+    const list = data.data?.voices || data.voices || [];
+    if (list.length) {
+      return list.map(v => ({
+        id: v.voice_id, name: v.name || v.voice_id,
+        language: v.language || v.locale || '', gender: v.gender || '',
+        supportsPause: !!v.support_pause,
+      }));
+    }
+  } catch { /* fall through to v2 */ }
   const { data } = await client.get('/v2/voices');
-  const voices = (data.data?.voices || data.voices || []).map(v => ({ id: v.voice_id, name: v.name || v.voice_id, language: v.language || v.locale || '', gender: v.gender || '' }));
+  const voices = (data.data?.voices || data.voices || []).map(v => ({ id: v.voice_id, name: v.name || v.voice_id, language: v.language || v.locale || '', gender: v.gender || '', supportsPause: false }));
   return voices;
 }
 
@@ -132,6 +145,20 @@ function dimensionFor(aspect) {
   return ASPECTS[aspect] || ASPECTS['9:16'];
 }
 
+// Turn our lightweight pacing markers into HeyGen SSML (only on voices whose
+// support_pause is true). Returns null when the script has no markers, so the
+// plain-text path is used unchanged.
+//   [pause 0.5s] / [pause 500ms] → <break time="0.5s"/>
+//   *emphasised words*           → <emphasis>emphasised words</emphasis>
+// XML-escape first, then inject tags, so stray & / < / > in the copy are safe.
+function toSsml(text) {
+  let touched = false;
+  let s = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  s = s.replace(/\[pause\s+([0-9.]+)\s*(ms|s)?\]/gi, (_, n, unit) => { touched = true; return `<break time="${n}${unit || 's'}"/>`; });
+  s = s.replace(/\*([^*\n]+)\*/g, (_, w) => { touched = true; return `<emphasis>${w}</emphasis>`; });
+  return touched ? `<speak>${s}</speak>` : null;
+}
+
 async function generate(clientId, { title, script, avatar_id, avatar_type, avatar_name, voice_id, caption = true, aspect }, userId) {
   if (!String(script || '').trim()) { const e = new Error('Add a script for the avatar to say.'); e.status = 400; throw e; }
   if (!avatar_id || !voice_id) { const e = new Error('Pick an avatar and a voice.'); e.status = 400; throw e; }
@@ -159,8 +186,11 @@ async function generate(clientId, { title, script, avatar_id, avatar_type, avata
     const character = type === 'talking_photo'
       ? { type: 'talking_photo', talking_photo_id: useId }
       : { type: 'avatar', avatar_id: useId, avatar_style: 'normal' };
+    const ssml = toSsml(script.trim());
     const body = {
-      video_inputs: [{ character, voice: { type: 'text', input_text: script.trim(), voice_id } }],
+      video_inputs: [{ character, voice: ssml
+        ? { type: 'text', input_text: ssml, voice_id, input_type: 'ssml' }
+        : { type: 'text', input_text: script.trim(), voice_id } }],
       dimension: dimensionFor(aspectRatio),
       caption: !!caption,
       title: title || undefined,
