@@ -503,6 +503,7 @@ export default function ClientSocialPage() {
           onSelectBatch={selectBatch}
           onDeleteBatch={deleteBatch}
           onMakeReel={pushPostToReel}
+          onOpenReels={() => { setReelDraft(null); setCreateView('reels'); }}
           onReuseBrief={(b) => setBrief(b.brief || '')}
           onBulkSchedule={() => setBulkOpen(true)}
           onShareForApproval={shareBatchForApproval}
@@ -663,7 +664,7 @@ export default function ClientSocialPage() {
 // brainstorm-only actions (Generate / Bulk schedule / Share for
 // approval) in the section head.
 function BrainstormTab({
-  clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel,
+  clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel, onOpenReels,
   onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare,
   socialTab, onNavTab, ideasContent, briefContent, plansContent, publishContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
@@ -819,6 +820,7 @@ function BrainstormTab({
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
               <UiButton variant="secondary" onClick={() => goStep(2)} disabled={generating}>↻ Generate another</UiButton>
+              {onOpenReels && <UiButton variant="secondary" onClick={onOpenReels}>🎬 Avatar reels</UiButton>}
               <UiButton variant="secondary" onClick={onShareForApproval} disabled={!posts.length}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
               <UiButton variant="primary" onClick={() => goStep(4)} disabled={!posts.length}>Plan &amp; schedule →</UiButton>
             </div>
