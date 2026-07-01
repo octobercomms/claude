@@ -151,6 +151,17 @@ router.delete('/releases/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Phase E4b — workspace-wide PR-ROI leaderboard. Launched press campaigns
+// across the caller's visible clients, ranked by referring domains earned
+// per recipient. Scoped to visibleClientIds so it respects tenant access.
+router.get('/attribution/leaderboard', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 25, 100);
+    const rows = await require('../services/pressAttribution').leaderboard(req.visibleClientIds, { limit });
+    res.json({ campaigns: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Phase E4 — backlink attribution for this release. Referring domains that
 // first appeared in the 21-day window after the campaign launched, plus how
 // many came from outlets we pitched. Cross-tenant guarded by router.param.
