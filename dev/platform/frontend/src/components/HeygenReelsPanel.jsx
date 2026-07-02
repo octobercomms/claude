@@ -31,6 +31,8 @@ export default function HeygenReelsPanel({ clientId, draft }) {
   const [fit, setFit] = useState('cover');            // cover = fill the frame
   const [expressiveness, setExpressiveness] = useState('medium'); // photo avatars
   const [engine, setEngine] = useState('');           // '' = Avatar IV (default)
+  const [speed, setSpeed] = useState(1);               // voice_settings.speed
+  const [pauseDur, setPauseDur] = useState('0.5s');    // explicit pause length
   const [busy, setBusy] = useState(false);
   const pollRef = useRef(null);
 
@@ -77,7 +79,7 @@ export default function HeygenReelsPanel({ clientId, draft }) {
     try {
       // fit/engine/expressiveness are gated server-side (engine only applies as
       // avatar_v, expressiveness only for photo avatars), so it's safe to send.
-      const reel = await api.post(`/heygen/clients/${clientId}/heygen/reels`, { title: title.trim(), script: script.trim(), avatar_id, avatar_type, avatar_name, voice_id: voice, caption: true, aspect, fit, engine: engine || undefined, expressiveness });
+      const reel = await api.post(`/heygen/clients/${clientId}/heygen/reels`, { title: title.trim(), script: script.trim(), avatar_id, avatar_type, avatar_name, voice_id: voice, caption: true, aspect, fit, engine: engine || undefined, expressiveness, speed });
       setReels(prev => [reel, ...prev]);
       setScript(''); setTitle('');
       toast('Sent to HeyGen — rendering. It’ll appear below in a minute or two.', 'success');
@@ -134,9 +136,14 @@ export default function HeygenReelsPanel({ clientId, draft }) {
               return (
                 <div style={{ fontSize: 11, color: 'var(--text-subtle)', lineHeight: 1.6, marginTop: -4 }}>
                   {canPause ? (
-                    <>Pacing: add a pause with <code>[pause 0.5s]</code>, and emphasise words by wrapping them in <code>*asterisks*</code>.{' '}
+                    <>Pacing: drop a pause of{' '}
+                      <select value={pauseDur} onChange={e => setPauseDur(e.target.value)}
+                        style={{ fontSize: 11, padding: '1px 4px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 4 }}>
+                        {['0.3s', '0.5s', '1s', '1.5s', '2s'].map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>{' '}
                       <button type="button" className="btn-inline-link"
-                        onClick={() => setScript(s => (s ? `${s.trimEnd()} [pause 0.5s] ` : '[pause 0.5s] '))}>Insert pause</button>
+                        onClick={() => setScript(s => (s ? `${s.trimEnd()} [pause ${pauseDur}] ` : `[pause ${pauseDur}] `))}>Insert pause</button>
+                      , or emphasise words by wrapping them in <code>*asterisks*</code>.
                     </>
                   ) : (
                     <>This voice doesn't support pauses — pick a voice marked <strong>⏸ pauses</strong> below for pause &amp; emphasis control.</>
@@ -199,6 +206,17 @@ export default function HeygenReelsPanel({ clientId, draft }) {
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
                 <strong>Fill</strong> stops a reel from letterboxing the avatar into a smaller box.
+              </div>
+            </div>
+            <div className="field">
+              <span className="field-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Speed</span>
+                <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>{speed === 1 ? 'Normal' : `${speed.toFixed(2)}×`}</span>
+              </span>
+              <input type="range" min="0.5" max="1.5" step="0.05" value={speed}
+                onChange={e => setSpeed(Number(e.target.value))} style={{ width: '100%' }} />
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>
+                Overall delivery pace. Combine with pauses above for finer control.
               </div>
             </div>
             {isPhoto && (
