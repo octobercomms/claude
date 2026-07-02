@@ -179,7 +179,7 @@ export default function HeygenReelsPanel({ clientId, draft }) {
             <label className="field" style={{ display: 'block' }}>
               <span className="field-label">Voice</span>
               <select className="input" value={voice} onChange={e => setVoice(e.target.value)}>
-                {opts.voices.map(v => <option key={v.id} value={v.id}>{v.name}{v.language ? ` · ${v.language}` : ''}{v.supportsPause ? ' · ⏸ pauses' : ''}</option>)}
+                {opts.voices.map(v => <option key={v.id} value={v.id}>{v.name}{v.isPrivate ? ' · your voice' : ''}{v.language ? ` · ${v.language}` : ''}{v.supportsPause ? ' · ⏸ pauses' : ''}</option>)}
               </select>
             </label>
             <div className="field">
