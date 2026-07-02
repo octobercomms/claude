@@ -65,7 +65,8 @@
     return cart;
   }
   function setRowQty($row, n) {
-    n = Math.max(0, Math.min(10, n));
+    var max = parseInt($row.data('max-qty'), 10) || 10;
+    n = Math.max(0, Math.min(max, n));
     $row.find('.oct-qty-val').text(n);
     $row.toggleClass('oct-ticket-row--selected', n > 0);
     resetPromo();      // any cart change invalidates a previously-applied code

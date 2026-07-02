@@ -58,13 +58,14 @@ final class TicketsAdmin {
         $types  = TicketTypes::types($post->ID);
         $venues = TicketTypes::venues($post->ID);
         ?>
-        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2).', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2). "Max/order" caps how many of a type one buyer can take at once — raise it (up to 99) for group buyers like colleges.', 'october-events'); ?></p>
         <table class="widefat" id="oe-tt-table">
             <thead><tr>
                 <th><?php esc_html_e('Label', 'october-events'); ?></th>
                 <th><?php esc_html_e('Price', 'october-events'); ?></th>
                 <th><?php esc_html_e('Sale', 'october-events'); ?></th>
                 <th><?php esc_html_e('Admits', 'october-events'); ?></th>
+                <th><?php esc_html_e('Max/order', 'october-events'); ?></th>
                 <th><?php esc_html_e('On sale from', 'october-events'); ?></th>
                 <th><?php esc_html_e('until', 'october-events'); ?></th>
                 <th><?php esc_html_e('Active', 'october-events'); ?></th>
@@ -166,6 +167,7 @@ final class TicketsAdmin {
             <td><input type="number" step="0.01" min="0" name="oe_tt[<?php echo $i; ?>][price]" value="<?php echo $g('price'); ?>" style="width:80px"></td>
             <td><input type="number" step="0.01" min="0" name="oe_tt[<?php echo $i; ?>][sale_price]" value="<?php echo esc_attr($t['sale_price'] ?? ''); ?>" style="width:80px"></td>
             <td><input type="number" min="1" max="20" name="oe_tt[<?php echo $i; ?>][qty_per_purchase]" value="<?php echo $g('qty_per_purchase', '1'); ?>" style="width:55px"></td>
+            <td><input type="number" min="1" max="99" name="oe_tt[<?php echo $i; ?>][max_per_order]" value="<?php echo $g('max_per_order', '10'); ?>" style="width:55px" title="<?php esc_attr_e('Most of this ticket one buyer can purchase at once (1–99).', 'october-events'); ?>"></td>
             <td><input type="datetime-local" name="oe_tt[<?php echo $i; ?>][sale_from]" value="<?php echo esc_attr($this->dt_local((string) ($t['sale_from'] ?? ''))); ?>"></td>
             <td><input type="datetime-local" name="oe_tt[<?php echo $i; ?>][sale_until]" value="<?php echo esc_attr($this->dt_local((string) ($t['sale_until'] ?? ''))); ?>"></td>
             <td style="text-align:center"><input type="checkbox" name="oe_tt[<?php echo $i; ?>][active]" value="1" <?php checked(! empty($t['active']) || $t === []); ?>></td>
@@ -194,6 +196,7 @@ final class TicketsAdmin {
                 'price'            => $r['price'] ?? 0,
                 'sale_price'       => $r['sale_price'] ?? '',
                 'qty_per_purchase' => $r['qty_per_purchase'] ?? 1,
+                'max_per_order'    => $r['max_per_order'] ?? 10,
                 'active'           => ! empty($r['active']),
                 'sale_from'        => $this->from_local((string) ($r['sale_from'] ?? '')),
                 'sale_until'       => $this->from_local((string) ($r['sale_until'] ?? '')),

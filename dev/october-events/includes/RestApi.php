@@ -391,12 +391,14 @@ final class RestApi {
         $event_id = absint($req->get_param('event_id'));
         $cart_in  = $req->get_param('cart');
         $raw      = [];
+        // 99 is the absolute ceiling any ticket type allows; the exact per-type
+        // cap ("Max/order") is applied once the type is resolved, below.
         if (is_array($cart_in) && $cart_in) {
             foreach ($cart_in as $c) {
-                $raw[] = ['type_key' => sanitize_key((string) ($c['type_key'] ?? '')), 'qty' => max(0, min(10, (int) ($c['qty'] ?? 0)))];
+                $raw[] = ['type_key' => sanitize_key((string) ($c['type_key'] ?? '')), 'qty' => max(0, min(99, (int) ($c['qty'] ?? 0)))];
             }
         } else {
-            $raw[] = ['type_key' => sanitize_key((string) $req->get_param('type_key')), 'qty' => max(1, min(10, (int) $req->get_param('qty')))];
+            $raw[] = ['type_key' => sanitize_key((string) $req->get_param('type_key')), 'qty' => max(1, min(99, (int) $req->get_param('qty')))];
         }
 
         $lines = [];
@@ -412,6 +414,15 @@ final class RestApi {
             $avail = \OE\Ticketing\TicketTypes::availability($event_id, $type);
             if ($avail['state'] !== 'available') {
                 return new \WP_Error('oe_unavailable', __('Those tickets are not currently on sale.', 'october-events'), ['status' => 409]);
+            }
+            $max = \OE\Ticketing\TicketTypes::max_per_order($type);
+            if ($li['qty'] > $max) {
+                return new \WP_Error('oe_max_per_order', sprintf(
+                    /* translators: 1: ticket type label, 2: max per order */
+                    __('You can buy at most %2$d of “%1$s” per order.', 'october-events'),
+                    (string) $type['label'],
+                    $max
+                ), ['status' => 400]);
             }
             $unit = \OE\Ticketing\TicketTypes::effective_price($type);
             $subtotal += round($unit * $li['qty'], 2);

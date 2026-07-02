@@ -46,6 +46,7 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
                data-price="<?php echo esc_attr($unavailable ? '0' : (string) $eff); ?>"
                data-label="<?php echo esc_attr((string) $tt['label']); ?>"
                data-qty-per-purchase="<?php echo esc_attr((string) ($tt['admits'] ?? 1)); ?>"
+               data-max-qty="<?php echo esc_attr((string) ($tt['max'] ?? 10)); ?>"
                <?php echo $unavailable ? '' : 'role="button" tabindex="0"'; ?>>
             <input type="radio" name="oct_ticket_type" value="<?php echo esc_attr((string) $tt['key']); ?>" <?php echo $is_first ? 'checked' : ''; ?> style="display:none">
             <div class="oct-ticket-row__info">

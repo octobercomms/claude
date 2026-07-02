@@ -110,6 +110,17 @@ final class Orders {
                 self::unlock($cap_lock);
                 return new \WP_Error('oe_unavailable', __('Those tickets are no longer available.', 'october-events'));
             }
+            // Per-type purchase cap — the JS stepper enforces this too, but the
+            // request is re-checked here so a crafted call can't exceed it.
+            $max_per_order = TicketTypes::max_per_order($type);
+            if ($qty > $max_per_order) {
+                self::unlock($cap_lock);
+                return new \WP_Error('oe_max_per_order', sprintf(
+                    /* translators: %d: maximum tickets of this type per order */
+                    __('You can buy at most %d of that ticket per order.', 'october-events'),
+                    $max_per_order
+                ));
+            }
             $cap = TicketTypes::event_capacity($event_id);
             if ($cap !== null) {
                 // Authoritative read inside the lock — bypass the per-request memo.

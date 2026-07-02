@@ -59,6 +59,7 @@ final class TicketTypes {
                 'price'            => round((float) ($t['price'] ?? 0), 2),
                 'sale_price'       => ($t['sale_price'] ?? '') === '' ? null : round((float) $t['sale_price'], 2),
                 'qty_per_purchase' => min(20, max(1, (int) ($t['qty_per_purchase'] ?? 1))),
+                'max_per_order'    => min(99, max(1, (int) ($t['max_per_order'] ?? 10))),
                 'active'           => ! empty($t['active']),
                 'sale_from'        => sanitize_text_field((string) ($t['sale_from'] ?? '')),
                 'sale_until'       => sanitize_text_field((string) ($t['sale_until'] ?? '')),
@@ -74,6 +75,14 @@ final class TicketTypes {
             }
         }
         return null;
+    }
+
+    /**
+     * The most admissions a single public purchase may buy of this type. Defaults
+     * to 10 for types saved before this setting existed. Clamped 1–99.
+     */
+    public static function max_per_order(array $type): int {
+        return min(99, max(1, (int) ($type['max_per_order'] ?? 10)));
     }
 
     /** Effective (sale) price for a type array. */
