@@ -35,6 +35,9 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
   const [pauseDur, setPauseDur] = useState('0.5s');    // explicit pause length
   const [caption, setCaption] = useState(true);        // burn subtitles in
   const [modalReel, setModalReel] = useState(null);    // reel open in the viewer
+  const [scriptTopic, setScriptTopic] = useState('');  // brief for Claude
+  const [scriptLen, setScriptLen] = useState(60);      // target seconds
+  const [writingScript, setWritingScript] = useState(false);
   const [busy, setBusy] = useState(false);
   const pollRef = useRef(null);
 
@@ -96,6 +99,16 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
     try { const r = await api.post(`/heygen/clients/${clientId}/heygen/reels/${id}/retry`, {}); setReels(prev => [r, ...prev.filter(x => x.id !== id)]); }
     catch (e) { toast(e.message, 'error'); }
   }
+  async function writeScript() {
+    setWritingScript(true);
+    try {
+      const res = await api.post(`/heygen/clients/${clientId}/heygen/script`, { topic: scriptTopic.trim(), seconds: scriptLen });
+      setScript(res.script);
+      if (!title.trim() && scriptTopic.trim()) setTitle(scriptTopic.trim().slice(0, 80));
+      toast('Script written — edit it, then generate your reel.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setWritingScript(false); }
+  }
   async function schedule(id) {
     try {
       const res = await api.post(`/heygen/clients/${clientId}/heygen/reels/${id}/schedule`, {});
@@ -143,6 +156,23 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
             </div>
           )}
           <div className="stack stack-sm">
+            {/* Let Claude write the script at a chosen length — the target
+                duration is what sets the finished video's runtime. */}
+            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) dashed var(--card-border)', borderRadius: 'var(--r-sm)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="field-label" style={{ margin: 0 }}>✨ Write with Claude</span>
+              <input className="input" style={{ flex: '1 1 220px', minWidth: 160 }} placeholder="Topic / brief (optional — uses the client's brief if blank)"
+                value={scriptTopic} onChange={e => setScriptTopic(e.target.value)} />
+              <select className="input" style={{ width: 'auto' }} value={scriptLen} onChange={e => setScriptLen(Number(e.target.value))} title="Target length sets the video's runtime">
+                <option value={30}>~30s</option>
+                <option value={60}>~1 min</option>
+                <option value={90}>~90s</option>
+                <option value={120}>~2 min</option>
+                <option value={180}>~3 min</option>
+              </select>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={writeScript} disabled={writingScript}>
+                {writingScript ? 'Writing…' : 'Write script'}
+              </button>
+            </div>
             <input className="input" placeholder="Title (optional)" value={title} onChange={e => setTitle(e.target.value)} />
             <textarea className="input" rows={9} placeholder="Script — what should your avatar say? (write as long as you like — up to ~3-minute explainers)" value={script} onChange={e => setScript(e.target.value)} />
             {(() => {

@@ -40,6 +40,11 @@ router.post('/clients/:clientId/heygen/reels/:id/retry', async (req, res) => {
   try { res.json(await heygen.retry(req.params.clientId, id(req), req.user?.id)); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
+// Generate a reel script with Claude at a chosen target length.
+router.post('/clients/:clientId/heygen/script', async (req, res) => {
+  try { res.json(await require('../services/reelScript').generate(req.params.clientId, req.body || {})); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
 // Turn a finished reel into a pre-filled draft plan in the Plan step.
 router.post('/clients/:clientId/heygen/reels/:id/schedule', async (req, res) => {
   try { res.status(201).json(await heygen.scheduleAsPlan(req.params.clientId, id(req), req.user?.id)); }
