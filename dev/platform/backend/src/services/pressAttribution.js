@@ -121,6 +121,56 @@ async function attributionForRelease(pressReleaseId) {
   };
 }
 
+// Workspace-wide leaderboard (Phase E4b) — launched press campaigns across
+// the visible clients, ranked by referring domains earned per recipient in
+// the 21-day window. One set-based query rather than N per-release passes.
+async function leaderboard(visibleClientIds, { limit = 25 } = {}) {
+  if (!Array.isArray(visibleClientIds) || !visibleClientIds.length) return [];
+  const { rows } = await pool.query(
+    `WITH launched AS (
+       SELECT pr.id, pr.client_id, pr.title,
+              MIN(s.sent_at) AS launch_at,
+              COUNT(DISTINCT s.contact_id) AS recipients
+         FROM outreach_press_releases pr
+         JOIN outreach_sends s
+           ON s.campaign_id = pr.campaign_id AND s.sent_at IS NOT NULL
+        WHERE pr.client_id = ANY($1::uuid[])
+        GROUP BY pr.id, pr.client_id, pr.title
+     ),
+     latest_cap AS (
+       SELECT client_id, MAX(captured_at) AS captured_at
+         FROM dfs_referring_domains
+        WHERE client_id = ANY($1::uuid[])
+        GROUP BY client_id
+     ),
+     earned AS (
+       SELECT l.id AS pr_id,
+              COUNT(*) AS new_rds,
+              COUNT(*) FILTER (WHERE rd.dofollow) AS dofollow_rds
+         FROM launched l
+         JOIN latest_cap lc ON lc.client_id = l.client_id
+         JOIN dfs_referring_domains rd
+           ON rd.client_id = l.client_id AND rd.captured_at = lc.captured_at
+          AND rd.first_seen >= l.launch_at
+          AND rd.first_seen <= l.launch_at + INTERVAL '${WINDOW_DAYS} days'
+        GROUP BY l.id
+     )
+     SELECT l.id AS press_release_id, l.client_id, l.title, l.launch_at, l.recipients,
+            cl.name AS client_name,
+            COALESCE(e.new_rds, 0) AS new_rds,
+            COALESCE(e.dofollow_rds, 0) AS dofollow_rds,
+            ROUND(COALESCE(e.new_rds, 0)::numeric / NULLIF(l.recipients, 0), 3) AS rds_per_recipient
+       FROM launched l
+       JOIN clients cl ON cl.id = l.client_id
+       LEFT JOIN earned e ON e.pr_id = l.id
+      WHERE l.recipients > 0
+      ORDER BY rds_per_recipient DESC NULLS LAST, new_rds DESC, l.launch_at DESC
+      LIMIT $2`,
+    [visibleClientIds, limit]
+  );
+  return rows;
+}
+
 function notLaunched(rel) {
   return {
     launched: false,
@@ -131,4 +181,4 @@ function notLaunched(rel) {
   };
 }
 
-module.exports = { attributionForRelease, hostFrom, WINDOW_DAYS };
+module.exports = { attributionForRelease, leaderboard, hostFrom, WINDOW_DAYS };

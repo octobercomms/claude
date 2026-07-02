@@ -120,6 +120,47 @@ export default function DashboardPage() {
       )}
 
       <StrategyOverview />
+
+      <PrBacklinkLeaderboard />
+    </div>
+  );
+}
+
+// Workspace PR-ROI leaderboard (Phase E4b) — launched press campaigns ranked
+// by referring domains earned per recipient in the 21 days after launch.
+// Hidden until at least one campaign has earned data, so it stays out of the
+// way pre-cutover / before the first backlink snapshot.
+function PrBacklinkLeaderboard() {
+  const [rows, setRows] = useState(null);
+  useEffect(() => {
+    api.get('/press/attribution/leaderboard?limit=15')
+      .then(r => setRows(r.campaigns || []))
+      .catch(() => setRows([]));
+  }, []);
+  if (!rows || !rows.some(r => Number(r.new_rds) > 0)) return null;
+  return (
+    <div style={{ marginTop: 'var(--s8)' }}>
+      <h2 className="h2 mb-4">PR → backlinks leaderboard</h2>
+      <div className="card" style={{ padding: 0 }}>
+        <table className="table">
+          <thead><tr>{['Campaign', 'Client', 'New RDs', 'Dofollow', 'Recipients', 'RDs / recipient'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+          <tbody>
+            {rows.map(c => (
+              <tr key={c.press_release_id}>
+                <td style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || '(untitled release)'}</td>
+                <td><Link to={`/clients/${c.client_id}/pr`} className="text-accent">{c.client_name}</Link></td>
+                <td><strong className="text-ink">{c.new_rds}</strong></td>
+                <td className="text-subtle">{c.dofollow_rds}</td>
+                <td className="text-subtle">{c.recipients}</td>
+                <td><strong className="text-accent">{c.rds_per_recipient ?? '—'}</strong></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="body-xs text-subtle mt-2">
+        Referring domains whose first backlink appeared within 21 days of each campaign's launch. Correlation within the standard PR window.
+      </div>
     </div>
   );
 }
