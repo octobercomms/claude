@@ -144,7 +144,18 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
           )}
           <div className="stack stack-sm">
             <input className="input" placeholder="Title (optional)" value={title} onChange={e => setTitle(e.target.value)} />
-            <textarea className="input" rows={4} placeholder="Script — what should your avatar say?" value={script} onChange={e => setScript(e.target.value)} />
+            <textarea className="input" rows={9} placeholder="Script — what should your avatar say? (write as long as you like — up to ~3-minute explainers)" value={script} onChange={e => setScript(e.target.value)} />
+            {(() => {
+              const words = script.trim() ? script.trim().split(/\s+/).filter(Boolean).length : 0;
+              if (!words) return null;
+              const sec = Math.round(words / 2.5); // ~150 wpm
+              const dur = sec >= 60 ? `${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, '0')}s` : `${sec}s`;
+              return (
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: -2 }}>
+                  {words} words · ≈ {dur} spoken{sec >= 90 ? ` · ≈ $${(sec / 60).toFixed(2)} at ~$1/min` : ''}
+                </div>
+              );
+            })()}
             {(() => {
               const canPause = !!opts.voices.find(v => v.id === voice)?.supportsPause;
               return (

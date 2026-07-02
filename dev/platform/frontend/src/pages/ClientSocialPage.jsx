@@ -751,26 +751,34 @@ function BrainstormTab({
       </div>
     </div>
   ) : (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
-      {posts.map(p => (
-        <div key={p.id} style={{ display: 'flex', flexDirection: 'column' }}>
-          <PostCard post={p} clientId={clientId} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
-            onChange={patch => updatePost(p.id, patch)}
-            onDelete={() => deletePost(p.id)}
-            onPublish={(url) => publishPost(p.id, url)}
-            onRefreshInsights={() => refreshInsights(p.id)}
-            onRenderTemplates={() => renderTemplates(p.id)}
-            onStitchReel={() => stitchReel(p.id)}
-            onGenerateMedia={(kind) => generateMedia(p.id, kind)}
-            onMakeReel={() => onMakeReel && onMakeReel(p)}
-            onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
-          <button onClick={() => setRefiningId(p.id)}
-            className="btn btn-secondary btn-sm"
-            style={{ marginTop: 6, alignSelf: 'flex-start' }}>
-            ✦ Refine with Claude
+    // Collapsed grid — all posts at a glance; click a tile to open the full
+    // editor + Claude refine view (the `refining` branch above).
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
+      {posts.map((p, i) => {
+        const cap = (p.caption || '').trim();
+        const media = mediaByPost[p.id] || [];
+        return (
+          <button key={p.id} type="button" onClick={() => setRefiningId(p.id)}
+            className="card" style={{ textAlign: 'left', cursor: 'pointer', padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 6, minHeight: 140 }}>
+            <div className="row between center">
+              <span className="caption">{p.platform} · {p.kind}</span>
+              <span className="body-xs text-subtle">#{i + 1}</span>
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {p.hook || cap.slice(0, 80) || '(no hook)'}
+            </div>
+            {cap && (
+              <div className="body-xs text-subtle" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cap}</div>
+            )}
+            <div style={{ marginTop: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              {p.framework && <span className="chip chip-neutral" style={{ fontSize: 9 }}>{p.framework}</span>}
+              {media.length > 0 && <span className="chip chip-accent" style={{ fontSize: 9 }}>{media.length} media</span>}
+              {p.status === 'published' && <span className="chip chip-success" style={{ fontSize: 9 }}>published</span>}
+            </div>
+            <span className="body-xs" style={{ color: 'var(--accent)' }}>Open to edit →</span>
           </button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
