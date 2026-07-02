@@ -429,7 +429,7 @@ export default function ClientSocialPage() {
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
-          { key: 'create',   label: 'Build',    active: currentGroup === 'create',   onClick: () => setSocialTab('swipe') },
+          { key: 'create',   label: 'Build',    active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
           { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
           { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
         ];
@@ -673,39 +673,42 @@ function BrainstormTab({
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
-  // The Create factory now spans the whole pipeline:
-  // 1 Ideas · 2 Brief · 3 Workbench · 4 Plan · 5 Publish.
-  const STEP_TAB = { 1: 'swipe', 2: 'brainstorm', 3: 'brainstorm', 4: 'plans', 5: 'publish' };
+  const [showInspo, setShowInspo] = useState(false); // "Need inspiration?" on Create
+  // The Create factory is now three plain stages:
+  //   1 Create  (brief + generate; Find folded in as an expander)
+  //   2 Review  (refine the batch)
+  //   3 Schedule (Plan + Publish merged — lock, calendar, autopilot)
+  // Create + Review share the 'brainstorm' tab (batch-aware split); Schedule
+  // owns 'plans'/'publish'. 'swipe' (old Find) resolves into Create.
+  const STEP_TAB = { 1: 'brainstorm', 2: 'brainstorm', 3: 'plans' };
   const stepForTab = (tab) =>
-    tab === 'swipe' ? 1 : tab === 'plans' ? 4 : tab === 'publish' ? 5 : (activeBatchId ? 3 : 2);
+    (tab === 'plans' || tab === 'publish') ? 3
+      : tab === 'swipe' ? 1
+      : (activeBatchId ? 2 : 1);
   const [step, setStep] = useState(() => stepForTab(socialTab));
   const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
 
   // Keep the stepper in sync when the tab changes from outside — deep links,
-  // the Overview map, or "Plan"/"Publish" buttons elsewhere. 'brainstorm' is
-  // left to the batch-aware logic below (it owns the Brief↔Workbench split).
+  // the Overview map, or buttons elsewhere. 'brainstorm' is left to the
+  // batch-aware logic below (it owns the Create↔Review split).
   useEffect(() => {
     if (socialTab === 'swipe') setStep(1);
-    else if (socialTab === 'plans') setStep(4);
-    else if (socialTab === 'publish') setStep(5);
+    else if (socialTab === 'plans' || socialTab === 'publish') setStep(3);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socialTab]);
 
-  // When a batch first appears (e.g. after generating), jump into the Workbench.
-  useEffect(() => { if (activeBatchId) setStep(s => (s <= 2 ? 3 : s)); }, [activeBatchId]);
+  // When a batch first appears (e.g. after generating), jump into Review.
+  useEffect(() => { if (activeBatchId) setStep(s => (s < 2 ? 2 : s)); }, [activeBatchId]);
 
   const steps = [
-    { title: 'Find', sub: 'Reels to emulate' },
-    { title: 'Brief', sub: 'What to make & how many' },
-    { title: 'Make', sub: 'Refine & produce' },
-    { title: 'Plan', sub: 'Lock & schedule' },
-    { title: 'Publish', sub: 'Autopilot ships it' },
+    { title: 'Create', sub: 'Brief & generate' },
+    { title: 'Review', sub: 'Refine your posts' },
+    { title: 'Schedule', sub: 'Calendar & autopilot' },
   ];
-  // Workbench needs a batch; clamp back to Brief when there isn't one. Plan +
-  // Publish are reachable anytime (they show every scheduled plan, not just this
-  // batch). Navigating also syncs the URL tab so refreshes / deep links land right.
+  // Review needs a batch; clamp back to Create when there isn't one. Schedule
+  // is reachable anytime (it shows every scheduled plan, not just this batch).
   function goStep(n) {
-    if (n === 3 && !activeBatchId) { setStep(2); if (onNavTab && socialTab !== 'brainstorm') onNavTab('brainstorm'); return; }
+    if (n === 2 && !activeBatchId) { setStep(1); if (onNavTab && socialTab !== 'brainstorm') onNavTab('brainstorm'); return; }
     setRefiningId(null); setRefineErr(null);
     setStep(n);
     if (onNavTab && STEP_TAB[n] && STEP_TAB[n] !== socialTab) onNavTab(STEP_TAB[n]);
@@ -786,24 +789,36 @@ function BrainstormTab({
     <div>
       <Stepper steps={steps} current={step} onStep={goStep} />
 
-      {/* STEP 1 — IDEAS */}
-      {step === 1 && <div className="panel-step">{typeof ideasContent === 'function' ? ideasContent(() => goStep(2)) : ideasContent}</div>}
-
-      {/* STEP 2 — BRIEF */}
-      {step === 2 && (
+      {/* STAGE 1 — CREATE (brief + generate; Find folded into an expander) */}
+      {step === 1 && (
         <div className="panel-step">
           <div style={{ maxWidth: 640, marginBottom: 16 }}>
-            <div className="h3">Generate a batch</div>
+            <div className="h3">Create a batch of posts</div>
             <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-              Claude proposes a batch of posts — hook, caption, hashtags, visual concept and a frame-by-frame storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many (1–9), then generate.
+              Claude proposes a batch — hook, caption, hashtags, visual concept and a frame-by-frame storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many (1–9), then generate.
             </p>
           </div>
           {briefContent}
+
+          {/* Optional inspiration — the old "Find" step, no longer mandatory. */}
+          {ideasContent && (
+            <div style={{ marginTop: 18 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowInspo(s => !s)}>
+                {showInspo ? '▴ Hide inspiration' : '▾ Need inspiration? Browse reels to emulate'}
+              </button>
+              {showInspo && (
+                <div style={{ marginTop: 12 }}>
+                  {typeof ideasContent === 'function' ? ideasContent(() => setShowInspo(false)) : ideasContent}
+                </div>
+              )}
+            </div>
+          )}
+
           {batches.length > 0 ? (
             <div style={{ marginTop: 22 }}>
               <div className="caption caption-muted mb-3">Past batches — pick one to review</div>
               <BatchRail batches={batches} activeBatchId={activeBatchId} horizontal
-                onSelectBatch={(id) => { onSelectBatch(id); setStep(3); }}
+                onSelectBatch={(id) => { onSelectBatch(id); setStep(2); }}
                 onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
             </div>
           ) : (
@@ -816,70 +831,55 @@ function BrainstormTab({
         </div>
       )}
 
-      {/* STEP 3 — WORKBENCH */}
-      {step === 3 && (
+      {/* STAGE 2 — REVIEW (refine the batch) */}
+      {step === 2 && (
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
-            <div style={{ maxWidth: 560 }}>
-              <div className="h3">Make — refine &amp; produce your {posts.length} posts</div>
+            <div style={{ maxWidth: 520 }}>
+              <div className="h3">Review your {posts.length} posts</div>
               <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                Click a hook or caption to edit it, refine with Claude, or push a post into a generator (image / avatar reel via its Production menu). Send the batch for approval, then schedule.
+                Click any post to edit it or refine with Claude. When you’re happy, schedule the batch.
               </p>
             </div>
-            <div className="row wrap" style={{ gap: 8 }}>
-              <UiButton variant="secondary" onClick={() => goStep(2)} disabled={generating}>↻ Generate another</UiButton>
-              {onOpenReels && <UiButton variant="secondary" onClick={onOpenReels}>🎬 Avatar reels</UiButton>}
-              <UiButton variant="secondary" onClick={onShareForApproval} disabled={!posts.length}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
-              <UiButton variant="primary" onClick={() => goStep(4)} disabled={!posts.length}>Plan &amp; schedule →</UiButton>
+            <div className="row wrap center" style={{ gap: 8 }}>
+              <UiButton variant="ghost" onClick={() => goStep(1)} disabled={generating}>↻ Generate again</UiButton>
+              {onOpenReels && <UiButton variant="ghost" onClick={onOpenReels}>🎬 Avatar reels</UiButton>}
+              <UiButton variant="ghost" onClick={onShareForApproval} disabled={!posts.length}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
+              <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Schedule →</UiButton>
             </div>
           </div>
           {shareUrl && <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />}
           {!posts.length ? (
             <div className="empty" style={{ padding: 'var(--s7)' }}>
-              <p className="body">No posts in this batch yet. <button className="btn-inline-link" onClick={() => goStep(2)}>Generate a batch</button> to fill the workbench.</p>
+              <p className="body">No posts in this batch yet. <button className="btn-inline-link" onClick={() => goStep(1)}>Create a batch</button> to fill the workbench.</p>
             </div>
           ) : postGrid}
         </div>
       )}
 
-      {/* STEP 4 — PLAN */}
-      {step === 4 && (
+      {/* STAGE 3 — SCHEDULE (Plan + Publish merged) */}
+      {step === 3 && (
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
-            <div style={{ maxWidth: 560 }}>
-              <div className="h3">Plan — lock posts onto the calendar</div>
+            <div style={{ maxWidth: 520 }}>
+              <div className="h3">Schedule &amp; autopilot</div>
               <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                Lock the posts you like and drop them on a cadence — default Mon / Wed / Fri at 10am works for most brands. Autopilot takes over from there. Or bulk-schedule the whole batch in one go.
+                Lock the posts you like onto the calendar — Mon / Wed / Fri at 10am suits most brands — or bulk-schedule the batch. Autopilot then ships each channel automatically; the live queue is below.
               </p>
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
-              <UiButton variant="secondary" onClick={() => goStep(3)}>← Back to Make</UiButton>
-              <UiButton variant="secondary" onClick={onBulkSchedule} disabled={!hasAutopilotSupported}>📅 Bulk schedule</UiButton>
-              <UiButton variant="primary" onClick={() => goStep(5)}>Publish queue →</UiButton>
+              <UiButton variant="ghost" onClick={() => goStep(2)}>← Back to Review</UiButton>
+              <UiButton variant="primary" onClick={onBulkSchedule} disabled={!hasAutopilotSupported}>📅 Bulk schedule</UiButton>
             </div>
           </div>
           {!hasAutopilotSupported && (
             <div className="callout callout-warning" style={{ marginBottom: 14 }}>Bulk scheduling needs Instagram, Facebook or LinkedIn posts in this batch — you can still lock individual posts onto the calendar below.</div>
           )}
           {plansContent}
-        </div>
-      )}
-
-      {/* STEP 5 — PUBLISH */}
-      {step === 5 && (
-        <div className="panel-step">
-          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
-            <div style={{ maxWidth: 560 }}>
-              <div className="h3">Publish — autopilot ships on schedule</div>
-              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                The autopilot publishes scheduled plans to every channel every 5 minutes. Pause it from the top bar if you need to hold the queue.
-              </p>
-            </div>
-            <div className="row wrap" style={{ gap: 8 }}>
-              <UiButton variant="secondary" onClick={() => goStep(4)}>← Back to plan</UiButton>
-            </div>
+          <div style={{ marginTop: 28, paddingTop: 18, borderTop: 'var(--border-w) solid var(--card-border)' }}>
+            <div className="caption caption-muted mb-3">Autopilot queue — publishes to every channel on schedule</div>
+            {publishContent}
           </div>
-          {publishContent}
         </div>
       )}
     </div>
@@ -1911,6 +1911,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
   const [publishUrl, setPublishUrl] = useState('');
   const [renderingMedia, setRenderingMedia] = useState(null);
   const [showProd, setShowProd] = useState(false);
+  const [showAdv, setShowAdv] = useState(false);
   const [showAutoEdit, setShowAutoEdit] = useState(false);
 
   async function handleGenerateMedia(kind) {
@@ -2011,55 +2012,16 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
       <div style={{ marginTop: 12 }}>
         <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">Production {showProd ? '▴' : '▾'}</button>
         {showProd && (
-        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Common: the two most-used producers + the publish workflow. */}
         {onMakeReel && (
           <button onClick={onMakeReel} className="btn btn-secondary btn-sm" title="Send this post's script to the avatar-reel generator">
             🎬 Make avatar reel
           </button>
         )}
-        <button onClick={() => setOpen(o => !o)} className="btn btn-secondary btn-sm">
-          {open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length} frames)`}
-        </button>
-        <button onClick={async () => {
-          try {
-            const { url } = await api.get(`/social/posts/${post.id}/brief-url`);
-            window.open(url, '_blank');
-          } catch (e) { alert(`Could not open brief: ${e.message}`); }
-        }} className="btn btn-secondary btn-sm">
-          Production brief
-        </button>
         <button onClick={() => setShowImg(s => !s)} className="btn btn-secondary btn-sm">
-          {showImg ? 'Cancel image' : 'Generate image'}
+          {showImg ? 'Cancel image' : '🖼 Generate image'}
         </button>
-        <button onClick={() => handleGenerateMedia('voiceover')} disabled={renderingMedia === 'voiceover'} className="btn btn-secondary btn-sm">
-          {renderingMedia === 'voiceover' ? 'Rendering…' : 'Generate voiceover'}
-        </button>
-        <button onClick={() => handleGenerateMedia('video')} disabled={renderingMedia === 'video'} className="btn btn-secondary btn-sm">
-          {renderingMedia === 'video' ? 'Rendering UGC…' : 'Generate UGC video'}
-        </button>
-        {clientId && (
-          <button onClick={() => setShowAutoEdit(s => !s)} className="btn btn-secondary btn-sm"
-            title="Upload a raw clip and auto-edit it into a finished reel">
-            {showAutoEdit ? 'Cancel auto-edit' : '✂ Auto-edit a clip'}
-          </button>
-        )}
-        {(post.storyboard || []).some(f => ['A', 'C', 'G'].includes(f.style)) && (
-          <button onClick={async () => {
-            setRenderingMedia('templates');
-            try { await onRenderTemplates(); } finally { setRenderingMedia(null); }
-          }} disabled={renderingMedia === 'templates'} className="btn btn-secondary btn-sm">
-            {renderingMedia === 'templates' ? 'Rendering A/C/G…' : 'Render A/C/G clips'}
-          </button>
-        )}
-        {onStitchReel && (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style)).length >= 2 && (
-          <button onClick={async () => {
-            setRenderingMedia('stitch');
-            try { await onStitchReel(); } finally { setRenderingMedia(null); }
-          }} disabled={renderingMedia === 'stitch'} className="btn btn-secondary btn-sm"
-            title="Stitch every A/C/G frame into one finished vertical reel">
-            {renderingMedia === 'stitch' ? 'Stitching…' : '🎞 Stitch into one reel'}
-          </button>
-        )}
         {post.status !== 'published' && (
           <button onClick={() => setShowPublish(s => !s)} className="btn btn-secondary btn-sm">
             {showPublish ? 'Cancel' : 'Mark published'}
@@ -2067,6 +2029,53 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
         )}
         {post.published_url && (
           <a href={post.published_url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">View live ↗</a>
+        )}
+
+        {/* Advanced: storyboard, brief, and the heavier producers, tucked away. */}
+        <button onClick={() => setShowAdv(s => !s)} className="btn btn-ghost btn-sm">Advanced {showAdv ? '▴' : '▾'}</button>
+        {showAdv && (
+          <div style={{ width: '100%', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+            <button onClick={() => setOpen(o => !o)} className="btn btn-secondary btn-sm">
+              {open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length} frames)`}
+            </button>
+            <button onClick={async () => {
+              try {
+                const { url } = await api.get(`/social/posts/${post.id}/brief-url`);
+                window.open(url, '_blank');
+              } catch (e) { alert(`Could not open brief: ${e.message}`); }
+            }} className="btn btn-secondary btn-sm">
+              Production brief
+            </button>
+            <button onClick={() => handleGenerateMedia('voiceover')} disabled={renderingMedia === 'voiceover'} className="btn btn-secondary btn-sm">
+              {renderingMedia === 'voiceover' ? 'Rendering…' : 'Generate voiceover'}
+            </button>
+            <button onClick={() => handleGenerateMedia('video')} disabled={renderingMedia === 'video'} className="btn btn-secondary btn-sm">
+              {renderingMedia === 'video' ? 'Rendering UGC…' : 'Generate UGC video'}
+            </button>
+            {clientId && (
+              <button onClick={() => setShowAutoEdit(s => !s)} className="btn btn-secondary btn-sm"
+                title="Upload a raw clip and auto-edit it into a finished reel">
+                {showAutoEdit ? 'Cancel auto-edit' : '✂ Auto-edit a clip'}
+              </button>
+            )}
+            {(post.storyboard || []).some(f => ['A', 'C', 'G'].includes(f.style)) && (
+              <button onClick={async () => {
+                setRenderingMedia('templates');
+                try { await onRenderTemplates(); } finally { setRenderingMedia(null); }
+              }} disabled={renderingMedia === 'templates'} className="btn btn-secondary btn-sm">
+                {renderingMedia === 'templates' ? 'Rendering A/C/G…' : 'Render A/C/G clips'}
+              </button>
+            )}
+            {onStitchReel && (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style)).length >= 2 && (
+              <button onClick={async () => {
+                setRenderingMedia('stitch');
+                try { await onStitchReel(); } finally { setRenderingMedia(null); }
+              }} disabled={renderingMedia === 'stitch'} className="btn btn-secondary btn-sm"
+                title="Stitch every A/C/G frame into one finished vertical reel">
+                {renderingMedia === 'stitch' ? 'Stitching…' : '🎞 Stitch into one reel'}
+              </button>
+            )}
+          </div>
         )}
         </div>
         )}
