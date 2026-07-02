@@ -87,22 +87,34 @@ async function listAvatars() {
 async function listVoices() {
   const client = await http();
   const out = [];
-  let token = null;
-  for (let page = 0; page < 3; page++) {
-    const params = { limit: 100 };
-    if (token) params.token = token;
-    const { data } = await client.get('/v3/voices', { params });
-    for (const v of (data.data || [])) {
-      if (!v.voice_id) continue;
-      out.push({
-        id: v.voice_id, name: v.name || v.voice_id,
-        language: v.language || '', gender: v.gender || '',
-        // v3 reports SSML pause/break support per voice — gates the pacing UI.
-        supportsPause: !!v.support_pause,
-      });
+  const seen = new Set();
+  // v3 /v3/voices defaults to type=public — that excludes the account's own
+  // cloned voices. Pull `private` first (so the AM's own voice sits at the top
+  // and becomes the default selection), then the public library.
+  const pull = async (type) => {
+    let token = null;
+    for (let page = 0; page < 3; page++) {
+      const params = { limit: 100, type };
+      if (token) params.token = token;
+      let data;
+      try { ({ data } = await client.get('/v3/voices', { params })); }
+      catch { break; } // a missing/empty private list must not sink the whole picker
+      for (const v of (data.data || [])) {
+        if (!v.voice_id || seen.has(v.voice_id)) continue;
+        seen.add(v.voice_id);
+        out.push({
+          id: v.voice_id, name: v.name || v.voice_id,
+          language: v.language || '', gender: v.gender || '',
+          // v3 reports SSML pause/break support per voice — gates the pacing UI.
+          supportsPause: !!v.support_pause,
+          isPrivate: type === 'private',
+        });
+      }
+      if (data.has_more && data.next_token) token = data.next_token; else break;
     }
-    if (data.has_more && data.next_token) token = data.next_token; else break;
-  }
+  };
+  await pull('private');
+  await pull('public');
   return out;
 }
 
