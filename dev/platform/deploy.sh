@@ -4,7 +4,13 @@
 
 set -e
 
+# Resolve paths from this script's own location so the deploy works wherever
+# the repo is checked out (e.g. /opt/october-source/dev/platform), rather than
+# a hard-coded path. This script lives in dev/platform, so SRC is that dir.
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "=== October Performance Marketing Platform — Deploy ==="
+echo "Source: $SRC"
 
 # 1. System packages
 apt-get update -y
@@ -31,7 +37,7 @@ mkdir -p /opt/october-platform
 cd /opt/october-platform
 
 # 6. Copy backend
-cp -r /home/user/claude/platform/backend/* .
+cp -r "$SRC/backend/"* .
 npm install --production
 
 # 7. Copy env
@@ -44,14 +50,18 @@ fi
 node migrations/run.js
 
 # 9. Build frontend
-cd /home/user/claude/platform/frontend
+cd "$SRC/frontend"
 npm install
 npm run build
 mkdir -p /var/www/platform
 cp -r dist/* /var/www/platform/
 
-# 10. Nginx config
-cp /home/user/claude/platform/nginx/platform.conf /etc/nginx/sites-available/platform.octobercomms.com
+# 10. Nginx config. Also remove a stray sites-enabled/platform.conf if present —
+# an older setup left one alongside the symlink, which nginx loaded as a second
+# server block for the same name (the "conflicting server name … ignored" warning)
+# and could win with a smaller client_max_body_size, capping uploads.
+cp "$SRC/nginx/platform.conf" /etc/nginx/sites-available/platform.octobercomms.com
+rm -f /etc/nginx/sites-enabled/platform.conf
 ln -sf /etc/nginx/sites-available/platform.octobercomms.com /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 
