@@ -16,8 +16,23 @@ const pool = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
 const dataForSEO = require('../connectors/dataforseo');
 
+const { isUnlocked } = require('./dfsAvailability');
+
 const MODEL = 'claude-sonnet-4-6';
-const SUPPORTED_ENGINES = ['claude', 'google_aio']; // MVP — others gated on settings
+// Always-on engines: Claude (direct via the Anthropic SDK) + Google AI
+// Overviews (DataForSEO SERP). The three below run through DataForSEO's LLM
+// Responses API, which went pay-as-you-go on 1 July 2026 — so they light up
+// automatically once isUnlocked() flips. Our engine key → DFS endpoint path.
+const BASE_ENGINES = ['claude', 'google_aio'];
+const DFS_LLM = { gpt: 'chat_gpt', gemini: 'gemini', perplexity: 'perplexity' };
+const SUPPORTED_ENGINES = [...BASE_ENGINES, ...Object.keys(DFS_LLM)];
+
+// Which engines actually run right now — the DataForSEO-backed ones only once
+// the AI Optimization API is unlocked (post-cutover), so pre-1-July runs don't
+// pile up billing errors.
+function activeEngines() {
+  return isUnlocked() ? [...BASE_ENGINES, ...Object.keys(DFS_LLM)] : [...BASE_ENGINES];
+}
 
 function claude() {
   return new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
@@ -48,6 +63,20 @@ async function queryGoogleAIO(promptText, clientDomain) {
     citations: Array.isArray(result?.sources) ? result.sources : [],
     present: !!result?.present,
   };
+}
+
+// ChatGPT / Gemini / Perplexity via DataForSEO's LLM Responses API. Returns
+// the answer text + any cited URLs. web_search on so answers reflect the live
+// web (the realistic condition for AI visibility). Model auto-picked by the
+// connector from DFS's accepted list.
+async function queryDataForSEO(engineKey, promptText) {
+  const path = DFS_LLM[engineKey];
+  const r = await dataForSEO.fetchLlmResponse(path, promptText, { webSearch: true });
+  // Safety net: if the defensive extractor found no structured answer text
+  // (response nesting varies by engine), fall back to the stringified raw so
+  // brand/competitor mention matching still works and nothing is lost.
+  const text = r.answer_text || (r.raw ? JSON.stringify(r.raw).slice(0, 16000) : '');
+  return { text, citations: r.cited_urls || [] };
 }
 
 // ─── Analysis ─────────────────────────────────────────────────────
@@ -116,7 +145,7 @@ async function runPromptForClient(clientId, prompt) {
     .map(s => String(s).replace(/^(instagram|tiktok)\s*:\s*/i, '').replace(/^@/, '').trim())
     .filter(Boolean);
 
-  const engines = SUPPORTED_ENGINES;
+  const engines = activeEngines();
   const results = [];
   for (const engine of engines) {
     try {
@@ -126,6 +155,10 @@ async function runPromptForClient(clientId, prompt) {
         responseText = await queryClaude(prompt.prompt);
       } else if (engine === 'google_aio') {
         const r = await queryGoogleAIO(prompt.prompt, c.domain || '');
+        responseText = r.text;
+        citations = r.citations;
+      } else if (DFS_LLM[engine]) {
+        const r = await queryDataForSEO(engine, prompt.prompt);
         responseText = r.text;
         citations = r.citations;
       }

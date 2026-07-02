@@ -455,6 +455,80 @@ async function fetchLLMVisibility(domain, keywords = []) {
   };
 }
 
+// ─── AI Optimization: LLM Responses ────────────────────────────────────────
+// DataForSEO's AI Optimization API (pay-as-you-go from 1 July 2026) asks a
+// specific engine a prompt and returns its structured answer + citations —
+// one engine per call. Powers the AI Visibility tab's ChatGPT / Gemini /
+// Perplexity engines without needing separate OpenAI / Google / Perplexity
+// keys. engine ∈ { chat_gpt, gemini, perplexity, claude }.
+
+// Cache the model list per engine — model names drift, so we ask DFS which
+// ones it accepts rather than hardcoding version strings that go stale.
+const _llmModelCache = {};
+async function fetchLlmModels(engine) {
+  if (_llmModelCache[engine] && Date.now() - _llmModelCache[engine].at < 6 * 60 * 60 * 1000) {
+    return _llmModelCache[engine].models;
+  }
+  const client = await getClient();
+  const models = [];
+  try {
+    const { data } = await client.get(`/ai_optimization/${engine}/llm_responses/models`);
+    const walk = (v) => {
+      if (!v) return;
+      if (typeof v === 'string') { models.push(v); return; }
+      if (Array.isArray(v)) { v.forEach(walk); return; }
+      if (typeof v === 'object') {
+        if (typeof v.model_name === 'string') models.push(v.model_name);
+        else if (typeof v.name === 'string') models.push(v.name);
+        else Object.values(v).forEach(walk);
+      }
+    };
+    walk(data.tasks?.[0]?.result);
+  } catch (err) {
+    console.warn(`[DataForSEO] llm models ${engine}:`, err.message);
+  }
+  _llmModelCache[engine] = { models, at: Date.now() };
+  return models;
+}
+
+// Pull one text/url payload out of a DFS llm_responses result, defensively —
+// the exact nesting varies by engine, so we collect answer-bearing string
+// fields and http(s) links and keep the full raw result for later re-parse.
+function extractLlmAnswer(result) {
+  const parts = [];
+  const urls = new Set();
+  const walk = (obj, depth) => {
+    if (!obj || typeof obj !== 'object' || depth > 7) return;
+    for (const [k, v] of Object.entries(obj)) {
+      const kl = k.toLowerCase();
+      if (typeof v === 'string') {
+        if (/^(text|content|message|answer|markdown|body)$/.test(kl) && v.trim().length > 1) parts.push(v.trim());
+        else if (/(^|_)(url|link|href)$/.test(kl) && /^https?:\/\//i.test(v)) urls.add(v);
+      } else if (Array.isArray(v)) v.forEach(x => walk(x, depth + 1));
+      else if (v && typeof v === 'object') walk(v, depth + 1);
+    }
+  };
+  walk(result, 0);
+  return { text: [...new Set(parts)].join('\n\n').trim(), urls: [...urls] };
+}
+
+async function fetchLlmResponse(engine, userPrompt, { model = null, webSearch = true } = {}) {
+  const client = await getClient();
+  // Pick an accepted model if the caller didn't name one (model_name is
+  // required by some engines); fall back to omitting it if the list is empty.
+  let useModel = model;
+  if (!useModel) {
+    const models = await fetchLlmModels(engine);
+    useModel = models[0] || null;
+  }
+  const task = { user_prompt: String(userPrompt || '').slice(0, 8000), web_search: !!webSearch };
+  if (useModel) task.model_name = useModel;
+  const { data } = await client.post(`/ai_optimization/${engine}/llm_responses/live`, [task]);
+  const result = data.tasks?.[0]?.result?.[0] || null;
+  const { text, urls } = extractLlmAnswer(result);
+  return { answer_text: text, cited_urls: urls, model: useModel, raw: result };
+}
+
 async function fetchData(credentials, params) {
   const { domain, keyword } = params;
   const results = {};
@@ -532,4 +606,4 @@ async function fetchGoogleTrends(keywords, { locationCode = 2826, timeRange = 'p
   };
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchDomainRanks, fetchReferringDomains, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchDomainRanks, fetchReferringDomains, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchLlmResponse, fetchLlmModels, fetchData, testCredentials, resolveCreds };
