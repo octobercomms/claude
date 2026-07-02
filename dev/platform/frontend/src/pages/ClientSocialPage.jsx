@@ -673,7 +673,6 @@ function BrainstormTab({
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
-  const [showInspo, setShowInspo] = useState(false); // "Need inspiration?" on Create
   // The Create factory is now three plain stages:
   //   1 Create  (brief + generate; Find folded in as an expander)
   //   2 Review  (refine the batch)
@@ -789,40 +788,45 @@ function BrainstormTab({
     <div>
       <Stepper steps={steps} current={step} onStep={goStep} />
 
-      {/* STAGE 1 — CREATE (brief + generate; Find folded into an expander) */}
+      {/* STAGE 1 — CREATE (brief + inspiration + past batches, side by side) */}
       {step === 1 && (
         <div className="panel-step">
-          <div style={{ maxWidth: 640, marginBottom: 16 }}>
-            <div className="h3">Create a batch of posts</div>
-            <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-              Claude proposes a batch — hook, caption, hashtags, visual concept and a frame-by-frame storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many (1–9), then generate.
-            </p>
-          </div>
-          {briefContent}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr) 300px', gap: 16, alignItems: 'start' }}>
+            {/* Brief */}
+            <section>
+              <div className="h3">Create a batch of posts</div>
+              <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 14 }}>
+                Claude proposes a batch — hook, caption, hashtags, visual concept and a storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many, then generate.
+              </p>
+              {briefContent}
+            </section>
 
-          {/* Optional inspiration — the old "Find" step, no longer mandatory. */}
-          {ideasContent && (
-            <div style={{ marginTop: 18 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowInspo(s => !s)}>
-                {showInspo ? '▴ Hide inspiration' : '▾ Need inspiration? Browse reels to emulate'}
-              </button>
-              {showInspo && (
-                <div style={{ marginTop: 12 }}>
-                  {typeof ideasContent === 'function' ? ideasContent(() => setShowInspo(false)) : ideasContent}
-                </div>
+            {/* Inspiration — a distinct panel; send any reel straight into the brief. */}
+            {ideasContent ? (
+              <section style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s4)' }}>
+                <div className="h3">Need inspiration?</div>
+                <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 12 }}>
+                  Browse reels worth emulating — send any one straight into the brief on the left.
+                </p>
+                {typeof ideasContent === 'function' ? ideasContent(() => {}) : ideasContent}
+              </section>
+            ) : <div />}
+
+            {/* Past batches — compact; Reuse a brief or ✕ to delete. */}
+            <section style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s4)' }}>
+              <div className="caption caption-muted mb-3">Past batches</div>
+              {batches.length > 0 ? (
+                <BatchRail batches={batches} activeBatchId={activeBatchId} compact
+                  onSelectBatch={(id) => { onSelectBatch(id); setStep(2); }}
+                  onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
+              ) : (
+                <div className="body-xs text-subtle">Your generated batches show up here — reuse a brief or revisit the posts.</div>
               )}
-            </div>
-          )}
+            </section>
+          </div>
 
-          {batches.length > 0 ? (
-            <div style={{ marginTop: 22 }}>
-              <div className="caption caption-muted mb-3">Past batches — pick one to review</div>
-              <BatchRail batches={batches} activeBatchId={activeBatchId} horizontal
-                onSelectBatch={(id) => { onSelectBatch(id); setStep(2); }}
-                onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
-            </div>
-          ) : (
-            <div style={{ marginTop: 22 }}>
+          {batches.length === 0 && (
+            <div style={{ marginTop: 20, maxWidth: 720 }}>
               <ExampleBlock storageKey={`social_brainstorm_example_${clientId}`} title="this is what one of the 9 posts looks like — click Generate for real ones">
                 <ExamplePostCard />
               </ExampleBlock>
@@ -886,9 +890,30 @@ function BrainstormTab({
   );
 }
 
-// Past-batches list — a vertical sidebar in Review, or a wrapping row in Generate.
-function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, horizontal }) {
+// Past-batches list — a vertical sidebar in Review, a wrapping row in Generate,
+// or a compact stack (the Create step's right column: reuse a brief or ✕-delete).
+function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, horizontal, compact }) {
   if (!batches.length) return <div className="body-sm text-subtle">Nothing yet — click Generate to start.</div>;
+  if (compact) {
+    return (
+      <div className="stack" style={{ gap: 8 }}>
+        {batches.map(b => (
+          <div key={b.id} className="card" style={{ padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderColor: b.id === activeBatchId ? 'var(--accent)' : 'var(--card-border)' }}
+            onClick={() => onSelectBatch(b.id)} title="Open this batch in Review">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>
+                {new Date(b.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {b.post_count} posts
+              </div>
+              {b.brief && <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.brief}</div>}
+            </div>
+            <button onClick={(e) => { e.stopPropagation(); onReuseBrief(b); }} className="btn-inline-link" style={{ fontSize: 11, flex: '0 0 auto' }} title="Load this brief into the form">Reuse</button>
+            <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this batch and its posts?')) onDeleteBatch(b.id); }}
+              title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 13, lineHeight: 1, padding: 2 }}>✕</button>
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div>
       {!horizontal && <div className="caption caption-muted mb-3">Past batches</div>}
@@ -907,6 +932,30 @@ function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReu
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// One production action: an aligned button + a plain-English "what this does".
+// Used to group the post's producers by intent so the flow reads itself.
+function ProdAction({ label, hint, onClick, disabled, active, href }) {
+  const btnCls = 'btn btn-sm ' + (active ? 'btn-primary' : 'btn-secondary');
+  const btnStyle = { flex: '0 0 auto', minWidth: 168, justifyContent: 'flex-start' };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {href
+        ? <a href={href} target="_blank" rel="noreferrer" className={btnCls} style={btnStyle}>{label}</a>
+        : <button type="button" onClick={onClick} disabled={disabled} className={btnCls} style={btnStyle}>{label}</button>}
+      {hint && <span className="body-xs text-subtle" style={{ lineHeight: 1.3 }}>{hint}</span>}
+    </div>
+  );
+}
+
+function ProdGroup({ title, children }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div className="caption caption-muted" style={{ marginBottom: 6 }}>{title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{children}</div>
     </div>
   );
 }
@@ -1911,7 +1960,6 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
   const [publishUrl, setPublishUrl] = useState('');
   const [renderingMedia, setRenderingMedia] = useState(null);
   const [showProd, setShowProd] = useState(false);
-  const [showAdv, setShowAdv] = useState(false);
   const [showAutoEdit, setShowAutoEdit] = useState(false);
 
   async function handleGenerateMedia(kind) {
@@ -2010,75 +2058,73 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
       )}
 
       <div style={{ marginTop: 12 }}>
-        <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">Production {showProd ? '▴' : '▾'}</button>
-        {showProd && (
-        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* Common: the two most-used producers + the publish workflow. */}
-        {onMakeReel && (
-          <button onClick={onMakeReel} className="btn btn-secondary btn-sm" title="Send this post's script to the avatar-reel generator">
-            🎬 Make avatar reel
-          </button>
-        )}
-        <button onClick={() => setShowImg(s => !s)} className="btn btn-secondary btn-sm">
-          {showImg ? 'Cancel image' : '🖼 Generate image'}
-        </button>
-        {post.status !== 'published' && (
-          <button onClick={() => setShowPublish(s => !s)} className="btn btn-secondary btn-sm">
-            {showPublish ? 'Cancel' : 'Mark published'}
-          </button>
-        )}
-        {post.published_url && (
-          <a href={post.published_url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">View live ↗</a>
-        )}
+        <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">🎬 Produce {showProd ? '▴' : '▾'}</button>
+        {showProd && (() => {
+          const acg = (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style)).length;
+          return (
+            <div style={{ marginTop: 10, padding: 'var(--s4)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+              <div className="body-xs text-subtle" style={{ marginBottom: 10 }}>Pick how you want to make this post — you only need one route to a finished asset.</div>
 
-        {/* Advanced: storyboard, brief, and the heavier producers, tucked away. */}
-        <button onClick={() => setShowAdv(s => !s)} className="btn btn-ghost btn-sm">Advanced {showAdv ? '▴' : '▾'}</button>
-        {showAdv && (
-          <div style={{ width: '100%', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-            <button onClick={() => setOpen(o => !o)} className="btn btn-secondary btn-sm">
-              {open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length} frames)`}
-            </button>
-            <button onClick={async () => {
-              try {
-                const { url } = await api.get(`/social/posts/${post.id}/brief-url`);
-                window.open(url, '_blank');
-              } catch (e) { alert(`Could not open brief: ${e.message}`); }
-            }} className="btn btn-secondary btn-sm">
-              Production brief
-            </button>
-            <button onClick={() => handleGenerateMedia('voiceover')} disabled={renderingMedia === 'voiceover'} className="btn btn-secondary btn-sm">
-              {renderingMedia === 'voiceover' ? 'Rendering…' : 'Generate voiceover'}
-            </button>
-            <button onClick={() => handleGenerateMedia('video')} disabled={renderingMedia === 'video'} className="btn btn-secondary btn-sm">
-              {renderingMedia === 'video' ? 'Rendering UGC…' : 'Generate UGC video'}
-            </button>
-            {clientId && (
-              <button onClick={() => setShowAutoEdit(s => !s)} className="btn btn-secondary btn-sm"
-                title="Upload a raw clip and auto-edit it into a finished reel">
-                {showAutoEdit ? 'Cancel auto-edit' : '✂ Auto-edit a clip'}
-              </button>
-            )}
-            {(post.storyboard || []).some(f => ['A', 'C', 'G'].includes(f.style)) && (
-              <button onClick={async () => {
-                setRenderingMedia('templates');
-                try { await onRenderTemplates(); } finally { setRenderingMedia(null); }
-              }} disabled={renderingMedia === 'templates'} className="btn btn-secondary btn-sm">
-                {renderingMedia === 'templates' ? 'Rendering A/C/G…' : 'Render A/C/G clips'}
-              </button>
-            )}
-            {onStitchReel && (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style)).length >= 2 && (
-              <button onClick={async () => {
-                setRenderingMedia('stitch');
-                try { await onStitchReel(); } finally { setRenderingMedia(null); }
-              }} disabled={renderingMedia === 'stitch'} className="btn btn-secondary btn-sm"
-                title="Stitch every A/C/G frame into one finished vertical reel">
-                {renderingMedia === 'stitch' ? 'Stitching…' : '🎞 Stitch into one reel'}
-              </button>
-            )}
-          </div>
-        )}
-        </div>
-        )}
+              <ProdGroup title="🎬 Make a video">
+                {onMakeReel && (
+                  <ProdAction label="Avatar reel" onClick={onMakeReel}
+                    hint="You (or a digital twin) talking to camera — AI generated in HeyGen." />
+                )}
+                {clientId && (
+                  <ProdAction label={showAutoEdit ? 'Cancel auto-edit' : 'Auto-edit a clip'} active={showAutoEdit}
+                    onClick={() => setShowAutoEdit(s => !s)}
+                    hint="Upload raw footage you filmed — we trim, caption and export it." />
+                )}
+                <ProdAction label={renderingMedia === 'video' ? 'Rendering UGC…' : 'UGC video'} disabled={renderingMedia === 'video'}
+                  onClick={() => handleGenerateMedia('video')}
+                  hint="An AI actor performs the script — good for talking-head style." />
+                <ProdAction label={renderingMedia === 'voiceover' ? 'Rendering…' : 'Voiceover only'} disabled={renderingMedia === 'voiceover'}
+                  onClick={() => handleGenerateMedia('voiceover')}
+                  hint="Just the spoken audio track (to lay over your own footage)." />
+                {acg >= 1 && (
+                  <ProdAction label={renderingMedia === 'templates' ? 'Rendering A/C/G…' : 'Render text cards'} disabled={renderingMedia === 'templates'}
+                    onClick={async () => { setRenderingMedia('templates'); try { await onRenderTemplates(); } finally { setRenderingMedia(null); } }}
+                    hint="Render the A/C/G text-card frames from the storyboard." />
+                )}
+                {onStitchReel && acg >= 2 && (
+                  <ProdAction label={renderingMedia === 'stitch' ? 'Stitching…' : 'Stitch into one reel'} disabled={renderingMedia === 'stitch'}
+                    onClick={async () => { setRenderingMedia('stitch'); try { await onStitchReel(); } finally { setRenderingMedia(null); } }}
+                    hint="Combine the rendered text-card frames into one finished reel." />
+                )}
+              </ProdGroup>
+
+              <ProdGroup title="🖼 Make an image">
+                <ProdAction label={showImg ? 'Cancel image' : 'Generate image'} active={showImg}
+                  onClick={() => setShowImg(s => !s)}
+                  hint="An AI still image for a feed post or carousel." />
+              </ProdGroup>
+
+              <ProdGroup title="📋 Plan & hand-off">
+                <ProdAction label={open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length})`} active={open}
+                  onClick={() => setOpen(o => !o)}
+                  hint="The shot-by-shot plan behind this post." />
+                <ProdAction label="Production brief" onClick={async () => {
+                  try { const { url } = await api.get(`/social/posts/${post.id}/brief-url`); window.open(url, '_blank'); }
+                  catch (e) { alert(`Could not open brief: ${e.message}`); }
+                }} hint="A printable brief to hand whoever films it." />
+              </ProdGroup>
+
+              <div style={{ marginBottom: 0 }}>
+                <div className="caption caption-muted" style={{ marginBottom: 6 }}>✅ Publish</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {post.status !== 'published' && (
+                    <ProdAction label={showPublish ? 'Cancel' : 'Mark published'} active={showPublish}
+                      onClick={() => setShowPublish(s => !s)}
+                      hint="Paste the live URL once it's posted — we pull the stats (IG)." />
+                  )}
+                  {post.published_url && (
+                    <ProdAction label="View live ↗" href={post.published_url} hint="Open the published post." />
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {showPublish && (
