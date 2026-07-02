@@ -103,6 +103,23 @@ async function downloadFile(clientId, fileId) {
   return res;
 }
 
+// Create a Drive folder (optionally under a parent) and return its id +
+// webViewLink. Used to give a reel-scheduled plan its own media folder so
+// the autopilot publisher can source the video the normal way. Needs the
+// drive.file scope (same as uploadFile).
+async function createFolder(clientId, name, parentInput = null) {
+  const creds = await getGoogleCreds(clientId);
+  const body = { name: (name || 'Reel').slice(0, 200), mimeType: 'application/vnd.google-apps.folder' };
+  const parentId = parentInput ? parseFolderId(parentInput) : null;
+  if (parentId) body.parents = [parentId];
+  const { data } = await axios.post(
+    'https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,webViewLink',
+    body,
+    { headers: { Authorization: `Bearer ${creds.access_token}`, 'Content-Type': 'application/json' } }
+  );
+  return { id: data?.id || null, webViewLink: data?.webViewLink || null };
+}
+
 // Upload a local file into a Drive folder (resumable: init → PUT the bytes).
 // Used by Video Studio delivery. Needs the drive.file scope — tokens that
 // predate it must re-authorise. Returns { id, webViewLink }.
@@ -128,4 +145,4 @@ async function uploadFile(clientId, { name, mimeType = 'video/mp4', filePath, fo
   return { id: data?.id || null, webViewLink: data?.webViewLink || null };
 }
 
-module.exports = { parseFolderId, parseFileId, listFolder, downloadFile, uploadFile };
+module.exports = { parseFolderId, parseFileId, listFolder, downloadFile, uploadFile, createFolder };
