@@ -33,6 +33,8 @@ export default function HeygenReelsPanel({ clientId, draft }) {
   const [engine, setEngine] = useState('');           // '' = Avatar IV (default)
   const [speed, setSpeed] = useState(1);               // voice_settings.speed
   const [pauseDur, setPauseDur] = useState('0.5s');    // explicit pause length
+  const [caption, setCaption] = useState(true);        // burn subtitles in
+  const [modalReel, setModalReel] = useState(null);    // reel open in the viewer
   const [busy, setBusy] = useState(false);
   const pollRef = useRef(null);
 
@@ -79,7 +81,7 @@ export default function HeygenReelsPanel({ clientId, draft }) {
     try {
       // fit/engine/expressiveness are gated server-side (engine only applies as
       // avatar_v, expressiveness only for photo avatars), so it's safe to send.
-      const reel = await api.post(`/heygen/clients/${clientId}/heygen/reels`, { title: title.trim(), script: script.trim(), avatar_id, avatar_type, avatar_name, voice_id: voice, caption: true, aspect, fit, engine: engine || undefined, expressiveness, speed });
+      const reel = await api.post(`/heygen/clients/${clientId}/heygen/reels`, { title: title.trim(), script: script.trim(), avatar_id, avatar_type, avatar_name, voice_id: voice, caption, aspect, fit, engine: engine || undefined, expressiveness, speed });
       setReels(prev => [reel, ...prev]);
       setScript(''); setTitle('');
       toast('Sent to HeyGen — rendering. It’ll appear below in a minute or two.', 'success');
@@ -241,6 +243,13 @@ export default function HeygenReelsPanel({ clientId, draft }) {
                 </span>
               </label>
             )}
+            <label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={caption} onChange={e => setCaption(e.target.checked)} />
+              <span style={{ fontSize: 13 }}>
+                <strong>Burn in captions</strong>{' '}
+                <span style={{ color: 'var(--text-subtle)' }}>— subtitles baked into the video (recommended for silent autoplay).</span>
+              </span>
+            </label>
             <div><button className="btn btn-primary" onClick={generate} disabled={busy}>{busy ? 'Sending…' : '✦ Generate reel'}</button></div>
           </div>
         </div>
@@ -249,33 +258,69 @@ export default function HeygenReelsPanel({ clientId, draft }) {
       {!reels.length ? (
         <p className="body-sm text-subtle">No reels yet — write a script above to make your first.</p>
       ) : (
-        <div className="stack stack-sm">
-          {reels.map(r => {
-            const st = STATUS[r.status] || STATUS.queued;
-            return (
-              <div key={r.id} className="card" style={{ padding: 'var(--s4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <strong>{r.title || (r.script || '').slice(0, 60) + ((r.script || '').length > 60 ? '…' : '')}</strong>
-                    <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{r.avatar_name || r.avatar_id}{r.duration_s ? ` · ${Math.round(r.duration_s)}s` : ''}</div>
+        <>
+          <div className="field-label" style={{ marginBottom: 'var(--s3)' }}>Your reels · {reels.length}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 'var(--s4)' }}>
+            {reels.map(r => {
+              const st = STATUS[r.status] || STATUS.queued;
+              const done = r.status === 'completed' && r.video_url;
+              const label = r.title || (r.script || '').slice(0, 50) + ((r.script || '').length > 50 ? '…' : '');
+              return (
+                <div key={r.id} className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
+                  <button type="button" onClick={() => remove(r.id)} title="Delete"
+                    style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>✕</button>
+                  <div
+                    onClick={() => done && setModalReel(r)}
+                    style={{ position: 'relative', aspectRatio: '9 / 16', background: '#000', cursor: done ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {done ? (
+                      <>
+                        <video src={r.video_url} preload="metadata" muted playsInline
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ width: 40, height: 40, borderRadius: 20, background: 'rgba(0,0,0,0.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>▶</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--text-subtle)', fontSize: 12, padding: 12 }}>
+                        {r.status === 'failed' ? '⚠︎ Failed' : '⏳ Rendering…'}
+                      </div>
+                    )}
+                    <span className={`chip ${st.cls}`} style={{ position: 'absolute', bottom: 6, left: 6, fontSize: 9 }}>{st.label}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
-                    <span className={`chip ${st.cls}`} style={{ fontSize: 10 }}>{st.label}</span>
-                    {r.status === 'processing' && <button className="btn btn-ghost btn-sm" onClick={() => refresh(r.id)}>Refresh</button>}
-                    {r.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(r.id)}>Retry</button>}
-                    <button className="btn btn-ghost btn-sm" onClick={() => remove(r.id)} title="Delete">✕</button>
+                  <div style={{ padding: 'var(--s3)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
+                    <div className="body-xs text-subtle" style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {r.avatar_name || r.avatar_id}{r.duration_s ? ` · ${Math.round(r.duration_s)}s` : ''}
+                    </div>
+                    {r.status === 'failed' && <button className="btn btn-secondary btn-sm" style={{ marginTop: 6 }} onClick={() => retry(r.id)}>Retry</button>}
+                    {r.status === 'processing' && <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={() => refresh(r.id)}>Refresh</button>}
                   </div>
                 </div>
-                {r.status === 'failed' && r.error && <div className="callout callout-warning" style={{ marginTop: 10, fontSize: 13 }}>{r.error}</div>}
-                {r.status === 'completed' && r.video_url && (
-                  <div style={{ marginTop: 12 }}>
-                    <video src={r.video_url} controls style={{ width: '100%', maxWidth: 280, borderRadius: 'var(--r-sm)', background: '#000' }} />
-                    <div style={{ marginTop: 8 }}><a className="btn btn-secondary btn-sm" href={r.video_url} target="_blank" rel="noreferrer" download>Download</a></div>
-                  </div>
-                )}
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {modalReel && (
+        <div onClick={() => setModalReel(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} className="card"
+            style={{ maxWidth: 380, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+              <div style={{ minWidth: 0 }}>
+                <strong style={{ fontSize: 14 }}>{modalReel.title || 'Reel'}</strong>
+                <div className="body-xs text-subtle">{modalReel.avatar_name || modalReel.avatar_id}{modalReel.duration_s ? ` · ${Math.round(modalReel.duration_s)}s` : ''}</div>
               </div>
-            );
-          })}
+              <button className="btn btn-ghost btn-sm" onClick={() => setModalReel(null)}>✕</button>
+            </div>
+            <video src={modalReel.video_url} controls autoPlay
+              style={{ width: '100%', borderRadius: 'var(--r-sm)', background: '#000', maxHeight: '64vh' }} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              <a className="btn btn-secondary btn-sm" href={modalReel.video_url} target="_blank" rel="noreferrer" download>Download</a>
+              <button className="btn btn-ghost btn-sm" onClick={() => { remove(modalReel.id); setModalReel(null); }}>Delete</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
