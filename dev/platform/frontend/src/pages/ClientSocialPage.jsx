@@ -492,7 +492,7 @@ export default function ClientSocialPage() {
       {inCreate && (createView === 'reels' ? (
         <div>
           <button className="btn btn-ghost btn-sm" style={{ marginBottom: 'var(--s4)' }} onClick={() => setCreateView(null)}>← Back to Make</button>
-          <HeygenReelsPanel clientId={id} draft={reelDraft} />
+          <HeygenReelsPanel clientId={id} draft={reelDraft} onScheduled={() => { setCreateView(null); setSocialTab('plans'); }} />
         </div>
       ) : (
         <BrainstormTab

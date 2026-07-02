@@ -214,6 +214,50 @@ async function generate(clientId, { title, script, avatar_id, avatar_type, avata
   }
 }
 
+// "Continue → schedule": turn a finished reel into a pre-filled draft social
+// post plan and hand it to the factory's Plan step. The reel (its public
+// video URL + heygen id) is carried on the plan so the publish step can use
+// it; the AM sets the date + platforms in Plan. Creates a DRAFT — nothing
+// publishes until the AM schedules it.
+async function scheduleAsPlan(clientId, id, userId) {
+  const { rows } = await pool.query('SELECT * FROM heygen_reels WHERE client_id = $1 AND id = $2', [clientId, id]);
+  const r = rows[0];
+  if (!r) { const e = new Error('Reel not found.'); e.status = 404; throw e; }
+  if (r.status !== 'completed' || !r.video_url) { const e = new Error('This reel isn’t finished rendering yet.'); e.status = 400; throw e; }
+
+  const script = (r.script || '').trim();
+  const title = (r.title || script.slice(0, 60) || 'Avatar reel').trim();
+  // Vertical reels default to reels-capable placements; the AM adjusts in Plan.
+  const platforms = ['9:16', '4:5', '1:1'].includes(r.aspect_ratio)
+    ? ['instagram_reels', 'tiktok']
+    : ['instagram_feed'];
+  const plan = {
+    version: 1,
+    title,
+    platforms,
+    framework: 'Avatar reel (HeyGen)',
+    hook: { text: script.split(/[.!?\n]/)[0].slice(0, 120) },
+    scenes: [],
+    caption: script,
+    // Pre-produced media the publish step should use rather than a Drive file.
+    source: 'heygen_reel',
+    reel: {
+      reel_id: r.id,
+      video_url: r.video_url,
+      heygen_video_id: r.heygen_video_id,
+      duration_s: r.duration_s,
+      aspect_ratio: r.aspect_ratio,
+      avatar_name: r.avatar_name,
+    },
+  };
+  const { rows: planRows } = await pool.query(
+    `INSERT INTO social_post_plans (client_id, title, plan, status, created_by)
+     VALUES ($1, $2, $3, 'draft', $4) RETURNING id, title, status`,
+    [clientId, title, JSON.stringify(plan), userId || null]
+  );
+  return planRows[0];
+}
+
 async function retry(clientId, id, userId) {
   const { rows } = await pool.query('SELECT * FROM heygen_reels WHERE client_id = $1 AND id = $2', [clientId, id]);
   const r = rows[0];
@@ -306,4 +350,4 @@ async function testConnection() {
   }
 }
 
-module.exports = { listAvatars, listVoices, getOptions, remainingQuota, list, generate, retry, refresh, remove, pollPending, testConnection };
+module.exports = { listAvatars, listVoices, getOptions, remainingQuota, list, generate, scheduleAsPlan, retry, refresh, remove, pollPending, testConnection };

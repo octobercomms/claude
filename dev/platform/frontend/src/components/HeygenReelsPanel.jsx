@@ -13,7 +13,7 @@ const STATUS = {
   failed:     { label: 'Failed',      cls: 'chip-warning' },
 };
 
-export default function HeygenReelsPanel({ clientId, draft }) {
+export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
   const toast = useToast();
   const [opts, setOpts] = useState(null);   // { avatars, voices } | null
   const [optsErr, setOptsErr] = useState(null);
@@ -95,6 +95,14 @@ export default function HeygenReelsPanel({ clientId, draft }) {
   async function retry(id) {
     try { const r = await api.post(`/heygen/clients/${clientId}/heygen/reels/${id}/retry`, {}); setReels(prev => [r, ...prev.filter(x => x.id !== id)]); }
     catch (e) { toast(e.message, 'error'); }
+  }
+  async function schedule(id) {
+    try {
+      await api.post(`/heygen/clients/${clientId}/heygen/reels/${id}/schedule`, {});
+      setModalReel(null);
+      toast('Added to Plan as a draft — set the date & platforms in the Plan step.', 'success');
+      onScheduled?.();
+    } catch (e) { toast(e.message, 'error'); }
   }
   async function remove(id) {
     if (!window.confirm('Delete this reel?')) return;
@@ -317,6 +325,7 @@ export default function HeygenReelsPanel({ clientId, draft }) {
             <video src={modalReel.video_url} controls autoPlay
               style={{ width: '100%', borderRadius: 'var(--r-sm)', background: '#000', maxHeight: '64vh' }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              <button className="btn btn-primary btn-sm" onClick={() => schedule(modalReel.id)}>📅 Schedule</button>
               <a className="btn btn-secondary btn-sm" href={modalReel.video_url} target="_blank" rel="noreferrer" download>Download</a>
               <button className="btn btn-ghost btn-sm" onClick={() => { remove(modalReel.id); setModalReel(null); }}>Delete</button>
             </div>
