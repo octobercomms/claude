@@ -13,9 +13,26 @@
 // letterboxed. https://docs.heygen.com/
 
 const axios = require('axios');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const pool = require('../db');
 const { getSetting } = require('../utils/settings');
 const { recordApiCost } = require('./costLog');
+
+// Stream a remote video (a HeyGen reel URL) to a local temp file.
+async function downloadToTemp(url, filename) {
+  const dest = path.join(os.tmpdir(), filename);
+  const res = await axios.get(url, { responseType: 'stream', timeout: 120000, maxContentLength: Infinity, maxBodyLength: Infinity });
+  await new Promise((resolve, reject) => {
+    const w = fs.createWriteStream(dest);
+    res.data.pipe(w);
+    w.on('finish', resolve);
+    w.on('error', reject);
+    res.data.on('error', reject);
+  });
+  return dest;
+}
 
 const BASE = 'https://api.heygen.com';
 const HEYGEN_USD_PER_MIN = 1.0; // Avatar IV ~$1/min (approx; Avatar V costs more)
@@ -255,7 +272,34 @@ async function scheduleAsPlan(clientId, id, userId) {
      VALUES ($1, $2, $3, 'draft', $4) RETURNING id, title, status`,
     [clientId, title, JSON.stringify(plan), userId || null]
   );
-  return planRows[0];
+  const created = planRows[0];
+
+  // Persist the reel into a Drive folder for this plan so the autopilot
+  // publisher sources it the normal way (a HeyGen URL is presigned and can
+  // expire; a Drive copy can't). Best-effort: if the client has no Google
+  // Drive connected, or the copy fails, the plan still stands as a draft —
+  // we just report why the video didn't attach.
+  let drive_warning = null;
+  let tmp = null;
+  try {
+    const socialDrive = require('./socialDrive');
+    const folder = await socialDrive.createFolder(clientId, `Reel — ${title}`);
+    if (!folder.id) throw new Error('Drive folder was not created.');
+    tmp = await downloadToTemp(r.video_url, `reel-${r.id}-${r.heygen_video_id || 'v'}.mp4`);
+    await socialDrive.uploadFile(clientId, {
+      name: `${title}.mp4`.replace(/[\/\\]/g, '-').slice(0, 140),
+      mimeType: 'video/mp4', filePath: tmp, folderInput: folder.id,
+    });
+    await pool.query('UPDATE social_post_plans SET drive_folder_url = $2 WHERE id = $1',
+      [created.id, folder.webViewLink || folder.id]);
+    created.drive_folder_url = folder.webViewLink || folder.id;
+  } catch (err) {
+    drive_warning = err.message;
+    console.warn(`[heygen schedule] Drive attach failed for reel ${r.id}: ${err.message}`);
+  } finally {
+    if (tmp) { try { fs.unlinkSync(tmp); } catch { /* ignore */ } }
+  }
+  return { ...created, drive_warning };
 }
 
 async function retry(clientId, id, userId) {

@@ -98,9 +98,13 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
   }
   async function schedule(id) {
     try {
-      await api.post(`/heygen/clients/${clientId}/heygen/reels/${id}/schedule`, {});
+      const res = await api.post(`/heygen/clients/${clientId}/heygen/reels/${id}/schedule`, {});
       setModalReel(null);
-      toast('Added to Plan as a draft — set the date & platforms in the Plan step.', 'success');
+      if (res?.drive_warning) {
+        toast(`Added to Plan as a draft, but the video didn't attach to Drive: ${res.drive_warning}`, 'error');
+      } else {
+        toast('Added to Plan with the reel attached — set the date & platforms in the Plan step.', 'success');
+      }
       onScheduled?.();
     } catch (e) { toast(e.message, 'error'); }
   }
