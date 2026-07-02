@@ -1,10 +1,16 @@
-// HeyGen — AI video suite (Phase 1): script + avatar/Digital Twin → captioned
-// vertical reel. HeyGen renders async, so generate() submits and stores the
-// heygen video id, and pollPending() (driven by the scheduler) checks status and
-// fills in the finished video URL. PAYG; cost logged per completed reel.
+// HeyGen — AI video suite. Pick an avatar look / Digital Twin + voice, type a
+// script, and HeyGen renders a captioned reel. Renders async, so generate()
+// submits and stores the video id, and pollPending() (driven by the scheduler)
+// checks status and fills in the finished video URL. PAYG; cost logged per reel.
 //
-// API: X-Api-Key header. v2/avatars, v2/voices, v2/video/generate; status via
-// v1/video_status.get. https://docs.heygen.com/
+// v3 API (migrated from the legacy v2 pipeline):
+//   POST /v3/videos                       — create (Avatar IV default / V opt-in)
+//   GET  /v3/videos/{video_id}            — status
+//   GET  /v3/avatars/looks?ownership=…    — the avatar picker (look ids)
+//   GET  /v3/voices                       — voices (+ support_pause)
+// Avatar IV is the default engine (the same modern lip-sync the HeyGen web app
+// uses); `fit: cover` fills the requested aspect_ratio so a reel isn't
+// letterboxed. https://docs.heygen.com/
 
 const axios = require('axios');
 const pool = require('../db');
@@ -12,7 +18,11 @@ const { getSetting } = require('../utils/settings');
 const { recordApiCost } = require('./costLog');
 
 const BASE = 'https://api.heygen.com';
-const HEYGEN_USD_PER_MIN = 1.0; // standard avatar ~$1/min (approx; Avatar IV costs more)
+const HEYGEN_USD_PER_MIN = 1.0; // Avatar IV ~$1/min (approx; Avatar V costs more)
+
+// Aspect ratios v3 accepts. 'auto' matches the source; the rest are short-edge
+// anchored to the resolution (e.g. 1080p 9:16 → 1080×1920).
+const ASPECTS = new Set(['16:9', '9:16', '4:5', '5:4', '1:1', 'auto']);
 
 async function apiKey() {
   return (await getSetting('HEYGEN_API_KEY')) || process.env.HEYGEN_API_KEY || null;
@@ -20,12 +30,10 @@ async function apiKey() {
 async function http() {
   const key = await apiKey();
   if (!key) { const e = new Error('HeyGen isn’t configured — add your HeyGen API key in Settings → AI.'); e.status = 400; throw e; }
-  // 45s: the /v2/avatars list (stock + account avatars + talking photos) can be
-  // a large, slow payload — voices and quota come back fast, avatars need room.
+  // 45s: the avatar-looks list can be a large, slow payload; voices come back fast.
   const client = axios.create({ baseURL: BASE, headers: { 'X-Api-Key': key, 'Content-Type': 'application/json' }, timeout: 45000 });
   // Translate HeyGen transport failures into clear, self-contained messages so
-  // the UI doesn't surface a raw "timeout of NNNNms exceeded" (which wrongly
-  // reads as a missing key when the key is actually set but HeyGen is slow).
+  // the UI doesn't surface a raw "timeout of NNNNms exceeded".
   client.interceptors.response.use(r => r, (err) => {
     if (err.code === 'ECONNABORTED' || /timeout/i.test(err.message || '') || !err.response) {
       const e = new Error('HeyGen didn’t respond in time. It may be busy — try again in a moment. If it keeps failing, check your HeyGen API key in Settings → AI.');
@@ -35,8 +43,8 @@ async function http() {
       const e = new Error('HeyGen rejected the API key. Update it in Settings → AI.');
       e.status = err.response.status; throw e;
     }
-    // Any other error status — surface HeyGen's own message + the status code
-    // so failures are diagnosable rather than a generic "Request failed".
+    // v3 errors come back as { error: { code, message, param } }. Surface the
+    // message + status so failures are diagnosable rather than "Request failed".
     const body = err.response.data || {};
     const hg = body.error?.message || body.message || (typeof body.error === 'string' ? body.error : null) || err.response.statusText;
     const e = new Error(`HeyGen error ${err.response.status}${hg ? `: ${hg}` : ''}`);
@@ -45,80 +53,63 @@ async function http() {
   return client;
 }
 
-// The looks inside one avatar group, each a directly-generatable item.
-async function groupLooks(groupId) {
-  const client = await http();
-  const { data } = await client.get(`/v2/avatar_group/${groupId}/avatars`);
-  const d = data.data || data || {};
-  const looks = d.avatar_list || d.avatars || d.looks || (Array.isArray(d) ? d : []);
-  return looks.map(lk => {
-    const preview = lk.preview_image_url || lk.image_url || lk.preview || null;
-    const name = lk.name || lk.avatar_name || null;
-    if (lk.avatar_id) return { id: lk.avatar_id, type: 'avatar', name, preview };
-    const tp = lk.id || lk.talking_photo_id;
-    return tp ? { id: tp, type: 'talking_photo', name, preview } : null;
-  }).filter(Boolean);
-}
-
-// The account's own avatars / Digital Twins, via /v2/avatar_group.list (only
-// your groups — small/fast, unlike /v2/avatars which dumps the whole public
-// catalogue and times out). Each group's looks are flattened into individual,
-// directly-pickable options so the AM chooses the exact look.
+// The account's own avatar looks (Digital Twins, photo avatars, studio avatars).
+// v3 returns concrete, directly-usable look ids — no group→look resolution like
+// v2. Paginated; we walk up to a few pages so a large roster still loads.
 async function listAvatars() {
   const client = await http();
-  const { data } = await client.get('/v2/avatar_group.list', { params: { include_public: false } });
-  const d = data.data || data || {};
-  const groups = (d.avatar_group_list || d.avatar_groups || d.groups || (Array.isArray(d) ? d : []))
-    .map(g => ({ id: g.id || g.group_id || g.avatar_group_id, name: g.name || 'Avatar', preview: g.preview_image_url || g.preview_image || null }))
-    .filter(g => g.id);
-  const perGroup = await Promise.all(groups.map(async g => {
-    let looks = [];
-    try { looks = await groupLooks(g.id); } catch { looks = []; }
-    if (!looks.length) return [{ id: g.id, name: g.name, type: 'avatar_group', preview: g.preview }];
-    return looks.map((lk, i) => ({
-      id: lk.id,
-      type: lk.type,
-      // HeyGen look names are generic ("Photo Avatar"), so index them instead.
-      name: looks.length > 1 ? `${g.name} · Look ${i + 1}` : g.name,
-      preview: lk.preview || g.preview,
-    }));
-  }));
-  return perGroup.flat();
-}
-
-// Resolve an avatar group to a concrete look (used only when a group's looks
-// couldn't be pre-fetched and the picker still holds the group id).
-async function resolveGroupLook(groupId) {
-  const looks = await groupLooks(groupId);
-  if (!looks.length) { const e = new Error('That avatar has no looks set up in HeyGen yet.'); e.status = 400; throw e; }
-  return looks[0];
+  const out = [];
+  let token = null;
+  for (let page = 0; page < 6; page++) {
+    const params = { ownership: 'private', limit: 50 };
+    if (token) params.token = token;
+    const { data } = await client.get('/v3/avatars/looks', { params });
+    for (const lk of (data.data || [])) {
+      if (!lk.id) continue;
+      // Skip looks still training — they can't render yet.
+      if (lk.status && lk.status !== 'completed') continue;
+      out.push({
+        id: lk.id,
+        // v3 avatar_type (studio_avatar | digital_twin | photo_avatar) drives
+        // which extras are legal (expressiveness/motion = photo avatars only).
+        type: lk.avatar_type || 'avatar',
+        name: lk.name || 'Avatar',
+        preview: lk.preview_image_url || lk.preview_video_url || null,
+        engines: lk.supported_api_engines || [],
+        default_voice_id: lk.default_voice_id || null,
+      });
+    }
+    if (data.has_more && data.next_token) token = data.next_token; else break;
+  }
+  return out;
 }
 
 async function listVoices() {
   const client = await http();
-  // v3/voices reports `support_pause` (SSML <break> support) per voice — used to
-  // gate the pacing controls. Fall back to v2 if v3 is unavailable.
-  try {
-    const { data } = await client.get('/v3/voices?engine=starfish');
-    const list = data.data?.voices || data.voices || [];
-    if (list.length) {
-      return list.map(v => ({
+  const out = [];
+  let token = null;
+  for (let page = 0; page < 3; page++) {
+    const params = { limit: 100 };
+    if (token) params.token = token;
+    const { data } = await client.get('/v3/voices', { params });
+    for (const v of (data.data || [])) {
+      if (!v.voice_id) continue;
+      out.push({
         id: v.voice_id, name: v.name || v.voice_id,
-        language: v.language || v.locale || '', gender: v.gender || '',
+        language: v.language || '', gender: v.gender || '',
+        // v3 reports SSML pause/break support per voice — gates the pacing UI.
         supportsPause: !!v.support_pause,
-      }));
+      });
     }
-  } catch { /* fall through to v2 */ }
-  const { data } = await client.get('/v2/voices');
-  const voices = (data.data?.voices || data.voices || []).map(v => ({ id: v.voice_id, name: v.name || v.voice_id, language: v.language || v.locale || '', gender: v.gender || '', supportsPause: false }));
-  return voices;
+    if (data.has_more && data.next_token) token = data.next_token; else break;
+  }
+  return out;
 }
 
 async function remainingQuota() {
   const client = await http();
   const { data } = await client.get('/v2/user/remaining_quota').catch(() => ({ data: {} }));
   const d = data.data || data || {};
-  // HeyGen returns remaining quota in API credits; surface what we get.
   const credits = d.remaining_quota ?? d.remaining ?? null;
   return credits != null ? Number(credits) : null;
 }
@@ -132,25 +123,11 @@ async function remove(clientId, id) {
   await pool.query('DELETE FROM heygen_reels WHERE client_id = $1 AND id = $2', [clientId, id]);
 }
 
-// Submit a reel to HeyGen and store the job. Vertical 1080×1920, captions on.
-// Video shapes HeyGen supports (dimension = pixel W×H). 1080 on the short edge;
-// 16:9 renders landscape at 1920×1080. Unknown values fall back to a 9:16 reel.
-const ASPECTS = {
-  '9:16': { width: 1080, height: 1920 }, // reel / story
-  '4:5':  { width: 1080, height: 1350 }, // portrait feed post
-  '1:1':  { width: 1080, height: 1080 }, // square post
-  '16:9': { width: 1920, height: 1080 }, // landscape
-};
-function dimensionFor(aspect) {
-  return ASPECTS[aspect] || ASPECTS['9:16'];
-}
-
-// Turn our lightweight pacing markers into HeyGen SSML (only on voices whose
-// support_pause is true). Returns null when the script has no markers, so the
-// plain-text path is used unchanged.
+// Turn our lightweight pacing markers into SSML for voices whose support_pause
+// is true. Returns null when the script has no markers, so the plain-text path
+// (the common case) is used unchanged and can never be affected.
 //   [pause 0.5s] / [pause 500ms] → <break time="0.5s"/>
 //   *emphasised words*           → <emphasis>emphasised words</emphasis>
-// XML-escape first, then inject tags, so stray & / < / > in the copy are safe.
 function toSsml(text) {
   let touched = false;
   let s = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -159,44 +136,53 @@ function toSsml(text) {
   return touched ? `<speak>${s}</speak>` : null;
 }
 
-async function generate(clientId, { title, script, avatar_id, avatar_type, avatar_name, voice_id, caption = true, aspect }, userId) {
+// Fallback duration (seconds) from the script when the status response omits it,
+// so cost logging still works. ~150 wpm ≈ 2.5 words/sec; floor at 3s.
+function estimateDurationFromScript(script) {
+  const words = String(script || '').trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(3, Math.round(words / 2.5));
+}
+
+async function generate(clientId, { title, script, avatar_id, avatar_type, avatar_name, voice_id, caption = true, aspect, fit, engine, expressiveness }, userId) {
   if (!String(script || '').trim()) { const e = new Error('Add a script for the avatar to say.'); e.status = 400; throw e; }
   if (!avatar_id || !voice_id) { const e = new Error('Pick an avatar and a voice.'); e.status = 400; throw e; }
-  const aspectRatio = ASPECTS[aspect] ? aspect : '9:16';
-  // An avatar-group selection resolves to a concrete look (talking-photo or
-  // avatar) before we store/submit; other types pass through unchanged.
-  let useId = avatar_id;
-  let type;
-  if (avatar_type === 'avatar_group') {
-    const look = await resolveGroupLook(avatar_id);
-    useId = look.id; type = look.type;
-  } else {
-    type = avatar_type === 'talking_photo' ? 'talking_photo' : 'avatar';
-  }
+  const aspectRatio = ASPECTS.has(aspect) ? aspect : '9:16';
+  const fitMode = fit === 'contain' ? 'contain' : 'cover';
+  const type = avatar_type || 'avatar';
+  const isPhoto = type === 'photo_avatar';
+  // Avatar V is an opt-in, eligibility-gated engine (digital twins). Everything
+  // else uses the Avatar IV default (engine omitted).
+  const useEngine = engine === 'avatar_v' ? 'avatar_v' : null;
+  const useExpr = isPhoto && ['low', 'medium', 'high'].includes(expressiveness) ? expressiveness : null;
 
   const { rows } = await pool.query(
-    `INSERT INTO heygen_reels (client_id, title, script, avatar_id, avatar_type, avatar_name, voice_id, caption, aspect_ratio, status, requested_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'queued',$10) RETURNING *`,
-    [clientId, title || null, script.trim(), useId, type, avatar_name || null, voice_id, !!caption, aspectRatio, userId || null]
+    `INSERT INTO heygen_reels (client_id, title, script, avatar_id, avatar_type, avatar_name, voice_id, caption, aspect_ratio, fit, engine, expressiveness, status, requested_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'queued',$13) RETURNING *`,
+    [clientId, title || null, script.trim(), avatar_id, type, avatar_name || null, voice_id, !!caption, aspectRatio, fitMode, useEngine, useExpr, userId || null]
   );
   const reel = rows[0];
 
   try {
     const client = await http();
-    const character = type === 'talking_photo'
-      ? { type: 'talking_photo', talking_photo_id: useId }
-      : { type: 'avatar', avatar_id: useId, avatar_style: 'normal' };
-    const ssml = toSsml(script.trim());
+    const scriptText = script.trim();
+    const ssml = toSsml(scriptText);
     const body = {
-      video_inputs: [{ character, voice: ssml
-        ? { type: 'text', input_text: ssml, voice_id, input_type: 'ssml' }
-        : { type: 'text', input_text: script.trim(), voice_id } }],
-      dimension: dimensionFor(aspectRatio),
-      caption: !!caption,
+      type: 'avatar',
+      avatar_id,
+      script: ssml || scriptText,
+      voice_id,
+      aspect_ratio: aspectRatio,
+      resolution: '1080p',
+      fit: fitMode,
       title: title || undefined,
     };
-    const { data } = await client.post('/v2/video/generate', body);
-    if (data.error) throw new Error(typeof data.error === 'string' ? data.error : (data.error.message || 'HeyGen rejected the request'));
+    // Burn captions into the render (a sidecar .srt is always returned too).
+    if (caption) body.caption = { style: 'default' };
+    if (useEngine) body.engine = { type: useEngine };
+    if (useExpr) body.expressiveness = useExpr;
+
+    const { data } = await client.post('/v3/videos', body);
+    if (data.error) throw new Error(data.error.message || (typeof data.error === 'string' ? data.error : 'HeyGen rejected the request'));
     const videoId = data.data?.video_id || data.video_id;
     if (!videoId) throw new Error('HeyGen did not return a video id');
     const upd = await pool.query(
@@ -215,29 +201,35 @@ async function retry(clientId, id, userId) {
   const { rows } = await pool.query('SELECT * FROM heygen_reels WHERE client_id = $1 AND id = $2', [clientId, id]);
   const r = rows[0];
   if (!r) { const e = new Error('Reel not found.'); e.status = 404; throw e; }
-  return generate(clientId, { title: r.title, script: r.script, avatar_id: r.avatar_id, avatar_type: r.avatar_type, avatar_name: r.avatar_name, voice_id: r.voice_id, caption: r.caption, aspect: r.aspect_ratio }, userId)
+  return generate(clientId, {
+    title: r.title, script: r.script, avatar_id: r.avatar_id, avatar_type: r.avatar_type,
+    avatar_name: r.avatar_name, voice_id: r.voice_id, caption: r.caption, aspect: r.aspect_ratio,
+    fit: r.fit, engine: r.engine, expressiveness: r.expressiveness,
+  }, userId)
     .then(async (created) => { await pool.query('DELETE FROM heygen_reels WHERE id = $1', [id]); return created; });
 }
 
-// Check one job's status against HeyGen and apply the result.
+// Check one job's status against HeyGen (v3) and apply the result.
 async function refreshOne(reel) {
   if (!reel.heygen_video_id) return reel;
   const client = await http();
-  const { data } = await client.get('/v1/video_status.get', { params: { video_id: reel.heygen_video_id } });
+  const { data } = await client.get(`/v3/videos/${reel.heygen_video_id}`);
   const d = data.data || data || {};
   const status = d.status;
   if (status === 'completed') {
-    const dur = d.duration != null ? Number(d.duration) : null;
+    const dur = (d.duration != null && Number.isFinite(Number(d.duration)))
+      ? Number(d.duration)
+      : estimateDurationFromScript(reel.script);
     await pool.query(
       `UPDATE heygen_reels SET status = 'completed', video_url = $2, duration_s = $3, error = NULL WHERE id = $1`,
-      [reel.id, d.video_url || d.video_url_caption || null, dur]
+      [reel.id, d.video_url || null, dur]
     );
-    if (dur) recordApiCost({ provider: 'heygen', feature: 'heygen_reel', costUsd: (dur / 60) * HEYGEN_USD_PER_MIN, clientId: reel.client_id, meta: { duration_s: Math.round(dur) } });
+    if (dur) recordApiCost({ provider: 'heygen', feature: 'heygen_reel', costUsd: (dur / 60) * HEYGEN_USD_PER_MIN, clientId: reel.client_id, meta: { duration_s: Math.round(dur), engine: reel.engine || 'avatar_iv' } });
   } else if (status === 'failed') {
-    const msg = d.error?.message || d.error?.detail || (typeof d.error === 'string' ? d.error : 'HeyGen failed to render this video');
+    const msg = d.failure_message || d.error?.message || (typeof d.error === 'string' ? d.error : 'HeyGen failed to render this video');
     await pool.query(`UPDATE heygen_reels SET status = 'failed', error = $2 WHERE id = $1`, [reel.id, String(msg).slice(0, 500)]);
   }
-  // pending/processing/waiting → leave as-is
+  // pending / processing / waiting → leave as-is
   const { rows } = await pool.query('SELECT * FROM heygen_reels WHERE id = $1', [reel.id]);
   return rows[0];
 }
@@ -257,9 +249,9 @@ async function pollPending() {
   }
 }
 
-// Avatars + voices for the picker, cached for an hour. /v2/avatars is a large,
-// slow payload (the whole stock catalogue), so once it loads we hold it rather
-// than re-fetching on every page view; a failed call falls back to any cache.
+// Avatars + voices for the picker, cached for an hour. The looks/voices lists
+// are paginated network walks, so once loaded we hold them rather than
+// re-fetching on every page view; a failed call falls back to any cache.
 const _optsCache = { avatars: { data: null, at: 0 }, voices: { data: null, at: 0 } };
 const OPTS_TTL = 60 * 60 * 1000;
 
@@ -282,14 +274,14 @@ async function getOptions() {
   return { avatars, voices, partial: !aOk || !vOk, partial_error };
 }
 
-// Lightweight connectivity check for Settings → AI. Pings a cheap HeyGen
-// endpoint and reports exactly what happened: ok / no key / bad key / timeout.
+// Lightweight connectivity check for Settings → AI. Pings a cheap v3 endpoint
+// and reports exactly what happened: ok / no key / bad key / timeout.
 async function testConnection() {
   const key = await apiKey();
   if (!key) return { ok: false, reason: 'no_key', message: 'No HeyGen API key saved — add one above.' };
   try {
     const client = await http();
-    await client.get('/v2/user/remaining_quota');
+    await client.get('/v3/voices', { params: { limit: 1 } });
     return { ok: true, message: 'Connected to HeyGen — the key works.' };
   } catch (e) {
     const reason = e.status === 401 || e.status === 403 ? 'bad_key' : e.status === 504 ? 'timeout' : 'error';

@@ -28,6 +28,9 @@ export default function HeygenReelsPanel({ clientId, draft }) {
   const [avatar, setAvatar] = useState('');
   const [voice, setVoice] = useState('');
   const [aspect, setAspect] = useState('9:16');
+  const [fit, setFit] = useState('cover');            // cover = fill the frame
+  const [expressiveness, setExpressiveness] = useState('medium'); // photo avatars
+  const [engine, setEngine] = useState('');           // '' = Avatar IV (default)
   const [busy, setBusy] = useState(false);
   const pollRef = useRef(null);
 
@@ -72,7 +75,9 @@ export default function HeygenReelsPanel({ clientId, draft }) {
     const avatar_name = opts?.avatars?.find(a => a.id === avatar_id)?.name || null;
     setBusy(true);
     try {
-      const reel = await api.post(`/heygen/clients/${clientId}/heygen/reels`, { title: title.trim(), script: script.trim(), avatar_id, avatar_type, avatar_name, voice_id: voice, caption: true, aspect });
+      // fit/engine/expressiveness are gated server-side (engine only applies as
+      // avatar_v, expressiveness only for photo avatars), so it's safe to send.
+      const reel = await api.post(`/heygen/clients/${clientId}/heygen/reels`, { title: title.trim(), script: script.trim(), avatar_id, avatar_type, avatar_name, voice_id: voice, caption: true, aspect, fit, engine: engine || undefined, expressiveness });
       setReels(prev => [reel, ...prev]);
       setScript(''); setTitle('');
       toast('Sent to HeyGen — rendering. It’ll appear below in a minute or two.', 'success');
@@ -94,6 +99,11 @@ export default function HeygenReelsPanel({ clientId, draft }) {
   }
 
   if (!loaded) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
+
+  // v3-specific: which extra controls apply to the selected avatar.
+  const selAvatar = opts?.avatars?.find(a => `${a.type}:${a.id}` === avatar);
+  const isPhoto = selAvatar?.type === 'photo_avatar';
+  const canAvatarV = (selAvatar?.engines || []).includes('avatar_v');
 
   return (
     <div>
@@ -177,6 +187,42 @@ export default function HeygenReelsPanel({ clientId, draft }) {
                 ))}
               </div>
             </div>
+            <div className="field">
+              <span className="field-label">Framing</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => setFit('cover')}
+                  className={'btn btn-sm ' + (fit === 'cover' ? 'btn-primary' : 'btn-secondary')}
+                  title="Scale the avatar to fill the whole frame (may crop the edges)">Fill frame</button>
+                <button type="button" onClick={() => setFit('contain')}
+                  className={'btn btn-sm ' + (fit === 'contain' ? 'btn-primary' : 'btn-secondary')}
+                  title="Fit the whole avatar inside the frame (may show background bars)">Fit whole avatar</button>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                <strong>Fill</strong> stops a reel from letterboxing the avatar into a smaller box.
+              </div>
+            </div>
+            {isPhoto && (
+              <label className="field" style={{ display: 'block' }}>
+                <span className="field-label">Expressiveness</span>
+                <select className="input" value={expressiveness} onChange={e => setExpressiveness(e.target.value)}>
+                  <option value="low">Low — calm, minimal motion</option>
+                  <option value="medium">Medium — natural</option>
+                  <option value="high">High — lively, more gesture</option>
+                </select>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                  Photo avatars only. HeyGen defaults to Low (stiff) — Medium/High give more lifelike motion.
+                </div>
+              </label>
+            )}
+            {canAvatarV && (
+              <label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={engine === 'avatar_v'} onChange={e => setEngine(e.target.checked ? 'avatar_v' : '')} />
+                <span style={{ fontSize: 13 }}>
+                  <strong>Highest fidelity (Avatar V)</strong>{' '}
+                  <span style={{ color: 'var(--text-subtle)' }}>— best lip-sync for this Digital Twin. Costs a little more.</span>
+                </span>
+              </label>
+            )}
             <div><button className="btn btn-primary" onClick={generate} disabled={busy}>{busy ? 'Sending…' : '✦ Generate reel'}</button></div>
           </div>
         </div>
