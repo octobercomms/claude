@@ -5,6 +5,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+import { roWrite, READ_ONLY_MSG } from '../utils/readOnly';
 
 const STATUS = {
   queued:     { label: 'Queued',      cls: 'chip-neutral' },
@@ -15,6 +17,7 @@ const STATUS = {
 
 export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [opts, setOpts] = useState(null);   // { avatars, voices } | null
   const [optsErr, setOptsErr] = useState(null);
   const [reels, setReels] = useState([]);
@@ -169,7 +172,7 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
                 <option value={120}>~2 min</option>
                 <option value={180}>~3 min</option>
               </select>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={writeScript} disabled={writingScript}>
+              <button type="button" className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: writeScript, disabled: writingScript })}>
                 {writingScript ? 'Writing…' : 'Write script'}
               </button>
             </div>
@@ -303,7 +306,10 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
                 <span style={{ color: 'var(--text-subtle)' }}>— subtitles baked into the video (recommended for silent autoplay).</span>
               </span>
             </label>
-            <div><button className="btn btn-primary" onClick={generate} disabled={busy}>{busy ? 'Sending…' : '✦ Generate reel'}</button></div>
+            <div>
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: generate, disabled: busy })}>{busy ? 'Sending…' : '✦ Generate reel'}</button>
+              {readOnly && <span className="body-xs text-subtle" style={{ marginLeft: 10 }}>{READ_ONLY_MSG}</span>}
+            </div>
           </div>
         </div>
       )}
@@ -370,7 +376,7 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
             <video src={modalReel.video_url} controls autoPlay
               style={{ width: '100%', borderRadius: 'var(--r-sm)', background: '#000', maxHeight: '64vh' }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-              <button className="btn btn-primary btn-sm" onClick={() => schedule(modalReel.id)}>📅 Schedule</button>
+              <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => schedule(modalReel.id) })}>📅 Schedule</button>
               <a className="btn btn-secondary btn-sm" href={modalReel.video_url} target="_blank" rel="noreferrer" download>Download</a>
               <button className="btn btn-ghost btn-sm" onClick={() => { remove(modalReel.id); setModalReel(null); }}>Delete</button>
             </div>

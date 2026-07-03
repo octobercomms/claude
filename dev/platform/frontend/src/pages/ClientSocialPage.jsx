@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { roWrite, READ_ONLY_MSG } from '../utils/readOnly';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
@@ -92,9 +93,8 @@ export default function ClientSocialPage() {
   useEffect(() => {
     if (socialTab === 'loop') setSocialTab('perf_insights');
     if (socialTab === 'learn') setSocialTab('performance');
-    if (readOnly && inCreate) setSocialTab('overview');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socialTab, readOnly, inCreate]);
+  }, [socialTab]);
   // Lifted to page level so the SocialSuiteOverview can read it for
   // state-aware "where you are in the loop" detection. PlansList
   // receives the array as a prop instead of fetching its own.
@@ -397,13 +397,11 @@ export default function ClientSocialPage() {
         <div>
           <h1 className="display mt-2">Shared</h1>
         </div>
-        {!readOnly && (
-          <div className="hero-actions">
-            <UiButton variant="secondary" size="sm" onClick={toggleAutopilotPaused}>
-              {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
-            </UiButton>
-          </div>
-        )}
+        <div className="hero-actions">
+          <UiButton variant="secondary" size="sm" {...roWrite(readOnly, { onClick: toggleAutopilotPaused })}>
+            {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
+          </UiButton>
+        </div>
       </header>
 
       {/* Four top groups in workflow order: Overview / Create / Engage / Measure.
@@ -436,11 +434,10 @@ export default function ClientSocialPage() {
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
-          // Build is the produce factory — agency-only. Hidden for client logins.
-          !readOnly && { key: 'create', label: 'Build', active: currentGroup === 'create', onClick: () => setSocialTab('brainstorm') },
+          { key: 'create',   label: 'Build',    active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
           { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
           { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
-        ].filter(Boolean);
+        ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
         }));
@@ -679,6 +676,7 @@ function BrainstormTab({
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, stitchReel, generateMedia, deleteMedia,
 }) {
+  const { readOnly } = useAuth();
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
@@ -857,7 +855,7 @@ function BrainstormTab({
             <div className="row wrap center" style={{ gap: 8 }}>
               <UiButton variant="ghost" onClick={() => goStep(1)} disabled={generating}>↻ Generate again</UiButton>
               {onOpenReels && <UiButton variant="ghost" onClick={onOpenReels}>🎬 Avatar reels</UiButton>}
-              <UiButton variant="ghost" onClick={onShareForApproval} disabled={!posts.length}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
+              <UiButton variant="ghost" {...roWrite(readOnly, { onClick: onShareForApproval, disabled: !posts.length })}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
               <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Schedule →</UiButton>
             </div>
           </div>
@@ -882,7 +880,7 @@ function BrainstormTab({
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
               <UiButton variant="ghost" onClick={() => goStep(2)}>← Back to Review</UiButton>
-              <UiButton variant="primary" onClick={onBulkSchedule} disabled={!hasAutopilotSupported}>📅 Bulk schedule</UiButton>
+              <UiButton variant="primary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>📅 Bulk schedule</UiButton>
             </div>
           </div>
           {!hasAutopilotSupported && (
@@ -947,15 +945,19 @@ function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReu
 
 // One production action: an aligned button + a plain-English "what this does".
 // Used to group the post's producers by intent so the flow reads itself.
-function ProdAction({ label, hint, onClick, disabled, active, href }) {
+function ProdAction({ label, hint, onClick, disabled, active, href, safe }) {
+  const { readOnly } = useAuth();
+  // Produce actions are blocked for a read-only client; view/download actions
+  // (safe, or an href link) stay usable so they can still open/download.
+  const blocked = readOnly && !safe && !href;
   const btnCls = 'btn btn-sm ' + (active ? 'btn-primary' : 'btn-secondary');
   const btnStyle = { flex: '0 0 auto', minWidth: 168, justifyContent: 'flex-start' };
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       {href
         ? <a href={href} target="_blank" rel="noreferrer" className={btnCls} style={btnStyle}>{label}</a>
-        : <button type="button" onClick={onClick} disabled={disabled} className={btnCls} style={btnStyle}>{label}</button>}
-      {hint && <span className="body-xs text-subtle" style={{ lineHeight: 1.3 }}>{hint}</span>}
+        : <button type="button" {...roWrite(blocked, { onClick, disabled })} className={btnCls} style={btnStyle}>{label}</button>}
+      <span className="body-xs text-subtle" style={{ lineHeight: 1.3 }}>{blocked ? READ_ONLY_MSG : hint}</span>
     </div>
   );
 }
@@ -1612,6 +1614,7 @@ function GeneratingOverlay({ count = 9 }) {
 // (no longer a modal). Writes the brief, picks count + platforms + optional
 // reference uploads, and kicks off generation.
 function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count = 9, setCount, length = 'medium', setLength, onSubmit, submitting }) {
+  const { readOnly } = useAuth();
   const [uploads, setUploads] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
@@ -1697,9 +1700,10 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
         </p>
       </>)}
       <div style={{ marginTop: 16 }}>
-        <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={submitting || !platforms.length}>
+        <button type="button" className="btn btn-primary" {...roWrite(readOnly, { onClick: onSubmit, disabled: submitting || !platforms.length })}>
           {submitting ? 'Generating…' : `✦ Generate ${count} post${count === 1 ? '' : 's'}`}
         </button>
+        {readOnly && <p className="body-xs text-subtle" style={{ marginTop: 8 }}>{READ_ONLY_MSG}</p>}
       </div>
     </div>
   );
@@ -2126,10 +2130,10 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
               </ProdGroup>
 
               <ProdGroup title="📋 Plan & hand-off">
-                <ProdAction label={open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length})`} active={open}
+                <ProdAction safe label={open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length})`} active={open}
                   onClick={() => setOpen(o => !o)}
                   hint="The shot-by-shot plan behind this post." />
-                <ProdAction label="Production brief" onClick={async () => {
+                <ProdAction safe label="Production brief" onClick={async () => {
                   try { const { url } = await api.get(`/social/posts/${post.id}/brief-url`); window.open(url, '_blank'); }
                   catch (e) { alert(`Could not open brief: ${e.message}`); }
                 }} hint="A printable brief to hand whoever films it." />
