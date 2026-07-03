@@ -39,6 +39,7 @@ export default function ClientSocialPage() {
   const [brief, setBrief] = useState('');
   const [platforms, setPlatforms] = useState(['instagram', 'tiktok']);
   const [postCount, setPostCount] = useState(9);
+  const [postLength, setPostLength] = useState('medium'); // caption length target
   const [reelDraft, setReelDraft] = useState(null);
   const [createView, setCreateView] = useState(null); // null = factory steps | 'reels' = avatar-reel produce overlay
   const [winners, setWinners] = useState([]);
@@ -228,7 +229,7 @@ export default function ClientSocialPage() {
   async function generate() {
     setGenerating(true);
     try {
-      const { batch, posts: newPosts } = await api.post(`/social/clients/${id}/generate`, { brief, platforms, count: postCount });
+      const { batch, posts: newPosts } = await api.post(`/social/clients/${id}/generate`, { brief, platforms, count: postCount, length: postLength });
       setBatches([batch, ...batches]);
       setActiveBatchId(batch.id);
       setPosts(newPosts);
@@ -519,6 +520,7 @@ export default function ClientSocialPage() {
             <BriefForm clientId={id} brief={brief} setBrief={setBrief}
               platforms={platforms} setPlatforms={setPlatforms}
               count={postCount} setCount={setPostCount}
+              length={postLength} setLength={setPostLength}
               onSubmit={generate} submitting={generating} />
           )}
           plansContent={(
@@ -1602,7 +1604,7 @@ function GeneratingOverlay({ count = 9 }) {
 // The generate form, rendered inline as the Brief step of the Build factory
 // (no longer a modal). Writes the brief, picks count + platforms + optional
 // reference uploads, and kicks off generation.
-function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count = 9, setCount, onSubmit, submitting }) {
+function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count = 9, setCount, length = 'medium', setLength, onSubmit, submitting }) {
   const [uploads, setUploads] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
@@ -1648,6 +1650,23 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
           </button>
         ))}
       </div>
+      <label style={modalStyles.label}>Post length</label>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {[
+          { id: 'short', label: 'Short', hint: 'punchy — 1–2 lines' },
+          { id: 'medium', label: 'Medium', hint: 'a short paragraph' },
+          { id: 'long', label: 'Long', hint: 'detailed / storytelling' },
+        ].map(o => (
+          <button key={o.id} type="button" onClick={() => setLength && setLength(o.id)}
+            title={o.hint}
+            style={{ ...(length === o.id ? modalStyles.pillOn : modalStyles.pill) }}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0' }}>
+        {length === 'short' ? 'Punchy captions, 1–2 lines.' : length === 'long' ? 'Detailed, storytelling captions.' : 'A short paragraph per post.'}
+      </p>
       <label style={modalStyles.label}>Platforms</label>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {['instagram', 'tiktok', 'linkedin', 'facebook'].map(p => (

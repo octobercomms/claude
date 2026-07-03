@@ -95,9 +95,16 @@ const POSTS_TOOL = {
   },
 };
 
-async function generateBatch({ clientId, brief, platforms, count }) {
+async function generateBatch({ clientId, brief, platforms, count, length }) {
   // How many posts to produce this batch (1–9; default 9).
   const n = Math.max(1, Math.min(9, parseInt(count, 10) || 9));
+  // Caption-length target — the AM picks this on the brief form.
+  const LENGTH_GUIDE = {
+    short: 'Keep every caption SHORT — 1–2 punchy lines, ~20–40 words. No preamble.',
+    medium: 'Keep captions MEDIUM — one tight paragraph, ~40–80 words.',
+    long: 'Write LONG, detailed captions — 2–4 short paragraphs, storytelling, ~120–200 words.',
+  };
+  const lengthGuide = LENGTH_GUIDE[length] || LENGTH_GUIDE.medium;
   const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
   const c = rows[0];
   if (!c) throw new Error('Client not found');
@@ -182,7 +189,9 @@ ${winners.length
   ? `Posts that have actually performed well for THIS brand in the last 90 days (model the new batch on what's already engaging this audience — don't copy verbatim, lift the angle and structure):\n${winners.map((w, i) => `${i + 1}. [${w.platform} · ${w.kind} · ${w.engagement_rate}% engagement] hook: "${w.hook || '(none)'}" — caption opener: "${(w.caption || '').slice(0, 120)}…"`).join('\n')}`
   : 'No published-post engagement data yet — design on brand + brief + trends alone. After the AM publishes a few of these and marks them published, future batches will draw on what worked.'}
 
-Produce exactly ${n} post${n === 1 ? '' : 's'}. Mix the platforms in scope. Mix reels + static + carousel so the AM can choose; if the brief asks for one kind specifically, follow that. Use British English. Keep hashtags to 3–5 highly relevant ones per post (see the Instagram playbook) — never a wall.`;
+Produce exactly ${n} post${n === 1 ? '' : 's'}. Mix the platforms in scope. Mix reels + static + carousel so the AM can choose; if the brief asks for one kind specifically, follow that. Use British English. Keep hashtags to 3–5 highly relevant ones per post (see the Instagram playbook) — never a wall.
+
+Caption length: ${lengthGuide}`;
 
   // The propose_posts tool, with the array bounds set to the requested count.
   const postsTool = {
