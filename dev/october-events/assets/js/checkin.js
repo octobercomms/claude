@@ -114,7 +114,7 @@
     function manifestFromData(data) {
         // The manifest carries token *hashes*, not raw tokens.
         var tokens = {};
-        (data.tickets || []).forEach(function (t) { tokens[t.token_hash] = { attendee: t.attendee, type: t.type }; });
+        (data.tickets || []).forEach(function (t) { tokens[t.token_hash] = { attendee: t.attendee, type: t.type, venues: t.venues || [] }; });
         // checked is keyed by "<hash>|<venue>" so a repeat is only flagged at the
         // same door. Older manifests sent a bare hash string (any door) — keep
         // reading those so a stale cache still works after an update.
@@ -319,6 +319,11 @@
         sha256hex(token).then(function (h) {
             var t = manifest.tokens[h];
             if (!t) { overlay('invalid', {}); return; }
+            // Venue-scoped ticket (e.g. Serenbe-only): valid only at its listed
+            // doors. Empty list = valid everywhere. Not recorded when wrong-door.
+            if (t.venues && t.venues.length && t.venues.indexOf(state.venue) === -1) {
+                overlay('wrong_venue', { type: t.type, offline: true }); return;
+            }
             // Door-aware: a repeat is only "already" at the *same* door; a new
             // door is a fresh valid check-in (matches the online behaviour).
             var key = h + '|' + state.venue;
@@ -354,6 +359,7 @@
             valid: ['ok', '✓ Welcome', (info.attendee || info.type || '') + off],
             already: ['warn', '⚠ Already scanned', (info.attendee || '') + ' · ' + (info.count || 0) + ' scans'],
             wrong_event: ['bad', '✗ Wrong event', 'This ticket is for another event'],
+            wrong_venue: ['warn', '✗ Not valid at this door', (info.type ? info.type + ' — ' : '') + 'valid at another door only'],
             invalid: ['bad', '✗ Invalid', 'Ticket not recognised'],
             offline: ['bad', '⚠ Offline — not ready', 'Connect once and re-enter the PIN to scan offline']
         };

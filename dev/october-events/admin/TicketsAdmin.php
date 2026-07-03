@@ -58,13 +58,15 @@ final class TicketsAdmin {
         $types  = TicketTypes::types($post->ID);
         $venues = TicketTypes::venues($post->ID);
         ?>
-        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2).', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2). "Max/order" caps how many of a type one buyer can take at once — it defaults to 99 (no practical limit, good for group buyers like colleges); lower it on a type you want to restrict. "Valid at" scopes a ticket to specific doors — leave it blank for all doors, or list the door names (from Check-in venues below) a ticket may enter at, e.g. a lower-priced Serenbe-only ticket that scans only at the Serenbe homes.', 'october-events'); ?></p>
         <table class="widefat" id="oe-tt-table">
             <thead><tr>
                 <th><?php esc_html_e('Label', 'october-events'); ?></th>
                 <th><?php esc_html_e('Price', 'october-events'); ?></th>
                 <th><?php esc_html_e('Sale', 'october-events'); ?></th>
                 <th><?php esc_html_e('Admits', 'october-events'); ?></th>
+                <th><?php esc_html_e('Max/order', 'october-events'); ?></th>
+                <th><?php esc_html_e('Valid at', 'october-events'); ?></th>
                 <th><?php esc_html_e('On sale from', 'october-events'); ?></th>
                 <th><?php esc_html_e('until', 'october-events'); ?></th>
                 <th><?php esc_html_e('Active', 'october-events'); ?></th>
@@ -166,6 +168,8 @@ final class TicketsAdmin {
             <td><input type="number" step="0.01" min="0" name="oe_tt[<?php echo $i; ?>][price]" value="<?php echo $g('price'); ?>" style="width:80px"></td>
             <td><input type="number" step="0.01" min="0" name="oe_tt[<?php echo $i; ?>][sale_price]" value="<?php echo esc_attr($t['sale_price'] ?? ''); ?>" style="width:80px"></td>
             <td><input type="number" min="1" max="20" name="oe_tt[<?php echo $i; ?>][qty_per_purchase]" value="<?php echo $g('qty_per_purchase', '1'); ?>" style="width:55px"></td>
+            <td><input type="number" min="1" max="99" name="oe_tt[<?php echo $i; ?>][max_per_order]" value="<?php echo $g('max_per_order', '99'); ?>" style="width:55px" title="<?php esc_attr_e('Most of this ticket one buyer can purchase at once (1–99). Default 99 — lower it to restrict.', 'october-events'); ?>"></td>
+            <td><input type="text" name="oe_tt[<?php echo $i; ?>][venues_csv]" value="<?php echo esc_attr(implode(', ', TicketTypes::type_venues($t))); ?>" style="width:150px" placeholder="<?php esc_attr_e('All doors', 'october-events'); ?>" title="<?php esc_attr_e('Comma-separated door names this ticket is valid at (must match the Check-in venues below). Blank = valid at every door. Use it to make a ticket scan only at certain homes, e.g. a Serenbe-only ticket.', 'october-events'); ?>"></td>
             <td><input type="datetime-local" name="oe_tt[<?php echo $i; ?>][sale_from]" value="<?php echo esc_attr($this->dt_local((string) ($t['sale_from'] ?? ''))); ?>"></td>
             <td><input type="datetime-local" name="oe_tt[<?php echo $i; ?>][sale_until]" value="<?php echo esc_attr($this->dt_local((string) ($t['sale_until'] ?? ''))); ?>"></td>
             <td style="text-align:center"><input type="checkbox" name="oe_tt[<?php echo $i; ?>][active]" value="1" <?php checked(! empty($t['active']) || $t === []); ?>></td>
@@ -182,11 +186,31 @@ final class TicketsAdmin {
             return;
         }
 
+        // Parse the check-in doors first so each ticket type's "Valid at" list can
+        // be validated against real door names (typos / unknown doors are dropped,
+        // which safely falls back to "valid at every door").
+        $venues = array_values(array_filter(array_map(
+            static fn($n) => sanitize_text_field(trim((string) $n)),
+            preg_split('/\r\n|\r|\n/', (string) wp_unslash($_POST['oe_venues'] ?? ''))
+        )));
+        $venue_lut = [];
+        foreach ($venues as $vn) {
+            $venue_lut[strtolower($vn)] = $vn; // lowercase → canonical door name
+        }
+
         $rows = (array) ($_POST['oe_tt'] ?? []);
         $types = [];
         foreach ($rows as $r) {
             if (trim((string) ($r['label'] ?? '')) === '') {
                 continue;
+            }
+            // "Valid at" — keep only entries matching a real door, canonicalised.
+            $picked = [];
+            foreach (explode(',', (string) ($r['venues_csv'] ?? '')) as $name) {
+                $k = strtolower(trim($name));
+                if ($k !== '' && isset($venue_lut[$k])) {
+                    $picked[$venue_lut[$k]] = true;
+                }
             }
             $types[] = [
                 'label'            => $r['label'],
@@ -194,6 +218,8 @@ final class TicketsAdmin {
                 'price'            => $r['price'] ?? 0,
                 'sale_price'       => $r['sale_price'] ?? '',
                 'qty_per_purchase' => $r['qty_per_purchase'] ?? 1,
+                'max_per_order'    => $r['max_per_order'] ?? 99,
+                'venues'           => array_keys($picked),
                 'active'           => ! empty($r['active']),
                 'sale_from'        => $this->from_local((string) ($r['sale_from'] ?? '')),
                 'sale_until'       => $this->from_local((string) ($r['sale_until'] ?? '')),
@@ -202,8 +228,7 @@ final class TicketsAdmin {
         TicketTypes::set_types($post_id, $types);
 
         update_post_meta($post_id, TicketTypes::META_SALE_UNTIL, $this->from_local((string) ($_POST['oe_sale_until'] ?? '')));
-        $venues = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) wp_unslash($_POST['oe_venues'] ?? ''))));
-        update_post_meta($post_id, TicketTypes::META_VENUES, wp_json_encode(array_map(static fn($n) => ['name' => sanitize_text_field($n)], $venues)));
+        update_post_meta($post_id, TicketTypes::META_VENUES, wp_json_encode(array_map(static fn($n) => ['name' => $n], $venues)));
         update_post_meta($post_id, TicketTypes::META_PIN, preg_replace('/\D/', '', (string) ($_POST['oe_checkin_pin'] ?? '')));
         update_post_meta($post_id, TicketTypes::META_LOGO, absint($_POST['oe_ticket_logo'] ?? 0));
         // Event-wide capacity (blank/0 = unlimited).

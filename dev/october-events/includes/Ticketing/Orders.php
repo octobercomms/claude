@@ -110,6 +110,17 @@ final class Orders {
                 self::unlock($cap_lock);
                 return new \WP_Error('oe_unavailable', __('Those tickets are no longer available.', 'october-events'));
             }
+            // Per-type purchase cap — the JS stepper enforces this too, but the
+            // request is re-checked here so a crafted call can't exceed it.
+            $max_per_order = TicketTypes::max_per_order($type);
+            if ($qty > $max_per_order) {
+                self::unlock($cap_lock);
+                return new \WP_Error('oe_max_per_order', sprintf(
+                    /* translators: %d: maximum tickets of this type per order */
+                    __('You can buy at most %d of that ticket per order.', 'october-events'),
+                    $max_per_order
+                ));
+            }
             $cap = TicketTypes::event_capacity($event_id);
             if ($cap !== null) {
                 // Authoritative read inside the lock — bypass the per-request memo.
@@ -522,6 +533,12 @@ final class Orders {
         \OE\Mail\Contacts::capture($order->email, ['name' => (string) $order->name, 'source' => 'ticket']);
         // Attach an "add to calendar" invite (.ics) when the event has a date.
         $ics    = Ics::tempfile($event_id);
+        // Per-type door restrictions, keyed by label, so a venue-scoped ticket
+        // (e.g. Serenbe-only) shows "Valid at …" in the confirmation email too.
+        $type_venues = [];
+        foreach (($event_id ? TicketTypes::types($event_id) : []) as $tt) {
+            $type_venues[(string) $tt['label']] = TicketTypes::type_venues($tt);
+        }
         $params = [
             'event_name' => get_the_title($event_id),
             'order_id'   => $order_id,
@@ -534,6 +551,7 @@ final class Orders {
                 'number'   => $t->ticket_number . ' / ' . $t->total_in_order,
                 'attendee' => (string) $t->attendee_name,
                 'type'     => (string) $t->ticket_type_label,
+                'venues'   => $type_venues[(string) $t->ticket_type_label] ?? [],
                 'url'      => self::ticket_url($t->token),
                 'token'    => (string) $t->token,
             ], $tickets),
