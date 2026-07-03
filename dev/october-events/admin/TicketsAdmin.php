@@ -105,8 +105,51 @@ final class TicketsAdmin {
 
         <p><label><strong><?php esc_html_e('Close all sales at', 'october-events'); ?></strong>
             <input type="datetime-local" name="oe_sale_until" value="<?php echo esc_attr($this->dt_local((string) get_post_meta($post->ID, TicketTypes::META_SALE_UNTIL, true))); ?>"></label></p>
-        <p><label><strong><?php esc_html_e('Check-in venues / doors', 'october-events'); ?></strong> — <?php esc_html_e('one per line', 'october-events'); ?><br>
-            <textarea name="oe_venues" rows="3" class="large-text"><?php echo esc_textarea(implode("\n", array_map(static fn($v) => (string) ($v['name'] ?? ''), $venues))); ?></textarea></label></p>
+        <p style="margin-bottom:4px"><strong><?php esc_html_e('Check-in venues / doors', 'october-events'); ?></strong> —
+            <span class="description"><?php esc_html_e('type a door name and press Enter; click ✕ to remove. Save to use them in the “Valid at” column above.', 'october-events'); ?></span></p>
+        <div id="oe-doors-field" style="border:1px solid #8c8f94;border-radius:4px;padding:3px 4px;background:#fff;max-width:640px;cursor:text">
+            <span id="oe-doors-tags"></span><input type="text" id="oe-doors-input" placeholder="<?php esc_attr_e('Add a door…', 'october-events'); ?>" style="border:0;outline:0;padding:6px 4px;min-width:160px;font-size:13px;background:transparent">
+        </div>
+        <script>
+        (function(){
+            var wrap = document.getElementById('oe-doors-field'),
+                tags = document.getElementById('oe-doors-tags'),
+                input = document.getElementById('oe-doors-input'),
+                seen = {};
+            function add(name){
+                name = (name || '').replace(/\s+/g, ' ').trim();
+                if (!name) { return; }
+                var key = name.toLowerCase();
+                if (seen[key]) { return; } // dedupe, case-insensitive
+                seen[key] = true;
+                var chip = document.createElement('span');
+                chip.className = 'oe-door-chip';
+                chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:#f0f0f1;border:1px solid #c3c4c7;border-radius:3px;padding:2px 6px;margin:2px;font-size:13px;vertical-align:middle';
+                var label = document.createElement('span'); label.textContent = name;
+                var hid = document.createElement('input'); hid.type = 'hidden'; hid.name = 'oe_venues[]'; hid.value = name;
+                var x = document.createElement('button'); x.type = 'button'; x.textContent = '✕';
+                x.setAttribute('aria-label', 'Remove ' + name);
+                x.style.cssText = 'border:0;background:transparent;cursor:pointer;color:#b32d2e;font-size:12px;line-height:1;padding:0';
+                x.addEventListener('click', function(){ delete seen[key]; chip.remove(); });
+                chip.appendChild(label); chip.appendChild(hid); chip.appendChild(x);
+                tags.appendChild(chip);
+            }
+            input.addEventListener('keydown', function(e){
+                if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(input.value); input.value = ''; }
+                else if (e.key === 'Backspace' && input.value === '') {
+                    var chips = tags.querySelectorAll('.oe-door-chip');
+                    if (chips.length) { chips[chips.length - 1].querySelector('button').click(); }
+                }
+            });
+            input.addEventListener('blur', function(){ if (input.value.trim()) { add(input.value); input.value = ''; } });
+            input.addEventListener('paste', function(e){
+                var t = (e.clipboardData || window.clipboardData).getData('text');
+                if (t && /[\n,]/.test(t)) { e.preventDefault(); t.split(/[\n,]+/).forEach(add); input.value = ''; }
+            });
+            wrap.addEventListener('click', function(){ input.focus(); });
+            (<?php echo wp_json_encode($this->doors, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?: '[]'; ?>).forEach(add);
+        })();
+        </script>
         <?php
         // Resolve the effective PIN now (generating + storing a secure random one on
         // first open) so it's always visible to hand to door staff — rather than
@@ -214,15 +257,23 @@ final class TicketsAdmin {
         }
 
         // Parse the check-in doors first so each ticket type's "Valid at" list can
-        // be validated against real door names (typos / unknown doors are dropped,
-        // which safely falls back to "valid at every door").
-        $venues = array_values(array_filter(array_map(
-            static fn($n) => sanitize_text_field(trim((string) $n)),
-            preg_split('/\r\n|\r|\n/', (string) wp_unslash($_POST['oe_venues'] ?? ''))
-        )));
+        // be validated against real door names. The doors come from the tag widget
+        // as an array (oe_venues[]); fall back to newline-split text for safety.
+        $raw_venues = wp_unslash($_POST['oe_venues'] ?? '');
+        $venue_list = is_array($raw_venues) ? $raw_venues : preg_split('/\r\n|\r|\n/', (string) $raw_venues);
+        $venues = [];
         $venue_lut = [];
-        foreach ($venues as $vn) {
-            $venue_lut[strtolower($vn)] = $vn; // lowercase → canonical door name
+        foreach ($venue_list as $n) {
+            $name = sanitize_text_field(trim((string) $n));
+            if ($name === '') {
+                continue;
+            }
+            $k = strtolower($name);
+            if (isset($venue_lut[$k])) {
+                continue; // dedupe, case-insensitive, first spelling wins
+            }
+            $venue_lut[$k] = $name; // lowercase → canonical door name
+            $venues[] = $name;
         }
 
         $rows = (array) ($_POST['oe_tt'] ?? []);
