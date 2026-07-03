@@ -5,7 +5,7 @@
 
 const express = require('express');
 const pool = require('../db');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, agencyOnly } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const claudeService = require('../services/claude');
 const dataForSEO = require('../connectors/dataforseo');
@@ -1001,7 +1001,7 @@ router.get('/clients/:clientId/keyword-footprint', async (req, res) => {
 // route returns a 503 with the unlock date; post-cutover it works.
 const { isUnlocked } = require('../services/dfsAvailability');
 
-router.get('/clients/:clientId/anchor-text', async (req, res) => {
+router.get('/clients/:clientId/anchor-text', agencyOnly, async (req, res) => {
   if (!isUnlocked('backlinks')) {
     return res.status(503).json({
       error: 'Backlinks anchor-text is gated until DataForSEO Backlinks unlocks on 1 July 2026.',
@@ -1015,7 +1015,7 @@ router.get('/clients/:clientId/anchor-text', async (req, res) => {
   } catch (err) { res.status(502).json({ error: err.message }); }
 });
 
-router.get('/clients/:clientId/dofollow-split', async (req, res) => {
+router.get('/clients/:clientId/dofollow-split', agencyOnly, async (req, res) => {
   if (!isUnlocked('backlinks')) {
     return res.status(503).json({
       error: 'Backlinks dofollow split is gated until DataForSEO Backlinks unlocks on 1 July 2026.',

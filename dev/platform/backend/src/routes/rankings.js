@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, agencyOnly } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const dataForSEO = require('../connectors/dataforseo');
 
@@ -310,7 +310,7 @@ router.delete('/seo-metrics/:clientId/:month', async (req, res) => {
 });
 
 // SEO summary: backlinks + domain rank for a client's domain
-router.get('/seo-summary/:clientId', async (req, res) => {
+router.get('/seo-summary/:clientId', agencyOnly, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT domain, slug FROM clients WHERE id = $1', [req.params.clientId]);
     if (!rows.length) return res.status(404).json({ error: 'Client not found' });
@@ -335,7 +335,7 @@ router.get('/seo-summary/:clientId', async (req, res) => {
 });
 
 // Fetch Google reviews for a client's domain
-router.get('/reviews/:clientId', async (req, res) => {
+router.get('/reviews/:clientId', agencyOnly, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.clientId]);
     if (!rows.length) return res.status(404).json({ error: 'Client not found' });
@@ -349,7 +349,7 @@ router.get('/reviews/:clientId', async (req, res) => {
 });
 
 // Check LLM / AI Overview visibility for a client
-router.get('/llm-visibility/:clientId', async (req, res) => {
+router.get('/llm-visibility/:clientId', agencyOnly, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.clientId]);
     if (!rows.length) return res.status(404).json({ error: 'Client not found' });
