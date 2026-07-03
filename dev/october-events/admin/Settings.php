@@ -29,10 +29,41 @@ final class Settings {
         add_action('admin_post_oe_test_updater', [$this, 'test_updater']);
         add_action('admin_post_oe_test_voice', [$this, 'test_voice']);
         add_action('admin_post_oe_send_test_email', [$this, 'send_test_email']);
+        add_action('wp_ajax_oe_reveal_secret', [$this, 'ajax_reveal_secret']);
         // Allow brand font files (.woff2/.woff/.ttf/.otf) to be uploaded to the
         // media library (WordPress blocks these MIME types by default).
         add_filter('upload_mimes', [$this, 'allow_font_mimes']);
         add_filter('wp_check_filetype_and_ext', [$this, 'fix_font_filetype'], 10, 4);
+    }
+
+    /**
+     * Reveal a single saved secret to an authorised admin, on demand — so the
+     * "show" eye can display a saved API key / token (e.g. to copy it to another
+     * site) without echoing every secret into the page on load. Admin + nonce
+     * gated; refuses values pinned by a wp-config constant.
+     */
+    public function ajax_reveal_secret(): void {
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'forbidden'], 403);
+        }
+        check_ajax_referer('oe_reveal_secret', 'nonce');
+        $key = sanitize_key((string) ($_POST['key'] ?? ''));
+        $allowed = array_merge(array_keys(\OE\Settings::secret_keys()), ['github_token']);
+        if (! in_array($key, $allowed, true)) {
+            wp_send_json_error(['message' => 'unknown_key']);
+        }
+        if ($key === 'github_token') {
+            if (defined('OE_GITHUB_TOKEN') && OE_GITHUB_TOKEN) {
+                wp_send_json_error(['message' => 'constant']);
+            }
+            $value = \OE\Updater::token();
+        } else {
+            if (\OE\Settings::secret_is_constant($key)) {
+                wp_send_json_error(['message' => 'constant']);
+            }
+            $value = (string) \OE\Settings::get($key, '');
+        }
+        wp_send_json_success(['value' => $value]);
     }
 
     /** @param array<string,string> $mimes */

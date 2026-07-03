@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.70.2 — reveal a saved secret (to copy a key between sites)
+
+The "show" (eye) button on a saved API key / token did nothing, because saved
+secrets are never sent to the browser on page load (a deliberate hardening). It
+now **fetches the saved value on demand** when you click the eye — so you can read
+and copy a key (e.g. the GitHub updater token) to paste on another site.
+
+- Admin-only (`manage_options`) and nonce-protected; the value is fetched with a
+  single authenticated request only when you click show, never echoed into the
+  page otherwise.
+- Works for the Stripe / Claude / Maps / PayPal keys, the SES & AWS secrets, and
+  the GitHub token. Values pinned by a `wp-config.php` constant are never revealed
+  (their fields stay locked, as before).
+
 ## 1.70.1 — "Valid at" is a compact dropdown, not a wall of checkboxes
 
 With a lot of doors, a checkbox-per-door in every ticket row got unwieldy. Each
