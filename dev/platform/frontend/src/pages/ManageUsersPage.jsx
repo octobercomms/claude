@@ -205,14 +205,20 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
         <div className="field">
           <label className="field-label">Role</label>
           <select className="input" value={role} onChange={e => setRole(e.target.value)}>
-            <option value="viewer">Viewer (sees only assigned clients)</option>
+            <option value="viewer">Viewer (agency — read/write on assigned clients)</option>
+            <option value="client">Client (read-only — their own account, can't spend credits)</option>
             <option value="admin">Admin (sees everything, manages users)</option>
           </select>
+          {role === 'client' && (
+            <p className="body-xs text-subtle" style={{ marginTop: 6 }}>
+              A client login can browse everything on their assigned account but cannot change anything or trigger any AI generation — every write is blocked server-side.
+            </p>
+          )}
         </div>
 
-        {role === 'viewer' && (
+        {(role === 'viewer' || role === 'client') && (
           <div className="field">
-            <label className="field-label">Assigned clients</label>
+            <label className="field-label">Assigned client{role === 'client' ? '' : 's'}</label>
             <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 4, background: 'var(--surface-raised)' }}>
               {clients.map(c => (
                 <label key={c.id} className="row center" style={{ gap: 8, padding: '6px 8px', fontSize: 13, cursor: 'pointer' }}>

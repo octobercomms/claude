@@ -47,6 +47,18 @@ async function authenticate(req, res, next) {
   } catch {
     return res.status(500).json({ error: 'Auth lookup failed' });
   }
+
+  // Read-only client logins: a 'client' role can never mutate data or spend AI
+  // credits. Every generator/producer in the app is a POST, so blocking all
+  // non-GET requests for this role is a single, auditable guarantee. Auth
+  // self-service (login/logout/change-password/me) is exempt — none of it
+  // spends anything. GET/HEAD/OPTIONS pass through (OPTIONS is CORS preflight).
+  if (req.user.role === 'client'
+      && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+      && !(req.originalUrl || '').startsWith('/api/auth/')) {
+    return res.status(403).json({ error: 'Your account has read-only access.' });
+  }
+
   next();
 }
 

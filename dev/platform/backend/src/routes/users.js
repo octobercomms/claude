@@ -22,7 +22,12 @@ router.get('/', requireAdmin, async (req, res) => {
 router.post('/', requireAdmin, async (req, res) => {
   const { username, password, role, clientIds } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'username and password required' });
-  if (role && !['admin', 'viewer'].includes(role)) return res.status(400).json({ error: 'invalid role' });
+  if (role && !['admin', 'viewer', 'client'].includes(role)) return res.status(400).json({ error: 'invalid role' });
+  // A read-only client login must be tied to at least one client — otherwise
+  // it can see nothing and serves no purpose.
+  if (role === 'client' && !(Array.isArray(clientIds) && clientIds.length)) {
+    return res.status(400).json({ error: 'a client login must be assigned at least one client' });
+  }
   try {
     const created = await users.create({ username, password, role, clientIds });
     res.status(201).json(created);
@@ -34,7 +39,7 @@ router.post('/', requireAdmin, async (req, res) => {
 
 router.put('/:id', requireAdmin, async (req, res) => {
   const { password, role, clientIds } = req.body || {};
-  if (role && !['admin', 'viewer'].includes(role)) return res.status(400).json({ error: 'invalid role' });
+  if (role && !['admin', 'viewer', 'client'].includes(role)) return res.status(400).json({ error: 'invalid role' });
   try {
     const target = await users.findById(req.params.id);
     if (!target) return res.status(404).json({ error: 'user not found' });
