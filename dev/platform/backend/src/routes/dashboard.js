@@ -117,4 +117,61 @@ function getNextReportDate(schedule) {
   return results[0] || null;
 }
 
+// Personalised read-only client landing — the caller's own single client.
+// Reads only our DB (no paid API calls). Each tile is best-effort so a
+// missing table/column can never 500 the whole page.
+router.get('/client-home', async (req, res) => {
+  try {
+    const visibleIds = await users.getVisibleClientIds(req.user);
+    const clientId = Array.isArray(visibleIds) && visibleIds.length ? visibleIds[0] : null;
+    if (!clientId) return res.status(400).json({ error: 'No client assigned to this account.' });
+
+    const { rows: cRows } = await pool.query('SELECT id, name, domain FROM clients WHERE id = $1', [clientId]);
+    if (!cRows.length) return res.status(404).json({ error: 'Client not found' });
+    const client = cRows[0];
+
+    const tile = async (fn) => { try { return await fn(); } catch { return null; } };
+    const num = async (sql) => { const { rows } = await pool.query(sql, [clientId]); return rows[0]?.n ?? null; };
+
+    const [latestReport, published30d, upcoming, keywords, backlinks, recentPosts] = await Promise.all([
+      tile(async () => {
+        const { rows } = await pool.query(
+          `SELECT id, report_type, period_start, period_end, status, sent_at, created_at
+             FROM reports WHERE client_id = $1 AND status IN ('sent','generated')
+            ORDER BY COALESCE(sent_at, created_at) DESC LIMIT 1`, [clientId]);
+        return rows[0] || null;
+      }),
+      tile(() => num(`SELECT COUNT(*)::int AS n FROM social_posts WHERE client_id = $1 AND status = 'published' AND published_at >= NOW() - INTERVAL '30 days'`)),
+      tile(() => num(`SELECT COUNT(*)::int AS n FROM social_post_publications WHERE client_id = $1 AND status = 'pending' AND scheduled_at > NOW()`)),
+      tile(() => num(`SELECT COUNT(*)::int AS n FROM seo_keywords WHERE client_id = $1 AND active = true`)),
+      tile(async () => {
+        const { rows } = await pool.query(
+          `SELECT referring_domains_total, backlinks_total, captured_at FROM dfs_backlinks_summary
+            WHERE client_id = $1 ORDER BY captured_at DESC LIMIT 1`, [clientId]);
+        return rows[0] || null;
+      }),
+      tile(async () => {
+        const { rows } = await pool.query(
+          `SELECT id, hook, caption, platform, published_url, published_at FROM social_posts
+            WHERE client_id = $1 AND status = 'published' ORDER BY published_at DESC LIMIT 6`, [clientId]);
+        return rows;
+      }),
+    ]);
+
+    res.json({
+      client,
+      latest_report: latestReport,
+      recent_posts: recentPosts || [],
+      tiles: {
+        posts_published_30d: published30d,
+        upcoming_scheduled: upcoming,
+        keywords_tracked: keywords,
+        referring_domains: backlinks?.referring_domains_total ?? null,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import ClientHomeDashboard from '../components/ClientHomeDashboard';
 
 export default function DashboardPage() {
+  const { readOnly } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Client (read-only) logins get their own personalised landing, not the
+  // agency all-clients dashboard.
   useEffect(() => {
+    if (readOnly) { setLoading(false); return; }
     api.get('/dashboard')
       .then(setData)
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly]);
+
+  if (readOnly) return <ClientHomeDashboard />;
 
   if (loading) return <div className="text-subtle text-center p-s8">Loading dashboard…</div>;
   if (error) {
