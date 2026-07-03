@@ -8,6 +8,7 @@ import DataFlowMap from '../components/DataFlowMap';
 import ClientChatPage from './ClientChatPage';
 import { useCssVar } from '../hooks/useCssVar';
 import { useTabParam } from '../hooks/useTabParam';
+import { useAuth } from '../context/AuthContext';
 
 const fmtMoney = n => '£' + Math.round(Number(n || 0)).toLocaleString('en-GB');
 const fmtNum = n => Number(n || 0).toLocaleString('en-GB');
@@ -38,6 +39,11 @@ function recentMonths(count) {
 
 export default function ClientSalesTrafficPage() {
   const { id } = useParams();
+  // "Analyse" is the agency's private AI chat/analysis history — the secret
+  // sauce a client can't use and shouldn't see. Hide the tab for client
+  // (read-only) logins, and if one deep-links to ?tab=analyst, fall back to
+  // Overview so the panel never renders.
+  const { readOnly } = useAuth();
   // Read chart colours from the live suite scope so Recharts strokes
   // pick up the Sales teal (and any future palette tweak) without
   // hardcoding hex.
@@ -55,6 +61,10 @@ export default function ClientSalesTrafficPage() {
   const [customStart, setCustomStart] = useState(() => isoDaysAgo(29));
   const [customEnd, setCustomEnd] = useState(() => isoToday());
   const [loading, setLoading] = useState(true);
+
+  // A client login must never land on the private Analyse tab, even by
+  // deep-link — bounce them to Overview.
+  useEffect(() => { if (readOnly && tab === 'analyst') setTab('overview'); }, [readOnly, tab, setTab]);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
 
@@ -121,10 +131,11 @@ export default function ClientSalesTrafficPage() {
       <SuiteTabs tabs={[
         { key: 'overview',  label: 'Overview',     active: tab === 'overview',  onClick: () => setTab('overview') },
         { key: 'dashboard', label: 'Measure',      active: tab === 'dashboard', onClick: () => setTab('dashboard') },
-        { key: 'analyst',   label: 'Analyse',      active: tab === 'analyst',   onClick: () => setTab('analyst') },
+        // Analyse (the agency's private AI chat history) is agency-only.
+        ...(readOnly ? [] : [{ key: 'analyst', label: 'Analyse', active: tab === 'analyst', onClick: () => setTab('analyst') }]),
       ]} />
 
-      {tab === 'analyst' && <ClientChatPage embedded clientId={id} />}
+      {tab === 'analyst' && !readOnly && <ClientChatPage embedded clientId={id} />}
 
       {tab === 'overview' && (
         <SuiteOverview
@@ -137,7 +148,7 @@ export default function ClientSalesTrafficPage() {
             { label: 'GA4', value: k.sessions ? 'Live' : 'No data', ok: !!k.sessions },
             { label: 'Revenue · 30d', value: fmtMoney(k.revenue || 0), ok: !!k.revenue },
           ]}
-          diagram={<DataFlowMap onPerformance={() => setTab('dashboard')} onAnalyst={() => setTab('analyst')} />}
+          diagram={<DataFlowMap onPerformance={() => setTab('dashboard')} onAnalyst={readOnly ? undefined : () => setTab('analyst')} />}
         />
       )}
 

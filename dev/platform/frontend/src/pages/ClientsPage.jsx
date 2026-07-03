@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function ClientsPage() {
+  const { readOnly, user } = useAuth();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
@@ -44,6 +46,10 @@ export default function ClientsPage() {
       setCreating(false);
     }
   }
+
+  // A client (read-only) login must never see the all-clients directory or the
+  // "+ New Client" action — bounce them into their own client (or dashboard).
+  if (readOnly) return <Navigate to={user?.client_id ? `/clients/${user.client_id}/sales-traffic` : '/dashboard'} replace />;
 
   if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
