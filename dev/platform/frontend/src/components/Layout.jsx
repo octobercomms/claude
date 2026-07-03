@@ -37,6 +37,19 @@ export default function Layout() {
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;
 
+  // Remember the last client the user was in, so the sidebar "Workspace" item
+  // jumps straight back there rather than a redundant client list (the
+  // Dashboard already lists every client). Switch clients via the header
+  // ClientSwitcher. A client-role login only ever has one, so this is a no-op
+  // for them.
+  useEffect(() => {
+    if (clientId) { try { localStorage.setItem('lastClientPath', location.pathname); } catch { /* ignore */ } }
+  }, [clientId, location.pathname]);
+  let lastClientPath = null;
+  try { lastClientPath = localStorage.getItem('lastClientPath'); } catch { /* ignore */ }
+  const workspaceTarget = lastClientPath || '/clients';
+  const workspaceActive = location.pathname.startsWith('/clients');
+
   const [navOpen, setNavOpen] = useState(false);
 
   function handleLogout() { logout(); navigate('/login'); }
@@ -77,28 +90,29 @@ export default function Layout() {
         </div>
 
         <ul className="app-nav-list">
-          {[
-            { to: '/dashboard', label: 'Dashboard' },
-            { to: '/clients', label: 'Clients' },
-          ].map(item => (
-            <li key={item.to}>
-              <NavLink to={item.to} style={({ isActive }) => linkStyle(isActive)}>{item.label}</NavLink>
-              {item.to === '/clients' && clientId && (
-                <div>
-                  {/* One clickable item per PESO group (Data · Paid · Earned ·
-                      Shared · Owned · Admin). Each opens that group's page; the
-                      function (social, organic, email, …) is explained inside
-                      each section's Overview. */}
-                  <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Data</NavLink>
-                  <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
-                  <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned</NavLink>
-                  <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Shared</NavLink>
-                  <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Owned</NavLink>
-                  <NavLink to={`/clients/${clientId}?tab=setup_overview`} style={subLinkStyle(!!clientMatch && ['setup_overview', 'strategy', 'details', 'brand', 'connectors', 'reports'].includes(currentTab))}>Admin</NavLink>
-                </div>
-              )}
-            </li>
-          ))}
+          <li>
+            <NavLink to="/dashboard" style={({ isActive }) => linkStyle(isActive)}>Dashboard</NavLink>
+          </li>
+          <li>
+            {/* Workspace — the selected client's PESO + Data + Admin area.
+                Jumps to the last client you were in (Dashboard is where you
+                pick a different one), or the client picker if you've none yet. */}
+            <NavLink to={workspaceTarget} style={() => linkStyle(workspaceActive)}>Workspace</NavLink>
+            {clientId && (
+              <div>
+                {/* One clickable item per PESO group (Data · Paid · Earned ·
+                    Shared · Owned · Admin). Each opens that group's page; the
+                    function (social, organic, email, …) is explained inside
+                    each section's Overview. */}
+                <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Data</NavLink>
+                <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
+                <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned</NavLink>
+                <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Shared</NavLink>
+                <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Owned</NavLink>
+                <NavLink to={`/clients/${clientId}?tab=setup_overview`} style={subLinkStyle(!!clientMatch && ['setup_overview', 'strategy', 'details', 'brand', 'connectors', 'reports'].includes(currentTab))}>Admin</NavLink>
+              </div>
+            )}
+          </li>
           {/* Admin-only: Settings (with Users tab); Guide goes below so it
               sits at the bottom of the rail for everyone. */}
           {user?.role === 'admin' && (
