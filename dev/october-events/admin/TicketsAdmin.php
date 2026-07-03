@@ -86,6 +86,37 @@ final class TicketsAdmin {
         </table>
         <p><button type="button" class="button" id="oe-tt-add"><?php esc_html_e('+ Add ticket type', 'october-events'); ?></button></p>
 
+        <style>
+        .oe-valid-at{position:relative;display:inline-block}
+        .oe-valid-at__summary{cursor:pointer;list-style:none;font-size:12px;padding:2px 10px;white-space:nowrap}
+        .oe-valid-at__summary::-webkit-details-marker{display:none}
+        .oe-valid-at__summary::after{content:" \25BE";opacity:.6}
+        .oe-valid-at__menu{position:absolute;z-index:100;top:calc(100% + 2px);left:0;min-width:150px;max-height:220px;overflow:auto;background:#fff;border:1px solid #c3c4c7;border-radius:4px;box-shadow:0 4px 14px rgba(0,0,0,.14);padding:6px}
+        .oe-valid-at__menu label{display:block;white-space:nowrap;font-size:12px;line-height:1.9}
+        </style>
+        <script>
+        (function(){
+            var ALL = <?php echo wp_json_encode(__('All doors', 'october-events')); ?>,
+                SEL = <?php echo wp_json_encode(__('%d selected', 'october-events')); ?>;
+            function relabel(det){
+                var n = det.querySelectorAll('.oe-valid-at__menu input:checked').length,
+                    s = det.querySelector('.oe-valid-at__summary');
+                if (s) { s.textContent = (n === 0 ? ALL : SEL.replace('%d', n)); } // ▾ arrow is CSS ::after
+            }
+            // Update the summary label whenever a door is (un)ticked.
+            document.addEventListener('change', function(e){
+                var det = e.target.closest ? e.target.closest('.oe-valid-at') : null;
+                if (det) { relabel(det); }
+            });
+            // Close any open popover when clicking outside it.
+            document.addEventListener('click', function(e){
+                document.querySelectorAll('.oe-valid-at[open]').forEach(function(det){
+                    if (!det.contains(e.target)) { det.removeAttribute('open'); }
+                });
+            });
+        })();
+        </script>
+
         <?php
         // Event-wide capacity (replaces the old per-ticket-type capacity). For
         // events saved before this change, pre-fill from the sum of the old
@@ -225,19 +256,27 @@ final class TicketsAdmin {
             <td><input type="number" step="0.01" min="0" name="oe_tt[<?php echo $i; ?>][sale_price]" value="<?php echo esc_attr($t['sale_price'] ?? ''); ?>" style="width:80px"></td>
             <td><input type="number" min="1" max="20" name="oe_tt[<?php echo $i; ?>][qty_per_purchase]" value="<?php echo $g('qty_per_purchase', '1'); ?>" style="width:55px"></td>
             <td><input type="number" min="1" max="99" name="oe_tt[<?php echo $i; ?>][max_per_order]" value="<?php echo $g('max_per_order', '99'); ?>" style="width:55px" title="<?php esc_attr_e('Most of this ticket one buyer can purchase at once (1–99). Default 99 — lower it to restrict.', 'october-events'); ?>"></td>
-            <td style="min-width:120px">
+            <td>
                 <?php
                 $sel = array_map('strtolower', TicketTypes::type_venues($t));
                 if (empty($this->doors)) : ?>
                     <span class="description" style="font-size:11px"><?php esc_html_e('Add doors below & Save', 'october-events'); ?></span>
-                <?php else : ?>
-                    <?php foreach ($this->doors as $d) : ?>
-                        <label style="display:block;font-size:12px;white-space:nowrap;line-height:1.6">
-                            <input type="checkbox" name="oe_tt[<?php echo $i; ?>][venues][]" value="<?php echo esc_attr($d); ?>" <?php checked(in_array(strtolower($d), $sel, true)); ?>>
-                            <?php echo esc_html($d); ?>
-                        </label>
-                    <?php endforeach; ?>
-                    <span class="description" style="font-size:11px"><?php esc_html_e('none ticked = all doors', 'october-events'); ?></span>
+                <?php else :
+                    $picked = 0;
+                    foreach ($this->doors as $d) { if (in_array(strtolower($d), $sel, true)) { $picked++; } }
+                    $summary = $picked === 0
+                        ? __('All doors', 'october-events')
+                        : sprintf(__('%d selected', 'october-events'), $picked);
+                ?>
+                    <details class="oe-valid-at">
+                        <summary class="button oe-valid-at__summary"><?php echo esc_html($summary); ?></summary>
+                        <div class="oe-valid-at__menu">
+                            <?php foreach ($this->doors as $d) : ?>
+                                <label><input type="checkbox" name="oe_tt[<?php echo $i; ?>][venues][]" value="<?php echo esc_attr($d); ?>" <?php checked(in_array(strtolower($d), $sel, true)); ?>> <?php echo esc_html($d); ?></label>
+                            <?php endforeach; ?>
+                            <p class="description" style="margin:4px 0 0;font-size:11px"><?php esc_html_e('none ticked = all doors', 'october-events'); ?></p>
+                        </div>
+                    </details>
                 <?php endif; ?>
             </td>
             <td><input type="datetime-local" name="oe_tt[<?php echo $i; ?>][sale_from]" value="<?php echo esc_attr($this->dt_local((string) ($t['sale_from'] ?? ''))); ?>"></td>
