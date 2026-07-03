@@ -59,6 +59,24 @@ router.post('/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+// Public: an invited client validates their set-password token (page greeting).
+router.get('/invite/:token', async (req, res) => {
+  try {
+    const info = await users.inviteInfo(req.params.token);
+    if (!info) return res.status(404).json({ error: 'This link is invalid or has expired.' });
+    res.json(info);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Public: set a password from an invite token. No auth — the token is the auth.
+router.post('/set-password', async (req, res) => {
+  const { token, password } = req.body || {};
+  try {
+    await users.setPasswordByToken(token, password);
+    res.json({ ok: true });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 router.get('/me', authenticate, (req, res) => {
   // dataforseo_availability lets the frontend render the "becomes
   // available on 1 July 2026" banner without having to know the

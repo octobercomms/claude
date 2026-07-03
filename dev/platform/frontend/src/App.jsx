@@ -18,6 +18,7 @@ import ClientAudiencesPage from './pages/ClientAudiencesPage';
 import ClientAIVisibilityPage from './pages/ClientAIVisibilityPage';
 import ClientBrandPage from './pages/ClientBrandPage';
 import ApprovePage from './pages/ApprovePage';
+import SetPasswordPage from './pages/SetPasswordPage';
 import GuidePage from './pages/GuidePage';
 import SettingsPage from './pages/SettingsPage';
 import ClientPRPage from './pages/ClientPRPage';
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/approve/:token" element={<ApprovePage />} />
           <Route path="/coverage/:token" element={<PublicCoveragePage />} />
           <Route path="/press-release/:token" element={<PressReviewPage />} />
+          <Route path="/set-password/:token" element={<SetPasswordPage />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="clients" element={<ClientsPage />} />

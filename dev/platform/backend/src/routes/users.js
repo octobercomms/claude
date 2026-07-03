@@ -1,4 +1,5 @@
 const express = require('express');
+const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const users = require('../services/users');
 
@@ -10,6 +11,30 @@ function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   next();
 }
+
+// Invite a read-only client by email — creates the client-role user and emails
+// them a one-time set-password link. Returns the link too, so the AM can copy
+// it if the email doesn't arrive.
+router.post('/invite', requireAdmin, async (req, res) => {
+  const { email, clientIds } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email required' });
+  if (!Array.isArray(clientIds) || !clientIds.length) return res.status(400).json({ error: 'assign at least one client' });
+  try {
+    const created = await users.inviteClient({ email, clientIds });
+    const base = (process.env.PLATFORM_URL || 'https://platform.octobercomms.com').replace(/\/$/, '');
+    const link = `${base}/set-password/${created.invite_token}`;
+    let emailed = false, emailError = null;
+    try {
+      const cn = (await pool.query('SELECT name FROM clients WHERE id = $1', [clientIds[0]])).rows[0]?.name || '';
+      await require('../services/emailService').sendClientInvite({ to: created.email, clientName: cn, link });
+      emailed = true;
+    } catch (e) { emailError = e.message; }
+    res.status(201).json({ user: { id: created.id, username: created.username, email: created.email, role: created.role }, link, emailed, emailError });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'a user with that email already exists' });
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
 
 router.get('/', requireAdmin, async (req, res) => {
   try {
