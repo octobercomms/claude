@@ -146,11 +146,14 @@ async function inviteClient({ email, clientIds = [] }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // username + email are separate params (they're different column types —
+    // varchar vs text — so a single $1 for both makes Postgres reject it with
+    // "inconsistent types deduced for parameter $1").
     const { rows } = await client.query(
       `INSERT INTO users (username, email, password_hash, role, invite_token, invite_expires_at)
-       VALUES ($1, $1, $2, 'client', $3, $4)
+       VALUES ($1, $2, $3, 'client', $4, $5)
        RETURNING id, username, email, role, created_at`,
-      [norm, unusableHash, token, expires]
+      [norm, norm, unusableHash, token, expires]
     );
     const user = rows[0];
     for (const cid of clientIds) {
