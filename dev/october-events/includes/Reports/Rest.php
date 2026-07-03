@@ -47,32 +47,26 @@ final class Rest {
         $sales = Orders::stats();
         $contacts = Contacts::counts();
 
-        $confirmed = 0;
-        $total = 0;
-        $ids = Events::all_event_ids(500);
-        // Prime the postmeta cache in one query so Events::status() (a per-event
-        // get_post_meta) doesn't fire ~500 individual SELECTs on this KPI endpoint.
-        if ($ids) {
-            update_meta_cache('post', $ids);
-        }
-        foreach ($ids as $id) {
-            $total++;
-            if (Events::status($id) === 'confirmed') {
-                $confirmed++;
-            }
-        }
+        // Event counts: total known events and how many are published (live).
+        $live  = count(get_posts([
+            'post_type'      => Events::slug(),
+            'post_status'    => 'publish',
+            'posts_per_page' => 500,
+            'fields'         => 'ids',
+        ]));
+        $total = count(Events::all_event_ids(500));
 
         return [
-            'currency'         => strtoupper((string) Settings::get('currency', 'usd')),
-            'tickets_year'     => (int) ($sales['year_tickets'] ?? 0),
-            'revenue_year'     => (float) ($sales['year_revenue'] ?? 0),
-            'tickets_all'      => (int) ($sales['tickets'] ?? 0),
-            'revenue_all'      => (float) ($sales['revenue'] ?? 0),
-            'subscribers'      => (int) ($contacts['subscribed'] ?? 0),
-            'contacts_total'   => (int) ($contacts['total'] ?? 0),
-            'events_confirmed' => $confirmed,
-            'events_total'     => $total,
-            'year'             => (int) ($sales['year'] ?? (int) current_time('Y')),
+            'currency'       => strtoupper((string) Settings::get('currency', 'usd')),
+            'tickets_year'   => (int) ($sales['year_tickets'] ?? 0),
+            'revenue_year'   => (float) ($sales['year_revenue'] ?? 0),
+            'tickets_all'    => (int) ($sales['tickets'] ?? 0),
+            'revenue_all'    => (float) ($sales['revenue'] ?? 0),
+            'subscribers'    => (int) ($contacts['subscribed'] ?? 0),
+            'contacts_total' => (int) ($contacts['total'] ?? 0),
+            'events_live'    => $live,
+            'events_total'   => $total,
+            'year'           => (int) ($sales['year'] ?? (int) current_time('Y')),
         ];
     }
 }

@@ -4,25 +4,25 @@ declare(strict_types=1);
 namespace OE\Planning;
 
 use OE\PostTypes;
-use OE\AuditLog;
 
 defined('ABSPATH') || exit;
 
 /**
- * Event planning layer (Elayne's domain).
+ * Event fields data layer.
  *
- * Stores the canonical event info + sessions + internal notes as `_oe_plan_*`
- * meta on the adopted `events` CPT, runs it through {@see Gating}, and only lets
- * an event go green (confirmed) once the required fields are complete.
- * Confirming publishes the event to the public site.
+ * A thin read layer over the adopted `events` CPT: it exposes an event's core
+ * info (name, dates, price, location, organiser, description) from `_oe_plan_*`
+ * meta, falling back to mapped existing (e.g. JetEngine) fields. Used by the
+ * ticket email, calendar files, volunteer emails, reports and the AI assistant.
  *
- * Stored in post meta (no new tables) so it layers cleanly onto JetEngine.
+ * (The old "confirm → green" readiness/gating layer and the planning board were
+ * removed — events publish through WordPress/JetEngine as normal.)
  */
 final class Events {
 
     private const PREFIX = '_oe_plan_';
 
-    /** Editable planning fields => sanitiser. */
+    /** Known event fields => sanitiser (used when reading/normalising values). */
     public const FIELDS = [
         'name'            => 'text',
         'start_datetime'  => 'text',
@@ -47,8 +47,8 @@ final class Events {
         $v = get_post_meta($event_id, self::key($field), true);
         if ($v === '' || $v === false) {
             // Fall back to an existing (e.g. JetEngine) field if one is mapped in
-            // Settings → Event field mapping, so events that already hold their
-            // data elsewhere show their real readiness without re-keying.
+            // Settings → Event field mapping, so events that store their data
+            // elsewhere still resolve here without re-keying.
             $src = self::field_map()[$field] ?? '';
             if ($src !== '') {
                 $ext = get_post_meta($event_id, $src, true);
@@ -61,58 +61,15 @@ final class Events {
         return $v;
     }
 
-    /** @return array<string,string> planning field => source meta key */
+    /** @return array<string,string> event field => source meta key */
     public static function field_map(): array {
         $m = \OE\Settings::get('event_field_map', []);
         return is_array($m) ? array_filter(array_map('strval', $m)) : [];
     }
 
     /**
-     * Copy mapped existing-field values into the planning meta (so they become
-     * editable in the planner). Skips fields that already have a planning value.
-     * Returns the number of events touched.
-     */
-    public static function seed_from_existing(): int {
-        $map = self::field_map();
-        if (! $map) {
-            return 0;
-        }
-        $touched = 0;
-        foreach (self::all_event_ids() as $id) {
-            $did = false;
-            foreach ($map as $field => $src) {
-                if (! isset(self::FIELDS[$field]) || $src === '') {
-                    continue;
-                }
-                $existing = get_post_meta($id, self::key($field), true);
-                if ($existing !== '' && $existing !== false) {
-                    continue; // don't overwrite planner data
-                }
-                $ext = get_post_meta($id, $src, true);
-                if ($ext !== '' && $ext !== false) {
-                    update_post_meta($id, self::key($field), is_array($ext) ? $ext : sanitize_text_field((string) $ext));
-                    $did = true;
-                }
-            }
-            if ($did) {
-                if (self::status($id) === Gating::STATUS_DRAFT) {
-                    self::set_status($id, Gating::STATUS_IN_PROGRESS);
-                }
-                $touched++;
-            }
-        }
-        return $touched;
-    }
-
-    public static function status(int $event_id): string {
-        $s = (string) get_post_meta($event_id, self::key('status'), true);
-        return in_array($s, [Gating::STATUS_DRAFT, Gating::STATUS_IN_PROGRESS, Gating::STATUS_CONFIRMED], true)
-            ? $s : Gating::STATUS_DRAFT;
-    }
-
-    /**
-     * Field values used for gating — planning meta plus name (post-title
-     * fallback) and the featured image presence.
+     * All known field values for an event, with the post title as the name
+     * fallback. Used by the AI assistant and reports.
      *
      * @return array<string,mixed>
      */
@@ -124,140 +81,17 @@ final class Events {
         if (trim((string) $values['name']) === '') {
             $values['name'] = get_the_title($event_id);
         }
-        $values['image'] = has_post_thumbnail($event_id) ? '1' : '';
         return $values;
-    }
-
-    /**
-     * @return array{required:string[],missing:string[],done:string[],complete:bool,percent:int}
-     */
-    public static function readiness(int $event_id): array {
-        return Gating::evaluate(Gating::event_required(), self::values($event_id));
-    }
-
-    public static function save_fields(int $event_id, array $input): void {
-        foreach (self::FIELDS as $field => $type) {
-            if (! array_key_exists($field, $input)) {
-                continue;
-            }
-            $raw = $input[$field];
-            if ($type === 'bool') {
-                update_post_meta($event_id, self::key($field), empty($raw) ? '0' : '1');
-            } elseif ($type === 'textarea') {
-                update_post_meta($event_id, self::key($field), sanitize_textarea_field((string) $raw));
-            } else {
-                update_post_meta($event_id, self::key($field), sanitize_text_field((string) $raw));
-            }
-        }
-        // Keep status honest as fields change.
-        $status = self::status($event_id);
-        if ($status === Gating::STATUS_CONFIRMED && ! self::readiness($event_id)['complete']) {
-            self::set_status($event_id, Gating::STATUS_IN_PROGRESS);
-        } elseif ($status === Gating::STATUS_DRAFT && self::has_any($event_id)) {
-            self::set_status($event_id, Gating::STATUS_IN_PROGRESS);
-        }
-    }
-
-    private static function has_any(int $event_id): bool {
-        foreach (self::values($event_id) as $k => $v) {
-            if ($k !== 'image' && ! is_array($v) && trim((string) $v) !== '') {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public static function set_status(int $event_id, string $status): void {
-        update_post_meta($event_id, self::key('status'), $status);
-    }
-
-    /* ---- Sessions (structured meta: {title,time,desc,speakers}) ---- */
-
-    /** @return array<int,array<string,mixed>> */
-    public static function sessions(int $event_id): array {
-        $raw = get_post_meta($event_id, self::key('sessions'), true);
-        $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
-        return is_array($decoded) ? array_values($decoded) : [];
-    }
-
-    public static function set_sessions(int $event_id, array $sessions): void {
-        $clean = [];
-        foreach ($sessions as $s) {
-            $title = sanitize_text_field((string) ($s['title'] ?? ''));
-            if ($title === '') {
-                continue;
-            }
-            $clean[] = [
-                'title'    => $title,
-                'time'     => sanitize_text_field((string) ($s['time'] ?? '')),
-                'desc'     => sanitize_textarea_field((string) ($s['desc'] ?? '')),
-                'speakers' => array_values(array_filter(array_map('sanitize_text_field', (array) ($s['speakers'] ?? [])))),
-            ];
-        }
-        update_post_meta($event_id, self::key('sessions'), wp_json_encode($clean));
-    }
-
-    /* ---- Confirm / publish ---- */
-
-    /**
-     * Confirm an event (go green) — only when complete. Publishes on success.
-     *
-     * @return true|\WP_Error
-     */
-    public static function confirm(int $event_id) {
-        $r = self::readiness($event_id);
-        if (! $r['complete']) {
-            return new \WP_Error('oe_not_ready', sprintf(
-                /* translators: %s: comma-separated field labels */
-                __('Not ready yet — still need: %s', 'october-events'),
-                implode(', ', array_map([Gating::class, 'field_label'], $r['missing']))
-            ), ['missing' => $r['missing']]);
-        }
-        self::set_status($event_id, Gating::STATUS_CONFIRMED);
-        update_post_meta($event_id, self::key('confirmed_at'), current_time('mysql', true));
-        update_post_meta($event_id, self::key('confirmed_by'), get_current_user_id());
-
-        if (get_post_status($event_id) !== 'publish') {
-            wp_update_post(['ID' => $event_id, 'post_status' => 'publish']);
-        }
-        AuditLog::record('event_confirmed', $event_id, 'event');
-        return true;
-    }
-
-    public static function unconfirm(int $event_id): void {
-        self::set_status($event_id, Gating::STATUS_IN_PROGRESS);
-        delete_post_meta($event_id, self::key('confirmed_at'));
-        AuditLog::record('event_unconfirmed', $event_id, 'event');
-    }
-
-    /* ---- Platform/admin facing ---- */
-
-    /** @return array<string,mixed> */
-    public static function summary(int $event_id): array {
-        $r = self::readiness($event_id);
-        return [
-            'id'       => $event_id,
-            'title'    => get_the_title($event_id) ?: (string) self::get($event_id, 'name'),
-            'status'   => self::status($event_id),
-            'percent'  => $r['percent'],
-            'missing'  => array_map([Gating::class, 'field_label'], $r['missing']),
-            'live'     => get_post_status($event_id) === 'publish',
-            'edit_url' => (string) get_edit_post_link($event_id, 'raw'),
-        ];
     }
 
     /** @return array<string,mixed> */
     public static function record(int $event_id): array {
-        $values = self::values($event_id);
-        unset($values['image']);
         return [
-            'id'        => $event_id,
-            'title'     => get_the_title($event_id),
-            'status'    => self::status($event_id),
-            'readiness' => self::readiness($event_id),
-            'fields'    => $values,
-            'sessions'  => self::sessions($event_id),
-            'image'     => get_the_post_thumbnail_url($event_id, 'medium') ?: '',
+            'id'     => $event_id,
+            'title'  => get_the_title($event_id),
+            'fields' => self::values($event_id),
+            'live'   => get_post_status($event_id) === 'publish',
+            'image'  => get_the_post_thumbnail_url($event_id, 'medium') ?: '',
         ];
     }
 

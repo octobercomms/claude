@@ -5,6 +5,30 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.69.0 — remove the event-readiness board + the staff SPA
+
+The "confirm → green" event-readiness workflow was more friction than help —
+events were being blocked from going live over fields that didn't matter. It's
+gone, along with the separate staff platform that fronted it.
+
+**Removed:**
+- The **readiness / gating engine** (`Gating`) and the confirm-to-publish flow.
+  Events now publish through WordPress / JetEngine as normal — no go-live gate.
+- The plugin's **planning board** (the old "Events" admin screen); the **Events**
+  menu now opens the native WordPress events list.
+- The **`dev/october-platform` staff SPA** entirely (Planning, Tasks and
+  Volunteers tabs) and its backing management API (`/planning`, `/tasks`,
+  `/volunteers` under `oe/v1`), plus the now-unused **Tasks** module and the
+  cross-origin (CORS) / platform-origin settings that existed only for the SPA.
+- The **Event readiness** settings section, the readiness dashboard tile, and the
+  AI assistant's "event readiness" question.
+
+**Kept, unchanged:** ticket sales + check-in, promo codes, the public volunteer
+signup + reminders, email/AI Stories, reports, and the event **fields**
+(name/date/price/**location**…) that the ticket email, calendar files and reports
+read — now via a slim data layer with the JetEngine field-mapping still available
+under Settings → Events.
+
 ## 1.68.1 — check-in doors are now tag chips, not a textarea
 
 The *Check-in venues / doors* field is now a tag input: type a door name and press

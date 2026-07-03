@@ -32,15 +32,12 @@ final class Admin {
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
-        add_action('admin_post_oe_seed_planning', [$this, 'handle_seed_planning']);
         add_action('admin_post_oe_import_contacts', [$this, 'handle_import_contacts']);
         add_action('admin_post_oe_import_brevo', [$this, 'handle_import_brevo']);
         add_action('admin_post_oe_cleanup_contacts', [$this, 'handle_cleanup_contacts']);
         add_action('admin_init', [$this, 'maybe_export_csv']);
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
-        PlanningAdmin::get_instance()->init();
-        TasksAdmin::get_instance()->init();
     }
 
     public function register_menu(): void {
@@ -49,8 +46,8 @@ final class Admin {
         $brand = (string) \OE\Settings::get('brand_name', 'October Events');
         add_menu_page($brand, $brand, $cap, 'october-events', [$this, 'page_dashboard'], 'dashicons-art', 28);
         add_submenu_page('october-events', 'Dashboard', 'Dashboard', $cap, 'october-events', [$this, 'page_dashboard']);
-        // Events: the readiness board IS the events screen (raw CPT list merged in).
-        add_submenu_page('october-events', 'Events', 'Events', $cap, 'oe-planning', [PlanningAdmin::get_instance(), 'render_list']);
+        // Events: the native CPT list (managed in WordPress / JetEngine).
+        add_submenu_page('october-events', 'Events', 'Events', $cap, 'edit.php?post_type=' . PostTypes::slug('event'));
         // Tickets: registrations + promo codes live here as tabs.
         // Per-site feature toggles (Settings → Features) hide the modules a site
         // doesn't use. Dashboard, Events and Settings are always available.
@@ -64,8 +61,6 @@ final class Admin {
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']); }
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
-        // Tasks moved to the platform (staff ops); its data + REST remain. The raw
-        // Events list and the standalone Promo Codes screen are merged above.
     }
 
     /* ----------------------------------------------------------------- *
@@ -82,8 +77,6 @@ final class Admin {
             'steps' => [['Find an account', 'Search the list'], ['Auto-approve', 'Per listing type'], ['See their listings', 'What they’ve submitted'], ['Contact', 'Email on file']]],
         'listing' => ['title' => 'Manage this listing type', 'text' => 'Add entries manually or edit what was submitted — same data the public site shows.',
             'steps' => [['Add new', 'Create one by hand'], ['Edit', 'Update details + media'], ['Status', 'Draft / pending / published'], ['Feature', 'Flag for the email digest']]],
-        'planning' => ['title' => 'Get every event to green', 'text' => 'The confirm→green workflow: an event publishes only once its essentials are complete.',
-            'steps' => [['Open an event', 'See its readiness'], ['Fill essentials', 'Title, dates, price, location'], ['Confirm', 'Goes green + publishes'], ['Track', 'Completion across all events']]],
         'tickets' => ['title' => 'Tickets & registrations', 'text' => 'Sales, manual/comp entry, refunds and the door check-in — all here.',
             'steps' => [['Add an order', 'Comp or paid, by hand'], ['Refund / cancel', 'With Stripe refund'], ['Export', 'CSV of registrations'], ['Check-in', 'QR scanning at the door']]],
         'promos' => ['title' => 'Promo codes', 'text' => 'Percentage or fixed discounts for ticket checkout, scoped and capped.',
@@ -111,16 +104,14 @@ final class Admin {
         $money = static function ($n) use ($sym): string {
             return $sym . number_format((float) $n, 0);
         };
-        $conf  = (int) $d['events_confirmed'];
         $tot   = (int) $d['events_total'];
-        $evDot = ($tot && $conf === $tot) ? 'green' : ($conf ? '' : 'amber');
-        $evSub = $tot ? (($tot - $conf) . ' still in planning') : 'no events yet';
+        $live  = (int) ($d['events_live'] ?? 0);
 
         $cards = [
-            ['Tickets sold',     number_format_i18n((int) $d['tickets_year']), $d['year'] . ' to date', true,  ''],
-            ['Revenue',          $money($d['revenue_year']),                   $d['year'] . ' to date', false, ''],
-            ['Subscribers',      number_format_i18n((int) $d['subscribers']),  'on the email list',     false, ''],
-            ['Events confirmed', $conf . '/' . $tot,                           $evSub,                  false, $evDot],
+            ['Tickets sold', number_format_i18n((int) $d['tickets_year']), $d['year'] . ' to date',      true,  ''],
+            ['Revenue',      $money($d['revenue_year']),                   $d['year'] . ' to date',      false, ''],
+            ['Subscribers',  number_format_i18n((int) $d['subscribers']),  'on the email list',          false, ''],
+            ['Events live',  $live . '/' . $tot,                           'published on the site',      false, ''],
         ];
         echo '<div class="oe-kpis">';
         foreach ($cards as [$label, $value, $sub, $dark, $dot]) {
@@ -131,25 +122,6 @@ final class Admin {
                 . '</div>';
         }
         echo '</div>';
-    }
-
-    /** The platform SPA URL (Settings → platform_url, else first allowed origin). */
-    public static function platform_url(): string {
-        $url = trim((string) \OE\Settings::get('platform_url', ''));
-        if ($url === '') {
-            $origins = array_values(array_filter((array) \OE\Settings::get('platform_origins', [])));
-            // Prefer a real custom domain over the *.pages.dev build/preview host.
-            foreach ($origins as $o) {
-                if (strpos((string) $o, '.pages.dev') === false) {
-                    $url = (string) $o;
-                    break;
-                }
-            }
-            if ($url === '') {
-                $url = (string) ($origins[0] ?? '');
-            }
-        }
-        return $url !== '' ? untrailingslashit($url) : '';
     }
 
     public static function bento(string $key): void {
@@ -281,16 +253,6 @@ final class Admin {
         check_admin_referer('oe_rebuild_contacts');
         \OE\Mail\Contacts::backfill();
         wp_safe_redirect(add_query_arg('rebuilt', '1', admin_url('admin.php?page=oe-contacts')));
-        exit;
-    }
-
-    public function handle_seed_planning(): void {
-        if (! current_user_can('manage_options')) {
-            wp_die('Forbidden', '', ['response' => 403]);
-        }
-        check_admin_referer('oe_seed_planning');
-        $n = \OE\Planning\Events::seed_from_existing();
-        wp_safe_redirect(add_query_arg('seeded', (string) $n, admin_url('admin.php?page=oe-planning')));
         exit;
     }
 

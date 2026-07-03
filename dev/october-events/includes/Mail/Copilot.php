@@ -125,13 +125,13 @@ TXT;
         return $out;
     }
 
-    /** Compact, factual context: confirmed upcoming events + recent stories. */
+    /** Compact, factual context: published upcoming events + recent stories. */
     private static function festival_context(): string {
         $lines = [];
 
         $events = [];
         foreach (Events::all_event_ids(200) as $id) {
-            if (Events::status($id) !== 'confirmed') {
+            if (get_post_status($id) !== 'publish') {
                 continue;
             }
             $rec = Events::record($id);

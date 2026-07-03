@@ -46,23 +46,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
 
         </section>
         <section class="oe-set-panel" data-tab="events">
-        <details class="oe-acc" id="readiness"><summary><?php esc_html_e('Event readiness', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('An event can only be confirmed (go green & publish) once these fields are filled.', 'october-events'); ?></p>
-        <?php
-        $req = (array) ($cfg['event_required_fields'] ?? ['name', 'start_datetime', 'price', 'location']);
-        $candidates = [
-            'name' => __('Event title', 'october-events'), 'start_datetime' => __('Dates & times', 'october-events'),
-            'end_datetime' => __('End date & time', 'october-events'), 'price' => __('Price', 'october-events'),
-            'location' => __('Location', 'october-events'), 'description' => __('Description', 'october-events'),
-            'organiser' => __('Organiser', 'october-events'), 'image' => __('Image', 'october-events'),
-        ];
-        foreach ($candidates as $k => $label) : ?>
-            <label style="display:inline-block;margin:0 16px 6px 0"><input type="checkbox" name="event_required_fields[]" value="<?php echo esc_attr($k); ?>" <?php checked(in_array($k, $req, true)); ?>> <?php echo esc_html($label); ?></label>
-        <?php endforeach; ?>
-        </div></details>
-
         <details class="oe-acc" id="field-mapping"><summary><?php esc_html_e('Event field mapping', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Optional. If your events already store their data in existing (e.g. JetEngine) custom fields, enter those meta keys here. The planner will read them when its own field is empty, so existing events show their real readiness without re-keying. Leave blank if unsure.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Optional. If your events store their data in existing (e.g. JetEngine) custom fields, enter those meta keys here so tickets, emails and reports can read the event’s date, price and location. Leave blank if unsure.', 'october-events'); ?></p>
         <?php $fmap = (array) ($cfg['event_field_map'] ?? []); ?>
         <table class="form-table" role="presentation"><tbody>
             <?php foreach (['start_datetime' => __('Dates & times', 'october-events'), 'end_datetime' => __('End date & time', 'october-events'), 'price' => __('Price', 'october-events'), 'location' => __('Location', 'october-events'), 'organiser' => __('Organiser', 'october-events'), 'description' => __('Description', 'october-events')] as $field => $label) : ?>
@@ -72,7 +57,6 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 </tr>
             <?php endforeach; ?>
         </tbody></table>
-        <p class="description"><?php esc_html_e('After saving a mapping, use “Seed planning from existing fields” on the Events screen to copy these into the planner as editable values.', 'october-events'); ?></p>
         </div></details>
 
         <details class="oe-acc" id="pricing"><summary><?php esc_html_e('Tier pricing', 'october-events'); ?></summary><div class="oe-acc-body">
@@ -133,7 +117,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </section>
         <section class="oe-set-panel" data-tab="theme">
         <details class="oe-acc" id="branding"><summary><?php esc_html_e('Branding (platform theme)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Override the planning platform\'s look for this site. Leave any field blank to use the built-in October defaults (Brockmann + brand yellow). The site display name comes from Brand, above.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Brand colours and logo for this site’s tickets and confirmation emails. Leave any field blank to use the built-in October defaults (Brockmann + brand yellow). The site display name comes from Brand, above.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
             <tr>
                 <th scope="row"><label><?php esc_html_e('Accent colour', 'october-events'); ?></label></th>
@@ -277,16 +261,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </table>
         </div></details>
 
-        <details class="oe-acc" id="platform"><summary><?php esc_html_e('Planning platform', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Origins allowed to call this site\'s oe/v1 REST API from the browser — i.e. the planning platform SPA. One per line, scheme + host with no trailing slash. Leave the defaults if unsure.', 'october-events'); ?></p>
-        <?php $origins = (array) ($cfg['platform_origins'] ?? []); ?>
-        <p><textarea name="platform_origins" rows="3" class="large-text code" placeholder="https://october-platform.pages.dev"><?php echo esc_textarea(implode("\n", $origins)); ?></textarea></p>
+        <details class="oe-acc" id="platform"><summary><?php esc_html_e('Check-in link', 'october-events'); ?></summary><div class="oe-acc-body">
         <table class="form-table" role="presentation"><tbody>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Platform URL', 'october-events'); ?></label></th>
-                <td><input type="url" name="platform_url" value="<?php echo esc_attr((string) ($cfg['platform_url'] ?? '')); ?>" placeholder="https://platform.atlantadesignfestival.net" class="regular-text">
-                    <p class="description"><?php esc_html_e('Used for the “Open in the platform” buttons in wp-admin. Blank = the first non-pages.dev origin above.', 'october-events'); ?></p></td>
-            </tr>
             <tr>
                 <th scope="row"><label><?php esc_html_e('Check-in scanner page', 'october-events'); ?></label></th>
                 <td><input type="url" name="checkin_page_url" value="<?php echo esc_attr((string) ($cfg['checkin_page_url'] ?? '')); ?>" placeholder="https://your-site.com/check-in/" class="regular-text">

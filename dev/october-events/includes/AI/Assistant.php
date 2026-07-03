@@ -71,8 +71,7 @@ final class Assistant {
             return ['type' => 'object', 'properties' => (object) $props, 'required' => $required];
         };
         return [
-            ['name' => 'events_overview', 'description' => 'Counts of events by status (confirmed/green, in progress, draft) and the next upcoming confirmed events.', 'input_schema' => $obj()],
-            ['name' => 'event_readiness', 'description' => 'For a named event, what it still needs before it can be confirmed/published.', 'input_schema' => $obj(['name' => ['type' => 'string', 'description' => 'Event title or part of it']], ['name'])],
+            ['name' => 'events_overview', 'description' => 'How many events there are, how many are published (live), and the next upcoming published events.', 'input_schema' => $obj()],
             ['name' => 'ticket_sales', 'description' => 'Ticket sales totals: today and all-time tickets + revenue, and a per-event breakdown.', 'input_schema' => $obj()],
             ['name' => 'find_order', 'description' => 'Look up ticket order(s) by buyer email, order id, or Stripe payment id.', 'input_schema' => $obj(['query' => ['type' => 'string', 'description' => 'email, order id, or payment id']], ['query'])],
             ['name' => 'failed_payments', 'description' => 'Recent failed card charges (from Stripe), with amount, email and the failure reason.', 'input_schema' => $obj(['limit' => ['type' => 'integer', 'description' => 'how many to fetch (default 20)']])],
@@ -90,7 +89,6 @@ final class Assistant {
     public static function exec(string $name, array $in) {
         switch ($name) {
             case 'events_overview':   return self::t_events_overview();
-            case 'event_readiness':   return self::t_event_readiness((string) ($in['name'] ?? ''));
             case 'ticket_sales':      return self::t_ticket_sales();
             case 'find_order':        return self::t_find_order((string) ($in['query'] ?? ''));
             case 'failed_payments':   return StripeConnector::recent_failed((int) ($in['limit'] ?? 20));
@@ -103,28 +101,19 @@ final class Assistant {
 
     private static function t_events_overview(): array {
         $ids = Events::all_event_ids(300);
-        $counts = ['confirmed' => 0, 'in_progress' => 0, 'draft' => 0];
+        $live = 0;
         $upcoming = [];
         foreach ($ids as $id) {
-            $s = Events::status($id);
-            $counts[$s] = ($counts[$s] ?? 0) + 1;
-            if ($s === 'confirmed' && count($upcoming) < 10) {
+            if (get_post_status($id) !== 'publish') {
+                continue;
+            }
+            $live++;
+            if (count($upcoming) < 10) {
                 $f = Events::values($id);
                 $upcoming[] = ['title' => get_the_title($id), 'when' => (string) ($f['start_datetime'] ?? ''), 'price' => (string) ($f['price'] ?? ''), 'location' => (string) ($f['location'] ?? '')];
             }
         }
-        return ['total' => count($ids), 'by_status' => $counts, 'upcoming_confirmed' => $upcoming];
-    }
-
-    private static function t_event_readiness(string $name): array {
-        $name = trim($name);
-        foreach (Events::all_event_ids(300) as $id) {
-            if ($name === '' || stripos(get_the_title($id), $name) !== false) {
-                $r = Events::readiness($id);
-                return ['title' => get_the_title($id), 'status' => Events::status($id), 'percent' => $r['percent'], 'missing' => $r['missing'], 'live' => get_post_status($id) === 'publish'];
-            }
-        }
-        return ['error' => 'no event matched "' . $name . '"'];
+        return ['total' => count($ids), 'live' => $live, 'upcoming' => $upcoming];
     }
 
     private static function t_ticket_sales(): array {

@@ -37,11 +37,9 @@ final class Settings {
             // Per-site brand shown in the admin menu / UI (this plugin runs on
             // multiple sites — e.g. "Atlanta Design Festival", "Architecture Tours").
             'brand_name' => 'October Events',
-            // Which fields an event needs before it can be confirmed (go green).
-            'event_required_fields' => ['name', 'start_datetime', 'price', 'location'],
-            // Optional map: planning field => an existing (e.g. JetEngine) meta key
-            // to read when the planning field is empty (so existing events show
-            // their real readiness without re-keying).
+            // Optional map: event field => an existing (e.g. JetEngine) meta key to
+            // read when the plugin's own field is empty, so tickets/emails/reports
+            // can resolve an event's date, price and location.
             'event_field_map' => [],
             // Per-listing-type, per-tier pricing in cents. Admin-editable (§4).
             'pricing' => [
@@ -76,23 +74,12 @@ final class Settings {
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',
-            // Origins allowed to call the oe/v1 REST API cross-origin (the
-            // planning platform SPA). We send exactly one Access-Control-Allow-
-            // Origin for these, overriding any duplicate the host/other plugins
-            // add. One per line in Settings; scheme + host, no trailing slash.
-            'platform_origins' => [
-                'https://october-platform.pages.dev',
-                'https://platform.atlantadesignfestival.net',
-            ],
-            // The planning platform's URL, for "open in the platform" buttons in
-            // wp-admin. Blank = use the first allowed origin above.
-            'platform_url' => '',
             // The front-end page where the [oe_checkin] scanner shortcode lives,
             // so staff can jump to it from the dashboard. Blank = no button.
             'checkin_page_url' => '',
-            // Per-site theming for the planning platform. Empty = use the
-            // platform's built-in October defaults (Brockmann + brand yellow).
-            // Exposed (read-only) via the public oe/v1/brand endpoint.
+            // Per-site theming (brand colours + logo) used by the ticket, the
+            // confirmation email and the public oe/v1/brand endpoint. Empty = use
+            // the built-in October defaults (Brockmann + brand yellow).
             'theme_accent'      => '', // e.g. #E7CD41
             'theme_accent_on'   => '', // text colour on the accent, e.g. #1a1a1a
             'theme_sidebar_bg'  => '', // e.g. #0b0b0c
