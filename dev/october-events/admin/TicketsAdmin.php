@@ -58,7 +58,7 @@ final class TicketsAdmin {
         $types  = TicketTypes::types($post->ID);
         $venues = TicketTypes::venues($post->ID);
         ?>
-        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2). "Max/order" caps how many of a type one buyer can take at once — it defaults to 99 (no practical limit, good for group buyers like colleges); lower it on a type you want to restrict. "Valid at" scopes a ticket to specific doors — leave it blank for all doors, or list the door names (from Check-in venues below) a ticket may enter at, e.g. a lower-priced Serenbe-only ticket that scans only at the Serenbe homes.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2). "Max/order" caps how many of a type one buyer can take at once — it defaults to 99 (no practical limit, good for group buyers like colleges); lower it on a type you want to restrict. "Valid at" scopes a ticket to specific doors — leave it blank for all doors, or list the door names (from Check-in venues below) a ticket may enter at, e.g. a lower-priced Serenbe-only ticket that scans only at the Serenbe homes. The doors are not shown to buyers — name the ticket type (and use its description) to tell them what it covers.', 'october-events'); ?></p>
         <table class="widefat" id="oe-tt-table">
             <thead><tr>
                 <th><?php esc_html_e('Label', 'october-events'); ?></th>

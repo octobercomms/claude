@@ -90,13 +90,6 @@
   margin-top: 3px;
 }
 
-.oct-ticket-row__venues {
-  font-size: 12px;
-  font-weight: 600;
-  color: #b8620a;
-  margin-top: 3px;
-}
-
 .oct-ticket-row__price {
   text-align: right;
   flex-shrink: 0;
