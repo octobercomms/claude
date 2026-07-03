@@ -6,6 +6,7 @@ use OE\Admin\Admin;
 use OE\Fields;
 use OE\Account;
 
+$platform  = Admin::platform_url();
 // Custom scanner page if set, else the clean built-in /checkin route.
 $checkin   = (string) \OE\Settings::get('checkin_page_url', '');
 if ($checkin === '') { $checkin = home_url('/checkin'); }
@@ -23,6 +24,9 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
         <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-contacts')); ?>"><?php esc_html_e('Contacts', 'october-events'); ?></a>
         <?php if ($checkin !== '') : ?>
             <a class="button" href="<?php echo esc_url($checkin); ?>" target="_blank" rel="noopener"><?php esc_html_e('Scan tickets ↗', 'october-events'); ?></a>
+        <?php endif; ?>
+        <?php if ($platform !== '') : ?>
+            <a class="button" href="<?php echo esc_url($platform); ?>" target="_blank" rel="noopener"><?php esc_html_e('Open the platform ↗', 'october-events'); ?></a>
         <?php endif; ?>
     </div>
 

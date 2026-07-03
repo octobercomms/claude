@@ -74,6 +74,16 @@ final class Settings {
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',
+            // Origins allowed to call the oe/v1 REST API cross-origin (the staff
+            // platform SPA, hosted off-site). One per line; scheme + host, no
+            // trailing slash. We send exactly one Access-Control-Allow-Origin.
+            'platform_origins' => [
+                'https://october-platform.pages.dev',
+                'https://platform.atlantadesignfestival.net',
+            ],
+            // The staff platform's URL, for the "Open the platform" button in
+            // wp-admin. Blank = use the first non-preview origin above.
+            'platform_url' => '',
             // The front-end page where the [oe_checkin] scanner shortcode lives,
             // so staff can jump to it from the dashboard. Blank = no button.
             'checkin_page_url' => '',

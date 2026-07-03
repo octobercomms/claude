@@ -144,11 +144,23 @@ Classes autoload from the `ADF\` root namespace; the top-level sub-namespaces
 | `GET /map` | public | Approved, map-visible destination pins |
 | `POST /stripe-webhook` | public (signed) | `payment_intent.succeeded`, `charge.refunded` |
 
-> **Removed in 1.69.0:** the event-readiness "confirm → green" board and the
-> separate staff SPA (`dev/october-platform`) with its Planning / Tasks /
-> Volunteers management API. Events are managed in WordPress / JetEngine as
-> normal; there is no go-live gating. Ticketing, volunteers (public signup),
-> emails and reports are unaffected.
+### Staff platform API (`oe/v1`)
+
+The [staff platform SPA](../october-platform/README.md) (`dev/october-platform`)
+reads/writes these (auth: a WordPress Application Password over Basic auth):
+
+| Route | Purpose |
+|---|---|
+| `GET/POST /tasks`, `POST/DELETE /task/{id}`, `GET /tasks/meta` | Shared department task board |
+| `GET /volunteers/opportunities`, `GET /volunteers/opportunity/{id}` | Opportunities + shifts with capacity vs filled |
+| `POST /volunteers/opportunity/{id}/signup`, `POST/DELETE /volunteers/signup/{id}` | Place / decide / remove a signup |
+| `GET /stats` | Headline KPIs (tickets, revenue, subscribers, events live) |
+
+> **Event-readiness removed in 1.69.0** (kept out in 1.70.0): the "confirm → green"
+> gating, the plugin's planning board, and the platform's **Events/Planning tab**
+> and its `/planning` API. Events publish through WordPress / JetEngine with no
+> go-live gate. The rest of the platform — **Tasks, Volunteers**, dashboard, email,
+> contacts, assistant — was restored in **1.70.0**.
 
 ---
 

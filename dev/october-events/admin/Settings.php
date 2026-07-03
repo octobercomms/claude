@@ -241,6 +241,7 @@ final class Settings {
             'reminder_offsets' => $offsets,
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => self::keep_secret($in['github_token'] ?? '', $existing['github_token'] ?? ''),
+            'platform_origins' => self::parse_origins((string) ($in['platform_origins'] ?? '')),
             'theme_accent'      => self::clean_color((string) ($in['theme_accent'] ?? '')),
             'theme_accent_on'   => self::clean_color((string) ($in['theme_accent_on'] ?? '')),
             'theme_sidebar_bg'  => self::clean_color((string) ($in['theme_sidebar_bg'] ?? '')),
@@ -263,7 +264,8 @@ final class Settings {
             'aws_secret_access_key' => self::keep_secret($in['aws_secret_access_key'] ?? '', $existing['aws_secret_access_key'] ?? ''),
             'sms_region'            => sanitize_text_field((string) ($in['sms_region'] ?? 'us-east-1')),
             'sms_origination'       => sanitize_text_field((string) ($in['sms_origination'] ?? '')),
-            // Check-in link surfaced in wp-admin.
+            // Platform + check-in links surfaced in wp-admin.
+            'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
             'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),
             'checkout_terms_url' => esc_url_raw(trim((string) ($in['checkout_terms_url'] ?? ''))),
             // Per-site feature toggles (Settings → Features).
@@ -310,5 +312,26 @@ final class Settings {
     private static function keep_secret($submitted, $existing): string {
         $submitted = trim((string) $submitted);
         return $submitted !== '' ? \OE\Crypto::encrypt($submitted) : (string) $existing;
+    }
+
+    /** Parse a textarea of allowed CORS origins into a clean scheme+host list. */
+    private static function parse_origins(string $raw): array {
+        $out = [];
+        foreach (preg_split('/[\r\n,]+/', $raw) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $parts = wp_parse_url($line);
+            if (empty($parts['scheme']) || empty($parts['host'])) {
+                continue;
+            }
+            $origin = $parts['scheme'] . '://' . $parts['host'];
+            if (! empty($parts['port'])) {
+                $origin .= ':' . $parts['port'];
+            }
+            $out[] = $origin;
+        }
+        return array_values(array_unique($out));
     }
 }
