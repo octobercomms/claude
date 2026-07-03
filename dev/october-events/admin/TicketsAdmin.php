@@ -20,6 +20,9 @@ final class TicketsAdmin {
 
     private static ?TicketsAdmin $instance = null;
 
+    /** Saved door names for the event being edited — for the per-type "Valid at" picker. */
+    private array $doors = [];
+
     public static function get_instance(): self {
         return self::$instance ??= new self();
     }
@@ -57,8 +60,13 @@ final class TicketsAdmin {
         wp_enqueue_media(); // for the per-event logo picker below
         $types  = TicketTypes::types($post->ID);
         $venues = TicketTypes::venues($post->ID);
+        // Saved door names — the per-type "Valid at" picker lists these as checkboxes.
+        $this->doors = array_values(array_filter(array_map(
+            static fn($v) => (string) ($v['name'] ?? ''),
+            $venues
+        )));
         ?>
-        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2). "Max/order" caps how many of a type one buyer can take at once — it defaults to 99 (no practical limit, good for group buyers like colleges); lower it on a type you want to restrict. "Valid at" scopes a ticket to specific doors — leave it blank for all doors, or list the door names (from Check-in venues below) a ticket may enter at, e.g. a lower-priced Serenbe-only ticket that scans only at the Serenbe homes. The doors are not shown to buyers — name the ticket type (and use its description) to tell them what it covers.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2). "Max/order" caps how many of a type one buyer can take at once — it defaults to 99 (no practical limit, good for group buyers like colleges); lower it on a type you want to restrict. "Valid at" scopes a ticket to specific doors: add your doors in Check-in venues below and Save, then tick the doors each ticket may enter at (tick none = valid at every door) — e.g. a lower-priced Serenbe-only ticket that scans only at the Serenbe homes. The doors are not shown to buyers — name the ticket type (and use its description) to tell them what it covers.', 'october-events'); ?></p>
         <table class="widefat" id="oe-tt-table">
             <thead><tr>
                 <th><?php esc_html_e('Label', 'october-events'); ?></th>
@@ -99,10 +107,15 @@ final class TicketsAdmin {
             <input type="datetime-local" name="oe_sale_until" value="<?php echo esc_attr($this->dt_local((string) get_post_meta($post->ID, TicketTypes::META_SALE_UNTIL, true))); ?>"></label></p>
         <p><label><strong><?php esc_html_e('Check-in venues / doors', 'october-events'); ?></strong> — <?php esc_html_e('one per line', 'october-events'); ?><br>
             <textarea name="oe_venues" rows="3" class="large-text"><?php echo esc_textarea(implode("\n", array_map(static fn($v) => (string) ($v['name'] ?? ''), $venues))); ?></textarea></label></p>
-        <?php $manual_pin = (string) get_post_meta($post->ID, TicketTypes::META_PIN, true); ?>
+        <?php
+        // Resolve the effective PIN now (generating + storing a secure random one on
+        // first open) so it's always visible to hand to door staff — rather than
+        // lazily generating only when someone submits a PIN they couldn't have known.
+        $pin = TicketTypes::pin($post->ID);
+        ?>
         <p><label><strong><?php esc_html_e('Check-in PIN', 'october-events'); ?></strong>
-            <input type="text" name="oe_checkin_pin" value="<?php echo esc_attr($manual_pin); ?>" placeholder="<?php esc_attr_e('auto', 'october-events'); ?>" maxlength="6" size="8"></label>
-            <span class="description"><?php esc_html_e('Leave blank to auto-generate a secure random PIN. Or set your own 4–6 digits for door staff.', 'october-events'); ?></span></p>
+            <input type="text" name="oe_checkin_pin" value="<?php echo esc_attr($pin); ?>" maxlength="6" size="8"></label>
+            <span class="description"><?php esc_html_e('Auto-generated and ready to give to door staff. Change it to your own 4–6 digits any time.', 'october-events'); ?></span></p>
 
         <?php
         $logo_id  = (int) get_post_meta($post->ID, TicketTypes::META_LOGO, true);
@@ -169,7 +182,21 @@ final class TicketsAdmin {
             <td><input type="number" step="0.01" min="0" name="oe_tt[<?php echo $i; ?>][sale_price]" value="<?php echo esc_attr($t['sale_price'] ?? ''); ?>" style="width:80px"></td>
             <td><input type="number" min="1" max="20" name="oe_tt[<?php echo $i; ?>][qty_per_purchase]" value="<?php echo $g('qty_per_purchase', '1'); ?>" style="width:55px"></td>
             <td><input type="number" min="1" max="99" name="oe_tt[<?php echo $i; ?>][max_per_order]" value="<?php echo $g('max_per_order', '99'); ?>" style="width:55px" title="<?php esc_attr_e('Most of this ticket one buyer can purchase at once (1–99). Default 99 — lower it to restrict.', 'october-events'); ?>"></td>
-            <td><input type="text" name="oe_tt[<?php echo $i; ?>][venues_csv]" value="<?php echo esc_attr(implode(', ', TicketTypes::type_venues($t))); ?>" style="width:150px" placeholder="<?php esc_attr_e('All doors', 'october-events'); ?>" title="<?php esc_attr_e('Comma-separated door names this ticket is valid at (must match the Check-in venues below). Blank = valid at every door. Use it to make a ticket scan only at certain homes, e.g. a Serenbe-only ticket.', 'october-events'); ?>"></td>
+            <td style="min-width:120px">
+                <?php
+                $sel = array_map('strtolower', TicketTypes::type_venues($t));
+                if (empty($this->doors)) : ?>
+                    <span class="description" style="font-size:11px"><?php esc_html_e('Add doors below & Save', 'october-events'); ?></span>
+                <?php else : ?>
+                    <?php foreach ($this->doors as $d) : ?>
+                        <label style="display:block;font-size:12px;white-space:nowrap;line-height:1.6">
+                            <input type="checkbox" name="oe_tt[<?php echo $i; ?>][venues][]" value="<?php echo esc_attr($d); ?>" <?php checked(in_array(strtolower($d), $sel, true)); ?>>
+                            <?php echo esc_html($d); ?>
+                        </label>
+                    <?php endforeach; ?>
+                    <span class="description" style="font-size:11px"><?php esc_html_e('none ticked = all doors', 'october-events'); ?></span>
+                <?php endif; ?>
+            </td>
             <td><input type="datetime-local" name="oe_tt[<?php echo $i; ?>][sale_from]" value="<?php echo esc_attr($this->dt_local((string) ($t['sale_from'] ?? ''))); ?>"></td>
             <td><input type="datetime-local" name="oe_tt[<?php echo $i; ?>][sale_until]" value="<?php echo esc_attr($this->dt_local((string) ($t['sale_until'] ?? ''))); ?>"></td>
             <td style="text-align:center"><input type="checkbox" name="oe_tt[<?php echo $i; ?>][active]" value="1" <?php checked(! empty($t['active']) || $t === []); ?>></td>
@@ -204,10 +231,11 @@ final class TicketsAdmin {
             if (trim((string) ($r['label'] ?? '')) === '') {
                 continue;
             }
-            // "Valid at" — keep only entries matching a real door, canonicalised.
+            // "Valid at" — checkboxes submit an array of door names; keep only those
+            // still matching a real door (a door removed in this same save drops out).
             $picked = [];
-            foreach (explode(',', (string) ($r['venues_csv'] ?? '')) as $name) {
-                $k = strtolower(trim($name));
+            foreach ((array) ($r['venues'] ?? []) as $name) {
+                $k = strtolower(trim((string) $name));
                 if ($k !== '' && isset($venue_lut[$k])) {
                     $picked[$venue_lut[$k]] = true;
                 }

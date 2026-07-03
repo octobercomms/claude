@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.68.0 — "Valid at" is now a door picker + the check-in PIN is always visible
+
+Two fixes to the ticketing UX from real use on the live sites.
+
+**"Valid at" is a checklist, not a free-text box.** You no longer type door names
+(and risk a typo silently un-restricting a ticket). Add your doors in *Check-in
+venues* and Save, then each ticket type shows a **checkbox per door** — tick the
+ones it's valid at (tick none = every door). Selections come straight from your
+saved door list, so they always match exactly. Existing restrictions carry over.
+
+**The check-in PIN is generated on open and shown, not lazily.** Previously the
+PIN was only created when someone *submitted* one at the scanner — a catch-22,
+since staff couldn't submit a PIN they'd never been shown. Now opening an event's
+*Tickets & check-in* box generates a secure PIN (if you haven't set your own) and
+displays it, so you can hand it to door staff straight away. You can still type
+your own 4–6 digits.
+
 ## 1.67.1 — venue-restricted tickets: don't auto-advertise the doors
 
 Refines 1.67.0. The venue restriction no longer prints an automatic
