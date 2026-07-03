@@ -65,7 +65,7 @@
     return cart;
   }
   function setRowQty($row, n) {
-    var max = parseInt($row.data('max-qty'), 10) || 10;
+    var max = parseInt($row.data('max-qty'), 10) || 99;
     n = Math.max(0, Math.min(max, n));
     $row.find('.oct-qty-val').text(n);
     $row.toggleClass('oct-ticket-row--selected', n > 0);

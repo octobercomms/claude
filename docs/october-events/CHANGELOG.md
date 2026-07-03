@@ -5,20 +5,35 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
-## 1.67.0 — checkout: raise the per-ticket purchase limit (up to 99)
+## 1.67.0 — bigger group orders + venue-restricted ("Serenbe-only") tickets
 
-The checkout quantity stepper was hard-capped at 10 per ticket type, which blocked
-bulk buyers — e.g. a college buying a block of student tickets.
+Two ticketing additions in the event's *Tickets & check-in* box.
 
-- Each ticket type now has a **"Max/order"** setting in the event's *Tickets &
-  check-in* box (default **10**, up to **99**). Raise it on the types that need it
-  (leave the rest at 10) so a group buyer can take a larger block without opening
-  every type to 99.
+**Per-ticket purchase limit (was hard-capped at 10).** Bulk buyers — e.g. a
+college buying a block of student tickets — were blocked at 10.
+
+- Each ticket type now has a **"Max/order"** setting, defaulting to **99** (no
+  practical limit). Lower it on any type you want to restrict (e.g. a scarce VIP
+  ticket capped at 2).
 - The buyer's `+` stepper, the server-side pricing, and the order-creation guard
   all honour the per-type cap — a crafted request can't exceed it, and the buyer
   gets a plain-English message naming the limit if they try.
-- Existing events keep the current behaviour automatically: a type saved before
-  this change reads as a limit of 10 until you raise it.
+
+**Venue-restricted ticket types.** When two tours are combined into one event, you
+can now sell a cheaper ticket that's only valid at *some* of the doors — e.g. a
+"Serenbe (Sunday)" ticket that scans only at the Serenbe homes.
+
+- Each ticket type has a **"Valid at"** field: list the door names it's valid at
+  (from *Check-in venues*), or leave it blank for every door (the default and how
+  every existing type behaves). Door names are matched to your real venue list, so
+  a typo safely falls back to "all doors" rather than blocking entry.
+- At the door, scanning a restricted ticket at the wrong home shows a distinct
+  amber **"Not valid at this door"** — separate from *invalid* / *already scanned*,
+  and no check-in is recorded. Works **offline** too (the scanner's cached manifest
+  carries each ticket's allowed doors).
+- Buyers see the restriction up front: a **"Valid at … only"** line on the ticket
+  type in checkout, carried through to the confirmation email and the printed
+  ticket, so nobody buys it thinking it's the full tour.
 
 ## 1.66.17 — scale: indexes, fewer queries, tighter throttling
 

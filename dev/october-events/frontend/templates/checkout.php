@@ -46,7 +46,7 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
                data-price="<?php echo esc_attr($unavailable ? '0' : (string) $eff); ?>"
                data-label="<?php echo esc_attr((string) $tt['label']); ?>"
                data-qty-per-purchase="<?php echo esc_attr((string) ($tt['admits'] ?? 1)); ?>"
-               data-max-qty="<?php echo esc_attr((string) ($tt['max'] ?? 10)); ?>"
+               data-max-qty="<?php echo esc_attr((string) ($tt['max'] ?? 99)); ?>"
                <?php echo $unavailable ? '' : 'role="button" tabindex="0"'; ?>>
             <input type="radio" name="oct_ticket_type" value="<?php echo esc_attr((string) $tt['key']); ?>" <?php echo $is_first ? 'checked' : ''; ?> style="display:none">
             <div class="oct-ticket-row__info">
@@ -56,6 +56,9 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
               <?php endif; ?>
               <?php if ((int) ($tt['admits'] ?? 1) > 1) : ?>
                 <div class="oct-ticket-row__admissions"><?php echo esc_html(sprintf(_n('Includes %d admission', 'Includes %d admissions', (int) $tt['admits'], 'october-events'), (int) $tt['admits'])); ?></div>
+              <?php endif; ?>
+              <?php if (! empty($tt['venues'])) : ?>
+                <div class="oct-ticket-row__venues">🎟 <?php echo esc_html(sprintf(__('Valid at %s only', 'october-events'), implode(', ', (array) $tt['venues']))); ?></div>
               <?php endif; ?>
             </div>
             <div class="oct-ticket-row__price">

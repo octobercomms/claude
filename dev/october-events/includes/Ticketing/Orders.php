@@ -533,6 +533,12 @@ final class Orders {
         \OE\Mail\Contacts::capture($order->email, ['name' => (string) $order->name, 'source' => 'ticket']);
         // Attach an "add to calendar" invite (.ics) when the event has a date.
         $ics    = Ics::tempfile($event_id);
+        // Per-type door restrictions, keyed by label, so a venue-scoped ticket
+        // (e.g. Serenbe-only) shows "Valid at …" in the confirmation email too.
+        $type_venues = [];
+        foreach (($event_id ? TicketTypes::types($event_id) : []) as $tt) {
+            $type_venues[(string) $tt['label']] = TicketTypes::type_venues($tt);
+        }
         $params = [
             'event_name' => get_the_title($event_id),
             'order_id'   => $order_id,
@@ -545,6 +551,7 @@ final class Orders {
                 'number'   => $t->ticket_number . ' / ' . $t->total_in_order,
                 'attendee' => (string) $t->attendee_name,
                 'type'     => (string) $t->ticket_type_label,
+                'venues'   => $type_venues[(string) $t->ticket_type_label] ?? [],
                 'url'      => self::ticket_url($t->token),
                 'token'    => (string) $t->token,
             ], $tickets),

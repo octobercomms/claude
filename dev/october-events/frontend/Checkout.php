@@ -57,6 +57,7 @@ final class Checkout {
                 'effective'  => TicketTypes::effective_price($t),
                 'admits'     => (int) $t['qty_per_purchase'],
                 'max'        => TicketTypes::max_per_order($t),
+                'venues'     => TicketTypes::type_venues($t),
                 'state'      => $avail['state'],
                 'opens'      => $avail['opens'],
             ];

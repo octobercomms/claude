@@ -59,7 +59,11 @@ final class TicketTypes {
                 'price'            => round((float) ($t['price'] ?? 0), 2),
                 'sale_price'       => ($t['sale_price'] ?? '') === '' ? null : round((float) $t['sale_price'], 2),
                 'qty_per_purchase' => min(20, max(1, (int) ($t['qty_per_purchase'] ?? 1))),
-                'max_per_order'    => min(99, max(1, (int) ($t['max_per_order'] ?? 10))),
+                'max_per_order'    => min(99, max(1, (int) ($t['max_per_order'] ?? 99))),
+                'venues'           => array_values(array_filter(array_map(
+                    static fn($v) => sanitize_text_field((string) $v),
+                    (array) ($t['venues'] ?? [])
+                ))),
                 'active'           => ! empty($t['active']),
                 'sale_from'        => sanitize_text_field((string) ($t['sale_from'] ?? '')),
                 'sale_until'       => sanitize_text_field((string) ($t['sale_until'] ?? '')),
@@ -79,10 +83,42 @@ final class TicketTypes {
 
     /**
      * The most admissions a single public purchase may buy of this type. Defaults
-     * to 10 for types saved before this setting existed. Clamped 1–99.
+     * to 99 (effectively unrestricted) — lower it per type to restrict. Types saved
+     * before this setting existed read as 99. Clamped 1–99.
      */
     public static function max_per_order(array $type): int {
-        return min(99, max(1, (int) ($type['max_per_order'] ?? 10)));
+        return min(99, max(1, (int) ($type['max_per_order'] ?? 99)));
+    }
+
+    /**
+     * The doors a ticket type is valid at. An empty list means every door —
+     * the default and the behaviour of every type saved before venue-scoping.
+     * A non-empty list restricts the type (e.g. a "Serenbe (Sunday)" ticket set
+     * to only the Serenbe homes).
+     *
+     * @return string[]
+     */
+    public static function type_venues(array $type): array {
+        $v = $type['venues'] ?? [];
+        return is_array($v) ? array_values(array_filter(array_map('strval', $v))) : [];
+    }
+
+    /**
+     * Whether a ticket of this type may be scanned in at $venue. Unrestricted
+     * types (no venue list) pass at any door; restricted types pass only at a
+     * door in their list (matched case-insensitively).
+     */
+    public static function venue_ok(array $type, string $venue): bool {
+        $allowed = self::type_venues($type);
+        if (! $allowed) {
+            return true;
+        }
+        foreach ($allowed as $a) {
+            if (strcasecmp(trim($a), trim($venue)) === 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Effective (sale) price for a type array. */

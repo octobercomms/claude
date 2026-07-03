@@ -87,6 +87,21 @@ final class CheckIn {
 
         global $wpdb;
         $venue = sanitize_text_field($venue);
+
+        // Venue-scoped ticket types (e.g. a Serenbe-only ticket) are valid only at
+        // their listed doors. Resolve the ticket's type via its order and reject at
+        // any other door — no check-in is recorded, so stats stay clean.
+        $type_key = (string) $wpdb->get_var($wpdb->prepare(
+            "SELECT o.ticket_type_key FROM " . Schema::orders() . " o
+             INNER JOIN " . Schema::tickets() . " t ON t.order_id = o.id WHERE t.id = %d",
+            (int) $ticket->id
+        ));
+        if ($type_key !== '') {
+            $type = TicketTypes::type($event_id, $type_key);
+            if ($type && ! TicketTypes::venue_ok($type, $venue)) {
+                return ['status' => 'wrong_venue', 'type' => (string) $ticket->ticket_type_label];
+            }
+        }
         $already = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM " . Schema::checkins() . " WHERE ticket_id = %d AND venue_name = %s",
             $ticket->id,
@@ -138,10 +153,19 @@ final class CheckIn {
         global $wpdb;
         $t = Schema::tickets();
         $c = Schema::checkins();
+        $o = Schema::orders();
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT token, attendee_name, ticket_type_label FROM {$t} WHERE event_id = %d AND status = 'active'",
+            "SELECT ti.token, ti.attendee_name, ti.ticket_type_label, o.ticket_type_key
+             FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
+             WHERE ti.event_id = %d AND ti.status = 'active'",
             $event_id
         )) ?: [];
+        // Per-type door restrictions (empty list = valid at every door), so the
+        // offline scanner can reject a wrong-door scan without the network.
+        $type_venues = [];
+        foreach (TicketTypes::types($event_id) as $tt) {
+            $type_venues[(string) $tt['key']] = TicketTypes::type_venues($tt);
+        }
         // Tokens are the admission credential, so the manifest ships only their
         // SHA-256 hash — the scanner hashes the scanned QR and matches locally.
         // A leaked manifest can no longer forge/clone tickets.
@@ -149,6 +173,7 @@ final class CheckIn {
             'token_hash' => self::token_hash((string) $r->token),
             'attendee'   => (string) $r->attendee_name,
             'type'       => (string) $r->ticket_type_label,
+            'venues'     => $type_venues[(string) $r->ticket_type_key] ?? [],
         ], $rows);
         // Tokens already scanned, paired with the door — so an offline device flags
         // a repeat only at the *same* door (a new door is a fresh valid check-in,
