@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.70.1 — "Valid at" is a compact dropdown, not a wall of checkboxes
+
+With a lot of doors, a checkbox-per-door in every ticket row got unwieldy. Each
+ticket type's "Valid at" is now a small **dropdown** that shows **"All doors"** or
+**"N selected"**, and only opens the (scrollable) door checklist when you click it —
+so a row stays one line no matter how many doors you have. Same data underneath;
+tick none = valid at every door.
+
 ## 1.70.0 — bring the staff platform back (Tasks + Volunteers), readiness stays gone
 
 1.69.0 removed the whole staff platform along with the event-readiness board. The
