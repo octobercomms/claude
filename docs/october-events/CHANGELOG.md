@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.68.1 — check-in doors are now tag chips, not a textarea
+
+The *Check-in venues / doors* field is now a tag input: type a door name and press
+Enter (or comma) to lock it in as a chip with an ✕ to remove — instead of a
+free-form textarea. Cleaner to scan, and each door is a discrete, deduped entry
+that feeds the per-ticket "Valid at" checkboxes. Pasting a newline/comma list adds
+them all at once; Backspace on the empty input removes the last chip. Saved doors
+are stored exactly as before, so nothing needs re-entering.
+
 ## 1.68.0 — "Valid at" is now a door picker + the check-in PIN is always visible
 
 Two fixes to the ticketing UX from real use on the live sites.
