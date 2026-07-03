@@ -62,4 +62,15 @@ async function authenticate(req, res, next) {
   next();
 }
 
-module.exports = { authenticate, tokenFromRequest };
+// Guard for endpoints that spend money on a GET (e.g. live DataForSEO
+// lookups) — the read-only client gate only blocks non-GET, so these paid
+// reads need an explicit block for the 'client' role. Use on any route that
+// hits a paid external API from a GET handler.
+function agencyOnly(req, res, next) {
+  if (req.user?.role === 'client') {
+    return res.status(403).json({ error: 'This isn’t available on a read-only account.' });
+  }
+  next();
+}
+
+module.exports = { authenticate, tokenFromRequest, agencyOnly };
