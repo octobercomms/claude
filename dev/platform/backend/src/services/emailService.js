@@ -884,4 +884,17 @@ async function sendSwipeIdea({ to, clientName, url, platform, title, transcript,
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea };
+// Invite a client to set their password and access their read-only dashboard.
+async function sendClientInvite({ to, clientName, link }) {
+  const who = clientName ? `the ${clientName}` : 'your';
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#111;max-width:520px">
+    <p>Hi,</p>
+    <p>You've been given access to ${who} marketing dashboard — a live, read-only view of everything being done across your paid, earned, social, SEO and analytics.</p>
+    <p>Set your password to log in:</p>
+    <p><a href="${link}" style="background:#111;color:#fff;padding:11px 20px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:700">Set your password</a></p>
+    <p style="color:#666;font-size:12px">Or paste this link into your browser:<br/>${link}<br/><br/>This link expires in 7 days. If you weren't expecting this, you can ignore it.</p>
+  </div>`;
+  return getTransporter().sendMail({ from: getSenderAddress(), to, subject: `${clientName ? clientName + ' — ' : ''}your marketing dashboard access`, html });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite };

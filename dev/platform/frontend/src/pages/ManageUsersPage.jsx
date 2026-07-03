@@ -15,6 +15,7 @@ export default function ManageUsersPage({ embedded = false } = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [editing, setEditing] = useState(null);
 
   async function refresh() {
@@ -52,7 +53,10 @@ export default function ManageUsersPage({ embedded = false } = {}) {
       <div className="row between center mb-2">
         {!embedded && <h1 className="h2">Manage users</h1>}
         {embedded && <div className="h3">Users &amp; access</div>}
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>+ Add user</button>
+        <div className="row" style={{ gap: 8 }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowInvite(true)}>✉ Invite client</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>+ Add user</button>
+        </div>
       </div>
       <p className="body-sm text-muted mb-5">
         Viewers see only the clients you assign them. Admins see everything and can manage users.
@@ -125,6 +129,13 @@ export default function ManageUsersPage({ embedded = false } = {}) {
           clients={clients}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); refresh(); }}
+        />
+      )}
+      {showInvite && (
+        <InviteClientModal
+          clients={clients}
+          onClose={() => setShowInvite(false)}
+          onDone={() => { refresh(); }}
         />
       )}
     </div>
@@ -243,6 +254,84 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Invite a read-only client by email. Creates a client-role login and emails
+// them a set-password link; shows the link so the AM can copy it too.
+function InviteClientModal({ clients, onClose, onDone }) {
+  const [email, setEmail] = useState('');
+  const [clientIds, setClientIds] = useState(new Set());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
+
+  function toggle(id) {
+    setClientIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  async function send() {
+    setError(null);
+    if (!email.trim()) return setError('Enter an email address.');
+    if (!clientIds.size) return setError('Assign at least one client.');
+    setSaving(true);
+    try {
+      const res = await api.post('/users/invite', { email: email.trim(), clientIds: [...clientIds] });
+      setResult(res);
+      onDone();
+    } catch (e) { setError(e.message); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2 className="h2">Invite a client</h2>
+          <button type="button" className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        {result ? (
+          <div>
+            <div className="callout" style={{ marginBottom: 12 }}>
+              {result.emailed
+                ? <>Invite emailed to <strong>{result.user.email}</strong>. They'll set a password and land on their read-only dashboard.</>
+                : <>User created, but the email didn't send{result.emailError ? ` (${result.emailError})` : ''}. Copy the link below and send it to them.</>}
+            </div>
+            <label className="field-label">Set-password link</label>
+            <input className="input" readOnly value={result.link} onFocus={e => e.target.select()} style={{ fontSize: 12 }} />
+            <div className="row" style={{ gap: 8, marginTop: 14 }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigator.clipboard?.writeText(result.link)}>Copy link</button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={onClose}>Done</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {error && <div className="callout callout-warning" style={{ marginBottom: 12, fontSize: 13 }}>{error}</div>}
+            <div className="field">
+              <label className="field-label">Client's email</label>
+              <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com" autoFocus />
+              <p className="body-xs text-subtle" style={{ marginTop: 6 }}>They log in with this email. Read-only — they can view everything but change nothing and spend nothing.</p>
+            </div>
+            <div className="field">
+              <label className="field-label">Give them access to</label>
+              <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 4, background: 'var(--surface-raised)' }}>
+                {clients.map(c => (
+                  <label key={c.id} className="row center" style={{ gap: 8, padding: '6px 8px', fontSize: 13, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={clientIds.has(c.id)} onChange={() => toggle(c.id)} />
+                    <span>{c.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="row" style={{ gap: 8, marginTop: 14 }}>
+              <button type="button" className="btn btn-primary" onClick={send} disabled={saving}>{saving ? 'Sending…' : '✉ Send invite'}</button>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

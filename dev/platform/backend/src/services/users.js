@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const pool = require('../db');
 
 const BCRYPT_ROUNDS = 12;
@@ -132,8 +133,66 @@ async function changePassword(userId, currentPassword, newPassword) {
   await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId]);
 }
 
+// Invite a read-only client by email: create a client-role user (username =
+// email, an unusable random password) scoped to their client(s), with a
+// one-time set-password token. Returns the raw token so the caller can email
+// the link.
+async function inviteClient({ email, clientIds = [] }) {
+  const norm = String(email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm)) throw new Error('a valid email is required');
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const unusableHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), BCRYPT_ROUNDS);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `INSERT INTO users (username, email, password_hash, role, invite_token, invite_expires_at)
+       VALUES ($1, $1, $2, 'client', $3, $4)
+       RETURNING id, username, email, role, created_at`,
+      [norm, unusableHash, token, expires]
+    );
+    const user = rows[0];
+    for (const cid of clientIds) {
+      await client.query('INSERT INTO user_clients (user_id, client_id) VALUES ($1, $2)', [user.id, cid]);
+    }
+    await client.query('COMMIT');
+    return { ...user, invite_token: token };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// Public: the email tied to a valid, unexpired invite token (so the
+// set-password page can greet them). Returns null if invalid/expired.
+async function inviteInfo(token) {
+  if (!token) return null;
+  const { rows } = await pool.query('SELECT email, invite_expires_at FROM users WHERE invite_token = $1', [token]);
+  if (!rows.length) return null;
+  if (rows[0].invite_expires_at && new Date(rows[0].invite_expires_at) < new Date()) return null;
+  return { email: rows[0].email };
+}
+
+// Public: set a password from a valid invite token; consumes the token.
+async function setPasswordByToken(token, password) {
+  if (!token || !password || String(password).length < 8) {
+    const e = new Error('A password of at least 8 characters is required.'); e.status = 400; throw e;
+  }
+  const { rows } = await pool.query('SELECT id, invite_expires_at FROM users WHERE invite_token = $1', [token]);
+  if (!rows.length) { const e = new Error('This link is invalid or has already been used.'); e.status = 400; throw e; }
+  if (rows[0].invite_expires_at && new Date(rows[0].invite_expires_at) < new Date()) {
+    const e = new Error('This link has expired — ask your account manager to re-send it.'); e.status = 400; throw e;
+  }
+  const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  await pool.query('UPDATE users SET password_hash = $1, invite_token = NULL, invite_expires_at = NULL WHERE id = $2', [hash, rows[0].id]);
+  return { ok: true };
+}
+
 module.exports = {
   findByUsername, findById, listAll, create, update, remove,
   verifyPassword, changePassword, getVisibleClientIds, canAccessClient,
-  seedAdminIfMissing,
+  seedAdminIfMissing, inviteClient, inviteInfo, setPasswordByToken,
 };
