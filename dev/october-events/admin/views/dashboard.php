@@ -6,7 +6,6 @@ use OE\Admin\Admin;
 use OE\Fields;
 use OE\Account;
 
-$platform  = Admin::platform_url();
 // Custom scanner page if set, else the clean built-in /checkin route.
 $checkin   = (string) \OE\Settings::get('checkin_page_url', '');
 if ($checkin === '') { $checkin = home_url('/checkin'); }
@@ -24,9 +23,6 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
         <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-contacts')); ?>"><?php esc_html_e('Contacts', 'october-events'); ?></a>
         <?php if ($checkin !== '') : ?>
             <a class="button" href="<?php echo esc_url($checkin); ?>" target="_blank" rel="noopener"><?php esc_html_e('Scan tickets ↗', 'october-events'); ?></a>
-        <?php endif; ?>
-        <?php if ($platform !== '') : ?>
-            <a class="button" href="<?php echo esc_url($platform); ?>" target="_blank" rel="noopener"><?php esc_html_e('Open the platform ↗', 'october-events'); ?></a>
         <?php endif; ?>
     </div>
 
@@ -74,10 +70,12 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
         </thead>
         <tbody>
         <?php
-        $type_pages = ['directory' => 'oe-directory', 'destination' => 'oe-destinations', 'product' => 'oe-products', 'event' => 'oe-planning', 'story' => 'oe-stories'];
+        $type_pages = ['directory' => 'oe-directory', 'destination' => 'oe-destinations', 'product' => 'oe-products', 'story' => 'oe-stories'];
         foreach ($counts as $type => $by_status) :
             $type_pending = (int) ($by_status['pending_review'] ?? 0);
-            $manage = admin_url('admin.php?page=' . ($type_pages[$type] ?? 'october-events')); ?>
+            $manage = $type === 'event'
+                ? admin_url('edit.php?post_type=' . PostTypes::slug('event'))
+                : admin_url('admin.php?page=' . ($type_pages[$type] ?? 'october-events')); ?>
             <tr>
                 <td><strong><?php echo esc_html(PostTypes::TYPES[$type]['label'] ?? $type); ?></strong></td>
                 <td><?php echo $type_pending ? '<span class="oe-status oe-status-pending_review">' . (int) $type_pending . '</span>' : '0'; ?></td>

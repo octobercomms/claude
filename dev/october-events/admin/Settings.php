@@ -213,10 +213,7 @@ final class Settings {
             }
         }
 
-        $req_candidates = ['name', 'start_datetime', 'end_datetime', 'price', 'location', 'description', 'organiser', 'image'];
-        $event_required = array_values(array_intersect($req_candidates, array_map('sanitize_key', (array) ($in['event_required_fields'] ?? []))));
-
-        // Map of planning field => existing meta key to read as a fallback.
+        // Map of event field => existing meta key to read as a fallback.
         $event_field_map = [];
         foreach ((array) ($in['event_field_map'] ?? []) as $field => $src) {
             $field = sanitize_key((string) $field);
@@ -228,7 +225,6 @@ final class Settings {
 
         Config::update([
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
-            'event_required_fields' => $event_required ?: ['name', 'start_datetime', 'price', 'location'],
             'event_field_map'  => $event_field_map,
             'pricing'          => $pricing,
             'currency'         => sanitize_text_field((string) ($in['currency'] ?? 'usd')),
@@ -245,7 +241,6 @@ final class Settings {
             'reminder_offsets' => $offsets,
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => self::keep_secret($in['github_token'] ?? '', $existing['github_token'] ?? ''),
-            'platform_origins' => self::parse_origins((string) ($in['platform_origins'] ?? '')),
             'theme_accent'      => self::clean_color((string) ($in['theme_accent'] ?? '')),
             'theme_accent_on'   => self::clean_color((string) ($in['theme_accent_on'] ?? '')),
             'theme_sidebar_bg'  => self::clean_color((string) ($in['theme_sidebar_bg'] ?? '')),
@@ -268,8 +263,7 @@ final class Settings {
             'aws_secret_access_key' => self::keep_secret($in['aws_secret_access_key'] ?? '', $existing['aws_secret_access_key'] ?? ''),
             'sms_region'            => sanitize_text_field((string) ($in['sms_region'] ?? 'us-east-1')),
             'sms_origination'       => sanitize_text_field((string) ($in['sms_origination'] ?? '')),
-            // Platform + check-in links surfaced in wp-admin.
-            'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
+            // Check-in link surfaced in wp-admin.
             'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),
             'checkout_terms_url' => esc_url_raw(trim((string) ($in['checkout_terms_url'] ?? ''))),
             // Per-site feature toggles (Settings → Features).
@@ -316,25 +310,5 @@ final class Settings {
     private static function keep_secret($submitted, $existing): string {
         $submitted = trim((string) $submitted);
         return $submitted !== '' ? \OE\Crypto::encrypt($submitted) : (string) $existing;
-    }
-
-    private static function parse_origins(string $raw): array {
-        $out = [];
-        foreach (preg_split('/[\r\n,]+/', $raw) ?: [] as $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-            $parts = wp_parse_url($line);
-            if (empty($parts['scheme']) || empty($parts['host'])) {
-                continue;
-            }
-            $origin = $parts['scheme'] . '://' . $parts['host'];
-            if (! empty($parts['port'])) {
-                $origin .= ':' . $parts['port'];
-            }
-            $out[] = $origin;
-        }
-        return array_values(array_unique($out));
     }
 }

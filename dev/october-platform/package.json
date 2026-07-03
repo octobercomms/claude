@@ -1,9 +1,0 @@
-{
-  "name": "october-platform",
-  "private": true,
-  "version": "0.1.0",
-  "description": "October Events planning platform — static SPA (no build) served on Cloudflare Pages.",
-  "scripts": {
-    "check": "for f in assets/*.js; do node --check \"$f\"; done"
-  }
-}

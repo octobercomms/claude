@@ -39,10 +39,6 @@ final class Plugin {
 
         // Services.
         RestApi::get_instance()->init();
-        Cors::init();
-        \OE\Planning\Rest::init();
-        \OE\Tasks\Rest::init();
-        \OE\Volunteers\Rest::init();
         \OE\Brand\Rest::init();
         \OE\Mail\Mailer::init();
         \OE\Mail\SnsController::init();
