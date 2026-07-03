@@ -6,6 +6,7 @@ import ClientSwitcher from './ClientSwitcher';
 
 export default function Layout() {
   const { logout, user } = useAuth();
+  const readOnly = user?.role === 'client';
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -109,7 +110,10 @@ export default function Layout() {
                 <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned</NavLink>
                 <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Shared</NavLink>
                 <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Owned</NavLink>
-                <NavLink to={`/clients/${clientId}?tab=setup_overview`} style={subLinkStyle(!!clientMatch && ['setup_overview', 'strategy', 'details', 'brand', 'connectors', 'reports'].includes(currentTab))}>Admin</NavLink>
+                {/* Admin (connectors, strategy config, reports setup) is agency-only. */}
+                {!readOnly && (
+                  <NavLink to={`/clients/${clientId}?tab=setup_overview`} style={subLinkStyle(!!clientMatch && ['setup_overview', 'strategy', 'details', 'brand', 'connectors', 'reports'].includes(currentTab))}>Admin</NavLink>
+                )}
               </div>
             )}
           </li>
@@ -128,13 +132,20 @@ export default function Layout() {
         <div className="app-nav-footer">
           <div className="user-line">
             Signed in as <strong>{user?.username || '…'}</strong>
+            {readOnly && <span className="chip chip-neutral" style={{ marginLeft: 6, fontSize: 9 }}>read-only</span>}
           </div>
           <button onClick={() => setShowPassword(true)} className="app-nav-footer-btn">Change password</button>
           <button onClick={handleLogout} className="app-nav-footer-btn">Sign out</button>
         </div>
       </nav>
       <main className="app-main" ref={mainRef}>
-        {clientId && <ClientSwitcher clientId={clientId} />}
+        {readOnly && (
+          <div style={{ background: 'var(--surface-raised)', borderBottom: 'var(--border-w) solid var(--card-border)', padding: '8px 16px', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>👁</span>
+            <span><strong>Read-only view.</strong> You can explore everything your agency is doing here — nothing on your account can be changed from this login.</span>
+          </div>
+        )}
+        {clientId && !readOnly && <ClientSwitcher clientId={clientId} />}
         <Outlet />
       </main>
       {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}
