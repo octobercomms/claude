@@ -177,7 +177,6 @@ final class Transactional {
             $tnum  = esc_html((string) ($t['number'] ?? ''));
             $att   = (string) ($t['attendee'] ?? '');
             $ttype = (string) ($t['type'] ?? '');
-            $venues = array_filter(array_map('strval', (array) ($t['venues'] ?? [])));
             $url   = (string) ($t['url'] ?? '');
             $token = (string) ($t['token'] ?? '');
             $qr    = $token !== '' ? 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&qzone=1&data=' . rawurlencode($token) : '';
@@ -188,8 +187,7 @@ final class Transactional {
                 . '</td>'
                 . '<td style="padding:12px 12px 12px 0" valign="middle">'
                 . ($att !== '' ? '<div style="font-weight:800;font-size:15px;color:#111">' . esc_html($att) . '</div>' : '')
-                . '<div style="font-size:13px;color:#555;margin:2px 0 ' . ($venues ? '4px' : '10px') . '">' . esc_html($sub) . '</div>'
-                . ($venues ? '<div style="font-size:12px;font-weight:700;color:#b8620a;margin:0 0 10px">' . esc_html(sprintf(__('Valid at %s only', 'october-events'), implode(', ', $venues))) . '</div>' : '')
+                . '<div style="font-size:13px;color:#555;margin:2px 0 10px">' . esc_html($sub) . '</div>'
                 . ($url !== '' ? '<a href="' . esc_url($url) . '" style="display:inline-block;background:#111;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:9px 16px">' . esc_html__('View ticket', 'october-events') . '</a>' : '')
                 . '</td></tr></table></td></tr>';
         }

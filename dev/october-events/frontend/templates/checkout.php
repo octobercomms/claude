@@ -57,9 +57,6 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
               <?php if ((int) ($tt['admits'] ?? 1) > 1) : ?>
                 <div class="oct-ticket-row__admissions"><?php echo esc_html(sprintf(_n('Includes %d admission', 'Includes %d admissions', (int) $tt['admits'], 'october-events'), (int) $tt['admits'])); ?></div>
               <?php endif; ?>
-              <?php if (! empty($tt['venues'])) : ?>
-                <div class="oct-ticket-row__venues">🎟 <?php echo esc_html(sprintf(__('Valid at %s only', 'october-events'), implode(', ', (array) $tt['venues']))); ?></div>
-              <?php endif; ?>
             </div>
             <div class="oct-ticket-row__price">
               <?php if ($unavailable) : ?>

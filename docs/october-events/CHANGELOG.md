@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.67.1 — venue-restricted tickets: don't auto-advertise the doors
+
+Refines 1.67.0. The venue restriction no longer prints an automatic
+"Valid at <doors> only" line on the checkout row, confirmation email, or printed
+ticket. That text was redundant with the ticket type's own name and leaked the raw
+door names — and the restriction is meant to be usable for reasons other than a
+public "Serenbe only" note.
+
+- **Buyer-facing wording is now yours to control** via the ticket type's **label**
+  (e.g. "Serenbe Homes only") and its **description** — nothing is auto-generated.
+- **The scanner enforcement is unchanged:** a restricted ticket still only checks in
+  at its listed doors (online and offline), showing the staff-facing amber "Not
+  valid at this door" with the ticket type name.
+
 ## 1.67.0 — bigger group orders + venue-restricted ("Serenbe-only") tickets
 
 Two ticketing additions in the event's *Tickets & check-in* box.

@@ -26,13 +26,12 @@ $checked  = isset($ticket->id) && (int) $ticket->id > 0 ? Orders::checked_in((in
 // Description + price, matched from the event's ticket types by label.
 $order    = (! empty($ticket->order_id)) ? Orders::get((int) $ticket->order_id) : null;
 $currency = strtoupper((string) ($order->currency ?? \OE\Settings::get('currency', 'usd')));
-$desc = ''; $price = null; $valid_at = [];
+$desc = ''; $price = null;
 if ($event_id) {
     foreach (TicketTypes::types($event_id) as $t) {
         if ((string) ($t['label'] ?? '') === $type) {
-            $desc     = (string) ($t['description'] ?? '');
-            $price    = TicketTypes::effective_price($t);
-            $valid_at = TicketTypes::type_venues($t);
+            $desc  = (string) ($t['description'] ?? '');
+            $price = TicketTypes::effective_price($t);
             break;
         }
     }
@@ -96,7 +95,6 @@ $accent_on = (string) \OE\Settings::get('theme_accent_on', '') ?: '#ffffff';
             <h1 class="ev"><?php echo esc_html($event); ?></h1>
             <?php if ($when) : ?><p class="date"><?php echo esc_html($when); ?></p><?php endif; ?>
             <p class="type"><?php echo esc_html($type); ?></p>
-            <?php if (! empty($valid_at)) : ?><p class="validat" style="font-weight:700;color:#b8620a;margin:0 0 6px"><?php echo esc_html(sprintf(__('Valid at %s only', 'october-events'), implode(', ', $valid_at))); ?></p><?php endif; ?>
             <p class="desc">
                 <?php if ($desc) : ?><?php echo nl2br(esc_html($desc)); ?><br><?php endif; ?>
                 <?php if ($price_str) : ?><?php echo esc_html($price_str); ?><?php endif; ?>
