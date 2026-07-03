@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
@@ -30,6 +31,7 @@ const SUITE_ACCENT_SOCIAL = UiPalette.suite.social;
 export default function ClientSocialPage() {
   const { id } = useParams();
   const toast = useToast();
+  const { readOnly } = useAuth(); // client logins: view-only, no produce/build
   const [client, setClient] = useState(null);
   const [batches, setBatches] = useState([]);
   const [posts, setPosts] = useState([]);
@@ -85,12 +87,14 @@ export default function ClientSocialPage() {
   const inCreate = ['swipe', 'brainstorm', 'reels', 'video', 'plans', 'publish'].includes(socialTab);
   useEffect(() => { if (!inCreate) setCreateView(null); }, [inCreate]);
 
-  // Redirect legacy deep links to their new homes.
+  // Redirect legacy deep links to their new homes. Client (read-only) logins
+  // can't reach the Build/produce factory — bounce them to Overview.
   useEffect(() => {
     if (socialTab === 'loop') setSocialTab('perf_insights');
     if (socialTab === 'learn') setSocialTab('performance');
+    if (readOnly && inCreate) setSocialTab('overview');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socialTab]);
+  }, [socialTab, readOnly, inCreate]);
   // Lifted to page level so the SocialSuiteOverview can read it for
   // state-aware "where you are in the loop" detection. PlansList
   // receives the array as a prop instead of fetching its own.
@@ -393,11 +397,13 @@ export default function ClientSocialPage() {
         <div>
           <h1 className="display mt-2">Shared</h1>
         </div>
-        <div className="hero-actions">
-          <UiButton variant="secondary" size="sm" onClick={toggleAutopilotPaused}>
-            {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
-          </UiButton>
-        </div>
+        {!readOnly && (
+          <div className="hero-actions">
+            <UiButton variant="secondary" size="sm" onClick={toggleAutopilotPaused}>
+              {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
+            </UiButton>
+          </div>
+        )}
       </header>
 
       {/* Four top groups in workflow order: Overview / Create / Engage / Measure.
@@ -430,10 +436,11 @@ export default function ClientSocialPage() {
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
-          { key: 'create',   label: 'Build',    active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
+          // Build is the produce factory — agency-only. Hidden for client logins.
+          !readOnly && { key: 'create', label: 'Build', active: currentGroup === 'create', onClick: () => setSocialTab('brainstorm') },
           { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
           { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
-        ];
+        ].filter(Boolean);
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
         }));
