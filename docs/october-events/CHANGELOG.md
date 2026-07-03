@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.70.0 — bring the staff platform back (Tasks + Volunteers), readiness stays gone
+
+1.69.0 removed the whole staff platform along with the event-readiness board. The
+platform itself is wanted — this restores it, minus the readiness piece.
+
+- **`dev/october-platform` is back** with its **Tasks** and **Volunteers** boards,
+  the dashboard, email, contacts and the AI assistant — and its backing `oe/v1`
+  Tasks/Volunteers API, CORS, and the platform settings (allowed origins +
+  platform URL) and the wp-admin "Open the platform" button.
+- **The event-readiness "Planning" tab stays removed.** The SPA no longer has an
+  Events/readiness board or any `/planning` calls; its dashboard shows **Events
+  live** (published) from `/stats` instead of a confirm/green count. Events are
+  still managed in WordPress / JetEngine with no go-live gating.
+
+(Net effect vs 1.68.1: only the readiness board + gating are gone; everything
+else — including the platform — is retained.)
+
 ## 1.69.0 — remove the event-readiness board + the staff SPA
 
 The "confirm → green" event-readiness workflow was more friction than help —

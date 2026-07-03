@@ -38,6 +38,7 @@ final class Admin {
         add_action('admin_init', [$this, 'maybe_export_csv']);
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
+        TasksAdmin::get_instance()->init();
     }
 
     public function register_menu(): void {
@@ -122,6 +123,25 @@ final class Admin {
                 . '</div>';
         }
         echo '</div>';
+    }
+
+    /** The staff platform URL (Settings → platform_url, else first non-preview origin). */
+    public static function platform_url(): string {
+        $url = trim((string) \OE\Settings::get('platform_url', ''));
+        if ($url === '') {
+            $origins = array_values(array_filter((array) \OE\Settings::get('platform_origins', [])));
+            // Prefer a real custom domain over the *.pages.dev build/preview host.
+            foreach ($origins as $o) {
+                if (strpos((string) $o, '.pages.dev') === false) {
+                    $url = (string) $o;
+                    break;
+                }
+            }
+            if ($url === '') {
+                $url = (string) ($origins[0] ?? '');
+            }
+        }
+        return $url !== '' ? untrailingslashit($url) : '';
     }
 
     public static function bento(string $key): void {
