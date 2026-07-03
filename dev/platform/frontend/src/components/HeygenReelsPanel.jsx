@@ -274,7 +274,7 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
                 Overall delivery pace. Combine with pauses above for finer control.
               </div>
             </div>
-            {isPhoto && (
+            {isPhoto && engine !== 'avatar_v' && (
               <label className="field" style={{ display: 'block' }}>
                 <span className="field-label">Expressiveness</span>
                 <select className="input" value={expressiveness} onChange={e => setExpressiveness(e.target.value)}>
@@ -283,7 +283,7 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
                   <option value="high">High — lively, more gesture</option>
                 </select>
                 <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
-                  Photo avatars only. HeyGen defaults to Low (stiff) — Medium/High give more lifelike motion.
+                  Photo avatars only. HeyGen defaults to Low (stiff) — Medium/High give more lifelike motion. (Not used with Avatar V.)
                 </div>
               </label>
             )}

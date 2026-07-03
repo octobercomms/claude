@@ -182,7 +182,9 @@ async function generate(clientId, { title, script, avatar_id, avatar_type, avata
   // Avatar V is an opt-in, eligibility-gated engine (digital twins). Everything
   // else uses the Avatar IV default (engine omitted).
   const useEngine = engine === 'avatar_v' ? 'avatar_v' : null;
-  const useExpr = isPhoto && ['low', 'medium', 'high'].includes(expressiveness) ? expressiveness : null;
+  // expressiveness is an Avatar IV-only knob — HeyGen 400s if it's sent with
+  // engine avatar_v, so only include it on the default (Avatar IV) engine.
+  const useExpr = isPhoto && !useEngine && ['low', 'medium', 'high'].includes(expressiveness) ? expressiveness : null;
   // Voice speed (v3 voice_settings.speed). Clamp to the API's 0.5–1.5; null
   // (or exactly 1) means leave HeyGen's default pace untouched.
   const spd = Number(speed);
