@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+import { roWrite } from '../utils/readOnly';
 
 // Internal Strategist reports for ads — Manus-style briefing notes.
 // Three-column working layout: left rail lists past reports newest
@@ -13,6 +15,7 @@ import { useToast } from '../context/ToastContext';
 // in a full-width bar above the columns.
 export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [reports, setReports] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -161,7 +164,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
             <option value={14}>Last 14 days</option>
             <option value={30}>Last 30 days</option>
           </select>
-          <button onClick={generate} disabled={generating} className="btn btn-primary">
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: generate, disabled: generating })}>
             {generating ? 'Generating…' : '+ Generate report'}
           </button>
         </div>
@@ -198,7 +201,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                   )}
                 </div>
               </div>
-              <button onClick={sendBriefingEmail} disabled={emailing || !selected} className="btn btn-secondary btn-sm" title="Send this briefing as an email now (uses the recipients above)">
+              <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: sendBriefingEmail, disabled: emailing || !selected, title: 'Send this briefing as an email now (uses the recipients above)' })}>
                 {emailing ? 'Sending…' : '✉ Send to email'}
               </button>
               <button onClick={savePdf} className="btn btn-secondary btn-sm" title="Save a PDF copy with the standard report header + footer">

@@ -8,6 +8,8 @@ import SecurityPanel from '../components/SecurityPanel';
 import StrategyTemplatesPanel from '../components/StrategyTemplatesPanel';
 import AiModelsPanel from '../components/AiModelsPanel';
 import IntegrationsPage from './IntegrationsPage';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 const KEY_GROUPS = [
   {
@@ -325,6 +327,7 @@ const SUBTAB_CATS = {
 const ALL_SUBS = SECTIONS.flatMap(s => s.subs.map(x => x.k));
 
 export default function SettingsPage() {
+  const { readOnly } = useAuth();
   const [values, setValues] = useState({});
   const [revealed, setRevealed] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState({});
@@ -682,7 +685,7 @@ export default function SettingsPage() {
                             value={testEmail} onChange={e => setTestEmail(e.target.value)}
                             className="input" style={{ flex: '1 1 200px' }}
                           />
-                          <button type="button" onClick={handleTestEmail} className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }} disabled={sendingTest}>
+                          <button type="button" {...roWrite(readOnly, { onClick: handleTestEmail, disabled: sendingTest })} className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
                             {sendingTest ? 'Sending…' : 'Send Test'}
                           </button>
                         </div>
@@ -944,6 +947,7 @@ function PublicationsPanel() {
 // publication. Fetches everything fresh from /pr/outlets/:id (summary,
 // journalists, coverage history) rather than relying on the row data.
 function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
+  const { readOnly } = useAuth();
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1024,7 +1028,7 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
             <MField label="Name">
               <input className="input" value={form.name} onChange={(e) => update('name', e.target.value)} />
             </MField>
-            <MField label={<>About <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} disabled={gen} onClick={generate}>{gen ? '…' : '✨ Generate'}</button></>}>
+            <MField label={<>About <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} {...roWrite(readOnly, { onClick: generate, disabled: gen })}>{gen ? '…' : '✨ Generate'}</button></>}>
               <textarea className="input" rows={3} value={form.summary} onChange={(e) => update('summary', e.target.value)} placeholder="Who they are — Claude can draft this from your coverage." />
             </MField>
             <MField label="Tier">
@@ -1102,6 +1106,7 @@ function MField({ label, children, full }) { return <label className="field" sty
 // PR Gmail add-on — surfaces the API base URL + shared key to paste into the
 // Google Apps Script add-on's config, with a Regenerate (rotate) button.
 function PrAddonPanel() {
+  const { readOnly } = useAuth();
   const [key, setKey] = useState(null);
   const [busy, setBusy] = useState(false);
   const [reveal, setReveal] = useState(false);
@@ -1126,7 +1131,7 @@ function PrAddonPanel() {
           <h2 className="caption">PR · Gmail add-on</h2>
           <p className="body-sm text-muted">Connect the OMI for Gmail add-on so you can look up journalists, log threads, and capture contacts from your inbox. Paste these two values into the add-on's setup.</p>
         </div>
-        <button onClick={regenerate} disabled={busy} className="btn btn-primary" style={{ padding: '6px 14px' }}>{busy ? 'Generating…' : (key ? 'Regenerate' : 'Generate key')}</button>
+        <button {...roWrite(readOnly, { onClick: regenerate, disabled: busy })} className="btn btn-primary" style={{ padding: '6px 14px' }}>{busy ? 'Generating…' : (key ? 'Regenerate' : 'Generate key')}</button>
       </div>
       <div className="field" style={{ marginBottom: 10 }}>
         <label className="field-label">API base URL</label>
@@ -1437,6 +1442,7 @@ function InfoRow({ label, value }) {
 // attached to many clients via outreach_contact_clients; this view shows
 // every contact with the count + names of the clients they're attached to.
 function ContactsLibrary() {
+  const { readOnly } = useAuth();
   const [rows, setRows] = useState(null);
   const [clients, setClients] = useState([]);
   const [tags, setTags] = useState([]);
@@ -1782,7 +1788,7 @@ function ContactsLibrary() {
                           <input className="input" style={{ marginBottom: 6 }} value={nudgeDraft.subject} onChange={(e) => setNudgeDraft((d) => ({ ...d, subject: e.target.value }))} placeholder="Subject" />
                           <textarea className="input" rows={5} style={{ marginBottom: 6 }} value={nudgeDraft.body} onChange={(e) => setNudgeDraft((d) => ({ ...d, body: e.target.value }))} />
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button className="btn btn-primary btn-sm" disabled={nudgeBusy || !nudgeDraft.to || !nudgeDraft.subject || !nudgeDraft.body} onClick={sendNudge}>{nudgeBusy ? 'Sending…' : 'Send'}</button>
+                            <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: sendNudge, disabled: nudgeBusy || !nudgeDraft.to || !nudgeDraft.subject || !nudgeDraft.body })}>{nudgeBusy ? 'Sending…' : 'Send'}</button>
                             <button className="btn btn-secondary btn-sm" onClick={() => setNudgeDraft(null)}>Cancel</button>
                           </div>
                         </>
@@ -2034,6 +2040,7 @@ function ContactsLibrary() {
 // up the long tail of imported-but-unwanted tags. Operations are scoped
 // to the caller's visibility on the backend.
 function TagsManager() {
+  const { readOnly } = useAuth();
   const [tags, setTags] = useState(null);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('count'); // 'count' | 'name'
@@ -2127,8 +2134,7 @@ function TagsManager() {
               old CSV imports.
             </p>
           </div>
-          <button onClick={tidyWithClaude} disabled={analyzing || applying} className="btn btn-secondary btn-sm"
-            title="Send the tag list to Claude and get cleanup suggestions">
+          <button {...roWrite(readOnly, { onClick: tidyWithClaude, disabled: analyzing || applying, title: 'Send the tag list to Claude and get cleanup suggestions' })} className="btn btn-secondary btn-sm">
             {analyzing ? 'Analysing…' : '✦ Tidy with Claude'}
           </button>
         </div>
@@ -2248,6 +2254,7 @@ function TagsManager() {
 // writes an audit row so the change history is visible later from
 // the contact's Edit modal.
 function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied }) {
+  const { readOnly } = useAuth();
   const [phase, setPhase] = useState('idle'); // idle | analysing | review | applying | done
   const [result, setResult] = useState(null); // { suggestions, analysed, capped }
   const [selected, setSelected] = useState(new Set());
@@ -2357,7 +2364,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             <div style={tidyStyles.footer}>
               <button onClick={onClose} style={tidyStyles.ghostBtn}>Cancel</button>
               <div style={{ flex: 1 }} />
-              <button onClick={runAnalyse} style={tidyStyles.btn}>Start analysis</button>
+              <button {...roWrite(readOnly, { onClick: runAnalyse })} style={tidyStyles.btn}>Start analysis</button>
             </div>
           </div>
         )}

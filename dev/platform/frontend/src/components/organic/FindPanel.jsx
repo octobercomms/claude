@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 import PipelineStep from './PipelineStep';
 import { FanoutTab, ContentGapsTab } from '../SeoSuite';
 
@@ -33,6 +35,7 @@ const MODES = [
 ];
 
 export default function FindPanel({ clientId, onNext }) {
+  const { readOnly } = useAuth();
   const [mode, setMode] = useState('url');
   const [runs, setRuns] = useState([]);
   const [activeRun, setActiveRun] = useState(null);
@@ -126,7 +129,7 @@ export default function FindPanel({ clientId, onNext }) {
           style={{ padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
-        <button onClick={runNew} className="btn btn-primary" disabled={running || !url.trim()}>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !url.trim() })}>
           {running ? 'Analysing…' : 'Find gaps'}
         </button>
       </div>

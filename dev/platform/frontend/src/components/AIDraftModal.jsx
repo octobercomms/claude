@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 // Small modal for "draft + accept" flows where Claude writes something and
 // the user reviews / edits before saving. Used by Complete with Claude
 // (briefing) and Suggest with Claude (monthly focus).
 export default function AIDraftModal({ title, hint, draft, onAccept, onClose }) {
+  const { readOnly } = useAuth();
   const [text, setText] = useState(draft || '');
   const [saving, setSaving] = useState(false);
 
@@ -37,7 +40,7 @@ export default function AIDraftModal({ title, hint, draft, onAccept, onClose }) 
         />
         <div className="row end">
           <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
-          <button type="button" onClick={handleAccept} disabled={saving || !text.trim()} className="btn btn-primary">
+          <button type="button" {...roWrite(readOnly, { onClick: handleAccept, disabled: saving || !text.trim() })} className="btn btn-primary">
             {saving ? 'Saving…' : 'Accept and Save'}
           </button>
         </div>

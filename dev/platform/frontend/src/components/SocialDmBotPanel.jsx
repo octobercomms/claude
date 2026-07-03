@@ -6,6 +6,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 const TONES = ['warm', 'professional', 'playful', 'concise'];
 const TRIGGER_LABEL = {
@@ -19,6 +21,7 @@ function CopyBtn({ text }) {
 
 export default function SocialDmBotPanel({ clientId }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [persona, setPersona] = useState({ system_prompt: '', faqs: '', tone: 'warm', max_words: 45, escalation: '' });
   const [savedAt, setSavedAt] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -155,7 +158,7 @@ export default function SocialDmBotPanel({ clientId }) {
         <p className="body-sm text-muted" style={{ marginBottom: 8 }}>Paste a message a follower might send — see exactly what the bot would reply under the persona above.</p>
         <textarea className="input" style={{ minHeight: 60 }} value={incoming} onChange={e => setIncoming(e.target.value)} placeholder="Hey! Do you have any availability this weekend?" />
         <div className="row" style={{ marginTop: 8 }}>
-          <button className="btn btn-primary" onClick={runDraft} disabled={drafting}>{drafting ? 'Drafting…' : 'Draft reply'}</button>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runDraft, disabled: drafting })}>{drafting ? 'Drafting…' : 'Draft reply'}</button>
         </div>
         {draft && (
           <div className="card" style={{ marginTop: 10, background: 'var(--surface-raised)' }}>
@@ -251,7 +254,7 @@ export default function SocialDmBotPanel({ clientId }) {
           <div style={{ display: 'flex', gap: 8 }}>
             <input className="input" style={{ width: 280 }} value={scenario} onChange={e => setScenario(e.target.value)}
               placeholder="Optional focus — e.g. 'pricing questions on Reels'" onKeyDown={e => { if (e.key === 'Enter') generate(); }} />
-            <button className="btn btn-secondary" onClick={generate} disabled={generating}>{generating ? 'Generating…' : 'Generate'}</button>
+            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: generate, disabled: generating })}>{generating ? 'Generating…' : 'Generate'}</button>
           </div>
         </div>
         <div className="stack stack-sm" style={{ marginTop: 10 }}>

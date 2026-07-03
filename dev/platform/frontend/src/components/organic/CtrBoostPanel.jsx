@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 
 // Performance → CTR boosters. The white-hat answer to "behavioural SEO" /
 // CTR-manipulation services: rather than faking the click signals Google's
@@ -117,6 +119,7 @@ export default function CtrBoostPanel({ clientId }) {
 }
 
 function RewriteModal({ clientId, opp, onClose }) {
+  const { readOnly } = useAuth();
   const [currentTitle, setCurrentTitle] = useState('');
   const [currentDesc, setCurrentDesc] = useState('');
   const [suggestion, setSuggestion] = useState(null);
@@ -174,7 +177,7 @@ function RewriteModal({ clientId, opp, onClose }) {
           <textarea value={currentDesc} onChange={e => setCurrentDesc(e.target.value)} placeholder="(optional)" rows={2}
             style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: '4px 0 12px', fontFamily: 'inherit', resize: 'vertical' }} />
 
-          <button onClick={run} className="btn btn-primary" disabled={loading}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading })}>
             {loading ? 'Drafting…' : suggestion ? 'Re-draft' : 'Draft new snippet'}
           </button>
 

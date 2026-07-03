@@ -1710,6 +1710,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
 }
 
 function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
+  const { readOnly } = useAuth();
   const [open, setOpen] = React.useState(false);
   const visible = open ? sounds : sounds.slice(0, 5);
   return (
@@ -1721,7 +1722,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
           {sounds.length ? `${sounds.length} cached` : '(none pulled yet — click Refresh)'}
         </span>
-        <button onClick={onRefresh} disabled={refreshing} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', borderRadius: 'var(--r-pill)', cursor: 'pointer' }}>
+        <button {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', borderRadius: 'var(--r-pill)', cursor: 'pointer' }}>
           {refreshing ? 'Pulling…' : 'Refresh'}
         </button>
         {sounds.length > 5 && (
@@ -1803,13 +1804,14 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
 // competitors configured (the AM is told to add some on the
 // CompetitorEditor below). Sorted by view count, top 6 shown inline.
 function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }) {
+  const { readOnly } = useAuth();
   if (!hasCompetitors) return null;
   const top = posts.slice(0, 6);
   return (
     <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <div className="caption">Competitor tracker — top recent posts</div>
-        <button type="button" onClick={onRefresh} disabled={refreshing} className="btn btn-secondary btn-sm">
+        <button type="button" {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} className="btn btn-secondary btn-sm">
           {refreshing ? 'Scraping…' : '↻ Refresh now'}
         </button>
       </div>
@@ -1978,6 +1980,7 @@ function ShareLinkBanner({ url, onDismiss }) {
 }
 
 function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onStitchReel, onDeleteMedia, onMakeReel }) {
+  const { readOnly } = useAuth();
   const [open, setOpen] = useState(false);
   const [showImg, setShowImg] = useState(false);
   const [imgPrompt, setImgPrompt] = useState('');
@@ -2060,7 +2063,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
           {engagement.comments != null && <span><strong>{engagement.comments.toLocaleString()}</strong> comments</span>}
           {engagement.shares != null && <span><strong>{engagement.shares.toLocaleString()}</strong> shares</span>}
           {engagement.saves != null && <span><strong>{engagement.saves.toLocaleString()}</strong> saves</span>}
-          <button onClick={onRefreshInsights} style={{ background: 'none', border: 'none', color: 'var(--warning)', textDecoration: 'underline', cursor: 'pointer', fontSize: 11, padding: 0 }}>refresh</button>
+          <button {...roWrite(readOnly, { onClick: onRefreshInsights })} style={{ background: 'none', border: 'none', color: 'var(--warning)', textDecoration: 'underline', cursor: 'pointer', fontSize: 11, padding: 0 }}>refresh</button>
         </div>
       )}
 
@@ -2163,8 +2166,8 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
             Paste the live Instagram, TikTok or LinkedIn URL once it's published. We'll pull engagement automatically (IG only — paste numbers manually for other networks via Edit).
           </div>
           <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', marginBottom: 8 }} />
-          <button onClick={() => { onPublish(publishUrl); setShowPublish(false); setPublishUrl(''); }}
-            className="btn btn-primary btn-sm" disabled={!publishUrl.trim()}>
+          <button {...roWrite(readOnly, { onClick: () => { onPublish(publishUrl); setShowPublish(false); setPublishUrl(''); }, disabled: !publishUrl.trim() })}
+            className="btn btn-primary btn-sm">
             Save & pull insights
           </button>
         </div>
@@ -2226,7 +2229,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
             style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
           />
           {err && <div style={{ color: 'var(--negative)', fontSize: 11, marginBottom: 6 }}>{err}</div>}
-          <button onClick={generateImage} className="btn btn-primary btn-sm" disabled={generating}>
+          <button {...roWrite(readOnly, { onClick: generateImage, disabled: generating })} className="btn btn-primary btn-sm">
             {generating ? 'Rendering…' : `Render with ${provider}`}
           </button>
         </div>

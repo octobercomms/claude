@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 // Detail view for a single press_release campaign. Opened when the AM
 // clicks a press-flavoured campaign in the Campaigns tab. Two
 // halves: pick journalists on the left (grouped by their beat /
@@ -19,6 +21,7 @@ function AttrStat({ value, label, big }) {
 
 export default function PressCampaignDetail({ clientId, campaignId, contacts, onExit }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [release, setRelease] = useState(null);
   const [attribution, setAttribution] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -209,7 +212,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selected.size} selected</div>
-            <button onClick={send} disabled={!selected.size || sending} className="btn btn-primary">
+            <button {...roWrite(readOnly, { onClick: send, disabled: !selected.size || sending })} className="btn btn-primary">
               {sending ? 'Queueing…' : `Send to ${selected.size}`}
             </button>
           </div>

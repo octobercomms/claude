@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { roWrite } from '../utils/readOnly';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const intentColours = {
@@ -274,6 +276,7 @@ function SitemapList({ sitemaps }) {
 
 // ─── AI OVERVIEWS TAB ────────────────────────────────────────────────────
 export function AIOverviewsTab({ clientId }) {
+  const { readOnly } = useAuth();
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -318,7 +321,7 @@ export function AIOverviewsTab({ clientId }) {
             Auto-refreshes weekly.
           </p>
         </div>
-        <button onClick={runCheckNow} className="btn btn-primary" disabled={checking}>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runCheckNow, disabled: checking })}>
           {checking ? 'Checking…' : 'Check now'}
         </button>
       </div>
@@ -388,6 +391,7 @@ function SummaryCard({ label, value, pct, feature }) {
 
 // ─── CONTENT GAPS TAB ────────────────────────────────────────────────────
 export function ContentGapsTab({ clientId }) {
+  const { readOnly } = useAuth();
   const [competitors, setCompetitors] = useState([]);
   const [draft, setDraft] = useState('');
   const [gaps, setGaps] = useState(null);
@@ -469,7 +473,7 @@ export function ContentGapsTab({ clientId }) {
         </div>
       </div>
 
-      <button onClick={runGapAnalysis} className="btn btn-primary" disabled={loading || !competitors.length}>
+      <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runGapAnalysis, disabled: loading || !competitors.length })}>
         {loading ? 'Analysing…' : 'Run gap analysis'}
       </button>
 
@@ -513,6 +517,7 @@ export function ContentGapsTab({ clientId }) {
 
 // ─── PLANNING TAB ────────────────────────────────────────────────────────
 export function PlanningTab({ clientId }) {
+  const { readOnly } = useAuth();
   const [keyword, setKeyword] = useState('');
   const [brief, setBrief] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -549,7 +554,7 @@ export function PlanningTab({ clientId }) {
           placeholder="e.g. how to season enamel cookware"
           style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
         />
-        <button onClick={run} className="btn btn-primary" disabled={loading || !keyword.trim()}>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading || !keyword.trim() })}>
           {loading ? 'Generating…' : 'Generate brief'}
         </button>
       </div>
@@ -634,6 +639,7 @@ const INTENT_LABELS = {
 };
 
 export function FanoutTab({ clientId }) {
+  const { readOnly } = useAuth();
   const [runs, setRuns] = useState([]);
   const [activeRun, setActiveRun] = useState(null);
   const [activeQueries, setActiveQueries] = useState([]);
@@ -727,7 +733,7 @@ export function FanoutTab({ clientId }) {
           style={{ padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
           {FANOUT_LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
-        <button onClick={runNew} className="btn btn-primary" disabled={running || !seed.trim()}>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !seed.trim() })}>
           {running ? 'Running fan-out…' : 'Simulate fan-out'}
         </button>
       </div>

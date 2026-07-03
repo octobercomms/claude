@@ -351,8 +351,8 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
                     <div className="body-xs text-subtle" style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.avatar_name || r.avatar_id}{r.duration_s ? ` · ${Math.round(r.duration_s)}s` : ''}
                     </div>
-                    {r.status === 'failed' && <button className="btn btn-secondary btn-sm" style={{ marginTop: 6 }} onClick={() => retry(r.id)}>Retry</button>}
-                    {r.status === 'processing' && <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={() => refresh(r.id)}>Refresh</button>}
+                    {r.status === 'failed' && <button className="btn btn-secondary btn-sm" style={{ marginTop: 6 }} {...roWrite(readOnly, { onClick: () => retry(r.id) })}>Retry</button>}
+                    {r.status === 'processing' && <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} {...roWrite(readOnly, { onClick: () => refresh(r.id) })}>Refresh</button>}
                   </div>
                 </div>
               );

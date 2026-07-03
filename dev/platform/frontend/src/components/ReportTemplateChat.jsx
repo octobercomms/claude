@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 // Modal — conversational template builder for a client's weekly or monthly
 // report. The AM describes what they want; Claude proposes a JSON template
@@ -7,6 +9,7 @@ import { api } from '../utils/api';
 //
 // We keep chat history client-side. Only the locked template is persisted.
 export default function ReportTemplateChat({ clientId, clientName, reportType, onClose, onSaved }) {
+  const { readOnly } = useAuth();
   const [history, setHistory] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -192,7 +195,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
                 >
                   📎
                 </button>
-                <button type="button" onClick={send} disabled={(!input.trim() && !attachment) || sending} className="btn btn-primary">
+                <button type="button" {...roWrite(readOnly, { onClick: send, disabled: (!input.trim() && !attachment) || sending })} className="btn btn-primary">
                   {sending ? 'Sending…' : 'Send'}
                 </button>
               </div>

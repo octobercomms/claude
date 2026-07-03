@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 const STATUS_COLORS = {
   sent: 'var(--positive)', generated: 'var(--accent)', generating: 'var(--warning)',
@@ -9,6 +11,7 @@ const STATUS_COLORS = {
 
 export default function ReportsPage() {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [reports, setReports] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +125,7 @@ export default function ReportsPage() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" className="btn btn-primary" disabled={triggering}>{triggering ? 'Generating…' : 'Generate'}</button>
+              <button type="submit" className="btn btn-primary" {...roWrite(readOnly, { disabled: triggering })}>{triggering ? 'Generating…' : 'Generate'}</button>
               <button type="button" onClick={() => setShowTrigger(false)} className="btn btn-secondary">Cancel</button>
             </div>
           </form>

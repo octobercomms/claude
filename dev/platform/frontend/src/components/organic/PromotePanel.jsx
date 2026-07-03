@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 import { api } from '../../utils/api';
 import PipelineStep from './PipelineStep';
 
@@ -38,7 +39,7 @@ const TACTICS = [
 ];
 
 export default function PromotePanel({ clientId }) {
-  const { user } = useAuth();
+  const { user, readOnly } = useAuth();
   const dfsUnlocked = !!user?.dataforseo_availability?.unlocked;
   const dfsAvailable = user?.dataforseo_availability?.enabled_from;
   const [prospects, setProspects] = useState([]);
@@ -155,8 +156,8 @@ export default function PromotePanel({ clientId }) {
             <div className="caption">Competitor link mining</div>
             <div className="h3 mt-2">Find sites linking to competitors that aren't linking to you</div>
           </div>
-          <button onClick={scan} disabled={!dfsUnlocked || scanning} className="btn btn-primary"
-            title={!dfsUnlocked ? `Available when DFS Backlinks unlocks${dfsAvailable ? ' on ' + new Date(dfsAvailable).toLocaleDateString('en-GB') : ''}` : ''}>
+          <button className="btn btn-primary"
+            {...roWrite(readOnly, { onClick: scan, disabled: !dfsUnlocked || scanning, title: !dfsUnlocked ? `Available when DFS Backlinks unlocks${dfsAvailable ? ' on ' + new Date(dfsAvailable).toLocaleDateString('en-GB') : ''}` : '' })}>
             {scanning ? 'Scanning…' : dfsUnlocked ? 'Scan competitors' : 'Gated until 1 Jul 2026'}
           </button>
         </div>
@@ -237,7 +238,7 @@ export default function PromotePanel({ clientId }) {
               style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
             />
             <div style={{ marginTop: 10 }}>
-              <button onClick={draftResponse} className="btn btn-primary" disabled={drafting || !queryText.trim()}>
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: draftResponse, disabled: drafting || !queryText.trim() })}>
                 {drafting ? 'Drafting…' : 'Draft response'}
               </button>
             </div>

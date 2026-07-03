@@ -5,6 +5,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+import { roWrite } from '../utils/readOnly';
 
 const REGIONS = ['GB', 'US', 'IE', 'AU', 'CA', 'NZ', 'FR', 'DE', 'ES', 'IT', 'NL'];
 
@@ -22,6 +24,7 @@ function List({ title, items }) {
 
 export default function CompetitorAdsPanel({ clientId }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [configured, setConfigured] = useState(true);
   const [runs, setRuns] = useState([]);
   const [active, setActive] = useState(null);
@@ -78,7 +81,7 @@ export default function CompetitorAdsPanel({ clientId }) {
           <select className="input" style={{ width: 90 }} value={region} onChange={e => setRegion(e.target.value)} disabled={!configured}>
             {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
-          <button className="btn btn-primary" onClick={pull} disabled={busy || !configured}>{busy ? 'Pulling…' : 'Pull ads'}</button>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: pull, disabled: busy || !configured })}>{busy ? 'Pulling…' : 'Pull ads'}</button>
         </div>
       </div>
 

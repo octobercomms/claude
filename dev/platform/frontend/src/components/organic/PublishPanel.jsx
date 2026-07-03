@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 import PipelineStep from './PipelineStep';
 
 // Pipeline → Publish. Pick a saved draft → choose destination (WordPress,
@@ -9,6 +11,7 @@ import PipelineStep from './PipelineStep';
 // — no silent posting from the generator (that's the "scaled content
 // abuse" Google penalises).
 export default function PublishPanel({ clientId, onNext }) {
+  const { readOnly } = useAuth();
   const [drafts, setDrafts] = useState([]);
   const [connectors, setConnectors] = useState([]);
   const [activeDraft, setActiveDraft] = useState(null);
@@ -188,7 +191,7 @@ export default function PublishPanel({ clientId, onNext }) {
                   ) : platform === 'clipboard' ? (
                     <button onClick={copyToClipboard} className="btn btn-primary">Copy markdown to clipboard</button>
                   ) : (
-                    <button onClick={publishNow} className="btn btn-primary" disabled={publishing}>
+                    <button className="btn btn-primary" {...roWrite(readOnly, { onClick: publishNow, disabled: publishing })}>
                       {publishing ? 'Publishing…' : scheduledAt ? 'Schedule publish' : (statusOverride === 'publish' ? 'Publish live now' : 'Save as draft')}
                     </button>
                   )}

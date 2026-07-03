@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
 import FormsTab from '../components/FormsTab';
@@ -50,6 +52,7 @@ export default function ClientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [client, setClient] = useState(null);
   const [connectors, setConnectors] = useState([]);
   const [reports, setReports] = useState([]);
@@ -433,7 +436,7 @@ export default function ClientDetailPage() {
           </Field>
           <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
-            <button type="button" onClick={handleCompleteBriefing} disabled={loadingBriefing || !client.domain} className="btn btn-secondary">
+            <button type="button" {...roWrite(readOnly, { onClick: handleCompleteBriefing, disabled: loadingBriefing || !client.domain })} className="btn btn-secondary">
               {loadingBriefing ? 'Researching…' : '✦ Complete with Claude'}
             </button>
             {!client.domain && <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Set the domain first to use Claude</span>}
@@ -624,7 +627,7 @@ export default function ClientDetailPage() {
 
               <div style={{ display: 'flex', gap: 8, marginTop: 'var(--s5)' }}>
                 <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview</button>
-                <button type="button" onClick={() => handleGenerateReport('weekly')} className="btn btn-secondary btn-sm">Generate now</button>
+                <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('weekly') })} className="btn btn-secondary btn-sm">Generate now</button>
               </div>
             </div>
 
@@ -651,7 +654,7 @@ export default function ClientDetailPage() {
                 value={client.monthly_focus || ''}
                 onChange={e => setClient(p => ({ ...p, monthly_focus: e.target.value }))}
                 placeholder="e.g. Investigate the US Shopify refund spike; quantify the impact of the new B2B trade pricing on EU revenue." />
-              <button type="button" onClick={handleSuggestFocus} disabled={loadingFocus} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
+              <button type="button" {...roWrite(readOnly, { onClick: handleSuggestFocus, disabled: loadingFocus })} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
                 {loadingFocus ? 'Drafting…' : '✦ Suggest with Claude'}
               </button>
 
@@ -669,7 +672,7 @@ export default function ClientDetailPage() {
 
               <div style={{ display: 'flex', gap: 8, marginTop: 'var(--s5)' }}>
                 <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview</button>
-                <button type="button" onClick={() => handleGenerateReport('monthly')} className="btn btn-secondary btn-sm">Generate now</button>
+                <button type="button" {...roWrite(readOnly, { onClick: () => handleGenerateReport('monthly') })} className="btn btn-secondary btn-sm">Generate now</button>
               </div>
             </div>
 

@@ -15,6 +15,8 @@ import ImportWizard from '../components/ImportWizard';
 import SequenceBuilder from '../components/SequenceBuilder';
 import { csvEscape } from '../utils/csv';
 import { useTabParam } from '../hooks/useTabParam';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 // Colour a lead's fit score: strong (green) / moderate (amber) / weak (red).
 function fitColor(n) {
@@ -27,6 +29,7 @@ function fitColor(n) {
 // Claude-drafted email sequence for a campaign — generate and edit steps.
 function CampaignSequence({ campaign, onCampaignChange }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [steps, setSteps] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -97,7 +100,7 @@ function CampaignSequence({ campaign, onCampaignChange }) {
   return (
     <div style={{ padding: '16px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <button onClick={generate} disabled={generating} className="btn btn-primary">
+        <button {...roWrite(readOnly, { onClick: generate, disabled: generating })} className="btn btn-primary">
           {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>3 emails — initial, follow-up, final nudge.</span>
@@ -115,7 +118,7 @@ function CampaignSequence({ campaign, onCampaignChange }) {
           )}
           <input className="input" style={{ width: 190 }} placeholder="test@you.com" value={testTo}
             onChange={e => setTestTo(e.target.value)} />
-          <button onClick={testSend} disabled={busy} className="btn btn-secondary">Test send</button>
+          <button {...roWrite(readOnly, { onClick: testSend, disabled: busy })} className="btn btn-secondary">Test send</button>
           <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
             {campaign.contact_count || 0} enrolled · {campaign.sent_count || 0} sent · {campaign.opened_count || 0} opened
           </span>
@@ -130,6 +133,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   const { id: routeId } = useParams();
   const id = clientIdProp || routeId;
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [client, setClient] = useState(null);
   // When embedded (inside Owned → Email), use a separate ?etab= key so we don't
   // fight the host page over ?tab=.
@@ -696,7 +700,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                     <input className="input" style={{ flex: 1 }} placeholder="Rank by fit — describe your ideal lead / service criteria"
                       value={rankCriteria} onChange={e => setRankCriteria(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') runRank(); }} />
-                    <button onClick={runRank} disabled={ranking} className="btn btn-secondary" title="Score each lead 0–100 for fit against these criteria, best first">
+                    <button {...roWrite(readOnly, { onClick: runRank, disabled: ranking, title: 'Score each lead 0–100 for fit against these criteria, best first' })} className="btn btn-secondary">
                       {ranking ? 'Ranking…' : '★ Rank by fit'}
                     </button>
                   </div>

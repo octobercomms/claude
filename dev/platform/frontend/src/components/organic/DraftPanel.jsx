@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 import PipelineStep from './PipelineStep';
 import RefineChat from '../RefineChat';
 
@@ -9,6 +11,7 @@ import RefineChat from '../RefineChat';
 // stores the result as both markdown and HTML so the publisher can push
 // to any platform. AM can edit inline before publishing.
 export default function DraftPanel({ clientId, onNext }) {
+  const { readOnly } = useAuth();
   const [drafts, setDrafts] = useState([]);
   const [activeDraft, setActiveDraft] = useState(null);
   const [brief, setBrief] = useState('');
@@ -108,7 +111,7 @@ export default function DraftPanel({ clientId, onNext }) {
             placeholder="Target keyword (optional)"
             style={{ flex: 1, padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
           />
-          <button onClick={generate} className="btn btn-primary" disabled={generating || !brief.trim()}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: generate, disabled: generating || !brief.trim() })}>
             {generating ? 'Writing — 30-90s…' : 'Write draft'}
           </button>
         </div>

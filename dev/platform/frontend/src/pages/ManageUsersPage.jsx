@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { roWrite } from '../utils/readOnly';
 
 // Admin-only user management. Lists all users; supports add, password reset,
 // per-user client visibility assignment, and delete.
@@ -262,6 +263,7 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
 // Invite a read-only client by email. Creates a client-role login and emails
 // them a set-password link; shows the link so the AM can copy it too.
 function InviteClientModal({ clients, onClose, onDone }) {
+  const { readOnly } = useAuth();
   const [email, setEmail] = useState('');
   const [clientIds, setClientIds] = useState(new Set());
   const [saving, setSaving] = useState(false);
@@ -327,7 +329,7 @@ function InviteClientModal({ clients, onClose, onDone }) {
               </div>
             </div>
             <div className="row" style={{ gap: 8, marginTop: 14 }}>
-              <button type="button" className="btn btn-primary" onClick={send} disabled={saving}>{saving ? 'Sending…' : '✉ Send invite'}</button>
+              <button type="button" className="btn btn-primary" {...roWrite(readOnly, { onClick: send, disabled: saving })}>{saving ? 'Sending…' : '✉ Send invite'}</button>
               <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             </div>
           </>

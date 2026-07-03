@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 function fmtDate(d) { if (!d) return '—'; const t = new Date(d); return isNaN(t) ? d : t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
@@ -9,6 +11,7 @@ export default function OutletProfilePage() {
   const { id } = useParams();
   const nav = useNavigate();
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [o, setO] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -60,7 +63,7 @@ export default function OutletProfilePage() {
 
       <div className="card" style={{ marginBottom: 'var(--s4)' }}>
         <label className="field"><span className="field-label">Publication name</span><input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Wallpaper*" /></label>
-        <label className="field"><span className="field-label">About <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} disabled={gen} onClick={generate}>{gen ? '…' : '✨ Generate'}</button></span><textarea className="input" rows={3} value={form.summary} onChange={(e) => set('summary', e.target.value)} placeholder="Who they are — Claude can draft this from your coverage." /></label>
+        <label className="field"><span className="field-label">About <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} {...roWrite(readOnly, { onClick: generate, disabled: gen })}>{gen ? '…' : '✨ Generate'}</button></span><textarea className="input" rows={3} value={form.summary} onChange={(e) => set('summary', e.target.value)} placeholder="Who they are — Claude can draft this from your coverage." /></label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           <label className="field"><span className="field-label">Tier</span><input className="input" value={form.tier} onChange={(e) => set('tier', e.target.value)} placeholder="National, Trade…" /></label>
           <label className="field"><span className="field-label">Region</span><input className="input" value={form.region} onChange={(e) => set('region', e.target.value)} placeholder="UK" /></label>

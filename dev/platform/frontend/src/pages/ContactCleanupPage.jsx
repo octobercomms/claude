@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 // Contact Cleanup Centre. Replaces the cramped 460-px modal with a real page
 // because a 20k-contact library produces hundreds of clusters — the AM needs
@@ -305,6 +307,7 @@ function ClusterCard({ cluster, ci, chosenId, onChoose, onMerge, onDelete, busy 
 // Settings button — same place, less confusing.
 function TidyFixesTab({ onChanged }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [phase, setPhase] = useState('idle');
   const [progress, setProgress] = useState({ processed: 0, total: 0, found: 0 });
   const [suggestions, setSuggestions] = useState([]);
@@ -375,8 +378,8 @@ function TidyFixesTab({ onChanged }) {
           Claude reads every contact in your library and proposes fixes — capitalisation, missing company derived from email domain, lowercase emails, URL schemes, name splits. You review each suggestion before anything changes; every applied change writes an audit row.
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {phase === 'idle' && <button className="btn btn-primary btn-sm" onClick={start}>✦ Start analysis</button>}
-          {phase === 'done' && <button className="btn btn-secondary btn-sm" onClick={start}>Run again</button>}
+          {phase === 'idle' && <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: start })}>✦ Start analysis</button>}
+          {phase === 'done' && <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: start })}>Run again</button>}
           <button className="btn btn-secondary btn-sm" onClick={repairImportedNames} disabled={repairing}
             title="Strip leftover (https://app.notion.com/…) fragments from contact + outlet names — a one-shot fix for older Notion-export imports.">
             {repairing ? 'Repairing…' : '✦ Repair imported names'}
