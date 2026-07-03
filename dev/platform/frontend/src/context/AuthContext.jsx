@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { setApiReadOnly } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -8,6 +9,10 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Keep the api-layer read-only guard in sync with the role, so a client
+  // login can't fire any write from anywhere in the app.
+  useEffect(() => { setApiReadOnly(user?.role === 'client'); }, [user]);
 
   useEffect(() => {
     // Tidy up the pre-migration localStorage token — the session now lives in

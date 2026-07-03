@@ -1,6 +1,19 @@
+import { READ_ONLY_MSG } from './readOnly';
+
 const BASE = '/api';
 
+// Read-only (client login) guard, set from AuthContext when the user loads.
+// The universal safety net: a client login can't fire any mutating request —
+// every write across the whole app is stopped here with a friendly message
+// (not a raw 403), regardless of whether that particular button was disabled.
+let _readOnly = false;
+export function setApiReadOnly(v) { _readOnly = !!v; }
+
 async function request(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  if (_readOnly && !['GET', 'HEAD', 'OPTIONS'].includes(method) && !path.startsWith('/auth/')) {
+    throw new Error(READ_ONLY_MSG);
+  }
   // FormData sets its own Content-Type with boundary — don't force JSON.
   const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
   let res;
