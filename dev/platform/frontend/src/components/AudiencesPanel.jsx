@@ -5,6 +5,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 import Card from './ui/Card';
 import Section from './ui/Section';
 import Button from './ui/Button';
@@ -13,6 +15,7 @@ import EmptyState from './ui/EmptyState';
 
 export default function AudiencesPanel({ clientId }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [distribution, setDistribution] = useState(null);
   const [segments, setSegments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +123,7 @@ export default function AudiencesPanel({ clientId }) {
         caption="First-party data"
         title="Where your customers are"
         action={(
-          <Button variant="secondary" onClick={refreshDistribution} disabled={refreshing}>
+          <Button variant="secondary" {...roWrite(readOnly, { onClick: refreshDistribution, disabled: refreshing })}>
             {refreshing ? 'Refreshing…' : '↻ Refresh from Shopify'}
           </Button>
         )}

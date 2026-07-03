@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+import { roWrite } from '../utils/readOnly';
 // Ad Creative panel on the Paid page. Generates batches of ad concepts
 // (headline + body + CTA + visual direction) using Claude, then renders
 // image variants per concept across multiple aspect ratios so the AM can
 // roll out to any placement.
 export default function AdCreativePanel({ clientId, clientName }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [batches, setBatches] = useState([]);
   const [creatives, setCreatives] = useState([]);
   const [activeBatchId, setActiveBatchId] = useState(null);
@@ -163,7 +166,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
           {activeBatchId && (
             <button className="btn btn-secondary" onClick={shareBatchForApproval}>Share for approval</button>
           )}
-          <button className="btn btn-primary" onClick={() => setShowBrief(true)} disabled={generating}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => setShowBrief(true), disabled: generating })}>
             {generating ? 'Generating…' : 'Generate ad concepts'}
           </button>
         </div>
@@ -279,6 +282,7 @@ export function ExampleConcept({ clientName, onDismiss }) {
 }
 
 export function BriefModal({ assets, submitting, onClose, onSubmit }) {
+  const { readOnly } = useAuth();
   const [brief, setBrief] = useState('');
   const [platform, setPlatform] = useState('meta');
   const [count, setCount] = useState(8);
@@ -330,7 +334,7 @@ export function BriefModal({ assets, submitting, onClose, onSubmit }) {
 
         <div style={modalStyles.footer}>
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={() => onSubmit({ brief, platform, count, asset_ids: Array.from(selectedAssets) })} disabled={submitting}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => onSubmit({ brief, platform, count, asset_ids: Array.from(selectedAssets) }), disabled: submitting })}>
             {submitting ? 'Generating…' : 'Generate'}
           </button>
         </div>
@@ -344,6 +348,7 @@ export function BriefModal({ assets, submitting, onClose, onSubmit }) {
 // step where renders are the whole point) | 'hidden' (no render UI at
 // all — used by Pipeline → Concepts where the AM is reviewing copy only)
 export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut, renderMode = 'auto' }) {
+  const { readOnly } = useAuth();
   const [showRender, setShowRender] = useState(renderMode === 'always-open');
   const [mode, setMode] = useState('image'); // image | video
   const [provider, setProvider] = useState('replicate');
@@ -493,7 +498,7 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
           <input value={styleBrief} onChange={e => setStyleBrief(e.target.value)}
             placeholder="Optional style brief (e.g. 'editorial 35mm film')"
             style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
-          <button onClick={go} className="btn btn-primary btn-sm" disabled={rendering || (mode === 'image' && !aspects.size)}>
+          <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: go, disabled: rendering || (mode === 'image' && !aspects.size) })}>
             {rendering
               ? (mode === 'video' ? 'Rendering video…' : 'Rendering…')
               : (mode === 'video' ? `Render ${duration}s video` : `Render ${aspects.size} image${aspects.size === 1 ? '' : 's'}`)}

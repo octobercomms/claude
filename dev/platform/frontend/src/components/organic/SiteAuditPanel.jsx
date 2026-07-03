@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 
 // Organic → Performance → Site audit. Crawls up to 30 pages on the
 // client's domain, scores common on-page issues (broken links, meta
@@ -38,6 +40,7 @@ const CATEGORY_HINT = {
 const SEVERITY_TONE = { high: 'var(--negative)', medium: 'var(--warning)', low: 'var(--text-muted)' };
 
 export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
+  const { readOnly } = useAuth();
   const [audit, setAudit] = useState(null);
   const [issues, setIssues] = useState([]);
   const [history, setHistory] = useState([]);
@@ -106,7 +109,7 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
             into Pipeline → Find &apos;From your own site&apos; mode.
           </p>
         </div>
-        <button onClick={runNow} className="btn btn-primary" disabled={running}>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNow, disabled: running })}>
           {running ? 'Crawling…' : audit ? 'Re-run audit' : 'Run first audit'}
         </button>
       </div>

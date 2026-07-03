@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 // Single-turn refinement chat that bolts onto any Claude-generated
 // artifact (a draft body, a brief, a concept set). Pre-seeds the
@@ -24,6 +26,7 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState(null);
   const scrollRef = useRef(null);
+  const { readOnly } = useAuth();
 
   // Auto-scroll to the latest message as the conversation grows.
   useEffect(() => {
@@ -148,7 +151,7 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
         />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">{messages.length ? `${messages.filter(m => m.role === 'user').length} turn${messages.filter(m => m.role === 'user').length === 1 ? '' : 's'}` : ' '}</span>
-          <button onClick={send} className="btn btn-primary btn-sm" disabled={sending || !draftInput.trim()}>
+          <button {...roWrite(readOnly, { onClick: send, disabled: sending || !draftInput.trim() })} className="btn btn-primary btn-sm">
             {sending ? 'Sending…' : 'Send'}
           </button>
         </div>

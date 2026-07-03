@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 
 // Organic → Performance → Content audit. Claude-graded per-page deep
 // dive (thin-content score, readability, keyword usage, missing
@@ -13,6 +15,7 @@ const USAGE_LABEL = { good: 'Good', under: 'Under-used', over: 'Over-stuffed', a
 const USAGE_TONE = { good: 'positive', under: 'warning', over: 'warning', absent: 'negative' };
 
 export default function ContentAuditPanel({ clientId, onRefresh }) {
+  const { readOnly } = useAuth();
   const [audits, setAudits] = useState([]);
   const [active, setActive] = useState(null);
   const [url, setUrl] = useState('');
@@ -99,7 +102,7 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
           <input value={keyword} onChange={e => setKeyword(e.target.value)}
             placeholder="Target keyword (optional)"
             style={{ padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
-          <button onClick={runNew} className="btn btn-primary" disabled={running || !url.trim()}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !url.trim() })}>
             {running ? 'Auditing…' : 'Run audit'}
           </button>
         </div>

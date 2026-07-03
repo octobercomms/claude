@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 import PipelineStep from './PipelineStep';
 import { PlanningTab } from '../SeoSuite';
 import RefineChat from '../RefineChat';
@@ -41,6 +43,7 @@ export default function BriefPanel({ clientId, onNext }) {
 }
 
 function ClusterMode({ clientId }) {
+  const { readOnly } = useAuth();
   const [keywordText, setKeywordText] = useState('');
   const [clustering, setClustering] = useState(false);
   const [briefing, setBriefing] = useState(null);   // which cluster.label is being briefed
@@ -91,7 +94,7 @@ function ClusterMode({ clientId }) {
         />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">{keywordCount} keyword{keywordCount === 1 ? '' : 's'} · {keywordCount < 2 ? 'need at least 2 to cluster' : keywordCount > 200 ? 'max 200 per run' : 'ready'}</span>
-          <button onClick={cluster} className="btn btn-primary" disabled={clustering || keywordCount < 2 || keywordCount > 200}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: cluster, disabled: clustering || keywordCount < 2 || keywordCount > 200 })}>
             {clustering ? 'Clustering…' : 'Cluster keywords'}
           </button>
         </div>
@@ -125,7 +128,7 @@ function ClusterMode({ clientId }) {
                           {isRefining ? 'Hide Claude' : '✦ Refine with Claude'}
                         </button>
                       )}
-                      <button onClick={() => makeBrief(c)} className="btn btn-secondary btn-sm" disabled={briefing === c.label || !!brief}>
+                      <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => makeBrief(c), disabled: briefing === c.label || !!brief })}>
                         {brief ? '✓ Brief generated' : briefing === c.label ? 'Generating…' : 'Generate brief →'}
                       </button>
                     </div>
@@ -230,6 +233,7 @@ function BriefView({ brief }) {
 // uploads a CSV + template prompt with {placeholders}; backend generates
 // one brief per row using the brand voice profile + brief skeleton.
 function ProgrammaticMode({ clientId }) {
+  const { readOnly } = useAuth();
   const [runs, setRuns] = useState([]);
   const [active, setActive] = useState(null);
   const [activeBriefs, setActiveBriefs] = useState([]);
@@ -322,7 +326,7 @@ function ProgrammaticMode({ clientId }) {
           <span className="body-xs text-subtle">
             {csvRowCount > 0 ? `${csvRowCount} data row${csvRowCount === 1 ? '' : 's'} · est cost ~\$${estCost}` : 'paste a CSV with a header + at least one row'}
           </span>
-          <button onClick={start} className="btn btn-primary" disabled={running || !templatePrompt.trim() || !primaryKeywordTemplate.trim() || csvRowCount < 1}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: start, disabled: running || !templatePrompt.trim() || !primaryKeywordTemplate.trim() || csvRowCount < 1 })}>
             {running ? 'Generating…' : `Generate ${csvRowCount || 0} briefs`}
           </button>
         </div>

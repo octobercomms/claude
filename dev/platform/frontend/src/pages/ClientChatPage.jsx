@@ -7,6 +7,8 @@ import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
 import { useToast } from '../context/ToastContext';
 import { useTabParam } from '../hooks/useTabParam';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 // Style overrides for ReactMarkdown — keeps headings, tables, lists,
 // and code blocks legible inside a chat bubble. Same component set is
@@ -62,6 +64,7 @@ const TYPE_BG = {
 
 export default function ClientChatPage({ embedded = false, clientId: clientIdProp } = {}) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const { id: routeId } = useParams();
   const id = clientIdProp || routeId;
   const [client, setClient] = useState(null);
@@ -448,7 +451,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
               className="btn btn-secondary" style={{ fontSize: 18, padding: '0 14px' }}>
               📎
             </button>
-            <button type="submit" disabled={sending || (!input.trim() && attachedFiles.length === 0)} className="btn btn-primary">
+            <button type="submit" {...roWrite(readOnly, { disabled: sending || (!input.trim() && attachedFiles.length === 0) })} className="btn btn-primary">
               {sending ? '…' : 'Send'}
             </button>
           </div>

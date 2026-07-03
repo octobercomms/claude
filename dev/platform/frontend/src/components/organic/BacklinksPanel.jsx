@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 import Sparkline from '../Sparkline';
 
 // Organic → Performance → Backlinks (Phase E2). Reads the 3-day snapshots
@@ -68,6 +70,7 @@ function ChangeList({ title, colour, dateLabel, rows, dateKey, empty }) {
 }
 
 export default function BacklinksPanel({ clientId, clientName, domain }) {
+  const { readOnly } = useAuth();
   const [trend, setTrend] = useState(null);
   const [rds, setRds] = useState(null);
   const [changes, setChanges] = useState(null);
@@ -136,7 +139,7 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
           <div className="caption">Backlinks</div>
           <h2 className="h2 mt-2">Backlink profile{domain ? ` — ${domain}` : ''}</h2>
         </div>
-        <button onClick={refreshSnapshot} className="btn btn-secondary" disabled={refreshing || loading}>
+        <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: refreshSnapshot, disabled: refreshing || loading })}>
           {refreshing ? 'Refreshing…' : 'Refresh snapshot'}
         </button>
       </div>

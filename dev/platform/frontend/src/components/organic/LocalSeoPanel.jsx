@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 
 // Local SEO toolkit — one panel, five tools (selected by the `tool` prop from
 // the SEO suite's sub-tabs). Each tool is a paste-input → Claude → structured
@@ -92,6 +94,7 @@ function fmtWhen(d) {
 }
 
 export default function LocalSeoPanel({ clientId, tool }) {
+  const { readOnly } = useAuth();
   const meta = TOOL_META[tool];
   const [runs, setRuns] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -169,7 +172,7 @@ export default function LocalSeoPanel({ clientId, tool }) {
             ))}
           </div>
           <div style={{ marginTop: 14 }}>
-            <button className="btn btn-primary" onClick={runNow} disabled={running || !canRun}>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNow, disabled: running || !canRun })}>
               {running ? 'Running…' : meta.run}
             </button>
           </div>

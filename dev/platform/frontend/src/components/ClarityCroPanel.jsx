@@ -12,6 +12,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { getCountryFlag } from '../utils/connectorLabels';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 const PRI = {
   critical: { label: 'Critical', color: '#b3261e', bg: 'rgba(179,38,30,0.10)', rank: 0 },
@@ -117,6 +119,7 @@ function FindingCard({ f, open, onToggleExpand, onToggleDone, showSite }) {
 
 export default function ClarityCroPanel({ clientId }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [sites, setSites] = useState(null);
   const [reports, setReports] = useState([]);     // latest report per site
   const [selected, setSelected] = useState('all'); // 'all' | siteId
@@ -225,7 +228,7 @@ export default function ClarityCroPanel({ clientId }) {
               {selectedReport ? `Last scan ${fmt(selectedReport.generated_at)}` : 'No scan yet'}
             </div>
           </div>
-          <button className="btn btn-primary" onClick={() => runScan(selected)} disabled={running === selected}>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => runScan(selected), disabled: running === selected })}>
             {running === selected ? 'Scanning…' : (selectedReport ? 'Re-scan funnel' : 'Run CRO scan')}
           </button>
         </div>

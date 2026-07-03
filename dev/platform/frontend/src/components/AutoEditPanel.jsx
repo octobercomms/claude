@@ -10,6 +10,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 const STYLE_PRESETS = [
   { value: 'auto', label: 'Auto (from brand kit)' },
@@ -33,6 +35,7 @@ function seedName(post) {
 
 export default function AutoEditPanel({ clientId, post }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [preset, setPreset] = useState('auto');
   const [project, setProject] = useState(null);   // full project (with clips/jobs)
   const [busy, setBusy] = useState(false);
@@ -86,7 +89,7 @@ export default function AutoEditPanel({ clientId, post }) {
               {STYLE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
             <input ref={fileRef} type="file" accept="video/*" multiple onChange={uploadAndRun} style={{ display: 'none' }} />
-            <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => fileRef.current?.click()}>
+            <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => fileRef.current?.click(), disabled: busy })}>
               {busy ? 'Uploading…' : '↑ Upload clip & auto-edit'}
             </button>
           </div>

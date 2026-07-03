@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 // Video Studio (slice 1) — create an edit project, upload raw clips, and run
 // the auto-edit pipeline. Editing itself runs on the dedicated render worker
@@ -22,6 +24,7 @@ const STATUS_LABEL = {
 
 export default function ClientVideoPage({ embedded = false, clientId: clientIdProp } = {}) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const { id: routeId } = useParams();
   const id = clientIdProp || routeId;
   const [projects, setProjects] = useState([]);
@@ -203,7 +206,7 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
                 ) : <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No clips yet — add your raw footage.</div>}
               </div>
 
-              <button className="btn btn-primary" disabled={!active.clips?.length || ['queued', 'processing'].includes(active.status)} onClick={runEdit}>
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runEdit, disabled: !active.clips?.length || ['queued', 'processing'].includes(active.status) })}>
                 {['queued', 'processing'].includes(active.status) ? 'Running…' : '▶ Auto-edit'}
               </button>
 

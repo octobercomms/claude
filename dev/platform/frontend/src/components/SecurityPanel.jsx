@@ -7,6 +7,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 const RISK = {
   clean:         { label: 'Clean', color: 'var(--positive, #1a7f37)', bg: 'rgba(26,127,55,0.10)', blurb: 'All automated checks passed.' },
@@ -42,6 +44,7 @@ ${flagged.map((f, i) => `${i + 1}. [${f.id}] ${f.title} (${f.severity}) — ${f.
 
 export default function SecurityPanel() {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -105,7 +108,7 @@ export default function SecurityPanel() {
             <Tally n={latest.warn_count} label="warn" color={STATUS_COLOR.warn} />
             <Tally n={latest.fail_count} label="fail" color={STATUS_COLOR.fail} />
           </div>
-          <button className="btn btn-primary" onClick={runNow} disabled={running}>{running ? 'Running…' : 'Run now'}</button>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNow, disabled: running })}>{running ? 'Running…' : 'Run now'}</button>
         </div>
       </div>
 

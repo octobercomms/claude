@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 // Two-step modal: paste downloadfor.press URL → preview parsed release
 // → save. Saving creates both the press_release row and a backing
@@ -11,6 +13,7 @@ import { useToast } from '../context/ToastContext';
 // directly on the parsed preview.
 export default function PressCampaignWizard({ clientId, initialUrl = '', onClose, onCreated }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [url, setUrl] = useState(initialUrl);
   const [parsed, setParsed] = useState(null);
   const [fetching, setFetching] = useState(false);
@@ -66,7 +69,7 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
           <input value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && doFetch()}
             placeholder="https://downloadfor.press/press-releases/your-release-slug/"
             className="input" style={{ flex: 1 }} />
-          <button onClick={doFetch} disabled={fetching || !url.trim()} className="btn btn-primary">{fetching ? 'Fetching…' : 'Fetch'}</button>
+          <button {...roWrite(readOnly, { onClick: doFetch, disabled: fetching || !url.trim() })} className="btn btn-primary">{fetching ? 'Fetching…' : 'Fetch'}</button>
         </div>
 
         {parsed && (
@@ -99,7 +102,7 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          {parsed && <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Create campaign'}</button>}
+          {parsed && <button className="btn btn-primary" {...roWrite(readOnly, { onClick: save, disabled: saving })}>{saving ? 'Saving…' : 'Create campaign'}</button>}
         </div>
       </div>
     </div>

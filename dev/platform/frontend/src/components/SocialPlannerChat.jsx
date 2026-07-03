@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 // Conversational social post planner. Pattern matches ReportTemplateChat:
 // chat on the left, live plan preview on the right, lock & save when ready.
 // Locked plans persist server-side and can be downloaded as PDF / Word.
 
 export default function SocialPlannerChat({ clientId, clientName, planId, seedHook, onClose, onSaved }) {
+  const { readOnly } = useAuth();
   const [history, setHistory] = useState([]);
   // When seeded from the Hook Vault, drop the hook into the input box
   // so the AM can extend it before sending (or just hit send to let
@@ -323,7 +326,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   className="btn btn-secondary btn-sm"
                   title="Attach an example post / brand guidelines (PDF or image)"
                 >📎</button>
-                <button type="button" onClick={send} disabled={(!input.trim() && !attachment) || sending} className="btn btn-primary">
+                <button type="button" {...roWrite(readOnly, { onClick: send, disabled: (!input.trim() && !attachment) || sending })} className="btn btn-primary">
                   {sending ? 'Sending…' : 'Send'}
                 </button>
               </div>
@@ -478,7 +481,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 show each platform's outcome with the live post URL. */}
             {!scheduleDirty && schedule.target_platforms.length > 0 && (
               <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #eee' }}>
-                <button type="button" onClick={publishNow} disabled={publishing} className="btn btn-primary btn-sm">
+                <button type="button" {...roWrite(readOnly, { onClick: publishNow, disabled: publishing })} className="btn btn-primary btn-sm">
                   {publishing ? 'Publishing…' : '🚀 Publish now'}
                 </button>
                 <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>

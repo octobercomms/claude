@@ -6,6 +6,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 function fmt(ts) {
   if (!ts) return '—';
@@ -26,6 +28,7 @@ function List({ title, items, accent }) {
 
 export default function SocialAuditPanel({ clientId }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [audit, setAudit] = useState(null);
   const [running, setRunning] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -53,7 +56,7 @@ export default function SocialAuditPanel({ clientId }) {
           <div className="caption">AI Audit</div>
           <div className="h2 mt-2">How this account is actually performing</div>
         </div>
-        <button className="btn btn-primary" onClick={run} disabled={running}>{running ? 'Auditing…' : (audit ? 'Re-run audit' : 'Run audit')}</button>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: running })}>{running ? 'Auditing…' : (audit ? 'Re-run audit' : 'Run audit')}</button>
       </div>
       <p className="body" style={{ maxWidth: 640 }}>
         Claude reads your own published-post performance — content mix, best posting times, what's working, and how you

@@ -1,5 +1,7 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 
 // Paid Pipeline → Approve. Mint a public approval link the client can
 // open without a login and approve / request changes on. Reuses the
@@ -7,6 +9,7 @@ import PipelineStep from '../organic/PipelineStep';
 // approval flows so the client gets a consistent review UX.
 export default function PaidApproveStep({ pipeline, onNext, onBack }) {
   const { activeBatch, creatives, shareUrl, setShareUrl, shareBatchForApproval } = pipeline;
+  const { readOnly } = useAuth();
   const totalImages = (creatives || []).reduce((sum, c) => sum + ((c.images || []).length), 0);
   const conceptsWithImages = (creatives || []).filter(c => (c.images || []).length).length;
 
@@ -34,7 +37,7 @@ export default function PaidApproveStep({ pipeline, onNext, onBack }) {
             )}
           </div>
 
-          <button onClick={shareBatchForApproval} className="btn btn-primary">
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: shareBatchForApproval })}>
             {shareUrl ? 'Regenerate approval link' : 'Generate approval link'}
           </button>
 

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 // 5-step Campaign Wizard. The component manages step state locally and
 // persists each step's data to the backend on Next so the user can resume
 // a draft campaign mid-flow if they leave.
@@ -173,6 +175,7 @@ function StepCampaignDetails({ campaign, updateCampaign, busy, onNext }) {
 // ─── Step 2 ─────────────────────────────────────────────────────────────────
 function StepAudience({ campaign, setCampaign, onBack, onNext }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [audience, setAudience] = useState(campaign.audience_description || '');
   const [extra, setExtra] = useState('');
   const [excludeSearched, setExcludeSearched] = useState(true);
@@ -234,7 +237,7 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
             <option value={50}>50</option>
           </select>
         </label>
-        <button onClick={refine} disabled={refining || !audience.trim()} className="btn btn-primary">
+        <button {...roWrite(readOnly, { onClick: refine, disabled: refining || !audience.trim() })} className="btn btn-primary">
           {refining ? 'Refining…' : (refined ? '↻ Re-refine with Claude' : '✦ Refine with Claude')}
         </button>
       </div>
@@ -290,6 +293,7 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
 // ─── Step 3 ─────────────────────────────────────────────────────────────────
 function StepContacts({ campaign, clientId, onBack, onNext }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [mode, setMode] = useState('find');
   const [batchIdx, setBatchIdx] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -374,7 +378,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
               Searching domains <strong>{batchIdx * 8 + 1}</strong>–<strong>{Math.min((batchIdx + 1) * 8, allDomains.length)}</strong> of {allDomains.length}
             </div>
-            <button onClick={searchNext} disabled={searching || nextBatch.length === 0} className="btn btn-primary">
+            <button {...roWrite(readOnly, { onClick: searchNext, disabled: searching || nextBatch.length === 0 })} className="btn btn-primary">
               {searching ? 'Searching…' : nextBatch.length === 0 ? 'No more domains' : `Search next ${nextBatch.length} ${nextBatch.length === 1 ? 'domain' : 'domains'}`}
             </button>
             <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Hunter.io + Icypeas in parallel, deduped by email.</span>
@@ -420,6 +424,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
 // ─── Step 4 ─────────────────────────────────────────────────────────────────
 function StepEmails({ campaign, onBack, onNext }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [steps, setSteps] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [savingStep, setSavingStep] = useState(null);
@@ -491,7 +496,7 @@ function StepEmails({ campaign, onBack, onNext }) {
     <div className="card">
       <H>Write Emails</H>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <button onClick={generate} disabled={generating} className="btn btn-primary">
+        <button {...roWrite(readOnly, { onClick: generate, disabled: generating })} className="btn btn-primary">
           {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>3 emails — initial, follow-up at day 4, final nudge at day 9.</span>
@@ -516,8 +521,7 @@ function StepEmails({ campaign, onBack, onNext }) {
             <button onClick={() => openPreview(stp)} className="btn btn-secondary" title="See how this step looks to a recipient">
               Preview as contact
             </button>
-            <button onClick={() => sendTest(stp)} disabled={testingStep === stp.id} className="btn btn-secondary"
-              title="Send a [TEST]-prefixed copy of this step to an email of your choice">
+            <button {...roWrite(readOnly, { onClick: () => sendTest(stp), disabled: testingStep === stp.id, title: 'Send a [TEST]-prefixed copy of this step to an email of your choice' })} className="btn btn-secondary">
               {testingStep === stp.id ? 'Sending…' : 'Send test to me'}
             </button>
           </div>

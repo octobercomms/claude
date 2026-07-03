@@ -8,6 +8,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 const STATUS = {
   new:      { label: 'New',      cls: 'chip-neutral' },
@@ -35,6 +37,7 @@ function exportCsv(prospects, searchName) {
 
 export default function IgOutreachPanel({ clientId }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [searches, setSearches] = useState([]);
   const [unassigned, setUnassigned] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -176,7 +179,7 @@ export default function IgOutreachPanel({ clientId }) {
             <input className="input" style={{ flex: '2 1 240px' }} placeholder="Roles, e.g. architects, interior designers" value={icp} onChange={e => setIcp(e.target.value)} />
             <input className="input" style={{ flex: '1 1 130px' }} placeholder="Location, e.g. Atlanta" value={location} onChange={e => setLocation(e.target.value)} />
             <input className="input" style={{ flex: '1 1 130px' }} placeholder="Hashtags (optional)" value={hashtags} onChange={e => setHashtags(e.target.value)} />
-            <button className="btn btn-primary" onClick={createAndRun} disabled={busy}>{busy ? 'Searching…' : 'Create & run'}</button>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: createAndRun, disabled: busy })}>{busy ? 'Searching…' : 'Create & run'}</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
           </div>
           <input className="input" style={{ marginTop: 8 }} placeholder="What are you DMing them about? e.g. inviting them to exhibit at Atlanta Design Festival (Sept 26–Oct 4)"
@@ -199,7 +202,7 @@ export default function IgOutreachPanel({ clientId }) {
                 <input type="checkbox" checked={!!s.enabled} onChange={() => toggleAutopilot(s)} style={{ accentColor: 'var(--accent)' }} />
                 <span className="body-xs">Autopilot</span>
               </label>
-              <button className="btn btn-secondary btn-sm" onClick={() => runSearch(s.id)} disabled={busy}>Run</button>
+              <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => runSearch(s.id), disabled: busy })}>Run</button>
               <button className="btn btn-ghost btn-sm" onClick={() => removeSearch(s)} title="Delete search">✕</button>
             </div>
           ))}
@@ -213,7 +216,7 @@ export default function IgOutreachPanel({ clientId }) {
             <div className="caption">{sel.name} — queue</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <span className="body-xs text-subtle" style={{ marginRight: 4 }}>{prospects.length} · {counts.new || 0} new · {counts.messaged || 0} messaged · {counts.replied || 0} replied</span>
-              <button className="btn btn-secondary btn-sm" onClick={() => draftAll(sel.id)} disabled={draftingAll || !prospects.length}>{draftingAll ? 'Drafting…' : '✦ Draft all'}</button>
+              <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => draftAll(sel.id), disabled: draftingAll || !prospects.length })}>{draftingAll ? 'Drafting…' : '✦ Draft all'}</button>
               <button className="btn btn-secondary btn-sm" onClick={() => exportCsv(prospects, sel.name)} disabled={!prospects.length}>Export CSV</button>
             </div>
           </div>
@@ -317,8 +320,8 @@ export default function IgOutreachPanel({ clientId }) {
 
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
                             <a href={`https://ig.me/m/${p.username}`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">Open DM ↗</a>
-                            <button className="btn btn-secondary btn-sm" onClick={() => draft(p.id)} disabled={drafting === p.id}>{drafting === p.id ? 'Drafting…' : (p.draft ? '↻ Redraft' : '✦ Draft message')}</button>
-                            {!p.email && <button className="btn btn-secondary btn-sm" onClick={() => enrich(p.id)} disabled={enriching === p.id}>{enriching === p.id ? 'Finding…' : 'Find email'}</button>}
+                            <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => draft(p.id), disabled: drafting === p.id })}>{drafting === p.id ? 'Drafting…' : (p.draft ? '↻ Redraft' : '✦ Draft message')}</button>
+                            {!p.email && <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => enrich(p.id), disabled: enriching === p.id })}>{enriching === p.id ? 'Finding…' : 'Find email'}</button>}
                             {p.status !== 'messaged' && p.status !== 'replied' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'messaged')}>Mark messaged</button>}
                             {p.status === 'messaged' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'replied')}>Mark replied</button>}
                             {p.status === 'skipped' ? (

@@ -5,6 +5,8 @@ import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
 import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 const STATUSES = [
   ['pitched', 'Pitched'], ['pending', 'Pending'], ['no_response', 'No Response'],
@@ -71,6 +73,7 @@ export default function ClientPRPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { readOnly } = useAuth();
   const fileRef = useRef(null);
   const combinedRef = useRef(null);
   const [client, setClient] = useState(null);
@@ -612,7 +615,7 @@ export default function ClientPRPage() {
                     <td>{s.cadence}</td>
                     <td>{s.last_run_at ? fmtDate(s.last_run_at) : 'never'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => runSearchNow(s.id)}>Run now</button>{' '}
+                      <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => runSearchNow(s.id) })}>Run now</button>{' '}
                       <button className="btn btn-danger btn-sm" onClick={() => deleteSearch(s.id)}>Delete</button>
                     </td>
                   </tr>
@@ -651,7 +654,7 @@ export default function ClientPRPage() {
             <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your contacts' beats and your relationship history to build a targeted list.</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
               <label className="field" style={{ flex: 1, minWidth: 240 }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
-              <button className="btn btn-primary" disabled={pitchLoading} onClick={findTargets}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: findTargets, disabled: pitchLoading })}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
             </div>
             <label className="field"><span className="field-label">…or paste a brief</span><textarea className="input" rows={2} value={pitch.brief} onChange={(e) => setPitch((p) => ({ ...p, brief: e.target.value }))} placeholder="What's the story?" /></label>
             {pitchResult && (
@@ -729,7 +732,7 @@ export default function ClientPRPage() {
                     <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
                     <td>{fmtDate(r.issue_date)}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-primary btn-sm" onClick={() => openDraft(r)}>Draft thank-you</button>{' '}
+                      <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => openDraft(r) })}>Draft thank-you</button>{' '}
                       <button className="btn btn-secondary btn-sm" onClick={() => skipThank(r)}>Skip</button>
                     </td>
                   </tr>
@@ -756,7 +759,7 @@ export default function ClientPRPage() {
                 <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Key facts</span><textarea className="input" rows={4} value={pr.key_facts || ''} onChange={(e) => setPr((p) => ({ ...p, key_facts: e.target.value }))} placeholder="Who, what, where, when, numbers, quotes…" /></label>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', margin: '12px 0' }}>
-                <button className="btn btn-primary" disabled={prDrafting} onClick={draftPR}>{prDrafting ? 'Writing…' : '✍️ Draft with Claude'}</button>
+                <button className="btn btn-primary" {...roWrite(readOnly, { onClick: draftPR, disabled: prDrafting })}>{prDrafting ? 'Writing…' : '✍️ Draft with Claude'}</button>
                 <label className="field"><span className="field-label">Status</span><select className="input" value={pr.status || 'draft'} onChange={(e) => setPr((p) => ({ ...p, status: e.target.value }))}><option value="draft">Draft</option><option value="in_review">In review</option><option value="approved">Approved</option><option value="sent">Sent</option></select></label>
                 <label className="field"><span className="field-label">Embargo until (optional)</span><input className="input" type="datetime-local" value={pr.embargo_at ? new Date(pr.embargo_at).toISOString().slice(0, 16) : ''} onChange={(e) => setPr((p) => ({ ...p, embargo_at: e.target.value }))} /></label>
                 <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Published URL (once live)</span><input className="input" value={pr.url || ''} onChange={(e) => setPr((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
@@ -765,7 +768,7 @@ export default function ClientPRPage() {
                 <button className="btn btn-secondary" onClick={copyReviewLink}>🔗 Client approval link</button>
                 {pr.approved_at && <span className="chip chip-accent">✓ Approved by {pr.approved_by || 'client'}</span>}
                 {['approved', 'sent'].includes(pr.status) && (
-                  <button className="btn btn-primary" onClick={createPitchCampaign} title="Pitch this release to journalists in the Email tab">{pr.campaign_id ? 'Open pitch campaign →' : '📣 Create pitch campaign →'}</button>
+                  <button className="btn btn-primary" {...roWrite(readOnly, { onClick: createPitchCampaign, title: 'Pitch this release to journalists in the Email tab' })}>{pr.campaign_id ? 'Open pitch campaign →' : '📣 Create pitch campaign →'}</button>
                 )}
               </div>
               <label className="field"><span className="field-label">Release body <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>— Claude marks assumptions in [brackets] to fill in</span></span><textarea className="input" rows={16} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13 }} value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} /></label>
@@ -811,7 +814,7 @@ export default function ClientPRPage() {
             <label className="field" style={{ flex: 1, minWidth: 220 }}><span className="field-label">Report / alert email</span><input className="input" value={reports.alert_email || ''} onChange={(e) => setReports((r) => ({ ...r, alert_email: e.target.value }))} placeholder="client@example.com" /></label>
             <label className="field"><span className="field-label">Cadence</span><select className="input" value={reports.report_cadence || 'off'} onChange={(e) => setReports((r) => ({ ...r, report_cadence: e.target.value }))}><option value="off">Off</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
             <button className="btn btn-primary" disabled={savingReports} onClick={saveReports}>{savingReports ? 'Saving…' : 'Save'}</button>
-            <button className="btn btn-secondary" onClick={sendReportNow}>Send report now</button>
+            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: sendReportNow })}>Send report now</button>
           </div>
           <div style={{ marginTop: 16, borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 16 }}>
             <button className="btn btn-secondary" onClick={copyPortalLink}>🔗 Copy client coverage link</button>
@@ -889,7 +892,7 @@ export default function ClientPRPage() {
                 <label className="field" style={{ marginBottom: 10 }}><span className="field-label">Message</span><textarea className="input" rows={8} value={thankDraft.body} onChange={(e) => setThankDraft((t) => ({ ...t, body: e.target.value, edited: true }))} /></label>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                   <button className="btn btn-secondary" disabled={sendingThank} onClick={() => setThankDraft(null)}>Cancel</button>
-                  <button className="btn btn-primary" disabled={sendingThank || !thankDraft.to || !thankDraft.subject || !thankDraft.body} onClick={sendThank}>{sendingThank ? 'Sending…' : 'Send thank-you'}</button>
+                  <button className="btn btn-primary" {...roWrite(readOnly, { onClick: sendThank, disabled: sendingThank || !thankDraft.to || !thankDraft.subject || !thankDraft.body })}>{sendingThank ? 'Sending…' : 'Send thank-you'}</button>
                 </div>
               </>
             )}

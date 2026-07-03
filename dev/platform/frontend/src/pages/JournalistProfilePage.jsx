@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { roWrite } from '../utils/readOnly';
+import { useAuth } from '../context/AuthContext';
 
 const AVAIL = [
   ['active', 'Active'], ['maternity_leave', 'Maternity / parental leave'],
@@ -14,6 +16,7 @@ export default function JournalistProfilePage() {
   const { id } = useParams();
   const nav = useNavigate();
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [c, setC] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -115,7 +118,7 @@ export default function JournalistProfilePage() {
         {form.availability_status !== 'active' && <label className="field"><span className="field-label">Back / review on</span><input type="date" className="input" value={form.available_from} onChange={(e) => set('available_from', e.target.value)} /></label>}
         <label className="field"><span className="field-label">Location</span><input className="input" value={form.location} onChange={(e) => set('location', e.target.value)} /></label>
         <label className="field"><span className="field-label">Bio link</span><input className="input" value={form.bio_link} onChange={(e) => set('bio_link', e.target.value)} /></label>
-        <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Beats / topics <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} disabled={suggesting} onClick={suggestBeats}>{suggesting ? '…' : '✨ Suggest from coverage'}</button></span><input className="input" value={form.beats} onChange={(e) => set('beats', e.target.value)} placeholder="architecture, interiors" /></label>
+        <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Beats / topics <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} {...roWrite(readOnly, { onClick: suggestBeats, disabled: suggesting })}>{suggesting ? '…' : '✨ Suggest from coverage'}</button></span><input className="input" value={form.beats} onChange={(e) => set('beats', e.target.value)} placeholder="architecture, interiors" /></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Notes</span><textarea className="input" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} /></label>
         <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save profile'}</button>

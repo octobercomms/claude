@@ -7,6 +7,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 
 const INTENT_COLOR = {
   transactional: 'var(--positive, #1a7f37)',
@@ -23,6 +25,7 @@ function scoreColor(n) {
 
 export default function AiSeoPanel({ clientId }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [keywords, setKeywords] = useState([]);
   const [scans, setScans] = useState([]);
   const [seed, setSeed] = useState('');
@@ -85,7 +88,7 @@ export default function AiSeoPanel({ clientId }) {
           <div style={{ display: 'flex', gap: 8 }}>
             <input className="input" style={{ flex: 1 }} placeholder="Optional focus / seed — e.g. 'sustainable packaging for DTC brands'"
               value={seed} onChange={e => setSeed(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') generate(); }} />
-            <button className="btn btn-primary" onClick={generate} disabled={genLoading}>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: generate, disabled: genLoading })}>
               {genLoading ? 'Generating…' : (keywords.length ? 'Regenerate' : 'Generate targets')}
             </button>
           </div>
@@ -119,7 +122,7 @@ export default function AiSeoPanel({ clientId }) {
           <div style={{ display: 'flex', gap: 8 }}>
             <input className="input" style={{ flex: 1 }} placeholder="Article URL — score it against the targets above"
               value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') scan(); }} />
-            <button className="btn btn-primary" onClick={scan} disabled={scanning || !keywords.length} title={!keywords.length ? 'Generate keyword targets first' : ''}>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: scan, disabled: scanning || !keywords.length, title: !keywords.length ? 'Generate keyword targets first' : '' })}>
               {scanning ? 'Scanning…' : 'Scan article'}
             </button>
           </div>

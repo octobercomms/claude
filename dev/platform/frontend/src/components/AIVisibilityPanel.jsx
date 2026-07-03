@@ -5,6 +5,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+import { roWrite } from '../utils/readOnly';
 import Card from './ui/Card';
 import Section from './ui/Section';
 import Button from './ui/Button';
@@ -22,6 +24,7 @@ const ENGINE_LABEL = {
 
 export default function AIVisibilityPanel({ clientId }) {
   const toast = useToast();
+  const { readOnly } = useAuth();
   const [prompts, setPrompts] = useState([]);
   const [runs, setRuns] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -135,10 +138,10 @@ export default function AIVisibilityPanel({ clientId }) {
       </div>
 
       <div className="row wrap mb-6">
-        <Button onClick={runNow} disabled={running}>
+        <Button {...roWrite(readOnly, { onClick: runNow, disabled: running })}>
           {running ? 'Running…' : '↻ Run visibility check now'}
         </Button>
-        <Button variant="secondary" onClick={generatePrompts} disabled={generating}>
+        <Button variant="secondary" {...roWrite(readOnly, { onClick: generatePrompts, disabled: generating })}>
           {generating ? 'Generating…' : '✨ Generate prompts with Claude'}
         </Button>
       </div>

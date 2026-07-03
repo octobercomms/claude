@@ -2,7 +2,7 @@
 // script, and HeyGen renders a captioned vertical reel (async; the scheduler
 // polls status). See services/heygen.js.
 const express = require('express');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, agencyOnly } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const heygen = require('../services/heygen');
 
@@ -13,8 +13,11 @@ router.use(requireClientAccess({ paramNames: ['clientId'] }));
 
 const id = (req) => parseInt(req.params.id, 10);
 
-// Avatars (incl. Digital Twins) + voices for the picker.
-router.get('/clients/:clientId/heygen/options', async (req, res) => {
+// Avatars (incl. Digital Twins) + voices for the picker. agencyOnly: this is
+// the one GET that reaches a paid vendor (HeyGen's avatars/voices API) — a
+// read-only client never needs the reel picker, so keep even that traffic
+// agency-side. Every credit-spending HeyGen action is already POST (blocked).
+router.get('/clients/:clientId/heygen/options', agencyOnly, async (req, res) => {
   // Cached, resilient avatars + voices (see heygen.getOptions): one slow/failed
   // call won't take the whole picker down, and a fresh cache serves instantly.
   try {

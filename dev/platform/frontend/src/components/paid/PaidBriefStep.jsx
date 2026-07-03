@@ -1,6 +1,8 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
 import { BriefModal } from '../AdCreativePanel';
+import { useAuth } from '../../context/AuthContext';
+import { roWrite } from '../../utils/readOnly';
 
 // Paid Pipeline → Brief. Past batches list on the left, "+ New batch"
 // opens the brief form. Selecting a batch sets it as active across all
@@ -11,6 +13,7 @@ export default function PaidBriefStep({ pipeline, onNext }) {
     batches, activeBatchId, selectBatch, deleteBatch,
     assets, showBrief, setShowBrief, generate, generating,
   } = pipeline;
+  const { readOnly } = useAuth();
 
   return (
     <PipelineStep
@@ -19,7 +22,7 @@ export default function PaidBriefStep({ pipeline, onNext }) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
         <div className="caption">Past briefs</div>
-        <button onClick={() => setShowBrief(true)} className="btn btn-primary" disabled={generating}>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => setShowBrief(true), disabled: generating })}>
           {generating ? 'Generating…' : '+ New brief'}
         </button>
       </div>
