@@ -77,15 +77,25 @@ router.post('/set-password', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
-router.get('/me', authenticate, (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   // dataforseo_availability lets the frontend render the "becomes
   // available on 1 July 2026" banner without having to know the
   // cutover date itself.
   const { availabilityForClient } = require('../services/dfsAvailability');
+  // For a read-only client login, hand the frontend their single client id so
+  // "Workspace" can jump straight into that client instead of a client list.
+  let client_id = null;
+  if (req.user.role === 'client') {
+    try {
+      const ids = await users.getVisibleClientIds(req.user);
+      client_id = Array.isArray(ids) && ids.length ? ids[0] : null;
+    } catch { /* leave null */ }
+  }
   res.json({
     id: req.user.id,
     username: req.user.username,
     role: req.user.role,
+    client_id,
     dataforseo_availability: availabilityForClient(),
   });
 });
