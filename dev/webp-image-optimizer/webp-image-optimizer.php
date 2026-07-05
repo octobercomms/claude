@@ -3,7 +3,7 @@
  * Plugin Name: WebP Image Optimizer
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Automatically converts uploaded images to WebP, scales them to a max dimension, and serves them transparently via .htaccess rules. Includes a bulk converter for existing media.
- * Version:     1.0.0
+ * Version:     1.0.1
  * Author:      OctoberComms
  * License:     GPL-2.0-or-later
  * Text Domain: webp-image-optimizer
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WIO_VERSION', '1.0.0' );
+define( 'WIO_VERSION', '1.0.1' );
 define( 'WIO_PLUGIN_FILE', __FILE__ );
 define( 'WIO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -339,6 +339,12 @@ function wio_render_settings_page(): void {
 			<p><em><?php esc_html_e( 'Bulk conversion is unavailable because this server lacks GD/Imagick WebP support.', 'webp-image-optimizer' ); ?></em></p>
 		<?php else : ?>
 			<div id="wio-bulk-wrap">
+				<p>
+					<label>
+						<input type="checkbox" id="wio-bulk-force" />
+						<?php esc_html_e( 'Re-convert images that already have a WebP file (applies your current quality/dimension settings). Leave unchecked to skip images already done — this lets an interrupted run resume where it left off.', 'webp-image-optimizer' ); ?>
+					</label>
+				</p>
 				<button id="wio-bulk-start" class="button button-primary"><?php esc_html_e( 'Start Bulk Convert', 'webp-image-optimizer' ); ?></button>
 				<button id="wio-bulk-stop" class="button" style="display:none;"><?php esc_html_e( 'Stop', 'webp-image-optimizer' ); ?></button>
 				<span id="wio-bulk-status" style="margin-left:12px;"></span>
@@ -352,14 +358,21 @@ function wio_render_settings_page(): void {
 
 			<script>
 			(function(){
-				const nonce   = <?php echo wp_json_encode( wp_create_nonce( 'wio_bulk_nonce' ) ); ?>;
-				const ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
-				let running   = false;
-				let offset    = 0;
-				const batch   = 10;
+				const nonce        = <?php echo wp_json_encode( wp_create_nonce( 'wio_bulk_nonce' ) ); ?>;
+				const ajaxUrl      = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
+				const NORMAL_BATCH = 10;
+				const MAX_RETRIES  = 5;
+
+				let running        = false;
+				let offset         = 0;
+				let batch          = NORMAL_BATCH;
+				let retries        = 0;
+				let convertedTotal = 0;
+				let skippedTotal   = 0;
 
 				const startBtn  = document.getElementById('wio-bulk-start');
 				const stopBtn   = document.getElementById('wio-bulk-stop');
+				const forceEl   = document.getElementById('wio-bulk-force');
 				const statusEl  = document.getElementById('wio-bulk-status');
 				const barWrap   = document.getElementById('wio-bulk-bar-wrap');
 				const bar       = document.getElementById('wio-bulk-bar');
@@ -368,42 +381,71 @@ function wio_render_settings_page(): void {
 				function log(msg){ logEl.style.display='block'; logEl.innerHTML += msg + '<br>'; logEl.scrollTop = logEl.scrollHeight; }
 				function setStatus(msg){ statusEl.textContent = msg; }
 				function setBar(pct){ bar.style.width = pct + '%'; }
+				function finish(msg){ running=false; setStatus(msg); startBtn.style.display=''; stopBtn.style.display='none'; }
 
 				startBtn.addEventListener('click', function(){
 					if(running) return;
-					running = true; offset = 0;
+					running=true; offset=0; batch=NORMAL_BATCH; retries=0; convertedTotal=0; skippedTotal=0;
 					startBtn.style.display='none'; stopBtn.style.display='';
 					barWrap.style.display=''; logEl.innerHTML='';
 					setStatus('Starting…'); setBar(0);
 					runBatch();
 				});
 
-				stopBtn.addEventListener('click', function(){ running=false; setStatus('Stopped.'); startBtn.style.display=''; stopBtn.style.display='none'; });
+				stopBtn.addEventListener('click', function(){ finish('Stopped.'); });
+
+				// A failed batch no longer kills the run. First we shrink the batch to
+				// one image to isolate a problem file, retry with backoff, and if a single
+				// image still fails MAX_RETRIES times we log it, skip past it, and carry on.
+				function handleError(reason){
+					if(!running) return;
+					if(batch > 1){
+						batch = 1; retries = 0;
+						log('&#9888; ' + reason + ' — retrying one image at a time from position ' + offset);
+						setTimeout(runBatch, 1000);
+						return;
+					}
+					retries++;
+					if(retries < MAX_RETRIES){
+						const delay = Math.min(16000, 1000 * Math.pow(2, retries)); // 2s,4s,8s,16s
+						log('&#9888; ' + reason + ' — retry ' + retries + '/' + MAX_RETRIES + ' at position ' + offset);
+						setTimeout(runBatch, delay);
+						return;
+					}
+					log('&#10007; Skipped the image at position ' + offset + ' after ' + MAX_RETRIES + ' failed attempts (' + reason + ')');
+					offset += 1; retries = 0; batch = NORMAL_BATCH;
+					setTimeout(runBatch, 200);
+				}
 
 				function runBatch(){
 					if(!running) return;
 					fetch(ajaxUrl, {
 						method:'POST',
 						headers:{'Content-Type':'application/x-www-form-urlencoded'},
-						body: new URLSearchParams({ action:'wio_bulk_convert', nonce, offset, batch })
+						body: new URLSearchParams({ action:'wio_bulk_convert', nonce, offset, batch, force: (forceEl && forceEl.checked) ? 1 : 0 })
 					})
-					.then(r=>r.json())
-					.then(data=>{
-						if(!data.success){ setStatus('Error: '+(data.data||'unknown')); running=false; startBtn.style.display=''; stopBtn.style.display='none'; return; }
+					.then(function(r){ return r.text(); })
+					.then(function(text){
+						if(!running) return;
+						let data;
+						try { data = JSON.parse(text); }
+						catch(e){ handleError('Server returned a non-JSON response (usually a timeout or memory limit on one image)'); return; }
+						if(!data || !data.success){ handleError('Error: ' + ((data && data.data) || 'unknown')); return; }
+
 						const d = data.data;
-						d.log.forEach(l=>log(l));
+						retries = 0;
+						if(batch === 1 && !d.done){ batch = NORMAL_BATCH; } // recovered — resume normal batch size
+						convertedTotal += d.converted || 0;
+						skippedTotal   += d.skipped   || 0;
+						(d.log || []).forEach(function(l){ log(l); });
 						setBar(d.total>0 ? Math.round((d.offset/d.total)*100) : 100);
-						setStatus('Converted '+d.offset+' / '+d.total+' images');
-						if(d.done || !running){
-							running=false;
-							setStatus(d.done ? 'Done! Converted '+d.converted+' images.' : 'Stopped at '+d.offset+'/'+d.total);
-							startBtn.style.display=''; stopBtn.style.display='none';
-						} else {
-							offset = d.offset;
-							setTimeout(runBatch, 200);
-						}
+						setStatus('Processed ' + d.offset + ' / ' + d.total + ' images (' + convertedTotal + ' converted, ' + skippedTotal + ' skipped)');
+
+						if(d.done){ finish('Done! Processed ' + d.offset + ' images — ' + convertedTotal + ' converted, ' + skippedTotal + ' skipped.'); return; }
+						offset = d.offset;
+						setTimeout(runBatch, 150);
 					})
-					.catch(e=>{ setStatus('Network error: '+e.message); running=false; startBtn.style.display=''; stopBtn.style.display='none'; });
+					.catch(function(e){ handleError('Network error: ' + e.message); });
 				}
 			})();
 			</script>
@@ -430,6 +472,19 @@ function wio_render_settings_page(): void {
 
 // ─── AJAX: bulk converter ──────────────────────────────────────────────────
 
+/**
+ * Whether an up-to-date .webp already exists for a source file — i.e. the
+ * .webp is present and at least as new as the source. Used to skip work so an
+ * interrupted bulk run can resume instead of re-encoding everything.
+ */
+function wio_webp_is_current( string $source ): bool {
+	if ( ! file_exists( $source ) ) {
+		return true; // nothing to convert
+	}
+	$webp = $source . '.webp';
+	return file_exists( $webp ) && filemtime( $webp ) >= filemtime( $source );
+}
+
 add_action( 'wp_ajax_wio_bulk_convert', 'wio_ajax_bulk_convert' );
 function wio_ajax_bulk_convert(): void {
 	check_ajax_referer( 'wio_bulk_nonce', 'nonce' );
@@ -437,67 +492,88 @@ function wio_ajax_bulk_convert(): void {
 		wp_send_json_error( 'Forbidden' );
 	}
 
+	// Give large images room to breathe so a single batch can't fatal the run.
+	@set_time_limit( 0 );
+	if ( function_exists( 'wp_raise_memory_limit' ) ) {
+		wp_raise_memory_limit( 'image' );
+	}
+
 	$offset  = max( 0, (int) ( $_POST['offset'] ?? 0 ) );
 	$batch   = max( 1, min( 50, (int) ( $_POST['batch'] ?? 10 ) ) );
+	$force   = ! empty( $_POST['force'] );
 	$quality = (int) wio_option( 'quality' );
 	$max_w   = (int) wio_option( 'max_width' );
 	$max_h   = (int) wio_option( 'max_height' );
 
-	$total_query = new WP_Query( [
-		'post_type'      => 'attachment',
-		'post_mime_type' => [ 'image/jpeg', 'image/png', 'image/gif' ],
-		'post_status'    => 'inherit',
-		'posts_per_page' => -1,
-		'fields'         => 'ids',
-	] );
-	$total = $total_query->post_count;
-
+	// One query per batch. found_posts gives the library total via SQL_CALC_FOUND_ROWS
+	// without loading every attachment ID into memory. Stable ID ordering keeps
+	// offset-based paging (and client-side skips) consistent between requests.
 	$query = new WP_Query( [
-		'post_type'      => 'attachment',
-		'post_mime_type' => [ 'image/jpeg', 'image/png', 'image/gif' ],
-		'post_status'    => 'inherit',
-		'posts_per_page' => $batch,
-		'offset'         => $offset,
-		'fields'         => 'ids',
+		'post_type'              => 'attachment',
+		'post_mime_type'         => [ 'image/jpeg', 'image/png', 'image/gif' ],
+		'post_status'            => 'inherit',
+		'posts_per_page'         => $batch,
+		'offset'                 => $offset,
+		'fields'                 => 'ids',
+		'orderby'                => 'ID',
+		'order'                  => 'ASC',
+		'no_found_rows'          => false,
+		'cache_results'          => false,
+		'update_post_meta_cache' => false,
+		'update_post_term_cache' => false,
 	] );
 
+	$total     = (int) $query->found_posts;
+	$uploads   = wp_upload_dir();
+	$base_dir  = $uploads['basedir'];
 	$log       = [];
 	$converted = 0;
+	$skipped   = 0;
 
 	foreach ( $query->posts as $id ) {
-		$meta     = wp_get_attachment_metadata( $id );
-		$uploads  = wp_upload_dir();
-		$base_dir = $uploads['basedir'];
+		$meta = wp_get_attachment_metadata( $id );
 
 		if ( empty( $meta['file'] ) ) {
 			$log[] = "#{$id}: no metadata, skipped";
+			$skipped++;
 			continue;
 		}
 
 		$abs = $base_dir . '/' . $meta['file'];
-		$ok  = wio_convert_to_webp( $abs, '', $quality, $max_w, $max_h );
-		$log[] = "#{$id} " . basename( $abs ) . ': ' . ( $ok ? 'converted' : 'failed/already webp' );
-		if ( $ok ) {
-			$converted++;
+		$dir = dirname( $abs );
+
+		// Full-size original.
+		if ( ! $force && wio_webp_is_current( $abs ) ) {
+			$skipped++;
+			$log[] = "#{$id} " . basename( $abs ) . ': already up to date, skipped';
+		} else {
+			$ok = wio_convert_to_webp( $abs, '', $quality, $max_w, $max_h );
+			$log[] = "#{$id} " . basename( $abs ) . ': ' . ( $ok ? 'converted' : 'failed' );
+			if ( $ok ) {
+				$converted++;
+			}
 		}
 
-		// Also convert all registered thumbnail sizes.
+		// All registered thumbnail sizes.
 		if ( ! empty( $meta['sizes'] ) ) {
-			$dir = dirname( $abs );
 			foreach ( $meta['sizes'] as $size ) {
 				$thumb = $dir . '/' . $size['file'];
+				if ( ! $force && wio_webp_is_current( $thumb ) ) {
+					continue;
+				}
 				wio_convert_to_webp( $thumb, '', $quality );
 			}
 		}
 	}
 
-	$new_offset = $offset + $query->post_count;
+	$new_offset = $offset + count( $query->posts );
 
 	wp_send_json_success( [
 		'total'     => $total,
 		'offset'    => $new_offset,
 		'converted' => $converted,
-		'done'      => $new_offset >= $total,
+		'skipped'   => $skipped,
+		'done'      => $new_offset >= $total || empty( $query->posts ),
 		'log'       => $log,
 	] );
 }

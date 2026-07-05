@@ -4,7 +4,7 @@ Tags:              webp, image, optimize, compress, performance
 Requires at least: 6.0
 Tested up to:      6.7
 Requires PHP:      8.1
-Stable tag:        1.0.0
+Stable tag:        1.0.1
 License:           GPL-2.0-or-later
 
 Automatically converts uploaded images to WebP, scales them, and serves them transparently via .htaccess — no paid subscription required.
@@ -50,9 +50,19 @@ The .htaccess rule only works on Apache with mod_rewrite. For Nginx you need to 
 
 = Can I re-run the bulk converter after changing quality/dimension settings? =
 
-Yes — just click **Start Bulk Convert** again. It will overwrite existing .webp files with the new settings.
+Yes. Tick **Re-convert images that already have a WebP file** before clicking **Start Bulk Convert** — it will re-encode everything with your current settings. Left unticked, the bulk converter skips images that are already done, so an interrupted run picks up where it left off instead of starting over.
+
+= The bulk converter stops with a "network error" on a large library. What do I do? =
+
+Just click **Start Bulk Convert** again — with "Re-convert" left unticked it resumes from where it stopped. As of 1.0.1 the converter is also far more resilient: it recovers from a failed batch automatically (retrying, isolating one image at a time, and skipping any single image that can't be processed) rather than halting the whole run, and it raises the PHP time/memory limits while it works. These issues typically stem from a single very large image hitting the server's memory limit, or a server request timeout.
 
 == Changelog ==
+
+= 1.0.1 =
+* Bulk converter now handles very large media libraries (10,000+ images) reliably.
+* Resilient batches: a failed batch retries with backoff, isolates a problem image, and skips it if needed instead of stopping the whole run.
+* Resumable: skips images that already have an up-to-date WebP file, so an interrupted run continues where it left off. New "Re-convert existing" option forces a full re-encode.
+* Raises PHP time/memory limits during conversion and removes a costly full-library count that ran on every batch.
 
 = 1.0.0 =
 * Initial release.
