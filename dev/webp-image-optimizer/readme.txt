@@ -4,10 +4,10 @@ Tags:              webp, image, optimize, compress, performance
 Requires at least: 6.0
 Tested up to:      6.7
 Requires PHP:      8.1
-Stable tag:        1.0.1
+Stable tag:        1.1.2
 License:           GPL-2.0-or-later
 
-Automatically converts uploaded images to WebP, scales them, and serves them transparently via .htaccess — no paid subscription required.
+Automatically converts uploaded images to WebP, scales them, and serves them transparently — no paid subscription required.
 
 == Description ==
 
@@ -17,9 +17,9 @@ Features:
 
 * Auto-converts every new upload (full size + all thumbnail sizes).
 * Scales images down to a configurable maximum dimension on upload.
-* Serves WebP transparently via Apache mod_rewrite — browsers that don't support WebP continue to receive the original file.
+* Serves WebP two ways: rewrites image URLs in the page HTML to the .webp file when it exists, and (on Apache) serves .webp transparently via mod_rewrite. Browsers that don't support WebP continue to receive the original file.
 * Keeps originals alongside .webp files (safe fallback).
-* Bulk converter: process your entire existing Media Library in batches with a progress bar.
+* Bulk converter: process your entire existing Media Library in batches with a progress bar. Built to handle very large libraries (10,000+ images) reliably.
 * Works with either **Imagick** (preferred) or **GD** — no external service required.
 * Zero recurring costs.
 
@@ -42,11 +42,11 @@ Most modern hosting providers (including WP Engine, Kinsta, SiteGround, Cloudway
 
 = Will this break my site if a browser doesn't support WebP? =
 
-No. The .htaccess rule only rewrites the request to the .webp version if the browser sends `Accept: image/webp` **and** the .webp file exists. All other requests fall through normally.
+No. URLs are only rewritten to the .webp version when that file actually exists on disk, and the Apache .htaccess rule only serves .webp when the browser sends `Accept: image/webp`. Originals are kept as a fallback.
 
 = I'm on Nginx, not Apache — will it work? =
 
-The .htaccess rule only works on Apache with mod_rewrite. For Nginx you need to add equivalent rules to your server block. The settings page shows the logic so you can translate it.
+Yes. The HTML URL-rewriting layer works on any server because the browser requests the .webp file by name. The .htaccess transparent-swap rule is Apache-only; on Nginx you can translate the equivalent logic into your server block (the settings page shows it).
 
 = Can I re-run the bulk converter after changing quality/dimension settings? =
 
@@ -54,15 +54,22 @@ Yes. Tick **Re-convert images that already have a WebP file** before clicking **
 
 = The bulk converter stops with a "network error" on a large library. What do I do? =
 
-Just click **Start Bulk Convert** again — with "Re-convert" left unticked it resumes from where it stopped. As of 1.0.1 the converter is also far more resilient: it recovers from a failed batch automatically (retrying, isolating one image at a time, and skipping any single image that can't be processed) rather than halting the whole run, and it raises the PHP time/memory limits while it works. These issues typically stem from a single very large image hitting the server's memory limit, or a server request timeout.
+Just click **Start Bulk Convert** again — with "Re-convert" left unticked it resumes from where it stopped. As of 1.1.2 the converter is also far more resilient: it recovers from a failed batch automatically (retrying with backoff, isolating one image at a time, and skipping any single image that can't be processed) rather than halting the whole run, and it raises the PHP time/memory limits while it works. These errors typically stem from a single very large image hitting the server's memory limit, or a server request timeout.
 
 == Changelog ==
 
-= 1.0.1 =
-* Bulk converter now handles very large media libraries (10,000+ images) reliably.
-* Resilient batches: a failed batch retries with backoff, isolates a problem image, and skips it if needed instead of stopping the whole run.
+= 1.1.2 =
+* Bulk converter now handles very large media libraries (10,000+ images) reliably — fixes the "network error / not valid JSON" that halted long runs.
+* Removed a costly full-library count (`posts_per_page => -1`) that reloaded every attachment ID on every batch; the total now comes from the batch query itself.
+* Resilient batches: a failed batch retries with backoff, shrinks to one image to isolate a problem file, and skips a single unprocessable image instead of stopping the whole run. Non-JSON/timeout responses are handled gracefully.
 * Resumable: skips images that already have an up-to-date WebP file, so an interrupted run continues where it left off. New "Re-convert existing" option forces a full re-encode.
-* Raises PHP time/memory limits during conversion and removes a costly full-library count that ran on every batch.
+* Raises PHP time/memory limits during conversion (only ever raising, never lowering a host's higher limit) and keeps the earlier output-buffering guard against stray output.
+
+= 1.1.1 =
+* Initial hardening of the bulk converter (output buffering, higher memory/time limits, per-image try/catch). Superseded by the more complete fix in 1.1.2.
+
+= 1.1.0 =
+* Added on-the-fly HTML URL rewriting: `src`/`srcset` in page output point directly at .webp files when they exist, so WebP is served without relying solely on the Apache .htaccess rule (works on Nginx too).
 
 = 1.0.0 =
 * Initial release.

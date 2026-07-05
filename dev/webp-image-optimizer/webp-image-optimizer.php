@@ -3,7 +3,7 @@
  * Plugin Name: WebP Image Optimizer
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Automatically converts uploaded images to WebP, scales them to a max dimension, and serves them transparently via .htaccess rules. Includes a bulk converter for existing media.
- * Version:     1.0.1
+ * Version:     1.1.2
  * Author:      OctoberComms
  * License:     GPL-2.0-or-later
  * Text Domain: webp-image-optimizer
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WIO_VERSION', '1.0.1' );
+define( 'WIO_VERSION', '1.1.2' );
 define( 'WIO_PLUGIN_FILE', __FILE__ );
 define( 'WIO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -232,6 +232,98 @@ function wio_on_upload( array $metadata, int $attachment_id ): array {
 	}
 
 	return $metadata;
+}
+
+// ─── Rewrite image URLs in HTML output ────────────────────────────────────
+//
+// Rewrites src/srcset attributes to point to .webp files directly in the page
+// HTML. Browsers request the .webp by name — no server-side magic required.
+// Only rewrites URLs where the corresponding .webp file actually exists on disk.
+
+add_filter( 'wp_get_attachment_image_src',   'wio_rewrite_image_src',    10, 1 );
+add_filter( 'wp_calculate_image_srcset',     'wio_rewrite_srcset',       10, 1 );
+add_filter( 'the_content',                   'wio_rewrite_content_urls', 20    );
+add_filter( 'wp_get_attachment_url',         'wio_rewrite_single_url',   10, 1 );
+
+/**
+ * Map a single URL to its .webp equivalent if the file exists on disk.
+ */
+function wio_maybe_webp_url( string $url ): string {
+	if ( ! preg_match( '/\.(jpe?g|png|gif)(\?.*)?$/i', $url ) ) {
+		return $url;
+	}
+
+	$uploads  = wp_upload_dir();
+	$base_url = $uploads['baseurl'];
+	$base_dir = $uploads['basedir'];
+
+	// Only rewrite URLs that live inside the uploads directory.
+	if ( strpos( $url, $base_url ) === false ) {
+		return $url;
+	}
+
+	// Strip query string before checking disk.
+	$url_clean = strtok( $url, '?' );
+	$rel       = str_replace( $base_url, '', $url_clean );
+	$webp_path = $base_dir . $rel . '.webp';
+
+	return file_exists( $webp_path ) ? $url_clean . '.webp' : $url;
+}
+
+function wio_rewrite_image_src( $image ) {
+	if ( is_array( $image ) && isset( $image[0] ) ) {
+		$image[0] = wio_maybe_webp_url( $image[0] );
+	}
+	return $image;
+}
+
+function wio_rewrite_srcset( $sources ) {
+	if ( ! is_array( $sources ) ) {
+		return $sources;
+	}
+	foreach ( $sources as &$source ) {
+		if ( isset( $source['url'] ) ) {
+			$source['url'] = wio_maybe_webp_url( $source['url'] );
+		}
+	}
+	return $sources;
+}
+
+function wio_rewrite_single_url( string $url ): string {
+	return wio_maybe_webp_url( $url );
+}
+
+function wio_rewrite_content_urls( string $content ): string {
+	// Match src and srcset attributes containing image URLs in the uploads dir.
+	$uploads  = wp_upload_dir();
+	$base_url = preg_quote( $uploads['baseurl'], '/' );
+
+	// Rewrite src="..." for jpg/png/gif.
+	$content = preg_replace_callback(
+		'/\b(src=["\'])(' . $base_url . '[^"\']+\.(jpe?g|png|gif))(["\'])/i',
+		function ( $m ) {
+			return $m[1] . wio_maybe_webp_url( $m[2] ) . $m[4];
+		},
+		$content
+	);
+
+	// Rewrite individual URLs inside srcset="..." attributes.
+	$content = preg_replace_callback(
+		'/\bsrcset=["\']([^"\']+)["\']/i',
+		function ( $m ) {
+			$parts = array_map( 'trim', explode( ',', $m[1] ) );
+			$parts = array_map( function ( $part ) {
+				// Each part is "URL [descriptor]" e.g. "image.jpg 800w"
+				$pieces    = preg_split( '/\s+/', $part, 2 );
+				$pieces[0] = wio_maybe_webp_url( $pieces[0] );
+				return implode( ' ', $pieces );
+			}, $parts );
+			return 'srcset="' . implode( ', ', $parts ) . '"';
+		},
+		$content
+	);
+
+	return $content;
 }
 
 // ─── Admin menu & settings page ────────────────────────────────────────────
@@ -487,15 +579,20 @@ function wio_webp_is_current( string $source ): bool {
 
 add_action( 'wp_ajax_wio_bulk_convert', 'wio_ajax_bulk_convert' );
 function wio_ajax_bulk_convert(): void {
+	// Catch any stray PHP output (warnings, notices) that would break JSON.
+	ob_start();
+
 	check_ajax_referer( 'wio_bulk_nonce', 'nonce' );
 	if ( ! current_user_can( 'manage_options' ) ) {
+		ob_end_clean();
 		wp_send_json_error( 'Forbidden' );
 	}
 
 	// Give large images room to breathe so a single batch can't fatal the run.
 	@set_time_limit( 0 );
-	if ( function_exists( 'wp_raise_memory_limit' ) ) {
-		wp_raise_memory_limit( 'image' );
+	$current_mem = wp_convert_hr_to_bytes( (string) ini_get( 'memory_limit' ) );
+	if ( $current_mem > 0 && $current_mem < 512 * MB_IN_BYTES ) {
+		@ini_set( 'memory_limit', '512M' ); // only ever raise, never lower a host's higher limit
 	}
 
 	$offset  = max( 0, (int) ( $_POST['offset'] ?? 0 ) );
@@ -547,7 +644,11 @@ function wio_ajax_bulk_convert(): void {
 			$skipped++;
 			$log[] = "#{$id} " . basename( $abs ) . ': already up to date, skipped';
 		} else {
-			$ok = wio_convert_to_webp( $abs, '', $quality, $max_w, $max_h );
+			try {
+				$ok = wio_convert_to_webp( $abs, '', $quality, $max_w, $max_h );
+			} catch ( Throwable $e ) {
+				$ok = false;
+			}
 			$log[] = "#{$id} " . basename( $abs ) . ': ' . ( $ok ? 'converted' : 'failed' );
 			if ( $ok ) {
 				$converted++;
@@ -561,12 +662,18 @@ function wio_ajax_bulk_convert(): void {
 				if ( ! $force && wio_webp_is_current( $thumb ) ) {
 					continue;
 				}
-				wio_convert_to_webp( $thumb, '', $quality );
+				try {
+					wio_convert_to_webp( $thumb, '', $quality );
+				} catch ( Throwable $e ) {
+					// skip broken thumbnail silently
+				}
 			}
 		}
 	}
 
 	$new_offset = $offset + count( $query->posts );
+
+	ob_end_clean();
 
 	wp_send_json_success( [
 		'total'     => $total,
