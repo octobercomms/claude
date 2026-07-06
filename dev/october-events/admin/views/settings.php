@@ -361,10 +361,28 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </tbody></table>
         </div></details>
 
-        <details class="oe-acc" id="digest"><summary><?php esc_html_e('Digest & reports', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'october-events'); ?></label>
-            <br><span class="description"><?php esc_html_e('Off by default. When on, it emails every subscribed contact on the first Monday of the month — at most once per month. Leave off to send it only manually below.', 'october-events'); ?></span></p>
-        <p><label><?php esc_html_e('Daily ticket sales report to', 'october-events'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin. Only sends on days with sales.', 'october-events'); ?></span></p>
+        <details class="oe-acc" id="digest"><summary><?php esc_html_e('Newsletter & reports', 'october-events'); ?></summary><div class="oe-acc-body">
+        <?php if (\OE\Cron::DIGEST_ENABLED) : ?>
+            <div style="border:1px solid #dba617;background:#fcf9e8;border-radius:6px;padding:12px 14px;margin:0 0 18px">
+                <p style="margin:0 0 6px;font-size:14px"><strong><?php esc_html_e('Monthly newsletter digest', 'october-events'); ?></strong>
+                    <span style="display:inline-block;margin-left:8px;background:#dba617;color:#1d2327;font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px;vertical-align:middle"><?php esc_html_e('EMAILS ALL SUBSCRIBERS', 'october-events'); ?></span></p>
+                <p class="description" style="margin:0 0 10px"><?php esc_html_e('A “what’s on” email to every subscribed contact: recent stories, events in the next 30 days, and any listings flagged “feature in email”. At most once per calendar month.', 'october-events'); ?></p>
+                <p style="margin:0"><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <strong><?php esc_html_e('Send it automatically on the first Monday of each month', 'october-events'); ?></strong></label></p>
+            </div>
+        <?php else : ?>
+            <div style="border:1px solid #dcdcde;background:#f6f7f7;border-radius:6px;padding:12px 14px;margin:0 0 18px">
+                <p style="margin:0 0 4px;font-size:14px"><strong><?php esc_html_e('Monthly newsletter digest', 'october-events'); ?></strong>
+                    <span style="display:inline-block;margin-left:8px;background:#dcdcde;color:#50575e;font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px;vertical-align:middle"><?php esc_html_e('COMING SOON — SWITCHED OFF', 'october-events'); ?></span></p>
+                <p class="description" style="margin:0"><?php esc_html_e('The subscriber newsletter isn’t ready yet, so it’s fully disabled — it cannot send, automatically or manually. It’ll be switched on once the content, design and subject are set up.', 'october-events'); ?></p>
+            </div>
+        <?php endif; ?>
+
+        <div style="border:1px solid #dcdcde;border-radius:6px;padding:12px 14px">
+            <p style="margin:0 0 6px;font-size:14px"><strong><?php esc_html_e('Daily ticket sales report', 'october-events'); ?></strong>
+                <span style="display:inline-block;margin-left:8px;background:#f0f0f1;color:#50575e;font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px;vertical-align:middle"><?php esc_html_e('INTERNAL — TO YOU ONLY', 'october-events'); ?></span></p>
+            <p class="description" style="margin:0 0 10px"><?php esc_html_e('A short summary of the day’s ticket sales, sent to one internal address — never to subscribers. Only sends on days with sales.', 'october-events'); ?></p>
+            <p style="margin:0"><label><?php esc_html_e('Email the report to', 'october-events'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin.', 'october-events'); ?></span></p>
+        </div>
         </div></details>
 
         <?php if (\OE\Features::enabled('volunteers')) : ?>
@@ -468,9 +486,11 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <?php submit_button(__('Send test email', 'october-events'), 'secondary', 'submit', false); ?>
         </form>
 
+<?php if (\OE\Cron::DIGEST_ENABLED) : ?>
         <h3><?php esc_html_e('Monthly digest', 'october-events'); ?></h3>
-        <p><?php esc_html_e('Emails every subscribed contact. Locked to once per calendar month — a second send this month is refused. Auto-send is controlled by the toggle in “Digest & reports” above (off by default).', 'october-events'); ?></p>
+        <p><?php esc_html_e('Emails every subscribed contact. Locked to once per calendar month — a second send this month is refused. Auto-send is controlled by the toggle in the Email & SMS settings (off by default).', 'october-events'); ?></p>
         <p><a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_send_digest'), 'oe_send_digest')); ?>" onclick="return confirm('<?php echo esc_js(__('Send the monthly digest to ALL subscribed contacts now? This can only be done once per month.', 'october-events')); ?>');"><?php esc_html_e('Send digest now', 'october-events'); ?></a></p>
+<?php endif; ?>
 
         <h3><?php esc_html_e('Recent email log', 'october-events'); ?></h3>
         <?php $log = \OE\Mail\EmailLog::recent(15); if (! $log) : ?>
