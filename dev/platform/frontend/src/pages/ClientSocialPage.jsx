@@ -72,7 +72,7 @@ export default function ClientSocialPage() {
   const [socialTab, setSocialTab] = useTabParam('overview', [
     'overview',
     // Create
-    'swipe', 'brainstorm', 'reels', 'video',
+    'swipe', 'brainstorm', 'review', 'reels', 'video',
     // Produce
     'produce',
     // Schedule
@@ -88,7 +88,7 @@ export default function ClientSocialPage() {
   // (Ideas → Brief → Workbench → Plan → Publish). Schedule is no longer a
   // separate section — Plan + Publish are the factory's last two steps — so its
   // old 'plans'/'publish' leaf tabs resolve into that single experience too.
-  const inCreate = ['brainstorm', 'reels', 'video', 'produce', 'plans', 'publish'].includes(socialTab);
+  const inCreate = ['brainstorm', 'review', 'reels', 'video', 'produce', 'plans', 'publish'].includes(socialTab);
   useEffect(() => { if (!inCreate) setCreateView(null); }, [inCreate]);
 
   // Redirect legacy deep links to their new homes. Client (read-only) logins
@@ -429,7 +429,7 @@ export default function ClientSocialPage() {
         const GROUP_OF = {
           overview: 'overview',
           swipe: 'capture',
-          brainstorm: 'create', reels: 'create', video: 'create', produce: 'create',
+          brainstorm: 'create', review: 'create', reels: 'create', video: 'create', produce: 'create',
           plans: 'create', publish: 'create',
           dm_bot: 'engage', discover: 'engage',
           performance: 'measure', competitors: 'measure', audit: 'measure', perf_insights: 'measure',
@@ -696,31 +696,38 @@ function BrainstormTab({
   const producePost = producePostId ? posts.find(p => p.id === producePostId) : null;
   // "Produce →" on a post: jump to the Produce step with that post's producer open.
   function startProduce(post) { setProducePostId(post.id); goStep(3); }
-  // The Create factory is now three plain stages:
-  //   1 Create  (brief + generate)
-  //   2 Review  (refine the batch)
-  //   3 Schedule (Plan + Publish merged — lock, calendar, autopilot)
-  // Create + Review share the 'brainstorm' tab (batch-aware split); Schedule
-  // owns 'plans'/'publish'. The swipe file is now its own 'Capture' tab.
-  const STEP_TAB = { 1: 'brainstorm', 2: 'brainstorm', 3: 'produce', 4: 'plans' };
+  // Each pipeline stage owns its own tab so a refresh lands you back on the
+  // exact step (no more Create → Review auto-jump just because a batch exists):
+  //   1 Create   → 'brainstorm'    2 Review → 'review'
+  //   3 Produce  → 'produce'       4 Schedule → 'plans'/'publish'
+  const STEP_TAB = { 1: 'brainstorm', 2: 'review', 3: 'produce', 4: 'plans' };
   const stepForTab = (tab) =>
-    tab === 'produce' ? 3
+    tab === 'review' ? 2
+      : tab === 'produce' ? 3
       : (tab === 'plans' || tab === 'publish') ? 4
-      : (activeBatchId ? 2 : 1);
+      : 1;
   const [step, setStep] = useState(() => stepForTab(socialTab));
   const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
 
   // Keep the stepper in sync when the tab changes from outside — deep links,
-  // the Overview map, or buttons elsewhere. 'brainstorm' is left to the
-  // batch-aware logic below (it owns the Create↔Review split).
+  // the Overview map, or buttons elsewhere.
   useEffect(() => {
-    if (socialTab === 'produce') setStep(3);
+    if (socialTab === 'review') setStep(2);
+    else if (socialTab === 'produce') setStep(3);
     else if (socialTab === 'plans' || socialTab === 'publish') setStep(4);
+    else if (socialTab === 'brainstorm') setStep(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socialTab]);
 
-  // When a batch first appears (e.g. after generating), jump into Review.
-  useEffect(() => { if (activeBatchId) setStep(s => (s < 2 ? 2 : s)); }, [activeBatchId]);
+  // Advance to Review only on a FRESH generate (the generating flag going
+  // true → false with a batch present), not when an existing batch loads on a
+  // refresh — that's what used to yank you off Create.
+  const wasGenerating = useRef(false);
+  useEffect(() => {
+    if (wasGenerating.current && !generating && activeBatchId) goStep(2);
+    wasGenerating.current = generating;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generating, activeBatchId]);
 
   const steps = [
     { title: 'Create', sub: 'Brief & generate' },
@@ -818,12 +825,13 @@ function BrainstormTab({
     <div>
       <Stepper steps={steps} current={step} onStep={goStep} />
 
-      {/* STAGE 1 — CREATE (just the brief; past batches now live on Review) */}
+      {/* STAGE 1 — CREATE (full-width brief-left / options-right; past batches
+          now live on Review) */}
       {step === 1 && (
         <div className="panel-step">
-          <div style={{ maxWidth: 720 }}>
+          <div>
             <div className="h3">Create a batch of posts</div>
-            <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 14 }}>
+            <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 14, maxWidth: 760 }}>
               Claude proposes a batch — hook, caption, hashtags, visual concept and a storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many, then generate. Need a starting point? Grab a reel from <button className="btn-inline-link" onClick={() => onNavTab && onNavTab('swipe')}>Capture</button>.
             </p>
             {briefContent}
@@ -1777,6 +1785,7 @@ function GeneratingOverlay({ count = 9 }) {
 // reference uploads, and kicks off generation.
 function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count = 9, setCount, length = 'medium', setLength, onSubmit, submitting }) {
   const { readOnly } = useAuth();
+  const isMobile = useIsMobile();
   const [uploads, setUploads] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
@@ -1804,68 +1813,79 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
   }
   return (
     <div className="card" style={{ width: '100%' }}>
-      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
-        Optional brief — the more specific you are, the more useful the output. Examples:
-        "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy."
-        Leave empty for a balanced batch.
-      </p>
-      <label style={modalStyles.label}>Brief</label>
-      <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={5} style={modalStyles.textarea} placeholder="What's the angle? Any constraints?" />
-      <label style={modalStyles.label}>How many posts</label>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {[1, 2, 3, 4, 5, 6, 9].map(nn => (
-          <button key={nn} type="button" onClick={() => setCount && setCount(nn)}
-            style={{ width: 38, height: 38, borderRadius: 'var(--r-md)', cursor: 'pointer', fontWeight: 800, fontFamily: 'inherit',
-              border: 'var(--border-w) solid ' + (count === nn ? 'var(--accent)' : 'var(--card-border)'),
-              background: count === nn ? 'var(--accent)' : 'var(--surface)', color: 'var(--text)' }}>
-            {nn}
-          </button>
-        ))}
-      </div>
-      <label style={modalStyles.label}>Post length</label>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {[
-          { id: 'short', label: 'Short', hint: 'punchy — 1–2 lines' },
-          { id: 'medium', label: 'Medium', hint: 'a short paragraph' },
-          { id: 'long', label: 'Long', hint: 'detailed / storytelling' },
-        ].map(o => (
-          <button key={o.id} type="button" onClick={() => setLength && setLength(o.id)}
-            title={o.hint}
-            style={{ ...(length === o.id ? modalStyles.pillOn : modalStyles.pill) }}>
-            {o.label}
-          </button>
-        ))}
-      </div>
-      <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0' }}>
-        {length === 'short' ? 'Punchy captions, 1–2 lines.' : length === 'long' ? 'Detailed, storytelling captions.' : 'A short paragraph per post.'}
-      </p>
-      <label style={modalStyles.label}>Platforms</label>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {['instagram', 'tiktok', 'linkedin', 'facebook'].map(p => (
-          <button key={p} onClick={() => togglePlatform(p)} type="button" style={platforms.includes(p) ? modalStyles.pillOn : modalStyles.pill}>
-            {p}
-          </button>
-        ))}
-      </div>
-      {clientId && (<>
-        <label style={modalStyles.label}>Your content (optional)</label>
-        <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }}
-          onChange={e => { const f = e.target.files?.[0]; if (f) uploadRef(f); e.target.value = ''; }} />
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-            {uploading ? 'Uploading…' : '⬆ Attach image / clip'}
-          </button>
-          {uploads.map(u => <span key={u.id} style={modalStyles.pill}>{u.kind === 'b_roll_clip' ? '🎬' : '🖼'} {u.name.slice(0, 22)}</span>)}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
+        {/* LEFT — the brief, given room to write */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <label style={modalStyles.label}>Brief</label>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
+            Optional — the more specific you are, the more useful the output. Examples: "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy." Leave empty for a balanced batch.
+          </p>
+          <textarea value={brief} onChange={e => setBrief(e.target.value)}
+            style={{ ...modalStyles.textarea, minHeight: isMobile ? 140 : 320, flex: 1, resize: 'vertical' }}
+            placeholder="What's the angle? Any constraints?" />
         </div>
-        <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0', lineHeight: 1.5 }}>
-          Reference images/clips are saved to this client's brand assets and used to ground the generated posts.
-        </p>
-      </>)}
-      <div style={{ marginTop: 16 }}>
-        <button type="button" className="btn btn-primary" {...roWrite(readOnly, { onClick: onSubmit, disabled: submitting || !platforms.length })}>
+
+        {/* RIGHT — the options */}
+        <div>
+          <label style={{ ...modalStyles.label, marginTop: 0 }}>How many posts</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[1, 2, 3, 4, 5, 6, 9].map(nn => (
+              <button key={nn} type="button" onClick={() => setCount && setCount(nn)}
+                style={{ width: 38, height: 38, borderRadius: 'var(--r-md)', cursor: 'pointer', fontWeight: 800, fontFamily: 'inherit',
+                  border: 'var(--border-w) solid ' + (count === nn ? 'var(--accent)' : 'var(--card-border)'),
+                  background: count === nn ? 'var(--accent)' : 'var(--surface)', color: 'var(--text)' }}>
+                {nn}
+              </button>
+            ))}
+          </div>
+          <label style={modalStyles.label}>Post length</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[
+              { id: 'short', label: 'Short', hint: 'punchy — 1–2 lines' },
+              { id: 'medium', label: 'Medium', hint: 'a short paragraph' },
+              { id: 'long', label: 'Long', hint: 'detailed / storytelling' },
+            ].map(o => (
+              <button key={o.id} type="button" onClick={() => setLength && setLength(o.id)} title={o.hint}
+                style={{ ...(length === o.id ? modalStyles.pillOn : modalStyles.pill) }}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0' }}>
+            {length === 'short' ? 'Punchy captions, 1–2 lines.' : length === 'long' ? 'Detailed, storytelling captions.' : 'A short paragraph per post.'}
+          </p>
+          <label style={modalStyles.label}>Platforms</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {['instagram', 'tiktok', 'linkedin', 'facebook'].map(p => (
+              <button key={p} onClick={() => togglePlatform(p)} type="button" style={platforms.includes(p) ? modalStyles.pillOn : modalStyles.pill}>
+                {p}
+              </button>
+            ))}
+          </div>
+          {clientId && (<>
+            <label style={modalStyles.label}>Your content (optional)</label>
+            <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) uploadRef(f); e.target.value = ''; }} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                {uploading ? 'Uploading…' : '⬆ Attach image / clip'}
+              </button>
+              {uploads.map(u => <span key={u.id} style={modalStyles.pill}>{u.kind === 'b_roll_clip' ? '🎬' : '🖼'} {u.name.slice(0, 22)}</span>)}
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0', lineHeight: 1.5 }}>
+              Reference images/clips are saved to this client's brand assets and used to ground the generated posts.
+            </p>
+          </>)}
+        </div>
+      </div>
+
+      {/* Generate — bottom right */}
+      <div style={{ display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', alignItems: 'center', gap: 12, marginTop: 20, paddingTop: 16, borderTop: 'var(--border-w) solid var(--card-border)', flexWrap: 'wrap' }}>
+        {readOnly && <span className="body-xs text-subtle">{READ_ONLY_MSG}</span>}
+        <button type="button" className="btn btn-primary" style={isMobile ? { width: '100%' } : undefined}
+          {...roWrite(readOnly, { onClick: onSubmit, disabled: submitting || !platforms.length })}>
           {submitting ? 'Generating…' : `✦ Generate ${count} post${count === 1 ? '' : 's'}`}
         </button>
-        {readOnly && <p className="body-xs text-subtle" style={{ marginTop: 8 }}>{READ_ONLY_MSG}</p>}
       </div>
     </div>
   );
