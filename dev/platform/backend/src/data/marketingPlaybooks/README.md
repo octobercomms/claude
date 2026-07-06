@@ -20,6 +20,7 @@ the service → playbook mapping and which slice wires each one.
 | `copywriting.md` | copywriting, copy-editing | contentDraft, socialCaptions |
 | `content-strategy.md` | content-strategy | contentDraft, programmaticBriefs |
 | `ads.md` | ads, ad-creative, analytics | strategistReport |
+| `meta-audiences.md` | October house methodology (`docs/anothercountry-meta-targeting`) | strategistReport, AudiencesPanel |
 | `cro.md` | cro, popups, signup | siteAudit, ctrBoost |
 | `cold-email.md` | cold-email, prospecting | outreachAi, backlinkProspect |
 | `seo-audit.md` | seo-audit, ai-seo, schema | seoFanout, contentAudit |

@@ -106,6 +106,9 @@ export default function AudiencesPanel({ clientId }) {
         Build targetable audiences from first-party data — postcode distribution from Shopify orders, or a customer list (email / phone) you upload yourself. Save named segments and export them as Meta Custom Audiences. Demographic overlay ships next.
       </p>
 
+      <MethodologyCard />
+
+
       <div className="metric-grid">
         <Metric label="Customers · 12m"      value={formatNum(totalCustomers)} />
         <Metric label="Orders · 12m"         value={formatNum(totalOrders)} />
@@ -219,6 +222,65 @@ export default function AudiencesPanel({ clientId }) {
         <CustomerListModal uploading={uploading} onClose={() => setShowUpload(false)} onUpload={uploadCustomerList} />
       )}
     </>
+  );
+}
+
+// House targeting methodology, surfaced so every audience built here follows
+// the same priority order. Kept in sync with the backend `meta-audiences`
+// playbook (docs/anothercountry-meta-targeting) that grounds the Strategist.
+function MethodologyCard() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card variant="accent" className="mb-6">
+      <button
+        type="button"
+        className="row between"
+        onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+      >
+        <div>
+          <div className="caption">Methodology</div>
+          <h3 className="h3 mt-1">How to build audiences that convert</h3>
+        </div>
+        <Chip tone="accent">{open ? 'Hide' : 'Show'}</Chip>
+      </button>
+
+      {open && (
+        <div className="mt-4">
+          <p className="body-sm">
+            <strong>Signal first — nothing below works without it.</strong> Confirm the Meta pixel fires once per event
+            (no GA4/GTM double-fire), the Conversions API is sending server-side purchase events, and purchase <em>value</em> is
+            passed. Zero recorded conversions on real spend usually means broken tracking, not a dead channel — fix it before
+            scaling budget or pausing on the strength of a zero.
+          </p>
+
+          <p className="body-sm mt-4">Build in this priority order:</p>
+          <ol className="body-sm mt-2" style={{ paddingLeft: 18, display: 'grid', gap: 8 }}>
+            <li>
+              <strong>Value-based lookalike from real buyers</strong> — highest leverage. Upload the customer list below
+              (emails + lifetime spend), seeding from only the <strong>top 20–25% by AOV</strong>. Quality of seed beats size:
+              200–500 high-value buyers outperform 10,000 newsletter subscribers. Export → build a <strong>1% lookalike</strong>
+              in Meta, validate it converts, then expand to 2–3%. Rebuild the seed every 30–60 days.
+            </li>
+            <li>
+              <strong>Competitor-adjacent interest targeting</strong> — reach people already in-market. Where Meta won't index a
+              smaller competitor brand as an interest, target adjacent publications instead and layer income / behaviour / the
+              high-revenue postcodes shown above.
+            </li>
+            <li>
+              <strong>Engagement retargeting</strong> — exhaust warm audiences before cold: profile visitors + post/reel engagers
+              (90 days), product-page viewers who didn't checkout, 75%+ video viewers. Small but the highest-conversion pool.
+            </li>
+          </ol>
+
+          <p className="body-xs text-subtle mt-4">
+            Always exclude existing customers and recent converters from prospecting. Split roughly 60% lookalike / 30%
+            competitor-adjacent / 10% retargeting once signal is clean; don't raise total spend until one audience type shows
+            positive ROAS. The Strategist grounds its recommendations in this same methodology.
+          </p>
+        </div>
+      )}
+    </Card>
   );
 }
 
