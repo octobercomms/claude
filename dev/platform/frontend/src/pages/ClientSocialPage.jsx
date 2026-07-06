@@ -45,7 +45,9 @@ export default function ClientSocialPage() {
   const [postCount, setPostCount] = useState(9);
   const [postLength, setPostLength] = useState('medium'); // caption length target
   const [reelDraft, setReelDraft] = useState(null);
+  const [editReelId, setEditReelId] = useState(null); // reel to load into the editor from the Produce board
   const [createView, setCreateView] = useState(null); // null = factory steps | 'reels' = avatar-reel produce overlay
+  function openReelEditor(id) { setReelDraft(null); setEditReelId(id); setCreateView('reels'); }
   const [winners, setWinners] = useState([]);
   const [sparkline, setSparkline] = useState([]);
   const [competitorPosts, setCompetitorPosts] = useState([]);
@@ -511,7 +513,7 @@ export default function ClientSocialPage() {
       {inCreate && (createView === 'reels' ? (
         <div>
           <button className="btn btn-ghost btn-sm" style={{ marginBottom: 'var(--s4)' }} onClick={() => setCreateView(null)}>← Back to Make</button>
-          <HeygenReelsPanel clientId={id} draft={reelDraft} onScheduled={() => { setCreateView(null); setSocialTab('plans'); }} />
+          <HeygenReelsPanel clientId={id} draft={reelDraft} editReelId={editReelId} onEditConsumed={() => setEditReelId(null)} onScheduled={() => { setCreateView(null); setSocialTab('plans'); }} />
         </div>
       ) : (
         <BrainstormTab
@@ -523,6 +525,7 @@ export default function ClientSocialPage() {
           onDeleteBatch={deleteBatch}
           onMakeReel={pushPostToReel}
           onOpenReels={() => { setReelDraft(null); setCreateView('reels'); }}
+          onEditReel={openReelEditor}
           onReuseBrief={(b) => setBrief(b.brief || '')}
           onBulkSchedule={() => setBulkOpen(true)}
           onShareForApproval={shareBatchForApproval}
@@ -681,7 +684,7 @@ export default function ClientSocialPage() {
 // brainstorm-only actions (Generate / Bulk schedule / Share for
 // approval) in the section head.
 function BrainstormTab({
-  clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel, onOpenReels,
+  clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel, onOpenReels, onEditReel,
   onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare,
   socialTab, onNavTab, briefContent, plansContent, publishContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
@@ -938,7 +941,7 @@ function BrainstormTab({
               <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', margin: '24px 0 0' }} />
             </div>
           )}
-          <ProduceBoard clientId={clientId} onOpenReels={onOpenReels} onNext={() => goStep(4)} />
+          <ProduceBoard clientId={clientId} onOpenReels={onOpenReels} onEditReel={onEditReel} onNext={() => goStep(4)} />
         </div>
       )}
 
@@ -998,7 +1001,7 @@ function ProdThumb({ it, onClick }) {
   );
 }
 
-function ProduceBoard({ clientId, onOpenReels, onNext }) {
+function ProduceBoard({ clientId, onOpenReels, onEditReel, onNext }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -1069,12 +1072,12 @@ function ProduceBoard({ clientId, onOpenReels, onNext }) {
                   </div>
                   <div className="body-sm" style={{ fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{it.title}</div>
                   {it.status === 'failed' && it.error && <div className="body-xs text-negative">{String(it.error).slice(0, 120)}</div>}
-                  <div style={{ marginTop: 'auto' }}>
-                    {it.url && it.status === 'ready'
-                      ? <button className="btn btn-secondary btn-sm" onClick={() => setPreview(it)}>Preview</button>
-                      : (it.status === 'processing' || it.status === 'queued')
-                        ? <span className="body-xs text-subtle">In the render queue…</span>
-                        : null}
+                  <div style={{ marginTop: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {it.url && it.status === 'ready' && <button className="btn btn-secondary btn-sm" onClick={() => setPreview(it)}>Preview</button>}
+                    {it.kind === 'reel' && onEditReel && (it.status === 'ready' || it.status === 'failed') && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => onEditReel(it.key.replace('reel-', ''))} title="Edit the script and regenerate">✎ Edit script</button>
+                    )}
+                    {(it.status === 'processing' || it.status === 'queued') && <span className="body-xs text-subtle">In the render queue…</span>}
                   </div>
                 </div>
               </div>
