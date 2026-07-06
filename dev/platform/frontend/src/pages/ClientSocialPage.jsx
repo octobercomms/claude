@@ -687,9 +687,6 @@ function BrainstormTab({
 }) {
   const { readOnly } = useAuth();
   const isMobile = useIsMobile();
-  // On phones the Create step opens with Past batches collapsed so the page
-  // stays short — the brief is what you want first; it expands on tap.
-  const [batchesOpen, setBatchesOpen] = useState(!isMobile);
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
@@ -806,69 +803,86 @@ function BrainstormTab({
     <div>
       <Stepper steps={steps} current={step} onStep={goStep} />
 
-      {/* STAGE 1 — CREATE (brief + inspiration + past batches, side by side) */}
+      {/* STAGE 1 — CREATE (just the brief; past batches now live on Review) */}
       {step === 1 && (
         <div className="panel-step">
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
-            {/* Brief */}
-            <section>
-              <div className="h3">Create a batch of posts</div>
-              <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 14 }}>
-                Claude proposes a batch — hook, caption, hashtags, visual concept and a storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many, then generate. Need a starting point? Grab a reel from <button className="btn-inline-link" onClick={() => onNavTab && onNavTab('swipe')}>Capture</button>.
+          <div style={{ maxWidth: 720 }}>
+            <div className="h3">Create a batch of posts</div>
+            <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 14 }}>
+              Claude proposes a batch — hook, caption, hashtags, visual concept and a storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many, then generate. Need a starting point? Grab a reel from <button className="btn-inline-link" onClick={() => onNavTab && onNavTab('swipe')}>Capture</button>.
+            </p>
+            {briefContent}
+            {batches.length > 0 && (
+              <p className="body-xs text-subtle" style={{ marginTop: 14 }}>
+                Your {batches.length} past {batches.length === 1 ? 'batch lives' : 'batches live'} in <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button> — open one to edit or reuse its brief.
               </p>
-              {briefContent}
-            </section>
-
-            {/* Past batches — compact; Reuse a brief or ✕ to delete. */}
-            <section style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s4)' }}>
-              <button type="button" onClick={() => isMobile && setBatchesOpen(o => !o)}
-                style={{ background: 'none', border: 0, padding: 0, width: '100%', font: 'inherit', color: 'inherit', textAlign: 'left', cursor: isMobile ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: (!isMobile || batchesOpen) ? 12 : 0 }}>
-                <span className="caption caption-muted">Past batches{batches.length ? ` (${batches.length})` : ''}</span>
-                {isMobile && <span className="text-subtle" aria-hidden>{batchesOpen ? '▴' : '▾'}</span>}
-              </button>
-              {(!isMobile || batchesOpen) && (batches.length > 0 ? (
-                <BatchRail batches={batches} activeBatchId={activeBatchId} compact
-                  onSelectBatch={(id) => { onSelectBatch(id); setStep(2); }}
-                  onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
-              ) : (
-                <div className="body-xs text-subtle">Your generated batches show up here — reuse a brief or revisit the posts.</div>
-              ))}
-            </section>
+            )}
+            {batches.length === 0 && (
+              <div style={{ marginTop: 20 }}>
+                <ExampleBlock storageKey={`social_brainstorm_example_${clientId}`} title="this is what one of the 9 posts looks like — click Generate for real ones">
+                  <ExamplePostCard />
+                </ExampleBlock>
+              </div>
+            )}
           </div>
-
-          {batches.length === 0 && (
-            <div style={{ marginTop: 20, maxWidth: 720 }}>
-              <ExampleBlock storageKey={`social_brainstorm_example_${clientId}`} title="this is what one of the 9 posts looks like — click Generate for real ones">
-                <ExamplePostCard />
-              </ExampleBlock>
-            </div>
-          )}
         </div>
       )}
 
-      {/* STAGE 2 — REVIEW (refine the batch) */}
+      {/* STAGE 2 — REVIEW (batches, collapsible — the active one expands to its
+          post grid; older batches sit collapsed. Open one to edit its posts). */}
       {step === 2 && (
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
             <div style={{ maxWidth: 520 }}>
-              <div className="h3">Review your {posts.length} posts</div>
+              <div className="h3">Review your batches</div>
               <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                Click any post to edit it or refine with Claude. When you’re happy, schedule the batch.
+                Open a batch to edit its posts or refine with Claude. When you’re happy, schedule it.
               </p>
             </div>
             <div className="row wrap center" style={{ gap: 8 }}>
-              <UiButton variant="ghost" onClick={() => goStep(1)} disabled={generating}>↻ Generate again</UiButton>
+              <UiButton variant="ghost" onClick={() => goStep(1)} disabled={generating}>+ New batch</UiButton>
               {onOpenReels && <UiButton variant="ghost" onClick={onOpenReels}>🎬 Avatar reels</UiButton>}
               <UiButton variant="ghost" {...roWrite(readOnly, { onClick: onShareForApproval, disabled: !posts.length })}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
               <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Schedule →</UiButton>
             </div>
           </div>
           {shareUrl && <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />}
-          {!posts.length ? (
+          {!batches.length ? (
             <div className="empty" style={{ padding: 'var(--s7)' }}>
-              <p className="body">No posts in this batch yet. <button className="btn-inline-link" onClick={() => goStep(1)}>Create a batch</button> to fill the workbench.</p>
+              <p className="body">No batches yet. <button className="btn-inline-link" onClick={() => goStep(1)}>Create a batch</button> to fill the workbench.</p>
             </div>
-          ) : postGrid}
+          ) : (
+            <div className="stack" style={{ gap: 12 }}>
+              {batches.map(b => {
+                const open = b.id === activeBatchId;
+                return (
+                  <div key={b.id} className="card" style={{ padding: 0, overflow: 'hidden', borderColor: open ? 'var(--accent)' : 'var(--card-border)' }}>
+                    <div onClick={() => { if (!open) onSelectBatch(b.id); }}
+                      style={{ cursor: open ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                      <span aria-hidden style={{ color: 'var(--text-subtle)', fontSize: 12 }}>{open ? '▾' : '▸'}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>
+                          {new Date(b.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {b.post_count} posts
+                        </div>
+                        {b.brief && <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.brief}</div>}
+                      </div>
+                      <button className="btn-inline-link" style={{ fontSize: 11, flex: '0 0 auto' }}
+                        onClick={(e) => { e.stopPropagation(); onReuseBrief(b); goStep(1); }} title="Load this brief into a new batch">Reuse brief</button>
+                      <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this batch and its posts?')) onDeleteBatch(b.id); }}
+                        title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
+                    </div>
+                    {open && (
+                      <div style={{ padding: '0 16px 16px' }}>
+                        {!posts.length
+                          ? <div className="body-sm text-subtle" style={{ padding: '8px 0 12px' }}>Loading posts…</div>
+                          : postGrid}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
