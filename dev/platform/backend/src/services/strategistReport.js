@@ -295,12 +295,13 @@ async function generate({ clientId, periodDays = 7, trigger = 'manual' }) {
     }
 
     // Deterministic rubric score (claude-ads methodology) + paid-ads
-    // methodology playbook (marketingskills). The score anchors the scorecard;
-    // the playbook grounds the recommendations. Both degrade gracefully — a
-    // null audit just omits the block, a missing playbook just omits the
-    // methodology section.
+    // methodology playbooks: the general `ads` fragment (marketingskills) plus
+    // `meta-audiences` (October's house audience/targeting methodology — see
+    // docs/anothercountry-meta-targeting). The score anchors the scorecard; the
+    // playbooks ground the recommendations. Both degrade gracefully — a null
+    // audit just omits the block, a missing playbook just omits its section.
     const audit = adAudit.scoreSnapshot(current);
-    const adsPlaybook = playbooks.getPlaybook('ads');
+    const adsPlaybook = playbooks.getPlaybooks(['ads', 'meta-audiences']);
     const system = adsPlaybook
       ? `${SYSTEM_PROMPT}\n\n# Methodology to apply\nGround your analysis and recommendations in this paid-ads methodology:\n\n${adsPlaybook}`
       : SYSTEM_PROMPT;
