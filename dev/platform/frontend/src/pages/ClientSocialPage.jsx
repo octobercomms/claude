@@ -73,6 +73,8 @@ export default function ClientSocialPage() {
     'overview',
     // Create
     'swipe', 'brainstorm', 'reels', 'video',
+    // Produce
+    'produce',
     // Schedule
     'plans', 'publish',
     // Engage
@@ -86,7 +88,7 @@ export default function ClientSocialPage() {
   // (Ideas → Brief → Workbench → Plan → Publish). Schedule is no longer a
   // separate section — Plan + Publish are the factory's last two steps — so its
   // old 'plans'/'publish' leaf tabs resolve into that single experience too.
-  const inCreate = ['brainstorm', 'reels', 'video', 'plans', 'publish'].includes(socialTab);
+  const inCreate = ['brainstorm', 'reels', 'video', 'produce', 'plans', 'publish'].includes(socialTab);
   useEffect(() => { if (!inCreate) setCreateView(null); }, [inCreate]);
 
   // Redirect legacy deep links to their new homes. Client (read-only) logins
@@ -427,7 +429,7 @@ export default function ClientSocialPage() {
         const GROUP_OF = {
           overview: 'overview',
           swipe: 'capture',
-          brainstorm: 'create', reels: 'create', video: 'create',
+          brainstorm: 'create', reels: 'create', video: 'create', produce: 'create',
           plans: 'create', publish: 'create',
           dm_bot: 'engage', discover: 'engage',
           performance: 'measure', competitors: 'measure', audit: 'measure', perf_insights: 'measure',
@@ -696,9 +698,10 @@ function BrainstormTab({
   //   3 Schedule (Plan + Publish merged — lock, calendar, autopilot)
   // Create + Review share the 'brainstorm' tab (batch-aware split); Schedule
   // owns 'plans'/'publish'. The swipe file is now its own 'Capture' tab.
-  const STEP_TAB = { 1: 'brainstorm', 2: 'brainstorm', 3: 'plans' };
+  const STEP_TAB = { 1: 'brainstorm', 2: 'brainstorm', 3: 'produce', 4: 'plans' };
   const stepForTab = (tab) =>
-    (tab === 'plans' || tab === 'publish') ? 3
+    tab === 'produce' ? 3
+      : (tab === 'plans' || tab === 'publish') ? 4
       : (activeBatchId ? 2 : 1);
   const [step, setStep] = useState(() => stepForTab(socialTab));
   const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
@@ -707,7 +710,8 @@ function BrainstormTab({
   // the Overview map, or buttons elsewhere. 'brainstorm' is left to the
   // batch-aware logic below (it owns the Create↔Review split).
   useEffect(() => {
-    if (socialTab === 'plans' || socialTab === 'publish') setStep(3);
+    if (socialTab === 'produce') setStep(3);
+    else if (socialTab === 'plans' || socialTab === 'publish') setStep(4);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socialTab]);
 
@@ -717,6 +721,7 @@ function BrainstormTab({
   const steps = [
     { title: 'Create', sub: 'Brief & generate' },
     { title: 'Review', sub: 'Refine your posts' },
+    { title: 'Produce', sub: 'Make the assets' },
     { title: 'Schedule', sub: 'Calendar & autopilot' },
   ];
   // Review needs a batch; clamp back to Create when there isn't one. Schedule
@@ -836,14 +841,14 @@ function BrainstormTab({
             <div style={{ maxWidth: 520 }}>
               <div className="h3">Review your batches</div>
               <p className="body-sm text-muted" style={{ marginTop: 4 }}>
-                Open a batch to edit its posts or refine with Claude. When you’re happy, schedule it.
+                Open a batch to edit its posts or refine with Claude. When you’re happy, send them to Produce or straight to Schedule.
               </p>
             </div>
             <div className="row wrap center" style={{ gap: 8 }}>
               <UiButton variant="ghost" onClick={() => goStep(1)} disabled={generating}>+ New batch</UiButton>
-              {onOpenReels && <UiButton variant="ghost" onClick={onOpenReels}>🎬 Avatar reels</UiButton>}
               <UiButton variant="ghost" {...roWrite(readOnly, { onClick: onShareForApproval, disabled: !posts.length })}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
-              <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Schedule →</UiButton>
+              <UiButton variant="ghost" onClick={() => goStep(4)} disabled={!posts.length}>Schedule →</UiButton>
+              <UiButton variant="primary" onClick={() => goStep(3)}>Produce →</UiButton>
             </div>
           </div>
           {shareUrl && <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />}
@@ -886,8 +891,15 @@ function BrainstormTab({
         </div>
       )}
 
-      {/* STAGE 3 — SCHEDULE (Plan + Publish merged) */}
+      {/* STAGE 3 — PRODUCE (the factory floor: every asset in/through production) */}
       {step === 3 && (
+        <div className="panel-step">
+          <ProduceBoard clientId={clientId} onOpenReels={onOpenReels} onBack={() => goStep(2)} onNext={() => goStep(4)} />
+        </div>
+      )}
+
+      {/* STAGE 4 — SCHEDULE (Plan + Publish merged) */}
+      {step === 4 && (
         <div className="panel-step">
           <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
             <div style={{ maxWidth: 520 }}>
@@ -897,7 +909,7 @@ function BrainstormTab({
               </p>
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
-              <UiButton variant="ghost" onClick={() => goStep(2)}>← Back to Review</UiButton>
+              <UiButton variant="ghost" onClick={() => goStep(3)}>← Back to Produce</UiButton>
               <UiButton variant="primary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>📅 Bulk schedule</UiButton>
             </div>
           </div>
@@ -909,6 +921,98 @@ function BrainstormTab({
             <div className="caption caption-muted mb-3">Autopilot queue — publishes to every channel on schedule</div>
             {publishContent}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Produce — the factory floor. One live board of every asset in or through
+// production for this client (avatar reels with live render status, plus
+// rendered video / voiceover / images), newest first, auto-refreshing while
+// anything is still rendering. Comes back to exactly where you left off.
+const PROD_STATUS = {
+  queued:     { label: 'Queued',     bg: 'var(--surface-sunken)', fg: 'var(--text-muted)' },
+  processing: { label: 'Rendering…', bg: 'var(--accent-soft)',    fg: 'var(--accent)' },
+  ready:      { label: 'Ready',      bg: 'var(--positive-soft)',  fg: 'var(--positive)' },
+  failed:     { label: 'Failed',     bg: 'var(--negative-soft)',  fg: 'var(--negative)' },
+};
+const PROD_ICON = { reel: '🎬', video: '🎬', image: '🖼️', audio: '🎙️', motion: '✨' };
+
+function ProduceBoard({ clientId, onOpenReels, onBack, onNext }) {
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+  const pollRef = useRef(null);
+
+  async function load() {
+    try { const r = await api.get(`/social/clients/${clientId}/production`); setData(r); setErr(null); }
+    catch (e) { setErr(e.message); }
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [clientId]);
+  // Keep polling only while something is still rendering.
+  useEffect(() => {
+    clearInterval(pollRef.current);
+    if (data && data.producing > 0) pollRef.current = setInterval(load, 6000);
+    return () => clearInterval(pollRef.current);
+    /* eslint-disable-next-line */
+  }, [data?.producing]);
+
+  const items = data?.items || [];
+  return (
+    <div>
+      <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
+        <div style={{ maxWidth: 560 }}>
+          <div className="h3">Produce</div>
+          <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+            Every asset you’ve sent to production — reels, images and voiceovers — in one line. Reels render in the background; check back any time to watch them land.
+          </p>
+        </div>
+        <div className="row wrap center" style={{ gap: 8 }}>
+          <UiButton variant="ghost" onClick={onBack}>← Back to Review</UiButton>
+          {onOpenReels && <UiButton variant="secondary" onClick={onOpenReels}>🎬 New avatar reel</UiButton>}
+          <UiButton variant="primary" onClick={onNext}>Schedule →</UiButton>
+        </div>
+      </div>
+      {data?.producing > 0 && (
+        <div className="body-xs text-subtle" style={{ marginBottom: 10 }}>● {data.producing} still rendering — this refreshes automatically.</div>
+      )}
+      {err && <div className="callout callout-warning" style={{ marginBottom: 12 }}>{err}</div>}
+      {!data ? (
+        <div className="body-sm text-subtle" style={{ padding: 20 }}>Loading production…</div>
+      ) : !items.length ? (
+        <div className="empty" style={{ padding: 'var(--s7)' }}>
+          <p className="body">Nothing in production yet. Open a post in Review and produce a reel, image or voiceover — or start an avatar reel — and it’ll line up here.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12 }}>
+          {items.map(it => {
+            const st = PROD_STATUS[it.status] || PROD_STATUS.ready;
+            return (
+              <div key={it.key} className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ aspectRatio: '1 / 1', background: 'var(--surface-sunken)', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+                  {it.thumb
+                    ? <img src={it.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <span style={{ fontSize: 34 }}>{PROD_ICON[it.kind] || '📄'}</span>}
+                </div>
+                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span className="chip" style={{ fontSize: 9, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{it.label}</span>
+                    <span className="chip" style={{ fontSize: 9, background: st.bg, color: st.fg }}>{st.label}</span>
+                    {it.platform && <span className="body-xs text-subtle" style={{ textTransform: 'capitalize' }}>{it.platform}</span>}
+                  </div>
+                  <div className="body-sm" style={{ fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{it.title}</div>
+                  {it.status === 'failed' && it.error && <div className="body-xs text-negative">{String(it.error).slice(0, 120)}</div>}
+                  <div style={{ marginTop: 'auto' }}>
+                    {it.url && it.status === 'ready'
+                      ? <a href={it.url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">Open ↗</a>
+                      : (it.status === 'processing' || it.status === 'queued')
+                        ? <span className="body-xs text-subtle">In the render queue…</span>
+                        : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
