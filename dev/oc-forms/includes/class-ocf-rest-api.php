@@ -387,48 +387,26 @@ class OCF_REST_API {
 		return false;
 	}
 
-	private static function notify_admin( $form_id, $row, $answers ) {
+	/**
+	 * Delegates the styled HTML + subject templating to OCF_Lead_Email, then
+	 * sends via wp_mail() with the right From/Reply-To/Cc headers.
+	 */
+	public static function notify_admin( $form_id, $row, $answers ) {
 		$to = get_option( 'ocf_notify_email', get_option( 'admin_email' ) );
 		if ( ! $to ) { return; }
 		$schema = OCF_Schema::get( $form_id );
-		$title  = get_the_title( $form_id );
+		$email  = OCF_Lead_Email::build( $form_id, $row, $answers );
 
-		// Lead email used for both the subject and the Reply-To header so a
-		// reply from the inbox goes straight to the lead.
-		$lead_email = '';
-		foreach ( $answers as $v ) {
-			if ( is_string( $v ) && is_email( $v ) ) { $lead_email = $v; break; }
-		}
-		if ( ! $lead_email && ! empty( $row['email'] ) ) {
-			$lead_email = $row['email'];
-		}
-
-		$lines = array( 'New submission: ' . $title, '' );
-		foreach ( $schema['steps'] as $step ) {
-			foreach ( $step['questions'] as $q ) {
-				if ( ! OCF_Schema::type_is_storable( $q['type'] ) ) { continue; }
-				$v = $answers[ $q['id'] ?? '' ] ?? null;
-				if ( $v === null || $v === '' || $v === array() ) { continue; }
-				$label = wp_strip_all_tags( $q['label'] );
-				$value = is_array( $v ) ? wp_json_encode( $v ) : (string) $v;
-				$lines[] = sprintf( '%s: %s', $label, $value );
-			}
-		}
-
-		$subject = $lead_email
-			? sprintf( '[%s] New lead — %s — %s', get_bloginfo( 'name' ), $title, $lead_email )
-			: sprintf( '[%s] New lead — %s', get_bloginfo( 'name' ), $title );
-
-		$headers = array();
+		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
 
 		$from_name  = trim( (string) get_option( 'ocf_from_name', '' ) );
 		$from_email = trim( (string) get_option( 'ocf_from_email', '' ) );
-		if ( $from_email && is_email( $from_email ) ) {
+		if ( $from_email !== '' && is_email( $from_email ) ) {
 			$display = $from_name !== '' ? $from_name : get_bloginfo( 'name' );
 			$headers[] = sprintf( 'From: %s <%s>', $display, $from_email );
 		}
-		if ( $lead_email && is_email( $lead_email ) ) {
-			$headers[] = sprintf( 'Reply-To: %s', $lead_email );
+		if ( ! empty( $email['lead_email'] ) && is_email( $email['lead_email'] ) ) {
+			$headers[] = 'Reply-To: ' . $email['lead_email'];
 		}
 		foreach ( (array) ( $schema['notifications']['cc'] ?? array() ) as $cc_addr ) {
 			if ( is_email( $cc_addr ) ) {
@@ -436,6 +414,6 @@ class OCF_REST_API {
 			}
 		}
 
-		wp_mail( $to, $subject, implode( "\n", $lines ), $headers );
+		return wp_mail( $to, $email['subject'], $email['html'], $headers );
 	}
 }

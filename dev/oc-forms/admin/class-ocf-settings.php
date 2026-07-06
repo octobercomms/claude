@@ -72,7 +72,36 @@ class OCF_Settings {
 				check_admin_referer( 'ocf_delete_submission_' . $id );
 				OCF_Submissions_List::single_delete_inline( $id );
 				break;
+
+			case 'send_sample_lead':
+				$form_id = absint( $_REQUEST['form_id'] ?? 0 );
+				check_admin_referer( 'ocf_send_sample_lead_' . $form_id );
+				self::send_sample_lead( $form_id );
+				break;
 		}
+	}
+
+	private static function send_sample_lead( $form_id ) {
+		if ( ! $form_id || ! OCF_CPT::exists( $form_id ) ) { wp_die( 'Form not found' ); }
+		$to = get_option( 'ocf_notify_email', get_option( 'admin_email' ) );
+		if ( ! $to ) { wp_die( 'No notification email configured' ); }
+
+		$email = OCF_Lead_Email::build_sample( $form_id );
+		$schema = OCF_Schema::get( $form_id );
+
+		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
+		$from_name  = trim( (string) get_option( 'ocf_from_name', '' ) );
+		$from_email = trim( (string) get_option( 'ocf_from_email', '' ) );
+		if ( $from_email !== '' && is_email( $from_email ) ) {
+			$display = $from_name !== '' ? $from_name : get_bloginfo( 'name' );
+			$headers[] = sprintf( 'From: %s <%s>', $display, $from_email );
+		}
+		$sent = wp_mail( $to, '[Sample] ' . $email['subject'], $email['html'], $headers );
+
+		self::redirect( add_query_arg(
+			array( 'sample_sent' => $sent ? '1' : '0' ),
+			get_edit_post_link( $form_id, '' )
+		) );
 	}
 
 	/**

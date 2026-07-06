@@ -46,11 +46,14 @@ class OCF_Builder {
 
 		$schema = OCF_Schema::get( $post->ID );
 		$config = array(
-			'formId'   => (int) $post->ID,
-			'schema'   => $schema,
-			'types'    => OCF_Schema::types(),
-			'nonce'    => wp_create_nonce( 'ocf_save_schema_' . $post->ID ),
-			'restUrl'  => esc_url_raw( rest_url( OCF_REST_API::NAMESPACE . '/' ) ),
+			'formId'      => (int) $post->ID,
+			'schema'      => $schema,
+			'types'       => OCF_Schema::types(),
+			'nonce'       => wp_create_nonce( 'ocf_save_schema_' . $post->ID ),
+			'restUrl'     => esc_url_raw( rest_url( OCF_REST_API::NAMESPACE . '/' ) ),
+			'adminUrl'    => admin_url( 'admin.php' ),
+			'sampleNonce' => wp_create_nonce( 'ocf_send_sample_lead_' . $post->ID ),
+			'sampleSent'  => isset( $_GET['sample_sent'] ) ? sanitize_text_field( wp_unslash( $_GET['sample_sent'] ) ) : '',
 		);
 		?>
 		<div id="ocf-builder"
