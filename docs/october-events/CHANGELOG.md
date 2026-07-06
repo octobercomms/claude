@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.70.4 — newsletter digest hard-disabled (early-concept, not ready)
+
+The subscriber newsletter is still an early concept — the content, design and
+subject aren't finalised — so it's now **fully switched off in code** until it's
+ready, not just defaulted off.
+
+- A master switch (`Cron::DIGEST_ENABLED = false`) makes `run_digest()` a **no-op**:
+  it cannot send, automatically or manually, whatever the settings say or who
+  triggers it.
+- In Settings → Email & SMS, the newsletter is shown as **"Coming soon — switched
+  off"** (no toggle), and the manual **"Send digest now"** button is hidden.
+- The **daily ticket sales report** (internal, to one address) is unaffected and
+  stays — now in its own clearly-labelled card, separate from the newsletter.
+
+Flip `DIGEST_ENABLED` to `true` to bring the newsletter back (opt-in + the
+once-per-month lock from 1.70.3 still apply).
+
 ## 1.70.3 — monthly digest: opt-in + a hard once-per-month lock
 
 Fixes a serious bug: the monthly digest was **on by default** and had **no guard

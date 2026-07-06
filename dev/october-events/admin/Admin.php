@@ -358,9 +358,12 @@ final class Admin {
             wp_die('Forbidden', '', ['response' => 403]);
         }
         check_admin_referer('oe_send_digest');
-        // run_digest is locked to once per calendar month; 0 back = already sent.
-        $queued = (new \OE\Cron())->run_digest();
-        $msg = $queued > 0 ? 'sent' : 'already';
+        if (! \OE\Cron::DIGEST_ENABLED) {
+            $msg = 'disabled'; // feature not ready — never sends
+        } else {
+            // run_digest is locked to once per calendar month; 0 back = already sent.
+            $msg = (new \OE\Cron())->run_digest() > 0 ? 'sent' : 'already';
+        }
         wp_safe_redirect(add_query_arg('digest', $msg, admin_url('admin.php?page=oe-settings#email-tools')));
         exit;
     }

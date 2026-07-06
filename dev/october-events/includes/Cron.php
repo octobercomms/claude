@@ -22,6 +22,14 @@ final class Cron {
     public const HOOK_HOURLY   = 'oe_hourly_cron';
     public const HOOK_DISPATCH = 'oe_mail_dispatch'; // campaign send queue (per minute)
 
+    /**
+     * Master switch for the subscriber newsletter digest. It is an early-concept
+     * feature — the content, design and subject aren't finalised — so it is HARD
+     * OFF: it cannot send (auto or manual) and its settings are hidden. Flip this
+     * to true once the newsletter is ready to go live.
+     */
+    public const DIGEST_ENABLED = false;
+
     public static function schedule(): void {
         if (! wp_next_scheduled(self::HOOK_DAILY)) {
             wp_schedule_event(time() + HOUR_IN_SECONDS, 'daily', self::HOOK_DAILY);
@@ -87,10 +95,9 @@ final class Cron {
         // Daily ticket sales report (if any sold today).
         $this->run_sales_report();
 
-        // Monthly digest: only when explicitly enabled, and only on the first
-        // Monday of the month. Opt-in (default off) — and run_digest itself is
-        // locked to once per calendar month, so it can never double-send.
-        if ((bool) Settings::get('digest_enabled', false) && self::is_first_monday()) {
+        // Monthly digest: hard-disabled for now (DIGEST_ENABLED). When re-enabled
+        // it will run only when opted in, on the first Monday, once per month.
+        if (self::DIGEST_ENABLED && (bool) Settings::get('digest_enabled', false) && self::is_first_monday()) {
             $this->run_digest();
         }
     }
@@ -114,6 +121,10 @@ final class Cron {
      * the whole list. Returns the number of recipients queued (0 if it was skipped).
      */
     public function run_digest(): int {
+        // Feature not ready — never send, regardless of settings or trigger.
+        if (! self::DIGEST_ENABLED) {
+            return 0;
+        }
         $month = wp_date('Y-m');
         if (! add_option('oe_digest_sent_' . $month, current_time('mysql'), '', 'no')) {
             return 0; // already sent (or being sent) this month — never double-send
