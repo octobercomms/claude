@@ -809,7 +809,7 @@ function BrainstormTab({
       {/* STAGE 1 — CREATE (brief + inspiration + past batches, side by side) */}
       {step === 1 && (
         <div className="panel-step">
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
             {/* Brief */}
             <section>
               <div className="h3">Create a batch of posts</div>

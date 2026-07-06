@@ -35,12 +35,12 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState({}); // id → transcript expanded
-  const [openCard, setOpenCard] = useState({}); // id → card expanded (mobile only)
+  const [openCard, setOpenCard] = useState({}); // id → card expanded
   const pollRef = useRef(null);
-  // On phones the saved list grows the page endlessly, so each reel collapses
-  // to a compact header row (tap ▾ to reveal its idea card) and the whole list
-  // scrolls inside a capped box rather than pushing the page taller.
-  const cardOpen = (id) => !isMobile || !!openCard[id];
+  // Every reel starts collapsed to a compact title row (on desktop too) so the
+  // saved list stays a scannable index — click ▾ to reveal its idea card. On
+  // phones the list also scrolls inside a capped box rather than growing the page.
+  const cardOpen = (id) => !!openCard[id];
 
   async function load() {
     try { const r = await api.get(`/swipe-file/clients/${clientId}/swipe`); setItems(r.items || []); }
@@ -106,19 +106,21 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
       ) : (
         <div className="stack stack-sm"
           style={isMobile ? { maxHeight: '58vh', overflowY: 'auto', paddingRight: 4 } : undefined}>
-          {isMobile && (
-            <div className="body-xs text-subtle" style={{ marginBottom: 2 }}>
-              {items.length} saved · tap a reel to open its idea card
-            </div>
-          )}
+          <div className="body-xs text-subtle" style={{ marginBottom: 2 }}>
+            {items.length} saved · open a reel to see its idea card
+          </div>
           {items.map(it => {
             const st = STATUS[it.status] || STATUS.queued;
             const card = it.idea_card || null;
+            // Prefer a readable label — Claude's short title, then its hook —
+            // over the scraped "Video by @handle" metadata title.
+            const rawTitle = card?.title || card?.hook || it.title || it.url;
+            const label = rawTitle && rawTitle.length > 90 ? rawTitle.slice(0, 89) + '…' : rawTitle;
             return (
               <div key={it.id} className="card" style={{ padding: 'var(--s4)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 0, flex: '1 1 0' }}>
-                    <a href={it.url} target="_blank" rel="noreferrer" style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{it.title || it.url}</a>
+                    <a href={it.url} target="_blank" rel="noreferrer" title={it.title || it.url} style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{label}</a>
                     <div className="body-xs text-subtle" style={{ marginTop: 2, overflowWrap: 'anywhere' }}>
                       {it.platform || 'video'}{it.notes ? ` · ${it.notes}` : ''}
                     </div>
@@ -127,7 +129,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                     <span className={`chip ${st.cls}`} style={{ fontSize: 10 }}>{st.label}</span>
                     {it.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(it.id)}>Retry</button>}
                     <button className="btn btn-ghost btn-sm" onClick={() => remove(it.id)} title="Delete">✕</button>
-                    {isMobile && (card || it.error) && (
+                    {(card || it.error) && (
                       <button className="btn btn-ghost btn-sm" aria-expanded={cardOpen(it.id)}
                         onClick={() => setOpenCard(p => ({ ...p, [it.id]: !p[it.id] }))}
                         title={cardOpen(it.id) ? 'Hide idea card' : 'Show idea card'}>
