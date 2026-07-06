@@ -63,8 +63,9 @@ final class Settings {
             // Editable "tone of voice" training for the AI Stories layer.
             'ai_voice_guide'  => '',
             'ai_examples'     => [],
-            // Digest: first Monday each month (§5).
-            'digest_enabled'  => true,
+            // Monthly digest — opt-in (default off). When on, it sends on the
+            // first Monday of the month, at most once per month (see Cron).
+            'digest_enabled'  => false,
             // Daily ticket sales report recipient (blank = site admin email).
             'report_email'    => '',
             // Volunteer reminders (email always; SMS via Brevo when enabled).

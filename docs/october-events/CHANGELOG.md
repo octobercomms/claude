@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.70.3 — monthly digest: opt-in + a hard once-per-month lock
+
+Fixes a serious bug: the monthly digest was **on by default** and had **no guard
+against sending twice**, so a double-firing first-Monday cron tick could blast the
+entire subscriber list more than once.
+
+- **Once-per-month lock.** `run_digest()` now claims an atomic per-month marker
+  (`add_option`, a unique INSERT) before sending. A second trigger in the same
+  calendar month — a duplicate cron tick, an accidental second "Send digest now",
+  or a manual + auto overlap — is **refused**. It can never double-send again.
+- **Opt-in.** The automatic monthly digest now defaults to **off**. It only fires
+  when you tick "Send the monthly digest automatically" in Settings → Digest &
+  reports. (Sites that had it on keep it on — untick it to stop.)
+- **Clearer + guarded UI.** The auto toggle and the manual "Send digest now"
+  button both spell out that it emails *every subscribed contact*; the manual
+  button now asks for confirmation and reports "already sent this month" instead
+  of silently re-queuing.
+
+Note: to stop a send already in progress, deleting the campaign in the platform
+removes its queued messages and halts it.
+
 ## 1.70.2 — reveal a saved secret (to copy a key between sites)
 
 The "show" (eye) button on a saved API key / token did nothing, because saved
