@@ -1324,4 +1324,15 @@ router.post('/clients/:clientId/agent-readiness', async (req, res) => {
   }
 });
 
+// The last stored check (or null) so the panel shows it on reload without a
+// re-run. DB-only read — no external fetch.
+router.get('/clients/:clientId/agent-readiness', async (req, res) => {
+  try {
+    const agentReadiness = require('../services/agentReadiness');
+    res.json(await agentReadiness.getLatest(req.params.clientId));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
