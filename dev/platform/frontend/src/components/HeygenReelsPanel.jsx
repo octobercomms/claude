@@ -15,7 +15,7 @@ const STATUS = {
   failed:     { label: 'Failed',      cls: 'chip-warning' },
 };
 
-export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
+export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditConsumed, onScheduled }) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const [opts, setOpts] = useState(null);   // { avatars, voices } | null
@@ -69,6 +69,15 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
     finally { setReloadingOpts(false); }
   }
   useEffect(() => { loadOptions(); loadReels(); /* eslint-disable-next-line */ }, [clientId]);
+
+  // Opened from the Produce board's "Edit script" — once reels load, drop that
+  // reel's script + settings into the editor.
+  useEffect(() => {
+    if (!editReelId || !loaded) return;
+    const r = reels.find(x => String(x.id) === String(editReelId));
+    if (r) { editReel(r); onEditConsumed?.(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editReelId, loaded, reels]);
 
   useEffect(() => {
     const pending = reels.some(r => r.status === 'processing' || r.status === 'queued');
