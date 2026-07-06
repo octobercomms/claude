@@ -251,7 +251,26 @@ const POLLERS = [
       const { data } = await axios.get('https://api.heygen.com/v2/user/remaining_quota', { headers: { 'X-Api-Key': key } });
       const d = data.data || data || {};
       const credits = d.remaining_quota ?? d.remaining ?? null;
-      return { units_used: null, units_limit: null, unit_label: 'credits', balance_remaining: null, raw: { remaining_quota: credits } };
+      // Surface the credits so the card actually shows a value ("X credits
+      // remaining") instead of falling through to "no balance API".
+      if (credits == null) return { raw: { note: 'Connected — quota endpoint returned no figure.' } };
+      return { units_used: Number(credits), unit_label: 'credits remaining', raw: { remaining_quota: credits, details: d } };
+    },
+  },
+  {
+    name: 'apify',
+    label: 'Apify',
+    async poll() {
+      const token = await getSetting('APIFY_API_TOKEN');
+      if (!token) return null;
+      // Apify exposes the current billing cycle's spend + monthly limit.
+      const { data } = await axios.get('https://api.apify.com/v2/users/me/limits', { params: { token } });
+      const cur = data.data?.current || {};
+      const lim = data.data?.limits || {};
+      const used = cur.monthlyUsageUsd ?? cur.monthlyUsageCycleUsd ?? null;
+      const cap = lim.maxMonthlyUsageUsd ?? null;
+      if (used == null) return { raw: { note: 'Connected — no usage figure returned.', _raw: data.data } };
+      return { cost_this_period: Number(used), currency: 'USD', unit_label: 'usage', raw: { monthlyUsageUsd: used, maxMonthlyUsageUsd: cap } };
     },
   },
   {
