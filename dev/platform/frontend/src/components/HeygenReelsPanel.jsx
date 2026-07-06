@@ -41,6 +41,7 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
   const [scriptLen, setScriptLen] = useState(60);      // target seconds
   const [writingScript, setWritingScript] = useState(false);
   const [busy, setBusy] = useState(false);
+  const scriptRef = useRef(null);
   const pollRef = useRef(null);
 
   // Video shapes HeyGen renders. Label + the platform each suits.
@@ -100,6 +101,23 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
   async function retry(id) {
     try { const r = await api.post(`/heygen/clients/${clientId}/heygen/reels/${id}/retry`, {}); setReels(prev => [r, ...prev.filter(x => x.id !== id)]); }
     catch (e) { toast(e.message, 'error'); }
+  }
+  // Load a reel's settings back into the generator so the AM can tweak the
+  // script (e.g. add [pause …] markers) and Generate a fresh version with the
+  // same avatar / voice / look. Non-destructive — the original reel stays.
+  function editReel(r) {
+    setTitle(r.title || '');
+    setScript(r.script || '');
+    if (r.avatar_id) setAvatar(`${r.avatar_type || 'avatar'}:${r.avatar_id}`);
+    if (r.voice_id) setVoice(r.voice_id);
+    if (r.aspect_ratio) setAspect(r.aspect_ratio);
+    if (r.fit) setFit(r.fit);
+    if (r.expressiveness) setExpressiveness(r.expressiveness);
+    setEngine(r.engine || '');
+    if (r.caption != null) setCaption(!!r.caption);
+    setModalReel(null);
+    toast('Loaded into the editor — tweak the script, then Generate.', 'success');
+    setTimeout(() => { scriptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); scriptRef.current?.focus(); }, 60);
   }
   async function writeScript() {
     setWritingScript(true);
@@ -176,7 +194,7 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
               </button>
             </div>
             <input className="input" placeholder="Title (optional)" value={title} onChange={e => setTitle(e.target.value)} />
-            <textarea className="input" rows={9} placeholder="Script — what should your avatar say? (write as long as you like — up to ~3-minute explainers)" value={script} onChange={e => setScript(e.target.value)} />
+            <textarea ref={scriptRef} className="input" rows={9} placeholder="Script — what should your avatar say? (write as long as you like — up to ~3-minute explainers)" value={script} onChange={e => setScript(e.target.value)} />
             {(() => {
               const words = script.trim() ? script.trim().split(/\s+/).filter(Boolean).length : 0;
               if (!words) return null;
@@ -339,8 +357,11 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
                     <div className="body-xs text-subtle" style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.avatar_name || r.avatar_id}{r.duration_s ? ` · ${Math.round(r.duration_s)}s` : ''}
                     </div>
-                    {r.status === 'failed' && <button className="btn btn-secondary btn-sm" style={{ marginTop: 6 }} {...roWrite(readOnly, { onClick: () => retry(r.id) })}>Retry</button>}
-                    {r.status === 'processing' && <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} {...roWrite(readOnly, { onClick: () => refresh(r.id) })}>Refresh</button>}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                      {(done || r.status === 'failed') && <button className="btn btn-ghost btn-sm" {...roWrite(readOnly, { onClick: () => editReel(r) })} title="Edit the script and regenerate">✎ Edit script</button>}
+                      {r.status === 'failed' && <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => retry(r.id) })}>Retry</button>}
+                      {r.status === 'processing' && <button className="btn btn-ghost btn-sm" {...roWrite(readOnly, { onClick: () => refresh(r.id) })}>Refresh</button>}
+                    </div>
                   </div>
                 </div>
               );
@@ -365,6 +386,7 @@ export default function HeygenReelsPanel({ clientId, draft, onScheduled }) {
               style={{ width: '100%', borderRadius: 'var(--r-sm)', background: '#000', maxHeight: '64vh' }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
               <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => schedule(modalReel.id) })}>📅 Schedule</button>
+              <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => editReel(modalReel) })} title="Edit the script and regenerate">✎ Edit script</button>
               <a className="btn btn-secondary btn-sm" href={modalReel.video_url} target="_blank" rel="noreferrer" download>Download</a>
               <button className="btn btn-ghost btn-sm" onClick={() => { remove(modalReel.id); setModalReel(null); }}>Delete</button>
             </div>
