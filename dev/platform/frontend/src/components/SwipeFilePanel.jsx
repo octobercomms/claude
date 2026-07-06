@@ -26,6 +26,16 @@ function ideaToBrief(it, card = {}) {
   return lines.join('\n');
 }
 
+// The name shown for a reel. A real title (Claude's label, or one the user
+// typed) wins; we only fall back to the idea-card hook when the stored title is
+// missing or still the scraped "Video by @handle" placeholder — so renames and
+// AI titles both show, and old reels never read as "Video by …".
+function displayName(it, card) {
+  const t = (it.title || '').trim();
+  if (t && !/^video by\b/i.test(t)) return t;
+  return card?.title || card?.hook || t || it.url;
+}
+
 export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
   const toast = useToast();
   const isMobile = useIsMobile();
@@ -36,6 +46,8 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState({}); // id → transcript expanded
   const [openCard, setOpenCard] = useState({}); // id → card expanded
+  const [editing, setEditing] = useState(null); // id being renamed
+  const [editVal, setEditVal] = useState('');
   const pollRef = useRef(null);
   // Every reel starts collapsed to a compact title row (on desktop too) so the
   // saved list stays a scannable index — click ▾ to reveal its idea card. On
@@ -82,6 +94,16 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
     try { await navigator.clipboard.writeText(text); toast('Copied.', 'success'); }
     catch { toast('Copy failed.', 'error'); }
   }
+  function startRename(it, name) { setEditVal(name); setEditing(it.id); }
+  async function saveTitle(id) {
+    const t = editVal.trim();
+    setEditing(null);
+    try {
+      const updated = await api.patch(`/swipe-file/clients/${clientId}/swipe/${id}`, { title: t });
+      setItems(prev => prev.map(i => (i.id === id ? { ...i, ...updated } : i)));
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  function toggleCard(id) { setOpenCard(p => ({ ...p, [id]: !p[id] })); }
 
   if (!loaded) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
 
@@ -112,26 +134,47 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
           {items.map(it => {
             const st = STATUS[it.status] || STATUS.queued;
             const card = it.idea_card || null;
-            // Prefer a readable label — Claude's short title, then its hook —
-            // over the scraped "Video by @handle" metadata title.
-            const rawTitle = card?.title || card?.hook || it.title || it.url;
-            const label = rawTitle && rawTitle.length > 90 ? rawTitle.slice(0, 89) + '…' : rawTitle;
+            const name = displayName(it, card);
+            const label = name.length > 90 ? name.slice(0, 89) + '…' : name;
+            const canExpand = !!(card || it.error);
+            const isEditing = editing === it.id;
             return (
               <div key={it.id} className="card" style={{ padding: 'var(--s4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                {/* Click anywhere on the header row to expand the idea card
+                    (buttons, links and the rename field stop the bubble). The
+                    expanded body below isn't clickable, so acting inside it
+                    won't collapse the card. */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', flexWrap: 'wrap', cursor: canExpand && !isEditing ? 'pointer' : 'default' }}
+                  onClick={canExpand && !isEditing ? () => toggleCard(it.id) : undefined}>
                   <div style={{ minWidth: 0, flex: '1 1 0' }}>
-                    <a href={it.url} target="_blank" rel="noreferrer" title={it.title || it.url} style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{label}</a>
+                    {isEditing ? (
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                        <input className="input" autoFocus value={editVal} style={{ flex: 1, minWidth: 0, fontWeight: 700 }}
+                          onChange={e => setEditVal(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveTitle(it.id); if (e.key === 'Escape') setEditing(null); }} />
+                        <button className="btn btn-primary btn-sm" onClick={() => saveTitle(it.id)}>Save</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, overflowWrap: 'anywhere' }} title={it.url}>{label}</span>
+                        <button className="btn btn-ghost btn-sm" title="Rename" style={{ padding: '0 4px', lineHeight: 1 }}
+                          onClick={e => { e.stopPropagation(); startRename(it, name); }}>✎</button>
+                        <a href={it.url} target="_blank" rel="noreferrer" title="Open original reel"
+                          onClick={e => e.stopPropagation()} style={{ fontSize: 12, color: 'var(--accent)' }}>↗</a>
+                      </div>
+                    )}
                     <div className="body-xs text-subtle" style={{ marginTop: 2, overflowWrap: 'anywhere' }}>
                       {it.platform || 'video'}{it.notes ? ` · ${it.notes}` : ''}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }} onClick={e => e.stopPropagation()}>
                     <span className={`chip ${st.cls}`} style={{ fontSize: 10 }}>{st.label}</span>
                     {it.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(it.id)}>Retry</button>}
                     <button className="btn btn-ghost btn-sm" onClick={() => remove(it.id)} title="Delete">✕</button>
-                    {(card || it.error) && (
+                    {canExpand && (
                       <button className="btn btn-ghost btn-sm" aria-expanded={cardOpen(it.id)}
-                        onClick={() => setOpenCard(p => ({ ...p, [it.id]: !p[it.id] }))}
+                        onClick={() => toggleCard(it.id)}
                         title={cardOpen(it.id) ? 'Hide idea card' : 'Show idea card'}>
                         {cardOpen(it.id) ? '▴' : '▾'}
                       </button>
