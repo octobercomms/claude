@@ -1,4 +1,5 @@
 import React from 'react';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 // Organic → Performance → Insights. Real data dashboard (replaces the
 // previous SuitePerformanceHub launchpad which read as a sales page).
@@ -29,6 +30,7 @@ const INTENT_COLOURS = {
 };
 
 export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, onOpenAiVisibility, onOpenSiteAudit, onOpenQuickWins }) {
+  const isMobile = useIsMobile();
   const tracked = keywords.length;
   const ranking = keywords.filter(k => k.current_position).length;
   const top10 = keywords.filter(k => k.current_position && k.current_position <= 10).length;
@@ -71,8 +73,9 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
         <Stat label="In AI Overviews" value={aioPresent} sub={aioPresent ? `${aioCited} cited · ${aioCoverage}%` : null} tone={aioCited ? 'positive' : aioPresent ? 'warning' : 'default'} />
       </div>
 
-      {/* Widget row */}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--s4)' }}>
+      {/* Widget grid — 2×2 on desktop so each card has room to breathe (the
+          old auto-fit fitted four narrow columns and left a big void below). */}
+      <div className="grid" style={{ gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 'var(--s4)' }}>
         {/* Top movers */}
         <div className="card">
           <div className="caption mb-3">Top movers · since last check</div>
