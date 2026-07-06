@@ -30,6 +30,7 @@ import ContentAuditPanel from '../components/organic/ContentAuditPanel';
 import KeywordFootprintPanel from '../components/organic/KeywordFootprintPanel';
 import BacklinksPanel from '../components/organic/BacklinksPanel';
 import LocalSeoPanel from '../components/organic/LocalSeoPanel';
+import AgentReadinessPanel from '../components/organic/AgentReadinessPanel';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -515,7 +516,7 @@ export default function ClientSEOPage() {
     // Performance sub-tabs (perf_insights is the summary landing).
     // aio / fanout / gaps stay in the whitelist as backwards-compat
     // aliases — they redirect to their new homes (keywords / find).
-    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'ai_seo', 'gaps', 'authority', 'backlinks', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint',
+    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'ai_seo', 'gaps', 'authority', 'backlinks', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint', 'agent_ready',
     // Pipeline sub-tabs
     'find', 'planning', 'draft', 'publish', 'promote',
     // Local SEO toolkit sub-tabs
@@ -599,6 +600,7 @@ export default function ClientSEOPage() {
             { groupLabel: 'Search appearance' },
             { key: 'ctr_boost',     label: 'CTR boosters' },
             { key: 'ai_seo',        label: 'AI keyword targets' },
+            { key: 'agent_ready',   label: 'Agent readiness' },
           ],
           content: [
             { key: 'find',     label: '1 · Find' },
@@ -627,7 +629,7 @@ export default function ClientSEOPage() {
           keywords: 'search', gsc: 'search', authority: 'search', backlinks: 'search',
           ai_visibility: 'search',
           site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
-          ctr_boost: 'optimise', ai_seo: 'optimise',
+          ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
           find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
           local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_outliers: 'local', local_gbp: 'local',
           cro: 'convert', forms: 'convert',
@@ -700,6 +702,7 @@ export default function ClientSEOPage() {
               { label: 'CTR boosters',      onClick: () => setActiveTab('ctr_boost') },
               { label: 'Keyword footprint', onClick: () => setActiveTab('keyword_footprint') },
               { label: 'AI keywords',       onClick: () => setActiveTab('ai_seo') },
+              { label: 'Agent readiness',   onClick: () => setActiveTab('agent_ready') },
             ] },
             { title: 'Build', subtitle: 'Editorial pipeline', numbered: true, nodes: [
               { label: 'Find',    onClick: () => setActiveTab('find') },
@@ -758,6 +761,7 @@ export default function ClientSEOPage() {
       {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}
+      {activeTab === 'agent_ready' && <AgentReadinessPanel clientId={id} />}
       {activeTab === 'site_audit' && <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
       {activeTab === 'quick_wins' && <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
       {activeTab === 'content_audit' && <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}

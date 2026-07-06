@@ -1310,4 +1310,18 @@ router.delete('/clients/:clientId/local-seo/:tool/:runId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── AGENT READINESS ──────────────────────────────────────────────────────
+// A lightweight, in-house take on Lighthouse's "Agentic Browsing" category:
+// fetch the client's homepage + llms.txt and statically check the signals AI
+// agents use to read/navigate the site. No paid API — just fetches their own
+// site — so it runs on demand from the Owned › Optimise panel.
+router.post('/clients/:clientId/agent-readiness', async (req, res) => {
+  try {
+    const agentReadiness = require('../services/agentReadiness');
+    res.json(await agentReadiness.analyze(req.params.clientId));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
