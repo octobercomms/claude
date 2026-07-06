@@ -148,31 +148,55 @@ function HistoryChart({ rows }) {
 }
 
 // ─── SEARCH CONSOLE TAB ──────────────────────────────────────────────────
+// Which country a GSC property's keywords should be tracked in. A per-country
+// subdomain/TLD wins; otherwise default to the UK. Falcon runs separate US / UK
+// properties, so tracking from the US view must record United States.
+function countryForSite(site) {
+  const s = String(site || '').toLowerCase().replace(/^sc-domain:/, '').replace(/^https?:\/\//, '');
+  const rules = [
+    { re: /^us\.|\.us\./,               code: 2840, name: 'United States' },
+    { re: /^ca\.|\.ca\./,               code: 2124, name: 'Canada' },
+    { re: /^au\.|\.au\.|\.com\.au/,     code: 2036, name: 'Australia' },
+    { re: /^ie\.|\.ie\.|\.ie(\/|$)/,    code: 2372, name: 'Ireland' },
+    { re: /^uk\.|\.uk\.|\.co\.uk|\.uk(\/|$)/, code: 2826, name: 'United Kingdom' },
+  ];
+  for (const r of rules) if (r.re.test(s)) return { code: r.code, name: r.name };
+  return { code: 2826, name: 'United Kingdom' };
+}
+
 export function SearchConsoleTab({ clientId }) {
   const { readOnly } = useAuth();
   const toast = useToast();
   const [days, setDays] = useState(28);
+  const [sites, setSites] = useState([]);
+  const [site, setSite] = useState(null); // null = property not resolved yet
   const [queries, setQueries] = useState(null);
   const [pages, setPages] = useState(null);
   const [devices, setDevices] = useState(null);
   const [sitemaps, setSitemaps] = useState(null);
-  const [tracked, setTracked] = useState(() => new Set()); // lowercased tracked keywords
+  const [tracked, setTracked] = useState(() => new Set()); // "keyword|location_code"
   const [err, setErr] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const country = countryForSite(site);
 
   async function load() {
     setLoading(true);
     setErr(null);
+    const s = site ? `&site=${encodeURIComponent(site)}` : '';
     try {
       const [q, p, d, sm, kws] = await Promise.all([
-        api.get(`/seo/clients/${clientId}/gsc/queries?days=${days}`),
-        api.get(`/seo/clients/${clientId}/gsc/pages?days=${days}`),
-        api.get(`/seo/clients/${clientId}/gsc/devices?days=${days}`),
-        api.get(`/seo/clients/${clientId}/gsc/sitemaps`).catch(() => ({ sitemaps: [] })),
+        api.get(`/seo/clients/${clientId}/gsc/queries?days=${days}${s}`),
+        api.get(`/seo/clients/${clientId}/gsc/pages?days=${days}${s}`),
+        api.get(`/seo/clients/${clientId}/gsc/devices?days=${days}${s}`),
+        api.get(`/seo/clients/${clientId}/gsc/sitemaps?${s.slice(1)}`).catch(() => ({ sitemaps: [] })),
         api.get(`/rankings/keywords?client_id=${clientId}`).catch(() => []),
       ]);
       setQueries(q); setPages(p); setDevices(d); setSitemaps(sm.sitemaps);
-      setTracked(new Set((Array.isArray(kws) ? kws : []).map(k => String(k.keyword || '').trim().toLowerCase())));
+      // Key tracked keywords by keyword + location so ✓ reflects "tracked in
+      // THIS property's country" — the same keyword can be tracked per country.
+      setTracked(new Set((Array.isArray(kws) ? kws : []).map(k =>
+        `${String(k.keyword || '').trim().toLowerCase()}|${k.location_code || 2826}`)));
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -180,39 +204,62 @@ export function SearchConsoleTab({ clientId }) {
     }
   }
 
-  // Add a GSC query to tracked keywords straight from the table. Optimistic —
-  // flip to ✓ immediately, roll back if the add fails.
+  // Add a GSC query to tracked keywords straight from the table, in the country
+  // of the property being viewed. Optimistic — flip to ✓, roll back on error.
   async function trackQuery(query) {
-    const key = String(query || '').trim().toLowerCase();
-    if (!key || tracked.has(key)) return;
+    const key = `${String(query || '').trim().toLowerCase()}|${country.code}`;
+    if (!query || tracked.has(key)) return;
     setTracked(prev => new Set(prev).add(key));
     try {
-      await api.post('/rankings/keywords', { client_id: clientId, keyword: query });
-      toast(`Now tracking “${query}”`, 'success');
+      await api.post('/rankings/keywords', { client_id: clientId, keyword: query, location_code: country.code, location_name: country.name });
+      toast(`Now tracking “${query}” (${country.name})`, 'success');
     } catch (e) {
       setTracked(prev => { const n = new Set(prev); n.delete(key); return n; });
       toast(e.message || 'Could not add keyword', 'error');
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-line */ }, [days, clientId]);
+  // Resolve the client's GSC properties + default once.
+  useEffect(() => {
+    let alive = true;
+    api.get(`/seo/clients/${clientId}/gsc/sites`)
+      .then(r => { if (!alive) return; setSites(r.sites || []); setSite(r.selected || r.sites?.[0]?.value || ''); })
+      .catch(() => { if (alive) setSite(''); });
+    return () => { alive = false; };
+  }, [clientId]);
+
+  // Load data once we know which property to read (and on day/property change).
+  useEffect(() => { if (site !== null) load(); /* eslint-disable-line */ }, [days, site]);
 
   if (err) return <div className="callout callout-danger">{err}</div>;
   if (loading || !queries) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading Search Console data…</div>;
 
   return (
     <div>
-      <div className="row between" style={{ marginBottom: 14 }}>
-        <h2 className="h2">Search Console</h2>
+      <div className="row between" style={{ marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <h2 className="h2" style={{ margin: 0 }}>Search Console</h2>
+          {sites.length > 1 && (
+            <select value={site || ''} onChange={e => setSite(e.target.value)} className="input"
+              style={{ padding: '6px 10px', fontSize: 13, maxWidth: 320 }} title="Search Console property">
+              {sites.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          )}
+        </div>
         <div>
           {[7, 28, 90, 180].map(n => (
             <button key={n} onClick={() => setDays(n)} className={`btn btn-sm ${days === n ? 'btn-primary' : 'btn-secondary'}`} style={{ marginLeft: 4 }}>{n}D</button>
           ))}
         </div>
       </div>
+      {sites.length > 1 && (
+        <div className="body-xs text-subtle" style={{ marginTop: -6, marginBottom: 14 }}>
+          Showing <strong>{site}</strong> · new keywords you track from here are added for <strong>{country.name}</strong>.
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         <GSCSection title="Top queries" rows={queries.rows} keyCol="query" cap={25}
-          trackable tracked={tracked} onTrack={trackQuery} readOnly={readOnly} />
+          trackable tracked={tracked} countryCode={country.code} onTrack={trackQuery} readOnly={readOnly} />
         <GSCSection title="Top pages" rows={pages.rows} keyCol="page" cap={25} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 24 }}>
@@ -223,7 +270,7 @@ export function SearchConsoleTab({ clientId }) {
   );
 }
 
-function GSCSection({ title, rows, keyCol, cap, trackable, tracked, onTrack, readOnly }) {
+function GSCSection({ title, rows, keyCol, cap, trackable, tracked, countryCode, onTrack, readOnly }) {
   const data = (rows || []).slice(0, cap);
   const cols = 5 + (trackable ? 1 : 0);
   return (
@@ -244,7 +291,7 @@ function GSCSection({ title, rows, keyCol, cap, trackable, tracked, onTrack, rea
           <tbody>
             {data.map((r, i) => {
               const q = r[keyCol];
-              const isTracked = trackable && tracked?.has(String(q || '').trim().toLowerCase());
+              const isTracked = trackable && tracked?.has(`${String(q || '').trim().toLowerCase()}|${countryCode}`);
               return (
                 <tr key={i}>
                   <td style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
