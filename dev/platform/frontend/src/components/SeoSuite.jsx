@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -148,11 +149,14 @@ function HistoryChart({ rows }) {
 
 // ─── SEARCH CONSOLE TAB ──────────────────────────────────────────────────
 export function SearchConsoleTab({ clientId }) {
+  const { readOnly } = useAuth();
+  const toast = useToast();
   const [days, setDays] = useState(28);
   const [queries, setQueries] = useState(null);
   const [pages, setPages] = useState(null);
   const [devices, setDevices] = useState(null);
   const [sitemaps, setSitemaps] = useState(null);
+  const [tracked, setTracked] = useState(() => new Set()); // lowercased tracked keywords
   const [err, setErr] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -160,17 +164,34 @@ export function SearchConsoleTab({ clientId }) {
     setLoading(true);
     setErr(null);
     try {
-      const [q, p, d, sm] = await Promise.all([
+      const [q, p, d, sm, kws] = await Promise.all([
         api.get(`/seo/clients/${clientId}/gsc/queries?days=${days}`),
         api.get(`/seo/clients/${clientId}/gsc/pages?days=${days}`),
         api.get(`/seo/clients/${clientId}/gsc/devices?days=${days}`),
         api.get(`/seo/clients/${clientId}/gsc/sitemaps`).catch(() => ({ sitemaps: [] })),
+        api.get(`/rankings/keywords?client_id=${clientId}`).catch(() => []),
       ]);
       setQueries(q); setPages(p); setDevices(d); setSitemaps(sm.sitemaps);
+      setTracked(new Set((Array.isArray(kws) ? kws : []).map(k => String(k.keyword || '').trim().toLowerCase())));
     } catch (e) {
       setErr(e.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Add a GSC query to tracked keywords straight from the table. Optimistic —
+  // flip to ✓ immediately, roll back if the add fails.
+  async function trackQuery(query) {
+    const key = String(query || '').trim().toLowerCase();
+    if (!key || tracked.has(key)) return;
+    setTracked(prev => new Set(prev).add(key));
+    try {
+      await api.post('/rankings/keywords', { client_id: clientId, keyword: query });
+      toast(`Now tracking “${query}”`, 'success');
+    } catch (e) {
+      setTracked(prev => { const n = new Set(prev); n.delete(key); return n; });
+      toast(e.message || 'Could not add keyword', 'error');
     }
   }
 
@@ -190,7 +211,8 @@ export function SearchConsoleTab({ clientId }) {
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        <GSCSection title="Top queries" rows={queries.rows} keyCol="query" cap={25} />
+        <GSCSection title="Top queries" rows={queries.rows} keyCol="query" cap={25}
+          trackable tracked={tracked} onTrack={trackQuery} readOnly={readOnly} />
         <GSCSection title="Top pages" rows={pages.rows} keyCol="page" cap={25} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 24 }}>
@@ -201,8 +223,9 @@ export function SearchConsoleTab({ clientId }) {
   );
 }
 
-function GSCSection({ title, rows, keyCol, cap }) {
+function GSCSection({ title, rows, keyCol, cap, trackable, tracked, onTrack, readOnly }) {
   const data = (rows || []).slice(0, cap);
+  const cols = 5 + (trackable ? 1 : 0);
   return (
     <div>
       <h3 className="h3">{title}</h3>
@@ -215,21 +238,36 @@ function GSCSection({ title, rows, keyCol, cap }) {
               <th className="num">Impr.</th>
               <th className="num">CTR</th>
               <th className="num">Pos.</th>
+              {trackable && <th className="num" title="Add to tracked keywords">Track</th>}
             </tr>
           </thead>
           <tbody>
-            {data.map((r, i) => (
-              <tr key={i}>
-                <td style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {keyCol === 'page' && r.page ? <a href={r.page} target="_blank" rel="noreferrer">{r.page.replace(/^https?:\/\//, '')}</a> : r[keyCol]}
-                </td>
-                <td className="num">{r.clicks.toLocaleString()}</td>
-                <td className="num">{r.impressions.toLocaleString()}</td>
-                <td className="num">{(r.ctr * 100).toFixed(1)}%</td>
-                <td className="num">{r.position.toFixed(1)}</td>
-              </tr>
-            ))}
-            {!data.length && <tr><td colSpan={5} className="text-subtle">No data.</td></tr>}
+            {data.map((r, i) => {
+              const q = r[keyCol];
+              const isTracked = trackable && tracked?.has(String(q || '').trim().toLowerCase());
+              return (
+                <tr key={i}>
+                  <td style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {keyCol === 'page' && r.page ? <a href={r.page} target="_blank" rel="noreferrer">{r.page.replace(/^https?:\/\//, '')}</a> : r[keyCol]}
+                  </td>
+                  <td className="num">{r.clicks.toLocaleString()}</td>
+                  <td className="num">{r.impressions.toLocaleString()}</td>
+                  <td className="num">{(r.ctr * 100).toFixed(1)}%</td>
+                  <td className="num">{r.position.toFixed(1)}</td>
+                  {trackable && (
+                    <td className="num">
+                      {isTracked ? (
+                        <span title="Already tracking" style={{ color: 'var(--positive)', fontWeight: 700 }}>✓</span>
+                      ) : (
+                        <button className="btn btn-ghost btn-sm" style={{ padding: '0 8px', lineHeight: 1.6 }}
+                          {...roWrite(readOnly, { onClick: () => onTrack(q), title: `Track “${q}”` })}>+</button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            {!data.length && <tr><td colSpan={cols} className="text-subtle">No data.</td></tr>}
           </tbody>
         </table>
       </div>
