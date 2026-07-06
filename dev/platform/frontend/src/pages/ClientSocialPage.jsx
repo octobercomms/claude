@@ -1647,7 +1647,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
     }
   }
   return (
-    <div className="card" style={{ maxWidth: 640 }}>
+    <div className="card" style={{ width: '100%' }}>
       <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
         Optional brief — the more specific you are, the more useful the output. Examples:
         "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy."
