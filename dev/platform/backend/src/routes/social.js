@@ -154,6 +154,60 @@ router.get('/clients/:clientId/posts', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── PRODUCTION BOARD ─────────────────────────────────────────────────────
+// The "factory floor": every production item for the client, merged newest
+// first — HeyGen avatar reels (with live queued/rendering status), rendered
+// post media (video / voiceover / motion) and generated post images — so the
+// AM can watch the whole line and pick up where they left off, whatever the
+// media type.
+router.get('/clients/:clientId/production', async (req, res) => {
+  const cid = req.params.clientId;
+  try {
+    const [reels, media, images] = await Promise.all([
+      pool.query(
+        `SELECT id, title, script, status, video_url, error, created_at, updated_at
+           FROM heygen_reels WHERE client_id = $1 ORDER BY created_at DESC LIMIT 100`, [cid]),
+      pool.query(
+        `SELECT m.id, m.post_id, m.kind, m.provider, m.url, m.created_at, p.hook, p.platform
+           FROM social_post_media m JOIN social_posts p ON p.id = m.post_id
+          WHERE p.client_id = $1 ORDER BY m.created_at DESC LIMIT 100`, [cid]),
+      pool.query(
+        `SELECT id, hook, platform, image_urls, created_at
+           FROM social_posts
+          WHERE client_id = $1 AND array_length(image_urls, 1) > 0
+          ORDER BY created_at DESC LIMIT 100`, [cid]),
+    ]);
+
+    const snippet = (s, n = 80) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+    const reelStatus = s => ({ queued: 'queued', processing: 'processing', completed: 'ready', failed: 'failed' }[s] || 'ready');
+    const items = [];
+    for (const r of reels.rows) items.push({
+      key: `reel-${r.id}`, kind: 'reel', label: 'Avatar reel',
+      title: r.title || snippet(r.script) || 'Avatar reel', status: reelStatus(r.status),
+      url: r.video_url || null, thumb: null, error: r.error || null,
+      post_id: null, platform: null, ts: r.updated_at || r.created_at,
+    });
+    for (const m of media.rows) items.push({
+      key: `media-${m.id}`, kind: m.kind || 'video',
+      label: m.kind === 'audio' ? 'Voiceover' : m.kind === 'motion' ? 'Motion' : 'Video',
+      title: snippet(m.hook) || '(post)', status: 'ready',
+      url: m.url || null, thumb: null, error: null,
+      post_id: m.post_id, platform: m.platform, provider: m.provider, ts: m.created_at,
+    });
+    for (const p of images.rows) items.push({
+      key: `img-${p.id}`, kind: 'image', label: 'Image',
+      title: snippet(p.hook) || '(post)', status: 'ready',
+      url: (p.image_urls && p.image_urls[0]) || null, thumb: (p.image_urls && p.image_urls[0]) || null,
+      error: null, post_id: p.id, platform: p.platform, ts: p.created_at,
+    });
+    items.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    const producing = items.filter(i => i.status === 'queued' || i.status === 'processing').length;
+    res.json({ items: items.slice(0, 80), producing });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/clients/:clientId/generate', async (req, res) => {
   const { brief, platforms, count, length } = req.body || {};
   try {
