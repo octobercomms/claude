@@ -679,6 +679,11 @@ function BrainstormTab({
 }) {
   const { readOnly } = useAuth();
   const isMobile = useIsMobile();
+  // On phones the Create step opens with its secondary panels collapsed so the
+  // page stays short — the brief is what you want first; inspiration and past
+  // batches expand on tap.
+  const [inspoOpen, setInspoOpen] = useState(!isMobile);
+  const [batchesOpen, setBatchesOpen] = useState(!isMobile);
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
@@ -810,27 +815,40 @@ function BrainstormTab({
               {briefContent}
             </section>
 
-            {/* Inspiration — a distinct panel; send any reel straight into the brief. */}
+            {/* Inspiration — a distinct panel; send any reel straight into the
+                brief. Collapsible on mobile so its reel list can't grow the page. */}
             {ideasContent ? (
               <section style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s4)' }}>
-                <div className="h3">Need inspiration?</div>
-                <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 12 }}>
-                  Browse reels worth emulating — send any one straight into the brief on the left.
-                </p>
-                {typeof ideasContent === 'function' ? ideasContent(() => {}) : ideasContent}
+                <button type="button" onClick={() => isMobile && setInspoOpen(o => !o)}
+                  style={{ background: 'none', border: 0, padding: 0, width: '100%', font: 'inherit', color: 'inherit', textAlign: 'left', cursor: isMobile ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span className="h3">Need inspiration?</span>
+                  {isMobile && <span className="text-subtle" aria-hidden>{inspoOpen ? '▴' : '▾'}</span>}
+                </button>
+                {(!isMobile || inspoOpen) && (
+                  <>
+                    <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 12 }}>
+                      Browse reels worth emulating — send any one straight into the brief on the left.
+                    </p>
+                    {typeof ideasContent === 'function' ? ideasContent(() => {}) : ideasContent}
+                  </>
+                )}
               </section>
             ) : <div />}
 
             {/* Past batches — compact; Reuse a brief or ✕ to delete. */}
             <section style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s4)' }}>
-              <div className="caption caption-muted mb-3">Past batches</div>
-              {batches.length > 0 ? (
+              <button type="button" onClick={() => isMobile && setBatchesOpen(o => !o)}
+                style={{ background: 'none', border: 0, padding: 0, width: '100%', font: 'inherit', color: 'inherit', textAlign: 'left', cursor: isMobile ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: (!isMobile || batchesOpen) ? 12 : 0 }}>
+                <span className="caption caption-muted">Past batches{batches.length ? ` (${batches.length})` : ''}</span>
+                {isMobile && <span className="text-subtle" aria-hidden>{batchesOpen ? '▴' : '▾'}</span>}
+              </button>
+              {(!isMobile || batchesOpen) && (batches.length > 0 ? (
                 <BatchRail batches={batches} activeBatchId={activeBatchId} compact
                   onSelectBatch={(id) => { onSelectBatch(id); setStep(2); }}
                   onDeleteBatch={onDeleteBatch} onReuseBrief={onReuseBrief} />
               ) : (
                 <div className="body-xs text-subtle">Your generated batches show up here — reuse a brief or revisit the posts.</div>
-              )}
+              ))}
             </section>
           </div>
 

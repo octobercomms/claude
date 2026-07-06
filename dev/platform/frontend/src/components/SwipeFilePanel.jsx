@@ -6,6 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const STATUS = {
   queued:     { label: 'Queued',       cls: 'chip-neutral' },
@@ -27,13 +28,19 @@ function ideaToBrief(it, card = {}) {
 
 export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
   const toast = useToast();
+  const isMobile = useIsMobile();
   const [items, setItems] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [url, setUrl] = useState('');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState({}); // id → transcript expanded
+  const [openCard, setOpenCard] = useState({}); // id → card expanded (mobile only)
   const pollRef = useRef(null);
+  // On phones the saved list grows the page endlessly, so each reel collapses
+  // to a compact header row (tap ▾ to reveal its idea card) and the whole list
+  // scrolls inside a capped box rather than pushing the page taller.
+  const cardOpen = (id) => !isMobile || !!openCard[id];
 
   async function load() {
     try { const r = await api.get(`/swipe-file/clients/${clientId}/swipe`); setItems(r.items || []); }
@@ -97,16 +104,22 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
       {!items.length ? (
         <p className="body-sm text-subtle">No saved reels yet — paste a URL above to capture your first idea.</p>
       ) : (
-        <div className="stack stack-sm">
+        <div className="stack stack-sm"
+          style={isMobile ? { maxHeight: '58vh', overflowY: 'auto', paddingRight: 4 } : undefined}>
+          {isMobile && (
+            <div className="body-xs text-subtle" style={{ marginBottom: 2 }}>
+              {items.length} saved · tap a reel to open its idea card
+            </div>
+          )}
           {items.map(it => {
             const st = STATUS[it.status] || STATUS.queued;
             const card = it.idea_card || null;
             return (
               <div key={it.id} className="card" style={{ padding: 'var(--s4)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <a href={it.url} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>{it.title || it.url}</a>
-                    <div className="body-xs text-subtle" style={{ marginTop: 2 }}>
+                  <div style={{ minWidth: 0, flex: '1 1 0' }}>
+                    <a href={it.url} target="_blank" rel="noreferrer" style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{it.title || it.url}</a>
+                    <div className="body-xs text-subtle" style={{ marginTop: 2, overflowWrap: 'anywhere' }}>
                       {it.platform || 'video'}{it.notes ? ` · ${it.notes}` : ''}
                     </div>
                   </div>
@@ -114,14 +127,21 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                     <span className={`chip ${st.cls}`} style={{ fontSize: 10 }}>{st.label}</span>
                     {it.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(it.id)}>Retry</button>}
                     <button className="btn btn-ghost btn-sm" onClick={() => remove(it.id)} title="Delete">✕</button>
+                    {isMobile && (card || it.error) && (
+                      <button className="btn btn-ghost btn-sm" aria-expanded={cardOpen(it.id)}
+                        onClick={() => setOpenCard(p => ({ ...p, [it.id]: !p[it.id] }))}
+                        title={cardOpen(it.id) ? 'Hide idea card' : 'Show idea card'}>
+                        {cardOpen(it.id) ? '▴' : '▾'}
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {it.status === 'failed' && it.error && (
+                {cardOpen(it.id) && it.status === 'failed' && it.error && (
                   <div className="callout callout-warning" style={{ marginTop: 10, fontSize: 13 }}>{it.error}</div>
                 )}
 
-                {card && (
+                {cardOpen(it.id) && card && (
                   <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
                     {card.hook && <p className="body-sm" style={{ margin: '0 0 6px' }}><strong>Hook:</strong> {card.hook}</p>}
                     {card.summary && <p className="body-sm" style={{ margin: '0 0 6px' }}><strong>Summary:</strong> {card.summary}</p>}
@@ -147,7 +167,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                   </div>
                 )}
 
-                {it.transcript && (
+                {cardOpen(it.id) && it.transcript && (
                   <div style={{ marginTop: 10 }}>
                     <button className="btn btn-ghost btn-sm" onClick={() => setOpen(p => ({ ...p, [it.id]: !p[it.id] }))}>
                       {open[it.id] ? '▴ Hide transcript' : '▾ Transcript'}
