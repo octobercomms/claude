@@ -162,22 +162,27 @@ router.post('/clients/:clientId/aio/check-now', async (req, res) => {
 });
 
 // ─── GSC TABS ─────────────────────────────────────────────────────────────
-// One connector → many possible views. We resolve the connector + its
-// saved siteUrl here and fan out to specific GSC queries.
-async function loadGSCConnector(clientId) {
+// A client can have SEVERAL Search Console connectors — one per property /
+// region (e.g. Falcon: US, UK, EU), each its own row with its own credentials.
+// Resolve the connector for the requested site (so we use THAT property's
+// token), falling back to the first active one when no site is given.
+async function loadGSCConnector(clientId, site) {
+  const wanted = site ? String(site).trim() : '';
   const { rows } = await pool.query(
-    `SELECT * FROM connectors WHERE client_id = $1 AND connector_type = 'google_search_console' AND status = 'active' LIMIT 1`,
+    `SELECT * FROM connectors
+       WHERE client_id = $1 AND connector_type = 'google_search_console' AND status = 'active'
+       ORDER BY store_label NULLS LAST, created_at`,
     [clientId]
   );
   if (!rows.length) return null;
-  const conn = rows[0];
+  const conn = (wanted && rows.find(r => r.config?.value === wanted)) || rows[0];
   const creds = conn.credentials ? decrypt(conn.credentials) : null;
   const siteUrl = conn.config?.value;
   if (!siteUrl) return null;
   // Service-account connectors have no per-user credentials — they read via
   // the platform service account, so only OAuth connectors need creds here.
   if (conn.auth_mode === 'oauth' && !creds) return null;
-  return { creds, siteUrl, authMode: conn.auth_mode };
+  return { creds, siteUrl, authMode: conn.auth_mode, storeLabel: conn.store_label || null };
 }
 
 function defaultGSCRange(req) {
@@ -189,29 +194,30 @@ function defaultGSCRange(req) {
   return { startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) };
 }
 
-// Which GSC property to read: an explicit ?site= (one the account can access —
-// the token only grants its own sites, so Google 403s anything else) or the
-// connector's configured default. Lets a client with several properties
-// (e.g. US / UK) switch between them.
+// The chosen property is loaded by loadGSCConnector, so its siteUrl is already
+// the right one; this just keeps the call sites tidy.
 function effectiveSite(req, conn) {
-  const q = req.query.site ? String(req.query.site).trim() : '';
-  return q || conn.siteUrl;
+  return conn.siteUrl;
 }
 
-// List every Search Console property the connector's token can see, so the UI
-// can offer a property switcher. Falls back to just the configured site if the
-// list call isn't permitted.
+// List the client's Search Console connectors (one per property/region) so the
+// UI can offer a switcher. Each row already carries its site + region label.
 router.get('/clients/:clientId/gsc/sites', async (req, res) => {
   try {
-    const conn = await loadGSCConnector(req.params.clientId);
-    if (!conn) return res.json({ sites: [], selected: null });
-    let sites = [];
-    try { sites = await google.listSearchConsoleSites(conn.creds, conn.authMode); }
-    catch { /* token may lack the list scope — fall back to the configured site */ }
-    if (conn.siteUrl && !sites.find(s => s.value === conn.siteUrl)) {
-      sites.unshift({ value: conn.siteUrl, label: conn.siteUrl });
-    }
-    res.json({ sites, selected: conn.siteUrl || (sites[0] && sites[0].value) || null });
+    const { rows } = await pool.query(
+      `SELECT store_label, config FROM connectors
+         WHERE client_id = $1 AND connector_type = 'google_search_console' AND status = 'active'
+         ORDER BY store_label NULLS LAST, created_at`,
+      [req.params.clientId]
+    );
+    const sites = rows
+      .map(r => ({
+        value: r.config?.value,
+        label: r.store_label ? `${r.store_label} — ${r.config?.value}` : (r.config?.value || ''),
+        region: r.store_label || null,
+      }))
+      .filter(s => s.value);
+    res.json({ sites, selected: sites[0]?.value || null });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
@@ -219,7 +225,7 @@ router.get('/clients/:clientId/gsc/sites', async (req, res) => {
 
 router.get('/clients/:clientId/gsc/queries', async (req, res) => {
   try {
-    const conn = await loadGSCConnector(req.params.clientId);
+    const conn = await loadGSCConnector(req.params.clientId, req.query.site);
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
@@ -233,7 +239,7 @@ router.get('/clients/:clientId/gsc/queries', async (req, res) => {
 
 router.get('/clients/:clientId/gsc/pages', async (req, res) => {
   try {
-    const conn = await loadGSCConnector(req.params.clientId);
+    const conn = await loadGSCConnector(req.params.clientId, req.query.site);
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
@@ -247,7 +253,7 @@ router.get('/clients/:clientId/gsc/pages', async (req, res) => {
 
 router.get('/clients/:clientId/gsc/devices', async (req, res) => {
   try {
-    const conn = await loadGSCConnector(req.params.clientId);
+    const conn = await loadGSCConnector(req.params.clientId, req.query.site);
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
@@ -261,7 +267,7 @@ router.get('/clients/:clientId/gsc/devices', async (req, res) => {
 
 router.get('/clients/:clientId/gsc/countries', async (req, res) => {
   try {
-    const conn = await loadGSCConnector(req.params.clientId);
+    const conn = await loadGSCConnector(req.params.clientId, req.query.site);
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
@@ -275,7 +281,7 @@ router.get('/clients/:clientId/gsc/countries', async (req, res) => {
 
 router.get('/clients/:clientId/gsc/sitemaps', async (req, res) => {
   try {
-    const conn = await loadGSCConnector(req.params.clientId);
+    const conn = await loadGSCConnector(req.params.clientId, req.query.site);
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const sitemaps = await google.fetchSearchConsoleSitemaps(conn.creds, { siteUrl: effectiveSite(req, conn), authMode: conn.authMode });
     res.json({ sitemaps });
@@ -292,7 +298,7 @@ const ctrBoost = require('../services/ctrBoost');
 
 router.get('/clients/:clientId/ctr-opportunities', async (req, res) => {
   try {
-    const conn = await loadGSCConnector(req.params.clientId);
+    const conn = await loadGSCConnector(req.params.clientId, req.query.site);
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
