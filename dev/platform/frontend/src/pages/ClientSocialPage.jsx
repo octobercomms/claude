@@ -86,7 +86,7 @@ export default function ClientSocialPage() {
   // (Ideas → Brief → Workbench → Plan → Publish). Schedule is no longer a
   // separate section — Plan + Publish are the factory's last two steps — so its
   // old 'plans'/'publish' leaf tabs resolve into that single experience too.
-  const inCreate = ['swipe', 'brainstorm', 'reels', 'video', 'plans', 'publish'].includes(socialTab);
+  const inCreate = ['brainstorm', 'reels', 'video', 'plans', 'publish'].includes(socialTab);
   useEffect(() => { if (!inCreate) setCreateView(null); }, [inCreate]);
 
   // Redirect legacy deep links to their new homes. Client (read-only) logins
@@ -426,7 +426,8 @@ export default function ClientSocialPage() {
         };
         const GROUP_OF = {
           overview: 'overview',
-          swipe: 'create', brainstorm: 'create', reels: 'create', video: 'create',
+          swipe: 'capture',
+          brainstorm: 'create', reels: 'create', video: 'create',
           plans: 'create', publish: 'create',
           dm_bot: 'engage', discover: 'engage',
           performance: 'measure', competitors: 'measure', audit: 'measure', perf_insights: 'measure',
@@ -435,6 +436,7 @@ export default function ClientSocialPage() {
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
+          { key: 'capture',  label: 'Capture',  active: currentGroup === 'capture',  onClick: () => setSocialTab('swipe') },
           { key: 'create',   label: 'Build',    active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
           { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
           { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
@@ -493,6 +495,15 @@ export default function ClientSocialPage() {
         />
       )}
 
+      {/* CAPTURE — the swipe file. A research surface upstream of Build: paste a
+          reel, capture it as an idea card, then "Use as brief" jumps into Build
+          with the brief pre-filled. Lives on its own tab so Build stays focused
+          on producing posts. */}
+      {socialTab === 'swipe' && (
+        <SwipeFilePanel clientId={id}
+          onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} />
+      )}
+
       {/* CREATE — the social factory: Ideas → Brief → Workbench → Schedule.
           Reels are absorbed as a per-post "Produce" overlay (createView). */}
       {inCreate && (createView === 'reels' ? (
@@ -518,9 +529,6 @@ export default function ClientSocialPage() {
           onDismissShare={() => setShareUrl(null)}
           socialTab={socialTab}
           onNavTab={setSocialTab}
-          ideasContent={(goToBrief) => (
-            <SwipeFilePanel clientId={id} onUseAsBrief={(text) => { setBrief(text); goToBrief(); }} />
-          )}
           briefContent={(
             <BriefForm clientId={id} brief={brief} setBrief={setBrief}
               platforms={platforms} setPlatforms={setPlatforms}
@@ -673,30 +681,27 @@ export default function ClientSocialPage() {
 function BrainstormTab({
   clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch, onReuseBrief, onMakeReel, onOpenReels,
   onBulkSchedule, onShareForApproval, generating, shareUrl, onDismissShare,
-  socialTab, onNavTab, ideasContent, briefContent, plansContent, publishContent,
+  socialTab, onNavTab, briefContent, plansContent, publishContent,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, stitchReel, generateMedia, deleteMedia,
 }) {
   const { readOnly } = useAuth();
   const isMobile = useIsMobile();
-  // On phones the Create step opens with its secondary panels collapsed so the
-  // page stays short — the brief is what you want first; inspiration and past
-  // batches expand on tap.
-  const [inspoOpen, setInspoOpen] = useState(!isMobile);
+  // On phones the Create step opens with Past batches collapsed so the page
+  // stays short — the brief is what you want first; it expands on tap.
   const [batchesOpen, setBatchesOpen] = useState(!isMobile);
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
   // The Create factory is now three plain stages:
-  //   1 Create  (brief + generate; Find folded in as an expander)
+  //   1 Create  (brief + generate)
   //   2 Review  (refine the batch)
   //   3 Schedule (Plan + Publish merged — lock, calendar, autopilot)
   // Create + Review share the 'brainstorm' tab (batch-aware split); Schedule
-  // owns 'plans'/'publish'. 'swipe' (old Find) resolves into Create.
+  // owns 'plans'/'publish'. The swipe file is now its own 'Capture' tab.
   const STEP_TAB = { 1: 'brainstorm', 2: 'brainstorm', 3: 'plans' };
   const stepForTab = (tab) =>
     (tab === 'plans' || tab === 'publish') ? 3
-      : tab === 'swipe' ? 1
       : (activeBatchId ? 2 : 1);
   const [step, setStep] = useState(() => stepForTab(socialTab));
   const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
@@ -705,8 +710,7 @@ function BrainstormTab({
   // the Overview map, or buttons elsewhere. 'brainstorm' is left to the
   // batch-aware logic below (it owns the Create↔Review split).
   useEffect(() => {
-    if (socialTab === 'swipe') setStep(1);
-    else if (socialTab === 'plans' || socialTab === 'publish') setStep(3);
+    if (socialTab === 'plans' || socialTab === 'publish') setStep(3);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socialTab]);
 
@@ -805,35 +809,15 @@ function BrainstormTab({
       {/* STAGE 1 — CREATE (brief + inspiration + past batches, side by side) */}
       {step === 1 && (
         <div className="panel-step">
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr) 300px', gap: 16, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
             {/* Brief */}
             <section>
               <div className="h3">Create a batch of posts</div>
               <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 14 }}>
-                Claude proposes a batch — hook, caption, hashtags, visual concept and a storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many, then generate.
+                Claude proposes a batch — hook, caption, hashtags, visual concept and a storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many, then generate. Need a starting point? Grab a reel from <button className="btn-inline-link" onClick={() => onNavTab && onNavTab('swipe')}>Capture</button>.
               </p>
               {briefContent}
             </section>
-
-            {/* Inspiration — a distinct panel; send any reel straight into the
-                brief. Collapsible on mobile so its reel list can't grow the page. */}
-            {ideasContent ? (
-              <section style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s4)' }}>
-                <button type="button" onClick={() => isMobile && setInspoOpen(o => !o)}
-                  style={{ background: 'none', border: 0, padding: 0, width: '100%', font: 'inherit', color: 'inherit', textAlign: 'left', cursor: isMobile ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span className="h3">Need inspiration?</span>
-                  {isMobile && <span className="text-subtle" aria-hidden>{inspoOpen ? '▴' : '▾'}</span>}
-                </button>
-                {(!isMobile || inspoOpen) && (
-                  <>
-                    <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 12 }}>
-                      Browse reels worth emulating — send any one straight into the brief on the left.
-                    </p>
-                    {typeof ideasContent === 'function' ? ideasContent(() => {}) : ideasContent}
-                  </>
-                )}
-              </section>
-            ) : <div />}
 
             {/* Past batches — compact; Reuse a brief or ✕ to delete. */}
             <section style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s4)' }}>
