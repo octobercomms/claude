@@ -91,7 +91,23 @@ async function fetchTopSerpResults(keyword, { locationCode = 2826, limit = 10 } 
     .map(i => ({ url: i.url, title: i.title || '', description: i.description || '' }));
 }
 
-async function checkRank(keyword) {
+// Bare hostname for rank matching — strips scheme, path and a leading www.
+function rankHost(u) {
+  if (!u) return null;
+  try {
+    const h = new URL(/^https?:\/\//i.test(u) ? u : 'https://' + u).hostname.toLowerCase().replace(/^www\./, '');
+    return h || null;
+  } catch { return null; }
+}
+
+// checkRank(keyword, matchDomain) — finds where a SPECIFIC site ranks for the
+// keyword. The site is the keyword's own target_url if set, otherwise the
+// passed client domain (matchDomain). It ONLY reports that site's position —
+// never the top competitor — so `position: null` genuinely means "not in the
+// top 50", the same thing SERanking/GSC report. (Previously, with no target
+// set, it recorded the #1 organic result regardless of domain, so ranks showed
+// Amazon/Prestige/etc. instead of the client.)
+async function checkRank(keyword, matchDomain) {
   const client = await getClient();
 
   const { data } = await client.post('/serp/google/organic/live/advanced', [{
@@ -114,7 +130,6 @@ async function checkRank(keyword) {
   }
 
   const results = data.tasks[0].result?.[0]?.items || [];
-  const targetUrl = keyword.target_url;
 
   // Pull every non-organic SERP feature observed for this keyword so the UI
   // can show what surfaces alongside the blue links — image pack, snippet,
@@ -124,23 +139,23 @@ async function checkRank(keyword) {
     results.filter(r => r.type && r.type !== 'organic').map(r => r.type)
   ));
 
-  // Find the target URL in results
-  if (targetUrl) {
-    const match = results.find(item =>
-      item.type === 'organic' && item.url && item.url.includes(
-        new URL(targetUrl).hostname.replace('www.', '')
-      )
-    );
+  // The site we're tracking: per-keyword target_url wins, else the client's
+  // own domain. Match by hostname (incl. subdomains), never a path substring.
+  const host = rankHost(keyword.target_url) || rankHost(matchDomain);
+  if (host) {
+    const match = results.find(item => {
+      if (item.type !== 'organic' || !item.url) return false;
+      const ih = rankHost(item.url);
+      return ih && (ih === host || ih.endsWith('.' + host));
+    });
     if (match) {
       return { position: match.rank_absolute, url: match.url, serp_features };
     }
   }
 
-  // Return first organic result position if no target URL
-  const firstOrganic = results.find(r => r.type === 'organic');
-  return firstOrganic
-    ? { position: firstOrganic.rank_absolute, url: firstOrganic.url, serp_features }
-    : { position: null, url: null, serp_features };
+  // The tracked site isn't in the top 50 (or we have no site to match) — that's
+  // "not ranking", not the top competitor's spot.
+  return { position: null, url: null, serp_features };
 }
 
 // One-shot AI Overview lookup for a single keyword. Returns whether AIO

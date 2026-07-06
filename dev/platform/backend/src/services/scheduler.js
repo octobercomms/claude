@@ -375,14 +375,14 @@ async function runScheduledReports(reportType) {
 async function runDailyRankChecks() {
   try {
     const { rows: keywords } = await pool.query(
-      `SELECT k.* FROM seo_keywords k
+      `SELECT k.*, c.domain AS client_domain FROM seo_keywords k
        JOIN clients c ON c.id = k.client_id
        WHERE k.active = true AND c.active = true`
     );
 
     for (const kw of keywords) {
       try {
-        const result = await dataForSEO.checkRank(kw);
+        const result = await dataForSEO.checkRank(kw, kw.client_domain);
         await pool.query(
           `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url, serp_features)
            VALUES ($1, CURRENT_DATE, $2, $3, $4)

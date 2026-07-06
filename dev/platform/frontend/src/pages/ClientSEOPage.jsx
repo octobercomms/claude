@@ -432,7 +432,12 @@ export default function ClientSEOPage() {
     const res = await api.raw(`/rankings/export/${id}`);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'keywords.csv'; a.click();
+    // OctoberMI_ClientName_Keywords_YYYY-MM-DD.csv — client name slugged so it's
+    // a safe filename.
+    const slug = (client?.name || 'Client').trim().replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'Client';
+    const date = new Date().toISOString().slice(0, 10);
+    const a = document.createElement('a'); a.href = url; a.download = `OctoberMI_${slug}_Keywords_${date}.csv`; a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function loadRankMatrix() {
