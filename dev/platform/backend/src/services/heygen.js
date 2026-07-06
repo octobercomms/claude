@@ -172,7 +172,7 @@ function estimateDurationFromScript(script) {
   return Math.max(3, Math.round(words / 2.5));
 }
 
-async function generate(clientId, { title, script, avatar_id, avatar_type, avatar_name, voice_id, caption = true, aspect, fit, engine, expressiveness, speed }, userId) {
+async function generate(clientId, { title, script, avatar_id, avatar_type, avatar_name, voice_id, caption = true, aspect, fit, engine, expressiveness }, userId) {
   if (!String(script || '').trim()) { const e = new Error('Add a script for the avatar to say.'); e.status = 400; throw e; }
   if (!avatar_id || !voice_id) { const e = new Error('Pick an avatar and a voice.'); e.status = 400; throw e; }
   const aspectRatio = ASPECTS.has(aspect) ? aspect : '9:16';
@@ -185,15 +185,16 @@ async function generate(clientId, { title, script, avatar_id, avatar_type, avata
   // expressiveness is an Avatar IV-only knob — HeyGen 400s if it's sent with
   // engine avatar_v, so only include it on the default (Avatar IV) engine.
   const useExpr = isPhoto && !useEngine && ['low', 'medium', 'high'].includes(expressiveness) ? expressiveness : null;
-  // Voice speed (v3 voice_settings.speed). Clamp to the API's 0.5–1.5; null
-  // (or exactly 1) means leave HeyGen's default pace untouched.
-  const spd = Number(speed);
-  const useSpeed = Number.isFinite(spd) && spd !== 1 ? Math.min(1.5, Math.max(0.5, spd)) : null;
+  // Voice pace: always render at natural 1.0. Leaving voice_settings off let
+  // HeyGen fall back to a per-voice default that rendered noticeably slow
+  // (~0.5×) on cloned voices, so we pin normal speed explicitly. Pacing is
+  // controlled by [pause …] markers in the script (see toSsml), not a slider.
+  const NATURAL_SPEED = 1;
 
   const { rows } = await pool.query(
     `INSERT INTO heygen_reels (client_id, title, script, avatar_id, avatar_type, avatar_name, voice_id, caption, aspect_ratio, fit, engine, expressiveness, speed, status, requested_by)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'queued',$14) RETURNING *`,
-    [clientId, title || null, script.trim(), avatar_id, type, avatar_name || null, voice_id, !!caption, aspectRatio, fitMode, useEngine, useExpr, useSpeed, userId || null]
+    [clientId, title || null, script.trim(), avatar_id, type, avatar_name || null, voice_id, !!caption, aspectRatio, fitMode, useEngine, useExpr, NATURAL_SPEED, userId || null]
   );
   const reel = rows[0];
 
@@ -215,7 +216,7 @@ async function generate(clientId, { title, script, avatar_id, avatar_type, avata
     if (caption) body.caption = { style: 'default' };
     if (useEngine) body.engine = { type: useEngine };
     if (useExpr) body.expressiveness = useExpr;
-    if (useSpeed) body.voice_settings = { speed: useSpeed };
+    body.voice_settings = { speed: NATURAL_SPEED };
 
     const { data } = await client.post('/v3/videos', body);
     if (data.error) throw new Error(data.error.message || (typeof data.error === 'string' ? data.error : 'HeyGen rejected the request'));
@@ -311,7 +312,7 @@ async function retry(clientId, id, userId) {
   return generate(clientId, {
     title: r.title, script: r.script, avatar_id: r.avatar_id, avatar_type: r.avatar_type,
     avatar_name: r.avatar_name, voice_id: r.voice_id, caption: r.caption, aspect: r.aspect_ratio,
-    fit: r.fit, engine: r.engine, expressiveness: r.expressiveness, speed: r.speed,
+    fit: r.fit, engine: r.engine, expressiveness: r.expressiveness,
   }, userId)
     .then(async (created) => { await pool.query('DELETE FROM heygen_reels WHERE id = $1', [id]); return created; });
 }
