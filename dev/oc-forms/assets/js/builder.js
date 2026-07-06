@@ -618,7 +618,17 @@
 	function renderNotifications(host) {
 		var n = schema.notifications;
 		host.appendChild(el('h3', null, ['Notifications']));
-		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Each completed submission emails a notification to the address set in Settings → October Forms. Use the field below to CC additional people on the email for this form only.']));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Each completed submission emails a styled HTML lead notification. The notification address itself is in Settings → October Forms. Configure the subject line and CC list for this form below.']));
+
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['Email subject']),
+			el('input', { type: 'text', class: 'widefat',
+				placeholder: '[{site}] New lead — {form} — {email}',
+				value: n.subject || '',
+				onInput: function (e) { n.subject = e.target.value; syncHiddenInput(); }
+			})
+		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Placeholders: {site}, {form}, {email}. Leave blank to use the default template above.']));
 
 		host.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['CC recipients (comma-separated email addresses)']),
@@ -631,6 +641,20 @@
 				}
 			})
 		]));
+
+		host.appendChild(el('h4', null, ['Preview the email']));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Sends a fake lead through the notification pipeline (styled HTML + your CC list + your From address) to the notification address in Settings. Save the post first so the latest subject/CC are used.']));
+
+		var sampleUrl = config.adminUrl
+			+ '?page=oc-forms-settings&ocf_action=send_sample_lead&form_id=' + config.formId
+			+ '&_wpnonce=' + encodeURIComponent(config.sampleNonce);
+		host.appendChild(el('a', { class: 'button', href: sampleUrl }, ['Send sample lead email']));
+
+		if (config.sampleSent === '1') {
+			host.appendChild(el('p', { class: 'ocf-b-hint', style: { color: '#008a20', marginTop: '8px' } }, ['Sample sent — check your inbox.']));
+		} else if (config.sampleSent === '0') {
+			host.appendChild(el('p', { class: 'ocf-b-hint', style: { color: '#d63638', marginTop: '8px' } }, ['Sample send failed. Check your SES / SMTP config in Settings.']));
+		}
 	}
 
 	function renderEndings(host) {

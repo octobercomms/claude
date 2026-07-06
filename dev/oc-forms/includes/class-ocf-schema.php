@@ -93,7 +93,8 @@ class OCF_Schema {
 				),
 			),
 			'notifications' => array(
-				'cc' => array(),
+				'cc'      => array(),
+				'subject' => '',
 			),
 			'steps'    => array(),
 		);
@@ -235,7 +236,8 @@ class OCF_Schema {
 			$addr = sanitize_email( trim( (string) $addr ) );
 			if ( $addr && is_email( $addr ) ) { $cc_clean[] = $addr; }
 		}
-		$schema['notifications']['cc'] = array_values( array_unique( $cc_clean ) );
+		$schema['notifications']['cc']      = array_values( array_unique( $cc_clean ) );
+		$schema['notifications']['subject'] = sanitize_text_field( $schema['notifications']['subject'] ?? '' );
 
 		return $schema;
 	}
