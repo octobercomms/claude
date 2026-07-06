@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { roWrite } from '../../utils/readOnly';
@@ -27,6 +27,18 @@ export default function AgentReadinessPanel({ clientId }) {
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState(null);
   const [open, setOpen] = useState({});
+  const [loaded, setLoaded] = useState(false);
+
+  // Show the last stored check on load so the tab isn't blank (and you don't
+  // have to re-run it every visit).
+  useEffect(() => {
+    let alive = true;
+    api.get(`/seo/clients/${clientId}/agent-readiness`)
+      .then(r => { if (alive && r) setReport(r); })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoaded(true); });
+    return () => { alive = false; };
+  }, [clientId]);
 
   async function run() {
     setRunning(true); setErr(null);
@@ -58,7 +70,9 @@ export default function AgentReadinessPanel({ clientId }) {
       {err && <div className="callout callout-warning" style={{ marginBottom: 'var(--s5)' }}>{err}</div>}
 
       {!report && !running && !err && (
-        <p className="body-sm text-subtle">Run the check to see how ready the site is for AI agents and AI search.</p>
+        <p className="body-sm text-subtle">
+          {loaded ? 'Run the check to see how ready the site is for AI agents and AI search.' : 'Loading…'}
+        </p>
       )}
 
       {report && (

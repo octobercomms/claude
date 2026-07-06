@@ -246,7 +246,30 @@ async function analyze(clientId) {
   const overall = Math.round(100 * weighted.reduce((s, c) => s + c.score * c.weight, 0) / totalWeight);
   const grade = overall >= 90 ? 'A' : overall >= 75 ? 'B' : overall >= 50 ? 'C' : overall >= 25 ? 'D' : 'F';
 
-  return { url, client: rows[0].name, checked_at: new Date().toISOString(), via: page.via, score: overall, grade, checks };
+  const report = { url, client: rows[0].name, checked_at: new Date().toISOString(), via: page.via, score: overall, grade, checks };
+
+  // Persist so the panel can show the last result on reload. Best-effort — a
+  // failed insert (e.g. migration not yet applied) must not fail the check.
+  try {
+    await pool.query(
+      `INSERT INTO agent_readiness_runs (client_id, url, score, grade, report) VALUES ($1, $2, $3, $4, $5)`,
+      [clientId, url, overall, grade, JSON.stringify(report)]
+    );
+  } catch (err) { console.error('[agent-readiness] persist failed:', err.message); }
+
+  return report;
 }
 
-module.exports = { analyze };
+// The most recent stored check for a client (or null), so the tab isn't blank
+// on reload. Tolerant of the table not existing yet.
+async function getLatest(clientId) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT report FROM agent_readiness_runs WHERE client_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [clientId]
+    );
+    return rows.length ? rows[0].report : null;
+  } catch (err) { console.error('[agent-readiness] getLatest failed:', err.message); return null; }
+}
+
+module.exports = { analyze, getLatest };
