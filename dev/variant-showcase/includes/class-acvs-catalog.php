@@ -25,6 +25,11 @@ class ACVS_Catalog {
 	 *  Used by the JS fallback to attach the hover overlay theme-independently. */
 	private array $lifestyle_data = [];
 
+	/** Per-request memo of an expand product's resolved variation cards, keyed by
+	 *  product ID, so a product appearing in more than one loop on a page (e.g. the
+	 *  main archive and a product block) is resolved only once. */
+	private array $card_cache = [];
+
 	public function __construct() {
 		// Expand the loop's posts into variation cards.
 		add_filter( 'the_posts', [ $this, 'expand_loop_posts' ], 10, 2 );
@@ -74,7 +79,8 @@ class ACVS_Catalog {
 			return $posts;
 		}
 
-		$expanded = [];
+		$expanded     = [];
+		$expanded_any = false;
 
 		foreach ( $posts as $post ) {
 			if ( ! isset( $post->post_type ) || $post->post_type !== 'product' ) {
@@ -94,15 +100,28 @@ class ACVS_Catalog {
 				$cards = $this->variation_cards( $product );
 				if ( $cards ) {
 					array_push( $expanded, ...$cards );
+					$expanded_any = true;
 				} else {
 					$expanded[] = $post; // Nothing flagged/visible — fall back to the normal card.
 				}
 			} elseif ( $mode === 'single' ) {
 				$card = $this->single_variation_card( $product );
-				$expanded[] = $card ?: $post;
+				if ( $card ) {
+					$expanded[]   = $card;
+					$expanded_any = true;
+				} else {
+					$expanded[] = $post;
+				}
 			} else {
 				$expanded[] = $post;
 			}
+		}
+
+		// Nothing was expanded → the query's own ordering already applies, so skip
+		// the re-sort (and its per-post meta reads) entirely. Plain catalogue pages
+		// with no expand/single products pay no measurable cost from this filter.
+		if ( ! $expanded_any ) {
+			return $expanded;
 		}
 
 		// Apply the curated catalogue order — but only for the default view. If a
@@ -191,27 +210,67 @@ class ACVS_Catalog {
 	 * @return WP_Post[]
 	 */
 	private function variation_cards( WC_Product $product ): array {
-		$selected = [];
-		$fallback = [];
+		$product_id = $product->get_id();
+		if ( isset( $this->card_cache[ $product_id ] ) ) {
+			return $this->card_cache[ $product_id ];
+		}
 
-		foreach ( $product->get_children() as $variation_id ) {
+		$children = $product->get_children();
+		if ( ! $children ) {
+			return $this->card_cache[ $product_id ] = [];
+		}
+
+		// Prime the post + meta caches for every variation in one pair of queries,
+		// so the "show in catalog" reads below — and the downstream card rendering
+		// (image, title, price) — never hit the database per variation. Without this
+		// a range with hundreds of variations costs hundreds of queries on every
+		// catalogue render.
+		_prime_post_caches( $children, false, true );
+
+		// The ticked "show as its own card" variations are the common case for an
+		// expand product. This flag read comes from the primed meta cache, so the
+		// loop runs no queries.
+		$ticked = [];
+		foreach ( $children as $variation_id ) {
+			if ( get_post_meta( $variation_id, ACVS_META_SHOW, true ) === 'yes' ) {
+				$ticked[] = $variation_id;
+			}
+		}
+
+		// Hydrate only the ticked variations first — a sofa with 6 ticked cards out
+		// of 384 variations builds 6 product objects, not 384.
+		$selected = $this->showable_posts( $ticked );
+		if ( $selected ) {
+			return $this->card_cache[ $product_id ] = $selected;
+		}
+
+		// Tick none (or none of the ticked are currently showable) → show every
+		// visible variation, exactly as documented. Caches are already primed, so
+		// this fallback is still far cheaper than before.
+		return $this->card_cache[ $product_id ] = $this->showable_posts( $children );
+	}
+
+	/**
+	 * Map variation IDs to their WP_Post objects, keeping only variations that are
+	 * currently showable (published + visible/purchasable). Assumes the post and
+	 * meta caches for these IDs have already been primed by the caller.
+	 *
+	 * @param int[] $variation_ids
+	 * @return WP_Post[]
+	 */
+	private function showable_posts( array $variation_ids ): array {
+		$posts = [];
+		foreach ( $variation_ids as $variation_id ) {
 			$variation = wc_get_product( $variation_id );
 			if ( ! $variation instanceof WC_Product_Variation || ! $this->variation_is_showable( $variation ) ) {
 				continue;
 			}
-
 			$post = get_post( $variation_id );
-			if ( ! $post ) {
-				continue;
-			}
-
-			$fallback[] = $post;
-			if ( $variation->get_meta( ACVS_META_SHOW ) === 'yes' ) {
-				$selected[] = $post;
+			if ( $post ) {
+				$posts[] = $post;
 			}
 		}
-
-		return $selected ?: $fallback;
+		return $posts;
 	}
 
 	/** The chosen single-variation card for a "single" product, or null. */

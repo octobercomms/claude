@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.0.5
+Stable tag: 1.2.0
 License: GPLv2 or later
 
 Show selected product variations as their own cards on shop and category pages,
@@ -54,6 +54,25 @@ shows; WooCommerce's "showing x of y" count reflects parent products, so it may
 read slightly low on expanded pages. Pagination still works.
 
 == Changelog ==
+
+= 1.2.0 =
+* Performance: catalogue loop expansion no longer builds a product object for
+  every variation of an expand product. The variations ticked "Show as its own
+  card" are resolved from a single primed meta-cache read, and only those are
+  hydrated — so a range with hundreds of variations that shows a handful of cards
+  costs a handful of objects, not hundreds. Post and meta caches for a product's
+  variations are primed in one pair of queries before any card is built.
+* Performance: a product's resolved variation cards are memoised per request, so a
+  product appearing in more than one loop on a page (main archive + a product
+  block) is resolved only once.
+* Performance: when a catalogue page contains no expand/single products, the
+  filter now returns early and skips the catalogue re-sort entirely.
+* No behaviour change: the "tick none → show every visible variation" fallback and
+  the curated catalogue order are unchanged.
+
+= 1.1.0 =
+* Custom catalogue card titles and a per-variation catalogue sort position, edited
+  in bulk from the OctoberComms Bulk Editor.
 
 = 1.0.5 =
 * Admin clarity by product type: the product-level "Lifestyle image" now shows
