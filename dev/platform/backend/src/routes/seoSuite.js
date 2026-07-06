@@ -189,13 +189,41 @@ function defaultGSCRange(req) {
   return { startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) };
 }
 
+// Which GSC property to read: an explicit ?site= (one the account can access —
+// the token only grants its own sites, so Google 403s anything else) or the
+// connector's configured default. Lets a client with several properties
+// (e.g. US / UK) switch between them.
+function effectiveSite(req, conn) {
+  const q = req.query.site ? String(req.query.site).trim() : '';
+  return q || conn.siteUrl;
+}
+
+// List every Search Console property the connector's token can see, so the UI
+// can offer a property switcher. Falls back to just the configured site if the
+// list call isn't permitted.
+router.get('/clients/:clientId/gsc/sites', async (req, res) => {
+  try {
+    const conn = await loadGSCConnector(req.params.clientId);
+    if (!conn) return res.json({ sites: [], selected: null });
+    let sites = [];
+    try { sites = await google.listSearchConsoleSites(conn.creds, conn.authMode); }
+    catch { /* token may lack the list scope — fall back to the configured site */ }
+    if (conn.siteUrl && !sites.find(s => s.value === conn.siteUrl)) {
+      sites.unshift({ value: conn.siteUrl, label: conn.siteUrl });
+    }
+    res.json({ sites, selected: conn.siteUrl || (sites[0] && sites[0].value) || null });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 router.get('/clients/:clientId/gsc/queries', async (req, res) => {
   try {
     const conn = await loadGSCConnector(req.params.clientId);
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
-      authMode: conn.authMode, siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['query'], rowLimit: 100,
+      authMode: conn.authMode, siteUrl: effectiveSite(req, conn), startDate, endDate, dimensions: ['query'], rowLimit: 100,
     });
     res.json({ startDate, endDate, rows });
   } catch (err) {
@@ -209,7 +237,7 @@ router.get('/clients/:clientId/gsc/pages', async (req, res) => {
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
-      authMode: conn.authMode, siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['page'], rowLimit: 100,
+      authMode: conn.authMode, siteUrl: effectiveSite(req, conn), startDate, endDate, dimensions: ['page'], rowLimit: 100,
     });
     res.json({ startDate, endDate, rows });
   } catch (err) {
@@ -223,7 +251,7 @@ router.get('/clients/:clientId/gsc/devices', async (req, res) => {
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
-      authMode: conn.authMode, siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['device'], rowLimit: 10,
+      authMode: conn.authMode, siteUrl: effectiveSite(req, conn), startDate, endDate, dimensions: ['device'], rowLimit: 10,
     });
     res.json({ startDate, endDate, rows });
   } catch (err) {
@@ -249,7 +277,7 @@ router.get('/clients/:clientId/gsc/sitemaps', async (req, res) => {
   try {
     const conn = await loadGSCConnector(req.params.clientId);
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
-    const sitemaps = await google.fetchSearchConsoleSitemaps(conn.creds, { siteUrl: conn.siteUrl, authMode: conn.authMode });
+    const sitemaps = await google.fetchSearchConsoleSitemaps(conn.creds, { siteUrl: effectiveSite(req, conn), authMode: conn.authMode });
     res.json({ sitemaps });
   } catch (err) {
     res.status(502).json({ error: err.message });
