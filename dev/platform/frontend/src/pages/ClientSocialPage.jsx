@@ -692,6 +692,10 @@ function BrainstormTab({
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
+  const [producePostId, setProducePostId] = useState(null); // post being produced on the Produce step
+  const producePost = producePostId ? posts.find(p => p.id === producePostId) : null;
+  // "Produce →" on a post: jump to the Produce step with that post's producer open.
+  function startProduce(post) { setProducePostId(post.id); goStep(3); }
   // The Create factory is now three plain stages:
   //   1 Create  (brief + generate)
   //   2 Review  (refine the batch)
@@ -797,7 +801,13 @@ function BrainstormTab({
               {media.length > 0 && <span className="chip chip-accent" style={{ fontSize: 9 }}>{media.length} media</span>}
               {p.status === 'published' && <span className="chip chip-success" style={{ fontSize: 9 }}>published</span>}
             </div>
-            <span className="body-xs" style={{ color: 'var(--accent)' }}>Open to edit →</span>
+            <div className="row between center" style={{ gap: 8 }}>
+              <span className="body-xs" style={{ color: 'var(--accent)' }}>Open to edit →</span>
+              <span role="button" tabIndex={0} title="Produce this post"
+                onClick={(e) => { e.stopPropagation(); startProduce(p); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); startProduce(p); } }}
+                className="body-xs" style={{ color: 'var(--accent)', fontWeight: 700, cursor: 'pointer' }}>✦ Produce →</span>
+            </div>
           </button>
         );
       })}
@@ -891,9 +901,37 @@ function BrainstormTab({
         </div>
       )}
 
-      {/* STAGE 3 — PRODUCE (the factory floor: every asset in/through production) */}
+      {/* STAGE 3 — PRODUCE (pick a format for a chosen post, then the factory
+          floor: every asset in/through production, newest first). */}
       {step === 3 && (
         <div className="panel-step">
+          {producePost && (
+            <div style={{ marginBottom: 24 }}>
+              <div className="row between center wrap" style={{ gap: 12, marginBottom: 12 }}>
+                <div style={{ maxWidth: 560 }}>
+                  <div className="h3">Produce this post</div>
+                  <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+                    Pick a format — a reel, image or voiceover. It starts rendering and lines up in the board below, where you can leave and come back to it.
+                  </p>
+                </div>
+                <UiButton variant="ghost" onClick={() => setProducePostId(null)}>← All production</UiButton>
+              </div>
+              <div style={{ maxWidth: 560 }}>
+                <PostCard post={producePost} clientId={clientId} engagement={engagement[producePost.id]} media={mediaByPost[producePost.id] || []}
+                  defaultProdOpen
+                  onChange={patch => updatePost(producePost.id, patch)}
+                  onDelete={() => { setProducePostId(null); deletePost(producePost.id); }}
+                  onPublish={(url) => publishPost(producePost.id, url)}
+                  onRefreshInsights={() => refreshInsights(producePost.id)}
+                  onRenderTemplates={() => renderTemplates(producePost.id)}
+                  onStitchReel={() => stitchReel(producePost.id)}
+                  onGenerateMedia={(kind) => generateMedia(producePost.id, kind)}
+                  onMakeReel={() => onMakeReel && onMakeReel(producePost)}
+                  onDeleteMedia={(mediaId) => deleteMedia(mediaId, producePost.id)} />
+              </div>
+              <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', margin: '24px 0 0' }} />
+            </div>
+          )}
           <ProduceBoard clientId={clientId} onOpenReels={onOpenReels} onBack={() => goStep(2)} onNext={() => goStep(4)} />
         </div>
       )}
@@ -2103,7 +2141,7 @@ function ShareLinkBanner({ url, onDismiss }) {
   );
 }
 
-function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onStitchReel, onDeleteMedia, onMakeReel }) {
+function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onStitchReel, onDeleteMedia, onMakeReel, defaultProdOpen }) {
   const { readOnly } = useAuth();
   const [open, setOpen] = useState(false);
   const [showImg, setShowImg] = useState(false);
@@ -2116,7 +2154,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
   const [showPublish, setShowPublish] = useState(false);
   const [publishUrl, setPublishUrl] = useState('');
   const [renderingMedia, setRenderingMedia] = useState(null);
-  const [showProd, setShowProd] = useState(false);
+  const [showProd, setShowProd] = useState(!!defaultProdOpen);
   const [showAutoEdit, setShowAutoEdit] = useState(false);
 
   async function handleGenerateMedia(kind) {
