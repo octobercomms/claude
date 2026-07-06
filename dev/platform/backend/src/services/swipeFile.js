@@ -106,9 +106,12 @@ async function saveTranscript(id, { transcript, title }) {
   try { card = await generateIdeaCard({ transcript: text, platform: item.platform, title, clientId: item.client_id }); }
   catch (e) { console.error('[swipe] idea card failed:', e.message); }
 
+  // Prefer Claude's plain-English label over the scraped metadata title
+  // ("Video by @handle"), so the swipe list is scannable at a glance.
+  const displayTitle = (card && card.title) || title || null;
   await pool.query(
     `UPDATE swipe_items SET status = 'done', transcript = $2, idea_card = $3, title = COALESCE($4, title) WHERE id = $1`,
-    [id, text, card ? JSON.stringify(card) : null, title || null]
+    [id, text, card ? JSON.stringify(card) : null, displayTitle]
   );
 
   if (item.email_to) {
@@ -131,7 +134,7 @@ async function saveTranscript(id, { transcript, title }) {
 // Turn a transcript into a structured, reusable idea card via Claude.
 async function generateIdeaCard({ transcript, platform, title, clientId }) {
   const system = `You analyse short-form social videos and turn their transcript into a reusable content idea for a marketing team. Be concrete and concise. Respond with ONLY a JSON object, no prose, in this exact shape:
-{"hook": "the opening hook/first line, paraphrased", "summary": "2-3 sentence summary of what the video does", "why_it_works": "1-2 sentences on why this format/angle is effective", "angles": ["3-5 specific ways the team could adapt this idea for their own brand"], "format": "e.g. talking-head, listicle, skit, tutorial, b-roll voiceover", "tags": ["3-6 short topical tags"]}`;
+{"title": "a plain-English 4-8 word label for what this video is about, so it can be found at a glance (describe the content, NOT the uploader/handle)", "hook": "the opening hook/first line, paraphrased", "summary": "2-3 sentence summary of what the video does", "why_it_works": "1-2 sentences on why this format/angle is effective", "angles": ["3-5 specific ways the team could adapt this idea for their own brand"], "format": "e.g. talking-head, listicle, skit, tutorial, b-roll voiceover", "tags": ["3-6 short topical tags"]}`;
   const user = `Platform: ${platform || 'unknown'}${title ? `\nTitle: ${title}` : ''}\n\nTranscript:\n"""\n${transcript.slice(0, 8000)}\n"""`;
   const raw = await callClaude({ system, user, max_tokens: 900, feature: 'swipe_idea_card', clientId });
   const match = String(raw || '').match(/\{[\s\S]*\}/);
