@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { roWrite, READ_ONLY_MSG } from '../utils/readOnly';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
@@ -677,6 +678,7 @@ function BrainstormTab({
   refreshInsights, renderTemplates, stitchReel, generateMedia, deleteMedia,
 }) {
   const { readOnly } = useAuth();
+  const isMobile = useIsMobile();
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
   const [refiningId, setRefiningId] = useState(null);
   const [refineErr, setRefineErr] = useState(null);
@@ -729,7 +731,7 @@ function BrainstormTab({
         <div className="caption">Refining: {refining.platform} · {refining.kind}{refining.framework ? ` · ${refining.framework}` : ''}</div>
       </div>
       {refineErr && <div className="callout callout-danger mb-3">{refineErr}</div>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 'var(--s4)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px', gap: 'var(--s4)' }}>
         <PostCard post={refining} clientId={clientId} engagement={engagement[refining.id]} media={mediaByPost[refining.id] || []}
           onChange={patch => updatePost(refining.id, patch)}
           onDelete={() => { setRefiningId(null); deletePost(refining.id); }}
@@ -798,7 +800,7 @@ function BrainstormTab({
       {/* STAGE 1 — CREATE (brief + inspiration + past batches, side by side) */}
       {step === 1 && (
         <div className="panel-step">
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr) 300px', gap: 16, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr) 300px', gap: 16, alignItems: 'start' }}>
             {/* Brief */}
             <section>
               <div className="h3">Create a batch of posts</div>
@@ -1047,6 +1049,8 @@ function parsePostFields(text) {
 }
 
 function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
+  const isMobile = useIsMobile();
+  const twoCol = isMobile ? '1fr' : '1fr 1fr';
   // Default-select every autopilot-supported post. The AM untiCKS what
   // they don't want rather than starting from zero.
   const [selected, setSelected] = useState(() => new Set(posts.map(p => p.id)));
@@ -1123,7 +1127,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 14, marginBottom: 14 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Target platforms</div>
             <div style={{ display: 'flex', gap: 12 }}>
@@ -1142,7 +1146,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 14, marginBottom: 14 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Days of week</div>
             <div style={{ display: 'flex', gap: 4 }}>
