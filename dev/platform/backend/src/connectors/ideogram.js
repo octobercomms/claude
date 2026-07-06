@@ -33,6 +33,7 @@ async function generate({ prompt, aspect_ratio = '1:1', style = 'AUTO', seed }) 
   });
   const out = data.data?.[0];
   if (!out?.url) throw new Error('Ideogram returned no image URL');
+  require('../services/costLog').recordApiCost({ provider: 'ideogram', feature: 'image_gen', costUsd: 0.08, meta: { aspect_ratio } });
   return { url: out.url, model: 'V_2', request_id: data.created };
 }
 

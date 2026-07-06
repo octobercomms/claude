@@ -46,6 +46,7 @@ const KEY_GROUPS = [
     hint: 'Used by the Social tab to generate post images. Pay-per-call, around $0.04 per image. Get a token at replicate.com/account/api-tokens.',
     keys: [
       { key: 'REPLICATE_API_TOKEN', label: 'Replicate API Token', placeholder: 'r8_…', type: 'password' },
+      { key: 'REPLICATE_CREDITS', label: 'Replicate balance (optional)', placeholder: 'e.g. 50 — your dashboard balance; Costs & usage ticks it down per image. Re-enter after topping up.', type: 'text' },
     ],
   },
   {
@@ -54,6 +55,7 @@ const KEY_GROUPS = [
     hint: 'Alternative image generator used by the Social tab — best when the post needs clean legible on-image text. Around $0.08 per image. Get a key at ideogram.ai/manage-api.',
     keys: [
       { key: 'IDEOGRAM_API_KEY', label: 'Ideogram API Key', placeholder: '…', type: 'password' },
+      { key: 'IDEOGRAM_CREDITS', label: 'Ideogram credit balance (optional)', placeholder: 'e.g. 500 — your dashboard credits; Costs & usage ticks it down per image. Re-enter after topping up.', type: 'text' },
     ],
   },
   {
@@ -1213,11 +1215,29 @@ function CostsPanel() {
       </div>
       {err && <div style={{ color: 'var(--negative)', fontSize: 12, marginBottom: 8 }}>{err}</div>}
       {!rows && <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: 10 }}>Loading…</div>}
-      {rows && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-          {rows.map(r => <ProviderCard key={r.name} entry={r} />)}
-        </div>
-      )}
+      {rows && (() => {
+        const configured = r => !r.snapshot || r.snapshot.status !== 'no_credentials';
+        const live = rows.filter(r => !r.manual && configured(r));
+        const manual = rows.filter(r => r.manual && configured(r));
+        return (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+              {live.map(r => <ProviderCard key={r.name} entry={r} />)}
+            </div>
+            {manual.length > 0 && (
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                <div className="caption" style={{ marginBottom: 4 }}>No balance API — estimated from a manual checkpoint</div>
+                <p className="body-sm text-muted" style={{ marginBottom: 10 }}>
+                  These providers don’t expose a balance to read. Enter your current dashboard balance in each provider’s settings above and OMI ticks it down by what it generates. It’s an estimate — exact only if OMI is the only thing using that key.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+                  {manual.map(r => <ProviderCard key={r.name} entry={r} />)}
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
