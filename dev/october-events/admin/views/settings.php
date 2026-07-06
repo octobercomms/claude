@@ -362,7 +362,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </div></details>
 
         <details class="oe-acc" id="digest"><summary><?php esc_html_e('Digest & reports', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'october-events'); ?></label></p>
+        <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'october-events'); ?></label>
+            <br><span class="description"><?php esc_html_e('Off by default. When on, it emails every subscribed contact on the first Monday of the month — at most once per month. Leave off to send it only manually below.', 'october-events'); ?></span></p>
         <p><label><?php esc_html_e('Daily ticket sales report to', 'october-events'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin. Only sends on days with sales.', 'october-events'); ?></span></p>
         </div></details>
 
@@ -455,6 +456,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <?php } ?>
         <?php if (! empty($_GET['digest']) && $_GET['digest'] === 'sent') : ?>
             <div class="notice notice-success" style="margin:0 0 12px;padding:10px 12px"><?php esc_html_e('Monthly digest queued.', 'october-events'); ?></div>
+        <?php elseif (! empty($_GET['digest']) && $_GET['digest'] === 'already') : ?>
+            <div class="notice notice-warning" style="margin:0 0 12px;padding:10px 12px"><?php esc_html_e('The digest has already been sent this month — not sending again. (It’s locked to once per calendar month.)', 'october-events'); ?></div>
         <?php endif; ?>
 
         <h3><?php esc_html_e('Send a test email', 'october-events'); ?></h3>
@@ -466,8 +469,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </form>
 
         <h3><?php esc_html_e('Monthly digest', 'october-events'); ?></h3>
-        <p><?php esc_html_e('Runs automatically on the first Monday of each month. Send it now:', 'october-events'); ?>
-            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_send_digest'), 'oe_send_digest')); ?>"><?php esc_html_e('Send digest now', 'october-events'); ?></a></p>
+        <p><?php esc_html_e('Emails every subscribed contact. Locked to once per calendar month — a second send this month is refused. Auto-send is controlled by the toggle in “Digest & reports” above (off by default).', 'october-events'); ?></p>
+        <p><a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_send_digest'), 'oe_send_digest')); ?>" onclick="return confirm('<?php echo esc_js(__('Send the monthly digest to ALL subscribed contacts now? This can only be done once per month.', 'october-events')); ?>');"><?php esc_html_e('Send digest now', 'october-events'); ?></a></p>
 
         <h3><?php esc_html_e('Recent email log', 'october-events'); ?></h3>
         <?php $log = \OE\Mail\EmailLog::recent(15); if (! $log) : ?>

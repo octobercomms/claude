@@ -87,8 +87,10 @@ final class Cron {
         // Daily ticket sales report (if any sold today).
         $this->run_sales_report();
 
-        // Monthly digest: only on the first Monday of the month.
-        if ((bool) Settings::get('digest_enabled', true) && self::is_first_monday()) {
+        // Monthly digest: only when explicitly enabled, and only on the first
+        // Monday of the month. Opt-in (default off) — and run_digest itself is
+        // locked to once per calendar month, so it can never double-send.
+        if ((bool) Settings::get('digest_enabled', false) && self::is_first_monday()) {
             $this->run_digest();
         }
     }
@@ -102,7 +104,21 @@ final class Cron {
      * Monthly digest (§5)
      * ------------------------------------------------------------------- */
 
-    public function run_digest(): void {
+    /**
+     * Send the monthly digest — at most ONCE per calendar month, ever.
+     *
+     * The gate is `add_option()`, which is a unique INSERT: the first caller this
+     * month claims the lock and sends; any other caller (a double-firing cron tick,
+     * an accidental second "Send digest now" click, a manual + auto overlap) gets a
+     * false back and returns without sending. This is what stops a repeat blast to
+     * the whole list. Returns the number of recipients queued (0 if it was skipped).
+     */
+    public function run_digest(): int {
+        $month = wp_date('Y-m');
+        if (! add_option('oe_digest_sent_' . $month, current_time('mysql'), '', 'no')) {
+            return 0; // already sent (or being sent) this month — never double-send
+        }
+
         $stories  = $this->recent_stories();
         $events   = $this->upcoming_events();
         $featured = $this->featured_listings();
@@ -128,6 +144,7 @@ final class Cron {
         foreach ($featured as $post) {
             Fields::set($post->ID, 'featured_in_email', false);
         }
+        return (int) $queued;
     }
 
     /**

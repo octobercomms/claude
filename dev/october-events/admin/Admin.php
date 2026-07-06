@@ -358,8 +358,10 @@ final class Admin {
             wp_die('Forbidden', '', ['response' => 403]);
         }
         check_admin_referer('oe_send_digest');
-        (new \OE\Cron())->run_digest();
-        wp_safe_redirect(add_query_arg('digest', 'sent', admin_url('admin.php?page=oe-settings#email-tools')));
+        // run_digest is locked to once per calendar month; 0 back = already sent.
+        $queued = (new \OE\Cron())->run_digest();
+        $msg = $queued > 0 ? 'sent' : 'already';
+        wp_safe_redirect(add_query_arg('digest', $msg, admin_url('admin.php?page=oe-settings#email-tools')));
         exit;
     }
 
