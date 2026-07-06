@@ -540,7 +540,7 @@ export default function ClientSocialPage() {
           )}
           plansContent={(
             <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name}
-              onOpen={(planId) => setPlannerOpen({ planId })} onNewPlan={() => setPlannerOpen({ planId: null })} />
+              onOpen={(planId) => setPlannerOpen({ planId })} />
           )}
           publishContent={(
             <SocialPublishContent plans={plans} client={client} onOpenPlan={(pid) => setPlannerOpen({ planId: pid })} />
@@ -863,10 +863,8 @@ function BrainstormTab({
               </p>
             </div>
             <div className="row wrap center" style={{ gap: 8 }}>
-              <UiButton variant="ghost" onClick={() => goStep(1)} disabled={generating}>+ New batch</UiButton>
               <UiButton variant="ghost" {...roWrite(readOnly, { onClick: onShareForApproval, disabled: !posts.length })}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
-              <UiButton variant="ghost" onClick={() => goStep(4)} disabled={!posts.length}>Schedule →</UiButton>
-              <UiButton variant="primary" onClick={() => goStep(3)}>Produce →</UiButton>
+              <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Produce →</UiButton>
             </div>
           </div>
           {shareUrl && <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />}
@@ -940,7 +938,7 @@ function BrainstormTab({
               <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', margin: '24px 0 0' }} />
             </div>
           )}
-          <ProduceBoard clientId={clientId} onOpenReels={onOpenReels} onBack={() => goStep(2)} onNext={() => goStep(4)} />
+          <ProduceBoard clientId={clientId} onOpenReels={onOpenReels} onNext={() => goStep(4)} />
         </div>
       )}
 
@@ -955,7 +953,6 @@ function BrainstormTab({
               </p>
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
-              <UiButton variant="ghost" onClick={() => goStep(3)}>← Back to Produce</UiButton>
               <UiButton variant="primary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>📅 Bulk schedule</UiButton>
             </div>
           </div>
@@ -985,9 +982,26 @@ const PROD_STATUS = {
 };
 const PROD_ICON = { reel: '🎬', video: '🎬', image: '🖼️', audio: '🎙️', motion: '✨' };
 
-function ProduceBoard({ clientId, onOpenReels, onBack, onNext }) {
+function ProdThumb({ it, onClick }) {
+  const [broken, setBroken] = useState(false);
+  const clickable = !!it.url && it.status === 'ready';
+  return (
+    <div onClick={clickable ? onClick : undefined}
+      style={{ aspectRatio: '1 / 1', background: 'var(--surface-sunken)', display: 'grid', placeItems: 'center', overflow: 'hidden', cursor: clickable ? 'pointer' : 'default', position: 'relative' }}>
+      {it.thumb && !broken
+        ? <img src={it.thumb} alt="" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <span style={{ fontSize: 34 }}>{PROD_ICON[it.kind] || '📄'}</span>}
+      {clickable && it.kind !== 'image' && (
+        <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 30, color: 'rgba(0,0,0,0.55)' }}>▶</span>
+      )}
+    </div>
+  );
+}
+
+function ProduceBoard({ clientId, onOpenReels, onNext }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
+  const [preview, setPreview] = useState(null);
   const pollRef = useRef(null);
 
   async function load() {
@@ -1003,6 +1017,16 @@ function ProduceBoard({ clientId, onOpenReels, onBack, onNext }) {
     /* eslint-disable-next-line */
   }, [data?.producing]);
 
+  async function del(it) {
+    if (!window.confirm('Delete this asset? This can’t be undone.')) return;
+    try {
+      if (it.kind === 'reel') await api.delete(`/heygen/clients/${clientId}/heygen/reels/${it.key.replace('reel-', '')}`);
+      else if (it.kind === 'image') await api.delete(`/social/posts/${it.post_id}/image`, { url: it.url });
+      else await api.delete(`/social/media/${it.key.replace('media-', '')}`);
+      setData(d => d ? { ...d, items: d.items.filter(x => x.key !== it.key) } : d);
+    } catch (e) { setErr(e.message); }
+  }
+
   const items = data?.items || [];
   return (
     <div>
@@ -1014,7 +1038,6 @@ function ProduceBoard({ clientId, onOpenReels, onBack, onNext }) {
           </p>
         </div>
         <div className="row wrap center" style={{ gap: 8 }}>
-          <UiButton variant="ghost" onClick={onBack}>← Back to Review</UiButton>
           {onOpenReels && <UiButton variant="secondary" onClick={onOpenReels}>🎬 New avatar reel</UiButton>}
           <UiButton variant="primary" onClick={onNext}>Schedule →</UiButton>
         </div>
@@ -1034,12 +1057,10 @@ function ProduceBoard({ clientId, onOpenReels, onBack, onNext }) {
           {items.map(it => {
             const st = PROD_STATUS[it.status] || PROD_STATUS.ready;
             return (
-              <div key={it.key} className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ aspectRatio: '1 / 1', background: 'var(--surface-sunken)', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-                  {it.thumb
-                    ? <img src={it.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span style={{ fontSize: 34 }}>{PROD_ICON[it.kind] || '📄'}</span>}
-                </div>
+              <div key={it.key} className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <button onClick={() => del(it)} title="Delete asset"
+                  style={{ position: 'absolute', top: 6, right: 6, zIndex: 2, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>✕</button>
+                <ProdThumb it={it} onClick={() => setPreview(it)} />
                 <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span className="chip" style={{ fontSize: 9, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{it.label}</span>
@@ -1050,7 +1071,7 @@ function ProduceBoard({ clientId, onOpenReels, onBack, onNext }) {
                   {it.status === 'failed' && it.error && <div className="body-xs text-negative">{String(it.error).slice(0, 120)}</div>}
                   <div style={{ marginTop: 'auto' }}>
                     {it.url && it.status === 'ready'
-                      ? <a href={it.url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">Open ↗</a>
+                      ? <button className="btn btn-secondary btn-sm" onClick={() => setPreview(it)}>Preview</button>
                       : (it.status === 'processing' || it.status === 'queued')
                         ? <span className="body-xs text-subtle">In the render queue…</span>
                         : null}
@@ -1059,6 +1080,25 @@ function ProduceBoard({ clientId, onOpenReels, onBack, onNext }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {preview && (
+        <div className="modal-backdrop" onClick={() => setPreview(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
+            <div className="modal-head">
+              <h2 className="h2" style={{ fontSize: 15 }}>{preview.title}</h2>
+              <button type="button" className="modal-close" onClick={() => setPreview(null)}>×</button>
+            </div>
+            {preview.kind === 'image'
+              ? <img src={preview.url} alt="" style={{ width: '100%', borderRadius: 'var(--r-sm)' }} />
+              : preview.kind === 'audio'
+                ? <audio controls src={preview.url} style={{ width: '100%' }} />
+                : <video controls autoPlay src={preview.url} style={{ width: '100%', borderRadius: 'var(--r-sm)', maxHeight: '70vh', background: '#000' }} />}
+            <div className="row end mt-4">
+              <a href={preview.url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">Open in new tab ↗</a>
+            </div>
+          </div>
         </div>
       )}
     </div>

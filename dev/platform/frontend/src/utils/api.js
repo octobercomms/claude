@@ -78,7 +78,7 @@ export const api = {
   postForm: (path, formData) => request(path, { method: 'POST', body: formData }),
   put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  delete: (path) => request(path, { method: 'DELETE' }),
+  delete: (path, body) => request(path, { method: 'DELETE', ...(body ? { body: JSON.stringify(body) } : {}) }),
 
   // Raw fetch for CSV etc — the session cookie authenticates it.
   raw: (path) => fetch(`${BASE}${path}`, { credentials: 'include' }),
