@@ -47,10 +47,11 @@ async function create(clientId, { url, notes, email_to }, userId) {
   return rows[0];
 }
 
-async function update(clientId, id, { notes, tags }) {
+async function update(clientId, id, { notes, tags, title }) {
   const sets = [], vals = [clientId, id];
   if (notes !== undefined) { sets.push(`notes = $${vals.length + 1}`); vals.push(notes ? String(notes).trim() : null); }
   if (tags !== undefined) { sets.push(`tags = $${vals.length + 1}`); vals.push(Array.isArray(tags) ? tags.slice(0, 20) : []); }
+  if (title !== undefined) { sets.push(`title = $${vals.length + 1}`); vals.push(title ? String(title).trim().slice(0, 200) : null); }
   if (!sets.length) { const e = new Error('Nothing to update.'); e.status = 400; throw e; }
   const { rows } = await pool.query(`UPDATE swipe_items SET ${sets.join(', ')} WHERE client_id = $1 AND id = $2 RETURNING *`, vals);
   if (!rows[0]) { const e = new Error('Item not found.'); e.status = 404; throw e; }
