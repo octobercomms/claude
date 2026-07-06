@@ -222,7 +222,7 @@ router.get('/tags/:clientId', async (req, res) => {
 router.get('/export/:clientId', async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT k.keyword, k.target_url, k.device, k.tag, k.location_name,
+      SELECT k.keyword, k.target_url, k.device, k.tag, k.location_name, k.search_volume,
         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as current_position,
         (SELECT MIN(position) FROM seo_rank_history WHERE keyword_id = k.id) as best_position,
         (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked
@@ -231,11 +231,12 @@ router.get('/export/:clientId', async (req, res) => {
       ORDER BY k.keyword
     `, [req.params.clientId]);
 
-    const csvLines = ['keyword,target_url,device,tag,location,current_position,best_position,last_checked'];
+    const csvLines = ['keyword,target_url,device,tag,location,search_volume,current_position,best_position,last_checked'];
     for (const r of rows) {
       csvLines.push([
         `"${r.keyword}"`, `"${r.target_url || ''}"`, r.device,
         `"${r.tag || ''}"`, `"${r.location_name}"`,
+        r.search_volume ?? '',
         r.current_position || '', r.best_position || '',
         r.last_checked ? r.last_checked.toISOString().split('T')[0] : ''
       ].join(','));
@@ -368,9 +369,17 @@ router.get('/llm-visibility/:clientId', agencyOnly, async (req, res) => {
 });
 
 async function runRankChecks(keywords) {
+  // Resolve each client's domain once — checkRank needs it to find where the
+  // client (not the top competitor) ranks when a keyword has no target_url.
+  const clientIds = [...new Set(keywords.map(k => k.client_id).filter(Boolean))];
+  const domainByClient = {};
+  if (clientIds.length) {
+    const { rows } = await pool.query('SELECT id, domain FROM clients WHERE id = ANY($1)', [clientIds]);
+    for (const r of rows) domainByClient[r.id] = r.domain;
+  }
   for (const kw of keywords) {
     try {
-      const result = await dataForSEO.checkRank(kw);
+      const result = await dataForSEO.checkRank(kw, domainByClient[kw.client_id]);
       await pool.query(
         `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url, serp_features)
          VALUES ($1, CURRENT_DATE, $2, $3, $4)
