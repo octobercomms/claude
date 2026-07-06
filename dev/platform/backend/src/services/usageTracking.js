@@ -20,6 +20,24 @@ function monthBounds(date = new Date()) {
   return { period_start: start.toISOString().slice(0, 10), period_end: end.toISOString().slice(0, 10) };
 }
 
+// Manual credit checkpoint for providers with no balance API: the AM types
+// their current dashboard balance (<KEY>, auto-stamped with <KEY>_AS_OF) and we
+// subtract the calls OMI has logged for that provider since — an estimate,
+// exact only if OMI is the sole consumer of the key. Same idea as Serper.
+async function manualCheckpoint({ provider, creditsKey, unitLabel, setLabel }) {
+  const checkpoint = parseFloat(await getSetting(creditsKey));
+  const asOf = await getSetting(`${creditsKey}_AS_OF`);
+  if (!Number.isFinite(checkpoint) || !asOf) {
+    return { manual: true, raw: { note: `Set your ${setLabel} balance under Costs & usage to track it here.` } };
+  }
+  const { rows } = await pool.query(
+    'SELECT count(*)::int AS used FROM api_cost_events WHERE provider = $1 AND ts >= $2', [provider, asOf]
+  );
+  const used = rows[0]?.used || 0;
+  const remaining = Math.max(0, checkpoint - used);
+  return { manual: true, units_used: remaining, units_limit: checkpoint, unit_label: unitLabel, raw: { checkpoint, used, set_at: asOf } };
+}
+
 const POLLERS = [
   {
     name: 'dataforseo',
@@ -82,6 +100,7 @@ const POLLERS = [
   {
     name: 'serper',
     label: 'Serper',
+    manual: true,
     async poll() {
       const key = await getSetting('SERPER_API_KEY');
       if (!key) return null;
@@ -110,15 +129,13 @@ const POLLERS = [
   {
     name: 'replicate',
     label: 'Replicate',
+    manual: true,
     async poll() {
       const token = await getSetting('REPLICATE_API_TOKEN');
       if (!token) return null;
-      // Replicate's billing endpoint is plan-tier-dependent; the account
-      // endpoint at minimum tells us the connection works.
-      const { data } = await axios.get('https://api.replicate.com/v1/account', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      return { raw: data, unit_label: 'predictions' };
+      // No usable balance API — estimate from a manual checkpoint minus the
+      // images OMI has generated since.
+      return manualCheckpoint({ provider: 'replicate', creditsKey: 'REPLICATE_CREDITS', unitLabel: 'credits (est.)', setLabel: 'Replicate' });
     },
   },
   {
@@ -234,12 +251,31 @@ const POLLERS = [
   {
     name: 'ideogram',
     label: 'Ideogram',
+    manual: true,
     async poll() {
       const key = await getSetting('IDEOGRAM_API_KEY');
       if (!key) return null;
-      // Ideogram doesn't publish a balance API; just record credentials
-      // presence so the panel shows it.
-      return { raw: { note: 'No public balance endpoint — track via dashboard.' } };
+      return manualCheckpoint({ provider: 'ideogram', creditsKey: 'IDEOGRAM_CREDITS', unitLabel: 'credits (est.)', setLabel: 'Ideogram' });
+    },
+  },
+  {
+    name: 'arcads',
+    label: 'Arcads',
+    manual: true,
+    async poll() {
+      const key = await getSetting('ARCADS_API_KEY');
+      if (!key) return null;
+      return manualCheckpoint({ provider: 'arcads', creditsKey: 'ARCADS_CREDITS', unitLabel: 'credits (est.)', setLabel: 'Arcads' });
+    },
+  },
+  {
+    name: 'adobe',
+    label: 'Adobe Firefly',
+    manual: true,
+    async poll() {
+      const id = await getSetting('ADOBE_CLIENT_ID');
+      if (!id) return null;
+      return manualCheckpoint({ provider: 'adobe', creditsKey: 'ADOBE_CREDITS', unitLabel: 'credits (est.)', setLabel: 'Adobe Firefly' });
     },
   },
   {
@@ -392,6 +428,7 @@ async function currentSnapshots() {
   return POLLERS.map(p => ({
     name: p.name,
     label: p.label,
+    manual: !!p.manual,
     snapshot: byProvider[p.name] || null,
     spend_this_month: inferredByProvider[p.name] || null,
   }));

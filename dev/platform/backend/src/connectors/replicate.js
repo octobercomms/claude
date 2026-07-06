@@ -56,6 +56,7 @@ async function generate({ prompt, reference_image, aspect_ratio = '1:1', seed })
     throw new Error(`Replicate generation failed: ${data.error || data.status}`);
   }
   const out = Array.isArray(data.output) ? data.output[0] : data.output;
+  require('../services/costLog').recordApiCost({ provider: 'replicate', feature: 'image_gen', costUsd: 0.03, meta: { model: FLUX_MODEL, aspect_ratio } });
   return { url: out, model: FLUX_MODEL, prediction_id: data.id };
 }
 

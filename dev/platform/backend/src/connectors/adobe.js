@@ -78,6 +78,7 @@ async function generate({ prompt, aspect_ratio = '1:1', seed, reference_image })
   });
   const out = data.outputs?.[0];
   if (!out?.image?.url) throw new Error('Firefly returned no image URL');
+  require('../services/costLog').recordApiCost({ provider: 'adobe', feature: 'image_gen', costUsd: 0.05, meta: { aspect_ratio } });
   return { url: out.image.url, model: 'firefly-v3', seed: out.seed };
 }
 

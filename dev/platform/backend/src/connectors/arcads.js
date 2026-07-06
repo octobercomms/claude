@@ -44,6 +44,7 @@ async function generateVideo({ script, actor_id, aspect_ratio = '9:16', language
     await new Promise(r => setTimeout(r, age < 60_000 ? 5_000 : 10_000));
     const { data: job } = await api.get(`/videos/${jobId}`);
     if (job.status === 'completed' || job.status === 'ready') {
+      require('../services/costLog').recordApiCost({ provider: 'arcads', feature: 'ugc_video', costUsd: 1.5, meta: { actor_id: actor_id || null } });
       return {
         url: job.video_url || job.output_url,
         duration_sec: job.duration || null,
