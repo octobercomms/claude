@@ -18,7 +18,13 @@ export default function AudiencesPanel({ clientId }) {
   const { readOnly } = useAuth();
   const [distribution, setDistribution] = useState(null);
   const [segments, setSegments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // The two fetches load independently: segments are quick, but the postcode
+  // distribution walks up to a year of store orders on a cold cache and can
+  // take several seconds. Gating the whole panel behind both left it blank —
+  // so segments (incl. an uploaded list) render as soon as they arrive, and
+  // the postcode section shows its own loading state.
+  const [segLoading, setSegLoading] = useState(true);
+  const [distLoading, setDistLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
@@ -26,12 +32,13 @@ export default function AudiencesPanel({ clientId }) {
   const [gsDismissed, setGsDismissed] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      api.get(`/audiences/clients/${clientId}/postcode-distribution`).catch(() => ({})),
-      api.get(`/audiences/clients/${clientId}/segments`).catch(() => []),
-    ]).then(([d, s]) => {
-      setDistribution(d); setSegments(s || []); setLoading(false);
-    });
+    setSegLoading(true); setDistLoading(true);
+    api.get(`/audiences/clients/${clientId}/segments`)
+      .then(s => setSegments(s || [])).catch(() => setSegments([]))
+      .finally(() => setSegLoading(false));
+    api.get(`/audiences/clients/${clientId}/postcode-distribution`)
+      .then(d => setDistribution(d || {})).catch(() => setDistribution({}))
+      .finally(() => setDistLoading(false));
   }, [clientId]);
 
   async function refreshDistribution() {
@@ -91,8 +98,6 @@ export default function AudiencesPanel({ clientId }) {
     });
   }
 
-  if (loading) return null;
-
   const postcodes = distribution?.postcodes || [];
   const top10 = postcodes.slice(0, 10);
   const totalRevenue = Number(distribution?.total_revenue || 0);
@@ -132,7 +137,9 @@ export default function AudiencesPanel({ clientId }) {
           </div>
         )}
       >
-        {!segments.length ? (
+        {segLoading ? (
+          <Card><div className="body-sm text-subtle">Loading segments…</div></Card>
+        ) : !segments.length ? (
           <EmptyState
             icon="🎯"
             title="No segments yet"
@@ -166,7 +173,11 @@ export default function AudiencesPanel({ clientId }) {
           one is connected we show the map/metrics (or a "no orders yet" prompt);
           when none is, we show a compact connect card instead of an empty grid
           of zeros, so a list-only client isn't led by a section that can't fill. */}
-      {sourceConnected ? (
+      {distLoading ? (
+        <Section caption="First-party data" title="Where your customers are">
+          <Card><div className="body-sm text-subtle">Mapping your customers by postcode — walking the last 12 months of orders…</div></Card>
+        </Section>
+      ) : sourceConnected ? (
         <Section
           caption="First-party data"
           title="Where your customers are"
@@ -253,7 +264,7 @@ export default function AudiencesPanel({ clientId }) {
 
       {/* First-run: no first-party data and no saved segments. Dim the empty
           panel behind a modal that names the single best first action. */}
-      {!top10.length && !segments.length && !showUpload && !editing && !gsDismissed && (
+      {!segLoading && !distLoading && !top10.length && !segments.length && !showUpload && !editing && !gsDismissed && (
         <GetStartedModal
           hasStore={sourceConnected}
           onUpload={() => setShowUpload(true)}
