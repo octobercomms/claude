@@ -17,7 +17,7 @@ import { roWrite } from '../../utils/readOnly';
 // approved work.
 export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }) {
   const {
-    batches, realBatches, exampleBatch, ensuringExample,
+    batches, realBatches, exampleBatch, ensuringExample, exampleError, ensureExample,
     activeBatchId, selectBatch, deleteBatch,
     assets, showBrief, setShowBrief, generate, generating, loaded,
   } = pipeline;
@@ -58,13 +58,27 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
         <div className="card" style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>
           Drafting a worked example for {clientName || 'this client'} — a real batch you can walk through every step…
         </div>
-      ) : !batches.length ? (
-        loaded ? (
-          <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
-            No briefs yet. Click <strong>+ New brief</strong> to generate the first batch — Claude will return 4–16 ad concepts grounded in the brand kit.
+      ) : loaded && !batches.length ? (
+        // No briefs at all — offer to build the worked example, or write a real brief.
+        <div className="card" style={{ padding: 20 }}>
+          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 12, maxWidth: 620 }}>
+            No briefs yet. Generate a <strong>worked example</strong> from {clientName || 'this client'}'s profile — a real batch you can walk through every step and show a client — or write your own with <strong>+ New brief</strong>.
           </div>
-        ) : null
-      ) : (
+          {exampleError && (
+            <div className="callout callout-danger" style={{ fontSize: 12, marginBottom: 12 }}>
+              Couldn't generate the example: {exampleError}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: ensureExample, disabled: ensuringExample })}>
+              {ensuringExample ? 'Generating…' : '✨ Generate a worked example'}
+            </button>
+            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: () => setShowBrief(true), disabled: generating })}>
+              + New brief
+            </button>
+          </div>
+        </div>
+      ) : !batches.length ? null : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {batches.map(b => {
             const isExample = b.is_example;

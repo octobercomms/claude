@@ -8,7 +8,7 @@
 // object down to each step. Sub-tab navigation between steps is
 // instantaneous because the state lives above the tab boundary.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -23,6 +23,7 @@ export function usePaidPipeline({ clientId, clientName }) {
   const [shareUrl, setShareUrl] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [ensuringExample, setEnsuringExample] = useState(false);
+  const [exampleError, setExampleError] = useState(null);
 
   // Real briefs (AM-authored) vs the single auto-generated worked example.
   const realBatches = batches.filter(b => !b.is_example);
@@ -50,33 +51,32 @@ export function usePaidPipeline({ clientId, clientName }) {
   }
   useEffect(() => { refresh(); /* eslint-disable-line */ }, [clientId]);
 
-  // Persisted worked example. When a client has no real briefs, ensure the
-  // example exists (generate once, server-side) and make it the active batch
-  // so it flows through every step. Persisted, so it survives navigation and
-  // doesn't regenerate on each visit.
+  // Persisted worked example. Generated on demand (button on the Brief step),
+  // then reused — it survives navigation and never auto-regenerates. We do NOT
+  // auto-generate: a batch is a real AI spend, so the AM triggers it, and any
+  // failure is surfaced (a missing endpoint/migration on the backend must not
+  // fail silently).
   async function ensureExample() {
-    if (ensuringExample) return;
+    if (ensuringExample) return null;
     setEnsuringExample(true);
+    setExampleError(null);
     try {
       const { batch, creatives: exCreatives } = await api.post(`/ad-creatives/clients/${clientId}/example-batch`, {});
       setBatches(prev => prev.some(b => b.id === batch.id) ? prev : [batch, ...prev]);
-      setActiveBatchId(prev => prev || batch.id);
-      setCreatives(prev => (prev && prev.length) ? prev : (exCreatives || []));
-    } catch (e) { /* silent — Brief step shows a plain empty state on failure */ }
-    finally { setEnsuringExample(false); }
+      setActiveBatchId(batch.id);
+      setCreatives(exCreatives || []);
+      return batch;
+    } catch (e) {
+      setExampleError(e.message || 'Could not generate the example.');
+      return null;
+    } finally { setEnsuringExample(false); }
   }
 
-  const exampleTried = useRef(false);
-  useEffect(() => { exampleTried.current = false; }, [clientId]);
+  // If an example already exists and nothing is active, select it so it flows
+  // through the steps. (No generation here — that's the button's job.)
   useEffect(() => {
-    if (!loaded || realBatches.length) return;
-    if (exampleBatch) {
-      if (!activeBatchId) selectBatch(exampleBatch.id);
-      return;
-    }
-    if (exampleTried.current) return;
-    exampleTried.current = true;
-    ensureExample();
+    if (!loaded || realBatches.length || activeBatchId) return;
+    if (exampleBatch) selectBatch(exampleBatch.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, batches]);
 
@@ -182,7 +182,7 @@ export function usePaidPipeline({ clientId, clientName }) {
 
   return {
     batches, realBatches, exampleBatch, creatives, activeBatchId, activeBatch, assets, loaded,
-    ensuringExample,
+    ensuringExample, exampleError, ensureExample,
     showBrief, setShowBrief,
     generating, shareUrl, setShareUrl,
     selectBatch, generate, deleteCreative, updateCreative, deleteBatch,
