@@ -585,6 +585,19 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
   color: var(--text-subtle); background: var(--surface-sunken);
   border-right: var(--border-w) solid var(--card-border);
 }
+/* Wrapping variant — long rails (6+ steps) flow onto multiple rows as
+   self-contained bordered cards instead of squashing into one cramped row. */
+.stepper.wrap {
+  flex-wrap: wrap; gap: 8px; background: none; border: none; overflow: visible;
+}
+.stepper.wrap .stepper-step {
+  flex: 1 1 150px; padding: 10px 12px;
+  border: var(--border-w) solid var(--card-border); border-radius: var(--r-md);
+}
+.stepper.wrap .stepper-step.done { border-color: var(--positive); }
+.stepper.wrap .stepper-step.active { border-color: var(--accent); background: var(--accent-soft); }
+.stepper.wrap .stepper-num { width: 24px; height: 24px; font-size: 12px; }
+.stepper.wrap .stepper-t { font-size: 13px; }
 .stepper-step:hover { background: #fafafa; }
 .stepper-step.active { background: var(--accent-soft); }
 .stepper-num {
