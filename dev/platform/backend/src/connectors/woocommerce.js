@@ -314,4 +314,68 @@ async function fetchData(credentials, params) {
   };
 }
 
-module.exports = { authType, checkTokenValidity, fetchData };
+// UK postcode → district. EH1 2AB → EH1; SW1A 1AA → SW1A. Outward part
+// is everything before the space; robust to a missing space (SW1A1AA).
+// Mirrors the Shopify connector's parser so both sources aggregate to the
+// same district keys.
+function parsePostcodeDistrict(zip) {
+  if (!zip || typeof zip !== 'string') return null;
+  const s = zip.toUpperCase().trim();
+  const sp = s.indexOf(' ');
+  if (sp > 0) return s.slice(0, sp);
+  const m = s.match(/^([A-Z]{1,2}\d[A-Z\d]?)/);
+  return m ? m[1] : null;
+}
+
+// Walk every order in the last `days` and return one row per customer with
+// their shipping/billing postcode district and lifetime stats — the same
+// shape Shopify's fetchCustomerPostcodes returns, so audienceInsights can
+// build the first-party postcode distribution from a WooCommerce store the
+// same way it does from Shopify. Guest checkouts (customer_id 0) are keyed
+// by billing email so a repeat guest still de-dupes to one customer.
+async function fetchCustomerPostcodes(credentials, { days = 365, maxPages = 50 } = {}) {
+  const mode = await resolveAuthMode(credentials);
+  const useQuery = mode === 'query';
+  const basic = basicClient(credentials);
+  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  async function wcGet(path, extra = {}) {
+    if (useQuery) return queryParamGet(credentials, path, extra);
+    return basic.get(path, { params: extra });
+  }
+
+  const PER_PAGE = 100;
+  const byCustomer = new Map();
+  for (let page = 1; page <= maxPages; page++) {
+    const res = await wcGet('/orders', {
+      after: `${startDate}T00:00:00`,
+      per_page: PER_PAGE,
+      page,
+      status: 'processing,completed',
+      _fields: 'id,customer_id,total,billing,shipping',
+    });
+    if (res.status >= 400) throw new Error(`WooCommerce orders fetch ${res.status}: ${res.data?.message || 'unknown'}`);
+    const batch = res.data || [];
+    for (const o of batch) {
+      const cid = o.customer_id || o.billing?.email || null;
+      const postcode = (o.shipping?.postcode || o.billing?.postcode || '').toUpperCase().trim();
+      if (!cid || !postcode) continue;
+      const district = parsePostcodeDistrict(postcode);
+      if (!district) continue;
+      const revenue = Number(o.total || 0);
+      const existing = byCustomer.get(cid);
+      if (existing) {
+        existing.order_count += 1;
+        existing.revenue += revenue;
+      } else {
+        byCustomer.set(cid, { customer_id: cid, postcode_district: district, order_count: 1, revenue });
+      }
+    }
+    const totalPages = parseInt(res.headers['x-wp-totalpages'] || '0', 10);
+    if (batch.length < PER_PAGE) break;
+    if (totalPages && page >= totalPages) break;
+  }
+  return [...byCustomer.values()];
+}
+
+module.exports = { authType, checkTokenValidity, fetchData, fetchCustomerPostcodes, parsePostcodeDistrict };

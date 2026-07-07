@@ -15,18 +15,35 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { decrypt } = require('../utils/encryption');
 const shopify = require('../connectors/shopify');
+const woocommerce = require('../connectors/woocommerce');
 
 const CACHE_TTL_HOURS = 24;
 
-async function getShopifyCreds(clientId) {
+// First-party postcode data can come from any ecommerce connector that
+// exposes per-order postcodes. Shopify wins when both are connected (it was
+// first and its API is faster to page); WooCommerce is the fallback so a Woo
+// store gets the same "where your customers are" map without a Shopify
+// connection. Add a connector here (with a fetchCustomerPostcodes export) to
+// give it the same treatment.
+const POSTCODE_SOURCES = [
+  { type: 'shopify', label: 'Shopify', connector: shopify },
+  { type: 'woocommerce', label: 'WooCommerce', connector: woocommerce },
+];
+
+// Resolve the first connected source that can supply postcode data. Returns
+// { type, label, connector, creds } or null when none is connected.
+async function getPostcodeSource(clientId) {
   const { rows } = await pool.query(
-    `SELECT credentials FROM connectors
-      WHERE client_id = $1 AND connector_type = 'shopify' AND status = 'active'
-      LIMIT 1`,
-    [clientId]
+    `SELECT connector_type, credentials FROM connectors
+      WHERE client_id = $1 AND status = 'active'
+        AND connector_type = ANY($2)`,
+    [clientId, POSTCODE_SOURCES.map(s => s.type)]
   );
-  if (!rows.length) return null;
-  return decrypt(rows[0].credentials);
+  for (const src of POSTCODE_SOURCES) {
+    const row = rows.find(r => r.connector_type === src.type);
+    if (row) return { ...src, creds: decrypt(row.credentials) };
+  }
+  return null;
 }
 
 // Aggregate first-party postcodes for a client. Uses the cache when
@@ -43,16 +60,20 @@ async function getPostcodeDistribution(clientId, { force = false } = {}) {
         postcodes: c.postcodes || [],
         total_orders: c.total_orders,
         total_revenue: Number(c.total_revenue),
+        source: c.source || null,
         computed_at: c.computed_at,
         from_cache: true,
       };
     }
   }
-  const creds = await getShopifyCreds(clientId);
-  if (!creds) {
-    return { postcodes: [], total_orders: 0, total_revenue: 0, computed_at: null, note: 'No active Shopify connector — first-party audience needs a Shopify connection.' };
+  const source = await getPostcodeSource(clientId);
+  if (!source) {
+    return {
+      postcodes: [], total_orders: 0, total_revenue: 0, source: null, computed_at: null,
+      note: 'No connected store — postcode mapping needs a Shopify or WooCommerce connection. Upload a customer list below to build a Meta audience without it.',
+    };
   }
-  const customers = await shopify.fetchCustomerPostcodes(creds, { days: 365 });
+  const customers = await source.connector.fetchCustomerPostcodes(source.creds, { days: 365 });
   const byDistrict = new Map();
   for (const c of customers) {
     const d = c.postcode_district;
@@ -71,19 +92,21 @@ async function getPostcodeDistribution(clientId, { force = false } = {}) {
   const totalRevenue = customers.reduce((n, c) => n + c.revenue, 0);
 
   await pool.query(
-    `INSERT INTO audience_postcode_cache (client_id, postcodes, total_orders, total_revenue, computed_at)
-     VALUES ($1, $2, $3, $4, NOW())
+    `INSERT INTO audience_postcode_cache (client_id, postcodes, total_orders, total_revenue, source, computed_at)
+     VALUES ($1, $2, $3, $4, $5, NOW())
      ON CONFLICT (client_id) DO UPDATE
        SET postcodes = EXCLUDED.postcodes,
            total_orders = EXCLUDED.total_orders,
            total_revenue = EXCLUDED.total_revenue,
+           source = EXCLUDED.source,
            computed_at = NOW()`,
-    [clientId, JSON.stringify(postcodes), totalOrders, totalRevenue]
+    [clientId, JSON.stringify(postcodes), totalOrders, totalRevenue, source.type]
   );
   return {
     postcodes,
     total_orders: totalOrders,
     total_revenue: Math.round(totalRevenue * 100) / 100,
+    source: source.type,
     computed_at: new Date().toISOString(),
     from_cache: false,
   };
