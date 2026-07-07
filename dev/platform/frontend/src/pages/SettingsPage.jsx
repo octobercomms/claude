@@ -325,6 +325,15 @@ const SECTIONS = [
     { k: 'security', label: 'Security' },
   ] },
 ];
+// Connections sub-tabs clustered into labelled bentos (by what each connector
+// is for), so nine flat tabs read as a few scannable groups.
+const CONNECTION_GROUPS = [
+  { label: 'Spend',          subs: ['costs'] },
+  { label: 'Marketing data', subs: ['ads', 'commerce', 'seo'] },
+  { label: 'AI & outreach',  subs: ['ai', 'email', 'outreach'] },
+  { label: 'Platform',       subs: ['integrations', 'other'] },
+];
+
 // Sub-tab → which CATEGORIES of provider-key groups it shows.
 const SUBTAB_CATS = {
   ai: ['AI'],
@@ -519,14 +528,45 @@ export default function SettingsPage() {
           </button>
         ))}
       </div>
-      <div className="tabs tabs-sub">
-        {(SECTIONS.find(s => s.subs.some(x => x.k === tab)) || SECTIONS[0]).subs.map(x => (
-          <button key={x.k} onClick={() => switchTab(x.k)}
-            className={`tab ${tab === x.k ? 'active' : ''}`}>
-            {x.label}
-          </button>
-        ))}
-      </div>
+      {(() => {
+        const section = SECTIONS.find(s => s.subs.some(x => x.k === tab)) || SECTIONS[0];
+        // Connections gets grouped bentos (labelled clusters); the shorter
+        // Workspace / Account sections keep the flat sub-tab strip.
+        if (section.key !== 'connections') {
+          return (
+            <div className="tabs tabs-sub">
+              {section.subs.map(x => (
+                <button key={x.k} onClick={() => switchTab(x.k)}
+                  className={`tab ${tab === x.k ? 'active' : ''}`}>
+                  {x.label}
+                </button>
+              ))}
+            </div>
+          );
+        }
+        const byKey = Object.fromEntries(section.subs.map(x => [x.k, x]));
+        const pill = (active) => ({
+          padding: '6px 12px', borderRadius: 'var(--r-pill)', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+          fontFamily: 'inherit', border: 'var(--border-w) solid ' + (active ? 'var(--accent)' : 'var(--card-border)'),
+          background: active ? 'var(--accent)' : 'var(--surface)', color: active ? 'var(--accent-on)' : 'var(--text)',
+        });
+        return (
+          <div className="stepper-grouped" style={{ marginBottom: 18 }}>
+            {CONNECTION_GROUPS.map(g => (
+              <div key={g.label} className="stepper-group-card">
+                <div className="stepper-group-heading">{g.label}</div>
+                <div className="row wrap" style={{ gap: 6 }}>
+                  {g.subs.filter(k => byKey[k]).map(k => (
+                    <button key={k} onClick={() => switchTab(k)} style={pill(tab === k)}>
+                      {byKey[k].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {tab === 'integrations' && <IntegrationsPage embedded />}
       {tab === 'contacts' && <ContactsLibrary />}
