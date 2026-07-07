@@ -33,7 +33,7 @@ function score(prospect) {
 // prospects. The actual outreach happens in the existing Outreach
 // suite — this just feeds it.
 async function prospectFromCompetitors({ clientId, limitPerCompetitor = 50 }) {
-  if (!isUnlocked('backlinks')) {
+  if (!isUnlocked()) {
     const err = new Error('DataForSEO Backlinks is gated until 1 July 2026 — the feature is built and ready, but the API costs are locked until then.');
     err.status = 503;
     throw err;
