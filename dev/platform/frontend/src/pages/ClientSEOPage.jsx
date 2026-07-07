@@ -29,6 +29,7 @@ import CtrBoostPanel from '../components/organic/CtrBoostPanel';
 import ContentAuditPanel from '../components/organic/ContentAuditPanel';
 import KeywordFootprintPanel from '../components/organic/KeywordFootprintPanel';
 import BacklinksPanel from '../components/organic/BacklinksPanel';
+import SeoDriftPanel from '../components/organic/SeoDriftPanel';
 import LocalSeoPanel from '../components/organic/LocalSeoPanel';
 import AgentReadinessPanel from '../components/organic/AgentReadinessPanel';
 
@@ -537,7 +538,7 @@ export default function ClientSEOPage() {
     // Performance sub-tabs (perf_insights is the summary landing).
     // aio / fanout / gaps stay in the whitelist as backwards-compat
     // aliases — they redirect to their new homes (keywords / find).
-    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'ai_seo', 'gaps', 'authority', 'backlinks', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint', 'agent_ready',
+    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'ai_seo', 'gaps', 'authority', 'backlinks', 'drift', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint', 'agent_ready',
     // Pipeline sub-tabs
     'find', 'planning', 'draft', 'publish', 'promote',
     // Local SEO toolkit sub-tabs
@@ -608,6 +609,8 @@ export default function ClientSEOPage() {
             { groupLabel: 'Off-page' },
             { key: 'authority',     label: 'Authority' },
             { key: 'backlinks',     label: 'Backlinks' },
+            { groupLabel: 'Monitoring' },
+            { key: 'drift',         label: 'Drift' },
           ],
           // Optimise = the "what do we do about it" tools — audits we run
           // and actions we generate, split out of Performance so the two
@@ -648,7 +651,7 @@ export default function ClientSEOPage() {
           overview: 'overview',
           perf_insights: 'search',
           keywords: 'search', gsc: 'search', authority: 'search', backlinks: 'search',
-          ai_visibility: 'search',
+          ai_visibility: 'search', drift: 'search',
           site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
           ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
           find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
@@ -715,6 +718,7 @@ export default function ClientSEOPage() {
               { label: 'AI visibility',  onClick: () => setActiveTab('ai_visibility') },
               { label: 'Authority',      onClick: () => setActiveTab('authority') },
               { label: 'Backlinks',      onClick: () => setActiveTab('backlinks') },
+              { label: 'Drift',          onClick: () => setActiveTab('drift') },
             ] },
             { title: 'Optimise', subtitle: 'Site and content fixes that move the needle', nodes: [
               { label: 'Site audit',        onClick: () => setActiveTab('site_audit') },
@@ -781,6 +785,7 @@ export default function ClientSEOPage() {
       {activeTab === 'email' && <ClientOutreachPage embedded clientId={id} />}
       {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
+      {activeTab === 'drift' && <SeoDriftPanel clientId={id} />}
       {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}
       {activeTab === 'agent_ready' && <AgentReadinessPanel clientId={id} />}
       {activeTab === 'site_audit' && <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}

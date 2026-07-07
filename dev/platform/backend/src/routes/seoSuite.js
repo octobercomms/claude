@@ -11,6 +11,7 @@ const claudeService = require('../services/claude');
 const dataForSEO = require('../connectors/dataforseo');
 const google = require('../connectors/google');
 const pageSpeed = require('../services/pageSpeed');
+const seoDrift = require('../services/seoDrift');
 const { decrypt } = require('../utils/encryption');
 
 const router = express.Router();
@@ -825,6 +826,32 @@ router.get('/clients/:clientId/core-web-vitals', async (req, res) => {
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message, code: err.code });
   }
+});
+
+// ── SEO drift baselining (Integration E) ───────────────────────────────────
+router.get('/clients/:clientId/drift/baselines', async (req, res) => {
+  try {
+    res.json({ baselines: await seoDrift.listBaselines(req.params.clientId) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/drift/baselines', async (req, res) => {
+  try {
+    res.json(await seoDrift.captureBaseline(req.params.clientId, req.body.label));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/clients/:clientId/drift/baselines/:id', async (req, res) => {
+  try {
+    await seoDrift.deleteBaseline(req.params.clientId, req.params.id);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/drift/compare', async (req, res) => {
+  try {
+    res.json(await seoDrift.compareToBaseline(req.params.clientId, req.query.baseline_id || null));
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 router.get('/clients/:clientId/site-audits/latest', async (req, res) => {
