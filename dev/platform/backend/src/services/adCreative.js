@@ -150,4 +150,52 @@ Produce exactly ${count} ad creative concepts. Vary the framework — don't retu
   }
 }
 
-module.exports = { generateBatch };
+// Single-concept preview — a throwaway "sample ad" from the brief text so the
+// AM sees the direction before committing to (and paying for) a full batch.
+// Same grounding as generateBatch, but one concept and NOT persisted.
+const SAMPLE_TOOL = {
+  ...TOOL,
+  input_schema: {
+    ...TOOL.input_schema,
+    properties: {
+      creatives: { ...TOOL.input_schema.properties.creatives, minItems: 1, maxItems: 1 },
+    },
+  },
+};
+
+async function sampleAd({ clientId, brief, platform = 'meta' }) {
+  const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+  const client = rows[0];
+  if (!client) throw new Error('Client not found');
+
+  const userPrompt = `Client: ${client.name}
+About: ${client.briefing_field || '(no briefing set)'}
+This month's focus: ${client.monthly_focus || '(none)'}
+
+Brief from the account manager:
+${brief || '(no brief yet — propose one strong on-brand concept)'}
+
+Platform target: ${platform}
+
+Produce ONE ad creative concept — the single strongest angle for this brief. This is a quick preview so the AM can see the direction before generating a full batch.`;
+
+  const response = await getClient().messages.create({
+    model: MODEL,
+    max_tokens: 1500,
+    system: require('./claude').cacheableSystem(SYSTEM + require('./playbooks').systemSuffix(['copywriting', 'ad-copy', 'visual-treatments'])),
+    tools: [SAMPLE_TOOL],
+    tool_choice: { type: 'tool', name: 'propose_ad_creatives' },
+    messages: [{ role: 'user', content: userPrompt }],
+  });
+  require('./costLog').recordClaudeCost({ model: MODEL, response, feature: 'ad_creative_sample', clientId: client.id });
+
+  const toolUse = response.content.find(b => b.type === 'tool_use' && b.name === 'propose_ad_creatives');
+  const c = toolUse?.input?.creatives?.[0];
+  if (!c) throw new Error('Claude did not return a sample ad');
+  return {
+    angle: c.angle || null, framework: c.framework || null, framework_rationale: c.framework_rationale || null,
+    headline: c.headline || null, body: c.body || null, cta: c.cta || null, visual_concept: c.visual_concept || null,
+  };
+}
+
+module.exports = { generateBatch, sampleAd };

@@ -8,7 +8,7 @@ import { roWrite } from '../../utils/readOnly';
 // opens the brief form. Selecting a batch sets it as active across all
 // subsequent steps (Concepts / Render / Approve / Launch read from
 // the shared usePaidPipeline state).
-export default function PaidBriefStep({ pipeline, onNext }) {
+export default function PaidBriefStep({ pipeline, onNext, clientId }) {
   const {
     batches, activeBatchId, selectBatch, deleteBatch,
     assets, showBrief, setShowBrief, generate, generating,
@@ -36,6 +36,7 @@ export default function PaidBriefStep({ pipeline, onNext }) {
       {showBrief && (
         <BriefModal
           assets={assets}
+          clientId={clientId}
           submitting={generating}
           onClose={() => setShowBrief(false)}
           onSubmit={generate}
