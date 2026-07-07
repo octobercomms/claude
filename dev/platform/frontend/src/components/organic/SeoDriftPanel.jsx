@@ -70,17 +70,32 @@ export default function SeoDriftPanel({ clientId }) {
     <div>
       <div className="mb-5">
         <div className="caption">SEO drift</div>
-        <h2 className="h2 mt-2">Baseline &amp; compare — catch regressions</h2>
+        <h2 className="h2 mt-2">Catch it when a change quietly hurts your SEO</h2>
         <p className="body-sm text-muted mt-2" style={{ maxWidth: 760 }}>
-          Capture a snapshot of rankings, site-audit health, backlinks and authority before a migration, redesign or big
-          content change. Later, compare the current state against it — every drop is severity-coded so nothing slips.
+          A <strong>baseline</strong> is a saved snapshot of where the site's SEO stands right now — its keyword
+          rankings, site-audit health, backlinks and domain authority. Think of it as a "before" photo.
+        </p>
+      </div>
+
+      {/* Plain-language how-it-works, because "baseline / drift" isn't obvious. */}
+      <div className="card mb-5" style={{ background: 'var(--surface-sunken)' }}>
+        <div className="caption mb-3">How it works</div>
+        <ol className="body-sm" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8, maxWidth: 820 }}>
+          <li><strong>Capture a baseline before a risky change</strong> — a site migration, a redesign, or a big content rewrite. Give it a name like "Pre-migration" so you remember what it marks.</li>
+          <li><strong>Make your change</strong> and let a week or two pass for rankings to settle.</li>
+          <li><strong>Hit "Compare to now"</strong> — it checks today's rankings, audit health, backlinks and authority against the snapshot and flags anything that dropped, colour-coded by how serious it is.</li>
+        </ol>
+        <p className="body-xs text-subtle mt-3" style={{ maxWidth: 820 }}>
+          The point: a migration or redesign can tank your rankings without anyone noticing for weeks. A baseline turns
+          "did that change hurt us?" into a one-click answer. If you're not mid-change, there's nothing to do here yet.
         </p>
       </div>
 
       <div className="card mb-5">
+        <div className="caption mb-2">Capture a baseline</div>
         <div className="row between center" style={{ gap: 10, flexWrap: 'wrap' }}>
           <div className="row" style={{ gap: 8, flex: 1, minWidth: 260 }}>
-            <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Baseline name (e.g. Pre-migration)"
+            <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Name it — e.g. Pre-migration, Before redesign"
               style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
             <button className="btn btn-primary" {...roWrite(readOnly, { onClick: capture, disabled: busy })}>
               {busy ? 'Working…' : '⦿ Capture baseline'}
