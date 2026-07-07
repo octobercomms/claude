@@ -18,6 +18,7 @@ import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import AiSeoPanel from '../components/organic/AiSeoPanel';
 import SuiteOverview from '../components/SuiteOverview';
 import SuiteReadiness from '../components/SuiteReadiness';
+import ProcessRail from '../components/ProcessRail';
 import FindPanel from '../components/organic/FindPanel';
 import BriefPanel from '../components/organic/BriefPanel';
 import DraftPanel from '../components/organic/DraftPanel';
@@ -565,6 +566,19 @@ export default function ClientSEOPage() {
     api.get(`/connectors/client/${id}`).then(r => setConnectors(Array.isArray(r) ? r : (r.connectors || []))).catch(() => {});
   }, [id]);
 
+  // Process Rails — derived ✓ status for the current Owned group's "work
+  // through these tabs" rail (Search / Optimise / Localise).
+  const railSuite =
+    ['perf_insights', 'keywords', 'gsc', 'ai_visibility', 'authority', 'backlinks', 'drift'].includes(activeTab) ? 'owned_search'
+    : ['site_audit', 'content_audit', 'keyword_footprint', 'quick_wins', 'ctr_boost', 'ai_seo', 'agent_ready'].includes(activeTab) ? 'owned_optimise'
+    : activeTab.startsWith('local_') ? 'owned_localise'
+    : null;
+  const [railStatus, setRailStatus] = useState({});
+  useEffect(() => {
+    if (!railSuite) return;
+    api.get(`/clients/${id}/suite-progress/${railSuite}`).then(r => setRailStatus(r.steps || {})).catch(() => {});
+  }, [railSuite, id]);
+
   useEffect(() => {
     loadRankMatrix();
   }, []);
@@ -673,6 +687,22 @@ export default function ClientSEOPage() {
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
           ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
         }));
+        // Groups that render as a numbered "work through these tabs" rail with
+        // derived ✓, rather than a flat sub-tab strip.
+        const RAIL_SUB = {
+          perf_insights: 'The headline read', keywords: 'What you rank for', gsc: 'Real Google clicks',
+          ai_visibility: 'Where AI cites you', authority: 'Domain strength', backlinks: 'Who links to you', drift: 'Track regressions',
+          site_audit: 'Find technical fixes', content_audit: 'Grade a page', keyword_footprint: 'Per-page focus', quick_wins: 'Page-2 keywords',
+          ctr_boost: 'Sharper titles', ai_seo: 'AI keyword targets', agent_ready: 'Agent readiness',
+          local_gap: 'Local competition gap', local_schema: 'Local schema', local_keywords: 'Buyer-intent keywords', local_xray: 'Rival teardown',
+          local_playbook: 'GBP ranking playbook', local_outliers: 'Ranking outliers', local_gbp: 'GBP posts',
+        };
+        const INFO_TABS = new Set(['perf_insights']); // read-outs, not "do" steps
+        const RAIL_GROUPS = new Set(['search', 'optimise', 'local']);
+        const railSteps = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel
+          ? { groupLabel: t.groupLabel }
+          : { key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: INFO_TABS.has(t.key) ? 'info' : (railStatus[t.key] || 'todo') });
+
         // Build (content) is a linear pipeline → render the shared Stepper
         // instead of a sub-tab strip, matching Shared's and Paid's Build.
         const CONTENT_KEYS = ['find', 'planning', 'draft', 'publish', 'promote'];
@@ -693,6 +723,10 @@ export default function ClientSEOPage() {
                   current={Math.max(1, CONTENT_KEYS.indexOf(activeTab) + 1)}
                   onStep={n => setActiveTab(CONTENT_KEYS[n - 1])}
                 />
+              </div>
+            ) : RAIL_GROUPS.has(currentGroup) ? (
+              <div className="stepper-block">
+                <ProcessRail numbered wrap activeKey={activeTab} onStep={setActiveTab} steps={railSteps} />
               </div>
             ) : (
               subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />
