@@ -17,7 +17,6 @@ import {
 import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import AiSeoPanel from '../components/organic/AiSeoPanel';
 import SuiteOverview from '../components/SuiteOverview';
-import SuiteReadiness from '../components/SuiteReadiness';
 import ProcessRail from '../components/ProcessRail';
 import FindPanel from '../components/organic/FindPanel';
 import BriefPanel from '../components/organic/BriefPanel';
@@ -702,6 +701,9 @@ export default function ClientSEOPage() {
         const railSteps = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel
           ? { groupLabel: t.groupLabel }
           : { key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: INFO_TABS.has(t.key) ? 'info' : (railStatus[t.key] || 'todo') });
+        // When the group has section labels (Search, Optimise), render each
+        // section as its own titled bento rather than inline separators.
+        const railGrouped = (SUB_TABS[currentGroup] || []).some(t => t.groupLabel);
 
         // Build (content) is a linear pipeline → render the shared Stepper
         // instead of a sub-tab strip, matching Shared's and Paid's Build.
@@ -726,7 +728,7 @@ export default function ClientSEOPage() {
               </div>
             ) : RAIL_GROUPS.has(currentGroup) ? (
               <div className="stepper-block">
-                <ProcessRail numbered wrap activeKey={activeTab} onStep={setActiveTab} steps={railSteps} />
+                <ProcessRail numbered wrap grouped={railGrouped} activeKey={activeTab} onStep={setActiveTab} steps={railSteps} />
               </div>
             ) : (
               subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />
@@ -741,12 +743,6 @@ export default function ClientSEOPage() {
           description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach the right people from your own domain."
           ctaLabel="View keyword ranks"
           onCta={() => setActiveTab('keywords')}
-          interstitial={<SuiteReadiness clientId={id} suite="owned_setup" title="Owned setup" steps={[
-            { key: 'keywords',  title: 'Keywords',   sub: 'Track what you rank for', onClick: () => setActiveTab('keywords') },
-            { key: 'audited',   title: 'Site audit', sub: 'Find what to fix',        onClick: () => setActiveTab('site_audit') },
-            { key: 'content',   title: 'Content',    sub: 'Publish new pages',       onClick: () => setActiveTab('find') },
-            { key: 'backlinks', title: 'Backlinks',  sub: 'Track your links',        onClick: () => setActiveTab('backlinks') },
-          ]} />}
           status={[
             { label: 'Keywords', value: keywords.length ? `${keywords.length} tracked` : 'None yet', ok: keywords.length > 0 },
             { label: 'Ranking', value: `${keywords.filter(k => k.current_position).length}`, ok: keywords.filter(k => k.current_position).length > 0 },

@@ -598,6 +598,21 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 .stepper.wrap .stepper-step.active { border-color: var(--accent); background: var(--accent-soft); }
 .stepper.wrap .stepper-num { width: 24px; height: 24px; font-size: 12px; }
 .stepper.wrap .stepper-t { font-size: 13px; }
+/* Grouped variant — each section (Measurement / Off-page / Monitoring) is its
+   own titled bento with the label above its steps; the bentos flow in a
+   responsive row. Used by the Owned Search / Optimise rails. */
+.stepper-grouped { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
+.stepper-group-card {
+  flex: 1 1 240px; min-width: 0;
+  border: var(--border-w) solid var(--card-border); border-radius: var(--r-md);
+  background: var(--surface); padding: 12px 14px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.stepper-group-heading {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--text-subtle);
+}
+.stepper-group-card .stepper.wrap { flex: 1; gap: 6px; }
 .stepper-step:hover { background: #fafafa; }
 .stepper-step.active { background: var(--accent-soft); }
 .stepper-num {
