@@ -21,18 +21,23 @@ export function usePaidPipeline({ clientId, clientName }) {
   const [showBrief, setShowBrief] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [shareUrl, setShareUrl] = useState(null);
+  const [loaded, setLoaded] = useState(false);
 
   async function refresh() {
-    const [bs, as] = await Promise.all([
-      api.get(`/ad-creatives/clients/${clientId}/batches`),
-      api.get(`/brand/clients/${clientId}/assets`),
-    ]);
-    setBatches(bs);
-    setAssets(as);
-    if (bs.length && !activeBatchId) {
-      setActiveBatchId(bs[0].id);
-      const cs = await api.get(`/ad-creatives/clients/${clientId}/creatives?batch_id=${bs[0].id}`);
-      setCreatives(cs);
+    try {
+      const [bs, as] = await Promise.all([
+        api.get(`/ad-creatives/clients/${clientId}/batches`),
+        api.get(`/brand/clients/${clientId}/assets`),
+      ]);
+      setBatches(bs);
+      setAssets(as);
+      if (bs.length && !activeBatchId) {
+        setActiveBatchId(bs[0].id);
+        const cs = await api.get(`/ad-creatives/clients/${clientId}/creatives?batch_id=${bs[0].id}`);
+        setCreatives(cs);
+      }
+    } finally {
+      setLoaded(true);
     }
   }
   useEffect(() => { refresh(); /* eslint-disable-line */ }, [clientId]);
@@ -138,7 +143,7 @@ export function usePaidPipeline({ clientId, clientName }) {
   const activeBatch = batches.find(b => b.id === activeBatchId) || null;
 
   return {
-    batches, creatives, activeBatchId, activeBatch, assets,
+    batches, creatives, activeBatchId, activeBatch, assets, loaded,
     showBrief, setShowBrief,
     generating, shareUrl, setShareUrl,
     selectBatch, generate, deleteCreative, updateCreative, deleteBatch,

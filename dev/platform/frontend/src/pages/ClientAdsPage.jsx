@@ -10,7 +10,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import Stepper from '../components/Stepper';
 import ProcessRail from '../components/ProcessRail';
-import SuiteReadiness from '../components/SuiteReadiness';
 import { useTabParam } from '../hooks/useTabParam';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -268,12 +267,6 @@ export default function ClientAdsPage() {
           description="Live ROAS and profit per campaign, a weekly list of exactly what to change, and a one-line brief turned into on-brand ads ready to launch. No designer, no media-buyer spreadsheet."
           ctaLabel="View live performance"
           onCta={() => setTab('performance')}
-          interstitial={<SuiteReadiness clientId={id} suite="paid_setup" title="Paid setup" steps={[
-            { key: 'connected', title: 'Connect',    sub: 'Link Google / Meta ads', onClick: () => setTab('performance') },
-            { key: 'briefed',   title: 'Brief',      sub: 'Get the strategist read', onClick: () => setTab('strategist') },
-            { key: 'audiences', title: 'Audiences',  sub: 'Build a target list',     onClick: () => setTab('audiences') },
-            { key: 'creative',  title: 'Create ads', sub: 'Generate concepts',       onClick: () => setTab('brief') },
-          ]} />}
           status={[
             { label: 'Google Ads', value: hasGoogle ? `${googleEntries.filter(g => !g.error).length} account${googleEntries.filter(g => !g.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasGoogle },
             { label: 'Meta Ads',   value: hasMeta ? `${metaEntries.filter(m => !m.error).length} account${metaEntries.filter(m => !m.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasMeta },
