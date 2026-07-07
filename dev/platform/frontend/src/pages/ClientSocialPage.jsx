@@ -624,7 +624,7 @@ export default function ClientSocialPage() {
             <div className="h2 mt-2">Whose hooks to model against</div>
           </div>
           <p className="body" style={{ maxWidth: 640 }}>
-            Add 3–6 competitor handles. Each week we scrape their top-performing posts and pull regional
+            Add 3–10 competitor handles. Each week we scrape their top-performing posts and pull regional
             trending sounds — both feed your next Brainstorm so Claude models against what's working in your niche.
           </p>
           <div id="competitor-editor-anchor">
@@ -1770,7 +1770,7 @@ function CompetitorEditor({ competitors, onSave }) {
   const [editing, setEditing] = useState(false);
   function add() {
     if (!draft.trim()) return;
-    const next = Array.from(new Set([...competitors, draft.trim()])).slice(0, 6);
+    const next = Array.from(new Set([...competitors, draft.trim()])).slice(0, 10);
     onSave(next);
     setDraft('');
   }
@@ -1788,7 +1788,7 @@ function CompetitorEditor({ competitors, onSave }) {
         )}
       </div>
       {!competitors.length && !editing && (
-        <p className="body-sm text-subtle">No competitors yet — add 3–6 handles to start tracking.</p>
+        <p className="body-sm text-subtle">No competitors yet — add 3–10 handles to start tracking.</p>
       )}
       <div className="row wrap" style={{ gap: 6, alignItems: 'center' }}>
         {competitors.map(c => (
