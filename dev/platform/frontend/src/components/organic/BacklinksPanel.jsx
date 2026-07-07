@@ -122,6 +122,10 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
   const history = trend?.history || [];
   const rdSeries = history.map(h => Number(h.referring_domains_total) || 0);
   const hasSnapshot = !!latest;
+  // Anchor text + dofollow split are LIVE pulls (below), independent of the
+  // stored 3-day snapshot. When they've loaded but no summary snapshot exists
+  // yet, don't show the scary "nothing here" banner alongside real data.
+  const hasLiveData = !!(anchors && anchors.length) || !!split;
 
   // Anchor roll-up by brand / commercial / other.
   const brandTokens = (clientName || '')
@@ -155,10 +159,17 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
         <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading snapshots…</div>
       )}
 
-      {!loading && !hasSnapshot && (
+      {!loading && !hasSnapshot && !hasLiveData && (
         <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
           No backlink snapshot captured yet. The 3-day sweep will populate this automatically, or hit
           <strong> Refresh snapshot</strong> to run one now.
+        </div>
+      )}
+      {!loading && !hasSnapshot && hasLiveData && (
+        <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
+          Headline totals, the trend and the referring-domains table populate from the stored 3-day snapshot —
+          none captured yet, so hit <strong>Refresh snapshot</strong> to store one. The anchor text and dofollow
+          split below are pulled live.
         </div>
       )}
 

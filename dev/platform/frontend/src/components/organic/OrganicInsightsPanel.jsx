@@ -88,7 +88,7 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
             </div>
           )}
           {onOpenKeywords && (
-            <button onClick={onOpenKeywords} className="btn btn-ghost btn-sm" style={{ marginTop: 'var(--s3)', color: 'var(--accent)', padding: 0 }}>
+            <button onClick={onOpenKeywords} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s3)' }}>
               See all keywords →
             </button>
           )}
