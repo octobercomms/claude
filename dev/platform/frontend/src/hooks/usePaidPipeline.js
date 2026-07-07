@@ -141,6 +141,22 @@ export function usePaidPipeline({ clientId, clientName }) {
     } catch (e) { toast(`Image render failed: ${e.message}`, 'error'); }
   }
 
+  // Attach the brand's own image/video to a creative (multipart upload),
+  // then append it to that creative's images like any rendered asset.
+  async function uploadMedia(creativeId, file, aspect) {
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      if (aspect) fd.append('aspect_ratio', aspect);
+      const img = await api.postForm(`/ad-creatives/creatives/${creativeId}/upload`, fd);
+      setCreatives(prev => prev.map(c => c.id === creativeId
+        ? { ...c, images: [...(c.images || []), img] }
+        : c));
+      toast('Uploaded.', 'success');
+      return img;
+    } catch (e) { toast(`Upload failed: ${e.message}`, 'error'); }
+  }
+
   async function deleteImage(imageId, creativeId) {
     try {
       await api.delete(`/ad-creatives/images/${imageId}`);
@@ -186,6 +202,6 @@ export function usePaidPipeline({ clientId, clientName }) {
     showBrief, setShowBrief,
     generating, shareUrl, setShareUrl,
     selectBatch, generate, deleteCreative, updateCreative, deleteBatch,
-    renderImages, deleteImage, shareBatchForApproval, fanOutImage,
+    renderImages, deleteImage, shareBatchForApproval, fanOutImage, uploadMedia,
   };
 }

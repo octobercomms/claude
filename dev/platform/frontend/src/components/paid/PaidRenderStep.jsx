@@ -7,7 +7,7 @@ import ExampleBanner from './ExampleBanner';
 // by default (renderMode='always-open') so AMs can fire off images +
 // videos across aspect ratios without an extra click per card.
 export default function PaidRenderStep({ pipeline, onNext, onBack }) {
-  const { activeBatch, creatives, renderImages, deleteImage, fanOutImage, deleteCreative } = pipeline;
+  const { activeBatch, creatives, renderImages, deleteImage, fanOutImage, deleteCreative, uploadMedia } = pipeline;
 
   return (
     <PipelineStep
@@ -31,7 +31,8 @@ export default function PaidRenderStep({ pipeline, onNext, onBack }) {
               onDelete={() => deleteCreative(c.id)}
               onRender={(payload) => renderImages(c.id, payload)}
               onDeleteImage={(imgId) => deleteImage(imgId, c.id)}
-              onFanOut={(imgId) => fanOutImage(imgId, c.id)} />
+              onFanOut={(imgId) => fanOutImage(imgId, c.id)}
+              onUpload={(file, aspect) => uploadMedia(c.id, file, aspect)} />
           ))}
         </div>
       )}

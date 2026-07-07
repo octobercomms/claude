@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -116,6 +116,21 @@ export default function AdCreativePanel({ clientId, clientName }) {
     }
   }
 
+  async function uploadMedia(creativeId, file, aspect) {
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      if (aspect) fd.append('aspect_ratio', aspect);
+      const img = await api.postForm(`/ad-creatives/creatives/${creativeId}/upload`, fd);
+      setCreatives(prev => prev.map(c => c.id === creativeId
+        ? { ...c, images: [...(c.images || []), img] }
+        : c));
+      toast('Uploaded.', 'success');
+    } catch (e) {
+      toast(`Upload failed: ${e.message}`, 'error');
+    }
+  }
+
   // Adobe Photoshop generative resize — take one image we already have
   // and ask Adobe to produce versions in every other aspect ratio. The
   // result returns as new image rows on the same creative.
@@ -230,6 +245,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
                 onRender={(payload) => renderImages(c.id, payload)}
                 onDeleteImage={(imgId) => deleteImage(imgId, c.id)}
                 onFanOut={(imgId) => fanOutImage(imgId, c.id)}
+                onUpload={(file, aspect) => uploadMedia(c.id, file, aspect)}
               />
             ))}
           </div>
@@ -381,7 +397,7 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, clientId }) 
 // (render controls always shown, no toggle — used by the Pipeline → Render
 // step where renders are the whole point) | 'hidden' (no render UI at
 // all — used by Pipeline → Concepts where the AM is reviewing copy only)
-export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut, renderMode = 'auto' }) {
+export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut, onUpload, renderMode = 'auto' }) {
   const { readOnly } = useAuth();
   const [showRender, setShowRender] = useState(renderMode === 'always-open');
   const [mode, setMode] = useState('image'); // image | video
@@ -392,6 +408,18 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
   const [fromImageId, setFromImageId] = useState('');
   const [styleBrief, setStyleBrief] = useState('');
   const [rendering, setRendering] = useState(false);
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !onUpload) return;
+    setUploading(true);
+    try {
+      await onUpload(file, await detectAspectRatio(file));
+    } finally { setUploading(false); }
+  }
 
   // Images on this creative that can seed an image-to-video render.
   const seedableImages = (creative.images || []).filter(i => (i.media_type || 'image') === 'image');
@@ -467,11 +495,21 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
         </div>
       )}
 
-      {renderMode === 'auto' && (
-        <div style={{ marginTop: 12 }}>
-          <button onClick={() => setShowRender(s => !s)} className="btn btn-secondary btn-sm">
-            {showRender ? 'Cancel' : 'Render'}
-          </button>
+      {(onUpload || renderMode === 'auto') && renderMode !== 'hidden' && (
+        <div style={{ marginTop: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {renderMode === 'auto' && (
+            <button onClick={() => setShowRender(s => !s)} className="btn btn-secondary btn-sm">
+              {showRender ? 'Cancel' : 'Render'}
+            </button>
+          )}
+          {onUpload && (
+            <>
+              <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={handleUpload} />
+              <button onClick={() => fileRef.current?.click()} disabled={uploading} className="btn btn-secondary btn-sm" title="Attach the brand's own image or video instead of an AI render">
+                {uploading ? 'Uploading…' : '⬆ Upload your own'}
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -571,6 +609,27 @@ function aspectStyle(ratio) {
   if (ratio === '4:5') return { width: 64, height: 80 };
   if (ratio === '16:9') return { width: 110, height: 62 };
   return { width: 78, height: 78 };
+}
+
+// Best-effort: read an uploaded image's real dimensions and snap to the nearest
+// ad aspect token so the thumbnail renders at the right shape. Videos (and any
+// read failure) fall back to 'custom', which the thumb draws square-ish.
+function detectAspectRatio(file) {
+  return new Promise(resolve => {
+    if (!file || !file.type?.startsWith('image/')) return resolve('custom');
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const r = img.naturalWidth / (img.naturalHeight || 1);
+      const opts = [['1:1', 1], ['4:5', 0.8], ['9:16', 0.5625], ['16:9', 1.7778]];
+      let best = 'custom', bestD = Infinity;
+      for (const [tok, val] of opts) { const d = Math.abs(val - r); if (d < bestD) { bestD = d; best = tok; } }
+      resolve(best);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve('custom'); };
+    img.src = url;
+  });
 }
 
 
