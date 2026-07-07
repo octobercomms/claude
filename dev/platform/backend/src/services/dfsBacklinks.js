@@ -7,9 +7,9 @@
 // with a domain.
 //
 // GATING: the DFS Backlinks API went pay-as-you-go for everyone on
-// 1 July 2026. Before then isUnlocked('backlinks') is false and this
-// throws a friendly 503 instead of a billing error. Post-cutover it's a
-// no-op guard. See docs/omi/dataforseo-july-2026.md.
+// 1 July 2026. Before then isUnlocked() is false and this throws a friendly
+// 503 instead of a billing error. Post-cutover it's a no-op guard.
+// See docs/omi/dataforseo-july-2026.md.
 
 const pool = require('../db');
 const dataForSEO = require('../connectors/dataforseo');
@@ -19,7 +19,7 @@ const { isUnlocked } = require('./dfsAvailability');
 // small summary of what was written so the scheduler can log it and the
 // (later) manual "refresh now" button can report progress.
 async function pullBacklinks(clientId) {
-  if (!isUnlocked('backlinks')) {
+  if (!isUnlocked()) {
     const err = new Error('DataForSEO Backlinks is gated until 1 July 2026.');
     err.status = 503;
     throw err;
@@ -115,7 +115,7 @@ async function pullBacklinks(clientId) {
 // Runs clients sequentially so we don't hammer DFS with a burst of
 // concurrent live calls (each does 3 requests).
 async function pullBacklinksAllClients() {
-  if (!isUnlocked('backlinks')) return { skipped: true, clients: 0 };
+  if (!isUnlocked()) return { skipped: true, clients: 0 };
   const { rows } = await pool.query(
     "SELECT id, domain FROM clients WHERE active = TRUE AND domain IS NOT NULL AND domain != ''"
   );

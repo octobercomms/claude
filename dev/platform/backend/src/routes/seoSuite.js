@@ -1036,7 +1036,7 @@ router.get('/clients/:clientId/keyword-footprint', async (req, res) => {
 const { isUnlocked } = require('../services/dfsAvailability');
 
 router.get('/clients/:clientId/anchor-text', agencyOnly, async (req, res) => {
-  if (!isUnlocked('backlinks')) {
+  if (!isUnlocked()) {
     return res.status(503).json({
       error: 'Backlinks anchor-text is gated until DataForSEO Backlinks unlocks on 1 July 2026.',
     });
@@ -1050,7 +1050,7 @@ router.get('/clients/:clientId/anchor-text', agencyOnly, async (req, res) => {
 });
 
 router.get('/clients/:clientId/dofollow-split', agencyOnly, async (req, res) => {
-  if (!isUnlocked('backlinks')) {
+  if (!isUnlocked()) {
     return res.status(503).json({
       error: 'Backlinks dofollow split is gated until DataForSEO Backlinks unlocks on 1 July 2026.',
     });

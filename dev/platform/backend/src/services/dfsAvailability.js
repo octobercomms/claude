@@ -15,8 +15,14 @@ const ENABLED_FROM = new Date('2026-07-01T00:00:00Z');
 // cutover. Every endpoint family under these prefixes is gated.
 const GATED_PREFIXES = ['/backlinks/', '/llm_mentions/'];
 
+// `now` is the comparison instant. Guard against callers accidentally passing
+// something that isn't a valid Date (e.g. a family-name string like
+// 'backlinks'): coercing that into `>=` yields NaN, which silently reads as
+// "locked forever" and never recovers after the cutover. An invalid arg falls
+// back to the real current time.
 function isUnlocked(now = new Date()) {
-  return now >= ENABLED_FROM;
+  const at = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
+  return at >= ENABLED_FROM;
 }
 
 function isEndpointGated(path) {
