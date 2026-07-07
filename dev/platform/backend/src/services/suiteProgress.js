@@ -28,6 +28,21 @@ const DERIVERS = {
       return !!(rows[0] && (rows[0].has_domains || rows[0].has_runs));
     },
   },
+
+  // Suite-level readiness — the major stages of each suite, for the Overview
+  // "N of M set up" bar (not every tool; the headline journey).
+  paid_setup: {
+    connected: (id) => boolQuery(`SELECT 1 FROM connectors WHERE client_id = $1 AND connector_type IN ('google_ads','meta_ads') AND status = 'active' LIMIT 1`, [id]),
+    briefed: (id) => boolQuery(`SELECT 1 FROM strategist_reports WHERE client_id = $1 AND status = 'completed' LIMIT 1`, [id]),
+    audiences: (id) => boolQuery(`SELECT 1 FROM audience_segments WHERE client_id = $1 LIMIT 1`, [id]),
+    creative: (id) => boolQuery(`SELECT 1 FROM ad_creative_batches WHERE client_id = $1 LIMIT 1`, [id]),
+  },
+  owned_setup: {
+    keywords: (id) => boolQuery(`SELECT 1 FROM seo_keywords WHERE client_id = $1 AND active = true LIMIT 1`, [id]),
+    audited: (id) => boolQuery(`SELECT 1 FROM site_audits WHERE client_id = $1 AND status = 'complete' LIMIT 1`, [id]),
+    content: (id) => boolQuery(`SELECT 1 FROM content_drafts WHERE client_id = $1 LIMIT 1`, [id]),
+    backlinks: (id) => boolQuery(`SELECT 1 FROM dfs_backlinks_summary WHERE client_id = $1 LIMIT 1`, [id]),
+  },
 };
 
 // Returns { suite, steps: { <key>: 'done' | 'todo' } } for the derivable steps.
