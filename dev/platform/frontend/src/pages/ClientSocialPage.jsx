@@ -423,10 +423,10 @@ export default function ClientSocialPage() {
             { key: 'discover', label: 'Discover' },
           ],
           measure: [
-            { key: 'perf_insights', label: 'Insights' },
-            { key: 'performance',   label: 'Winners' },
-            { key: 'competitors',   label: 'Competitors' },
-            { key: 'audit',         label: 'AI Audit' },
+            { key: 'perf_insights', label: 'Review' },
+            { key: 'performance',   label: 'Learn' },
+            { key: 'competitors',   label: 'Compare' },
+            { key: 'audit',         label: 'Improve' },
           ],
         };
         const GROUP_OF = {
@@ -443,10 +443,10 @@ export default function ClientSocialPage() {
         const RAIL_SUB = {
           dm_bot: 'Auto-reply brain & drafts',
           discover: 'Find & engage accounts',
-          perf_insights: 'Headline performance read',
-          performance: 'Your top posts',
+          perf_insights: 'Your headline numbers',
+          performance: 'Top posts & hooks',
           competitors: 'Benchmark vs rivals',
-          audit: 'AI recommendations',
+          audit: 'What to change next',
         };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
@@ -595,20 +595,18 @@ export default function ClientSocialPage() {
         </SocialLearnStep>
       )}
 
-      {/* PERFORMANCE — Winners, framework breakdown, Hook Vault entry. */}
+      {/* LEARN — top posts, framework breakdown, and the Hook Vault inline so
+          "spot a winner → reuse its hook" reads as one page. */}
       {socialTab === 'performance' && (
         <div className="stack-lg">
-          <div className="row between center wrap">
-            <div>
-              <div className="caption">Performance</div>
-              <div className="h2 mt-2">Winners &amp; Hook Vault</div>
-            </div>
-            <UiButton variant="secondary" onClick={() => setHookVaultOpen(true)}>✦ Open Hook Vault</UiButton>
+          <div>
+            <div className="caption">Learn</div>
+            <div className="h2 mt-2">What worked — and the hooks to reuse</div>
           </div>
           <p className="body" style={{ maxWidth: 640 }}>
-            Your best-performing published posts surface here as <strong>winners</strong> — ranked by reach and
-            engagement — and the framework breakdown shows which hook styles land. Winning hooks feed the Hook
-            Vault for reuse across clients.
+            Your best-performing published posts, ranked by reach and engagement, with the framework breakdown
+            showing which hook styles land. Bank the winning hooks in the <strong>Vault</strong> below and reuse
+            them across posts and clients.
           </p>
           {(winners?.length || frameworkBreakdown?.length) ? (
             <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
@@ -617,6 +615,11 @@ export default function ClientSocialPage() {
               <ExampleWinners />
             </ExampleBlock>
           )}
+
+          <div>
+            <div className="caption caption-muted mb-3">✦ Hook Vault — winning hooks, ready to reuse</div>
+            <HookVaultList clientId={id} onUse={(hook) => setPlannerOpen({ planId: null, seedHook: hook })} />
+          </div>
         </div>
       )}
 
@@ -1419,7 +1422,9 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
 // that opens the planner chat with the hook pre-seeded as the brief.
 // Search runs server-side via ILIKE so a vault with thousands of hooks
 // stays snappy.
-function HookVaultModal({ clientId, onClose, onUse }) {
+// The Hook Vault search + list, with no modal chrome — so it can render both
+// inline on the Learn tab and inside HookVaultModal.
+function HookVaultList({ clientId, onUse }) {
   const [hooks, setHooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [framework, setFramework] = useState('');
@@ -1442,6 +1447,54 @@ function HookVaultModal({ clientId, onClose, onUse }) {
   }, [clientId, framework, searchDebounced]);
 
   return (
+    <>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search hooks…"
+          style={{ flex: 1, padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 13 }} />
+        <select value={framework} onChange={e => setFramework(e.target.value)}
+          style={{ padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
+          <option value="">All frameworks</option>
+          <option value="Hook-Story-Offer">Hook-Story-Offer</option>
+          <option value="AIDA">AIDA</option>
+          <option value="PAS">PAS</option>
+          <option value="UGC">UGC</option>
+        </select>
+      </div>
+      {loading ? (
+        <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 12 }}>Loading…</div>
+      ) : !hooks.length ? (
+        <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 12 }}>
+          No hooks yet. Generate a brainstorm batch — every hook you save lands here.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {hooks.map((h, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+              <div style={{ flex: 1, marginRight: 12 }}>
+                <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3, display: 'flex', gap: 8 }}>
+                  {h.framework && <span>{h.framework}</span>}
+                  <span>·</span>
+                  <span>{h.platform} / {h.kind}</span>
+                  {h.best_reach > 0 && (<><span>·</span><span>best {formatNum(h.best_reach)} reach</span></>)}
+                  {h.use_count > 1 && (<><span>·</span><span>used {h.use_count}×</span></>)}
+                </div>
+              </div>
+              <button type="button" onClick={() => onUse(h.hook)}
+                style={{ background: 'var(--text)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                Use this →
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function HookVaultModal({ clientId, onClose, onUse }) {
+  return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div style={{ background: 'white', borderRadius: 'var(--r-sm)', width: 760, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -1451,47 +1504,7 @@ function HookVaultModal({ clientId, onClose, onUse }) {
           </div>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search hooks…"
-            style={{ flex: 1, padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 13 }} />
-          <select value={framework} onChange={e => setFramework(e.target.value)}
-            style={{ padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
-            <option value="">All frameworks</option>
-            <option value="Hook-Story-Offer">Hook-Story-Offer</option>
-            <option value="AIDA">AIDA</option>
-            <option value="PAS">PAS</option>
-            <option value="UGC">UGC</option>
-          </select>
-        </div>
-        {loading ? (
-          <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 12 }}>Loading…</div>
-        ) : !hooks.length ? (
-          <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 12 }}>
-            No hooks yet. Generate a brainstorm batch — every hook you save lands here.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {hooks.map((h, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-                <div style={{ flex: 1, marginRight: 12 }}>
-                  <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3, display: 'flex', gap: 8 }}>
-                    {h.framework && <span>{h.framework}</span>}
-                    <span>·</span>
-                    <span>{h.platform} / {h.kind}</span>
-                    {h.best_reach > 0 && (<><span>·</span><span>best {formatNum(h.best_reach)} reach</span></>)}
-                    {h.use_count > 1 && (<><span>·</span><span>used {h.use_count}×</span></>)}
-                  </div>
-                </div>
-                <button type="button" onClick={() => onUse(h.hook)}
-                  style={{ background: 'var(--text)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  Use this →
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <HookVaultList clientId={clientId} onUse={onUse} />
       </div>
     </div>
   );

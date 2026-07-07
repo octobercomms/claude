@@ -3,7 +3,7 @@
 // read) and shows a structured audit with recommendations. Built on the
 // engagement data OMI already ingests — no third-party connector.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
@@ -42,10 +42,21 @@ export default function SocialAuditPanel({ clientId }) {
 
   async function run() {
     setRunning(true);
-    try { const r = await api.post(`/social/clients/${clientId}/audit/run`, {}); setAudit(r.audit); toast('Audit complete.', 'success'); }
+    try { const r = await api.post(`/social/clients/${clientId}/audit/run`, {}); setAudit(r.audit); toast('Recommendations refreshed.', 'success'); }
     catch (e) { toast(e.message, 'error'); }
     finally { setRunning(false); }
   }
+
+  // Keep it fresh without a per-visit AI spend: if an audit already exists but
+  // is over a week old, refresh it once when the tab is opened. First-time runs
+  // stay manual — they need a few published posts to be worth anything.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (!loaded || running || autoRan.current || !audit?.generated_at) return;
+    const ageDays = (Date.now() - new Date(audit.generated_at).getTime()) / 86400000;
+    if (ageDays > 7) { autoRan.current = true; run(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, audit]);
 
   const d = audit?.data || {};
 
@@ -53,18 +64,19 @@ export default function SocialAuditPanel({ clientId }) {
     <div className="stack-lg">
       <div className="row between center" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div className="caption">AI Audit</div>
-          <div className="h2 mt-2">How this account is actually performing</div>
+          <div className="caption">Improve</div>
+          <div className="h2 mt-2">What to change next</div>
         </div>
-        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: running })}>{running ? 'Auditing…' : (audit ? 'Re-run audit' : 'Run audit')}</button>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: running })}>{running ? 'Working…' : (audit ? '↻ Refresh' : 'Get recommendations')}</button>
       </div>
       <p className="body" style={{ maxWidth: 640 }}>
         Claude reads your own published-post performance — content mix, best posting times, what's working, and how you
-        compare to competitors — and gives you a sharp, data-grounded audit. Runs on the engagement OMI already pulls daily.
+        compare to competitors — and tells you what to change next. Runs on the engagement OMI already pulls daily, and
+        refreshes itself weekly once you've run it the first time.
       </p>
 
       {!loaded ? <div className="text-subtle">Loading…</div> : !audit ? (
-        <div className="text-subtle">No audit yet — run one once a few posts are published and marked published.</div>
+        <div className="text-subtle">No recommendations yet — hit <strong>Get recommendations</strong> once a few posts are published.</div>
       ) : (
         <div className="stack-lg">
           <div className="body-xs text-subtle">Last run {fmt(audit.generated_at)} · {audit.post_count} posts · last {audit.period_days} days</div>
