@@ -156,6 +156,16 @@ router.put('/:id', async (req, res) => {
 
 // Research the client's domain via Claude and draft an "About this client"
 // paragraph. The frontend opens this in a draft-and-accept modal.
+// Quick Start — fill as much empty client setup as possible from existing data
+// in one call (briefing, monthly focus, competitors + proposed keywords).
+router.post('/:id/kickstart', async (req, res) => {
+  try {
+    res.json(await require('../services/clientKickstart').kickstart(req.params.id));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.post('/:id/complete-briefing', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
