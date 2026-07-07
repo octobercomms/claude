@@ -23,6 +23,7 @@ export default function AudiencesPanel({ clientId }) {
   const [editing, setEditing] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [gsDismissed, setGsDismissed] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -221,7 +222,63 @@ export default function AudiencesPanel({ clientId }) {
       {showUpload && (
         <CustomerListModal uploading={uploading} onClose={() => setShowUpload(false)} onUpload={uploadCustomerList} />
       )}
+
+      {/* First-run: no first-party data and no saved segments. Dim the empty
+          panel behind a modal that names the single best first action. */}
+      {!top10.length && !segments.length && !showUpload && !editing && !gsDismissed && (
+        <GetStartedModal
+          hasShopify={!distribution?.note}
+          onUpload={() => setShowUpload(true)}
+          onConnectShopify={refreshDistribution}
+          onClose={() => setGsDismissed(true)}
+          refreshing={refreshing}
+        />
+      )}
     </>
+  );
+}
+
+// Shown when Audiences has nothing to work with yet. Points the AM straight at
+// the highest-leverage first move — upload a buyer list — with connecting
+// Shopify as the alternative. Uses the shared modal chrome so it dims the panel.
+function GetStartedModal({ hasShopify, onUpload, onConnectShopify, onClose, refreshing }) {
+  return (
+    <div className="modal-backdrop">
+      <div className="modal suite-paid" style={{ maxWidth: 520 }}>
+        <div className="modal-head">
+          <h2 className="h2">Get started with Audiences</h2>
+          <button type="button" className="modal-close" onClick={onClose} title="Dismiss">×</button>
+        </div>
+        <p className="body-sm mb-4">
+          There's no audience data here yet. The fastest way to a high-converting Meta audience is a
+          <strong> value-based lookalike</strong> — and that starts from your own buyers.
+        </p>
+        <div className="stack" style={{ gap: 10 }}>
+          <Card variant="accent">
+            <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
+                <h3 className="h3">1 · Upload a customer list</h3>
+                <p className="body-sm mt-1">A CSV of buyers (email / phone). Hashed on upload, exported as a Meta Custom Audience — seed your 1% lookalike from it. <strong>Best first move.</strong></p>
+              </div>
+              <Button onClick={onUpload}>↑ Upload list</Button>
+            </div>
+          </Card>
+          <Card>
+            <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
+                <h3 className="h3">2 · Or pull from Shopify</h3>
+                <p className="body-sm mt-1">{hasShopify
+                  ? 'Map where your customers are by postcode from the last 12 months of orders.'
+                  : 'Connect a Shopify store on the Setup → Connectors tab, then refresh to map customers by postcode.'}</p>
+              </div>
+              <Button variant="secondary" onClick={onConnectShopify} disabled={refreshing || !hasShopify}>
+                {refreshing ? 'Refreshing…' : '↻ Refresh'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
 

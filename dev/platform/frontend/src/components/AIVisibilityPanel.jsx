@@ -26,6 +26,7 @@ export default function AIVisibilityPanel({ clientId }) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const [prompts, setPrompts] = useState([]);
+  const [tipsOpen, setTipsOpen] = useState(false);
   const [runs, setRuns] = useState([]);
   const [summary, setSummary] = useState(null);
   const [trend, setTrend] = useState([]);
@@ -144,6 +145,32 @@ export default function AIVisibilityPanel({ clientId }) {
         <Button variant="secondary" {...roWrite(readOnly, { onClick: generatePrompts, disabled: generating })}>
           {generating ? 'Generating…' : '✨ Generate prompts with Claude'}
         </Button>
+      </div>
+
+      {/* How to actually move these numbers — the panel measures, this tells
+          the AM what to do about it. Grounded in answer-engine best practice. */}
+      <div className="card mb-6">
+        <button type="button" onClick={() => setTipsOpen(o => !o)}
+          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div>
+            <div className="caption">Playbook</div>
+            <div className="h3 mt-1">How to improve these numbers</div>
+          </div>
+          <span className="chip chip-neutral">{tipsOpen ? 'Hide' : 'Show'}</span>
+        </button>
+        {tipsOpen && (
+          <div className="mt-4">
+            <p className="body-sm text-muted mb-3">Answer engines cite the clearest, best-sourced answer to the exact question — not the highest-ranked page. To get mentioned more:</p>
+            <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 10 }}>
+              <li className="body-sm"><strong>Answer the exact prompts.</strong> Take the prompts below where you're <em>not</em> mentioned and publish a page that answers each one directly — a question-shaped H2 with a self-contained ~130–170 word answer an engine can lift verbatim. (Use Build → the SXO / Find tools to turn a prompt into a brief.)</li>
+              <li className="body-sm"><strong>Be the source engines trust.</strong> LLMs lean on Wikipedia, Reddit, YouTube and authoritative industry press. Earn mentions and citations there, not just on your own site.</li>
+              <li className="body-sm"><strong>Structure for machines.</strong> Add FAQ / Article / Organization schema, clear headings, and tables/lists. Well-structured pages are far easier to quote.</li>
+              <li className="body-sm"><strong>Be a clear entity.</strong> Consistent brand, product and author names across the web (schema <code>knowsAbout</code>, an About/Author page) help engines attribute answers to you.</li>
+              <li className="body-sm"><strong>Earn trust (E‑E‑A‑T).</strong> Named authors, cited sources, visible dates. Engines prefer current, trustworthy pages — the Content Audit grades this.</li>
+              <li className="body-sm"><strong>Skip the myths.</strong> An <code>llms.txt</code> file isn't a citation lever and AI-specific keyword-stuffing doesn't work — quotable, well-sourced answers are what get cited.</li>
+            </ol>
+          </div>
+        )}
       </div>
 
       {!prompts.length && !suggested && (

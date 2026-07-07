@@ -35,6 +35,7 @@ export default function SocialDmBotPanel({ clientId }) {
   const [igId, setIgId] = useState('');
   const [pageToken, setPageToken] = useState('');
   const [keywords, setKeywords] = useState('');
+  const [guideOpen, setGuideOpen] = useState(false);
   const [publicReply, setPublicReply] = useState(false);
   const [publicReplyText, setPublicReplyText] = useState('');
   const [savingLive, setSavingLive] = useState(false);
@@ -117,6 +118,33 @@ export default function SocialDmBotPanel({ clientId }) {
           Configure how the bot speaks for this brand, generate ready reply templates, and test the exact reply it would send.
           This is the persona + replies, owned here — wiring it to live auto-send via Meta is a later phase.
         </p>
+      </div>
+
+      {/* Collapsible setup guide — the panel packs a lot in; this makes the
+          order of operations and what's stored explicit. */}
+      <div className="card">
+        <button type="button" onClick={() => setGuideOpen(o => !o)}
+          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div>
+            <div className="caption">Setup guide</div>
+            <div className="h3 mt-1">How to set up the DM bot</div>
+          </div>
+          <span className="chip chip-neutral">{guideOpen ? 'Hide' : 'Show'}</span>
+        </button>
+        {guideOpen && (
+          <div className="mt-4">
+            <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 10 }}>
+              <li className="body-sm"><strong>Set the persona.</strong> In <em>Bot persona</em> below, describe the brand's tone, sign-off and the max words per reply. Everything the bot writes follows this.</li>
+              <li className="body-sm"><strong>Test a reply.</strong> Paste a message a follower might send in <em>Test a reply</em> — you see the exact response before anything goes live. Tweak the persona until it sounds right.</li>
+              <li className="body-sm"><strong>Generate templates.</strong> In <em>Reply templates</em>, generate ready-made replies for common triggers (price, link, FAQ). Copy them, or keep them as the bot's fallbacks.</li>
+              <li className="body-sm"><strong>Go live (optional).</strong> In <em>Live auto-send</em>, connect the Instagram account (Meta), set the comment trigger keywords (blank = any comment), and optionally post a public reply too. Until you connect Meta, the bot only drafts — it never sends.</li>
+              <li className="body-sm"><strong>Watch activity.</strong> Once live, every incoming message and the reply sent are logged under <em>Recent activity</em> with their status.</li>
+            </ol>
+            <p className="body-xs text-subtle mt-3">
+              <strong>Does it store requests and replies?</strong> Yes — once live auto-send is connected, each inbound message (→) and outbound reply (↩) is recorded in Recent activity. Before that, nothing is sent or stored; the Test panel is throwaway.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="dmbot-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
