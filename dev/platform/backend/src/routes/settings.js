@@ -7,6 +7,7 @@ const { encrypt, decrypt } = require('../utils/encryption');
 const nodemailer = require('nodemailer');
 const dataforseo = require('../connectors/dataforseo');
 const flaresolverr = require('../services/flaresolverr');
+const pageSpeed = require('../services/pageSpeed');
 
 const bcrypt = require('bcryptjs');
 
@@ -38,6 +39,10 @@ const SETTINGS_KEYS = [
   // fetch Instagram reels as logged-in-you (IG blocks anonymous downloads).
   'IG_SESSIONID',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
+  // Google PageSpeed Insights API key (Tier-0, key only) — pulls real Core Web
+  // Vitals (CrUX field data + Lighthouse lab) for the Site audit. Get one from
+  // the Google Cloud console (PageSpeed Insights API). Used by services/pageSpeed.js.
+  'PAGESPEED_API_KEY',
   'REPLICATE_API_TOKEN', 'IDEOGRAM_API_KEY',
   'ELEVENLABS_API_KEY',
   // HeyGen — AI avatar / Digital Twin reels (the video suite). Pay-as-you-go.
@@ -246,6 +251,23 @@ router.post('/test-flaresolverr', async (req, res) => {
       });
     }
     return res.json({ ok: false, message: `Reachable, but couldn't solve ${testUrl}. Check the FlareSolverr container logs.` });
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+// POST test PageSpeed — runs a real PSI call for a sample URL with the saved
+// key and reports the source (field/lab) + LCP so the AM knows it works.
+router.post('/test-pagespeed', async (req, res) => {
+  try {
+    if (!(await pageSpeed.isConfigured())) {
+      return res.json({ ok: false, message: 'No PageSpeed API key saved. Paste PAGESPEED_API_KEY above and save first.' });
+    }
+    const testUrl = req.body.testUrl || 'https://www.example.com';
+    const r = await pageSpeed.fetchCoreWebVitals(testUrl, { strategy: 'mobile' });
+    const lcp = r.metrics?.lcp?.value;
+    const lcpStr = lcp != null ? `${(lcp / 1000).toFixed(2)}s LCP` : 'no LCP';
+    return res.json({ ok: true, message: `Connected. ${testUrl}: ${r.source} data, ${lcpStr}${r.performance_score != null ? `, perf ${r.performance_score}/100` : ''}.` });
   } catch (err) {
     res.json({ ok: false, message: err.message });
   }

@@ -10,6 +10,7 @@ const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = requir
 const claudeService = require('../services/claude');
 const dataForSEO = require('../connectors/dataforseo');
 const google = require('../connectors/google');
+const pageSpeed = require('../services/pageSpeed');
 const { decrypt } = require('../utils/encryption');
 
 const router = express.Router();
@@ -804,6 +805,26 @@ router.get('/clients/:clientId/site-audits', async (req, res) => {
     );
     res.json({ audits: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Real Core Web Vitals for a URL (default: the client's domain home) via
+// PageSpeed Insights — CrUX field data preferred, Lighthouse lab fallback.
+router.get('/clients/:clientId/core-web-vitals', async (req, res) => {
+  try {
+    let url = String(req.query.url || '').trim();
+    if (!url) {
+      const { rows } = await pool.query('SELECT domain FROM clients WHERE id = $1', [req.params.clientId]);
+      const domain = (rows[0]?.domain || '').trim();
+      if (!domain) return res.status(400).json({ error: 'No URL given and this client has no domain set.' });
+      url = /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
+    }
+    if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'url must be a full http(s) URL' });
+    const strategy = req.query.strategy === 'desktop' ? 'desktop' : 'mobile';
+    const result = await pageSpeed.fetchCoreWebVitals(url, { strategy });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, code: err.code });
+  }
 });
 
 router.get('/clients/:clientId/site-audits/latest', async (req, res) => {
