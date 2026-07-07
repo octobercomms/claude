@@ -92,7 +92,7 @@ async function runAuto() {
        JOIN outreach_contacts c ON c.id = l.contact_id
        LEFT JOIN clients cl ON cl.id = l.client_id
        LEFT JOIN pr_outlets o ON o.id = l.outlet_id
-       WHERE l.client_id = $1 AND l.status IN ('published','download')
+       WHERE l.client_id = $1 AND l.status = 'published'
          AND c.email <> '' AND c.email NOT LIKE '%@import.local'
          AND c.availability_status = 'active'
          AND NOT EXISTS (SELECT 1 FROM pr_sent_thanks s WHERE s.editorial_log_id = l.id)

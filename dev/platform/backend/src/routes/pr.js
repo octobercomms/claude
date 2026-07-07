@@ -15,6 +15,7 @@ const pressRelease = require('../services/pressRelease');
 const prEnrich = require('../services/prEnrich');
 const prTarget = require('../services/prTarget');
 const prArchive = require('../services/prArchive');
+const { getSetting } = require('../utils/settings');
 const prEngage = require('../services/prEngage');
 const prLinkCheck = require('../services/prLinkCheck');
 const prCoverageExtract = require('../services/prCoverageExtract');
@@ -369,7 +370,10 @@ router.param('searchId', async (req, res, next, id) => {
 router.get('/clients/:clientId/searches', async (req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM pr_coverage_searches WHERE client_id = $1 ORDER BY created_at DESC', [req.params.clientId]);
-    res.json({ items: rows });
+    // Surface whether the Google News path can actually run — a missing Serper
+    // key is the usual reason the review queue stays empty, and the UI gives
+    // no other hint. Google Alerts RSS works without a key.
+    res.json({ items: rows, serper_configured: !!(await getSetting('SERPER_API_KEY')) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -395,7 +399,8 @@ router.post('/searches/:searchId/run', async (req, res) => {
   try {
     const s = (await db.query('SELECT * FROM pr_coverage_searches WHERE id = $1', [req.params.searchId])).rows[0];
     const found = s ? await prMonitor.runSearch(s) : 0;
-    res.json({ found });
+    const usesSerper = !!(s && String(s.sources || '').includes('serper'));
+    res.json({ found, serper_configured: !!(await getSetting('SERPER_API_KEY')), uses_serper: usesSerper });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
@@ -761,6 +766,8 @@ router.post('/clients/:clientId/pitch-targets', async (req, res) => {
 
 // ── Thank-yous (assisted) ────────────────────────────────────────────────────
 // Published pieces with a known journalist email, not yet thanked or skipped.
+// Only genuinely-published coverage is thank-worthy — a Download (asset sent)
+// or any earlier stage isn't a placement, so it must not trigger a thank-you.
 router.get('/clients/:clientId/thank-opportunities', async (req, res) => {
   try {
     const { rows } = await db.query(
@@ -769,7 +776,7 @@ router.get('/clients/:clientId/thank-opportunities', async (req, res) => {
        FROM pr_editorial_log l
        JOIN outreach_contacts c ON c.id = l.contact_id
        LEFT JOIN pr_outlets o ON o.id = l.outlet_id
-       WHERE l.client_id = $1 AND l.status IN ('published','download')
+       WHERE l.client_id = $1 AND l.status = 'published'
          AND c.email <> '' AND c.email NOT LIKE '%@import.local'
          AND NOT EXISTS (SELECT 1 FROM pr_sent_thanks s WHERE s.editorial_log_id = l.id)
          AND NOT EXISTS (SELECT 1 FROM pr_thank_feedback f WHERE f.editorial_log_id = l.id AND f.decision = 'rejected')

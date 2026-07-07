@@ -8,29 +8,26 @@ import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 
+// Ordered by importance for the AM: won first, in-motion next, dead last.
 const STATUSES = [
-  ['pitched', 'Pitched'], ['pending', 'Pending'], ['no_response', 'No Response'],
-  ['confirmed', 'Confirmed'], ['interview_prep', 'Interview Prep'], ['download', 'Download'],
-  ['published', 'Published'], ['declined', 'Declined'],
+  ['published', 'Published'], ['confirmed', 'Confirmed'], ['pending', 'Pending'],
+  ['interview_prep', 'Interview Prep'], ['pitched', 'Pitched'], ['download', 'Download'],
+  ['declined', 'Declined'], ['no_response', 'No Response'],
 ];
 
-// Colour map so the coverage rows are scannable at a glance. Everything that
-// isn't explicitly listed uses the default chip (black border, white fill).
-// Greens for "yes / shipped", oranges for "in motion", reds for "no".
+// Colour map so the coverage rows are scannable at a glance. Only the three
+// milestones that matter get a colour — Published (won) green, Confirmed
+// yellow, Pending orange; everything else is a neutral grey chip.
 const STATUS_PILL = {
-  published:      { bg: '#e6f4ea', fg: '#1f7a3d', border: '#9bcfa8' },
-  download:       { bg: '#e6f4ea', fg: '#1f7a3d', border: '#9bcfa8' },
-  confirmed:      { bg: '#fff1d6', fg: '#8c5a00', border: '#f0c98a' },
-  pending:        { bg: '#fff1d6', fg: '#8c5a00', border: '#f0c98a' },
-  interview_prep: { bg: '#fff1d6', fg: '#8c5a00', border: '#f0c98a' },
-  declined:       { bg: '#fde7e7', fg: '#a32020', border: '#f0b3b3' },
-  no_response:    { bg: '#fde7e7', fg: '#a32020', border: '#f0b3b3' },
+  published: { bg: '#e6f4ea', fg: '#1f7a3d', border: '#9bcfa8' },   // green — won
+  confirmed: { bg: '#fef9c3', fg: '#7a5c00', border: '#efdc57' },   // yellow — locked in
+  pending:   { bg: '#ffedd5', fg: '#9a3412', border: '#fdba74' },   // orange — in motion
 };
 function StatusPill({ status, label }) {
   const s = STATUS_PILL[status];
   const style = s
     ? { background: s.bg, color: s.fg, border: `1px solid ${s.border}`, fontWeight: 700 }
-    : { background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--text)', fontWeight: 600 };
+    : { background: '#f1f1f1', color: '#595959', border: '1px solid #d4d4d4', fontWeight: 600 };
   return (
     <span className="chip" style={{ ...style, padding: '2px 10px', fontSize: 11, letterSpacing: 0.2, whiteSpace: 'nowrap' }}>
       {label || status}
@@ -97,6 +94,7 @@ export default function ClientPRPage() {
   const [reports, setReports] = useState({ alert_email: '', report_cadence: 'off' });
   const [savingReports, setSavingReports] = useState(false);
   const [searches, setSearches] = useState([]);
+  const [serperOn, setSerperOn] = useState(true);
   const [queue, setQueue] = useState([]);
   const [newSearch, setNewSearch] = useState({ query: '', src_serper: true, src_alerts: false, alerts_rss: '', cadence: 'daily' });
   const [thanks, setThanks] = useState([]);
@@ -235,10 +233,10 @@ export default function ClientPRPage() {
   }
 
   function loadMonitor() {
-    api.get(`/pr/clients/${id}/searches`).then((r) => setSearches(r.items || [])).catch(() => {});
+    api.get(`/pr/clients/${id}/searches`).then((r) => { setSearches(r.items || []); setSerperOn(r.serper_configured !== false); }).catch(() => {});
     api.get(`/pr/clients/${id}/review-queue`).then((r) => setQueue(r.items || [])).catch(() => {});
   }
-  useEffect(() => { if (tab === 'monitor') loadMonitor(); }, [tab, id]);
+  useEffect(() => { if (tab === 'coverage') loadMonitor(); }, [tab, id]);
 
   async function addSearch() {
     try {
@@ -249,8 +247,13 @@ export default function ClientPRPage() {
     } catch (e) { toast(e.message, 'error'); }
   }
   async function runSearchNow(sid) {
-    try { const r = await api.post(`/pr/searches/${sid}/run`, {}); toast(`Found ${r.found} new item(s)`, 'success'); loadMonitor(); }
-    catch (e) { toast(e.message, 'error'); }
+    try {
+      const r = await api.post(`/pr/searches/${sid}/run`, {});
+      if (r.found > 0) toast(`Found ${r.found} new item(s)`, 'success');
+      else if (r.uses_serper && r.serper_configured === false) toast('No results — add a Serper API key in Settings → October Outreach to enable Google News.', 'error');
+      else toast('No new items found for this query.', 'warning');
+      loadMonitor();
+    } catch (e) { toast(e.message, 'error'); }
   }
   async function deleteSearch(sid) {
     if (!window.confirm('Delete this search?')) return;
@@ -599,6 +602,14 @@ export default function ClientPRPage() {
 
           <div className="card">
             <h3 className="h3 mb-2">Coverage monitor</h3>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 12 }}>
+              Saved searches check Google News (via Serper) and your Google Alerts RSS on a schedule (twice daily). New hits land in the review queue below for you to confirm or dismiss.
+            </p>
+            {!serperOn && (
+              <div className="card" style={{ background: 'var(--warning-soft)', color: 'var(--warning)', fontSize: 13, marginBottom: 12, padding: '10px 12px' }}>
+                <strong>Google News is off.</strong> No Serper API key is set, so News searches return nothing — add one in <strong>Settings → October Outreach</strong>. Google Alerts RSS searches still work without it.
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
               <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Google News query</span><input className="input" value={newSearch.query} onChange={(e) => setNewSearch((s) => ({ ...s, query: e.target.value }))} placeholder='e.g. "Forgeworks" architecture' /></label>
               <label className="field" style={{ minWidth: 220 }}><span className="field-label">Google Alerts RSS (optional)</span><input className="input" value={newSearch.alerts_rss} onChange={(e) => setNewSearch((s) => ({ ...s, alerts_rss: e.target.value }))} placeholder="https://www.google.com/alerts/feeds/…" /></label>
@@ -737,7 +748,7 @@ export default function ClientPRPage() {
                     </td>
                   </tr>
                 ))}
-                {!thanks.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No thank-yous waiting. They appear here once a piece is marked Published or Download and the journalist has an email on file.</td></tr>}
+                {!thanks.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No thank-yous waiting. They appear here once a piece is marked Published and the journalist has an email on file.</td></tr>}
               </tbody>
             </table>
           </div>
