@@ -32,6 +32,8 @@ export default function CompetitorAdsPanel({ clientId }) {
   const [region, setRegion] = useState('GB');
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [suggestions, setSuggestions] = useState(null);
+  const [suggesting, setSuggesting] = useState(false);
 
   async function load() {
     try {
@@ -43,15 +45,32 @@ export default function CompetitorAdsPanel({ clientId }) {
   }
   useEffect(() => { load(); /* eslint-disable-line */ }, [clientId]);
 
-  async function pull() {
-    if (!query.trim()) { toast('Enter a competitor name or domain.', 'error'); return; }
+  async function pull(qArg) {
+    const q = (typeof qArg === 'string' ? qArg : query).trim();
+    if (!q) { toast('Enter a competitor name or domain.', 'error'); return; }
     setBusy(true);
     try {
-      const r = await api.post(`/competitor-ads/clients/${clientId}`, { query: query.trim(), region });
+      const r = await api.post(`/competitor-ads/clients/${clientId}`, { query: q, region });
       setRuns(prev => [r.run, ...prev]); setActive(r.run);
       toast(`Pulled ${r.run.ad_count} ad${r.run.ad_count === 1 ? '' : 's'}.`, 'success');
     } catch (e) { toast(e.message, 'error'); }
     finally { setBusy(false); }
+  }
+
+  async function suggest() {
+    setSuggesting(true);
+    try {
+      const r = await api.get(`/competitor-ads/clients/${clientId}/suggestions`);
+      setSuggestions(r.competitors || []);
+      if (!r.competitors?.length) toast('No competitors suggested — check the client has a domain and brief.', 'warning');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSuggesting(false); }
+  }
+  function useSuggestion(c) {
+    const q = c.domain || c.name;
+    setQuery(q);
+    if (configured) pull(q);
+    else toast('Filled the box — add a SerpApi key to pull their ads.', 'warning');
   }
 
   async function removeRun(id) {
@@ -81,8 +100,35 @@ export default function CompetitorAdsPanel({ clientId }) {
           <select className="input" style={{ width: 90 }} value={region} onChange={e => setRegion(e.target.value)} disabled={!configured}>
             {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
-          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: pull, disabled: busy || !configured })}>{busy ? 'Pulling…' : 'Pull ads'}</button>
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => pull(), disabled: busy || !configured })}>{busy ? 'Pulling…' : 'Pull ads'}</button>
+          <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: suggest, disabled: suggesting })}>{suggesting ? 'Thinking…' : '✨ Suggest competitors'}</button>
         </div>
+
+        {suggestions && (
+          <div style={{ marginTop: 12 }}>
+            {!suggestions.length ? (
+              <div className="body-sm text-subtle">No suggestions — make sure the client has a domain and brief set.</div>
+            ) : (
+              <>
+                <div className="caption mb-2">Suggested competitors — {configured ? 'look one up' : 'add a SerpApi key to look these up'}</div>
+                <div className="row wrap" style={{ gap: 8 }}>
+                  {suggestions.map((c, i) => (
+                    <div key={i} className="card" style={{ padding: '8px 10px', flex: '1 1 220px', minWidth: 200 }}>
+                      <div className="row between center" style={{ gap: 8 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div className="body-sm" style={{ fontWeight: 700 }}>{c.name}</div>
+                          {c.domain && <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.domain}</div>}
+                        </div>
+                        <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => useSuggestion(c), disabled: busy })}>{configured ? 'Look up' : 'Use'}</button>
+                      </div>
+                      {c.reason && <div className="body-xs text-muted" style={{ marginTop: 4, lineHeight: 1.4 }}>{c.reason}</div>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {runs.length > 0 && (
