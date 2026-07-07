@@ -616,7 +616,7 @@ export default function ClientSEOPage() {
           // stays a clean read-out rather than a wall of options.
           search: [
             { groupLabel: 'Measurement' },
-            { key: 'perf_insights', label: 'Insights' },
+            { key: 'perf_insights', label: 'Review' },
             { key: 'keywords',      label: 'Keywords' },
             { key: 'gsc',           label: 'Search Console' },
             { key: 'ai_visibility', label: 'AI Visibility' },
@@ -624,21 +624,21 @@ export default function ClientSEOPage() {
             { key: 'authority',     label: 'Authority' },
             { key: 'backlinks',     label: 'Backlinks' },
             { groupLabel: 'Monitoring' },
-            { key: 'drift',         label: 'Drift' },
+            { key: 'drift',         label: 'Watch' },
           ],
           // Optimise = the "what do we do about it" tools — audits we run
           // and actions we generate, split out of Performance so the two
           // jobs-to-be-done don't share one overloaded strip.
           optimise: [
             { groupLabel: 'On-page' },
-            { key: 'site_audit',    label: 'Site audit' },
-            { key: 'content_audit', label: 'Content audit' },
-            { key: 'keyword_footprint', label: 'Keyword footprint' },
-            { key: 'quick_wins',    label: 'Quick wins' },
+            { key: 'site_audit',    label: 'Scan' },
+            { key: 'content_audit', label: 'Grade' },
+            { key: 'keyword_footprint', label: 'Map' },
+            { key: 'quick_wins',    label: 'Win' },
             { groupLabel: 'Search appearance' },
-            { key: 'ctr_boost',     label: 'CTR boosters' },
-            { key: 'ai_seo',        label: 'AI keyword targets' },
-            { key: 'agent_ready',   label: 'Agent readiness' },
+            { key: 'ctr_boost',     label: 'Sharpen' },
+            { key: 'ai_seo',        label: 'Target' },
+            { key: 'agent_ready',   label: 'Prep' },
           ],
           content: [
             { key: 'find',     label: '1 · Find' },
@@ -648,12 +648,12 @@ export default function ClientSEOPage() {
             { key: 'promote',  label: '5 · Promote' },
           ],
           local: [
-            { key: 'local_gap',      label: 'Competition gap' },
-            { key: 'local_schema',   label: 'Schema audit' },
-            { key: 'local_keywords', label: 'Buyer-intent keywords' },
+            { key: 'local_gap',      label: 'Compare' },
+            { key: 'local_schema',   label: 'Validate' },
+            { key: 'local_keywords', label: 'Find' },
             { key: 'local_xray',     label: 'Competitor X-ray' },
-            { key: 'local_playbook', label: 'GBP ranking playbook' },
-            { key: 'local_outliers', label: 'Ranking outliers' },
+            { key: 'local_playbook', label: 'Plan' },
+            { key: 'local_outliers', label: 'Flag' },
             { key: 'local_gbp',      label: 'GBP posts' },
           ],
           convert: [
@@ -688,12 +688,14 @@ export default function ClientSEOPage() {
         }));
         // Groups that render as a numbered "work through these tabs" rail with
         // derived ✓, rather than a flat sub-tab strip.
+        // Titles are verbs (hybrid) — where the verb replaces a tool name, the
+        // sub keeps that name so nothing recognisable is lost.
         const RAIL_SUB = {
           perf_insights: 'The headline read', keywords: 'What you rank for', gsc: 'Real Google clicks',
-          ai_visibility: 'Where AI cites you', authority: 'Domain strength', backlinks: 'Who links to you', drift: 'Track regressions',
-          site_audit: 'Find technical fixes', content_audit: 'Grade a page', keyword_footprint: 'Per-page focus', quick_wins: 'Page-2 keywords',
-          ctr_boost: 'Sharper titles', ai_seo: 'AI keyword targets', agent_ready: 'Agent readiness',
-          local_gap: 'Local competition gap', local_schema: 'Local schema', local_keywords: 'Buyer-intent keywords', local_xray: 'Rival teardown',
+          ai_visibility: 'Where AI cites you', authority: 'Domain strength', backlinks: 'Who links to you', drift: 'Drift · track regressions',
+          site_audit: 'Site audit · technical fixes', content_audit: 'Content audit · one page', keyword_footprint: 'Keyword footprint', quick_wins: 'Quick wins · page-2 keywords',
+          ctr_boost: 'CTR boosters · titles', ai_seo: 'AI keyword targets', agent_ready: 'Agent readiness',
+          local_gap: 'Local competition gap', local_schema: 'Local schema audit', local_keywords: 'Buyer-intent keywords', local_xray: 'Rival teardown',
           local_playbook: 'GBP ranking playbook', local_outliers: 'Ranking outliers', local_gbp: 'GBP posts',
         };
         const INFO_TABS = new Set(['perf_insights']); // read-outs, not "do" steps
