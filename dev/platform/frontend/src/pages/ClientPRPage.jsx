@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
+import SuiteReadiness from '../components/SuiteReadiness';
 import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
@@ -447,6 +448,12 @@ export default function ClientPRPage() {
             description="Every pitch, placement and journalist relationship in one log. Coverage records itself from a link, your best targets come ranked, and the client gets a live page of their wins."
             ctaLabel="Find who to pitch"
             onCta={() => setTab('journalists')}
+            interstitial={<SuiteReadiness clientId={id} suite="earned_setup" title="PR pipeline" steps={[
+              { key: 'contacts',  title: 'Contacts',  sub: 'Journalists on file', onClick: () => setTab('journalists') },
+              { key: 'pitched',   title: 'Pitched',   sub: 'Stories out the door', onClick: () => setTab('journalists') },
+              { key: 'published', title: 'Published', sub: 'Coverage logged',      onClick: () => setTab('coverage') },
+              { key: 'thanked',   title: 'Thanked',   sub: 'Relationships kept',   onClick: () => setTab('journalists') },
+            ]} />}
             status={[
               { label: 'Published', value: stats ? String(stats.published) : '—', ok: !!(stats && stats.published) },
               { label: 'Tracked', value: stats ? String(stats.tracked) : '—', ok: !!(stats && stats.tracked) },
