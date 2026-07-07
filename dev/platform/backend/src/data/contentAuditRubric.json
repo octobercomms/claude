@@ -1,0 +1,78 @@
+{
+  "attribution": "E‑E‑A‑T + CITE content-quality rubric adapted from the MIT-licensed AgriciDaniel/claude-seo (E‑E‑A‑T audit, QRG-aligned) and seranking/seo-skills (60-item E‑E‑A‑T + 30-item CITE content audit). Scoped to signals extractable from a single fetched page plus Claude's per-factor judgement. See docs/omi/seo-skills-integration-plan.md, Integration A.",
+  "grade_bands": [
+    { "min": 90, "grade": "A" },
+    { "min": 80, "grade": "B+" },
+    { "min": 70, "grade": "B" },
+    { "min": 60, "grade": "C+" },
+    { "min": 50, "grade": "C" },
+    { "min": 0,  "grade": "F" }
+  ],
+  "verdict_bands": [
+    { "min": 78, "verdict": "publish" },
+    { "min": 55, "verdict": "revise" },
+    { "min": 0,  "verdict": "rework" }
+  ],
+  "grade_scores": { "A": 1, "A-": 0.9, "B+": 0.85, "B": 0.75, "B-": 0.68, "C+": 0.62, "C": 0.52, "C-": 0.45, "D": 0.3, "F": 0.1 },
+  "categories": [
+    {
+      "id": "experience",
+      "label": "Experience",
+      "weight": 0.15,
+      "description": "First-hand experience with the subject — original research, case studies, own photography, hands-on testing, lived detail. QRG's first 'E'.",
+      "checks": [
+        "Signals of first-hand use (tested / measured / visited / built it)",
+        "Original media (own photos/screenshots), not stock",
+        "Specific detail only a practitioner would include"
+      ]
+    },
+    {
+      "id": "expertise",
+      "label": "Expertise",
+      "weight": 0.2,
+      "description": "Demonstrated topical depth and a credible, named author with relevant standing (knowsAbout).",
+      "checks": [
+        "Named author with relevant credentials / bio",
+        "Correct, current, non-superficial subject treatment",
+        "Depth proportional to the query's difficulty (YMYL held to a higher bar)"
+      ]
+    },
+    {
+      "id": "authoritativeness",
+      "label": "Authoritativeness",
+      "weight": 0.2,
+      "description": "Recognised as a go-to source — external citations to authoritative sources, brand/entity presence, corroboration.",
+      "checks": [
+        "Cites authoritative external sources",
+        "Claims are corroborated, not asserted",
+        "Brand/entity is a recognised voice on the topic"
+      ]
+    },
+    {
+      "id": "trust",
+      "label": "Trust",
+      "weight": 0.3,
+      "description": "The most heavily weighted factor (QRG). Accuracy, transparency, and safety signals: HTTPS, contactability, clear authorship, dates, corrections.",
+      "checks": [
+        "HTTPS + reachable contact / about",
+        "Clear authorship and publish/updated dates",
+        "Accurate, honest, non-deceptive; transparent about sources and limitations"
+      ]
+    },
+    {
+      "id": "cite",
+      "label": "Citation readiness (CITE)",
+      "weight": 0.15,
+      "description": "How quotable the page is to AI answer engines: self-contained answer passages, question-shaped headings, attributed stats, citation-to-claim density.",
+      "checks": [
+        "Self-contained answer passages (~130–170 words) an engine can lift",
+        "Question-shaped headings matching real queries",
+        "Attributed statistics and a healthy citation-to-claim ratio"
+      ]
+    }
+  ],
+  "signals": {
+    "note": "Objective, deterministically-detected page signals handed to Claude and shown to the AM as evidence. They inform the per-factor grades rather than scoring separately.",
+    "keys": ["https", "author", "date", "contact_or_about", "article_schema", "external_citations", "question_headings", "original_image_count", "word_count"]
+  }
+}

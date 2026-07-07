@@ -21,6 +21,7 @@ the service → playbook mapping and which slice wires each one.
 | `content-strategy.md` | content-strategy | contentDraft, programmaticBriefs |
 | `ads.md` | ads, ad-creative, analytics | strategistReport |
 | `meta-audiences.md` | October house methodology (`docs/anothercountry-meta-targeting`) | strategistReport, AudiencesPanel |
+| `eeat.md` | claude-seo + seranking/seo-skills (`docs/omi/seo-skills-integration-plan`) | contentAudit, contentDraft |
 | `cro.md` | cro, popups, signup | siteAudit, ctrBoost |
 | `cold-email.md` | cold-email, prospecting | outreachAi, backlinkProspect |
 | `seo-audit.md` | seo-audit, ai-seo, schema | seoFanout, contentAudit |

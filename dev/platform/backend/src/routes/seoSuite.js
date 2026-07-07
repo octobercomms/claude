@@ -924,7 +924,7 @@ router.get('/clients/:clientId/content-audits', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT id, url, target_keyword, status, title, word_count,
               thin_content_score, readability_grade, keyword_usage,
-              priority, started_at, completed_at, error_message
+              priority, content_grade, publish_verdict, started_at, completed_at, error_message
        FROM content_audits WHERE client_id = $1 ORDER BY started_at DESC LIMIT 50`,
       [req.params.clientId]
     );

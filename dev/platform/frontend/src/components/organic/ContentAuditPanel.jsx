@@ -14,6 +14,23 @@ const PRIORITY_TONE = { high: 'negative', medium: 'warning', low: 'default' };
 const USAGE_LABEL = { good: 'Good', under: 'Under-used', over: 'Over-stuffed', absent: 'Missing' };
 const USAGE_TONE = { good: 'positive', under: 'warning', over: 'warning', absent: 'negative' };
 
+// Tone for an overall letter grade (first char) and the publish verdict.
+const gradeTone = (g) => GRADE_TONE[String(g || '').trim()[0]] || 'default';
+const VERDICT = {
+  publish: { label: 'Publish', tone: 'positive' },
+  revise:  { label: 'Revise',  tone: 'warning' },
+  rework:  { label: 'Rework',  tone: 'negative' },
+};
+const FACTORS = [
+  ['experience', 'Experience'], ['expertise', 'Expertise'],
+  ['authoritativeness', 'Authoritativeness'], ['trust', 'Trust'], ['cite', 'Citation-readiness'],
+];
+const SIGNAL_LABELS = {
+  https: 'HTTPS', author: 'Author byline', date: 'Publish date', contact_or_about: 'Contact / about',
+  article_schema: 'Article schema', external_citations: 'External citations', question_headings: 'Question headings',
+  original_image_count: 'Body images',
+};
+
 export default function ContentAuditPanel({ clientId, onRefresh }) {
   const { readOnly } = useAuth();
   const [audits, setAudits] = useState([]);
@@ -87,9 +104,10 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
         <div className="caption">Content audit</div>
         <h2 className="h2 mt-2">Grade an existing page for refresh</h2>
         <p className="body-sm text-muted mt-2" style={{ maxWidth: 760 }}>
-          Paste a URL. Claude grades the page: thin-content score, readability, keyword usage, missing
-          sub-topics, sub-headings to add, an opinionated rewrite recommendation. About 30s per page.
-          The findings hand off to Pipeline → Draft when you're ready to rewrite.
+          Paste a URL. Claude grades the page against the <strong>E‑E‑A‑T + CITE</strong> rubric — an A–F score
+          with a publish verdict — plus thin-content, readability, keyword usage, missing sub-topics and an
+          opinionated rewrite recommendation. About 30s per page. The findings hand off to Pipeline → Draft
+          when you're ready to rewrite.
         </p>
       </div>
 
@@ -138,6 +156,7 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
                     </div>
                     {a.status === 'complete' && (
                       <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                        {a.content_grade && <Badge value={`E‑E‑A‑T ${a.content_grade}`} tone={gradeTone(a.content_grade)} />}
                         <Badge value={a.readability_grade} tone={GRADE_TONE[a.readability_grade] || 'default'} />
                         <Badge value={a.priority} tone={PRIORITY_TONE[a.priority] || 'default'} />
                       </div>
@@ -183,6 +202,8 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
                   <StatCard label="Priority" value={(active.priority || '—').toUpperCase()} tone={PRIORITY_TONE[active.priority] || 'default'} />
                 </div>
 
+                {active.content_grade && <EeatScorecard audit={active} />}
+
                 {active.detected_primary_keyword && active.detected_primary_keyword !== active.target_keyword && (
                   <div className="callout" style={{ background: 'var(--accent-soft)', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', marginBottom: 14, fontSize: 13 }}>
                     Claude detected the page is actually targeting <strong>"{active.detected_primary_keyword}"</strong>{active.target_keyword && <> — not the supplied target "{active.target_keyword}"</>}.
@@ -226,6 +247,67 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
               </>
             )}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// E‑E‑A‑T + CITE scorecard — overall rubric-weighted grade + publish verdict,
+// the five factor grades with Claude's one-line evidence, and the objective
+// signals detected on the page.
+function EeatScorecard({ audit }) {
+  const data = audit.eeat_json || {};
+  const factors = data.factors || {};
+  const signals = data.signals || {};
+  const verdict = VERDICT[audit.publish_verdict] || null;
+  const colour = (tone) => tone === 'positive' ? 'var(--positive)' : tone === 'negative' ? 'var(--negative)' : tone === 'warning' ? 'var(--warning)' : 'var(--text-muted)';
+
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div className="row between center" style={{ marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
+        <div className="caption">E‑E‑A‑T + CITE quality</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {verdict && (
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+              padding: '3px 8px', borderRadius: 'var(--r-sm)', background: `var(--${verdict.tone}-soft)`, color: colour(verdict.tone) }}>
+              {verdict.label}
+            </span>
+          )}
+          <span style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: colour(gradeTone(audit.content_grade)) }}>
+            {audit.content_grade}
+          </span>
+        </div>
+      </div>
+
+      <div className="stack" style={{ gap: 8 }}>
+        {FACTORS.map(([key, label]) => {
+          const f = factors[key] || {};
+          return (
+            <div key={key} style={{ display: 'grid', gridTemplateColumns: '150px 34px 1fr', gap: 10, alignItems: 'baseline' }}>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: colour(gradeTone(f.grade)) }}>{f.grade || '—'}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.45 }}>{f.note || ''}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {Object.keys(signals).length > 0 && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--card-border)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {Object.entries(SIGNAL_LABELS).map(([key, label]) => {
+            const v = signals[key];
+            const on = typeof v === 'number' ? v > 0 : !!v;
+            const suffix = typeof v === 'number' ? ` ${v}` : '';
+            return (
+              <span key={key} title={label} style={{ fontSize: 11, fontWeight: 600,
+                padding: '2px 7px', borderRadius: 'var(--r-sm)',
+                background: on ? 'var(--positive-soft)' : 'var(--negative-soft)',
+                color: on ? 'var(--positive)' : 'var(--negative)' }}>
+                {on ? '✓' : '✗'} {label}{suffix}
+              </span>
+            );
+          })}
         </div>
       )}
     </div>
