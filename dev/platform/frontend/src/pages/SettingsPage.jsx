@@ -325,14 +325,24 @@ const SECTIONS = [
     { k: 'security', label: 'Security' },
   ] },
 ];
-// Connections sub-tabs clustered into labelled bentos (by what each connector
-// is for), so nine flat tabs read as a few scannable groups.
-const CONNECTION_GROUPS = [
-  { label: 'Spend',          subs: ['costs'] },
-  { label: 'Marketing data', subs: ['ads', 'commerce', 'seo'] },
-  { label: 'AI & outreach',  subs: ['ai', 'email', 'outreach'] },
-  { label: 'Platform',       subs: ['integrations', 'other'] },
-];
+// Sub-tabs clustered into labelled bentos per section, so long flat strips
+// read as a few scannable groups. Keyed by section; a section without an entry
+// keeps the flat sub-tab strip.
+const SECTION_GROUPS = {
+  connections: [
+    { label: 'Spend',          subs: ['costs'] },
+    { label: 'Marketing data', subs: ['ads', 'commerce', 'seo'] },
+    { label: 'AI & outreach',  subs: ['ai', 'email', 'outreach'] },
+    { label: 'Platform',       subs: ['integrations', 'other'] },
+  ],
+  workspace: [
+    { label: 'Library',           subs: ['contacts', 'publications', 'tags'] },
+    { label: 'Templates & tools', subs: ['strategy', 'praddon'] },
+  ],
+  account: [
+    { label: 'Access', subs: ['users', 'security'] },
+  ],
+};
 
 // Sub-tab → which CATEGORIES of provider-key groups it shows.
 const SUBTAB_CATS = {
@@ -530,9 +540,10 @@ export default function SettingsPage() {
       </div>
       {(() => {
         const section = SECTIONS.find(s => s.subs.some(x => x.k === tab)) || SECTIONS[0];
-        // Connections gets grouped bentos (labelled clusters); the shorter
-        // Workspace / Account sections keep the flat sub-tab strip.
-        if (section.key !== 'connections') {
+        const groups = SECTION_GROUPS[section.key];
+        // Sections with a group map render labelled bentos; anything else keeps
+        // the flat sub-tab strip.
+        if (!groups) {
           return (
             <div className="tabs tabs-sub">
               {section.subs.map(x => (
@@ -552,7 +563,7 @@ export default function SettingsPage() {
         });
         return (
           <div className="stepper-grouped" style={{ marginBottom: 18 }}>
-            {CONNECTION_GROUPS.map(g => (
+            {groups.map(g => (
               <div key={g.label} className="stepper-group-card">
                 <div className="stepper-group-heading">{g.label}</div>
                 <div className="row wrap" style={{ gap: 6 }}>
