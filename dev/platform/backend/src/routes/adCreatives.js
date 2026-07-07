@@ -3,6 +3,9 @@
 // pulled into the Paid tab on the client page.
 
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
@@ -11,6 +14,19 @@ const replicate = require('../connectors/replicate');
 const ideogram = require('../connectors/ideogram');
 const adobe = require('../connectors/adobe');
 const users = require('../services/users');
+
+// Uploads share the brand-asset store on disk (uploads/<clientId>/) and are
+// served back through the existing authenticated /api/brand/file route, so we
+// don't need a second static-file server.
+const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
+const uploadMem = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB — video clips are bigger
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) cb(null, true);
+    else cb(new Error(`Unsupported file type: ${file.mimetype}`));
+  },
+});
 
 const router = express.Router();
 router.use(authenticate);
@@ -234,6 +250,38 @@ router.post('/creatives/:id/images', async (req, res) => {
   } catch (err) {
     console.error('[ad-creative] image generate failed:', err);
     res.status(502).json({ error: err.message });
+  }
+});
+
+// Attach the brand's own image or video to a creative, in place of (or
+// alongside) an AI render. Stored on disk under the client's upload folder and
+// recorded as an ad_creative_images row with provider 'upload', so it shows up,
+// counts, exports and seeds video exactly like a generated asset.
+router.post('/creatives/:id/upload', uploadMem.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'file required' });
+    const { rows } = await pool.query('SELECT client_id FROM ad_creatives WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Creative not found' });
+    const clientId = rows[0].client_id;
+
+    const dir = path.join(UPLOAD_ROOT, clientId);
+    fs.mkdirSync(dir, { recursive: true });
+    const ext = path.extname(req.file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, '');
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+    fs.writeFileSync(path.join(dir, filename), req.file.buffer);
+
+    const url = `/api/brand/file/${clientId}/${filename}`;
+    const mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+    const aspect = /^(1:1|4:5|9:16|16:9|custom)$/.test(req.body?.aspect_ratio || '') ? req.body.aspect_ratio : 'custom';
+    const { rows: img } = await pool.query(
+      `INSERT INTO ad_creative_images (creative_id, provider, aspect_ratio, url, prompt, media_type)
+       VALUES ($1, 'upload', $2, $3, $4, $5) RETURNING *`,
+      [req.params.id, aspect, url, `Uploaded: ${req.file.originalname}`, mediaType]
+    );
+    res.status(201).json(img[0]);
+  } catch (err) {
+    console.error('[ad-creative] upload failed:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
