@@ -20,6 +20,12 @@ const CATEGORY_LABEL = {
   thin_content: 'Thin content',
   slow_response: 'Slow page response',
   noindex_blocked: 'Noindex-blocked pages',
+  hreflang_no_self: 'Hreflang missing self-reference',
+  hreflang_invalid_code: 'Invalid hreflang codes',
+  hreflang_no_xdefault: 'Hreflang missing x-default',
+  image_legacy_format: 'Legacy image formats',
+  image_no_dimensions: 'Images without dimensions',
+  image_no_lazyload: 'Images not lazy-loaded',
 };
 
 const CATEGORY_HINT = {
@@ -35,6 +41,12 @@ const CATEGORY_HINT = {
   no_alt_text: 'Manual fix in CMS — describe what the image shows.',
   slow_response: 'Flag to dev — likely image weight, render-blocking JS, or slow backend.',
   noindex_blocked: 'Confirm this is intentional. If not, remove the noindex tag.',
+  hreflang_no_self: 'Every hreflang set must include an entry pointing back at this URL, or Google ignores the cluster.',
+  hreflang_invalid_code: 'Use a valid language (en) or language-region (en-GB) code, or x-default. Underscores and names are invalid.',
+  hreflang_no_xdefault: 'Add an x-default alternate for users whose language/region you don\'t explicitly target.',
+  image_legacy_format: 'Serve WebP/AVIF (with a JPG/PNG fallback) — typically 25–50% smaller for the same quality.',
+  image_no_dimensions: 'Set width/height (or aspect-ratio) so the browser reserves space — prevents layout shift and helps LCP.',
+  image_no_lazyload: 'Add loading="lazy" to below-the-fold images; keep the hero/LCP image eager.',
 };
 
 const SEVERITY_TONE = { high: 'var(--negative)', medium: 'var(--warning)', low: 'var(--text-muted)' };
