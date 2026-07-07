@@ -101,78 +101,25 @@ export default function AudiencesPanel({ clientId }) {
   const top10Revenue = top10.reduce((n, p) => n + p.revenue, 0);
   const concentration = totalRevenue > 0 ? Math.round((top10Revenue / totalRevenue) * 100) : 0;
 
+  // A store is connected iff the backend didn't return the "no source" note.
+  const sourceConnected = !distribution?.note;
+  const sourceLabel = distribution?.source === 'woocommerce' ? 'WooCommerce'
+    : distribution?.source === 'shopify' ? 'Shopify'
+    : 'your store';
+  const hasPostcodeData = top10.length > 0;
+
   return (
     <>
       <p className="body mt-4 mb-6">
-        Build targetable audiences from first-party data — postcode distribution from Shopify orders, or a customer list (email / phone) you upload yourself. Save named segments and export them as Meta Custom Audiences. Demographic overlay ships next.
+        Build targetable audiences from first-party data — a customer list (email / phone) you upload yourself, plus postcode distribution pulled from your Shopify or WooCommerce orders. Save named segments and export them as Meta Custom Audiences. Demographic overlay ships next.
       </p>
 
       <MethodologyCard />
 
-
-      <div className="metric-grid">
-        <Metric label="Customers · 12m"      value={formatNum(totalCustomers)} />
-        <Metric label="Orders · 12m"         value={formatNum(totalOrders)} />
-        <Metric label="Revenue · 12m"        value={`£${formatNum(totalRevenue)}`} accent />
-        <Metric label="Top-10 concentration" value={`${concentration}%`} />
-      </div>
-
-      {distribution?.note && (
-        <Card variant="accent" className="mb-5">
-          <div className="body">{distribution.note}</div>
-        </Card>
-      )}
-
-      <Section
-        caption="First-party data"
-        title="Where your customers are"
-        action={(
-          <Button variant="secondary" {...roWrite(readOnly, { onClick: refreshDistribution, disabled: refreshing })}>
-            {refreshing ? 'Refreshing…' : '↻ Refresh from Shopify'}
-          </Button>
-        )}
-      >
-        {!top10.length ? (
-          <EmptyState
-            icon="📍"
-            title="No first-party data yet"
-            body="Connect Shopify and the system will walk every order to map postcode concentration."
-          />
-        ) : (
-          <Card>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Postcode</th>
-                  <th className="num">Customers</th>
-                  <th className="num">Orders</th>
-                  <th className="num">Revenue</th>
-                  <th className="num">Share</th>
-                </tr>
-              </thead>
-              <tbody>
-                {top10.map(p => {
-                  const share = totalRevenue > 0 ? (p.revenue / totalRevenue) * 100 : 0;
-                  return (
-                    <tr key={p.postcode_district}>
-                      <td><Chip tone="accent">{p.postcode_district}</Chip></td>
-                      <td className="num">{formatNum(p.customer_count)}</td>
-                      <td className="num">{formatNum(p.order_count)}</td>
-                      <td className="num strong">£{formatNum(p.revenue)}</td>
-                      <td className="num">{share.toFixed(1)}%</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <p className="body-xs text-subtle mt-3">
-              Showing top 10 of {postcodes.length} postcodes by revenue.
-              {' '}Computed {distribution?.computed_at ? new Date(distribution.computed_at).toLocaleString('en-GB') : 'never'}.
-            </p>
-          </Card>
-        )}
-      </Section>
-
+      {/* Segments come first: a customer-list lookalike is the highest-leverage
+          audience (see methodology) and it works with no store connected — so
+          a WooCommerce/list-only client sees their real data up top, not an
+          empty Shopify map. */}
       <Section
         caption="Saved audiences"
         title="Segments"
@@ -215,6 +162,87 @@ export default function AudiencesPanel({ clientId }) {
         )}
       </Section>
 
+      {/* Postcode distribution — only meaningful with a connected store. When
+          one is connected we show the map/metrics (or a "no orders yet" prompt);
+          when none is, we show a compact connect card instead of an empty grid
+          of zeros, so a list-only client isn't led by a section that can't fill. */}
+      {sourceConnected ? (
+        <Section
+          caption="First-party data"
+          title="Where your customers are"
+          action={(
+            <Button variant="secondary" {...roWrite(readOnly, { onClick: refreshDistribution, disabled: refreshing })}>
+              {refreshing ? 'Refreshing…' : `↻ Refresh from ${sourceLabel}`}
+            </Button>
+          )}
+        >
+          {!hasPostcodeData ? (
+            <EmptyState
+              icon="📍"
+              title="No postcode data yet"
+              body={`Connected to ${sourceLabel}, but no orders with postcodes came back for the last 12 months. Refresh once there are orders, and the system will map postcode concentration.`}
+            />
+          ) : (
+            <>
+              <div className="metric-grid mb-5">
+                <Metric label="Customers · 12m"      value={formatNum(totalCustomers)} />
+                <Metric label="Orders · 12m"         value={formatNum(totalOrders)} />
+                <Metric label="Revenue · 12m"        value={`£${formatNum(totalRevenue)}`} accent />
+                <Metric label="Top-10 concentration" value={`${concentration}%`} />
+              </div>
+              <Card>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Postcode</th>
+                      <th className="num">Customers</th>
+                      <th className="num">Orders</th>
+                      <th className="num">Revenue</th>
+                      <th className="num">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top10.map(p => {
+                      const share = totalRevenue > 0 ? (p.revenue / totalRevenue) * 100 : 0;
+                      return (
+                        <tr key={p.postcode_district}>
+                          <td><Chip tone="accent">{p.postcode_district}</Chip></td>
+                          <td className="num">{formatNum(p.customer_count)}</td>
+                          <td className="num">{formatNum(p.order_count)}</td>
+                          <td className="num strong">£{formatNum(p.revenue)}</td>
+                          <td className="num">{share.toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <p className="body-xs text-subtle mt-3">
+                  Showing top 10 of {postcodes.length} postcodes by revenue.
+                  {' '}Computed {distribution?.computed_at ? new Date(distribution.computed_at).toLocaleString('en-GB') : 'never'}.
+                </p>
+              </Card>
+            </>
+          )}
+        </Section>
+      ) : (
+        <Section caption="First-party data" title="Where your customers are">
+          <Card variant="accent">
+            <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
+                <p className="body-sm">
+                  Connect a <strong>Shopify or WooCommerce</strong> store on the Setup → Connectors tab and OMI will
+                  walk the last 12 months of orders to map where your customers are by postcode — useful for
+                  layering geography onto competitor-adjacent and cold prospecting audiences.
+                </p>
+              </div>
+              <Button variant="secondary" {...roWrite(readOnly, { onClick: refreshDistribution, disabled: refreshing })}>
+                {refreshing ? 'Checking…' : '↻ Check for a store'}
+              </Button>
+            </div>
+          </Card>
+        </Section>
+      )}
+
       {editing && (
         <SegmentEditor initial={editing} postcodes={postcodes} onClose={() => setEditing(null)} onSave={saveSegment} />
       )}
@@ -227,9 +255,9 @@ export default function AudiencesPanel({ clientId }) {
           panel behind a modal that names the single best first action. */}
       {!top10.length && !segments.length && !showUpload && !editing && !gsDismissed && (
         <GetStartedModal
-          hasShopify={!distribution?.note}
+          hasStore={sourceConnected}
           onUpload={() => setShowUpload(true)}
-          onConnectShopify={refreshDistribution}
+          onConnectStore={refreshDistribution}
           onClose={() => setGsDismissed(true)}
           refreshing={refreshing}
         />
@@ -239,9 +267,9 @@ export default function AudiencesPanel({ clientId }) {
 }
 
 // Shown when Audiences has nothing to work with yet. Points the AM straight at
-// the highest-leverage first move — upload a buyer list — with connecting
-// Shopify as the alternative. Uses the shared modal chrome so it dims the panel.
-function GetStartedModal({ hasShopify, onUpload, onConnectShopify, onClose, refreshing }) {
+// the highest-leverage first move — upload a buyer list — with connecting a
+// store as the alternative. Uses the shared modal chrome so it dims the panel.
+function GetStartedModal({ hasStore, onUpload, onConnectStore, onClose, refreshing }) {
   return (
     <div className="modal-backdrop">
       <div className="modal suite-paid" style={{ maxWidth: 520 }}>
@@ -266,12 +294,12 @@ function GetStartedModal({ hasShopify, onUpload, onConnectShopify, onClose, refr
           <Card>
             <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0 }}>
-                <h3 className="h3">2 · Or pull from Shopify</h3>
-                <p className="body-sm mt-1">{hasShopify
+                <h3 className="h3">2 · Or pull from your store</h3>
+                <p className="body-sm mt-1">{hasStore
                   ? 'Map where your customers are by postcode from the last 12 months of orders.'
-                  : 'Connect a Shopify store on the Setup → Connectors tab, then refresh to map customers by postcode.'}</p>
+                  : 'Connect a Shopify or WooCommerce store on the Setup → Connectors tab, then refresh to map customers by postcode.'}</p>
               </div>
-              <Button variant="secondary" onClick={onConnectShopify} disabled={refreshing || !hasShopify}>
+              <Button variant="secondary" onClick={onConnectStore} disabled={refreshing || !hasStore}>
                 {refreshing ? 'Refreshing…' : '↻ Refresh'}
               </Button>
             </div>
