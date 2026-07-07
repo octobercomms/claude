@@ -6,11 +6,20 @@ const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const competitorAds = require('../services/competitorAds');
+const competitorSuggest = require('../services/competitorSuggest');
 
 const router = express.Router();
 router.use(authenticate);
 router.use(loadVisibleClientIds);
 router.use(requireClientAccess({ paramNames: ['clientId'] }));
+
+// Claude-suggested competitors from the client's domain + brief — seeds the
+// panel so the AM isn't typing into a blank box.
+router.get('/clients/:clientId/suggestions', async (req, res) => {
+  try {
+    res.json({ competitors: await competitorSuggest.suggestCompetitors(req.params.clientId) });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
 
 router.get('/clients/:clientId', async (req, res) => {
   try {
