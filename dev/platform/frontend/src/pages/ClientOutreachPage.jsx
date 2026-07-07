@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
+import ProcessRail from '../components/ProcessRail';
 import SuiteOverview from '../components/SuiteOverview';
 import MailboxesPanel from '../components/MailboxesPanel';
 import OutreachTasksPanel from '../components/OutreachTasksPanel';
@@ -483,13 +484,28 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         </header>
       )}
 
-      <SuiteTabs variant={embedded ? 'sub' : undefined} tabs={[
-        ...(embedded ? [] : [{ key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') }]),
-        { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined,            active: tab === 'campaigns', onClick: () => setTab('campaigns') },
-        { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,             active: tab === 'contacts',  onClick: () => setTab('contacts') },
-        { key: 'tasks',     label: 'Tasks',                                                      active: tab === 'tasks',     onClick: () => setTab('tasks') },
-        { key: 'sending',   label: 'Sending',                                                    active: tab === 'sending',   onClick: () => setTab('sending') },
-      ]} />
+      {embedded ? (
+        // Embedded in Owned → Email: a stepped Build → Run rail (verbs), to
+        // match every other suite group. ✓ derives from real state.
+        <div className="stepper-block">
+          <ProcessRail numbered wrap grouped activeKey={tab} onStep={setTab} steps={[
+            { groupLabel: 'Build' },
+            { key: 'contacts',  title: 'Find',  sub: 'Your contact list',        status: contacts.length ? 'done' : 'todo' },
+            { key: 'campaigns', title: 'Write', sub: 'The email sequence',        status: campaigns.length ? 'done' : 'todo' },
+            { groupLabel: 'Run' },
+            { key: 'sending',   title: 'Send',  sub: 'From your domain, tracked', status: (stats?.emails_sent || 0) > 0 ? 'done' : 'todo' },
+            { key: 'tasks',     title: 'Chase', sub: 'Replies & follow-ups',      status: 'todo' },
+          ]} />
+        </div>
+      ) : (
+        <SuiteTabs tabs={[
+          { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
+          { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined, active: tab === 'campaigns', onClick: () => setTab('campaigns') },
+          { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,  active: tab === 'contacts',  onClick: () => setTab('contacts') },
+          { key: 'tasks',     label: 'Tasks',                                           active: tab === 'tasks',     onClick: () => setTab('tasks') },
+          { key: 'sending',   label: 'Sending',                                         active: tab === 'sending',   onClick: () => setTab('sending') },
+        ]} />
+      )}
 
       {tab === 'tasks' && (
         <OutreachTasksPanel />
