@@ -128,6 +128,8 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
 
       {err && <div className="callout callout-danger mb-3">{err}</div>}
 
+      <CoreWebVitals clientId={clientId} />
+
       {loading && !audit && !history.length ? (
         <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
       ) : !audit ? (
@@ -235,6 +237,87 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
               </div>
             </div>
           )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Real Core Web Vitals via PageSpeed Insights (Integration B). CrUX field data
+// preferred, Lighthouse lab fallback. Independent of the crawl — runs on demand.
+const CWV_META = {
+  lcp:  { label: 'LCP',  fmt: v => `${(v / 1000).toFixed(2)}s` },
+  inp:  { label: 'INP',  fmt: v => `${Math.round(v)}ms` },
+  cls:  { label: 'CLS',  fmt: v => v.toFixed(3) },
+  fcp:  { label: 'FCP',  fmt: v => `${(v / 1000).toFixed(2)}s` },
+  ttfb: { label: 'TTFB', fmt: v => `${Math.round(v)}ms` },
+};
+const RATING_TONE = { good: 'var(--positive)', 'needs-improvement': 'var(--warning)', poor: 'var(--negative)' };
+const SOURCE_LABEL = { field: 'Field data (this URL)', origin: 'Field data (whole site)', lab: 'Lab estimate', none: 'No data' };
+
+function CoreWebVitals({ clientId }) {
+  const { readOnly } = useAuth();
+  const [strategy, setStrategy] = useState('mobile');
+  const [url, setUrl] = useState('');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(null);
+
+  async function run() {
+    setLoading(true); setErr(null);
+    try {
+      const q = new URLSearchParams({ strategy });
+      if (url.trim()) q.set('url', url.trim());
+      setData(await api.get(`/seo/clients/${clientId}/core-web-vitals?${q}`));
+    } catch (e) { setErr(e.message); setData(null); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="card mb-5">
+      <div className="row between center" style={{ gap: 12, flexWrap: 'wrap', marginBottom: data || err ? 12 : 0 }}>
+        <div>
+          <div className="caption">Core Web Vitals</div>
+          <p className="body-xs text-subtle mt-1" style={{ maxWidth: 560 }}>
+            Real LCP / INP / CLS from Google (CrUX field data, lab fallback). Blank URL = the client's homepage.
+          </p>
+        </div>
+        <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="URL (optional)"
+            style={{ padding: '6px 10px', fontSize: 12, width: 220, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+          {['mobile', 'desktop'].map(s => (
+            <button key={s} onClick={() => setStrategy(s)} className={`btn btn-sm ${strategy === s ? 'btn-primary' : 'btn-secondary'}`}>{s}</button>
+          ))}
+          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: run, disabled: loading })}>
+            {loading ? 'Checking…' : 'Check'}
+          </button>
+        </div>
+      </div>
+
+      {err && <div className="body-sm" style={{ color: 'var(--warning)' }}>{err}</div>}
+
+      {data && (
+        <>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <span className="body-xs text-subtle">{SOURCE_LABEL[data.source] || data.source} · {data.strategy}
+              {data.performance_score != null && <> · Lighthouse perf <strong style={{ color: 'var(--text)' }}>{data.performance_score}/100</strong></>}
+            </span>
+          </div>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 'var(--s3)' }}>
+            {Object.entries(CWV_META).map(([key, meta]) => {
+              const m = data.metrics?.[key];
+              const has = m && m.value != null;
+              return (
+                <div key={key} className="card" style={{ padding: '10px 12px' }}>
+                  <div className="caption" title={m?.note || ''}>{meta.label}{m?.note ? ' *' : ''}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4, color: has ? (RATING_TONE[m.rating] || 'var(--text)') : 'var(--text-subtle)' }}>
+                    {has ? meta.fmt(m.value) : '—'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {data.source === 'none' && <p className="body-xs text-subtle mt-3">No field or lab data returned for this URL.</p>}
         </>
       )}
     </div>

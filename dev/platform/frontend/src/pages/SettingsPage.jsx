@@ -207,6 +207,15 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'PageSpeed / Core Web Vitals',
+    category: 'SEO',
+    hint: 'Google PageSpeed Insights API key (key only, no OAuth) — powers real Core Web Vitals (LCP / INP / CLS) in the Site audit. Create one in the Google Cloud console → APIs & Services, enable the PageSpeed Insights API, and paste the key here. Leave blank to keep the built-in heuristics.',
+    test: 'pagespeed',
+    keys: [
+      { key: 'PAGESPEED_API_KEY', label: 'PageSpeed Insights API key', placeholder: 'AIza… (Google Cloud → PageSpeed Insights API)', type: 'password' },
+    ],
+  },
+  {
     title: 'October Outreach',
     category: 'Outreach',
     hint: 'Contact-finding APIs for the Outreach module. Hunter and Serper each need one key. Icypeas needs all three (API Key, API Secret and User ID) — copy them from icypeas.com → Settings → API. Hunter, Serper and the free page-scraper cover most lead-finding. People Data Labs is an optional extra "deep find" provider — leave it blank unless you have a paid plan.',
@@ -344,6 +353,8 @@ export default function SettingsPage() {
   const [fsTestMsg, setFsTestMsg] = useState(null);
   const [testingHg, setTestingHg] = useState(false);
   const [hgTestMsg, setHgTestMsg] = useState(null);
+  const [testingPsi, setTestingPsi] = useState(false);
+  const [psiTestMsg, setPsiTestMsg] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
   const [tab, setTab] = useState(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
@@ -476,6 +487,20 @@ export default function SettingsPage() {
       setHgTestMsg({ ok: false, message: err.message });
     } finally {
       setTestingHg(false);
+    }
+  }
+
+  async function handleTestPageSpeed() {
+    setTestingPsi(true);
+    setPsiTestMsg(null);
+    try {
+      // Save the key first — the endpoint reads it from the DB. Real PSI call
+      // against a sample URL can take ~10s.
+      setPsiTestMsg(await api.post('/settings/test-pagespeed', {}));
+    } catch (err) {
+      setPsiTestMsg({ ok: false, message: err.message });
+    } finally {
+      setTestingPsi(false);
     }
   }
 
@@ -641,6 +666,24 @@ export default function SettingsPage() {
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
                               Pings the service and solves a sample page end-to-end. Save the URL first if you've just changed it.
+                            </div>
+                          </div>
+                        )}
+                        {group.test === 'pagespeed' && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              <button type="button" onClick={handleTestPageSpeed} disabled={testingPsi}
+                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
+                                {testingPsi ? 'Testing… (~10s)' : 'Test connection'}
+                              </button>
+                              {psiTestMsg && (
+                                <span style={{ fontSize: 12, color: psiTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                                  {psiTestMsg.ok ? '✓ ' : '✗ '}{psiTestMsg.message}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                              Save the key first, then this runs a real PageSpeed check against a sample URL.
                             </div>
                           </div>
                         )}
