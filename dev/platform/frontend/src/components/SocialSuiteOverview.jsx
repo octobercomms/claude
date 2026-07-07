@@ -131,7 +131,7 @@ function nextAction({ currentKey, onAddCompetitor, onGenerate, onBulkSchedule, o
   switch (currentKey) {
     case 'competitors':
       return {
-        title: 'Add 3-6 competitors to start',
+        title: 'Add 3-10 competitors to start',
         body: 'Brainstorms get sharper when Claude can see whose hooks to model against.',
         action: { label: 'Add competitors →', onClick: () => onAddCompetitor?.() },
       };

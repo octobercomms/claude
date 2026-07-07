@@ -777,7 +777,7 @@ router.get('/clients/:clientId/competitors', async (req, res) => {
 });
 
 router.put('/clients/:clientId/competitors', async (req, res) => {
-  const list = Array.isArray(req.body?.competitors) ? req.body.competitors.map(String).filter(Boolean).slice(0, 6) : [];
+  const list = Array.isArray(req.body?.competitors) ? req.body.competitors.map(String).filter(Boolean).slice(0, 10) : [];
   try {
     await pool.query('UPDATE clients SET social_competitors = $1 WHERE id = $2', [list, req.params.clientId]);
     res.json({ competitors: list });
