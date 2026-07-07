@@ -91,6 +91,19 @@ router.post('/clients/:clientId/generate', async (req, res) => {
   }
 });
 
+// The client's persisted "worked example" batch — generated once from the
+// client profile, then reused. Flows through every Build step so an AM (or a
+// client being shown the tool) can see what each stage produces.
+router.post('/clients/:clientId/example-batch', async (req, res) => {
+  try {
+    const result = await adCreative.ensureExampleBatch({ clientId: req.params.clientId });
+    res.status(result.created ? 201 : 200).json(result);
+  } catch (err) {
+    console.error('[ad-creative] example batch failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // Quick single-ad preview from the brief text — not persisted.
 router.post('/clients/:clientId/sample', async (req, res) => {
   try {

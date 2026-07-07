@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import PipelineStep from '../organic/PipelineStep';
 import { CreativeCard, ExampleConcept } from '../AdCreativePanel';
+import ExampleBanner from './ExampleBanner';
 import RefineChat from '../RefineChat';
 
 // Paid Pipeline → Concepts. Read-only review of the copy: headline,
@@ -23,6 +24,7 @@ export default function PaidConceptsStep({ pipeline, clientName, clientId, onNex
     <PipelineStep
       num={2} title="Draft" onNext={onNext} nextLabel="Render images & video"
       tagline="Review the copy first. Edit, delete weak ones, then render the keepers. No image cost yet."
+      banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
         <div className="callout" style={{ fontSize: 13 }}>

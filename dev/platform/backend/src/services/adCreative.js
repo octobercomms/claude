@@ -63,7 +63,11 @@ const TOOL = {
   },
 };
 
-async function generateBatch({ clientId, brief, platform = 'meta', count = 8, assetIds = [], campaignContext }) {
+// Stored brief label for the auto-generated worked example, so the Brief
+// list reads sensibly even though no AM brief was typed.
+const EXAMPLE_BRIEF_LABEL = 'Example — auto-generated from the client profile to preview each step. Safe to delete.';
+
+async function generateBatch({ clientId, brief, platform = 'meta', count = 8, assetIds = [], campaignContext, isExample = false }) {
   const { rows: clientRows } = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
   const client = clientRows[0];
   if (!client) throw new Error('Client not found');
@@ -118,9 +122,9 @@ Produce exactly ${count} ad creative concepts. Vary the framework — don't retu
   try {
     await dbClient.query('BEGIN');
     const { rows: batchRows } = await dbClient.query(
-      `INSERT INTO ad_creative_batches (client_id, brief, platform, asset_ids, campaign_context)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [clientId, brief || null, platform, assetIds, JSON.stringify(campaignContext || null)]
+      `INSERT INTO ad_creative_batches (client_id, brief, platform, asset_ids, campaign_context, is_example)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [clientId, isExample ? EXAMPLE_BRIEF_LABEL : (brief || null), platform, assetIds, JSON.stringify(campaignContext || null), isExample]
     );
     const batch = batchRows[0];
     const inserted = [];
@@ -198,4 +202,32 @@ Produce ONE ad creative concept — the single strongest angle for this brief. T
   };
 }
 
-module.exports = { generateBatch, sampleAd };
+// Return the client's persisted "worked example" batch, generating it once
+// if it doesn't exist yet. Kept small (3 concepts) and grounded purely in the
+// client profile — no AM brief — so a brand-new client immediately has a real
+// batch that flows through every Build step. Idempotent: repeated calls return
+// the same batch rather than piling up examples.
+async function ensureExampleBatch({ clientId }) {
+  const { rows } = await pool.query(
+    `SELECT b.*, (SELECT COUNT(*)::int FROM ad_creatives c WHERE c.batch_id = b.id) AS creative_count
+       FROM ad_creative_batches b
+      WHERE b.client_id = $1 AND b.is_example = true
+      ORDER BY b.created_at DESC LIMIT 1`,
+    [clientId]
+  );
+  if (rows.length) {
+    const batch = rows[0];
+    const { rows: creatives } = await pool.query(
+      'SELECT * FROM ad_creatives WHERE batch_id = $1 ORDER BY position ASC, created_at ASC',
+      [batch.id]
+    );
+    return { batch, creatives, created: false };
+  }
+  // count matches the tool schema's minItems (6) so the prompt and schema
+  // don't contradict — a compact but varied set to walk through.
+  const { batch, creatives } = await generateBatch({ clientId, brief: null, platform: 'meta', count: 6, isExample: true });
+  batch.creative_count = creatives.length;
+  return { batch, creatives, created: true };
+}
+
+module.exports = { generateBatch, sampleAd, ensureExampleBatch };

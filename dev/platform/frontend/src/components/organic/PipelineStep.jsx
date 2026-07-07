@@ -5,7 +5,7 @@ import React from 'react';
 // number/navigation now lives in the shared <Stepper> above the panel, so we no
 // longer draw a competing numbered badge here. `num` is accepted (and ignored)
 // for backwards-compatible call sites.
-export default function PipelineStep({ num, title, tagline, onNext, nextLabel, children }) {
+export default function PipelineStep({ num, title, tagline, onNext, nextLabel, banner, children }) {
   return (
     <div>
       <div className="row between" style={{ alignItems: 'flex-start', gap: 'var(--s4)', marginBottom: 'var(--s5)' }}>
@@ -19,6 +19,7 @@ export default function PipelineStep({ num, title, tagline, onNext, nextLabel, c
           </button>
         )}
       </div>
+      {banner}
       {children}
     </div>
   );
