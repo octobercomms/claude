@@ -32,6 +32,7 @@ const MODES = [
   { key: 'query',      label: 'From a query',         tagline: 'Type a seed query. Claude generates the likely Google fan-out (the related queries the AI Overview will pull from), we run each against your domain to score coverage, then identify the sub-intents to cover.' },
   { key: 'competitor', label: 'From competitor domains', tagline: 'Pick up to 5 competitor domains. DFS Domain Intersection returns the keywords they rank for that you don\'t — the highest-volume content gaps in your category.' },
   { key: 'own_site',   label: 'From your own site',   tagline: 'Pull open issues from the Site audit + Quick wins (keywords #11–20) into one list so you can pick a refresh target without leaving Pipeline.' },
+  { key: 'serp',       label: 'From the SERP (SXO)',  tagline: 'Type a query. We read the live SERP backwards — the page-types ranking now reveal what Google rewards. Get the winning page-type, the personas it serves, and a recommended wireframe you can brief straight away.' },
 ];
 
 export default function FindPanel({ clientId, onNext, onBuildContent }) {
@@ -116,6 +117,7 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
       {mode === 'query' && <FanoutTab clientId={clientId} onBuildContent={onBuildContent} />}
       {mode === 'competitor' && <ContentGapsTab clientId={clientId} onBuildContent={onBuildContent} />}
       {mode === 'own_site' && <OwnSiteMode clientId={clientId} />}
+      {mode === 'serp' && <SxoMode clientId={clientId} onBuildContent={onBuildContent} />}
       {mode === 'url' && (<>
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
         <input
@@ -324,6 +326,122 @@ function OwnSiteMode({ clientId }) {
           <div className="caption">Other open audit issues</div>
           <p className="body-xs text-subtle mt-2 mb-3">Most of these are CMS fixes rather than content work — addressing them on the Site audit tab is the cleaner workflow.</p>
           <p className="body-sm text-muted">{otherIssues.length} other issue{otherIssues.length === 1 ? '' : 's'} open across {new Set(otherIssues.map(i => i.page_url)).size} pages.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Pipeline → Find → "From the SERP (SXO)" mode. Reads the live SERP backwards:
+// infers the rewarded page-type, scores personas, and recommends a wireframe
+// the AM can brief. "Build content" hands the query to the Brief step.
+const SERVED_TONE = { yes: 'var(--positive)', partial: 'var(--warning)', no: 'var(--negative)' };
+function SxoMode({ clientId, onBuildContent }) {
+  const { readOnly } = useAuth();
+  const [seed, setSeed] = useState('');
+  const [location, setLocation] = useState(2826);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(null);
+
+  async function run() {
+    if (!seed.trim()) return;
+    setLoading(true); setErr(null); setData(null);
+    try {
+      setData(await api.post(`/seo/clients/${clientId}/sxo`, { seed_query: seed.trim(), location_code: location }));
+    } catch (e) { setErr(e.message); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        <input value={seed} onChange={e => setSeed(e.target.value)} onKeyDown={e => e.key === 'Enter' && run()}
+          placeholder="e.g. best crm for small business"
+          style={{ flex: 1, minWidth: 300, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+        <select value={location} onChange={e => setLocation(Number(e.target.value))}
+          style={{ padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+        </select>
+        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading || !seed.trim() })}>
+          {loading ? 'Reading SERP…' : 'Analyse SERP'}
+        </button>
+      </div>
+
+      {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
+      {!data && !loading && !err && (
+        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+          Type a query a customer would search. We pull the live top-10 and infer the page-type Google rewards.
+        </div>
+      )}
+
+      {data && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 22 }}>
+          <div>
+            <div className="card" style={{ marginBottom: 14 }}>
+              <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <div className="caption">Google rewards</div>
+                  <div className="h2" style={{ marginTop: 4, textTransform: 'capitalize' }}>{data.dominant_page_type || '—'}</div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+                  padding: '3px 8px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  {data.confidence || '—'} confidence
+                </span>
+              </div>
+              {data.page_type_evidence && <p className="body-sm text-muted mt-3">{data.page_type_evidence}</p>}
+              {!data.client_present && <p className="body-xs mt-2" style={{ color: 'var(--warning)' }}>This client isn't in the top 10 for this query.</p>}
+            </div>
+
+            {!!(data.personas || []).length && (
+              <div className="card" style={{ marginBottom: 14 }}>
+                <div className="caption mb-3">Who's searching</div>
+                <div className="stack" style={{ gap: 8 }}>
+                  {data.personas.map((p, i) => (
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '130px 1fr auto', gap: 10, alignItems: 'baseline' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.wants}</div>
+                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: SERVED_TONE[p.served_by_serp] || 'var(--text-subtle)' }}>
+                        {p.served_by_serp || '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!!(data.recommended_wireframe || []).length && (
+              <div className="card">
+                <div className="row between center mb-3" style={{ gap: 10, flexWrap: 'wrap' }}>
+                  <div className="caption">Recommended wireframe{data.recommended_page_type ? ` · ${data.recommended_page_type}` : ''}</div>
+                  {onBuildContent && (
+                    <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => onBuildContent(data.seed_query) })}>✍ Build content</button>
+                  )}
+                </div>
+                <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8 }}>
+                  {data.recommended_wireframe.map((s, i) => (
+                    <li key={i} style={{ fontSize: 13 }}>
+                      <strong>{s.section}</strong>
+                      {s.purpose && <span style={{ color: 'var(--text-muted)' }}> — {s.purpose}</span>}
+                    </li>
+                  ))}
+                </ol>
+                {data.summary && <p className="body-sm text-muted mt-4" style={{ whiteSpace: 'pre-wrap' }}>{data.summary}</p>}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="caption mb-3">Live top 10</div>
+            <div className="stack" style={{ gap: 6 }}>
+              {data.serp.map(r => (
+                <div key={r.rank} className="card" style={{ padding: 8, background: r.is_client ? 'var(--accent-soft)' : 'var(--surface)', borderColor: r.is_client ? 'var(--accent)' : 'var(--card-border)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>{r.rank}. {r.title || '(no title)'}{r.is_client && <span style={{ color: 'var(--accent)' }}> · you</span>}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-subtle)', wordBreak: 'break-all', marginTop: 2 }}>{(r.url || '').replace(/^https?:\/\//, '').slice(0, 54)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
