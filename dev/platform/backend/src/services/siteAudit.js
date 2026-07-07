@@ -123,6 +123,12 @@ function parsePage(page) {
   const h1s = $('h1').map((_, el) => $(el).text().trim()).get().filter(Boolean);
   const robotsMeta = ($('head meta[name="robots"]').attr('content') || '').toLowerCase();
   const noindex = robotsMeta.includes('noindex');
+  // Hreflang cluster (Integration C) — the rel=alternate hreflang set, for
+  // self-reference / valid-code / x-default checks.
+  const hreflangs = $('link[rel="alternate"][hreflang]').map((_, el) => ({
+    hreflang: ($(el).attr('hreflang') || '').trim(),
+    href: ($(el).attr('href') || '').trim(),
+  })).get();
   // Images with no meaningful alt. Empty-string alt is intentional for
   // decorative images and is correct; treat null/undefined as missing.
   const images = $('img').get();
@@ -130,6 +136,20 @@ function parsePage(page) {
     const alt = $(img).attr('alt');
     return alt === undefined;
   }).length;
+  // Image-SEO signals (Integration D) — modern-format coverage, missing
+  // dimensions (CLS/LCP), and below-the-fold lazy-loading. The first image is
+  // treated as the likely above-the-fold hero, which should NOT be lazy.
+  const img = { modernFormat: 0, legacyFormat: 0, missingDims: 0, noLazy: 0, withSrcset: 0 };
+  images.forEach((el, idx) => {
+    const $img = $(el);
+    const src = ($img.attr('src') || $img.attr('data-src') || '').toLowerCase();
+    const ext = (src.match(/\.(avif|webp|jpe?g|png|gif)(?:[?#]|$)/) || [])[1];
+    if (ext === 'webp' || ext === 'avif') img.modernFormat++;
+    else if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') img.legacyFormat++;
+    if (!($img.attr('width') && $img.attr('height'))) img.missingDims++;
+    if (idx > 0 && ($img.attr('loading') || '').toLowerCase() !== 'lazy') img.noLazy++;
+    if ($img.attr('srcset')) img.withSrcset++;
+  });
   // Visible text content for thin-content detection. Strip script/style.
   $('script, style, noscript').remove();
   const bodyText = $('body').text().replace(/\s+/g, ' ').trim();
@@ -138,8 +158,32 @@ function parsePage(page) {
   const links = $('a[href]').map((_, el) => $(el).attr('href')).get();
   return {
     title, metaDesc, h1s, noindex, missingAlt, totalImages: images.length, wordCount, links,
-    bodyText,
+    bodyText, hreflangs, img,
   };
+}
+
+// hreflang value validity: a language (optionally with script + region) or the
+// x-default fallback. Deliberately permissive — flags obvious typos (e.g.
+// "en_GB" with an underscore, "english"), not edge-case-valid subtag stacks.
+function isValidHreflang(code) {
+  const c = String(code || '').trim().toLowerCase();
+  if (!c) return false;
+  if (c === 'x-default') return true;
+  return /^[a-z]{2,3}(-[a-z]{4})?(-[a-z]{2}|-\d{3})?$/.test(c);
+}
+
+// Loose URL equivalence for hreflang self-reference: resolve relative hrefs
+// against the page, then compare host + path ignoring protocol, www, trailing
+// slash, and case.
+function sameUrl(href, base) {
+  const norm = (u) => {
+    try {
+      const x = new URL(u, base);
+      return (x.host.replace(/^www\./, '') + x.pathname.replace(/\/$/, '')).toLowerCase();
+    } catch { return null; }
+  };
+  const a = norm(href), b = norm(base);
+  return !!a && a === b;
 }
 
 function classifyPageIssues({ page, parsed }) {
@@ -204,6 +248,45 @@ function classifyPageIssues({ page, parsed }) {
     issues.push({ category: 'no_alt_text', severity: parsed.missingAlt > 5 ? 'medium' : 'low',
       detail: `${parsed.missingAlt} of ${parsed.totalImages} images missing alt text`,
       metadata: { missing: parsed.missingAlt, total: parsed.totalImages } });
+  }
+  // Hreflang / international (Integration C). Per-page checks only —
+  // full bidirectional return-link validation needs the whole crawl and is
+  // out of scope here; these catch the common misconfigurations.
+  if (parsed.hreflangs && parsed.hreflangs.length) {
+    const invalid = parsed.hreflangs.filter(h => !isValidHreflang(h.hreflang));
+    if (invalid.length) {
+      issues.push({ category: 'hreflang_invalid_code', severity: 'low',
+        detail: `Invalid hreflang value(s): ${invalid.map(h => h.hreflang || '(empty)').slice(0, 5).join(', ')}`,
+        metadata: { invalid: invalid.map(h => h.hreflang) } });
+    }
+    if (!parsed.hreflangs.some(h => sameUrl(h.href, url))) {
+      issues.push({ category: 'hreflang_no_self', severity: 'medium',
+        detail: 'hreflang cluster has no self-referencing entry — every alternate set must point back at this URL' });
+    }
+    const codes = parsed.hreflangs.map(h => h.hreflang.toLowerCase());
+    if (codes.length > 1 && !codes.includes('x-default')) {
+      issues.push({ category: 'hreflang_no_xdefault', severity: 'low',
+        detail: 'Multiple hreflang entries but no x-default fallback for unmatched languages/regions' });
+    }
+  }
+  // Image SEO (Integration D) — only on pages with a meaningful image count.
+  if (parsed.totalImages >= 3 && parsed.img) {
+    const im = parsed.img;
+    if (im.legacyFormat >= 3 && im.modernFormat === 0) {
+      issues.push({ category: 'image_legacy_format', severity: 'low',
+        detail: `${im.legacyFormat} images in legacy formats (JPG/PNG) and none in WebP/AVIF — convert for faster loads`,
+        metadata: { legacy: im.legacyFormat, total: parsed.totalImages } });
+    }
+    if (im.missingDims > 0) {
+      issues.push({ category: 'image_no_dimensions', severity: im.missingDims > 5 ? 'medium' : 'low',
+        detail: `${im.missingDims} of ${parsed.totalImages} images have no width/height — a layout-shift (CLS) and LCP risk`,
+        metadata: { missing: im.missingDims, total: parsed.totalImages } });
+    }
+    if (im.noLazy > 3) {
+      issues.push({ category: 'image_no_lazyload', severity: 'low',
+        detail: `${im.noLazy} below-the-fold images aren't lazy-loaded — add loading="lazy" to defer them`,
+        metadata: { count: im.noLazy } });
+    }
   }
   // Thin content — heuristic only; AM should sanity check. Skips
   // homepages and obvious utility pages.
