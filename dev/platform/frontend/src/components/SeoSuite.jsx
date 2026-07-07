@@ -475,7 +475,7 @@ function SummaryCard({ label, value, pct, feature }) {
 }
 
 // ─── CONTENT GAPS TAB ────────────────────────────────────────────────────
-export function ContentGapsTab({ clientId }) {
+export function ContentGapsTab({ clientId, onBuildContent }) {
   const { readOnly } = useAuth();
   const [competitors, setCompetitors] = useState([]);
   const [draft, setDraft] = useState('');
@@ -575,6 +575,7 @@ export function ContentGapsTab({ clientId }) {
                   <th className="num">Search vol.</th>
                   <th>Competitors ranking</th>
                   <th>Top position</th>
+                  {onBuildContent && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -587,10 +588,16 @@ export function ContentGapsTab({ clientId }) {
                       <td className="num">{g.search_volume?.toLocaleString() || '—'}</td>
                       <td>{(g.competitors || []).join(', ')}</td>
                       <td>{best != null ? `#${best}` : '—'}</td>
+                      {onBuildContent && (
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <button className="btn btn-secondary btn-sm" title="Write content for this keyword"
+                            {...roWrite(readOnly, { onClick: () => onBuildContent(g.keyword) })}>✍ Build</button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
-                {!gaps.length && <tr><td colSpan={4} className="text-subtle" style={{ textAlign: 'center' }}>No gaps found.</td></tr>}
+                {!gaps.length && <tr><td colSpan={onBuildContent ? 5 : 4} className="text-subtle" style={{ textAlign: 'center' }}>No gaps found.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -601,12 +608,25 @@ export function ContentGapsTab({ clientId }) {
 }
 
 // ─── PLANNING TAB ────────────────────────────────────────────────────────
-export function PlanningTab({ clientId }) {
+export function PlanningTab({ clientId, seed }) {
   const { readOnly } = useAuth();
   const [keyword, setKeyword] = useState('');
   const [brief, setBrief] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(null);
+  const [seeded, setSeeded] = useState(false);
+
+  // A keyword handed in from a discovery surface (Rankings / Find gaps /
+  // fan-out) pre-fills the box and clears any stale brief, so the AM lands
+  // here ready to Generate. Non-destructive: we don't auto-run — they review
+  // first. The ts lets the same keyword re-seed if sent again.
+  useEffect(() => {
+    if (!seed?.keyword) return;
+    setKeyword(seed.keyword);
+    setBrief(null);
+    setErr(null);
+    setSeeded(true);
+  }, [seed?.keyword, seed?.ts]);
 
   async function run() {
     if (!keyword.trim()) return;
@@ -634,15 +654,20 @@ export function PlanningTab({ clientId }) {
       <div style={{ display: 'flex', gap: 8, maxWidth: 600 }}>
         <input
           value={keyword}
-          onChange={e => setKeyword(e.target.value)}
+          onChange={e => { setKeyword(e.target.value); setSeeded(false); }}
           onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="e.g. how to season enamel cookware"
-          style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: `var(--border-w) solid ${seeded ? 'var(--accent)' : 'var(--card-border)'}`, borderRadius: 'var(--r-sm)' }}
         />
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading || !keyword.trim() })}>
           {loading ? 'Generating…' : 'Generate brief'}
         </button>
       </div>
+      {seeded && !brief && (
+        <p style={{ fontSize: 12, color: 'var(--accent)', margin: '8px 0 0' }}>
+          Loaded from your keyword list — review the target, then generate the brief.
+        </p>
+      )}
 
       {err && <div className="callout callout-danger" style={{ marginTop: 14 }}>{err}</div>}
 
@@ -723,7 +748,7 @@ const INTENT_LABELS = {
   review: 'Review',
 };
 
-export function FanoutTab({ clientId }) {
+export function FanoutTab({ clientId, onBuildContent }) {
   const { readOnly } = useAuth();
   const [runs, setRuns] = useState([]);
   const [activeRun, setActiveRun] = useState(null);
@@ -887,6 +912,7 @@ export function FanoutTab({ clientId }) {
                         <th>Sub-intent</th>
                         <th className="num">Client rank</th>
                         <th>URL ranked</th>
+                        {onBuildContent && <th></th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -913,6 +939,12 @@ export function FanoutTab({ clientId }) {
                             <td style={{ color: 'var(--text-subtle)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {q.client_url ? <a href={q.client_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>{q.client_url.replace(/^https?:\/\//, '').slice(0, 60)}</a> : '—'}
                             </td>
+                            {onBuildContent && (
+                              <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                <button className="btn btn-secondary btn-sm" title="Write content for this query"
+                                  {...roWrite(readOnly, { onClick: () => onBuildContent(q.query) })}>✍ Build</button>
+                              </td>
+                            )}
                           </tr>
                         );
                       })}

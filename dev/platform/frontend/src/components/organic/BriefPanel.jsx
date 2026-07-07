@@ -19,9 +19,12 @@ const MODES = [
   { key: 'programmatic', label: 'From a spreadsheet', tagline: "Upload a CSV (service, location, etc) and a template prompt. Claude generates one brief per row — service-area pages, product / competitor variants, industry pages, anything templated at scale." },
 ];
 
-export default function BriefPanel({ clientId, onNext }) {
+export default function BriefPanel({ clientId, onNext, seed }) {
   const [mode, setMode] = useState('single');
   const activeMode = MODES.find(m => m.key === mode) || MODES[0];
+  // A keyword handed in from a discovery surface is always a single-keyword
+  // brief — snap to that mode so the pre-filled keyword is visible.
+  useEffect(() => { if (seed?.keyword) setMode('single'); }, [seed?.keyword, seed?.ts]);
   return (
     <PipelineStep
       num={2} title="Brief" onNext={onNext} nextLabel="Draft the post"
@@ -35,7 +38,7 @@ export default function BriefPanel({ clientId, onNext }) {
           </button>
         ))}
       </div>
-      {mode === 'single' && <PlanningTab clientId={clientId} />}
+      {mode === 'single' && <PlanningTab clientId={clientId} seed={seed} />}
       {mode === 'cluster' && <ClusterMode clientId={clientId} />}
       {mode === 'programmatic' && <ProgrammaticMode clientId={clientId} />}
     </PipelineStep>
