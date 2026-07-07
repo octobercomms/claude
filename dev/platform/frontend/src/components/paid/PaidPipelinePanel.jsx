@@ -34,6 +34,6 @@ export default function PaidPipelinePanel({ clientId, clientName, step, onNaviga
       return <PaidLaunchStep pipeline={pipeline} onBack={() => go('brief')} />;
     case 'brief':
     default:
-      return <PaidBriefStep pipeline={pipeline} onNext={() => go('concepts')} />;
+      return <PaidBriefStep pipeline={pipeline} clientId={clientId} onNext={() => go('concepts')} />;
   }
 }

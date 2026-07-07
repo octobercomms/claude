@@ -91,6 +91,20 @@ router.post('/clients/:clientId/generate', async (req, res) => {
   }
 });
 
+// Quick single-ad preview from the brief text — not persisted.
+router.post('/clients/:clientId/sample', async (req, res) => {
+  try {
+    const sample = await adCreative.sampleAd({
+      clientId: req.params.clientId,
+      brief: (req.body || {}).brief,
+      platform: (req.body || {}).platform || 'meta',
+    });
+    res.json({ sample });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 router.put('/creatives/:id', async (req, res) => {
   const { headline, body, cta, angle, visual_concept, status, notes } = req.body || {};
   try {

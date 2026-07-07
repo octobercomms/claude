@@ -193,6 +193,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
       {showBrief && (
         <BriefModal
           assets={assets}
+          clientId={clientId}
           submitting={generating}
           onClose={() => setShowBrief(false)}
           onSubmit={generate}
@@ -281,12 +282,25 @@ export function ExampleConcept({ clientName, onDismiss }) {
   );
 }
 
-export function BriefModal({ assets, submitting, onClose, onSubmit }) {
+export function BriefModal({ assets, submitting, onClose, onSubmit, clientId }) {
   const { readOnly } = useAuth();
   const [brief, setBrief] = useState('');
   const [platform, setPlatform] = useState('meta');
   const [count, setCount] = useState(8);
   const [selectedAssets, setSelectedAssets] = useState(() => new Set(assets.map(a => a.id)));
+  const [sample, setSample] = useState(null);
+  const [sampling, setSampling] = useState(false);
+  const [sampleErr, setSampleErr] = useState(null);
+
+  async function previewSample() {
+    if (!clientId) return;
+    setSampling(true); setSampleErr(null);
+    try {
+      const { sample: s } = await api.post(`/ad-creatives/clients/${clientId}/sample`, { brief, platform });
+      setSample(s);
+    } catch (e) { setSampleErr(e.message); }
+    finally { setSampling(false); }
+  }
 
   function toggle(id) {
     setSelectedAssets(prev => {
@@ -332,8 +346,28 @@ export function BriefModal({ assets, submitting, onClose, onSubmit }) {
           ))}
         </div>
 
+        {sampleErr && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--negative)' }}>{sampleErr}</div>}
+        {sample && (
+          <div className="card" style={{ marginTop: 12, background: 'var(--accent-soft)' }}>
+            <div className="row between center" style={{ gap: 8 }}>
+              <div className="caption">Sample ad{sample.framework ? ` · ${sample.framework}` : ''}</div>
+              {sample.angle && <span className="body-xs text-subtle">{sample.angle}</span>}
+            </div>
+            {sample.headline && <div style={{ fontWeight: 800, fontSize: 15, marginTop: 6 }}>{sample.headline}</div>}
+            {sample.body && <div className="body-sm" style={{ marginTop: 4, lineHeight: 1.5 }}>{sample.body}</div>}
+            {sample.cta && <div style={{ marginTop: 6 }}><span className="chip" style={{ background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700 }}>{sample.cta}</span></div>}
+            {sample.visual_concept && <div className="body-xs text-muted" style={{ marginTop: 8, lineHeight: 1.5 }}><strong>Visual:</strong> {sample.visual_concept}</div>}
+            <div className="body-xs text-subtle" style={{ marginTop: 8 }}>This is a throwaway preview. Hit Generate for the full batch of {count} concepts.</div>
+          </div>
+        )}
+
         <div style={modalStyles.footer}>
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          {clientId && (
+            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: previewSample, disabled: sampling || submitting })}>
+              {sampling ? 'Drafting…' : '✨ Preview a sample'}
+            </button>
+          )}
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => onSubmit({ brief, platform, count, asset_ids: Array.from(selectedAssets) }), disabled: submitting })}>
             {submitting ? 'Generating…' : 'Generate'}
           </button>
