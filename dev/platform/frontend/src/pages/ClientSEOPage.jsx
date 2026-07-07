@@ -17,6 +17,7 @@ import {
 import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import AiSeoPanel from '../components/organic/AiSeoPanel';
 import SuiteOverview from '../components/SuiteOverview';
+import SuiteReadiness from '../components/SuiteReadiness';
 import FindPanel from '../components/organic/FindPanel';
 import BriefPanel from '../components/organic/BriefPanel';
 import DraftPanel from '../components/organic/DraftPanel';
@@ -706,6 +707,12 @@ export default function ClientSEOPage() {
           description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach the right people from your own domain."
           ctaLabel="View keyword ranks"
           onCta={() => setActiveTab('keywords')}
+          interstitial={<SuiteReadiness clientId={id} suite="owned_setup" title="Owned setup" steps={[
+            { key: 'keywords',  title: 'Keywords',   sub: 'Track what you rank for', onClick: () => setActiveTab('keywords') },
+            { key: 'audited',   title: 'Site audit', sub: 'Find what to fix',        onClick: () => setActiveTab('site_audit') },
+            { key: 'content',   title: 'Content',    sub: 'Publish new pages',       onClick: () => setActiveTab('find') },
+            { key: 'backlinks', title: 'Backlinks',  sub: 'Track your links',        onClick: () => setActiveTab('backlinks') },
+          ]} />}
           status={[
             { label: 'Keywords', value: keywords.length ? `${keywords.length} tracked` : 'None yet', ok: keywords.length > 0 },
             { label: 'Ranking', value: `${keywords.filter(k => k.current_position).length}`, ok: keywords.filter(k => k.current_position).length > 0 },

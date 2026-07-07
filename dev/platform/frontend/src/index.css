@@ -579,6 +579,12 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
   transition: background 120ms ease;
 }
 .stepper-step:last-child { border-right: none; }
+.stepper-group-label {
+  display: flex; align-items: center; padding: 0 12px; white-space: nowrap;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-subtle); background: var(--surface-sunken);
+  border-right: var(--border-w) solid var(--card-border);
+}
 .stepper-step:hover { background: #fafafa; }
 .stepper-step.active { background: var(--accent-soft); }
 .stepper-num {
