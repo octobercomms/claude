@@ -128,6 +128,21 @@ export default function ClientDetailPage() {
   const [focusDraft, setFocusDraft] = useState(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [loadingFocus, setLoadingFocus] = useState(false);
+  const [ksBusy, setKsBusy] = useState(false);
+  const [ksResult, setKsResult] = useState(null);
+
+  async function runKickstart() {
+    setKsBusy(true); setKsResult(null);
+    try {
+      const r = await api.post(`/clients/${id}/kickstart`);
+      setKsResult(r);
+      // Pull the freshly-filled fields back into the page.
+      try { setClient(await api.get(`/clients/${id}`)); } catch { /* keep going */ }
+      const n = (r.filled || []).length;
+      toast(n ? `Filled ${n} section${n === 1 ? '' : 's'} — review and edit.` : 'Nothing to fill — sections already set.', n ? 'success' : 'warning');
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setKsBusy(false); }
+  }
 
   async function handleCompleteBriefing() {
     if (!client?.domain) { toast('Set the client domain first — Claude needs something to research.', 'error'); return; }
@@ -348,6 +363,48 @@ export default function ClientDetailPage() {
 
       {tab === 'setup_overview' && (
         <>
+        <div className="card" style={{ marginBottom: 'var(--s4)', borderColor: 'var(--accent)' }}>
+          <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <div className="caption">Quick Start</div>
+              <h3 className="h3 mt-1">Fill this client from data we already have</h3>
+              <p className="body-sm text-muted mt-1" style={{ maxWidth: 620 }}>
+                One click drafts the empty setup — About this client, the monthly focus, and competitors — from the domain and brief, and proposes starter keywords. Nothing you've already filled is touched; everything is a draft to edit.
+              </p>
+            </div>
+            <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runKickstart, disabled: ksBusy })}>
+              {ksBusy ? 'Working… (~20s)' : '⚡ Quick Start'}
+            </button>
+          </div>
+
+          {ksResult && (
+            <div className="mt-4" style={{ borderTop: '1px solid var(--card-border)', paddingTop: 12 }}>
+              {!!(ksResult.filled || []).length && (
+                <div className="mb-2">
+                  <div className="caption mb-2">Filled</div>
+                  <div className="row wrap" style={{ gap: 6 }}>
+                    {ksResult.filled.map((f, i) => (
+                      <span key={i} className="chip" style={{ background: 'var(--positive-soft)', color: 'var(--positive)', fontWeight: 700 }}>✓ {f.section}{f.detail ? ` · ${f.detail}` : ''}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!!(ksResult.suggestions?.keywords || []).length && (
+                <div className="mt-3">
+                  <div className="caption mb-2">Starter keywords proposed — add the ones you want on the Owned → Keywords tab</div>
+                  <div className="row wrap" style={{ gap: 6 }}>
+                    {ksResult.suggestions.keywords.map((k, i) => <span key={i} className="chip chip-neutral">{k}</span>)}
+                  </div>
+                </div>
+              )}
+              {!!(ksResult.skipped || []).filter(s => s.reason !== 'already filled' && s.reason !== 'already set').length && (
+                <div className="body-xs text-subtle mt-3">
+                  Skipped: {ksResult.skipped.filter(s => s.reason !== 'already filled' && s.reason !== 'already set').map(s => `${s.section} (${s.reason})`).join(' · ')}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <SuiteOverview
           tagline="Set it up once. Reap it everywhere."
           description="The brand, strategy and data connections you define here power every other section — so ads stay on-brand, content stays on-message, and the weekly client report writes itself."
