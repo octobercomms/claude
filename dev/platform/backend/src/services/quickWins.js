@@ -14,19 +14,34 @@ const QUICK_WIN_MIN = 11;
 const QUICK_WIN_MAX = 20;
 
 async function listForClient(clientId) {
+  // current/previous position come from the two most recent rank observations,
+  // and AIO presence from the latest aio_history row — none of these are columns
+  // on seo_keywords (they were being referenced as if they were, which threw
+  // "column k.current_position does not exist").
   const { rows } = await pool.query(
     `SELECT k.id, k.keyword, k.target_url, k.intent,
-            k.current_position, k.previous_position,
-            k.aio_present, k.aio_brand_cited,
+            lr.position    AS current_position,
+            pr.position    AS previous_position,
+            ah.present     AS aio_present,
+            ah.brand_cited AS aio_brand_cited,
             d.dismissed_at, d.reason AS dismiss_reason
      FROM seo_keywords k
+     LEFT JOIN LATERAL (
+       SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1
+     ) lr ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1 OFFSET 1
+     ) pr ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT present, brand_cited FROM aio_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1
+     ) ah ON TRUE
      LEFT JOIN quick_win_dismissed d
        ON d.keyword_id = k.id AND d.client_id = k.client_id
      WHERE k.client_id = $1
        AND k.active = TRUE
-       AND k.current_position BETWEEN $2 AND $3
+       AND lr.position BETWEEN $2 AND $3
      ORDER BY (d.dismissed_at IS NOT NULL),
-              k.current_position ASC`,
+              lr.position ASC`,
     [clientId, QUICK_WIN_MIN, QUICK_WIN_MAX]
   );
   // Compute a small "effort score" — lower = easier to push. Position
