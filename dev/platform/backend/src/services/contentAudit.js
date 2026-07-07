@@ -15,12 +15,69 @@ const cheerio = require('cheerio');
 const pool = require('../db');
 const claudeService = require('./claude');
 const playbooks = require('./playbooks');
+const { scoreContent } = require('./contentQualityScore');
 
 const MODEL = 'claude-sonnet-4-6';
 const USER_AGENT = 'Mozilla/5.0 (compatible; OctoberMarketingIntelligence/1.0; +https://platform.octobercomms.com/audit)';
 
+// Objective E‑E‑A‑T + CITE signals we can detect deterministically from the
+// page. Handed to Claude as evidence for its per-factor grades and shown to the
+// AM as a checklist — they inform the grades rather than scoring separately.
+// `$` is the full (un-stripped) document; `main` is the post body element.
+function deriveSignals($, url, main) {
+  const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+
+  // Parse any JSON-LD blocks once — used for author / date / schema-type.
+  const ld = [];
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const parsed = JSON.parse($(el).contents().text());
+      (Array.isArray(parsed) ? parsed : [parsed]).forEach(o => o && ld.push(o));
+    } catch { /* malformed JSON-LD — ignore */ }
+  });
+  const ldTypes = new Set(ld.flatMap(o => [].concat(o['@type'] || []).map(t => String(t).toLowerCase())));
+  const ldHas = (...types) => types.some(t => ldTypes.has(t.toLowerCase()));
+
+  const author = !!(
+    $('[rel="author"], [itemprop="author"], .author, .byline, [class*="author"]').length ||
+    $('head meta[name="author"]').attr('content') ||
+    ld.some(o => o.author) || ldHas('person')
+  );
+  const date = !!(
+    $('time[datetime], [itemprop="datePublished"], [itemprop="dateModified"]').length ||
+    $('head meta[property="article:published_time"]').attr('content') ||
+    ld.some(o => o.datePublished || o.dateModified)
+  );
+  const contactOrAbout = $('a[href]').toArray().some(a => /\/(contact|about)/i.test($(a).attr('href') || ''));
+  const articleSchema = ldHas('article', 'blogposting', 'newsarticle', 'organization', 'webpage', 'faqpage');
+
+  // Main-body-scoped signals: external citations, question headings, images.
+  const externalCitations = (main.find ? main.find('a[href]') : $('a[href]')).toArray().filter(a => {
+    const href = $(a).attr('href') || '';
+    if (!/^https?:\/\//i.test(href)) return false;
+    try {
+      const h = new URL(href).hostname.replace(/^www\./, '');
+      if (h === host) return false;                                   // internal
+      return !/(facebook|twitter|x|instagram|linkedin|youtube|pinterest|t)\.(com|co)$/i.test(h); // skip social
+    } catch { return false; }
+  }).length;
+
+  const QUESTION = /^(who|what|why|how|when|where|which|can|does|do|is|are|should|will)\b|\?/i;
+  const questionHeadings = (main.find ? main.find('h2, h3') : $('h2, h3')).toArray()
+    .filter(h => QUESTION.test($(h).text().trim())).length;
+  const imageCount = (main.find ? main.find('img') : $('img')).length;
+
+  return {
+    https: /^https:\/\//i.test(url),
+    author, date, contact_or_about: contactOrAbout, article_schema: articleSchema,
+    external_citations: externalCitations, question_headings: questionHeadings,
+    original_image_count: imageCount,
+  };
+}
+
 // Pull a clean text snapshot from the URL. Drops script/style/nav/footer
-// boilerplate so Claude grades the main content, not the chrome.
+// boilerplate so Claude grades the main content, not the chrome. Also derives
+// the objective E‑E‑A‑T/CITE signals from the full document first.
 async function fetchAndExtract(url) {
   const res = await axios.get(url, {
     timeout: 20000, maxRedirects: 5, validateStatus: () => true,
@@ -33,16 +90,21 @@ async function fetchAndExtract(url) {
   const $ = cheerio.load(res.data);
   const title = ($('head > title').first().text() || '').trim();
   const metaDesc = ($('head meta[name="description"]').attr('content') || '').trim();
-  // Strip the obvious non-content chrome before extracting body text.
+  // Locate the post body BEFORE stripping chrome (signals like author/date/
+  // contact often live in header/footer).
+  const mainEl = $('main').first().length ? $('main').first()
+              : $('article').first().length ? $('article').first()
+              : $('body');
+  const signals = deriveSignals($, url, mainEl);
+  // Now strip the obvious non-content chrome before extracting body text.
   $('script, style, noscript, nav, header, footer, aside, [role="navigation"]').remove();
-  // Prefer <main> / <article> if present — gives Claude the post body
-  // rather than including sidebar/CTA copy that distorts the assessment.
   const main = $('main').first().length ? $('main').first()
             : $('article').first().length ? $('article').first()
             : $('body');
   const text = main.text().replace(/\s+/g, ' ').trim();
   const wordCount = text ? text.split(/\s+/).filter(Boolean).length : 0;
-  return { title, metaDesc, text, wordCount };
+  signals.word_count = wordCount;
+  return { title, metaDesc, text, wordCount, signals };
 }
 
 async function loadBrandContext(clientId) {
@@ -70,8 +132,17 @@ Schema:
     { "heading": "...", "rationale": "one sentence why this section makes the page rank/convert better" }
   ],
   "overall_recommendation": "...",    // 3–6 sentence markdown narrative — what the AM should do this week to lift this page
-  "priority": "low"|"medium"|"high"   // high = clear underperformer + clear lift; medium = needs work; low = already strong
-}`;
+  "priority": "low"|"medium"|"high",  // high = clear underperformer + clear lift; medium = needs work; low = already strong
+  "eeat": {                           // grade each factor A–F against the rubric + the objective signals provided
+    "experience":        { "grade": "A"|"B+"|"B"|"C+"|"C"|"F", "note": "one specific sentence naming the evidence or the gap" },
+    "expertise":         { "grade": "...", "note": "..." },
+    "authoritativeness": { "grade": "...", "note": "..." },
+    "trust":             { "grade": "...", "note": "..." },   // weighted heaviest — be strict; missing author/date/contact caps this
+    "cite":              { "grade": "...", "note": "..." }    // AI citation-readiness: liftable passages, question headings, attributed stats
+  }
+}
+
+Grade to the rubric provided in the methodology. Ground each factor's grade in the objective page signals you're given (HTTPS, author byline, publish date, contact/about, schema, external citations, question headings, images) — never award a high Trust grade to a page with no author and no date. Do NOT compute an overall grade; the platform derives that from your factor grades.`;
 
 async function runAudit({ clientId, url, targetKeyword }) {
   const cleanUrl = String(url || '').trim();
@@ -89,7 +160,7 @@ async function runAudit({ clientId, url, targetKeyword }) {
   const audit = auditRows[0];
 
   try {
-    const { title, metaDesc, text, wordCount } = await fetchAndExtract(cleanUrl);
+    const { title, metaDesc, text, wordCount, signals } = await fetchAndExtract(cleanUrl);
 
     // Cap the body text Claude sees — long pages cost tokens without
     // adding signal. 12k chars ≈ 2,200 words, well above most posts.
@@ -106,6 +177,16 @@ Meta description: ${metaDesc || '(none)'}
 Word count: ${wordCount}
 ${targetKeyword ? `Target keyword the AM thinks this should rank for: "${targetKeyword}"` : ''}
 
+Objective page signals (detected automatically — use these to ground the E‑E‑A‑T grades):
+- HTTPS: ${signals.https ? 'yes' : 'NO'}
+- Author byline / author schema: ${signals.author ? 'present' : 'NONE'}
+- Publish/updated date: ${signals.date ? 'present' : 'NONE'}
+- Contact/about link: ${signals.contact_or_about ? 'present' : 'NONE'}
+- Article/Org schema: ${signals.article_schema ? 'present' : 'NONE'}
+- External citations (outbound, non-social): ${signals.external_citations}
+- Question-shaped headings: ${signals.question_headings}
+- Images in body: ${signals.original_image_count}
+
 Page content (extracted main body):
 """
 ${cappedText}
@@ -116,13 +197,23 @@ Audit this page. Return the JSON object only.`;
     const raw = await claudeService.callClaude({
       model: MODEL,
       max_tokens: 2500,
-      system: SYSTEM + playbooks.systemSuffix(['seo-audit', 'content-strategy']),
+      system: SYSTEM + playbooks.systemSuffix(['seo-audit', 'content-strategy', 'eeat']),
       user: userPrompt,
     });
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
     let findings;
     try { findings = JSON.parse(cleaned); }
     catch { throw new Error('Claude returned malformed JSON: ' + cleaned.slice(0, 240)); }
+
+    // Deterministic rubric-weighted overall grade + publish verdict from
+    // Claude's per-factor E‑E‑A‑T grades. Persist the factors + the objective
+    // signals together as evidence.
+    const eeat = findings.eeat && typeof findings.eeat === 'object' ? findings.eeat : {};
+    const scored = scoreContent({
+      experience: eeat.experience, expertise: eeat.expertise,
+      authoritativeness: eeat.authoritativeness, trust: eeat.trust, cite: eeat.cite,
+    });
+    const eeatPayload = { factors: eeat, signals, score: scored.score, categories: scored.categories };
 
     const { rows: updated } = await pool.query(
       `UPDATE content_audits SET
@@ -132,8 +223,9 @@ Audit this page. Return the JSON object only.`;
          detected_primary_keyword = $6, keyword_usage = $7,
          missing_subtopics_json = $8, suggested_additions_json = $9,
          overall_recommendation = $10, priority = $11,
+         eeat_json = $12, content_grade = $13, publish_verdict = $14,
          completed_at = NOW()
-       WHERE id = $12 RETURNING *`,
+       WHERE id = $15 RETURNING *`,
       [
         title, metaDesc, wordCount,
         Math.max(1, Math.min(5, Number(findings.thin_content_score) || 3)),
@@ -144,6 +236,7 @@ Audit this page. Return the JSON object only.`;
         JSON.stringify(Array.isArray(findings.suggested_additions) ? findings.suggested_additions : []),
         findings.overall_recommendation || null,
         ['low','medium','high'].includes(findings.priority) ? findings.priority : 'medium',
+        JSON.stringify(eeatPayload), scored.grade, scored.verdict,
         audit.id,
       ]
     );

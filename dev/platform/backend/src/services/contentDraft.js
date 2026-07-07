@@ -147,7 +147,7 @@ Write the full blog post now in markdown. Hit the word count from the brief. Lea
   const md = await claudeService.callClaude({
     model: DRAFT_MODEL,
     max_tokens: 8000,
-    system: SYSTEM + playbooks.systemSuffix(['copywriting', 'content-strategy']),
+    system: SYSTEM + playbooks.systemSuffix(['copywriting', 'content-strategy', 'eeat']),
     user: userPrompt,
   });
   let cleaned = sanitizeUnicode(md);
