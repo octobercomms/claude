@@ -1,6 +1,7 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
 import { CreativeCard } from '../AdCreativePanel';
+import ExampleBanner from './ExampleBanner';
 
 // Paid Pipeline → Render. Concept cards with the render controls open
 // by default (renderMode='always-open') so AMs can fire off images +
@@ -12,6 +13,7 @@ export default function PaidRenderStep({ pipeline, onNext, onBack }) {
     <PipelineStep
       num={3} title="Render" onNext={onNext} nextLabel="Share for approval"
       tagline="Image and video renders across every aspect ratio you need. Replicate / Ideogram / Firefly for stills; Replicate (Seedance / Wan 2.2) for video. Adobe generative fan-out turns one image into every other size."
+      banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
         <div className="callout" style={{ fontSize: 13 }}>

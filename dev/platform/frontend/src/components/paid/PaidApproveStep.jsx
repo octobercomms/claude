@@ -1,5 +1,6 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
+import ExampleBanner from './ExampleBanner';
 import { useAuth } from '../../context/AuthContext';
 import { roWrite } from '../../utils/readOnly';
 
@@ -17,6 +18,7 @@ export default function PaidApproveStep({ pipeline, onNext, onBack }) {
     <PipelineStep
       num={4} title="Approve" onNext={onNext} nextLabel="Launch"
       tagline="Generate a public link to share with the client. They review, approve, or request changes — no login required. Link expires after 14 days."
+      banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
         <div className="callout" style={{ fontSize: 13 }}>

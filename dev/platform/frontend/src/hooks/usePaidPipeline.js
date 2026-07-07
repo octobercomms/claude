@@ -8,7 +8,7 @@
 // object down to each step. Sub-tab navigation between steps is
 // instantaneous because the state lives above the tab boundary.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -22,6 +22,11 @@ export function usePaidPipeline({ clientId, clientName }) {
   const [generating, setGenerating] = useState(false);
   const [shareUrl, setShareUrl] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const [ensuringExample, setEnsuringExample] = useState(false);
+
+  // Real briefs (AM-authored) vs the single auto-generated worked example.
+  const realBatches = batches.filter(b => !b.is_example);
+  const exampleBatch = batches.find(b => b.is_example) || null;
 
   async function refresh() {
     try {
@@ -31,9 +36,12 @@ export function usePaidPipeline({ clientId, clientName }) {
       ]);
       setBatches(bs);
       setAssets(as);
-      if (bs.length && !activeBatchId) {
-        setActiveBatchId(bs[0].id);
-        const cs = await api.get(`/ad-creatives/clients/${clientId}/creatives?batch_id=${bs[0].id}`);
+      // Prefer a real brief as the active batch; the example is selected by
+      // the ensure-example effect below when there are no real briefs.
+      const real = bs.filter(b => !b.is_example);
+      if (real.length && !activeBatchId) {
+        setActiveBatchId(real[0].id);
+        const cs = await api.get(`/ad-creatives/clients/${clientId}/creatives?batch_id=${real[0].id}`);
         setCreatives(cs);
       }
     } finally {
@@ -41,6 +49,36 @@ export function usePaidPipeline({ clientId, clientName }) {
     }
   }
   useEffect(() => { refresh(); /* eslint-disable-line */ }, [clientId]);
+
+  // Persisted worked example. When a client has no real briefs, ensure the
+  // example exists (generate once, server-side) and make it the active batch
+  // so it flows through every step. Persisted, so it survives navigation and
+  // doesn't regenerate on each visit.
+  async function ensureExample() {
+    if (ensuringExample) return;
+    setEnsuringExample(true);
+    try {
+      const { batch, creatives: exCreatives } = await api.post(`/ad-creatives/clients/${clientId}/example-batch`, {});
+      setBatches(prev => prev.some(b => b.id === batch.id) ? prev : [batch, ...prev]);
+      setActiveBatchId(prev => prev || batch.id);
+      setCreatives(prev => (prev && prev.length) ? prev : (exCreatives || []));
+    } catch (e) { /* silent — Brief step shows a plain empty state on failure */ }
+    finally { setEnsuringExample(false); }
+  }
+
+  const exampleTried = useRef(false);
+  useEffect(() => { exampleTried.current = false; }, [clientId]);
+  useEffect(() => {
+    if (!loaded || realBatches.length) return;
+    if (exampleBatch) {
+      if (!activeBatchId) selectBatch(exampleBatch.id);
+      return;
+    }
+    if (exampleTried.current) return;
+    exampleTried.current = true;
+    ensureExample();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, batches]);
 
   async function selectBatch(batchId) {
     setActiveBatchId(batchId);
@@ -143,7 +181,8 @@ export function usePaidPipeline({ clientId, clientName }) {
   const activeBatch = batches.find(b => b.id === activeBatchId) || null;
 
   return {
-    batches, creatives, activeBatchId, activeBatch, assets, loaded,
+    batches, realBatches, exampleBatch, creatives, activeBatchId, activeBatch, assets, loaded,
+    ensuringExample,
     showBrief, setShowBrief,
     generating, shareUrl, setShareUrl,
     selectBatch, generate, deleteCreative, updateCreative, deleteBatch,

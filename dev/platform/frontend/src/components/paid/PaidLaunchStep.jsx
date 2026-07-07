@@ -1,5 +1,6 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
+import ExampleBanner from './ExampleBanner';
 
 // Paid Pipeline → Launch. End of the production arc — hand-off to the
 // ad platform. Today this is a manual export (download images, paste
@@ -22,6 +23,7 @@ export default function PaidLaunchStep({ pipeline, onBack }) {
     <PipelineStep
       num={5} title="Launch"
       tagline="Hand the approved batch off to Meta Ads Manager or Google. Direct API launch is on the roadmap — for now it's a manual export with the pre-launch checklist."
+      banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
         <div className="callout" style={{ fontSize: 13 }}>
