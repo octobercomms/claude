@@ -156,6 +156,19 @@ router.put('/:id', async (req, res) => {
 
 // Research the client's domain via Claude and draft an "About this client"
 // paragraph. The frontend opens this in a draft-and-accept modal.
+// Process Rails — derived-first step completion for a suite's process nav.
+router.get('/:id/suite-progress/:suite', async (req, res) => {
+  try {
+    res.json(await require('../services/suiteProgress').getProgress(req.params.id, req.params.suite));
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+router.post('/:id/suite-progress/:suite/:step', async (req, res) => {
+  try {
+    await require('../services/suiteProgress').setManual(req.params.id, req.params.suite, req.params.step, !!(req.body || {}).done);
+    res.json({ ok: true });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // Quick Start — fill as much empty client setup as possible from existing data
 // in one call (briefing, monthly focus, competitors + proposed keywords).
 router.post('/:id/kickstart', async (req, res) => {

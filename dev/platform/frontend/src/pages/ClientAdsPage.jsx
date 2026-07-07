@@ -9,6 +9,7 @@ import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import Stepper from '../components/Stepper';
+import ProcessRail from '../components/ProcessRail';
 import { useTabParam } from '../hooks/useTabParam';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -67,6 +68,15 @@ export default function ClientAdsPage() {
     if (tab === 'creative' || tab === 'pipeline') setTab('brief');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  // Process Rails — derived step status for the Advise group.
+  const [adviseSteps, setAdviseSteps] = useState({});
+  useEffect(() => {
+    if (currentGroup !== 'advisor') return;
+    api.get(`/clients/${id}/suite-progress/paid_advise`)
+      .then(r => setAdviseSteps(r.steps || {}))
+      .catch(() => {});
+  }, [currentGroup, id, tab]);
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(c => {
@@ -227,12 +237,18 @@ export default function ClientAdsPage() {
         { key: 'performance', label: 'Measure',     active: currentGroup === 'performance', onClick: () => setTab('performance') },
       ]} />
       {currentGroup === 'advisor' && (
-        <SuiteTabs variant="sub" tabs={[
-          { key: 'playbook',       label: 'Playbook',    active: tab === 'playbook',       onClick: () => setTab('playbook') },
-          { key: 'strategist',     label: 'Briefing',    active: tab === 'strategist',     onClick: () => setTab('strategist') },
-          { key: 'audiences',      label: 'Audiences',   active: tab === 'audiences',      onClick: () => setTab('audiences') },
-          { key: 'competitor_ads', label: 'Competitors', active: tab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
-        ]} />
+        <div className="stepper-block">
+          <ProcessRail
+            activeKey={tab}
+            onStep={setTab}
+            steps={[
+              { key: 'playbook',       title: 'Playbook',    sub: 'How paid works here', status: 'info' },
+              { key: 'strategist',     title: 'Briefing',    sub: 'Get the strategist read', status: adviseSteps.briefing || 'todo' },
+              { key: 'audiences',      title: 'Audiences',   sub: 'Build a target list', status: adviseSteps.audiences || 'todo' },
+              { key: 'competitor_ads', title: 'Competitors', sub: 'Watch rival ads', status: adviseSteps.competitors || 'todo' },
+            ]}
+          />
+        </div>
       )}
       {isPipelineGroup && (
         <div className="stepper-block">
