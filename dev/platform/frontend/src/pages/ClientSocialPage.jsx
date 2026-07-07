@@ -13,8 +13,8 @@ import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
 import SuiteOverview from '../components/SuiteOverview';
-import SuiteReadiness from '../components/SuiteReadiness';
 import SuiteTabs from '../components/SuiteTabs';
+import ProcessRail from '../components/ProcessRail';
 import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
@@ -438,6 +438,16 @@ export default function ClientSocialPage() {
           performance: 'measure', competitors: 'measure', audit: 'measure', perf_insights: 'measure',
           learn: 'measure', loop: 'measure',
         };
+        // Sub-step descriptions for the Engage / Measure rails, so each tab
+        // reads as a step in a "work through these" order rather than a bare tab.
+        const RAIL_SUB = {
+          dm_bot: 'Auto-reply brain & drafts',
+          discover: 'Find & engage accounts',
+          perf_insights: 'Headline performance read',
+          performance: 'Your top posts',
+          competitors: 'Benchmark vs rivals',
+          audit: 'AI recommendations',
+        };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
@@ -446,14 +456,20 @@ export default function ClientSocialPage() {
           { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
           { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
         ];
-        const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
-          ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
+        // Engage / Measure show a numbered ProcessRail (a stepped "work through
+        // these tabs" guide, like Paid → Advise and Owned). Create has its own
+        // stepper; Overview / Capture have no sub-steps.
+        const railSteps = (SUB_TABS[currentGroup] || []).map(t => ({
+          key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: 'todo',
         }));
         return (
           <>
             <SuiteTabs tabs={topTabs} />
-            {/* Create has its own stepper (Ideas → Brief → Workbench → Plan → Publish), so it skips the sub-tab bar. */}
-            {subTabs.length > 0 && currentGroup !== 'create' && <SuiteTabs tabs={subTabs} variant="sub" />}
+            {railSteps.length > 0 && currentGroup !== 'create' && (
+              <div className="stepper-block">
+                <ProcessRail steps={railSteps} activeKey={socialTab} onStep={setSocialTab} numbered />
+              </div>
+            )}
           </>
         );
       })()}
@@ -464,11 +480,6 @@ export default function ClientSocialPage() {
           description="Brainstorm nine posts at once, film a reel in your own voice, schedule the lot across every channel — then learn what landed so the next batch starts ahead."
           ctaLabel="See performance"
           onCta={() => setSocialTab('loop')}
-          interstitial={<SuiteReadiness clientId={id} suite="shared_setup" title="Content pipeline" steps={[
-            { key: 'created',   title: 'Create',  sub: 'Draft the posts',   onClick: () => setSocialTab('brainstorm') },
-            { key: 'planned',   title: 'Plan',    sub: 'Schedule the batch', onClick: () => setSocialTab('plans') },
-            { key: 'published', title: 'Publish', sub: 'Live on channels',  onClick: () => setSocialTab('publish') },
-          ]} />}
           status={[
             { label: 'Autopilot', value: client?.social_autopilot_paused ? 'Paused' : 'On', ok: !client?.social_autopilot_paused },
             { label: 'Plans', value: `${plans.length} scheduled`, ok: plans.length > 0 },

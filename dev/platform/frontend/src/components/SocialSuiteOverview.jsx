@@ -6,7 +6,6 @@
 import React from 'react';
 import Card from './ui/Card';
 import Button from './ui/Button';
-import Chip from './ui/Chip';
 import Sparkline from './Sparkline';
 
 const STEPS = [
@@ -46,8 +45,6 @@ export default function SocialSuiteOverview({
     batchesCount: batches?.length || 0, scheduledCount: scheduledPlans.length,
   });
 
-  const completedSteps = STEPS.filter(s => status[s.key]).length;
-
   return (
     <div className="mb-7">
       {/* Status pills row — at-a-glance state across the loop. The
@@ -64,8 +61,6 @@ export default function SocialSuiteOverview({
           tone={client?.social_autopilot_paused ? 'warning' : 'positive'} />
         <StatusPill label="Competitors" value={hasCompetitors ? `${competitors.length} tracked` : 'None yet'}
           tone={hasCompetitors ? 'positive' : 'warning'} />
-        <StatusPill label="Loop" value={`${completedSteps} / ${STEPS.length} steps`}
-          tone={completedSteps === STEPS.length ? 'positive' : 'default'} />
         {publishedCount > 0 && <StatusPill label="Published" value={publishedCount} tone="positive" />}
       </div>
 
@@ -88,28 +83,7 @@ export default function SocialSuiteOverview({
           )}
         </div>
       </Card>
-
-      <div className="mt-6">
-        <div className="caption caption-muted mb-3">Pipeline</div>
-        <div className="grid grid-auto" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-          {STEPS.map((s, i) => (
-            <LoopStep key={s.key} step={s} index={i} done={status[s.key]} current={s.key === currentKey} />
-          ))}
-        </div>
-      </div>
     </div>
-  );
-}
-
-function LoopStep({ step, index, done, current }) {
-  const variant = done ? 'outline' : current ? 'accent' : 'default';
-  const dot = done ? '✓' : index + 1;
-  return (
-    <Card variant={variant}>
-      <Chip tone={done ? 'success' : current ? 'accent' : 'neutral'}>{dot}</Chip>
-      <div className="h3 mt-2">{step.label}</div>
-      <p className="body-xs mt-2">{step.short}</p>
-    </Card>
   );
 }
 
