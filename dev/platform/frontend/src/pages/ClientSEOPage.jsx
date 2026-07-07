@@ -697,9 +697,10 @@ export default function ClientSEOPage() {
           ctr_boost: 'CTR boosters · titles', ai_seo: 'AI keyword targets', agent_ready: 'Agent readiness',
           local_gap: 'Local competition gap', local_schema: 'Local schema audit', local_keywords: 'Buyer-intent keywords', local_xray: 'Rival teardown',
           local_playbook: 'GBP ranking playbook', local_outliers: 'Ranking outliers', local_gbp: 'GBP posts',
+          cro: 'Fix the funnel', forms: 'Lead capture',
         };
         const INFO_TABS = new Set(['perf_insights']); // read-outs, not "do" steps
-        const RAIL_GROUPS = new Set(['search', 'optimise', 'local']);
+        const RAIL_GROUPS = new Set(['search', 'optimise', 'local', 'convert']);
         const railSteps = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel
           ? { groupLabel: t.groupLabel }
           : { key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: INFO_TABS.has(t.key) ? 'info' : (railStatus[t.key] || 'todo') });
