@@ -13,6 +13,7 @@ import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
 import SuiteOverview from '../components/SuiteOverview';
+import SuiteReadiness from '../components/SuiteReadiness';
 import SuiteTabs from '../components/SuiteTabs';
 import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
@@ -463,6 +464,11 @@ export default function ClientSocialPage() {
           description="Brainstorm nine posts at once, film a reel in your own voice, schedule the lot across every channel — then learn what landed so the next batch starts ahead."
           ctaLabel="See performance"
           onCta={() => setSocialTab('loop')}
+          interstitial={<SuiteReadiness clientId={id} suite="shared_setup" title="Content pipeline" steps={[
+            { key: 'created',   title: 'Create',  sub: 'Draft the posts',   onClick: () => setSocialTab('brainstorm') },
+            { key: 'planned',   title: 'Plan',    sub: 'Schedule the batch', onClick: () => setSocialTab('plans') },
+            { key: 'published', title: 'Publish', sub: 'Live on channels',  onClick: () => setSocialTab('publish') },
+          ]} />}
           status={[
             { label: 'Autopilot', value: client?.social_autopilot_paused ? 'Paused' : 'On', ok: !client?.social_autopilot_paused },
             { label: 'Plans', value: `${plans.length} scheduled`, ok: plans.length > 0 },

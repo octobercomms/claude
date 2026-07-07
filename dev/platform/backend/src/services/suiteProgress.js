@@ -43,6 +43,17 @@ const DERIVERS = {
     content: (id) => boolQuery(`SELECT 1 FROM content_drafts WHERE client_id = $1 LIMIT 1`, [id]),
     backlinks: (id) => boolQuery(`SELECT 1 FROM dfs_backlinks_summary WHERE client_id = $1 LIMIT 1`, [id]),
   },
+  earned_setup: {
+    contacts: (id) => boolQuery(`SELECT 1 FROM outreach_contacts WHERE client_id = $1 LIMIT 1`, [id]),
+    pitched: (id) => boolQuery(`SELECT 1 FROM pr_editorial_log WHERE client_id = $1 AND status = 'pitched' LIMIT 1`, [id]),
+    published: (id) => boolQuery(`SELECT 1 FROM pr_editorial_log WHERE client_id = $1 AND status = 'published' LIMIT 1`, [id]),
+    thanked: (id) => boolQuery(`SELECT 1 FROM pr_sent_thanks s JOIN pr_editorial_log l ON l.id = s.editorial_log_id WHERE l.client_id = $1 LIMIT 1`, [id]),
+  },
+  shared_setup: {
+    created: (id) => boolQuery(`SELECT 1 FROM social_posts WHERE client_id = $1 LIMIT 1`, [id]),
+    planned: (id) => boolQuery(`SELECT 1 FROM social_post_plans WHERE client_id = $1 LIMIT 1`, [id]),
+    published: (id) => boolQuery(`SELECT 1 FROM social_post_publications WHERE client_id = $1 LIMIT 1`, [id]),
+  },
 };
 
 // Returns { suite, steps: { <key>: 'done' | 'todo' } } for the derivable steps.
