@@ -212,6 +212,11 @@ export default function ClientSEOPage() {
   const [bucket, setBucket] = useState('all');
   const [historyKeyword, setHistoryKeyword] = useState(null);
   const [classifying, setClassifying] = useState(false);
+  // Keyword handed from a discovery surface (Rankings, Find gaps, fan-out)
+  // into the Build → Brief step. The ts makes the same keyword re-trigger the
+  // pre-fill if it's sent twice. buildFromKeyword is threaded down to every
+  // keyword table so "found a keyword" has a one-click path into production.
+  const [buildSeed, setBuildSeed] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -266,6 +271,16 @@ export default function ClientSEOPage() {
     });
   }
 
+  // Send a discovered keyword into the Build pipeline: pre-fill the Brief
+  // step with it and switch to that tab. Non-destructive — the AM reviews and
+  // hits Generate. Shared by the Rankings table and the Find-step gap tables.
+  function buildFromKeyword(keyword) {
+    const kw = String(keyword || '').trim();
+    if (!kw) return;
+    setBuildSeed({ keyword: kw, ts: Date.now() });
+    setActiveTab('planning');
+  }
+
   function renderKeywordRow(kw) {
     const change = kw.current_position && kw.previous_position ? kw.previous_position - kw.current_position : null;
     const loc = LOCATIONS.find(l => l.code === kw.location_code);
@@ -315,6 +330,7 @@ export default function ClientSEOPage() {
         <td >{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
         <td onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={() => buildFromKeyword(kw.keyword)} className="btn btn-secondary btn-sm" title="Write content for this keyword">✍ Build</button>
             <button onClick={() => setHistoryKeyword(kw)} className="btn btn-secondary btn-sm">History</button>
             <button onClick={() => handleDelete(kw.id)} className="btn btn-danger btn-sm">Delete</button>
           </div>
@@ -772,8 +788,8 @@ export default function ClientSEOPage() {
       {activeTab === 'content_audit' && <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
       {activeTab === 'keyword_footprint' && <KeywordFootprintPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
       {/* Pipeline steps */}
-      {activeTab === 'find' && <FindPanel clientId={id} onNext={() => setActiveTab('planning')} />}
-      {activeTab === 'planning' && <BriefPanel clientId={id} onNext={() => setActiveTab('draft')} />}
+      {activeTab === 'find' && <FindPanel clientId={id} onBuildContent={buildFromKeyword} onNext={() => setActiveTab('planning')} />}
+      {activeTab === 'planning' && <BriefPanel clientId={id} seed={buildSeed} onNext={() => setActiveTab('draft')} />}
       {activeTab === 'draft' && <DraftPanel clientId={id} onNext={() => setActiveTab('publish')} />}
       {activeTab === 'publish' && <PublishPanel clientId={id} onNext={() => setActiveTab('promote')} />}
       {activeTab === 'promote' && <PromotePanel clientId={id} />}

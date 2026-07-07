@@ -34,7 +34,7 @@ const MODES = [
   { key: 'own_site',   label: 'From your own site',   tagline: 'Pull open issues from the Site audit + Quick wins (keywords #11–20) into one list so you can pick a refresh target without leaving Pipeline.' },
 ];
 
-export default function FindPanel({ clientId, onNext }) {
+export default function FindPanel({ clientId, onNext, onBuildContent }) {
   const { readOnly } = useAuth();
   const [mode, setMode] = useState('url');
   const [runs, setRuns] = useState([]);
@@ -113,8 +113,8 @@ export default function FindPanel({ clientId, onNext }) {
         ))}
       </div>
 
-      {mode === 'query' && <FanoutTab clientId={clientId} />}
-      {mode === 'competitor' && <ContentGapsTab clientId={clientId} />}
+      {mode === 'query' && <FanoutTab clientId={clientId} onBuildContent={onBuildContent} />}
+      {mode === 'competitor' && <ContentGapsTab clientId={clientId} onBuildContent={onBuildContent} />}
       {mode === 'own_site' && <OwnSiteMode clientId={clientId} />}
       {mode === 'url' && (<>
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -194,6 +194,7 @@ export default function FindPanel({ clientId, onNext }) {
                         <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Competitor</th>
                         <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>You</th>
                         <th className="caption" style={{ padding: '8px 10px' }}>Status</th>
+                        {onBuildContent && <th className="caption" style={{ padding: '8px 10px' }}></th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -206,6 +207,12 @@ export default function FindPanel({ clientId, onNext }) {
                           <td style={{ padding: '8px 10px', fontSize: 11, color: k.is_gap ? 'var(--negative)' : 'var(--text-subtle)', fontWeight: k.is_gap ? 700 : 400 }}>
                             {k.is_gap ? 'GAP' : (k.client_position && k.client_position <= 10 ? 'covered' : '—')}
                           </td>
+                          {onBuildContent && (
+                            <td style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              <button className="btn btn-secondary btn-sm" title="Write content for this keyword"
+                                {...roWrite(readOnly, { onClick: () => onBuildContent(k.keyword) })}>✍ Build</button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
