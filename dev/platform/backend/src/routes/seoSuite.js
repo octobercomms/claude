@@ -12,6 +12,7 @@ const dataForSEO = require('../connectors/dataforseo');
 const google = require('../connectors/google');
 const pageSpeed = require('../services/pageSpeed');
 const seoDrift = require('../services/seoDrift');
+const seoSxo = require('../services/seoSxo');
 const { decrypt } = require('../utils/encryption');
 
 const router = express.Router();
@@ -826,6 +827,17 @@ router.get('/clients/:clientId/core-web-vitals', async (req, res) => {
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message, code: err.code });
   }
+});
+
+// SXO — read the SERP backwards: page-type + persona + wireframe for a query.
+router.post('/clients/:clientId/sxo', async (req, res) => {
+  try {
+    res.json(await seoSxo.runSxo({
+      clientId: req.params.clientId,
+      seedQuery: req.body.seed_query,
+      locationCode: Number(req.body.location_code) || 2826,
+    }));
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // ── SEO drift baselining (Integration E) ───────────────────────────────────
