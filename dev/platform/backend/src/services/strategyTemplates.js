@@ -5,6 +5,7 @@
 
 const pool = require('../db');
 const claudeService = require('./claude');
+const playbooks = require('./playbooks');
 const dataforseo = require('../connectors/dataforseo');
 const crypto = require('crypto');
 
@@ -496,7 +497,7 @@ async function tailorWithClaude(clientId) {
 
   const raw = await claudeService.callClaude({
     max_tokens: 5000,
-    system: 'You are a senior marketing strategist at October, a UK agency, writing a client strategy in the style of the firm\'s hand-crafted SOSTAC plans. Adapt the checklist to the specific client AND produce a structured strategic profile: a confident narrative exec summary, a positioning statement + key messages, concrete primary/secondary personas (age, budget, location, values), a real SWOT, a competitor map (functional/emotional/situational) AND a benchmarked competitor table (real named companies + their domains), tactics mapped to the demand funnel (attract/convert/close/retain), quantified SMART objectives, and PR target media + awards. Specific to THIS client — no generic filler, no copy-paste between clients. For the competitor table give each competitor\'s real website domain (you don\'t need to know their DA — leave it null, we fill it from live data). British English. JSON only — no prose, no fences.',
+    system: 'You are a senior marketing strategist at October, a UK agency, writing a client strategy in the style of the firm\'s hand-crafted SOSTAC plans. Adapt the checklist to the specific client AND produce a structured strategic profile: a confident narrative exec summary, a positioning statement + key messages, concrete primary/secondary personas (age, budget, location, values), a real SWOT, a competitor map (functional/emotional/situational) AND a benchmarked competitor table (real named companies + their domains), tactics mapped to the demand funnel (attract/convert/close/retain), quantified SMART objectives, and PR target media + awards. Specific to THIS client — no generic filler, no copy-paste between clients. For the competitor table give each competitor\'s real website domain (you don\'t need to know their DA — leave it null, we fill it from live data). British English. JSON only — no prose, no fences.' + playbooks.systemSuffix(['trust-brokering']),
     user: `Client: ${c.name}${c.domain ? ` (${c.domain})` : ''}
 About: ${c.briefing_field || '(no brief)'}
 This month's focus: ${c.monthly_focus || '(none)'}

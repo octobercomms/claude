@@ -301,9 +301,12 @@ async function generate({ clientId, periodDays = 7, trigger = 'manual' }) {
     // playbooks ground the recommendations. Both degrade gracefully — a null
     // audit just omits the block, a missing playbook just omits its section.
     const audit = adAudit.scoreSnapshot(current);
-    const adsPlaybook = playbooks.getPlaybooks(['ads', 'meta-audiences']);
+    // Paid-ads methodology (`ads` + October's `meta-audiences`) plus the
+    // `trust-brokering` fragment so recommendations can name the trust "why"
+    // — trusted messengers over faceless brand-speak (Edelman 2026).
+    const adsPlaybook = playbooks.getPlaybooks(['ads', 'meta-audiences', 'trust-brokering']);
     const system = adsPlaybook
-      ? `${SYSTEM_PROMPT}\n\n# Methodology to apply\nGround your analysis and recommendations in this paid-ads methodology:\n\n${adsPlaybook}`
+      ? `${SYSTEM_PROMPT}\n\n# Methodology to apply\nGround your analysis and recommendations in this methodology:\n\n${adsPlaybook}`
       : SYSTEM_PROMPT;
 
     const prompt = buildPrompt({ client, current, previous, previousReport, previousActions, audit });

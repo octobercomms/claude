@@ -197,7 +197,7 @@ Audit this page. Return the JSON object only.`;
     const raw = await claudeService.callClaude({
       model: MODEL,
       max_tokens: 2500,
-      system: SYSTEM + playbooks.systemSuffix(['seo-audit', 'content-strategy', 'eeat']),
+      system: SYSTEM + playbooks.systemSuffix(['seo-audit', 'content-strategy', 'eeat', 'trust-brokering']),
       user: userPrompt,
     });
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
