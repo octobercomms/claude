@@ -359,14 +359,35 @@ final class Transactional {
         return $url === '' ? esc_html($label) : '<a href="' . esc_url($url) . '">' . esc_html($label) . '</a>';
     }
 
+    /**
+     * The shared branded shell for transactional emails (refunds, cancellations,
+     * rejections, waitlist, etc.) — matches the ticket confirmation's house style:
+     * the brand logo, the 2px black border card, and the same header/footer.
+     */
     private static function wrap(string $brand, string $inner): string {
         $home = esc_url(home_url('/'));
-        return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf9f5;padding:24px;font-family:Arial,Helvetica,sans-serif">'
-            . '<tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px;border:1px solid #e3e2db">'
-            . '<tr><td style="padding:22px 26px;border-bottom:1px solid #e3e2db;font-weight:bold;font-size:18px;color:#1a1a1a">' . esc_html($brand) . '</td></tr>'
-            . '<tr><td style="padding:26px;font-size:15px;line-height:1.6;color:#333">' . $inner . '</td></tr>'
-            . '<tr><td style="padding:18px 26px;border-top:1px solid #e3e2db;font-size:12px;color:#888">'
-            . esc_html($brand) . ' · <a href="' . $home . '" style="color:#888">' . esc_html((string) wp_parse_url($home, PHP_URL_HOST)) . '</a></td></tr>'
-            . '</table></td></tr></table>';
+        $host = esc_html((string) wp_parse_url($home, PHP_URL_HOST));
+        // Brand logo (same source the ticket/email logo falls back to), else the
+        // brand name as a wordmark.
+        $logo = (string) Settings::get('theme_logo_light', '');
+        if ($logo === '') {
+            $logo = (string) Settings::get('theme_logo_dark', '');
+        }
+        $head = $logo !== ''
+            ? '<img src="' . esc_url($logo) . '" alt="' . esc_attr($brand) . '" style="max-height:46px;max-width:240px;display:block">'
+            : '<span style="font-weight:800;font-size:17px;color:#111">' . esc_html($brand) . '</span>';
+
+        return '<!doctype html><html><body style="margin:0;background:#eceae6">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceae6;padding:24px;font-family:Arial,Helvetica,sans-serif">'
+            . '<tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border:2px solid #111">'
+            // header (logo, thick divider) — matches the ticket email
+            . '<tr><td style="padding:16px 22px;border-bottom:3px solid #111">' . $head . '</td></tr>'
+            // body
+            . '<tr><td style="padding:22px;font-size:15px;line-height:1.6;color:#222">' . $inner . '</td></tr>'
+            // footer
+            . '<tr><td style="padding:16px 22px;border-top:2px solid #111;font-size:12px;color:#777">'
+            . esc_html($brand) . ' · <a href="' . $home . '" style="color:#777">' . $host . '</a> · ' . esc_html__('Questions? Just reply to this email.', 'october-events')
+            . '</td></tr>'
+            . '</table></td></tr></table></body></html>';
     }
 }
