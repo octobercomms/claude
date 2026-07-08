@@ -680,6 +680,40 @@ async function sendReportReminderEmail(client) {
   });
 }
 
+// Alert #1 — someone ran a public Growth Snapshot (URL submitted, no email yet).
+// A genuinely useful lead even without the email: worth looking them up on
+// Instagram and following. Goes to the October inbox, not a client.
+async function sendSnapshotLeadAlert({ company, url, igHandle }) {
+  const ig = igHandle ? `<p>Instagram: <strong>${escapeForTemplate(igHandle)}</strong></p>` : '';
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL || 'octobercomms@gmail.com',
+    subject: `New Growth Snapshot lead: ${company || url}`,
+    text: `${company || url} just ran a Growth Snapshot.\nWebsite: ${url}\n${igHandle ? 'Instagram: ' + igHandle + '\n' : ''}No email entered yet — a good one to look up on Instagram and follow.\nOpen the Studio to curate + follow up.\n${new Date().toUTCString()}`,
+    html: `<p><strong>${escapeForTemplate(company || url)}</strong> just ran a Growth Snapshot on their site.</p>
+      <p>Website: <a href="${escapeForTemplate(url)}">${escapeForTemplate(url)}</a></p>
+      ${ig}
+      <p style="color:#b26b00">No email entered yet — a good one to look up on Instagram and follow.</p>
+      <p style="color:#888">${new Date().toUTCString()}</p>`,
+  });
+}
+
+// Alert #2 — a public Snapshot visitor entered their email to unlock the full
+// report. The warm lead: curate the PDF in the Studio and book the call.
+async function sendSnapshotEmailRequest({ company, url, email }) {
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL || 'octobercomms@gmail.com',
+    subject: `Full report requested: ${company || url} (${email})`,
+    text: `${company || url} entered their email to unlock the full Growth Snapshot.\nEmail: ${email}\nWebsite: ${url}\nOpen the Studio to curate + send the PDF and book the call.\n${new Date().toUTCString()}`,
+    html: `<p><strong>${escapeForTemplate(company || url)}</strong> entered their email to unlock the full Growth Snapshot.</p>
+      <p>Email: <strong>${escapeForTemplate(email)}</strong></p>
+      <p>Website: <a href="${escapeForTemplate(url)}">${escapeForTemplate(url)}</a></p>
+      <p style="color:#1a7a3c">Warm lead — curate the PDF in the Studio and book the call.</p>
+      <p style="color:#888">${new Date().toUTCString()}</p>`,
+  });
+}
+
 async function sendWaitlistSignup(email) {
   return getTransporter().sendMail({
     from: getSenderAddress(),
@@ -897,4 +931,4 @@ async function sendClientInvite({ to, clientName, link }) {
   return getTransporter().sendMail({ from: getSenderAddress(), to, subject: `${clientName ? clientName + ' — ' : ''}your marketing dashboard access`, html });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite };
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite };
