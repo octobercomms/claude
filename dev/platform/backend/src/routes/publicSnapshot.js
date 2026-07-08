@@ -142,6 +142,40 @@ router.get('/embed', (req, res) => {
   res.send(renderEmbedHtml({ theme, intro, accent }));
 });
 
+// ── One-line loader ─────────────────────────────────────────────────────────
+// Solves the cross-origin iframe auto-height problem for the host: a single
+// <script src=".../embed.js" data-theme="dark"></script> injects the iframe
+// where the tag sits AND resizes it to the widget's content via postMessage —
+// so there's no separate resize snippet to forget or for a page builder to
+// mangle. Loaded as a cross-origin subresource, so CORP must allow it.
+router.get('/embed.js', (req, res) => {
+  res.removeHeader('X-Frame-Options');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.send(LOADER_JS);
+});
+
+const LOADER_JS = `(function(){
+  var s=document.currentScript;
+  if(!s){var ss=document.getElementsByTagName('script');s=ss[ss.length-1];}
+  var origin;try{origin=new URL(s.src).origin;}catch(e){origin='';}
+  function attr(n){return s.getAttribute('data-'+n);}
+  var q=[];
+  var theme=attr('theme');if(theme)q.push('theme='+encodeURIComponent(theme));
+  if(attr('intro')==='0')q.push('intro=0');
+  var accent=(attr('accent')||'').replace(/[^0-9a-fA-F]/g,'');if(accent)q.push('accent='+accent);
+  var f=document.createElement('iframe');
+  f.src=origin+'/api/public/snapshot/embed'+(q.length?'?'+q.join('&'):'');
+  f.title='October Growth Snapshot';f.loading='lazy';f.setAttribute('scrolling','no');
+  f.style.cssText='width:100%;border:0;display:block;height:340px;transition:height .18s ease';
+  s.parentNode.insertBefore(f,s);
+  window.addEventListener('message',function(e){
+    if(e.source!==f.contentWindow)return;
+    var d=e.data;if(d&&d.type==='snapshot-embed-height'&&d.height){f.style.height=d.height+'px';}
+  });
+})();`;
+
 function renderEmbedHtml({ theme = 'light', intro = true, accent = 'e7cd41' } = {}) {
   const introHtml = intro ? `<div class="kicker">October · Growth Snapshot</div>
   <h1>See where you're winning attention — and where you're invisible.</h1>
@@ -219,8 +253,11 @@ function renderEmbedHtml({ theme = 'light', intro = true, accent = 'e7cd41' } = 
   var token=null,company=null;
   function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
   function rich(s){return esc(s).replace(/\\*\\*([^*]+)\\*\\*/g,'<strong>$1</strong>')}
-  function postHeight(){try{parent.postMessage({type:'snapshot-embed-height',height:document.body.scrollHeight},'*')}catch(e){}}
+  function postHeight(){try{var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight)+2;parent.postMessage({type:'snapshot-embed-height',height:h},'*')}catch(e){}}
   var ro=new ResizeObserver(postHeight);ro.observe(document.body);
+  window.addEventListener('load',postHeight);window.addEventListener('resize',postHeight);
+  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(postHeight)}
+  [50,200,500,1000,2000].forEach(function(t){setTimeout(postHeight,t)});
   function showErr(m){err.textContent=m;err.style.display='block'}
   function clearErr(){err.style.display='none'}
   function tiles(s,n){
