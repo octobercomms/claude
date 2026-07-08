@@ -76,6 +76,14 @@ CONFIG = {
     # isn't installed.
     "RESIZE_LONG_EDGE": 1568,
 
+    # Folder of REFERENCE photos that teach Claude your specific products.
+    # Drop one clear image per product, named by its tag, e.g.
+    #   references/three_pint_jug.jpg, references/mug.png
+    # Claude then matches new photos against these instead of a generic idea of
+    # "a jug". Only add the products it gets wrong — you don't need all of them.
+    # These are sent with every request but cached, so they stay cheap.
+    "REFERENCES_DIR": "references",
+
     # Gentle pacing between images (seconds).
     "SLEEP_BETWEEN": 0.15,
 
@@ -210,7 +218,41 @@ def prep_image(raw, ext):
     return base64.standard_b64encode(raw).decode(), IMAGE_MIME[ext]
 
 
-def classify(client, b64, media_type):
+def build_reference_blocks():
+    """Load reference photos from the references/ dir into cached message blocks.
+
+    Each file named <tag>.<ext> becomes a labelled example so Claude matches new
+    photos against your actual products. Returns [] if the dir is missing/empty.
+    """
+    d = CONFIG["REFERENCES_DIR"]
+    if not os.path.isdir(d):
+        return []
+    entries = []
+    for fn in sorted(os.listdir(d)):
+        tag, ext = os.path.splitext(fn)
+        tag, ext = tag.lower(), ext.lower()
+        if tag in VALID_TAGS and ext in IMAGE_MIME:
+            with open(os.path.join(d, fn), "rb") as f:
+                b64, mt = prep_image(f.read(), ext)
+            entries.append((tag, b64, mt))
+    if not entries:
+        return []
+    blocks = [{
+        "type": "text",
+        "text": ("REFERENCE PHOTOS. Each image below is followed by the exact product "
+                 "tag it shows. Use these to recognise the same products in the photo "
+                 "you are asked to tag:"),
+    }]
+    for tag, b64, mt in entries:
+        blocks.append({"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}})
+        blocks.append({"type": "text", "text": f"= {tag}"})
+    blocks[-1]["cache_control"] = {"type": "ephemeral"}  # cache the reference prefix
+    print(f"Loaded {len(entries)} reference photo(s) from {d}/: "
+          f"{', '.join(t for t, _, _ in entries)}")
+    return blocks
+
+
+def classify(client, b64, media_type, reference_blocks=()):
     """Ask Claude which catalog products appear. Returns a list of tags."""
     catalog = "\n".join(
         f"- {p['tag']}: {p['name']}" + (f" ({p['hints']})" if p["hints"] else "")
@@ -235,17 +277,15 @@ def classify(client, b64, media_type):
         "required": ["tags"],
         "additionalProperties": False,
     }
+    # Stable prefix first (catalog + reference photos, cached), varying target last.
+    content = [{"type": "text", "text": prompt}]
+    content.extend(reference_blocks)
+    content.append({"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}})
     resp = client.messages.create(
         model=CONFIG["MODEL"],
         max_tokens=1024,
         output_config={"format": {"type": "json_schema", "schema": schema}},
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
-            ],
-        }],
+        messages=[{"role": "user", "content": content}],
     )
     text = next((b.text for b in resp.content if b.type == "text"), "")
     if not text:
@@ -276,6 +316,7 @@ def main():
     # later live run would skip them and write no tags.
     use_checkpoint = not CONFIG["DRY_RUN"]
     done = load_checkpoint() if use_checkpoint else set()
+    reference_blocks = build_reference_blocks()
 
     csv_exists = os.path.exists(CONFIG["CSV_PATH"])
     csv_file = open(CONFIG["CSV_PATH"], "a", newline="", encoding="utf-8")
@@ -300,7 +341,7 @@ def main():
 
             _, resp = _rl(lambda: dbx.files_download(meta.path_lower))
             b64, media_type = prep_image(resp.content, ext)
-            tags = classify(client, b64, media_type)
+            tags = classify(client, b64, media_type, reference_blocks)
 
             final_name = meta.name
             if not CONFIG["DRY_RUN"]:
