@@ -26,6 +26,7 @@ the service → playbook mapping and which slice wires each one.
 | `cro.md` | cro, popups, signup | siteAudit, ctrBoost |
 | `cold-email.md` | cold-email, prospecting | outreachAi, backlinkProspect |
 | `seo-audit.md` | seo-audit, ai-seo, schema | seoFanout, contentAudit |
+| `trust-brokering.md` | 2026 Edelman Trust Barometer (public findings) | contentAudit, strategistReport, strategyTemplates |
 
 ## Adding a playbook
 
