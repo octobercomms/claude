@@ -21,6 +21,7 @@ accuracy, then set DRY_RUN=False to also write the Dropbox tags.
 SETUP: see docs/falcon-image-tagger/README-dropbox.md
 """
 
+import argparse
 import base64
 import csv
 import io
@@ -372,8 +373,56 @@ def clear_all_tags():
     print(f"Removed {tags_removed} product tags and cleaned {renamed} filenames.")
 
 
+def list_folders():
+    """Print every folder path in the Dropbox, so you can copy the right one."""
+    dbx = dropbox_client()
+    res = _rl(lambda: dbx.files_list_folder("", recursive=True))
+    folders = set()
+    while True:
+        for e in res.entries:
+            if isinstance(e, dropbox.files.FolderMetadata):
+                folders.add(e.path_display)
+        if not res.has_more:
+            break
+        res = _rl(lambda: dbx.files_list_folder_continue(res.cursor))
+    for f in sorted(folders):
+        print(f)
+    print(f'\n{len(folders)} folders. Copy the one you want and pass it with '
+          f'--folder "..." on the next run.')
+
+
+def apply_overrides(args):
+    """Let command-line flags / env vars override CONFIG — no file editing needed."""
+    folder = args.folder or os.environ.get("FALCON_FOLDER")
+    if folder is not None:
+        CONFIG["FOLDER"] = folder
+    if args.model:
+        CONFIG["MODEL"] = args.model
+    if args.live:
+        CONFIG["DRY_RUN"] = False
+    if args.rename:
+        CONFIG["RENAME_FILES"] = True
+    if args.no_tags:
+        CONFIG["WRITE_TAGS"] = False
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "clear-tags":
+    ap = argparse.ArgumentParser(description="Tag Falcon Enamelware photos in Dropbox.")
+    ap.add_argument("command", nargs="?", default="run",
+                    choices=["run", "list-folders", "clear-tags"],
+                    help="run (default), list-folders (show your folders), or clear-tags (undo)")
+    ap.add_argument("--folder", help='Dropbox folder path, e.g. "/Falcon Enamelware"')
+    ap.add_argument("--model", help="Claude model (claude-sonnet-5 / claude-haiku-4-5 / claude-opus-4-8)")
+    ap.add_argument("--live", action="store_true", help="Actually apply changes (off = dry run)")
+    ap.add_argument("--rename", action="store_true", help="Also put the product name in the filename")
+    ap.add_argument("--no-tags", action="store_true", help="Don't write Dropbox tags")
+    args = ap.parse_args()
+
+    apply_overrides(args)
+
+    if args.command == "list-folders":
+        list_folders()
+    elif args.command == "clear-tags":
         clear_all_tags()
     else:
         main()

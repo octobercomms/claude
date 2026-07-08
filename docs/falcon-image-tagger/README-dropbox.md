@@ -99,32 +99,48 @@ on your computer (or any server / scheduled job).
    export DROPBOX_ACCESS_TOKEN="..."
    ```
 
-5. **Point it at your folder & tune the catalog.** In `dropbox_tagger.py`:
-   - Set `CONFIG["FOLDER"]` to your Dropbox path, e.g. `"/Falcon Enamelware"`
-     (use `""` for your whole Dropbox).
-   - Edit the `PRODUCTS` list to match your category page. Tags must be
-     lowercase letters/numbers/underscores, under 32 chars (a Dropbox rule) —
-     e.g. `oval_plate`, `three_pint_jug`.
+5. **Find your folder — no file editing needed.** List every folder in your
+   Dropbox so you can copy the exact path:
+   ```bash
+   python dropbox_tagger.py list-folders
+   ```
+   Copy the one you want (e.g. `/Falcon Enamelware/Product Photos`); you'll pass
+   it with `--folder "..."` when you run.
+
+   *(Optional) tune the catalog:* the `PRODUCTS` list near the top of
+   `dropbox_tagger.py` is pre-filled with Falcon's classic range, so you can skip
+   this for a first run. To adjust it later, edit that list — tags must be
+   lowercase letters/numbers/underscores, under 32 chars (a Dropbox rule), e.g.
+   `oval_plate`, `three_pint_jug`. Open the file in a plain editor (VS Code, or
+   Windows Notepad) — avoid TextEdit's "smart quotes".
 
 ---
 
 ## Running it
 
-1. **First, a dry run.** Leave `CONFIG["DRY_RUN"] = True` and run:
+Everything is a command-line flag — no need to edit the file.
+
+1. **First, a dry run** (changes nothing in Dropbox; just writes the CSV):
    ```bash
-   python dev/falcon-image-tagger/dropbox_tagger.py
+   python dropbox_tagger.py --folder "/Falcon Enamelware"
    ```
-   - It fills `falcon_tags.csv` (path + tags per image) but touches nothing in
-     Dropbox. **Spot-check the accuracy in the CSV** before going live.
+   It fills `falcon_tags.csv` (path + tags per image). **Spot-check the accuracy
+   in the CSV** before going live.
 
-2. **Go live.** Happy with the tags? Set `DRY_RUN = False` and pick what to
-   apply: leave `WRITE_TAGS = True` for Dropbox tags, and/or set
-   `RENAME_FILES = True` to append the product name into the filename. Run again.
+2. **Go live** — add `--live`, and choose what to apply:
+   ```bash
+   # Dropbox tags only:
+   python dropbox_tagger.py --folder "/Falcon Enamelware" --live
+   # Tags + product name in the filename (recommended for team-wide search):
+   python dropbox_tagger.py --folder "/Falcon Enamelware" --live --rename
+   ```
+   Other flags: `--model claude-haiku-4-5` (cheaper/faster), `--no-tags` (skip
+   Dropbox tags, e.g. if you only want the filename change).
 
-3. **Big folders.** It's safe to leave running and safe to re-run: a
-   `checkpoint.json` records what's been processed, so it never re-does work and
-   picks up where it left off if interrupted (or rate-limited — it backs off and
-   you just run it again).
+3. **Big folders / new batches.** Safe to leave running and safe to re-run: a
+   `checkpoint.json` records what's been processed, so it never re-does work,
+   picks up where it left off if interrupted, and later runs only touch new
+   photos. Just re-run the same command whenever a new batch arrives.
 
 ### Filtering afterwards
 - **In the CSV:** filter/sort the *tags* column, then find the file at its
