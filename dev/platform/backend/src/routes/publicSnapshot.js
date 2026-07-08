@@ -168,7 +168,7 @@ const LOADER_JS = `(function(){
   var f=document.createElement('iframe');
   f.src=origin+'/api/public/snapshot/embed'+(q.length?'?'+q.join('&'):'');
   f.title='October Growth Snapshot';f.loading='lazy';f.setAttribute('scrolling','no');
-  f.style.cssText='width:100%;border:0;display:block;height:340px;transition:height .18s ease';
+  f.style.cssText='width:100%;border:0;display:block;height:340px';
   s.parentNode.insertBefore(f,s);
   window.addEventListener('message',function(e){
     if(e.source!==f.contentWindow)return;
@@ -253,9 +253,16 @@ function renderEmbedHtml({ theme = 'light', intro = true, accent = 'e7cd41' } = 
   var token=null,company=null;
   function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
   function rich(s){return esc(s).replace(/\\*\\*([^*]+)\\*\\*/g,'<strong>$1</strong>')}
-  function postHeight(){try{var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight)+2;parent.postMessage({type:'snapshot-embed-height',height:h},'*')}catch(e){}}
+  // Measure CONTENT height only (body's own box), never documentElement — html
+  // stretches to fill whatever height the parent set the iframe to, which would
+  // create a grow-forever feedback loop. Dedupe so an unchanged height never
+  // re-posts. No window 'resize' listener for the same reason (it fires every
+  // time the parent resizes us); the ResizeObserver on body catches genuine
+  // content/width reflows on its own.
+  var lastH=0;
+  function postHeight(){try{var h=Math.ceil(document.body.getBoundingClientRect().height);if(h>0&&Math.abs(h-lastH)>1){lastH=h;parent.postMessage({type:'snapshot-embed-height',height:h},'*')}}catch(e){}}
   var ro=new ResizeObserver(postHeight);ro.observe(document.body);
-  window.addEventListener('load',postHeight);window.addEventListener('resize',postHeight);
+  window.addEventListener('load',postHeight);
   if(document.fonts&&document.fonts.ready){document.fonts.ready.then(postHeight)}
   [50,200,500,1000,2000].forEach(function(t){setTimeout(postHeight,t)});
   function showErr(m){err.textContent=m;err.style.display='block'}
