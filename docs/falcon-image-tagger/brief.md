@@ -39,5 +39,10 @@ Google with native Drive access, and the free Gemini tier covers initial runs.
   beyond the seeded catalog.
 
 ## Status
-v1 built: `dev/falcon-image-tagger/` (`Code.gs`, `appsscript.json`). Setup and
-usage in `docs/falcon-image-tagger/README.md`.
+- **Google Drive** (v1): `dev/falcon-image-tagger/` (`Code.gs`,
+  `appsscript.json`) — Apps Script + Gemini, native to Drive, zero setup. Usage
+  in `docs/falcon-image-tagger/README.md`.
+- **Dropbox** (v2): `dev/falcon-image-tagger/dropbox_tagger.py` — Python +
+  Claude, writes native Dropbox tags + a CSV index. Same catalog/dry-run/resume
+  design. Usage in `docs/falcon-image-tagger/README-dropbox.md`. (The client
+  uses Dropbox because that is where the photos actually live.)
