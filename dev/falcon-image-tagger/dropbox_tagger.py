@@ -270,7 +270,12 @@ def save_checkpoint(done):
 def main():
     dbx = dropbox_client()
     client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY / ant profile
-    done = load_checkpoint()
+
+    # Only LIVE runs record progress. A dry run is for sampling/checking, so it
+    # never writes the checkpoint — otherwise it would mark files "done" and a
+    # later live run would skip them and write no tags.
+    use_checkpoint = not CONFIG["DRY_RUN"]
+    done = load_checkpoint() if use_checkpoint else set()
 
     csv_exists = os.path.exists(CONFIG["CSV_PATH"])
     csv_file = open(CONFIG["CSV_PATH"], "a", newline="", encoding="utf-8")
@@ -288,7 +293,8 @@ def main():
         try:
             if meta.size > CONFIG["MAX_FILE_MB"] * 1024 * 1024:
                 writer.writerow([meta.name, meta.path_display, "(skipped: too large)", meta.id])
-                done.add(meta.id)
+                if use_checkpoint:
+                    done.add(meta.id)
                 skipped += 1
                 continue
 
@@ -307,12 +313,12 @@ def main():
             writer.writerow([final_name, meta.path_display, ", ".join(tags) or "(none)", meta.id])
             csv_file.flush()
 
-            done.add(meta.id)
+            if use_checkpoint:
+                done.add(meta.id)
+                if processed % CONFIG["CHECKPOINT_EVERY"] == 0:
+                    save_checkpoint(done)
             processed += 1
             print(f"[{processed}] {meta.name} -> {', '.join(tags) or '(none)'}")
-
-            if processed % CONFIG["CHECKPOINT_EVERY"] == 0:
-                save_checkpoint(done)
             time.sleep(CONFIG["SLEEP_BETWEEN"])
         except Exception as e:  # noqa: BLE001 - keep going, record the failure
             print(f"  error on {meta.name}: {e}")
@@ -320,7 +326,8 @@ def main():
             csv_file.flush()
             # not added to `done`, so it retries on the next run
 
-    save_checkpoint(done)
+    if use_checkpoint:
+        save_checkpoint(done)
     csv_file.close()
     mode = "DRY RUN (CSV only)" if CONFIG["DRY_RUN"] else "LIVE (CSV + Dropbox tags)"
     print(f"\nFinished [{mode}]. processed {processed}, tagged {tagged}, skipped {skipped}.")
