@@ -4,16 +4,38 @@ Tag a Dropbox folder full of product photos by **product type** so you can
 filter it — "show me every photo with an oval plate", "every 3 pint jug", etc.
 
 It uses **Claude** (vision) to look at each image, match it against a catalog of
-your products, and record the result in two places:
+your products, and record the result in up to three places (you choose):
 
 1. **A local CSV index** (`falcon_tags.csv`) — one row per image with its
    Dropbox path and the matched product tags. Open it in Excel / Google Sheets
-   and filter the *tags* column. This is your master, always-there list.
-2. **Native Dropbox tags** — real tags on each file (e.g. `oval_plate`). On
-   dropbox.com you can **filter/sort by Tags**, or type the tag into the search
-   box, and just those photos appear.
+   and filter the *tags* column. Private to whoever runs the script.
+2. **Native Dropbox tags** (`WRITE_TAGS`) — real tags on each file (e.g.
+   `oval_plate`). On dropbox.com you can **filter/sort by Tags**, or type the tag
+   into the search box.
+3. **The filename** (`RENAME_FILES`) — appends the product name into the file's
+   name, e.g. `IMG_2043.jpg` → `IMG_2043 {falcon: oval plate, 3 pint jug}.jpg`.
 
 Code lives in `dev/falcon-image-tagger/` (`dropbox_tagger.py`).
+
+## Who sees the results, and how permanent is it?
+
+| Where | Visible to | Permanent? | Findable by |
+|-------|-----------|-----------|-------------|
+| CSV index | just you (local file) | until you delete it | opening the CSV |
+| Dropbox tags | **everyone** with folder access | yes (in Dropbox) | Dropbox web filter / search |
+| Filename | **everyone** with folder access | yes (it *is* the file) | **any** search — Dropbox web, desktop app, synced tools |
+
+So the tags and the filename both work for the whole team, not just you. The
+**filename** is the most bulletproof: it travels with the file everywhere and
+any search box finds it. Turn on whichever you want (you can use both).
+
+## Run once, then just re-run on new batches
+
+The script records each file's stable Dropbox ID in `checkpoint.json`, so a later
+run only processes **new** photos and skips everything already done. Renaming a
+file doesn't reset this — the Dropbox ID stays the same across a rename. So the
+workflow you want works out of the box: run it once over the whole folder, then
+run it again whenever a new batch of photos lands.
 
 ---
 
@@ -57,8 +79,10 @@ on your computer (or any server / scheduled job).
    - *Scoped access* → *Full Dropbox* (or *App folder* if your photos live in
      one) → name it.
    - On the app's **Permissions** tab, tick: `files.metadata.read`,
-     `files.content.read`, and `files.metadata.write` (the last one lets it add
-     tags). Submit.
+     `files.content.read`, `files.metadata.write` (lets it add tags), and
+     `files.content.write` (lets it rename files, if you use `RENAME_FILES`).
+     Submit. If you change permissions after generating a token, regenerate the
+     token so the new scopes take effect.
    - On **Settings**, note the **App key** and **App secret**.
 
 4. **Authorise the app** and get a durable refresh token (recommended for a big
@@ -93,8 +117,9 @@ on your computer (or any server / scheduled job).
    - It fills `falcon_tags.csv` (path + tags per image) but touches nothing in
      Dropbox. **Spot-check the accuracy in the CSV** before going live.
 
-2. **Go live.** Happy with the tags? Set `DRY_RUN = False` and run again — now it
-   also writes the native Dropbox tags on each file.
+2. **Go live.** Happy with the tags? Set `DRY_RUN = False` and pick what to
+   apply: leave `WRITE_TAGS = True` for Dropbox tags, and/or set
+   `RENAME_FILES = True` to append the product name into the filename. Run again.
 
 3. **Big folders.** It's safe to leave running and safe to re-run: a
    `checkpoint.json` records what's been processed, so it never re-does work and
@@ -106,6 +131,8 @@ on your computer (or any server / scheduled job).
   *path*.
 - **In Dropbox (web):** open the folder → **Sort/filter by Tags**, or type a tag
   like `three_pint_jug` into the search box.
+- **By filename (anywhere):** if you used `RENAME_FILES`, search any box for
+  `oval plate` or `3 pint jug` — Dropbox web, the desktop app, or synced tools.
 
 ---
 
@@ -125,7 +152,8 @@ size/type calls aren't accurate enough.
 
 ## Undoing
 Run `python dev/falcon-image-tagger/dropbox_tagger.py clear-tags` to remove every
-product tag this tool applied. The CSV is just a file you can delete.
+product tag **and** strip the `{falcon: ...}` marker back out of filenames. The
+CSV is just a file you can delete.
 
 ---
 

@@ -26,6 +26,7 @@ import csv
 import io
 import json
 import os
+import re
 import sys
 import time
 
@@ -48,8 +49,19 @@ CONFIG = {
     #   claude-opus-4-8   -> highest accuracy, most expensive
     "MODEL": "claude-sonnet-5",
 
-    # Dry run: only fill the CSV, do NOT write Dropbox tags. Start True.
+    # Dry run: only fill the CSV, do NOT change anything in Dropbox. Start True,
+    # check the CSV, then set False to apply the changes below.
     "DRY_RUN": True,
+
+    # Add native Dropbox tags to each file (filterable in the Dropbox web UI).
+    "WRITE_TAGS": True,
+
+    # Append the product name(s) into the FILENAME, e.g.
+    #   "IMG_2043.jpg" -> "IMG_2043 {falcon: oval plate, 3 pint jug}.jpg".
+    # Permanent, visible to everyone with folder access, and findable by ANY
+    # search box (Dropbox web, desktop app, synced tools). Re-running updates
+    # the marker rather than stacking a second one.
+    "RENAME_FILES": False,
 
     # Where the master index and progress checkpoint are written (local files).
     "CSV_PATH": "falcon_tags.csv",
@@ -98,6 +110,8 @@ PRODUCTS = [
 # ===============================================================
 
 VALID_TAGS = {p["tag"] for p in PRODUCTS}
+NAME_BY_TAG = {p["tag"]: p["name"] for p in PRODUCTS}
+MARKER_RE = re.compile(r"\s*\{falcon:[^}]*\}")  # our filename marker, for idempotent re-runs
 IMAGE_MIME = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
     ".gif": "image/gif", ".webp": "image/webp",
@@ -256,12 +270,16 @@ def main():
             b64, media_type = prep_image(resp.content, ext)
             tags = classify(client, b64, media_type)
 
-            writer.writerow([meta.name, meta.path_display, ", ".join(tags) or "(none)", meta.id])
-            csv_file.flush()
+            final_name = meta.name
+            if not CONFIG["DRY_RUN"]:
+                if CONFIG["WRITE_TAGS"] and tags:
+                    _apply_tags(dbx, meta.path_lower, tags)
+                    tagged += 1
+                if CONFIG["RENAME_FILES"]:
+                    final_name = _rename_file(dbx, meta.path_lower, meta.name, tags)
 
-            if not CONFIG["DRY_RUN"] and tags:
-                _apply_tags(dbx, meta.path_lower, tags)
-                tagged += 1
+            writer.writerow([final_name, meta.path_display, ", ".join(tags) or "(none)", meta.id])
+            csv_file.flush()
 
             done.add(meta.id)
             processed += 1
@@ -298,10 +316,41 @@ def _apply_tags(dbx, path, tags):
         print(f"  tag error on {path}: {e}")
 
 
+def _rename_file(dbx, path_lower, name, tags):
+    """Append the product names into the filename. Idempotent across re-runs.
+
+    "IMG_2043.jpg" + [oval_plate, three_pint_jug]
+        -> "IMG_2043 {falcon: oval plate, 3 pint jug}.jpg"
+    """
+    base, ext = os.path.splitext(name)
+    base = MARKER_RE.sub("", base).rstrip()  # strip any previous marker first
+    if tags:
+        names = ", ".join(NAME_BY_TAG[t] for t in tags)
+        marker = f" {{falcon: {names}}}"
+        # Dropbox caps a name component at 255 chars.
+        budget = 255 - len(ext) - len(base)
+        if len(marker) > budget:
+            marker = marker[: max(0, budget - 1)].rstrip() + "}"
+        new_name = base + marker + ext
+    else:
+        new_name = base + ext  # no products -> just strip any old marker
+
+    if new_name == name:
+        return name
+    folder = os.path.dirname(path_lower)
+    to_path = (folder + "/" if folder not in ("", "/") else "/") + new_name
+    try:
+        _rl(lambda: dbx.files_move_v2(path_lower, to_path, autorename=True))
+        return new_name
+    except ApiError as e:
+        print(f"  rename error on {name}: {e}")
+        return name
+
+
 def clear_all_tags():
-    """Utility: remove every product tag this tool applies, across the folder."""
+    """Utility: remove every product tag AND filename marker this tool applied."""
     dbx = dropbox_client()
-    n = 0
+    tags_removed = renamed = 0
     for meta in iter_images(dbx):
         try:
             got = _rl(lambda: dbx.files_tags_get([meta.path_lower]))
@@ -310,10 +359,17 @@ def clear_all_tags():
                     text = t.get_user_generated_tag().tag_text
                     if text in VALID_TAGS:
                         _rl(lambda tx=text: dbx.files_tags_remove(meta.path_lower, tx))
-                        n += 1
+                        tags_removed += 1
+            if MARKER_RE.search(meta.name):
+                base, ext = os.path.splitext(meta.name)
+                clean = MARKER_RE.sub("", base).rstrip() + ext
+                folder = os.path.dirname(meta.path_lower)
+                to_path = (folder + "/" if folder not in ("", "/") else "/") + clean
+                _rl(lambda: dbx.files_move_v2(meta.path_lower, to_path, autorename=True))
+                renamed += 1
         except ApiError as e:
             print(f"  {meta.name}: {e}")
-    print(f"Removed {n} product tags.")
+    print(f"Removed {tags_removed} product tags and cleaned {renamed} filenames.")
 
 
 if __name__ == "__main__":
