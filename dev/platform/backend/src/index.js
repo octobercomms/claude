@@ -156,6 +156,9 @@ const pixelLimiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 app.use('/api/unsubscribe', require('./routes/unsubscribe'));
 // SES bounce/complaint webhook — mounted before auth so SNS can POST to it.
 app.use('/api/ses', require('./routes/sesWebhook'));
+// Public Growth Snapshot front door (embedded on octobercomms.com). No auth —
+// its own strict limiter + daily cap + SSRF guard live in the route/service.
+app.use('/api/public/snapshot', require('./routes/publicSnapshot'));
 // Public integration artifacts (GTM container template — no secrets). Before
 // auth so a plain download link works.
 app.use('/api/integrations', require('./routes/integrations'));

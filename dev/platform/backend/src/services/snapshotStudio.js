@@ -6,6 +6,7 @@
 
 const axios = require('axios');
 const cheerio = require('cheerio');
+const crypto = require('crypto');
 const dns = require('dns').promises;
 const net = require('net');
 const pool = require('../db');
@@ -242,8 +243,84 @@ async function deleteImage(imageId) {
   return rows[0] || null;
 }
 
+// ─── Public front door (embed on octobercomms.com) ──────────────────────────
+// Unauthenticated visitors submit their URL (+ optional Instagram handle) and
+// get a value-first "taste"; entering an email unlocks the full sections. All
+// abuse control lives here + in the route: dedup (same URL reuses the draft,
+// no repeat Claude spend), a daily cap, and the existing SSRF guard.
+const PUBLIC_DEDUP_DAYS = 7;
+const PUBLIC_DAILY_CAP = parseInt(process.env.SNAPSHOT_PUBLIC_DAILY_CAP || '200', 10);
+
+async function publicCountToday() {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM snapshot_leads WHERE source = 'public' AND created_at > NOW() - INTERVAL '1 day'`
+  );
+  return rows[0]?.n || 0;
+}
+
+// A recent public lead for the same URL that already has a draft — so a repeat
+// submit (or a bot hammering one URL) reuses the draft instead of re-spending.
+async function findRecentPublicDraft(url) {
+  const { rows } = await pool.query(
+    `SELECT id FROM snapshot_leads
+       WHERE source = 'public' AND url = $1 AND draft IS NOT NULL
+         AND created_at > NOW() - INTERVAL '${PUBLIC_DEDUP_DAYS} days'
+       ORDER BY created_at DESC LIMIT 1`,
+    [url]
+  );
+  return rows[0] || null;
+}
+
+// Create a public lead + draft its snapshot. Returns { lead, reused }.
+async function createPublicSnapshot({ url, igHandle = null, ip = null }) {
+  const parsed = normaliseUrl(url);
+  const canonical = parsed.toString();
+
+  const existing = await findRecentPublicDraft(canonical);
+  if (existing) {
+    if (igHandle) await pool.query('UPDATE snapshot_leads SET ig_handle = COALESCE(ig_handle, $1) WHERE id = $2', [igHandle, existing.id]);
+    return { lead: await getLead(existing.id), reused: true };
+  }
+
+  if (await publicCountToday() >= PUBLIC_DAILY_CAP) {
+    const e = new Error('The Growth Snapshot is at capacity for today — please try again tomorrow, or drop us your email and we\'ll run it for you.');
+    e.code = 'CAP';
+    throw e;
+  }
+
+  await assertPublicHost(parsed);
+  const token = crypto.randomUUID();
+  const { rows } = await pool.query(
+    `INSERT INTO snapshot_leads (url, ig_handle, source, status, public_token, public_ip)
+       VALUES ($1, $2, 'public', 'new', $3, $4) RETURNING id`,
+    [canonical, igHandle || null, token, ip || null]
+  );
+  const lead = await gather(rows[0].id);   // fetch + draft + store site images
+  return { lead, reused: false };
+}
+
+async function getByPublicToken(token) {
+  if (!token) return null;
+  const { rows } = await pool.query('SELECT id FROM snapshot_leads WHERE public_token = $1', [token]);
+  if (!rows.length) return null;
+  return getLead(rows[0].id);
+}
+
+async function attachPublicEmail(token, email) {
+  const lead = await getByPublicToken(token);
+  if (!lead) throw new Error('Snapshot not found');
+  await pool.query(
+    `UPDATE snapshot_leads
+       SET email = COALESCE(email, $1), email_requested_at = COALESCE(email_requested_at, NOW())
+       WHERE id = $2`,
+    [email, lead.id]
+  );
+  return getByPublicToken(token);
+}
+
 module.exports = {
   createLead, listLeads, getLead, gather, refine, updateLead, deleteLead,
   addImage, setImageFeatured, deleteImage,
+  createPublicSnapshot, getByPublicToken, attachPublicEmail,
   normaliseUrl, parseSite, // exported for tests
 };
