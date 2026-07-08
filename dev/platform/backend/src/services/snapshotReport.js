@@ -21,6 +21,42 @@ function logoTag(height = 40) {
     : `<span style="font-weight:800;letter-spacing:.02em;">OCTOBER</span>`;
 }
 
+// Embed the Brockmann brand font — the same woff2 files the client PDF reports
+// use — as base64 @font-face rules, so the snapshot renders in the real brand
+// typeface both on screen and in the exported PDF (Chromium won't fetch the
+// public font path when printing from setContent).
+const FONTS_DIR = path.join(__dirname, '../../../frontend/public/fonts');
+function fontFace(weight, style, file) {
+  try {
+    const b64 = fs.readFileSync(path.join(FONTS_DIR, file)).toString('base64');
+    return `@font-face{font-family:'Brockmann';font-weight:${weight};font-style:${style};src:url('data:font/woff2;base64,${b64}') format('woff2');}`;
+  } catch { return ''; }
+}
+const FONT_CSS = [
+  fontFace('400', 'normal', 'brockmann-regular-webfont.woff2'),
+  fontFace('400', 'italic', 'brockmann-regularitalic-webfont.woff2'),
+  fontFace('600', 'normal', 'brockmann-semibold-webfont.woff2'),
+  fontFace('700', 'normal', 'brockmann-bold-webfont.woff2'),
+  fontFace('700', 'italic', 'brockmann-bolditalic-webfont.woff2'),
+].filter(Boolean).join('\n');
+
+// A masthead used on the cover + CTA: real October mark on the left, the
+// "Growth Snapshot" wordmark top-right (mirrors the "Report for …" block on the
+// client reports), sitting on a hard rule. Gives the header a deliberate,
+// on-brand structure instead of a logo floating above the title.
+function masthead(rightSub) {
+  return `<div class="masthead">
+    <div>${logoTag(38)}</div>
+    <div class="mast-r"><div class="mast-title">Growth Snapshot</div><div class="mast-sub">${esc(rightSub)}</div></div>
+  </div>`;
+}
+
+// Slim running header for the interior pages — logo left, report identifier
+// right, on a light rule.
+function runningHead(company) {
+  return `<div class="runhead"><div>${logoTag(22)}</div><div class="small">Growth Snapshot · ${esc(company)}</div></div>`;
+}
+
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 }
@@ -35,11 +71,17 @@ const STYLE = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --ink:#231f20; --muted:#5b5b5b; --line:#e4e4e4; --accent:#e7cd41; --accent-soft:#faf3c9; --accent-ink:#6f5e10; --pos:#1f7a4d; --neg:#b3261e; --sunken:#faf9f6; }
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); font-size: 13px; line-height: 1.55; }
+  body { font-family: 'Brockmann', -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); font-size: 13px; line-height: 1.55; }
   .page { width: 210mm; min-height: 297mm; padding: 20mm 18mm; page-break-after: always; position: relative; background: #fff; }
   .page:last-child { page-break-after: auto; }
   .kicker { font-size: 10px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
-  h1 { font-size: 40px; line-height: 1.02; letter-spacing: -1px; font-weight: 800; margin-top: 8px; }
+  h1 { font-size: 40px; line-height: 1.02; letter-spacing: -1px; font-weight: 800; margin-top: 10px; }
+  /* Masthead — logo left, "Growth Snapshot" wordmark right, on a hard rule. */
+  .masthead { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--ink); padding-bottom: 13px; }
+  .mast-r { text-align: right; }
+  .mast-title { font-size: 15px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; line-height: 1; }
+  .mast-sub { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
+  .runhead { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 11px; }
   h2 { font-size: 22px; letter-spacing: -.4px; font-weight: 800; }
   h3 { font-size: 15px; font-weight: 800; }
   .lede { font-size: 15px; color: var(--muted); max-width: 150mm; margin-top: 12px; }
@@ -91,14 +133,13 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
   const summary = Array.isArray(draft.summary) ? draft.summary : [];
   const sections = Array.isArray(draft.sections) ? draft.sections : [];
   const hero = featured[0];
-  const sampleBadge = opts.sample ? '<span class="pill sample">Sample report</span>' : '<span></span>';
   const contact = opts.contactEmail || 'hello@octobercomms.com';
 
   const cover = `
   <section class="page cover">
-    <div class="top">${logoTag(42)}${sampleBadge}</div>
+    ${masthead(opts.sample ? 'Sample report' : 'Prepared by October')}
     <div class="mid">
-      <div class="kicker">Growth Snapshot · prepared for</div>
+      <div class="kicker">Prepared for</div>
       <h1>${esc(company)}</h1>
       <p class="lede">A 60-second, personalised read on where you're winning attention, where you're invisible, and the moves we'd make first — across search, paid, social, PR and brand.</p>
       ${hero ? `<img class="hero-img" src="${esc(hero)}" alt="">` : ''}
@@ -117,8 +158,8 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
 
   const summaryPage = summary.length ? `
   <section class="page">
-    <div class="top">${logoTag(26)}<span class="small">Growth Snapshot · ${esc(company)}</span></div>
-    <div style="margin-top:26px">
+    ${runningHead(company)}
+    <div style="margin-top:30px">
       <div class="kicker">What we found in 60 seconds</div>
       <h2 style="margin-top:8px">A few things worth a conversation</h2>
     </div>
@@ -147,7 +188,7 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
 
   const cta = `
   <section class="page">
-    <div class="top">${logoTag(42)}${sampleBadge}</div>
+    ${masthead(opts.sample ? 'Sample report' : 'Prepared by October')}
     <div class="cta" style="margin-top:40px">
       <div class="kicker" style="color:var(--accent)">Your next 20 minutes</div>
       <h2 style="margin-top:10px">We've done the first hour of thinking.<br>Let's walk through it together.</h2>
@@ -158,7 +199,7 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
     <div class="footer"><span>October · octobercomms.com · ${esc(contact)}</span><span></span></div>
   </section>`;
 
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${STYLE}</style></head><body>${cover}${summaryPage}${sectionPages}${cta}</body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${FONT_CSS}\n${STYLE}</style></head><body>${cover}${summaryPage}${sectionPages}${cta}</body></html>`;
 }
 
 module.exports = { renderReportHtml };

@@ -43,7 +43,7 @@ function resolveFeatured(lead) {
 function buildHtml(lead, opts = {}) {
   return renderReportHtml(lead.draft || {}, resolveFeatured(lead), {
     contactEmail: 'hello@octobercomms.com',
-    bookUrl: process.env.SNAPSHOT_BOOK_URL || '',
+    bookUrl: process.env.SNAPSHOT_BOOK_URL || 'https://octobercomms.com/book/',
     ...opts,
   });
 }
@@ -152,9 +152,12 @@ router.get('/:id/pdf', async (req, res) => {
     const lead = await studio.getLead(req.params.id);
     if (!lead) return res.status(404).json({ error: 'Not found' });
     const buffer = await pdfService.generatePDFBuffer(buildHtml(lead));
-    const name = `october-growth-snapshot-${(lead.company_name || 'prospect').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.pdf`;
+    const company = (lead.company_name || 'prospect').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const name = `October Communications Growth Snapshot for ${company}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    // Quoted ASCII fallback + RFC 5987 UTF-8 filename* for accented company names.
+    const asciiName = name.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
+    res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(name)}`);
     res.send(buffer);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
