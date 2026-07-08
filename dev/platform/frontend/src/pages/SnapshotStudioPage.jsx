@@ -97,12 +97,23 @@ export default function SnapshotStudioPage() {
   }
 
   function downloadPdf() {
+    let filename = 'growth-snapshot.pdf';
     fetch(`/api/leads/${id}/pdf`, { credentials: 'include' })
-      .then(r => r.ok ? r.blob() : r.json().then(j => Promise.reject(new Error(j.error || 'PDF failed'))))
+      .then(r => {
+        if (!r.ok) return r.json().then(j => Promise.reject(new Error(j.error || 'PDF failed')));
+        // Honour the server's filename ("October Communications Growth Snapshot
+        // for <company>.pdf"); prefer the RFC 5987 filename* if present.
+        const cd = r.headers.get('Content-Disposition') || '';
+        const star = cd.match(/filename\*=UTF-8''([^;]+)/i);
+        const plain = cd.match(/filename="([^"]+)"/i);
+        if (star) { try { filename = decodeURIComponent(star[1]); } catch { /* keep default */ } }
+        else if (plain) filename = plain[1];
+        return r.blob();
+      })
       .then(blob => {
         const u = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = u; a.download = 'growth-snapshot.pdf';
+        a.href = u; a.download = filename;
         document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u);
       })
       .catch(e => toast(e.message, 'error'));
