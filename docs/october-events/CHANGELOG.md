@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.70.5 — refund / cancellation emails now use the branded template
+
+The refund, cancellation, rejection and waitlist emails were going out through a
+plain generic wrapper (thin grey rounded border, brand *name* only, no logo) that
+didn't match the branded ticket confirmation. Their shared shell (`wrap()`) now
+uses the **same house style as the ticket email** — the brand **logo**, the 2px
+black border card, and the matching header/footer ("Questions? Just reply…"). The
+message text is unchanged; only the styling is now consistent.
+
 ## 1.70.4 — newsletter digest hard-disabled (early-concept, not ready)
 
 The subscriber newsletter is still an early concept — the content, design and
