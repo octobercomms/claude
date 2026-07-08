@@ -1,7 +1,25 @@
 // Renders a Snapshot Studio draft into the branded "October Growth Snapshot"
-// HTML — the same layout as the sample, driven by the drafted JSON + the AM's
-// chosen images. Pure function (no I/O) so it's easy to test and reuse for both
-// the on-screen preview and the PDF.
+// HTML, driven by the drafted JSON + the AM's chosen images. Reuses the exact
+// same logo asset + brand yellow as the real client reports (pdfService), so
+// the snapshot is on-brand rather than an approximation.
+
+const fs = require('fs');
+const path = require('path');
+
+// The real October mark — same SVG the client PDF reports embed. Read once and
+// inlined as a data URI so it travels into both the preview and the PDF.
+const LOGO_URI = (() => {
+  try {
+    const svg = fs.readFileSync(path.join(__dirname, '../assets/october-logo.svg'), 'utf8');
+    return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+  } catch { return null; }
+})();
+
+function logoTag(height = 40) {
+  return LOGO_URI
+    ? `<img src="${LOGO_URI}" height="${height}" alt="October" style="display:block;">`
+    : `<span style="font-weight:800;letter-spacing:.02em;">OCTOBER</span>`;
+}
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -15,7 +33,7 @@ function rich(s) {
 const STYLE = `
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  :root { --ink:#111; --muted:#5b5b5b; --line:#e4e4e4; --accent:#F4C400; --accent-soft:#fdf6d6; --pos:#1f7a4d; --neg:#b3261e; --sunken:#faf9f6; }
+  :root { --ink:#231f20; --muted:#5b5b5b; --line:#e4e4e4; --accent:#e7cd41; --accent-soft:#faf3c9; --accent-ink:#6f5e10; --pos:#1f7a4d; --neg:#b3261e; --sunken:#faf9f6; }
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); font-size: 13px; line-height: 1.55; }
   .page { width: 210mm; min-height: 297mm; padding: 20mm 18mm; page-break-after: always; position: relative; background: #fff; }
@@ -27,11 +45,7 @@ const STYLE = `
   .lede { font-size: 15px; color: var(--muted); max-width: 150mm; margin-top: 12px; }
   .small { font-size: 11px; color: var(--muted); }
   .strong { font-weight: 800; }
-  .accent-text { color: #8a6d00; }
-  .logo { display: inline-flex; flex-direction: column; gap: 3px; }
-  .logo .bar { height: 9px; background: var(--accent); }
-  .logo .b1 { width: 46px; } .logo .b2 { width: 30px; } .logo .b3 { width: 16px; background: var(--ink); }
-  .logo-word { font-weight: 800; letter-spacing: .02em; font-size: 13px; margin-top: 6px; }
+  .accent-text { color: var(--accent-ink); }
   .top { display: flex; justify-content: space-between; align-items: flex-start; }
   .pill { display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
   .pill.sample { background: var(--ink); color: #fff; }
@@ -53,7 +67,7 @@ const STYLE = `
   .block.find { border-left: 4px solid var(--accent); }
   .block.idea { background: var(--sunken); }
   .opp { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; background: var(--accent-soft); border-radius: 10px; }
-  .opp .arrow { font-weight: 800; color: #8a6d00; }
+  .opp .arrow { font-weight: 800; color: var(--accent-ink); }
   .sec-img { width: 100%; height: 40mm; object-fit: cover; border-radius: 8px; margin-bottom: 12px; border: 2px solid var(--line); }
   .footer { position: absolute; bottom: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
   .cta { background: var(--ink); color: #fff; border-radius: 14px; padding: 34px; }
@@ -61,8 +75,6 @@ const STYLE = `
   .cta .btn { display: inline-block; margin-top: 20px; background: var(--accent); color: var(--ink); font-weight: 800; padding: 14px 26px; border-radius: 999px; font-size: 15px; }
   .cta .sub { color: #cfcfcf; margin-top: 12px; max-width: 130mm; }
 `;
-
-const LOGO = '<span class="logo"><span class="bar b1"></span><span class="bar b2"></span><span class="bar b3"></span><span class="logo-word">OCTOBER</span></span>';
 
 function statTile(lab, val, sub, hot) {
   return `<div class="stat${hot ? ' hot' : ''}"><div class="lab">${esc(lab)}</div><div class="val">${esc(val || '—')}</div><div class="sub">${esc(sub || '')}</div></div>`;
@@ -84,7 +96,7 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
 
   const cover = `
   <section class="page cover">
-    <div class="top">${LOGO}${sampleBadge}</div>
+    <div class="top">${logoTag(42)}${sampleBadge}</div>
     <div class="mid">
       <div class="kicker">Growth Snapshot · prepared for</div>
       <h1>${esc(company)}</h1>
@@ -105,7 +117,7 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
 
   const summaryPage = summary.length ? `
   <section class="page">
-    <div class="top">${LOGO}<span class="small">Growth Snapshot · ${esc(company)}</span></div>
+    <div class="top">${logoTag(26)}<span class="small">Growth Snapshot · ${esc(company)}</span></div>
     <div style="margin-top:26px">
       <div class="kicker">What we found in 60 seconds</div>
       <h2 style="margin-top:8px">A few things worth a conversation</h2>
@@ -135,7 +147,7 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
 
   const cta = `
   <section class="page">
-    <div class="top">${LOGO}${sampleBadge}</div>
+    <div class="top">${logoTag(42)}${sampleBadge}</div>
     <div class="cta" style="margin-top:40px">
       <div class="kicker" style="color:var(--accent)">Your next 20 minutes</div>
       <h2 style="margin-top:10px">We've done the first hour of thinking.<br>Let's walk through it together.</h2>
