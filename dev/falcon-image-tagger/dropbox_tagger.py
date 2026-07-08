@@ -96,50 +96,51 @@ CONFIG = {
 # (a Dropbox tag rule). Seeded with Falcon's classic range.
 PRODUCTS = [
     # Plates & bowls
-    {"tag": "oval_plate",        "name": "Oval Plate",         "hints": "oblong/oval flat plate"},
-    {"tag": "dinner_plate",      "name": "24cm Plate",         "hints": "large round flat plate (24cm)"},
-    {"tag": "deep_plate",        "name": "Deep Plate",         "hints": "round plate with a deep rim / shallow-bowl shape"},
-    {"tag": "bowl_12cm",         "name": "12cm Bowl",          "hints": "small round bowl (12cm)"},
-    {"tag": "cereal_bowl",       "name": "Cereal Bowl",        "hints": "round bowl, medium depth"},
-    {"tag": "fruit_bowl",        "name": "Fruit Bowl",         "hints": "wide bowl on a low foot"},
-    {"tag": "salad_bowl",        "name": "Salad Bowl",         "hints": "large deep serving bowl"},
-    {"tag": "sauce_dish",        "name": "Sauce Dish",         "hints": "very small dish (10cm/14cm)"},
-    {"tag": "pinch_pot",         "name": "Pinch Pot",          "hints": "tiny open pot for salt/spices"},
+    {"tag": "oval_plate",         "name": "Oval Plate",         "hints": "oblong/oval flat plate"},
+    {"tag": "dinner_plate",       "name": "24cm Plate",         "hints": "large round flat plate (24cm), sold as a set"},
+    {"tag": "small_side_plate",   "name": "Small Side Plate",   "hints": "small round flat plate"},
+    {"tag": "deep_plate",         "name": "Deep Plate",         "hints": "round plate with a deep rim / shallow-bowl shape"},
+    {"tag": "bowl_12cm",          "name": "12cm Bowl",          "hints": "small round bowl (12cm)"},
+    {"tag": "fruit_bowl",         "name": "Fruit Bowl",         "hints": "wide bowl on a low pedestal foot"},
+    {"tag": "large_serving_dish", "name": "Large Serving Dish", "hints": "large oval deep serving dish"},
+    {"tag": "medium_serving_dish","name": "Medium Serving Dish","hints": "medium oval deep serving dish"},
+    {"tag": "sauce_dish",         "name": "Small Sauce Dish",   "hints": "very small shallow dish"},
+    {"tag": "pinch_pot",          "name": "Pinch Pot",          "hints": "tiny open pot for salt/spices"},
     # Cups & drinkware
-    {"tag": "mug",               "name": "Mug",                "hints": "cup with a handle"},
-    {"tag": "espresso_cup",      "name": "Espresso Cup",       "hints": "very small cup, with or without handle"},
-    {"tag": "tumbler",           "name": "Tumbler",            "hints": "straight-sided beaker, no handle"},
-    {"tag": "mini_tumbler",      "name": "Mini Tumbler",       "hints": "small short tumbler"},
-    {"tag": "tall_tumbler",      "name": "Tall Tumbler",       "hints": "tall tumbler"},
+    {"tag": "mug",                "name": "Mug",                "hints": "cup with a handle"},
+    {"tag": "espresso_cup",       "name": "Espresso Cup",       "hints": "very small cup with a handle"},
+    {"tag": "tumbler",            "name": "Tumbler",            "hints": "straight-sided beaker, no handle"},
+    {"tag": "mini_tumbler",       "name": "Mini Tumbler",       "hints": "small short tumbler"},
+    {"tag": "tall_tumbler",       "name": "Tall Tumbler",       "hints": "tall tumbler"},
     # Jugs
-    {"tag": "one_pint_jug",      "name": "1 Pint Jug",         "hints": "small/medium jug, pouring lip and handle"},
-    {"tag": "two_pint_jug",      "name": "2 Pint Jug",         "hints": "large jug, pouring lip and handle"},
-    {"tag": "three_pint_jug",    "name": "3 Pint Jug",         "hints": "extra-large jug, pouring lip and handle"},
+    {"tag": "one_pint_jug",       "name": "1 Pint Jug",         "hints": "small/medium jug, pouring lip and handle"},
+    {"tag": "two_pint_jug",       "name": "2 Pint Jug",         "hints": "large jug, pouring lip and handle"},
+    {"tag": "three_pint_jug",     "name": "3 Pint Jug",         "hints": "extra-large jug, pouring lip and handle"},
     # Bakeware & tins
-    {"tag": "pie_dish",          "name": "Pie Dish",           "hints": "shallow round baking dish, sloped sides"},
-    {"tag": "pie_set",           "name": "Pie Set",            "hints": "set of pie dishes"},
-    {"tag": "bake_set",          "name": "Bake Set",           "hints": "set of rectangular oven trays"},
-    {"tag": "square_bake_tray",  "name": "Square Bake Tray",   "hints": "square oven tray"},
-    {"tag": "loaf_tin",          "name": "Loaf Tin",           "hints": "deep rectangular loaf tin"},
-    {"tag": "cake_tin",          "name": "Cake Tin",           "hints": "round cake tin"},
+    {"tag": "pie_dish",           "name": "Pie Dish",           "hints": "shallow round baking dish, sloped sides"},
+    {"tag": "pie_set",            "name": "Pie Set",            "hints": "set of pie dishes"},
+    {"tag": "bake_set",           "name": "Bake Set",           "hints": "set of rectangular oven trays"},
+    {"tag": "square_bake_tray",   "name": "Square Bake Tray",   "hints": "square oven tray"},
+    {"tag": "loaf_tin",           "name": "Loaf Tin",           "hints": "deep rectangular loaf tin"},
+    {"tag": "cake_tin",           "name": "Cake Tin",           "hints": "round cake tin"},
     {"tag": "decorative_cake_tin","name": "Decorative Cake Tin","hints": "patterned round cake tin"},
-    {"tag": "cake_stand",        "name": "Cake Stand",         "hints": "plate raised on a pedestal foot"},
-    {"tag": "prep_set",          "name": "Prep Set",           "hints": "set of nested prep bowls"},
+    {"tag": "cake_stand",         "name": "Cake Stand",         "hints": "plate raised on a pedestal foot"},
+    {"tag": "prep_set",           "name": "Prep Set",           "hints": "set of nested prep bowls"},
     # Trays, pots & serving
-    {"tag": "serving_tray",      "name": "Serving Tray",       "hints": "flat rectangular tray with rim"},
-    {"tag": "small_tray",        "name": "Small Tray",         "hints": "small flat tray"},
-    {"tag": "utensil_pot",       "name": "Utensil Pot",        "hints": "tall open cylinder holding utensils"},
-    {"tag": "teapot",            "name": "Teapot",             "hints": "pot with spout, lid and handle"},
-    {"tag": "soap_dish",         "name": "Soap Dish",          "hints": "small shallow dish for soap"},
-    {"tag": "dog_bowl",          "name": "Dog Bowl",           "hints": "sturdy pet feeding bowl"},
-    {"tag": "candle",            "name": "Cook's Candle",      "hints": "candle in an enamel pot/tin"},
-    {"tag": "gift_set",          "name": "Gift Set",           "hints": "boxed/grouped collection of items"},
-    {"tag": "utensils",          "name": "Utensils",           "hints": "loose kitchen utensils (spoons, etc.)"},
-    # Fabricware (in case group shots include them)
-    {"tag": "apron",             "name": "Apron",              "hints": "fabric apron"},
-    {"tag": "tea_towel",         "name": "Tea Towel",          "hints": "fabric tea towel"},
-    {"tag": "oven_gloves",       "name": "Oven Gloves",        "hints": "fabric oven gloves/mitts"},
-    {"tag": "tote_bag",          "name": "Tote Bag",           "hints": "canvas tote bag"},
+    {"tag": "serving_tray",       "name": "Serving Tray",       "hints": "flat rectangular tray with rim"},
+    {"tag": "small_tray",         "name": "Small Tray",         "hints": "small flat tray"},
+    {"tag": "utensil_pot",        "name": "Utensil Pot",        "hints": "tall open cylinder holding utensils"},
+    {"tag": "teapot",             "name": "Teapot",             "hints": "pot with spout, lid and handle"},
+    {"tag": "soap_dish",          "name": "Soap Dish",          "hints": "small shallow dish for soap"},
+    {"tag": "dog_bowl",           "name": "Dog Bowl",           "hints": "sturdy low pet feeding bowl"},
+    {"tag": "candle",             "name": "Cook's Candle",      "hints": "candle in an enamel pot/tin"},
+    {"tag": "gift_set",           "name": "Gift Set",           "hints": "boxed/grouped collection of items"},
+    {"tag": "utensils",           "name": "Utensils",           "hints": "loose kitchen utensils (spoons, etc.)"},
+    # Fabricware (in case group/lifestyle shots include them)
+    {"tag": "apron",              "name": "Apron",              "hints": "fabric apron"},
+    {"tag": "tea_towel",          "name": "Tea Towel",          "hints": "fabric tea towel"},
+    {"tag": "oven_gloves",        "name": "Oven Gloves",        "hints": "fabric oven gloves/mitts"},
+    {"tag": "tote_bag",           "name": "Tote Bag",           "hints": "canvas tote bag"},
 ]
 # ===============================================================
 
@@ -200,15 +201,16 @@ def _rl(fn, tries=5):
     raise RuntimeError("Dropbox rate limit: gave up after retries")
 
 
-def prep_image(raw, ext):
+def prep_image(raw, ext, max_edge=None):
     """Return (base64_data, media_type), downscaling with Pillow if available."""
+    max_edge = max_edge or CONFIG["RESIZE_LONG_EDGE"]
     if HAVE_PIL:
         try:
             img = Image.open(io.BytesIO(raw))
             img = img.convert("RGB")
             long_edge = max(img.size)
-            if long_edge > CONFIG["RESIZE_LONG_EDGE"]:
-                scale = CONFIG["RESIZE_LONG_EDGE"] / long_edge
+            if long_edge > max_edge:
+                scale = max_edge / long_edge
                 img = img.resize((int(img.width * scale), int(img.height * scale)))
             buf = io.BytesIO()
             img.save(buf, format="JPEG", quality=85)
@@ -227,6 +229,24 @@ def build_reference_blocks():
     d = CONFIG["REFERENCES_DIR"]
     if not os.path.isdir(d):
         return []
+    blocks = []
+
+    # 1. Whole catalogue page, if you dropped one in as references/catalog.<ext>.
+    #    (Your website's category page screenshot works perfectly.)
+    for ext in IMAGE_MIME:
+        sheet = os.path.join(d, "catalog" + ext)
+        if os.path.isfile(sheet):
+            with open(sheet, "rb") as f:
+                b64, mt = prep_image(f.read(), ext, max_edge=2200)  # keep labels legible
+            blocks.append({"type": "text", "text": (
+                "FALCON ENAMELWARE PRODUCT CATALOGUE. The image below is our category "
+                "page; every product is shown with its name. Use it as the reference "
+                "for what each product looks like:")})
+            blocks.append({"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}})
+            print(f"Loaded catalogue sheet: {sheet}")
+            break
+
+    # 2. Per-product reference photos: references/<tag>.<ext>.
     entries = []
     for fn in sorted(os.listdir(d)):
         tag, ext = os.path.splitext(fn)
@@ -235,20 +255,18 @@ def build_reference_blocks():
             with open(os.path.join(d, fn), "rb") as f:
                 b64, mt = prep_image(f.read(), ext)
             entries.append((tag, b64, mt))
-    if not entries:
+    if entries:
+        blocks.append({"type": "text", "text": (
+            "REFERENCE PHOTOS. Each image below is followed by the exact product tag "
+            "it shows. Use these to recognise the same products in the photo you tag:")})
+        for tag, b64, mt in entries:
+            blocks.append({"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}})
+            blocks.append({"type": "text", "text": f"= {tag}"})
+        print(f"Loaded {len(entries)} reference photo(s): {', '.join(t for t, _, _ in entries)}")
+
+    if not blocks:
         return []
-    blocks = [{
-        "type": "text",
-        "text": ("REFERENCE PHOTOS. Each image below is followed by the exact product "
-                 "tag it shows. Use these to recognise the same products in the photo "
-                 "you are asked to tag:"),
-    }]
-    for tag, b64, mt in entries:
-        blocks.append({"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}})
-        blocks.append({"type": "text", "text": f"= {tag}"})
-    blocks[-1]["cache_control"] = {"type": "ephemeral"}  # cache the reference prefix
-    print(f"Loaded {len(entries)} reference photo(s) from {d}/: "
-          f"{', '.join(t for t, _, _ in entries)}")
+    blocks[-1]["cache_control"] = {"type": "ephemeral"}  # cache the whole reference prefix
     return blocks
 
 
