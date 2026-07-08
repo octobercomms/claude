@@ -94,15 +94,13 @@ const STYLE = `
   .cover { display: flex; flex-direction: column; min-height: 257mm; }
   .cover .mid { margin-top: auto; padding-top: 34px; } .cover .foot { margin-top: auto; border-top: 2px solid var(--ink); padding-top: 14px; display: flex; justify-content: space-between; align-items: flex-end; }
   .hero-img { width: 100%; height: 62mm; object-fit: cover; border-radius: 12px; margin-top: 18px; border: 2px solid var(--line); }
-  .scoregrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 22px; }
-  .scoregrid.g5 { grid-template-columns: repeat(5, 1fr); gap: 8px; }
-  .scoregrid.g5 .stat { padding: 11px; } .scoregrid.g5 .val { font-size: 22px; }
-  .stat { border: 2px solid var(--line); border-radius: 10px; padding: 14px; }
-  .stat .lab { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-  .stat .val { font-size: 26px; font-weight: 800; letter-spacing: -1px; margin-top: 6px; line-height: 1.05; }
-  .stat .sub { font-size: 10.5px; color: var(--muted); margin-top: 5px; }
-  .stat.hot { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .stat.hot .lab, .stat.hot .sub { color: #cfcfcf; } .stat.hot .val { color: var(--accent); }
+  /* Score card — one full-width row per discipline so values + captions have
+     room to read, instead of five cramped columns. */
+  .scorelist { margin-top: 22px; border-top: 2px solid var(--ink); }
+  .srow { display: flex; align-items: baseline; gap: 14px; padding: 12px 2px; border-bottom: 1px solid var(--line); }
+  .srow .slab { flex: 0 0 32mm; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .srow .sval { flex: 0 0 38mm; font-size: 21px; font-weight: 800; letter-spacing: -.6px; line-height: 1.05; }
+  .srow .ssub { flex: 1; font-size: 12px; color: var(--muted); line-height: 1.45; }
   .panelhead { display: flex; align-items: baseline; gap: 10px; border-bottom: 2px solid var(--ink); padding-bottom: 8px; margin-bottom: 14px; }
   .panelhead .no { font-size: 12px; font-weight: 800; color: #fff; background: var(--ink); width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
   .panelhead .svc { margin-left: auto; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
@@ -120,8 +118,8 @@ const STYLE = `
   .cta .sub { color: #cfcfcf; margin-top: 12px; max-width: 130mm; }
 `;
 
-function statTile(lab, val, sub, hot) {
-  return `<div class="stat${hot ? ' hot' : ''}"><div class="lab">${esc(lab)}</div><div class="val">${esc(val || '—')}</div><div class="sub">${esc(sub || '')}</div></div>`;
+function scoreRow(lab, val, sub) {
+  return `<div class="srow"><div class="slab">${esc(lab)}</div><div class="sval">${esc(val || '—')}</div><div class="ssub">${esc(sub || '')}</div></div>`;
 }
 
 // draft: { company_name, scores:{search,ai,social,pr}, score_notes?, headline_opportunity,
@@ -145,12 +143,12 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
       <h1>${esc(company)}</h1>
       <p class="lede">A 60-second, personalised read on where you're winning attention, where you're invisible, and the moves we'd make first — across search, paid, social, PR and brand.</p>
       ${hero ? `<img class="hero-img" src="${esc(hero)}" alt="">` : ''}
-      <div class="scoregrid${scores.trust != null ? ' g5' : ''}">
-        ${statTile('Search health', scores.search, notes.search || 'On-page & rankings')}
-        ${statTile('AI visibility', scores.ai, notes.ai || 'In AI answers', true)}
-        ${statTile('Social presence', scores.social, notes.social || 'Reach & consistency')}
-        ${statTile('PR footprint', scores.pr, notes.pr || 'Earned coverage')}
-        ${scores.trust != null ? statTile('Trusted voices', scores.trust, notes.trust || 'Who carries your message') : ''}
+      <div class="scorelist">
+        ${scoreRow('Search health', scores.search, notes.search || 'On-page & rankings')}
+        ${scoreRow('AI visibility', scores.ai, notes.ai || 'In AI answers')}
+        ${scoreRow('Social presence', scores.social, notes.social || 'Reach & consistency')}
+        ${scoreRow('PR footprint', scores.pr, notes.pr || 'Earned coverage')}
+        ${scores.trust != null ? scoreRow('Trusted voices', scores.trust, notes.trust || 'Who carries your message') : ''}
       </div>
     </div>
     <div class="foot">

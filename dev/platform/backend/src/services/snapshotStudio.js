@@ -185,7 +185,7 @@ Return ONLY a JSON object, no prose, no code fences, matching exactly:
   "summary": [ { "service": string, "text": string } ],   // exactly 5, one per discipline (include the trust/messenger angle)
   "sections": [ { "title": string, "service": string, "finding": string, "idea": string, "opportunity": string } ]  // exactly 3
 }
-Scores are short human labels (e.g. "62/100", "2/10", "Thin", "Low", "Faceless", "Founder-led"), not invented precise numbers. The "trust" score reads on how well they use trusted human voices. Keep each text field to 1-2 sentences. You may use **bold** for emphasis.`;
+Scores are short human labels — a number or 1-2 words, max ~12 characters (e.g. "62/100", "Thin", "Low", "Active", "Founder-led"), not invented precise numbers. The "trust" score reads on how well they use trusted human voices. score_notes are TERSE captions of at most 6 words (e.g. "thin indexable content", "not named in AI answers", "founder voice under-used") — NOT sentences; the real detail belongs in summary and sections. Keep summary and section text fields to 1-2 sentences. You may use **bold** for emphasis.`;
 
 function parseJson(str) {
   let s = String(str || '').trim();
