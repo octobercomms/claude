@@ -57,6 +57,13 @@ CONFIG = {
     # Add native Dropbox tags to each file (filterable in the Dropbox web UI).
     "WRITE_TAGS": True,
 
+    # Trust the FOLDER NAME when it clearly names a product. Your product shots
+    # live in folders like ".../Oval Plate/..." or ".../Jugs/3 pint jug/...", so
+    # the folder is a 100%-reliable answer — no AI call needed (accurate AND
+    # free/fast). The AI is only used where the folder gives no product clue
+    # (Lifestyle, Collaborator, Website shots). Turn off with --no-folder-hints.
+    "USE_FOLDER_HINTS": True,
+
     # Append the product name(s) into the FILENAME, e.g.
     #   "IMG_2043.jpg" -> "IMG_2043 {falcon: oval plate, 3 pint jug}.jpg".
     # Permanent, visible to everyone with folder access, and findable by ANY
@@ -312,6 +319,63 @@ def classify(client, b64, media_type, reference_blocks=()):
     return [t for t in tags if t in VALID_TAGS]
 
 
+# Folder-name → tag rules, most specific first. A folder segment that contains
+# any pattern maps to that product. Used to tag your already-sorted product
+# shots without calling the AI.
+FOLDER_RULES = [
+    (["oval plate"], "oval_plate"),
+    (["24cm plate", "plate set"], "dinner_plate"),
+    (["side plate"], "small_side_plate"),
+    (["deep plate"], "deep_plate"),
+    (["12cm bowl"], "bowl_12cm"),
+    (["fruit bowl"], "fruit_bowl"),
+    (["large serving dish", "large salad bowl"], "large_serving_dish"),
+    (["medium serving dish", "medium salad bowl"], "medium_serving_dish"),
+    (["sauce dish"], "sauce_dish"),
+    (["pinch pot"], "pinch_pot"),
+    (["espresso"], "espresso_cup"),
+    (["mini tumbler"], "mini_tumbler"),
+    (["tall tumbler"], "tall_tumbler"),
+    (["tumbler"], "tumbler"),
+    (["mug"], "mug"),
+    (["1 pint jug", "1pint jug"], "one_pint_jug"),
+    (["2 pint jug", "2pint jug"], "two_pint_jug"),
+    (["3 pint jug", "3pint jug"], "three_pint_jug"),
+    (["pie dish"], "pie_dish"),
+    (["pie set"], "pie_set"),
+    (["bake set"], "bake_set"),
+    (["square bake tray"], "square_bake_tray"),
+    (["loaf tin"], "loaf_tin"),
+    (["decorative cake tin"], "decorative_cake_tin"),
+    (["cake tin"], "cake_tin"),
+    (["cake stand"], "cake_stand"),
+    (["prep set"], "prep_set"),
+    (["small serving tray", "small tray"], "small_tray"),
+    (["serving tray"], "serving_tray"),
+    (["utensil pot"], "utensil_pot"),
+    (["teapot", "tea pot"], "teapot"),
+    (["soap dish"], "soap_dish"),
+    (["dog bowl"], "dog_bowl"),
+    (["candle"], "candle"),
+    (["gift set"], "gift_set"),
+    (["apron"], "apron"),
+    (["tea towel"], "tea_towel"),
+    (["oven glove"], "oven_gloves"),
+    (["tote"], "tote_bag"),
+    (["utensils"], "utensils"),
+]
+
+
+def folder_tag_from_path(path):
+    """If a parent folder clearly names a product, return its tag (else None)."""
+    segs = [re.sub(r"[\s_+]+", " ", s.lower()).strip() for s in path.split("/") if s]
+    for seg in reversed(segs[:-1]):  # deepest folder first; skip the filename
+        for patterns, tag in FOLDER_RULES:
+            if any(p in seg for p in patterns):
+                return tag
+    return None
+
+
 def load_checkpoint():
     try:
         with open(CONFIG["CHECKPOINT_PATH"]) as f:
@@ -340,7 +404,7 @@ def main():
     csv_file = open(CONFIG["CSV_PATH"], "a", newline="", encoding="utf-8")
     writer = csv.writer(csv_file)
     if not csv_exists:
-        writer.writerow(["name", "path", "tags", "file_id"])
+        writer.writerow(["name", "path", "tags", "source", "file_id"])
 
     processed = tagged = skipped = 0
     for meta in iter_images(dbx):
@@ -350,16 +414,25 @@ def main():
 
         ext = os.path.splitext(meta.name)[1].lower()
         try:
-            if meta.size > CONFIG["MAX_FILE_MB"] * 1024 * 1024:
-                writer.writerow([meta.name, meta.path_display, "(skipped: too large)", meta.id])
-                if use_checkpoint:
-                    done.add(meta.id)
-                skipped += 1
-                continue
+            # 1. Trust the folder name if it clearly says the product (no AI, no download).
+            tags, source = None, "ai"
+            if CONFIG["USE_FOLDER_HINTS"]:
+                hint = folder_tag_from_path(meta.path_display)
+                if hint:
+                    tags, source = [hint], "folder"
 
-            _, resp = _rl(lambda: dbx.files_download(meta.path_lower))
-            b64, media_type = prep_image(resp.content, ext)
-            tags = classify(client, b64, media_type, reference_blocks)
+            # 2. Otherwise ask Claude (download + classify).
+            if tags is None:
+                if meta.size > CONFIG["MAX_FILE_MB"] * 1024 * 1024:
+                    writer.writerow([meta.name, meta.path_display, "(skipped: too large)", "ai", meta.id])
+                    if use_checkpoint:
+                        done.add(meta.id)
+                    skipped += 1
+                    continue
+                _, resp = _rl(lambda: dbx.files_download(meta.path_lower))
+                b64, media_type = prep_image(resp.content, ext)
+                tags = classify(client, b64, media_type, reference_blocks)
+                time.sleep(CONFIG["SLEEP_BETWEEN"])
 
             final_name = meta.name
             if not CONFIG["DRY_RUN"]:
@@ -369,7 +442,7 @@ def main():
                 if CONFIG["RENAME_FILES"]:
                     final_name = _rename_file(dbx, meta.path_lower, meta.name, tags)
 
-            writer.writerow([final_name, meta.path_display, ", ".join(tags) or "(none)", meta.id])
+            writer.writerow([final_name, meta.path_display, ", ".join(tags) or "(none)", source, meta.id])
             csv_file.flush()
 
             if use_checkpoint:
@@ -377,11 +450,10 @@ def main():
                 if processed % CONFIG["CHECKPOINT_EVERY"] == 0:
                     save_checkpoint(done)
             processed += 1
-            print(f"[{processed}] {meta.name} -> {', '.join(tags) or '(none)'}")
-            time.sleep(CONFIG["SLEEP_BETWEEN"])
+            print(f"[{processed}] ({source}) {meta.name} -> {', '.join(tags) or '(none)'}")
         except Exception as e:  # noqa: BLE001 - keep going, record the failure
             print(f"  error on {meta.name}: {e}")
-            writer.writerow([meta.name, meta.path_display, f"(error: {e})", meta.id])
+            writer.writerow([meta.name, meta.path_display, f"(error: {e})", "ai", meta.id])
             csv_file.flush()
             # not added to `done`, so it retries on the next run
 
@@ -504,6 +576,8 @@ def apply_overrides(args):
         CONFIG["RENAME_FILES"] = True
     if args.no_tags:
         CONFIG["WRITE_TAGS"] = False
+    if args.no_folder_hints:
+        CONFIG["USE_FOLDER_HINTS"] = False
 
 
 if __name__ == "__main__":
@@ -516,6 +590,8 @@ if __name__ == "__main__":
     ap.add_argument("--live", action="store_true", help="Actually apply changes (off = dry run)")
     ap.add_argument("--rename", action="store_true", help="Also put the product name in the filename")
     ap.add_argument("--no-tags", action="store_true", help="Don't write Dropbox tags")
+    ap.add_argument("--no-folder-hints", action="store_true",
+                    help="Always use the AI, even when the folder name says the product")
     args = ap.parse_args()
 
     apply_overrides(args)
