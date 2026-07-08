@@ -5,24 +5,39 @@ The public front door to the Snapshot Studio. A visitor enters their website
 the one-line opportunity + "what we found"), and enters an email to unlock the
 deep "moves we'd make" sections and a *Book a call* CTA.
 
-It's a self-contained widget served by the platform backend, so you embed it
-with a single `<iframe>` — no build step, no script tag, works in WordPress,
-Squarespace, Webflow, plain HTML, anything.
+It's a self-contained widget served by the platform backend. Works in
+WordPress/Elementor, Squarespace, Webflow, plain HTML — anything.
 
-## Embed snippet
+## Embed snippet (recommended)
 
-Paste this into a Custom HTML block on the page where you want it
-(e.g. octobercomms.com homepage). It auto-resizes to fit its content.
+Paste this **one line** into a Custom HTML block on the page where you want it
+(e.g. octobercomms.com homepage):
 
 ```html
-<iframe
-  id="october-snapshot"
+<script src="https://platform.octobercomms.com/api/public/snapshot/embed.js" data-theme="dark" async></script>
+```
+
+The loader injects the widget where the tag sits **and** keeps it sized to its
+content automatically — no fixed height to guess at, so it's never too tall
+when empty or too short once a report loads. Options go on the tag as
+`data-` attributes:
+
+- `data-theme="dark"` — light text for dark backgrounds (default light)
+- `data-intro="0"` — hide the built-in heading/blurb (use your own)
+- `data-accent="ff5500"` — override the accent colour
+
+### Manual iframe (fallback)
+
+If you'd rather place the iframe yourself, you can — but you must include the
+resize listener too, or the height won't track the content (the classic
+cross-origin iframe problem). The one-line loader above exists precisely so you
+don't have to.
+
+```html
+<iframe id="october-snapshot"
   src="https://platform.octobercomms.com/api/public/snapshot/embed?theme=dark"
-  title="October Growth Snapshot"
-  style="width:100%;border:0;min-height:520px"
-  loading="lazy"></iframe>
+  title="October Growth Snapshot" style="width:100%;border:0;height:340px" loading="lazy"></iframe>
 <script>
-  // Auto-resize the iframe to its content (the widget posts its height).
   window.addEventListener('message', function (e) {
     if (e.data && e.data.type === 'snapshot-embed-height' && e.data.height) {
       var f = document.getElementById('october-snapshot');
@@ -31,9 +46,6 @@ Paste this into a Custom HTML block on the page where you want it
   });
 </script>
 ```
-
-(If you don't add the resize script it still works — it just keeps a fixed
-`min-height` with internal scroll.)
 
 ## Making it match your site
 
