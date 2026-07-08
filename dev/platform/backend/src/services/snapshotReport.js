@@ -92,7 +92,7 @@ const STYLE = `
   .pill { display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
   .pill.sample { background: var(--ink); color: #fff; }
   .cover { display: flex; flex-direction: column; min-height: 257mm; }
-  .cover .mid { margin-top: auto; } .cover .foot { margin-top: auto; border-top: 2px solid var(--ink); padding-top: 14px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .cover .mid { margin-top: auto; padding-top: 34px; } .cover .foot { margin-top: auto; border-top: 2px solid var(--ink); padding-top: 14px; display: flex; justify-content: space-between; align-items: flex-end; }
   .hero-img { width: 100%; height: 62mm; object-fit: cover; border-radius: 12px; margin-top: 18px; border: 2px solid var(--line); }
   .scoregrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 22px; }
   .stat { border: 2px solid var(--line); border-radius: 10px; padding: 14px; }
@@ -137,7 +137,7 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
 
   const cover = `
   <section class="page cover">
-    ${masthead(opts.sample ? 'Sample report' : 'Prepared by October')}
+    ${masthead(opts.sample ? 'Sample report' : 'Prepared by October Communications')}
     <div class="mid">
       <div class="kicker">Prepared for</div>
       <h1>${esc(company)}</h1>
@@ -188,7 +188,7 @@ function renderReportHtml(draft = {}, featured = [], opts = {}) {
 
   const cta = `
   <section class="page">
-    ${masthead(opts.sample ? 'Sample report' : 'Prepared by October')}
+    ${masthead(opts.sample ? 'Sample report' : 'Prepared by October Communications')}
     <div class="cta" style="margin-top:40px">
       <div class="kicker" style="color:var(--accent)">Your next 20 minutes</div>
       <h2 style="margin-top:10px">We've done the first hour of thinking.<br>Let's walk through it together.</h2>
