@@ -53,16 +53,84 @@ async function assertPublicHost(parsed) {
 }
 
 // ─── Fetch + parse ──────────────────────────────────────────────────────
-async function fetchSite(parsed) {
+async function fetchSite(parsed, timeout = 15000) {
   const res = await axios.get(parsed.toString(), {
     headers: { 'User-Agent': UA, Accept: 'text/html,*/*' },
-    timeout: 15000,
+    timeout,
     maxContentLength: 4 * 1024 * 1024,
     maxRedirects: 4,
     responseType: 'text',
     validateStatus: s => s >= 200 && s < 400,
   });
   return typeof res.data === 'string' ? res.data : String(res.data || '');
+}
+
+// Same-host internal links worth reading, ranked so the pages that reveal the
+// most (about / work / services / etc.) come first. Same-host only, which keeps
+// the crawl inside the host we already SSRF-checked and off other domains.
+function internalLinks(html, parsed) {
+  const $ = cheerio.load(html);
+  const host = parsed.hostname.replace(/^www\./, '');
+  const priority = /about|work|portfolio|project|case|stud|service|solution|what-we|clients?|team|people|news|blog|press|shop|product|menu|contact/i;
+  const seen = new Set();
+  const links = [];
+  $('a[href]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    if (!href || href.startsWith('#') || /^(mailto:|tel:|javascript:)/i.test(href)) return;
+    let u;
+    try { u = new URL(href, parsed); } catch { return; }
+    if (!/^https?:$/.test(u.protocol)) return;
+    if (u.hostname.replace(/^www\./, '') !== host) return;
+    if (/\.(pdf|jpe?g|png|gif|svg|webp|zip|mp4|mov|dmg|docx?|xlsx?|csv)$/i.test(u.pathname)) return;
+    u.hash = '';
+    const key = u.pathname.replace(/\/$/, '') + u.search;
+    if (!key || key === '/' || seen.has(key)) return;
+    seen.add(key);
+    links.push({ url: u.toString(), path: u.pathname, score: priority.test(u.pathname) ? 1 : 0 });
+  });
+  links.sort((a, b) => b.score - a.score);
+  return links;
+}
+
+// Read the homepage plus a handful of the most informative internal pages, so
+// the draft is based on the whole site rather than hallucinating from one page.
+async function crawlSite(parsed, { maxPages = 5 } = {}) {
+  const homeHtml = await fetchSite(parsed);
+  const home = parseSite(homeHtml, parsed);
+  const links = internalLinks(homeHtml, parsed).slice(0, maxPages);
+
+  const pages = [{ url: parsed.toString(), text: home.text }];
+  const images = [...home.images];
+
+  const results = await Promise.allSettled(links.map(async (l) => {
+    const lp = normaliseUrl(l.url);              // same host — already public-asserted
+    const html = await fetchSite(lp, 10000);
+    return { url: lp.toString(), ...parseSite(html, lp) };
+  }));
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue;
+    const p = r.value;
+    if (p.text && p.text.length > 60) pages.push({ url: p.url, text: p.text });
+    for (const img of p.images) if (!images.includes(img)) images.push(img);
+  }
+
+  // One labelled block per page, within a total budget so the prompt stays lean.
+  const PER = 3000, TOTAL = 14000;
+  let budget = TOTAL;
+  const parts = [];
+  for (const p of pages) {
+    if (budget <= 0) break;
+    const slice = p.text.slice(0, Math.min(PER, budget));
+    parts.push(`# Page: ${p.url}\n${slice}`);
+    budget -= slice.length;
+  }
+  return {
+    company: home.company,
+    description: home.description,
+    text: parts.join('\n\n'),
+    images: images.slice(0, 16),
+    pageCount: pages.length,
+  };
 }
 
 function parseSite(html, parsed) {
@@ -104,7 +172,7 @@ Rules:
 - Mix credibility (a plausible finding) with imagination (a genuinely creative idea we'd run). The ideas are the selling point.
 - Cover the spread: search/AI visibility, paid, social, PR, brand, and trust. Group them into exactly 3 section panels.
 - British English. Confident, warm, never salesy or hypey. No emojis.
-- You only have their public site text, so frame findings as observations ("looks like", "we'd check"), never fabricated metrics you can't know.
+- You're given text sampled from several of their pages (each marked with its URL). Base every observation on what's actually in that text, framed as observations ("looks like", "we'd check") — never fabricated metrics you can't know. Crucially, do NOT claim the site is "one page", or that it "has no case studies / blog / portfolio / services page / etc." just because it isn't in this sample — you have not necessarily seen every page. If something seems missing, say at most "we couldn't see X on the pages we looked at", or better, lead with a positive opportunity instead of asserting an absence.
 
 The trust/messenger lens is the sharpest edge, so give it real weight. Trust has gone local and personal (Edelman 2026 Trust Barometer): people now trust peers, employees, founders/CEOs and trusted niche creators far more than institutions, faceless brands, or ads. Assess who currently carries THIS brand's message, and whether they're leaning on their most-trusted voices — visible founder/leadership presence, employee advocacy, customer & community proof, partnerships with trusted creators — or hiding behind an anonymous brand. Make it a visible thread: it drives the "trust" score, should surface in at least one summary line, and ideally shapes one section idea.
 
@@ -127,8 +195,8 @@ function parseJson(str) {
   return JSON.parse(s);
 }
 
-async function draftReport({ company, url, description, text }) {
-  const user = `Prospect: ${company}\nWebsite: ${url}\nMeta description: ${description || '(none)'}\n\nHomepage/site text (truncated):\n"""\n${text}\n"""\n\nWrite the Growth Snapshot JSON for ${company}.`;
+async function draftReport({ company, url, description, text, pageCount = 1 }) {
+  const user = `Prospect: ${company}\nWebsite: ${url}\nMeta description: ${description || '(none)'}\nPages read: ${pageCount}\n\nContent gathered from ${pageCount} page(s) of the site, each marked with its URL (text truncated per page):\n"""\n${text}\n"""\n\nWrite the Growth Snapshot JSON for ${company}. Remember: don't assert that pages or content are missing just because they're not in this sample.`;
   const raw = await claude.callClaude({ max_tokens: 2200, system: SYSTEM, user, feature: 'snapshot_draft' });
   const draft = parseJson(raw);
   draft.company_name = draft.company_name || company;
@@ -172,17 +240,16 @@ async function gather(id) {
   if (!lead) throw new Error('Lead not found');
   const parsed = normaliseUrl(lead.url);
   await assertPublicHost(parsed);
-  const html = await fetchSite(parsed);
-  const parsedSite = parseSite(html, parsed);
+  const site = await crawlSite(parsed);
 
   const draft = await draftReport({
-    company: parsedSite.company, url: parsed.toString(),
-    description: parsedSite.description, text: parsedSite.text,
+    company: site.company, url: parsed.toString(),
+    description: site.description, text: site.text, pageCount: site.pageCount,
   });
 
   // Refresh the site-sourced images (leave uploads/screenshots untouched).
   await pool.query(`DELETE FROM snapshot_lead_images WHERE lead_id = $1 AND kind = 'site'`, [id]);
-  for (const imgUrl of parsedSite.images) {
+  for (const imgUrl of site.images) {
     await pool.query(`INSERT INTO snapshot_lead_images (lead_id, url, kind) VALUES ($1, $2, 'site')`, [id, imgUrl]);
   }
   const { rows } = await pool.query(

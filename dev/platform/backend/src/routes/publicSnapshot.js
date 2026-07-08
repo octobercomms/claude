@@ -233,6 +233,10 @@ function renderEmbedHtml({ theme = 'light', intro = true, accent = 'e7cd41' } = 
   .cta .btn{margin-top:16px}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(35,31,32,.3);border-top-color:var(--btn-ink);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:7px}
   @keyframes s{to{transform:rotate(360deg)}}
+  .loading{padding:56px 0;text-align:center}
+  .loading .lspin{display:inline-block;width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite}
+  .loading .lmsg{margin-top:18px;font-size:16px;font-weight:700}
+  .loading .lsub{margin-top:6px;font-size:12.5px;color:var(--muted);max-width:44ch;margin-left:auto;margin-right:auto}
   b,strong{font-weight:800}
 </style></head><body><div class="wrap" id="app">
   ${introHtml}
@@ -314,14 +318,24 @@ function renderEmbedHtml({ theme = 'light', intro = true, accent = 'e7cd41' } = 
         .catch(function(x){ego.disabled=false;ego.textContent='Unlock the full snapshot';eerr.textContent=x.message;eerr.style.display='block'});
     });
   }
+  var loadTimer=null;
+  function renderLoading(host){
+    var msgs=['reading '+host+'…','following the key pages…','checking search & ai visibility…','sizing up social & pr…','drafting your snapshot…'];
+    out.innerHTML='<div class="loading"><span class="lspin"></span><div class="lmsg" id="lmsg"></div><div class="lsub">this takes about 20 seconds — we\\'re reading through your site, not just the homepage.</div></div>';
+    var el=document.getElementById('lmsg');el.textContent=msgs[0];postHeight();
+    var i=0;loadTimer=setInterval(function(){i=(i+1)%msgs.length;if(el)el.textContent=msgs[i];},3500);
+  }
+  function stopLoading(){if(loadTimer){clearInterval(loadTimer);loadTimer=null;}}
   f.addEventListener('submit',function(e){e.preventDefault();clearErr();
     var url=(document.getElementById('url').value||'').trim(),ig=(document.getElementById('ig').value||'').trim();
     if(!url){showErr('Enter your website address.');return}
+    var host=url;var ix=host.indexOf('://');if(ix>=0)host=host.slice(ix+3);if(host.indexOf('www.')===0)host=host.slice(4);host=host.split('/')[0];
     go.disabled=true;go.innerHTML='<span class="spin"></span>Reading your site…';
+    f.style.display='none';renderLoading(host);
     fetch('/api/public/snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url,ig_handle:ig})})
       .then(function(res){return res.json().then(function(j){return {ok:res.ok,j:j}})})
-      .then(function(o){if(!o.ok)throw new Error(o.j.error||'We couldn\\'t read that site.');f.style.display='none';renderTaste(o.j)})
-      .catch(function(x){go.disabled=false;go.innerHTML='Show me my snapshot';showErr(x.message)});
+      .then(function(o){stopLoading();if(!o.ok)throw new Error(o.j.error||'We couldn\\'t read that site.');renderTaste(o.j)})
+      .catch(function(x){stopLoading();out.innerHTML='';f.style.display='';go.disabled=false;go.innerHTML='Show me my snapshot';showErr(x.message)});
   });
   postHeight();
 })();
