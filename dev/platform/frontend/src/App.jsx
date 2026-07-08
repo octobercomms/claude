@@ -20,6 +20,8 @@ import ClientBrandPage from './pages/ClientBrandPage';
 import ApprovePage from './pages/ApprovePage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import GuidePage from './pages/GuidePage';
+import LeadsPage from './pages/LeadsPage';
+import SnapshotStudioPage from './pages/SnapshotStudioPage';
 import SettingsPage from './pages/SettingsPage';
 import ClientPRPage from './pages/ClientPRPage';
 import JournalistProfilePage from './pages/JournalistProfilePage';
@@ -90,6 +92,8 @@ export default function App() {
             <Route path="media/outlet/:id" element={<OutletProfilePage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
+            <Route path="leads" element={<LeadsPage />} />
+            <Route path="leads/:id" element={<SnapshotStudioPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="contacts/cleanup" element={<ContactCleanupPage />} />
