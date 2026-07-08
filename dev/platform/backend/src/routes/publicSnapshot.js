@@ -10,11 +10,30 @@
 
 const express = require('express');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const rateLimit = require('express-rate-limit');
 const studio = require('../services/snapshotStudio');
 const email = require('../services/emailService');
 
 const router = express.Router();
+
+// Embed the Brockmann brand font as base64 @font-face rules (same woff2 the
+// client PDF reports use). An iframe can't reach the host page's fonts, and the
+// widget's CSP is default-src 'none', so the font must be inlined + allowed via
+// font-src data:. Read once at boot.
+const FONTS_DIR = path.join(__dirname, '../../../frontend/public/fonts');
+function fontFace(weight, file) {
+  try {
+    const b64 = fs.readFileSync(path.join(FONTS_DIR, file)).toString('base64');
+    return `@font-face{font-family:'Brockmann';font-weight:${weight};font-style:normal;font-display:swap;src:url('data:font/woff2;base64,${b64}') format('woff2');}`;
+  } catch { return ''; }
+}
+const FONT_CSS = [
+  fontFace(400, 'brockmann-regular-webfont.woff2'),
+  fontFace(600, 'brockmann-semibold-webfont.woff2'),
+  fontFace(700, 'brockmann-bold-webfont.woff2'),
+].filter(Boolean).join('');
 
 const BOOK_URL = () => process.env.SNAPSHOT_BOOK_URL || 'https://octobercomms.com/book/';
 const EMBED_ORIGINS = () => process.env.SNAPSHOT_EMBED_ORIGINS || 'https://octobercomms.com https://www.octobercomms.com';
@@ -115,7 +134,7 @@ router.get('/embed', (req, res) => {
   // the app to same-origin). Replace the app-wide CSP + drop X-Frame-Options.
   res.removeHeader('X-Frame-Options');
   res.setHeader('Content-Security-Policy',
-    `default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'self' ${EMBED_ORIGINS()};`);
+    `default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' https: data:; font-src data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'self' ${EMBED_ORIGINS()};`);
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   const theme = req.query.theme === 'dark' ? 'dark' : 'light';
   const intro = req.query.intro !== '0';
@@ -131,43 +150,44 @@ function renderEmbedHtml({ theme = 'light', intro = true, accent = 'e7cd41' } = 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>October Growth Snapshot</title>
 <style>
+  ${FONT_CSS}
   :root{--accent:#${accent};--ink:#1a1a1a;--muted:#6a6a6a;--line:rgba(0,0,0,.15);--deep:#6f5e10;--fieldbd:rgba(0,0,0,.32);--btn-ink:#231f20}
   html.dark{--ink:#fff;--muted:#b4b4b4;--line:rgba(255,255,255,.22);--deep:var(--accent);--fieldbd:rgba(255,255,255,.42)}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);line-height:1.5;background:transparent;padding:2px}
-  .wrap{max-width:820px;margin:0 auto}
-  .kicker{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  body{font-family:'Brockmann',-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);line-height:1.5;background:transparent;padding:0;text-transform:lowercase}
+  .wrap{max-width:none;width:100%;margin:0;padding:50px 0;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink)}
+  .kicker{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:lowercase;color:var(--muted)}
   h1{font-size:27px;line-height:1.1;letter-spacing:-.4px;font-weight:800;margin:8px 0 10px}
   .lede{font-size:15px;color:var(--muted);max-width:60ch}
   form{margin-top:18px}
   .row{display:flex;gap:14px;flex-wrap:wrap}
-  label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 5px}
+  label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:lowercase;color:var(--muted);margin:0 0 5px}
   input{width:100%;padding:11px 2px;border:none;border-bottom:1.5px solid var(--fieldbd);border-radius:0;font-size:16px;font-family:inherit;color:var(--ink);background:transparent}
   input::placeholder{color:var(--muted);opacity:.65}
   input:focus{outline:none;border-bottom-color:var(--accent)}
   .f-url{flex:2;min-width:220px}.f-ig{flex:1;min-width:150px}
-  .btn{display:inline-block;background:var(--accent);color:var(--btn-ink);font-weight:800;font-size:15px;padding:12px 22px;border:none;border-radius:2px;cursor:pointer;font-family:inherit}
+  .btn{display:inline-block;background:var(--accent);color:var(--btn-ink);font-weight:800;font-size:15px;padding:13px 28px;border:none;border-radius:100px;cursor:pointer;font-family:inherit}
   .btn:disabled{opacity:.55;cursor:default}
   .btn.accent{background:var(--accent);color:var(--btn-ink)}
   .hint{font-size:12px;color:var(--muted);margin-top:10px}
   .err{color:#e0533d;font-size:14px;margin-top:12px;font-weight:600}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0 20px;margin-top:24px;border-top:1px solid var(--line)}
   .stat{padding:13px 0;border-bottom:1px solid var(--line)}
-  .stat .lab{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  .stat .lab{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:lowercase;color:var(--muted)}
   .stat .val{font-size:21px;font-weight:800;letter-spacing:-.4px;margin-top:5px;line-height:1.05}
   .stat .sub{font-size:11px;color:var(--muted);margin-top:4px}
   .head-opp{margin-top:22px;padding-left:14px;border-left:3px solid var(--accent)}
-  .head-opp .t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+  .head-opp .t{font-size:11px;font-weight:700;text-transform:lowercase;letter-spacing:.1em;color:var(--muted)}
   .head-opp .b{font-size:18px;font-weight:700;margin-top:4px}
-  .sec-title{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:26px 0 8px}
+  .sec-title{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:lowercase;color:var(--muted);margin:26px 0 8px}
   .find{padding:12px 0;border-bottom:1px solid var(--line)}
-  .find .n{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .find .n{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:lowercase;color:var(--muted)}
   .find .x{margin-top:4px}
   .lock{margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
   .lock h3{font-size:19px;font-weight:800;letter-spacing:-.3px}
   .lock p{color:var(--muted);margin-top:6px;max-width:56ch}
   .block{padding:14px 0;border-bottom:1px solid var(--line)}
-  .block .tag{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .block .tag{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:lowercase;color:var(--muted)}
   .block h4{font-size:16px;font-weight:800;margin:5px 0 8px}
   .block .idea{margin-top:8px}
   .block .idea .tag{color:var(--deep)}
