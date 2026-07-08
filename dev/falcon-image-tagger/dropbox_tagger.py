@@ -373,22 +373,31 @@ def clear_all_tags():
     print(f"Removed {tags_removed} product tags and cleaned {renamed} filenames.")
 
 
-def list_folders():
-    """Print every folder path in the Dropbox, so you can copy the right one."""
+def list_folders(path=""):
+    """Print the folders directly inside `path` (root by default), as they load.
+
+    Fast because it only lists one level. To look inside a folder, pass it:
+        python3 dropbox_tagger.py list-folders --folder "/Falcon Enamelware"
+    """
     dbx = dropbox_client()
-    res = _rl(lambda: dbx.files_list_folder("", recursive=True))
-    folders = set()
+    path = "" if path in ("", "/") else path
+    where = path or "your Dropbox (top level)"
+    print(f"Scanning {where}...\n", flush=True)
+    res = _rl(lambda: dbx.files_list_folder(path))  # not recursive -> quick
+    count = 0
     while True:
         for e in res.entries:
             if isinstance(e, dropbox.files.FolderMetadata):
-                folders.add(e.path_display)
+                print(e.path_display, flush=True)
+                count += 1
         if not res.has_more:
             break
         res = _rl(lambda: dbx.files_list_folder_continue(res.cursor))
-    for f in sorted(folders):
-        print(f)
-    print(f'\n{len(folders)} folders. Copy the one you want and pass it with '
-          f'--folder "..." on the next run.')
+    print(f"\n{count} folders here.")
+    print("Copy the one with your photos, then run (dry run, changes nothing):")
+    print('  python3 dropbox_tagger.py --folder "/That Folder"')
+    print('To look inside a folder instead: '
+          'python3 dropbox_tagger.py list-folders --folder "/That Folder"')
 
 
 def apply_overrides(args):
@@ -421,7 +430,7 @@ if __name__ == "__main__":
     apply_overrides(args)
 
     if args.command == "list-folders":
-        list_folders()
+        list_folders(args.folder or os.environ.get("FALCON_FOLDER") or "")
     elif args.command == "clear-tags":
         clear_all_tags()
     else:
