@@ -17,7 +17,7 @@ Paste this into a Custom HTML block on the page where you want it
 ```html
 <iframe
   id="october-snapshot"
-  src="https://platform.octobercomms.com/api/public/snapshot/embed"
+  src="https://platform.octobercomms.com/api/public/snapshot/embed?theme=dark"
   title="October Growth Snapshot"
   style="width:100%;border:0;min-height:520px"
   loading="lazy"></iframe>
@@ -34,6 +34,30 @@ Paste this into a Custom HTML block on the page where you want it
 
 (If you don't add the resize script it still works — it just keeps a fixed
 `min-height` with internal scroll.)
+
+## Making it match your site
+
+The widget is deliberately **minimal** — transparent background, hairline
+rules, flat type, no cards — so it takes on the look of wherever you drop it
+rather than fighting it. An iframe can't inherit the host page's CSS, so a few
+query params on the `src` let it adapt:
+
+| Param | Values | Default | Effect |
+|---|---|---|---|
+| `theme` | `light`, `dark` | `light` | `dark` = light text on transparent, for dark/black sections (like octobercomms.com). |
+| `intro` | `1`, `0` | `1` | `0` hides the built-in heading + blurb so you can place the widget under your **own** headline. |
+| `accent` | 6-digit hex (no `#`) | `e7cd41` | Override the accent colour. |
+
+Examples:
+
+```text
+…/embed?theme=dark                 → for your black hero
+…/embed?theme=dark&intro=0         → dark, and you supply the headline above it
+…/embed?accent=ff5500              → different accent
+```
+
+The background is always transparent, so the widget sits directly on whatever
+section colour you place it in.
 
 ## What happens behind it
 

@@ -104,6 +104,12 @@ router.post('/:token/email', emailLimiter, express.json(), async (req, res) => {
 });
 
 // ── The embeddable widget ───────────────────────────────────────────────────
+// Deliberately minimal — transparent background, hairline rules, flat type — so
+// it sits inside a host site's own design rather than fighting it. Adapts via
+// query params on the iframe src:
+//   ?theme=dark      light text for dark backgrounds (default light)
+//   ?intro=0         hide the built-in heading/blurb (use your own)
+//   ?accent=RRGGBB   override the accent colour (default e7cd41)
 router.get('/embed', (req, res) => {
   // Allow octobercomms.com to frame this one response (helmet pins the rest of
   // the app to same-origin). Replace the app-wide CSP + drop X-Frame-Options.
@@ -111,72 +117,77 @@ router.get('/embed', (req, res) => {
   res.setHeader('Content-Security-Policy',
     `default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'self' ${EMBED_ORIGINS()};`);
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(EMBED_HTML);
+  const theme = req.query.theme === 'dark' ? 'dark' : 'light';
+  const intro = req.query.intro !== '0';
+  const accent = String(req.query.accent || '').replace(/[^0-9a-fA-F]/g, '').slice(0, 6) || 'e7cd41';
+  res.send(renderEmbedHtml({ theme, intro, accent }));
 });
 
-const EMBED_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+function renderEmbedHtml({ theme = 'light', intro = true, accent = 'e7cd41' } = {}) {
+  const introHtml = intro ? `<div class="kicker">October · Growth Snapshot</div>
+  <h1>See where you're winning attention — and where you're invisible.</h1>
+  <p class="lede">Enter your website and we'll read it the way search engines, AI assistants and your future customers do — then show you the first moves we'd make across search, social, PR and brand. Takes about 20 seconds.</p>` : '';
+  return `<!doctype html><html lang="en" class="${theme === 'dark' ? 'dark' : ''}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>October Growth Snapshot</title>
 <style>
-  :root{--ink:#231f20;--muted:#5b5b5b;--line:#e4e4e4;--accent:#e7cd41;--soft:#faf3c9;--deep:#6f5e10;--pos:#1f7a4d;}
+  :root{--accent:#${accent};--ink:#1a1a1a;--muted:#6a6a6a;--line:rgba(0,0,0,.15);--deep:#6f5e10;--fieldbd:rgba(0,0,0,.32);--btn-ink:#231f20}
+  html.dark{--ink:#fff;--muted:#b4b4b4;--line:rgba(255,255,255,.22);--deep:var(--accent);--fieldbd:rgba(255,255,255,.42)}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);line-height:1.55;background:#fff;padding:22px}
-  .wrap{max-width:760px;margin:0 auto}
-  .kicker{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
-  h1{font-size:30px;line-height:1.05;letter-spacing:-.5px;font-weight:800;margin:8px 0 10px}
-  .lede{font-size:16px;color:var(--muted);max-width:56ch}
-  form{margin-top:20px}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 5px}
-  input{width:100%;padding:13px 14px;border:2px solid var(--line);border-radius:10px;font-size:15px;font-family:inherit;color:var(--ink)}
-  input:focus{outline:none;border-color:var(--ink)}
+  body{font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);line-height:1.5;background:transparent;padding:2px}
+  .wrap{max-width:820px;margin:0 auto}
+  .kicker{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-size:27px;line-height:1.1;letter-spacing:-.4px;font-weight:800;margin:8px 0 10px}
+  .lede{font-size:15px;color:var(--muted);max-width:60ch}
+  form{margin-top:18px}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 5px}
+  input{width:100%;padding:11px 2px;border:none;border-bottom:1.5px solid var(--fieldbd);border-radius:0;font-size:16px;font-family:inherit;color:var(--ink);background:transparent}
+  input::placeholder{color:var(--muted);opacity:.65}
+  input:focus{outline:none;border-bottom-color:var(--accent)}
   .f-url{flex:2;min-width:220px}.f-ig{flex:1;min-width:150px}
-  .btn{display:inline-block;background:var(--ink);color:#fff;font-weight:800;font-size:15px;padding:14px 26px;border:none;border-radius:999px;cursor:pointer;font-family:inherit}
+  .btn{display:inline-block;background:var(--accent);color:var(--btn-ink);font-weight:800;font-size:15px;padding:12px 22px;border:none;border-radius:2px;cursor:pointer;font-family:inherit}
   .btn:disabled{opacity:.55;cursor:default}
-  .btn.accent{background:var(--accent);color:var(--ink)}
+  .btn.accent{background:var(--accent);color:var(--btn-ink)}
   .hint{font-size:12px;color:var(--muted);margin-top:10px}
-  .err{color:#b3261e;font-size:14px;margin-top:12px;font-weight:600}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:22px}
-  .stat{border:2px solid var(--line);border-radius:10px;padding:13px}
-  .stat.hot{background:var(--ink);border-color:var(--ink);color:#fff}
-  .stat .lab{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-  .stat.hot .lab{color:#cfcfcf}
-  .stat .val{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:5px;line-height:1.05}
-  .stat.hot .val{color:var(--accent)}
-  .stat .sub{font-size:11px;color:var(--muted);margin-top:4px}.stat.hot .sub{color:#cfcfcf}
-  .head-opp{background:var(--soft);border-radius:12px;padding:16px 18px;margin-top:20px}
-  .head-opp .t{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--deep)}
-  .head-opp .b{font-size:17px;font-weight:700;margin-top:5px}
-  .sec-title{font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px}
-  .find{border:2px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:13px 15px;margin-bottom:10px}
-  .find .n{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .err{color:#e0533d;font-size:14px;margin-top:12px;font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0 20px;margin-top:24px;border-top:1px solid var(--line)}
+  .stat{padding:13px 0;border-bottom:1px solid var(--line)}
+  .stat .lab{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  .stat .val{font-size:21px;font-weight:800;letter-spacing:-.4px;margin-top:5px;line-height:1.05}
+  .stat .sub{font-size:11px;color:var(--muted);margin-top:4px}
+  .head-opp{margin-top:22px;padding-left:14px;border-left:3px solid var(--accent)}
+  .head-opp .t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+  .head-opp .b{font-size:18px;font-weight:700;margin-top:4px}
+  .sec-title{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:26px 0 8px}
+  .find{padding:12px 0;border-bottom:1px solid var(--line)}
+  .find .n{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
   .find .x{margin-top:4px}
-  .lock{position:relative;margin-top:12px;border:2px dashed var(--line);border-radius:12px;padding:20px}
+  .lock{margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
   .lock h3{font-size:19px;font-weight:800;letter-spacing:-.3px}
-  .lock p{color:var(--muted);margin-top:6px;max-width:52ch}
-  .block{border:2px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
-  .block .tag{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-  .block h4{font-size:16px;font-weight:800;margin-bottom:8px}
-  .block .idea{background:#faf9f6;border-radius:8px;padding:10px 12px;margin-top:8px}
-  .opp{display:flex;gap:9px;background:var(--soft);border-radius:9px;padding:11px 14px;margin-top:8px}
-  .opp .arrow{font-weight:800;color:var(--deep)}
-  .cta{background:var(--ink);color:#fff;border-radius:14px;padding:26px;margin-top:24px}
-  .cta h3{font-size:22px;letter-spacing:-.4px}
-  .cta p{color:#cfcfcf;margin-top:8px;max-width:52ch}
-  .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:7px}
+  .lock p{color:var(--muted);margin-top:6px;max-width:56ch}
+  .block{padding:14px 0;border-bottom:1px solid var(--line)}
+  .block .tag{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .block h4{font-size:16px;font-weight:800;margin:5px 0 8px}
+  .block .idea{margin-top:8px}
+  .block .idea .tag{color:var(--deep)}
+  .opp{display:flex;gap:8px;margin-top:8px}
+  .opp .arrow{font-weight:800;color:var(--accent)}
+  .cta{margin-top:26px;padding-top:20px;border-top:2px solid var(--ink)}
+  .cta h3{font-size:20px;letter-spacing:-.3px;font-weight:800}
+  .cta p{color:var(--muted);margin-top:8px;max-width:56ch}
+  .cta .btn{margin-top:16px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(35,31,32,.3);border-top-color:var(--btn-ink);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:7px}
   @keyframes s{to{transform:rotate(360deg)}}
-  .muted-note{font-size:12px;color:var(--muted);margin-top:14px}
   b,strong{font-weight:800}
 </style></head><body><div class="wrap" id="app">
-  <div class="kicker">October · Growth Snapshot</div>
-  <h1>See where you're winning attention — and where you're invisible.</h1>
-  <p class="lede">Enter your website and we'll read it the way search engines, AI assistants and your future customers do — then show you the first moves we'd make across search, social, PR and brand. Takes about 20 seconds.</p>
+  ${introHtml}
   <form id="f">
     <div class="row">
       <div class="f-url"><label for="url">Your website</label><input id="url" name="url" type="text" placeholder="yourbrand.com" autocomplete="url" required></div>
       <div class="f-ig"><label for="ig">Instagram (optional)</label><input id="ig" name="ig" type="text" placeholder="@yourbrand"></div>
     </div>
-    <div style="margin-top:14px"><button class="btn" id="go" type="submit">⚡ Show me my snapshot</button></div>
+    <div style="margin-top:14px"><button class="btn" id="go" type="submit">Show me my snapshot</button></div>
     <div class="hint">Free, no signup. We'll show your results right here.</div>
     <div class="err" id="err" style="display:none"></div>
   </form>
@@ -246,10 +257,11 @@ const EMBED_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8">
     fetch('/api/public/snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url,ig_handle:ig})})
       .then(function(res){return res.json().then(function(j){return {ok:res.ok,j:j}})})
       .then(function(o){if(!o.ok)throw new Error(o.j.error||'We couldn\\'t read that site.');f.style.display='none';renderTaste(o.j)})
-      .catch(function(x){go.disabled=false;go.innerHTML='⚡ Show me my snapshot';showErr(x.message)});
+      .catch(function(x){go.disabled=false;go.innerHTML='Show me my snapshot';showErr(x.message)});
   });
   postHeight();
 })();
 </script></body></html>`;
+}
 
 module.exports = router;
