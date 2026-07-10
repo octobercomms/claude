@@ -633,6 +633,36 @@ function detectAspectRatio(file) {
 }
 
 
+// Full-screen "generating" overlay shown while Claude drafts a batch of ad
+// concepts (~20–40s). Replaces the brief form so the wait has clear feedback
+// instead of a frozen modal, and cycles reassuring status lines.
+export function GeneratingModal({ title = 'Generating ad concepts', clientName }) {
+  const steps = [
+    'Reading your brief…',
+    clientName ? `Studying ${clientName}'s brand assets…` : 'Studying the brand assets…',
+    'Sketching angles & frameworks…',
+    'Writing headlines and body copy…',
+    'Polishing the concepts…',
+  ];
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI(v => (v + 1) % steps.length), 3500);
+    return () => clearInterval(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div style={modalStyles.overlay}>
+      <div style={{ ...modalStyles.modal, maxWidth: 420, textAlign: 'center', padding: '40px 28px' }}>
+        <div className="spinner" style={{ margin: '0 auto' }} />
+        <div style={{ fontWeight: 700, fontSize: 16, marginTop: 20 }}>{title}</div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, minHeight: 20 }}>{steps[i]}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 14, lineHeight: 1.5 }}>
+          This usually takes 20–40 seconds. You can keep this open — the concepts appear as soon as they're ready.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },

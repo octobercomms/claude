@@ -1,6 +1,6 @@
 import React from 'react';
 import PipelineStep from '../organic/PipelineStep';
-import { BriefModal } from '../AdCreativePanel';
+import { BriefModal, GeneratingModal } from '../AdCreativePanel';
 import ExampleBanner from './ExampleBanner';
 import { useAuth } from '../../context/AuthContext';
 import { roWrite } from '../../utils/readOnly';
@@ -44,7 +44,7 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
         </div>
       )}
 
-      {showBrief && (
+      {showBrief && !generating && (
         <BriefModal
           assets={assets}
           clientId={clientId}
@@ -53,6 +53,7 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
           onSubmit={generate}
         />
       )}
+      {generating && <GeneratingModal clientName={clientName} />}
 
       {loaded && ensuringExample && !exampleBatch ? (
         <div className="card" style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>
