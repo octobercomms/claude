@@ -133,6 +133,17 @@ router.get('/projects/:projectId/estimate', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Scenario (D10): a new Variant placing the base character into a free-text scene.
+router.post('/projects/:projectId/variants', async (req, res) => {
+  const project = await loadProjectScoped(req, res); if (!project) return;
+  try {
+    const out = await visualise.createScenario(project, {
+      scene: req.body?.scene, count: req.body?.count, orientation: req.body?.orientation, userId: req.user.id,
+    });
+    res.json(out);
+  } catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+
 router.post('/projects/:projectId/generate', async (req, res) => {
   const project = await loadProjectScoped(req, res); if (!project) return;
   try {
@@ -172,6 +183,35 @@ router.post('/variants/:variantId/active', async (req, res) => {
     await visualise.setActiveStep(variant.id, req.body?.step_id);
     res.json({ ok: true });
   } catch (err) { res.status(err.status || 400).json({ error: err.message }); }
+});
+
+// ── Lock + 4K export (D14) ────────────────────────────────────────────────────
+router.post('/variants/:variantId/lock', async (req, res) => {
+  try {
+    const variant = await visualise.getVariant(req.params.variantId);
+    if (!variant) return res.status(404).json({ error: 'Not found' });
+    const project = await visualise.getProject(variant.project_id);
+    assertClientAccess(req, project.client_id);
+    if (req.body?.step_id) await visualise.lockStep(variant.id, req.body.step_id);
+    else await visualise.unlockVariant(variant.id);
+    res.json({ ok: true });
+  } catch (err) { res.status(err.status || 400).json({ error: err.message }); }
+});
+
+router.post('/variants/:variantId/export', async (req, res) => {
+  try {
+    const variant = await visualise.getVariant(req.params.variantId);
+    if (!variant) return res.status(404).json({ error: 'Not found' });
+    const project = await visualise.getProject(variant.project_id);
+    assertClientAccess(req, project.client_id);
+    res.json(await visualise.exportVariant(project, variant.id, req.user.id));
+  } catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+
+router.post('/projects/:projectId/export-all', async (req, res) => {
+  const project = await loadProjectScoped(req, res); if (!project) return;
+  try { res.json(await visualise.exportAll(project, req.user.id)); }
+  catch (err) { res.status(err.status || 502).json({ error: err.message }); }
 });
 
 module.exports = router;

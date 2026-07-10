@@ -192,12 +192,19 @@ async function getProject(projectId) {
   if (variantIds.length) {
     steps = await pool.query('SELECT * FROM visualise_steps WHERE variant_id = ANY($1) ORDER BY created_at ASC', [variantIds]);
   }
-  const byVariant = {};
+  let exports = { rows: [] };
+  if (variantIds.length) {
+    exports = await pool.query('SELECT * FROM visualise_exports WHERE variant_id = ANY($1) ORDER BY created_at DESC', [variantIds]);
+  }
+  const byVariant = {}, exByVariant = {};
   for (const s of steps.rows) (byVariant[s.variant_id] ||= []).push(s);
+  for (const e of exports.rows) (exByVariant[e.variant_id] ||= []).push(e);
+  const spend = [...steps.rows, ...exports.rows].reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0);
   return {
     ...project,
     inputs: inputs.rows,
-    variants: variants.rows.map(v => ({ ...v, steps: byVariant[v.id] || [] })),
+    variants: variants.rows.map(v => ({ ...v, steps: byVariant[v.id] || [], exports: exByVariant[v.id] || [] })),
+    spend_usd: +spend.toFixed(4),
   };
 }
 
@@ -310,6 +317,70 @@ async function generate(project, { count = 4, orientation = 'portrait', userId =
   return { variant_id: variant.id, steps };
 }
 
+// Append a preset's always-on floor to a prompt, deduped (same rule as buildPrompt).
+function withAlwaysOn(preset, prompt) {
+  const lines = String(preset?.always_on_prompt || '').split('\n').map(s => s.trim()).filter(Boolean);
+  if (!lines.length) return prompt;
+  const have = new Set(prompt.toLowerCase().split('\n').map(s => s.trim().replace(/[.\s]+$/, '')));
+  const extra = lines.filter(l => !have.has(l.toLowerCase().replace(/[.\s]+$/, '')));
+  return extra.length ? `${prompt}\n${extra.join('\n')}` : prompt;
+}
+
+// ── Scenarios (D10) ───────────────────────────────────────────────────────────
+// A new Variant that places the chosen character/base into a free-text scene.
+// Seeded from the base variant's active image (so the character carries through)
+// + the preset's scenario_template with [SCENE] filled; brand constraints are
+// always appended, never shown as editable.
+async function createScenario(project, { scene, count = 2, orientation = 'portrait', userId = null }) {
+  const s = String(scene || '').trim();
+  if (!s) { const e = new Error('Describe the scene.'); e.status = 400; throw e; }
+  const preset = project.preset_id ? await getPreset(project.preset_id) : null;
+  const model = preset?.model_routing?.scenario || preset?.model_routing?.generate;
+  if (!model) { const e = new Error('Preset has no scenario/generate model.'); e.status = 400; throw e; }
+
+  // Reference = the base variant's active (or latest) image — the character.
+  const base = (project.variants || []).find(v => !v.scene_prompt) || project.variants?.[0];
+  const baseStep = base && ((base.steps || []).find(x => x.id === base.active_step_id) || (base.steps || [])[base.steps.length - 1]);
+  const refs = [];
+  if (baseStep?.image_url) { const p = diskPathForUrl(baseStep.image_url); if (p && fs.existsSync(p)) refs.push(fileToDataUri(p)); }
+  if (!refs.length) { const e = new Error('Generate and pick a base character first — scenarios build on it.'); e.status = 400; throw e; }
+
+  const tmpl = preset.scenario_template || 'Create another image of this character in a different scene. This person works at [SCENE].';
+  const prompt = withAlwaysOn(preset, tmpl.replace(/\[SCENE\]/g, s));
+  const n = Math.min(8, Math.max(1, parseInt(count, 10) || 2));
+  const aspect = ORIENTATION_AR[orientation] || ORIENTATION_AR.portrait;
+  const perImage = priceFor(model);
+
+  const vIns = await pool.query(
+    `INSERT INTO visualise_variants (project_id, name, scene_prompt, created_by) VALUES ($1, $2, $3, $4) RETURNING *`,
+    [project.id, s.slice(0, 160), s, userId]
+  );
+  const variant = vIns.rows[0];
+
+  const input = { prompt, num_images: n, aspect_ratio: aspect, image_urls: refs };
+  const result = await fal.generate(model, input, { clientId: project.client_id, costUsd: null });
+  let urls = result.urls?.length ? result.urls : (result.url ? [result.url] : []);
+  let guard = 0;
+  while (urls.length < n && guard < n) { guard++; const more = await fal.generate(model, input, { clientId: project.client_id, costUsd: null }); if (more.url) urls.push(more.url); else break; }
+  urls = urls.slice(0, n);
+  if (!urls.length) { const e = new Error('The model returned no image for that scene.'); e.status = 502; throw e; }
+
+  const steps = [];
+  for (let i = 0; i < urls.length; i++) {
+    const stored = await saveRemoteImage(project.client_id, urls[i]);
+    const { rows } = await pool.query(
+      `INSERT INTO visualise_steps (variant_id, kind, image_url, gen_params, cost_usd, created_by)
+         VALUES ($1, 'generation', $2, $3, $4, $5) RETURNING *`,
+      [variant.id, stored, JSON.stringify({ index: i, orientation, model, aspect, scene: s }), perImage, userId]
+    );
+    steps.push(rows[0]);
+  }
+  await pool.query('UPDATE visualise_variants SET active_step_id = $1 WHERE id = $2', [steps[0].id, variant.id]);
+  await pool.query(`UPDATE visualise_projects SET updated_at = NOW() WHERE id = $1`, [project.id]);
+  require('./costLog').recordApiCost({ provider: 'fal', feature: 'visualise_scenario', costUsd: +(perImage * steps.length).toFixed(4), clientId: project.client_id, meta: { model, variant_id: variant.id } });
+  return { variant_id: variant.id, steps };
+}
+
 // ── Correction loop (D11/D12 — the crown jewel) ───────────────────────────────
 async function getStep(id) {
   const { rows } = await pool.query('SELECT * FROM visualise_steps WHERE id = $1', [id]);
@@ -401,11 +472,63 @@ async function getVariant(variantId) {
   return rows[0] || null;
 }
 
+// ── Lock + faithful 4K export (D14) ───────────────────────────────────────────
+async function lockStep(variantId, stepId) {
+  const { rows } = await pool.query('SELECT id FROM visualise_steps WHERE id = $1 AND variant_id = $2', [stepId, variantId]);
+  if (!rows[0]) { const e = new Error('Step not found on this variant'); e.status = 404; throw e; }
+  await pool.query('UPDATE visualise_variants SET locked_step_id = $1 WHERE id = $2', [stepId, variantId]);
+}
+async function unlockVariant(variantId) {
+  await pool.query('UPDATE visualise_variants SET locked_step_id = NULL WHERE id = $1', [variantId]);
+}
+
+// Upscale the locked step to 4K with the preset's FAITHFUL upscaler (no
+// re-render — D14/§19). Records the export + its cost.
+async function exportVariant(project, variantId, userId) {
+  const variant = await getVariant(variantId);
+  if (!variant || variant.project_id !== project.id) { const e = new Error('Variant not found'); e.status = 404; throw e; }
+  if (!variant.locked_step_id) { const e = new Error('Lock an image on this variant before exporting.'); e.status = 400; throw e; }
+  const step = await getStep(variant.locked_step_id);
+  const src = step && diskPathForUrl(step.image_url);
+  if (!src || !fs.existsSync(src)) { const e = new Error('Locked image is missing on disk.'); e.status = 409; throw e; }
+
+  const preset = project.preset_id ? await getPreset(project.preset_id) : null;
+  const model = preset?.model_routing?.upscale;
+  if (!model) { const e = new Error('This preset has no upscale model configured.'); e.status = 400; throw e; }
+
+  const price = priceFor(model);
+  // Faithful upscale: sharpen without inventing detail. Extra faithfulness knobs
+  // (e.g. low creativity) are set per-model in the §11 bake-off.
+  const result = await fal.upscale(model, { image_url: fileToDataUri(src) }, { clientId: project.client_id, costUsd: null });
+  if (!result.url) { const e = new Error('The upscaler returned no image.'); e.status = 502; throw e; }
+  const stored = await saveRemoteImage(project.client_id, result.url);
+
+  const { rows } = await pool.query(
+    `INSERT INTO visualise_exports (variant_id, step_id, image_url_4k, cost_usd, created_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [variantId, variant.locked_step_id, stored, price, userId]
+  );
+  await pool.query(`UPDATE visualise_projects SET status = 'locked', updated_at = NOW() WHERE id = $1`, [project.id]);
+  require('./costLog').recordApiCost({ provider: 'fal', feature: 'visualise_upscale', costUsd: price, clientId: project.client_id, meta: { model, variant_id: variantId } });
+  return rows[0];
+}
+
+// Export every locked variant in one go (D14 batch). Skips failures.
+async function exportAll(project, userId) {
+  const { rows } = await pool.query('SELECT id FROM visualise_variants WHERE project_id = $1 AND locked_step_id IS NOT NULL', [project.id]);
+  const out = [];
+  for (const r of rows) {
+    try { out.push(await exportVariant(project, r.id, userId)); } catch { /* skip, keep going */ }
+  }
+  return out;
+}
+
 module.exports = {
   listPresets, getPreset,
   listProjects, createProject, updateProject, getProject, deleteProject,
   addInput, getInput, deleteInput,
-  generate, setActiveStep, getVariant, getStep, inpaint, estimate,
+  generate, createScenario, setActiveStep, getVariant, getStep, inpaint, estimate,
+  lockStep, unlockVariant, exportVariant, exportAll,
   saveInputBuffer, serveFilePath,
   buildPrompt, priceFor,      // exported for tests
   UPLOAD_ROOT, diskPathForUrl,
