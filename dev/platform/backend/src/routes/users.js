@@ -63,7 +63,7 @@ router.post('/', requireAdmin, async (req, res) => {
 });
 
 router.put('/:id', requireAdmin, async (req, res) => {
-  const { password, role, clientIds } = req.body || {};
+  const { password, role, clientIds, can_use_visualise } = req.body || {};
   if (role && !['admin', 'viewer', 'client'].includes(role)) return res.status(400).json({ error: 'invalid role' });
   try {
     const target = await users.findById(req.params.id);
@@ -72,7 +72,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     if (target.id === req.user.id && role && role !== 'admin') {
       return res.status(400).json({ error: 'cannot change your own role' });
     }
-    await users.update(req.params.id, { password, role, clientIds });
+    await users.update(req.params.id, { password, role, clientIds, can_use_visualise });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

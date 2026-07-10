@@ -148,6 +148,7 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState(target?.role || 'viewer');
   const [clientIds, setClientIds] = useState(new Set(target?.client_ids || []));
+  const [canVisualise, setCanVisualise] = useState(!!target?.can_use_visualise);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -166,6 +167,7 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
       const payload = {
         role,
         clientIds: Array.from(clientIds),
+        can_use_visualise: canVisualise,
         ...(password ? { password } : {}),
       };
       if (mode === 'create') {
@@ -246,6 +248,16 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
             </div>
           </div>
         )}
+
+        <div className="field">
+          <label className="row center" style={{ gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={canVisualise} onChange={e => setCanVisualise(e.target.checked)} />
+            <span className="field-label" style={{ margin: 0 }}>Enable Visualise (image studio)</span>
+          </label>
+          <p className="body-xs text-subtle" style={{ marginTop: 6 }}>
+            Grants access to the Visualise studio. For a read-only <strong>client</strong> login this is the one place they can create and generate — scoped to Visualise only; every other write stays blocked.
+          </p>
+        </div>
 
         {error && <div className="callout callout-danger">{error}</div>}
 

@@ -16,7 +16,7 @@ async function findById(id) {
 
 async function listAll() {
   const { rows } = await pool.query(`
-    SELECT u.id, u.username, u.role, u.created_at, u.updated_at,
+    SELECT u.id, u.username, u.role, u.can_use_visualise, u.created_at, u.updated_at,
            COALESCE(json_agg(uc.client_id) FILTER (WHERE uc.client_id IS NOT NULL), '[]') AS client_ids
     FROM users u
     LEFT JOIN user_clients uc ON uc.user_id = u.id
@@ -49,7 +49,7 @@ async function create({ username, password, role = 'viewer', clientIds = [] }) {
   }
 }
 
-async function update(id, { password, role, clientIds }) {
+async function update(id, { password, role, clientIds, can_use_visualise }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -59,6 +59,9 @@ async function update(id, { password, role, clientIds }) {
     }
     if (role) {
       await client.query('UPDATE users SET role = $1 WHERE id = $2', [role, id]);
+    }
+    if (typeof can_use_visualise === 'boolean') {
+      await client.query('UPDATE users SET can_use_visualise = $1 WHERE id = $2', [can_use_visualise, id]);
     }
     if (Array.isArray(clientIds)) {
       await client.query('DELETE FROM user_clients WHERE user_id = $1', [id]);
