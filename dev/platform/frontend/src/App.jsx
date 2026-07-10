@@ -17,6 +17,7 @@ import ClientSocialPage from './pages/ClientSocialPage';
 import ClientAudiencesPage from './pages/ClientAudiencesPage';
 import ClientAIVisibilityPage from './pages/ClientAIVisibilityPage';
 import ClientBrandPage from './pages/ClientBrandPage';
+import ClientVisualisePage from './pages/ClientVisualisePage';
 import ApprovePage from './pages/ApprovePage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import GuidePage from './pages/GuidePage';
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="clients/:id/audiences" element={<ClientAudiencesPage />} />
             <Route path="clients/:id/ai-visibility" element={<ClientAIVisibilityPage />} />
             <Route path="clients/:id/brand" element={<ClientBrandPage />} />
+            <Route path="clients/:id/visualise" element={<ClientVisualisePage />} />
             <Route path="clients/:id/pr" element={<ClientPRPage />} />
             <Route path="media" element={<Navigate to="/settings?tab=publications" replace />} />
             <Route path="media/journalist/:id" element={<JournalistProfilePage />} />

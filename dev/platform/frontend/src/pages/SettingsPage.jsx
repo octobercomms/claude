@@ -59,6 +59,14 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'fal.ai (Visualise)',
+    category: 'AI',
+    hint: 'Single-key media aggregator behind the Visualise studio — generation, circle-and-fix inpainting, and faithful 4K upscales, pay-per-call. Also the consolidation target for the standalone image accounts. Get a key at fal.ai → Settings → API keys.',
+    keys: [
+      { key: 'FAL_KEY', label: 'fal.ai API Key', placeholder: 'fal-… (fal.ai → Settings → API keys)', type: 'password' },
+    ],
+  },
+  {
     title: 'ElevenLabs (voiceover)',
     category: 'AI',
     hint: 'Text-to-speech voiceovers for storyboards. Pay-per-character (~$0.30/min at creator tier).',
