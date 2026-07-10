@@ -1,10 +1,9 @@
-# OMI "Render" — Image Studio Module (Implementation Brief)
+# OMI "Visualise" — Image Studio Module (Implementation Brief)
 
 > **Status:** Ready for implementation by the main OMI session.
-> **Working name:** **Render** (verb, Workspace-level page). This is the ONE
-> thing still open — see [§2](#2-the-one-open-decision-the-name). Everything
-> else in this brief is a settled decision from a detailed scoping conversation.
-> If the name changes, it's a find-replace of "Render" → new verb.
+> **Name:** **Visualise** (verb, Workspace-level page) — **confirmed**. UK
+> spelling ("Visualise", to match October's house spelling). Used as the route
+> segment (`/visualise`), nav label, and table prefix (`visualise_*`).
 >
 > **Codebase:** `dev/platform` (OMI backend + frontend). **This is a new module
 > inside OMI, not a standalone app and not a WordPress plugin.**
@@ -36,7 +35,7 @@ conflict. The goal is a module that looks like it was always part of OMI.
 ## 1. What we're building, in one paragraph
 
 A **generic image generation + surgical refinement studio** inside OMI, exposed
-as a new Workspace page called **Render**. A user uploads a sketch / reference
+as a new Workspace page called **Visualise**. A user uploads a sketch / reference
 image(s), picks a **preset** (a saved "recipe" for their vertical), and generates
 photoreal images. When a detail is wrong, they **circle the exact area, say (and
 optionally show) what it should be, and only that region is regenerated** — so an
@@ -49,26 +48,29 @@ engine**.
 
 ---
 
-## 2. The one open decision: the name
+## 2. The name (settled)
 
-Page/tab actions in OMI are verbs (Create, Render, Brief, Approve, Launch…). The
-working name is **Render** because the target verticals already use it
-(architectural *render*, "render the character"). Alternatives considered:
-**Visualise**, **Create** (already used as a Social sub-tab, so overloaded).
-Note Paid has a "Render" *step* — different level, but a namesake. **Confirm the
-final verb before build; it's used as the route segment, nav label, and table
-prefix.** This brief uses `Render` / `render_*` throughout as placeholders.
+Page/tab actions in OMI are verbs (Create, Render, Brief, Approve, Launch…). We
+chose **Visualise** rather than "Render" — "Render" already exists as a step in
+the Paid creative pipeline, so reusing it at Workspace level would clash. "Create"
+is also taken (a Social sub-tab). **Visualise** is a distinct verb that reads well
+across the target verticals ("visualise the design/costume/building"). Use UK
+spelling everywhere: page **Visualise**, route **`/visualise`**, tables
+**`visualise_*`**, page component **`ClientVisualisePage.jsx`**, capability
+**`can_use_visualise`**.
 
 ---
 
 ## 3. Background & why this shape (context so intent is clear)
 
 - lolo.design asked October to generate branded costume-character imagery. The
-  current process is a **Figma Weave / Weavy** node graph + Gemini "Nano Banana":
-  sketch + reference photos → a fixed "recipe" prompt (photoreal editorial, match
-  colour/material exactly, no branding, full body, red collar underside, badge
-  reads NAME…) → character → same character in scenarios (park, temple, kung-fu
-  pose). Accuracy is the whole game.
+  current process is a **Figma Weave / Weavy** node graph using **Gemini 3 Pro
+  (Nano Banana)** and **Gemini 3.1 Flash (Nano Banana 2)**: sketch + reference
+  photos → a fixed "recipe" prompt → character → same character in scenarios
+  (WB Harry Potter Abu Dhabi, Universal Beijing Kung Fu Panda land, etc.).
+  Accuracy is the whole game. **The exact recipe is captured verbatim in
+  [§10](#10-presets--recipes) as preset #1** — build from that text, do not
+  paraphrase.
 - We are **replacing that manual graph with a product** — and generalising it,
   because the underlying loop (reference → generate → *fix the wrong bit* →
   perfect → deliver) is identical for architects, designers, and any visual pro.
@@ -110,8 +112,8 @@ Every row here is a decision. Do not re-litigate; implement.
 ## 5. Where it lives in OMI (IA & routing)
 
 - **New Workspace-level page**, sibling to Data/Paid/Earned/Shared/Owned in the
-  `Layout.jsx` client sub-nav. Route: **`/clients/:id/render`**.
-- Page component: `pages/ClientRenderPage.jsx` (mirrors `ClientBrandPage.jsx`
+  `Layout.jsx` client sub-nav. Route: **`/clients/:id/visualise`**.
+- Page component: `pages/ClientVisualisePage.jsx` (mirrors `ClientBrandPage.jsx`
   etc.), registered in `App.jsx`, linked in `Layout.jsx` under the `clientId`
   sub-nav block.
 - Internally the page has two primary views (via `?tab=` like the rest of OMI):
@@ -130,19 +132,19 @@ Every row here is a decision. Do not re-litigate; implement.
 read-only**. In `Layout.jsx`, `readOnly = user?.role === 'client'`, and there's a
 site-wide "Read-only view… nothing on your account can be changed" banner
 (migration `115_client_role.sql`). **lolo log in as a client, so with today's
-rules they physically cannot create or edit anything in Render.**
+rules they physically cannot create or edit anything in Visualise.**
 
-Requirement: **Render MUST allow the client role to perform Render actions**
+Requirement: **Visualise MUST allow the client role to perform its actions**
 (create projects, generate, correct, lock, export) even though clients remain
 read-only everywhere else in OMI. Recommended approach:
 
-- Introduce a per-module **capability** (e.g. a `can_use_render` flag on the user
-  or client, or a small capabilities set) that grants write access **scoped to
-  Render only**. Do **not** make clients globally writable.
-- The read-only banner and `readOnly` guards elsewhere stay as-is; Render checks
-  its own capability instead of `role !== 'client'`.
+- Introduce a per-module **capability** (`can_use_visualise` on the user or
+  client, or a small capabilities set) that grants write access **scoped to
+  Visualise only**. Do **not** make clients globally writable.
+- The read-only banner and `readOnly` guards elsewhere stay as-is; Visualise
+  checks its own capability instead of `role !== 'client'`.
 
-Access scoping otherwise reuses `clientAccess.js` exactly: every Render route is
+Access scoping otherwise reuses `clientAccess.js` exactly: every Visualise route is
 `authenticate` → `loadVisibleClientIds` → `requireClientAccess`. A user only ever
 sees/edits projects for clients in their `visibleClientIds`. lolo (one client)
 sees only their own workspace, which is the desired "locked down" behaviour.
@@ -155,14 +157,14 @@ Agency/admin users see all clients as normal. This is [OPEN D-A1](#18-open-decis
 - **Project** — one subject being developed (lolo: a character; architect: a
   building). Holds inputs, the chosen preset, guided-field values, and the step
   tree. (User-facing label can be per-preset, e.g. "Character" for lolo, but the
-  table/entity is `render_projects`.)
+  table/entity is `visualise_projects`.)
 - **Input** — an uploaded reference belonging to a Project: `sketch`,
   `reference_photo`, `note` (text), `swatch`, or `sketch_view`.
 - **Preset** — a saved recipe: locked core prompt + guided fields + defaults +
   model routing. Vertical-specific. lolo's costume recipe is preset #1.
 - **Variant** — a branch of the Project representing one scenario/context (e.g.
-  "temple wide", "park"). A Project has ≥1 Variant. Each Variant has its own step
-  sub-tree.
+  "Harry Potter Abu Dhabi", "Universal Beijing"). A Project has ≥1 Variant. Each
+  Variant has its own step sub-tree.
 - **Step** — one node in a Variant's history: either a **generation** or a
   **correction**. Immutable once created. Stores the produced image and, for
   corrections, the **mask + instruction + optional reference crop**. Steps form a
@@ -177,7 +179,7 @@ Agency/admin users see all clients as normal. This is [OPEN D-A1](#18-open-decis
 
 ## 8. End-to-end workflow (the happy path, in detail)
 
-1. **Library** (`/clients/:id/render?tab=library`) — grid of the client's
+1. **Library** (`/clients/:id/visualise?tab=library`) — grid of the client's
    Projects (D15). `+ New` starts a Project.
 2. **Create Project** — name it; pick a **Preset**; upload inputs (D7: sketch +
    any of reference photos, notes/measurements, multiple sketch views, swatches);
@@ -238,26 +240,78 @@ This is the differentiator; most of the frontend effort is here.
 
 A **Preset** is how one engine serves many verticals (D2). Contents:
 
-- `locked_core_prompt` — the non-editable accuracy/brand rules (lolo's: photoreal
-  editorial, match colour/material exactly, full body, no branding, red collar
-  underside, badge legibility, negative constraints, etc.). **Never shown as an
-  editable text box** (D8).
+- `locked_core_prompt` — the non-editable accuracy/brand rules. **Never shown as
+  an editable text box** (D8).
 - `guided_fields` — a small schema of simple inputs the non-technical user *does*
-  fill (e.g. dropdowns/toggles/short text: "strict badge match", primary colours,
-  scene style). These are merged into the final prompt server-side.
-- `input_slots` — which Input kinds this preset expects and their labels (lolo:
-  "Costume sketch", "Badge close-up"…; architect: "Elevation", "Site photo"…).
+  fill (dropdowns/toggles/short text). Merged into the final prompt server-side.
+- `input_slots` — which Input kinds this preset expects and their labels.
 - `model_routing` — which fal models to use for generate / scenario / inpaint /
-  upscale for this preset (defaults in [§11](#11-ai-model-routing)).
+  upscale (defaults in [§11](#11-ai-model-routing)).
 - `scope` — shared (all clients) or client-specific.
 
-**Preset #1 — lolo "Costume Character"**: encodes the exact Weavy recipe. The
-final prompt text should be captured verbatim from lolo's current flow — see
-[OPEN D-A2](#18-open-decisions--sign-off) (we need the exact wording).
+### 10.1 Preset #1 — lolo "Costume Character" (VERBATIM — build from this)
 
-**Further presets** (later): "Architectural Render", "Product/Interior Render".
-Same engine; only preset content differs. Presets are data, so adding a vertical
-is configuration, not code.
+Captured directly from lolo's Weavy flow. **Seed the preset with this exact text.**
+
+**`locked_core_prompt` (the base recipe + negative constraints):**
+
+```
+Use the uploaded sketches as the reference for the costume design and
+proportions. Use the two photographs as a real life version of the costume
+design.
+
+Create a photorealistic editorial photoshoot.
+
+Highly stylised photoshoot, fit for a fashion magazine.
+
+The costume must exactly match the reference design: pay particular attention to
+color, material, proportions, shapes.
+
+Negative constraints
+
+Avoid overly glossy skin
+Avoid unrealistic symmetry
+Avoid visible brand logos
+Avoid cartoon or stylised rendering
+```
+
+**Always-on constraints (appended to every generation for this preset):**
+
+```
+don't include any branding.
+include the full body
+```
+
+**`guided_fields` for this preset (what the user fills, no raw prompt):**
+- **Employer / location context** (short text) — e.g. *"This person works at WB
+  Harry Potter Tour in Abu Dhabi"*. Injected server-side as a line in the prompt.
+- **Full body** (toggle, default ON) → emits "include the full body".
+- **No branding** (toggle, default ON, effectively locked) → emits "don't include
+  any branding".
+
+**Scenario template (for new Variants — D10; the free-text scene fills `[SCENE]`):**
+
+```
+Create another image of this character in a different scene. Do not change any of
+the details they are wearing. This person works at [SCENE]. No branding.
+
+Do not include other characters. Only the person in the reference image.
+
+They should pose differently in each image.
+```
+
+**Current 4K step (for reference — being REPLACED):** lolo currently feed the
+model *"Generate 4K version, don't change anything about the image."* This is a
+**re-render**, which is exactly the accuracy risk we're removing — Visualise uses a
+**faithful upscaler** on the locked image instead ([§11](#11-ai-model-routing), [§19](#19-do-not-interpretation-guardrails)).
+
+**`input_slots` for this preset:** costume sketch (primary), a second sketch view
+(shapes/details sheet), and 1–2 reference photographs ("real-life version").
+Optional: colour/material swatches, notes.
+
+### 10.2 Further presets (later)
+"Architectural Render", "Product/Interior Render" — same engine, different preset
+content. Presets are data, so adding a vertical is configuration, not code.
 
 ---
 
@@ -268,14 +322,15 @@ catalogue before coding — do not hardcode a guessed slug.** Representative cho
 
 | Job | Model (representative) | Requirement |
 |-----|------------------------|-------------|
-| Generate + scenario (character consistency, badge/text fidelity) | Google **Nano Banana** (Gemini image) on fal; **challenger: Seedream 4** | Best reference-guided consistency + text. Support a reference image + preset prompt. |
+| Generate + scenario (character consistency, badge/text fidelity) | Google **Nano Banana** (Gemini image) on fal — lolo already use Gemini 3 Pro / 3.1 Flash Nano Banana; **challenger: Seedream 4** | Best reference-guided consistency + text. Support a reference image + preset prompt. |
 | **Circle-and-fix inpaint** | **Flux Fill / Flux inpainting** on fal | Mask-based; region-locked (D12). Kontext-style instruct-edit as a secondary path when no mask is drawn. |
-| **4K upscale** | A **faithful** upscaler (e.g. clarity-upscaler at **low creativity**, or a crisp/ESRGAN-type) | MUST sharpen without inventing detail. ⚠️ Do **not** use high-creativity "magnific"-style upscalers — they hallucinate and corrupt the locked image. |
+| **4K upscale** | A **faithful** upscaler (e.g. clarity-upscaler at **low creativity**, or a crisp/ESRGAN-type) | MUST sharpen without inventing detail. ⚠️ Do **not** use high-creativity "magnific"-style upscalers, and do **not** re-render via Nano Banana — both alter approved detail. |
 
 Notes:
 - Nano Banana **re-renders** at higher resolution rather than upscaling — so it is
   NOT an acceptable substitute for the faithful-upscaler step on a *locked* image
-  (it would discard the correction work). This was explicitly decided.
+  (it would discard the correction work). This is exactly what lolo do today and
+  what we're replacing.
 - Model choice per job is stored on the **Preset** (`model_routing`) so verticals
   can differ and we can swap models without touching the UI.
 - Recommend a quick bake-off (Nano Banana vs Seedream; Flux Fill vs Kontext) on a
@@ -297,25 +352,25 @@ standalone accounts, so we can reduce the number of API signups:
 | Current OMI connector | fal replacement? | Action |
 |---|---|---|
 | `ideogram.js` (image) | Yes — Ideogram models on fal | Migrate image gen to fal; retire Ideogram account. **VERIFY** parity for any text-in-image use. |
-| `replicate.js` image path (Flux 1.1 Pro) | Yes — Flux family on fal | Route Render + existing image gen via fal. |
+| `replicate.js` image path (Flux 1.1 Pro) | Yes — Flux family on fal | Route Visualise + existing image gen via fal. |
 | `replicate.js` video (Seedance/Wan) | Partial — some video models on fal | **VERIFY**; migrate only if parity. Otherwise leave on Replicate. |
-| `elevenlabs.js` (voice) | Maybe — TTS models on fal | **VERIFY** voice quality/parity before retiring. Out of scope for Render itself. |
+| `elevenlabs.js` (voice) | Maybe — TTS models on fal | **VERIFY** voice quality/parity before retiring. Out of scope for Visualise itself. |
 | `adobe.js` (Firefly/PS) | No | Keep. |
 | Non-media (Shopify, Meta, GA4, DataForSEO…) | No | Keep — unrelated. |
 
-**Do not rip out working connectors blind.** Add `fal.js`, point Render at it, and
-migrate the image path first; retire an account only after verifying parity. Store
-`FAL_KEY` in Settings (server-side), like every other OMI key — **clients never
-supply keys** (this is a core benefit of the platform model).
+**Do not rip out working connectors blind.** Add `fal.js`, point Visualise at it,
+and migrate the image path first; retire an account only after verifying parity.
+Store `FAL_KEY` in Settings (server-side), like every other OMI key — **clients
+never supply keys** (this is a core benefit of the platform model).
 
 ---
 
 ## 13. Cost transparency & credits
 
 - **Reuse `services/costLog.js` → `api_cost_events`** (`provider, feature,
-  cost_usd, client_id, meta`). Every Render generation/inpaint/upscale logs a row
-  with `feature` like `render_generate` / `render_inpaint` / `render_upscale` and
-  the `client_id`.
+  cost_usd, client_id, meta`). Every Visualise generation/inpaint/upscale logs a
+  row with `feature` like `visualise_generate` / `visualise_inpaint` /
+  `visualise_upscale` and the `client_id`.
 - **Show real money before every action** and a running total per Project and per
   client (D6) — translate fal's per-call price × count into currency, like Weavy's
   credits but in £/$. A small config markup is allowed if billing through.
@@ -334,28 +389,28 @@ Postgres, snake_case, `client_id` FK everywhere, `created_at timestamptz default
 now()`, `jsonb` for flexible metadata, ids consistent with existing tables
 (**VERIFY** whether OMI uses serial or uuid ids — `brand_assets` is the reference;
 follow the prevailing convention). New migration file, next number after the
-current max (currently ~`115`, so e.g. `116_render_studio.sql` — **VERIFY** the
+current max (currently ~`115`, so e.g. `116_visualise_studio.sql` — **VERIFY** the
 latest number at build time).
 
 ```
-render_presets
+visualise_presets
   id, scope ('shared'|'client'), client_id (nullable for shared),
   name, locked_core_prompt (text), guided_fields (jsonb schema),
   input_slots (jsonb), model_routing (jsonb), created_by, created_at
 
-render_projects
+visualise_projects
   id, client_id, preset_id, name, status ('draft'|'in_progress'|'locked'),
   guided_values (jsonb), created_by, created_at, updated_at
 
-render_inputs
+visualise_inputs
   id, project_id, kind ('sketch'|'reference_photo'|'note'|'swatch'|'sketch_view'),
   url (nullable for note), text (nullable), metadata (jsonb), created_at
 
-render_variants
+visualise_variants
   id, project_id, name (scenario label), scene_prompt (text, free-text scenario),
   active_step_id (nullable), created_by, created_at
 
-render_steps
+visualise_steps
   id, variant_id, parent_step_id (nullable),
   kind ('generation'|'correction'),
   image_url,
@@ -365,7 +420,7 @@ render_steps
   gen_params (jsonb: count index, orientation, model, seed),
   cost_usd, created_by, created_at
 
-render_exports
+visualise_exports
   id, variant_id, step_id, image_url_4k, cost_usd, created_by, created_at
 ```
 
@@ -377,15 +432,15 @@ same path-traversal + `nosniff` protections. Rows above store the served URL.
 
 ## 15. Backend design
 
-- **Routes:** `routes/render.js`, mounted like other client routes; every handler
-  `authenticate` → `loadVisibleClientIds` → `requireClientAccess` (+ the Render
-  capability check from [§6](#6-users-roles--access--read-this-carefully)).
+- **Routes:** `routes/visualise.js`, mounted like other client routes; every
+  handler `authenticate` → `loadVisibleClientIds` → `requireClientAccess` (+ the
+  Visualise capability check from [§6](#6-users-roles--access--read-this-carefully)).
   Endpoints (indicative): CRUD for projects/inputs/variants; `POST
   .../generate`, `POST .../variants` (scenario), `POST .../steps/inpaint`, `POST
   .../lock`, `POST .../export`, plus preset read.
-- **Services:** `services/render.js` (orchestration), calling `connectors/fal.js`.
-  Reuse `costLog`. Reuse the brandAssets-style file storage helper (extract a
-  shared util if cleaner).
+- **Services:** `services/visualise.js` (orchestration), calling
+  `connectors/fal.js`. Reuse `costLog`. Reuse the brandAssets-style file storage
+  helper (extract a shared util if cleaner).
 - **Async jobs (D18):** single generations can use fal's inline-wait like the
   Replicate connector does (`Prefer: wait`), with poll fallback. Batches and 4K
   exports should run as background jobs the user can leave — reuse OMI's existing
@@ -413,19 +468,19 @@ same path-traversal + `nosniff` protections. Rows above store the served URL.
 
 **Net-new (the actual build):**
 1. `connectors/fal.js` + key consolidation ([§12](#12-falai-integration--key-consolidation)).
-2. Migration `1NN_render_studio.sql` (the [§14](#14-data-model-new-tables--match-omi-conventions) tables) + preset seed for lolo.
-3. `routes/render.js` + `services/render.js`.
-4. `pages/ClientRenderPage.jsx` + studio canvas components (library grid, create
+2. Migration `1NN_visualise_studio.sql` (the [§14](#14-data-model-new-tables--match-omi-conventions) tables) + preset seed for lolo (§10.1 verbatim).
+3. `routes/visualise.js` + `services/visualise.js`.
+4. `pages/ClientVisualisePage.jsx` + studio canvas components (library grid, create
    flow, **the circle-and-fix canvas**, history tree, lock/export).
 5. Nav wiring in `App.jsx` + `Layout.jsx`.
-6. The Render **capability** for client-role write access ([§6](#6-users-roles--access--read-this-carefully)).
+6. The Visualise **capability** for client-role write access ([§6](#6-users-roles--access--read-this-carefully)).
 
 ---
 
 ## 17. Build phases (suggested sequence)
 
 1. **Foundations:** `fal.js` connector (+ Settings key), migration & tables, lolo
-   preset seed, Render capability, empty page + nav.
+   preset seed, Visualise capability, empty page + nav.
 2. **Generate:** create Project (inputs + guided fields) → configurable generation
    → pick best. Inline progress + cost display.
 3. **Scenarios:** free-text Variant generation.
@@ -439,12 +494,10 @@ same path-traversal + `nosniff` protections. Rows above store the served URL.
 
 ## 18. Open decisions / sign-off
 
-- **D-A0 — Name:** confirm the verb (**Render** proposed). Threads through route,
-  nav, tables.
-- **D-A1 — Client write access:** approve the "Render capability grants write to
-  clients, scoped to Render only" approach (vs some other gating).
-- **D-A2 — lolo recipe text:** obtain the **exact** locked-core prompt wording from
-  lolo's current Weavy flow to seed preset #1 faithfully.
+- **D-A0 — Name:** ✅ RESOLVED — **Visualise**.
+- **D-A2 — lolo recipe text:** ✅ RESOLVED — captured verbatim in [§10.1](#101-preset-1--lolo-costume-character-verbatim--build-from-this).
+- **D-A1 — Client write access:** approve the "`can_use_visualise` capability grants
+  write to clients, scoped to Visualise only" approach (vs some other gating).
 - **D-A3 — Credits/billing:** confirm v1 = cost logging + manual top-ups only;
   Stripe/credit-marketplace deferred to client #2.
 - **D-A4 — fal migration extent:** confirm which accounts to actually retire
@@ -465,10 +518,10 @@ same path-traversal + `nosniff` protections. Rows above store the served URL.
 - **Do NOT** let corrections change anything outside the circled mask. Composite
   back if the model won't guarantee it (D12).
 - **Do NOT** use Nano Banana's "4K re-render" as the export path for a locked
-  image, and **do NOT** use a high-creativity upscaler — both alter approved
-  detail (D14, [§11](#11-ai-model-routing)).
-- **Do NOT** assume clients are read-only and therefore can't use Render — that's
-  the [§6](#6-users-roles--access--read-this-carefully) gotcha; grant the scoped Render capability.
+  image (it's what lolo do now and what we're replacing), and **do NOT** use a
+  high-creativity upscaler — both alter approved detail (D14, [§11](#11-ai-model-routing)).
+- **Do NOT** assume clients are read-only and therefore can't use Visualise — that's
+  the [§6](#6-users-roles--access--read-this-carefully) gotcha; grant the scoped `can_use_visualise` capability.
 - **Do NOT** put images in S3/R2 or a new store — follow OMI's local-disk-per-client
   pattern (D19) unless the OMI session deliberately standardises storage elsewhere.
 - **Do NOT** hardcode fal model slugs without verifying them against fal's current
