@@ -137,6 +137,37 @@ function CreateModal({ clientId, presets, onClose, onCreated }) {
   );
 }
 
+function ScenarioModal({ busy, onClose, onCreate }) {
+  const [scene, setScene] = useState('');
+  const [c, setC] = useState(2);
+  const [o, setO] = useState('portrait');
+  return (
+    <div className="modal-backdrop" onClick={busy ? undefined : onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-head"><h2 className="h2">New scenario</h2><button className="modal-close" onClick={onClose} disabled={busy}>×</button></div>
+        <p className="body-sm text-muted mb-3">Place the base character in a new scene. The character and costume carry through; brand rules are applied automatically.</p>
+        <div className="field"><label className="field-label">Scene</label>
+          <textarea className="textarea" rows={2} autoFocus value={scene} onChange={e => setScene(e.target.value)}
+            placeholder="e.g. Universal Beijing, Kung Fu Panda land, greeting families" /></div>
+        <div className="row" style={{ gap: 12 }}>
+          <div className="field" style={{ flex: 1 }}><label className="field-label">How many ({c})</label>
+            <input type="range" min="1" max="6" value={c} onChange={e => setC(parseInt(e.target.value, 10))} style={{ width: '100%' }} /></div>
+          <div className="field" style={{ flex: 1 }}><label className="field-label">Orientation</label>
+            <select className="input" value={o} onChange={e => setO(e.target.value)}>
+              <option value="portrait">Portrait</option><option value="landscape">Landscape</option><option value="square">Square</option>
+            </select></div>
+        </div>
+        <div className="row end mt-4">
+          <button className="btn btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-primary" onClick={() => onCreate({ scene, count: c, orientation: o })} disabled={busy || !scene.trim()}>
+            {busy ? 'Creating…' : 'Create scenario'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Studio ────────────────────────────────────────────────────────────────────
 function Studio({ clientId, projectId, onBack }) {
   const toast = useToast();
@@ -147,6 +178,10 @@ function Studio({ clientId, projectId, onBack }) {
   const [generating, setGenerating] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [guided, setGuided] = useState({});
+  const [selVariantId, setSelVariantId] = useState(null);
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  const [scenariing, setScenariing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => { load(); /* eslint-disable-line */ }, [projectId]);
   async function load() {
@@ -168,19 +203,35 @@ function Studio({ clientId, projectId, onBack }) {
     if (generating) return;
     setGenerating(true);
     try {
+      const base = (project.variants || []).find(v => !v.scene_prompt) || project.variants?.[0];
       await api.post(`/visualise/projects/${projectId}/generate`, { count, orientation });
       await load();
+      if (base) setSelVariantId(base.id);
       toast('Generated. Pick the best one.', 'success');
     } catch (e) { toast(`Generation failed: ${e.message}`, 'error'); }
     finally { setGenerating(false); }
   }
 
+  async function createScenario({ scene, count: c, orientation: o }) {
+    setScenariing(true);
+    try {
+      const out = await api.post(`/visualise/projects/${projectId}/variants`, { scene, count: c, orientation: o });
+      await load();
+      if (out?.variant_id) setSelVariantId(out.variant_id);
+      setScenarioOpen(false);
+      toast('Scenario created.', 'success');
+    } catch (e) { toast(`Scenario failed: ${e.message}`, 'error'); }
+    finally { setScenariing(false); }
+  }
+
   if (!project) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
 
-  const baseVariant = (project.variants || []).find(v => !v.scene_prompt) || project.variants?.[0];
-  const allSteps = baseVariant?.steps || [];
+  const variants = project.variants || [];
+  const baseVariant = variants.find(v => !v.scene_prompt) || variants[0];
+  const variant = variants.find(v => v.id === selVariantId) || baseVariant;
+  const allSteps = variant?.steps || [];
   const steps = allSteps.filter(s => s.kind === 'generation');
-  const activeId = baseVariant?.active_step_id;
+  const activeId = variant?.active_step_id;
   const activeStep = allSteps.find(s => s.id === activeId) || null;
   const price = preset?.price_per_image ?? 0.1;
 
@@ -190,8 +241,11 @@ function Studio({ clientId, projectId, onBack }) {
       <div className="row between center wrap mb-4" style={{ gap: 12 }}>
         <div>
           <h1 className="h1">{project.name}</h1>
-          <div className="body-sm text-muted">{preset?.name || 'No preset'} · {steps.length} variation{steps.length === 1 ? '' : 's'}</div>
+          <div className="body-sm text-muted">{preset?.name || 'No preset'} · Spent <strong>${(project.spend_usd || 0).toFixed(2)}</strong> on this project</div>
         </div>
+        {variants.some(v => v.locked_step_id) && (
+          <button className="btn btn-secondary" onClick={doExportAll} disabled={exporting}>{exporting ? 'Exporting…' : '⬇ Export all locked (4K)'}</button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: 18, alignItems: 'start' }}>
@@ -229,8 +283,20 @@ function Studio({ clientId, projectId, onBack }) {
           </div>
         </div>
 
-        {/* Right: history + circle-and-fix */}
+        {/* Right: variants + history + circle-and-fix */}
         <div className="card" style={{ minHeight: '60vh' }}>
+          {variants.length > 0 && (
+            <div className="row wrap" style={{ gap: 6, marginBottom: 12 }}>
+              {variants.map(v => (
+                <button key={v.id} className={'btn btn-sm ' + (v.id === variant?.id ? 'btn-primary' : 'btn-secondary')}
+                  onClick={() => setSelVariantId(v.id)} title={v.scene_prompt || 'Base character'}>
+                  {v.scene_prompt ? (v.name || 'Scenario').slice(0, 22) : 'Base'}
+                </button>
+              ))}
+              <button className="btn btn-ghost btn-sm" onClick={() => setScenarioOpen(true)} disabled={!baseVariant?.active_step_id}
+                title={baseVariant?.active_step_id ? 'New scenario from the base image' : 'Generate & pick a base image first'}>+ Scenario</button>
+            </div>
+          )}
           {generating ? (
             <GeneratingState count={count} />
           ) : !allSteps.length ? (
@@ -242,7 +308,7 @@ function Studio({ clientId, projectId, onBack }) {
               <div className="caption mb-2">History — click any image to select it ({steps.length} generation{steps.length === 1 ? '' : 's'}{allSteps.length > steps.length ? `, ${allSteps.length - steps.length} fix${allSteps.length - steps.length === 1 ? '' : 'es'}` : ''})</div>
               <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 14 }}>
                 {allSteps.map(s => (
-                  <button key={s.id} onClick={() => setActive(baseVariant.id, s.id)} title={s.kind === 'correction' ? (s.instruction || 'fix') : 'generation'}
+                  <button key={s.id} onClick={() => setActive(variant.id, s.id)} title={s.kind === 'correction' ? (s.instruction || 'fix') : 'generation'}
                     style={{ flex: '0 0 auto', border: '2px solid ' + (s.id === activeId ? 'var(--accent)' : 'var(--card-border)'), borderRadius: 8, padding: 0, background: 'none', cursor: 'pointer', position: 'relative', lineHeight: 0 }}>
                     <img src={s.image_url} alt="" style={{ width: 66, height: 88, objectFit: 'cover', display: 'block', borderRadius: 6 }} />
                     <span style={{ position: 'absolute', bottom: 3, left: 3, background: s.kind === 'correction' ? 'var(--accent)' : 'rgba(0,0,0,.6)', color: s.kind === 'correction' ? 'var(--accent-on)' : '#fff', fontSize: 8, fontWeight: 800, borderRadius: 3, padding: '0 4px' }}>{s.kind === 'correction' ? 'FIX' : 'GEN'}</span>
@@ -255,16 +321,64 @@ function Studio({ clientId, projectId, onBack }) {
               ) : (
                 <div className="text-subtle" style={{ padding: 20, textAlign: 'center' }}>Select an image above to refine it — then circle the area to change.</div>
               )}
+
+              {activeStep && (
+                <div style={{ borderTop: '1px solid var(--card-border)', marginTop: 16, paddingTop: 14 }}>
+                  <div className="row between center wrap" style={{ gap: 8 }}>
+                    <div className="caption">Finish — lock the approved image, then export 4K</div>
+                    <div className="row center" style={{ gap: 8 }}>
+                      {variant.locked_step_id === activeStep.id
+                        ? <span className="chip chip-accent" style={{ fontSize: 11 }}>✓ Locked</span>
+                        : <button className="btn btn-secondary btn-sm" onClick={() => lock(activeStep.id)}>🔒 Lock this</button>}
+                      <button className="btn btn-primary btn-sm" onClick={doExport} disabled={!variant.locked_step_id || exporting}>
+                        {exporting ? 'Upscaling…' : '⬇ Export 4K'}
+                      </button>
+                    </div>
+                  </div>
+                  {(variant.exports || []).length > 0 && (
+                    <div className="row wrap" style={{ gap: 10, marginTop: 12 }}>
+                      {variant.exports.map(ex => (
+                        <a key={ex.id} href={ex.image_url_4k} target="_blank" rel="noreferrer" className="row center body-xs text-muted" style={{ gap: 6, textDecoration: 'none' }}>
+                          <img src={ex.image_url_4k} alt="" style={{ width: 40, height: 52, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--card-border)' }} /> 4K ↗
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
       </div>
+
+      {scenarioOpen && <ScenarioModal busy={scenariing} onClose={() => setScenarioOpen(false)} onCreate={createScenario} />}
     </div>
   );
 
   async function setActive(variantId, stepId) {
     try { await api.post(`/visualise/variants/${variantId}/active`, { step_id: stepId }); await load(); }
     catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function lock(stepId) {
+    try { await api.post(`/visualise/variants/${variant.id}/lock`, { step_id: stepId }); await load(); toast('Locked as the approved image.', 'success'); }
+    catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function doExport() {
+    if (exporting) return;
+    setExporting(true);
+    try { await api.post(`/visualise/variants/${variant.id}/export`, {}); await load(); toast('4K export ready.', 'success'); }
+    catch (e) { toast(`Export failed: ${e.message}`, 'error'); }
+    finally { setExporting(false); }
+  }
+
+  async function doExportAll() {
+    if (exporting) return;
+    setExporting(true);
+    try { const out = await api.post(`/visualise/projects/${projectId}/export-all`, {}); await load(); toast(`Exported ${out.length} locked variant${out.length === 1 ? '' : 's'} to 4K.`, 'success'); }
+    catch (e) { toast(e.message, 'error'); }
+    finally { setExporting(false); }
   }
 
   async function applyFix(maskBlob, instruction, referenceFile) {
@@ -276,7 +390,7 @@ function Studio({ clientId, projectId, onBack }) {
       fd.append('instruction', instruction);
       fd.append('base_step_id', activeId);
       if (referenceFile) fd.append('reference', referenceFile);
-      await api.postForm(`/visualise/variants/${baseVariant.id}/inpaint`, fd);
+      await api.postForm(`/visualise/variants/${variant.id}/inpaint`, fd);
       await load();
       toast('Fix applied — only the circled area changed.', 'success');
     } catch (e) { toast(`Fix failed: ${e.message}`, 'error'); }
