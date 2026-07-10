@@ -44,6 +44,10 @@ const SETTINGS_KEYS = [
   // the Google Cloud console (PageSpeed Insights API). Used by services/pageSpeed.js.
   'PAGESPEED_API_KEY',
   'REPLICATE_API_TOKEN', 'IDEOGRAM_API_KEY',
+  // fal.ai — single-key media aggregator behind the Visualise studio (and the
+  // consolidation target for the standalone image accounts). Used by
+  // connectors/fal.js. Get a key from fal.ai → Settings → API keys.
+  'FAL_KEY',
   'ELEVENLABS_API_KEY',
   // HeyGen — AI avatar / Digital Twin reels (the video suite). Pay-as-you-go.
   'HEYGEN_API_KEY',

@@ -11,7 +11,11 @@ export function setApiReadOnly(v) { _readOnly = !!v; }
 
 async function request(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
-  if (_readOnly && !['GET', 'HEAD', 'OPTIONS'].includes(method) && !path.startsWith('/auth/')) {
+  // Visualise is the one module a read-only (client) login may write to, when
+  // granted can_use_visualise — see docs/omi/visualise-studio.md §6. The server
+  // enforces the capability; this just stops the client-side guard from
+  // pre-empting those writes. All other non-GET client requests stay blocked.
+  if (_readOnly && !['GET', 'HEAD', 'OPTIONS'].includes(method) && !path.startsWith('/auth/') && !path.startsWith('/visualise')) {
     throw new Error(READ_ONLY_MSG);
   }
   // FormData sets its own Content-Type with boundary — don't force JSON.

@@ -41,9 +41,9 @@ async function authenticate(req, res, next) {
   try {
     const where = payload.id ? 'id = $1' : 'username = $1';
     const value = payload.id || payload.username;
-    const { rows } = await pool.query(`SELECT id, username, role FROM users WHERE ${where}`, [value]);
+    const { rows } = await pool.query(`SELECT id, username, role, can_use_visualise FROM users WHERE ${where}`, [value]);
     if (!rows[0]) return res.status(401).json({ error: 'User no longer exists' });
-    req.user = { id: rows[0].id, username: rows[0].username, role: rows[0].role };
+    req.user = { id: rows[0].id, username: rows[0].username, role: rows[0].role, can_use_visualise: rows[0].can_use_visualise };
   } catch {
     return res.status(500).json({ error: 'Auth lookup failed' });
   }
@@ -53,9 +53,15 @@ async function authenticate(req, res, next) {
   // non-GET requests for this role is a single, auditable guarantee. Auth
   // self-service (login/logout/change-password/me) is exempt — none of it
   // spends anything. GET/HEAD/OPTIONS pass through (OPTIONS is CORS preflight).
+  // Scoped carve-out: the Visualise module (docs/omi/visualise-studio.md §6) is
+  // the one place a 'client' may write — creating projects, generating,
+  // correcting, locking, exporting — but ONLY when granted can_use_visualise,
+  // and ONLY on /api/visualise/*. Everything else stays read-only for clients.
+  const visualiseWrite = (req.originalUrl || '').startsWith('/api/visualise/') && req.user.can_use_visualise;
   if (req.user.role === 'client'
       && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
-      && !(req.originalUrl || '').startsWith('/api/auth/')) {
+      && !(req.originalUrl || '').startsWith('/api/auth/')
+      && !visualiseWrite) {
     return res.status(403).json({ error: 'Your account has read-only access.' });
   }
 

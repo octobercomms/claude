@@ -115,6 +115,11 @@ export default function Layout() {
                 <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>Earned</NavLink>
                 <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Shared</NavLink>
                 <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Owned</NavLink>
+                {/* Visualise — image studio. Agency users always; a read-only
+                    client only when granted can_use_visualise (§6). */}
+                {(!readOnly || user?.can_use_visualise) && (
+                  <NavLink to={`/clients/${clientId}/visualise`} style={({ isActive }) => subLinkStyle(isActive)}>Visualise</NavLink>
+                )}
                 {/* Admin (connectors, strategy config, reports setup) is agency-only. */}
                 {!readOnly && (
                   <NavLink to={`/clients/${clientId}?tab=setup_overview`} style={subLinkStyle(!!clientMatch && ['setup_overview', 'strategy', 'details', 'brand', 'connectors', 'reports'].includes(currentTab))}>Admin</NavLink>
