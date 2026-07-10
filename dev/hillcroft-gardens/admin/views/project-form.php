@@ -547,6 +547,94 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 			</form>
 		</div>
 
+		<?php
+		// ---------------------------------------------------------------
+		// Existing conditions — the "what can't change" base plan (Part A)
+		// ---------------------------------------------------------------
+		$hgd_existing  = HGD_Site_Model::get( $project );
+		$hgd_base_plan = HGD_Project_Asset::base_plan( $pid );
+		$hgd_ex_error  = isset( $_GET['existing_error'] ) || isset( $_GET['baseplan_error'] ); // phpcs:ignore WordPress.Security.NonceVerification
+		$hgd_bg_url    = '';
+		foreach ( array( 'sketch', 'photo' ) as $hgd_bg_role ) {
+			foreach ( HGD_Project_Asset::for_project( $pid, $hgd_bg_role ) as $hgd_bg_row ) {
+				if ( ! empty( $hgd_bg_row['attachment_id'] ) ) {
+					$hgd_bg_url = (string) wp_get_attachment_image_url( (int) $hgd_bg_row['attachment_id'], 'large' );
+					break 2;
+				}
+			}
+		}
+		if ( '' === $hgd_bg_url && ! empty( $hgd_sat_url ) ) {
+			$hgd_bg_url = $hgd_sat_url;
+		}
+		?>
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Existing conditions (what can’t change)', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Mark the fixed reality of the plot — boundary, house wall, retained trees and structures, levels and north. Auto-detect it from the sketch and photos, then correct it by hand. This becomes a precise base plan the renders are anchored to, so they stop inventing random layouts.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( isset( $_GET['existing_detected'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Detected existing conditions from your images — check and correct them below, then Save.', 'hillcroft-garden-designer' ); ?></div>
+			<?php elseif ( isset( $_GET['existing_saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Existing conditions saved.', 'hillcroft-garden-designer' ); ?></div>
+			<?php elseif ( isset( $_GET['baseplan_done'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Base plan generated — it now anchors your renders.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( $hgd_ex_error ) :
+				$hgd_ex_msg = get_transient( 'hgd_existing_error_' . get_current_user_id() ); delete_transient( 'hgd_existing_error_' . get_current_user_id() ); ?>
+				<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $hgd_ex_msg ? $hgd_ex_msg : __( 'Something went wrong. Please try again.', 'hillcroft-garden-designer' ) ); ?></div>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="hgd_extract_existing" />
+				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<?php wp_nonce_field( 'hgd_extract_existing_' . $pid ); ?>
+				<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Auto-detect with Claude', 'hillcroft-garden-designer' ); ?></button>
+				<span class="hgd-muted"><?php esc_html_e( 'Proposes the fixed layer from your sketch + photos. Always confirm it by hand.', 'hillcroft-garden-designer' ); ?></span>
+			</form>
+
+			<div class="hgd-existing-editor" data-hgd-existing-editor data-bg="<?php echo esc_url( $hgd_bg_url ); ?>">
+				<div class="hgd-existing-tools">
+					<button type="button" class="hgd-pill hgd-pill-ghost is-active" data-tool="boundary"><?php esc_html_e( 'Boundary', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-finish-boundary><?php esc_html_e( 'Finish boundary', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="tree"><?php esc_html_e( 'Tree', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="structure"><?php esc_html_e( 'Structure', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="level"><?php esc_html_e( 'Level', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="access"><?php esc_html_e( 'Access', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-undo><?php esc_html_e( 'Undo', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-clear><?php esc_html_e( 'Clear', 'hillcroft-garden-designer' ); ?></button>
+				</div>
+				<div class="hgd-existing-canvas-frame">
+					<canvas></canvas>
+				</div>
+				<div class="hgd-existing-edges" data-edges></div>
+				<label class="hgd-north-ctl"><?php esc_html_e( 'North (° clockwise from up)', 'hillcroft-garden-designer' ); ?>
+					<input type="number" min="0" max="359" data-north value="<?php echo esc_attr( (float) $hgd_existing['orientation']['north_deg'] ); ?>" />
+				</label>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form-actions">
+					<input type="hidden" name="action" value="hgd_save_existing" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<?php wp_nonce_field( 'hgd_save_existing_' . $pid ); ?>
+					<input type="hidden" name="existing_json" data-existing-json value="<?php echo esc_attr( wp_json_encode( $hgd_existing ) ); ?>" />
+					<button type="submit" class="hgd-pill"><?php esc_html_e( 'Save existing conditions', 'hillcroft-garden-designer' ); ?></button>
+				</form>
+			</div>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form-actions">
+				<input type="hidden" name="action" value="hgd_generate_base_plan" />
+				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<?php wp_nonce_field( 'hgd_generate_base_plan_' . $pid ); ?>
+				<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Generate base plan', 'hillcroft-garden-designer' ); ?></button>
+				<span class="hgd-muted"><?php esc_html_e( 'Renders a clean technical drawing from the saved layer and anchors renders to it.', 'hillcroft-garden-designer' ); ?></span>
+			</form>
+
+			<?php if ( $hgd_base_plan && ! empty( $hgd_base_plan['attachment_id'] ) ) :
+				$hgd_bp_url = (string) wp_get_attachment_url( (int) $hgd_base_plan['attachment_id'] ); ?>
+				<div class="hgd-base-plan-preview">
+					<h3><?php esc_html_e( 'Current base plan', 'hillcroft-garden-designer' ); ?></h3>
+					<img src="<?php echo esc_url( $hgd_bp_url ); ?>" alt="<?php esc_attr_e( 'Existing-conditions base plan', 'hillcroft-garden-designer' ); ?>" style="max-width:100%;border:1px solid #ddd;" />
+				</div>
+			<?php endif; ?>
+		</div>
+
 		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
 		<?php endif; // capture step ?>
 
@@ -852,7 +940,42 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 									</form>
 								<?php endif; ?>
 								<a class="hgd-muted" href="<?php echo esc_url( $del_url ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this render?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></a>
+									<?php if ( $is_approved && HGD_Flux::is_configured() ) : ?>
+										<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+											<input type="hidden" name="action" value="hgd_upscale_render" />
+											<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+											<input type="hidden" name="asset_id" value="<?php echo esc_attr( (int) $render['id'] ); ?>" />
+											<?php wp_nonce_field( 'hgd_upscale_render_' . $pid ); ?>
+											<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Export 4K', 'hillcroft-garden-designer' ); ?></button>
+										</form>
+									<?php endif; ?>
 							</div>
+
+							<?php if ( HGD_Flux::is_configured() ) : ?>
+							<details class="hgd-tweak">
+								<summary><?php esc_html_e( 'Tweak — circle &amp; fix', 'hillcroft-garden-designer' ); ?></summary>
+								<p class="hgd-muted"><?php esc_html_e( 'Paint over the wrong area and describe what it should be. Only that area changes — the rest stays exactly as it is.', 'hillcroft-garden-designer' ); ?></p>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-mask-form" data-hgd-mask-canvas>
+									<input type="hidden" name="action" value="hgd_inpaint_render" />
+									<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+									<input type="hidden" name="asset_id" value="<?php echo esc_attr( (int) $render['id'] ); ?>" />
+									<?php wp_nonce_field( 'hgd_inpaint_render_' . $pid ); ?>
+									<input type="hidden" name="mask_data" data-mask-data value="" />
+									<div class="hgd-mask-stage" style="position:relative;display:inline-block;max-width:100%;">
+										<img data-render src="<?php echo esc_url( (string) wp_get_attachment_image_url( (int) $render['attachment_id'], 'full' ) ); ?>" style="display:block;max-width:100%;height:auto;" alt="" />
+										<canvas data-mask style="position:absolute;left:0;top:0;width:100%;height:100%;cursor:crosshair;"></canvas>
+									</div>
+									<div class="hgd-mask-controls">
+										<label><?php esc_html_e( 'Brush', 'hillcroft-garden-designer' ); ?> <input type="range" min="8" max="140" value="40" data-brush /></label>
+										<button type="button" class="hgd-pill hgd-pill-ghost" data-mask-clear><?php esc_html_e( 'Clear', 'hillcroft-garden-designer' ); ?></button>
+									</div>
+									<textarea name="instruction" rows="2" placeholder="<?php esc_attr_e( 'What should this area be? e.g. “oak pergola, not painted white”', 'hillcroft-garden-designer' ); ?>"></textarea>
+									<div class="hgd-form-actions">
+										<button type="submit" class="hgd-pill"><?php esc_html_e( 'Apply fix', 'hillcroft-garden-designer' ); ?></button>
+									</div>
+								</form>
+							</details>
+							<?php endif; ?>
 						</div>
 					<?php endforeach; ?>
 				</div>

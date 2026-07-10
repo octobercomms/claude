@@ -121,6 +121,20 @@ class HGD_Measure {
 			$clean['scale'] = array( 'px_per_m' => round( (float) $data['scale']['px_per_m'], 4 ) );
 		}
 
+		// Preserve the existing-conditions layer (owned by HGD_Site_Model) unless
+		// this save explicitly provides one — the two layers share this JSON blob.
+		if ( isset( $data['existing'] ) && is_array( $data['existing'] ) ) {
+			$clean['existing'] = class_exists( 'HGD_Site_Model' )
+				? HGD_Site_Model::normalise( $data['existing'] )
+				: $data['existing'];
+		} else {
+			$project = HGD_Project::get( $project_id );
+			$prev    = $project && ! empty( $project['measurements'] ) ? json_decode( (string) $project['measurements'], true ) : array();
+			if ( is_array( $prev ) && ! empty( $prev['existing'] ) ) {
+				$clean['existing'] = $prev['existing'];
+			}
+		}
+
 		return HGD_Project::update( $project_id, array(
 			'measurements'  => wp_json_encode( $clean ),
 			'plot_width_m'  => round( $plot_w, 2 ),

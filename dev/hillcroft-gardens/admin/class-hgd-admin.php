@@ -36,6 +36,12 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_generate_flux_render', array( $this, 'handle_generate_flux_render' ) );
 		add_action( 'admin_post_hgd_approve_render', array( $this, 'handle_approve_render' ) );
 		add_action( 'admin_post_hgd_score_render', array( $this, 'handle_score_render' ) );
+		add_action( 'admin_post_hgd_extract_existing', array( $this, 'handle_extract_existing' ) );
+		add_action( 'admin_post_hgd_save_existing', array( $this, 'handle_save_existing' ) );
+		add_action( 'admin_post_hgd_generate_base_plan', array( $this, 'handle_generate_base_plan' ) );
+		add_action( 'admin_post_hgd_inpaint_render', array( $this, 'handle_inpaint_render' ) );
+		add_action( 'admin_post_hgd_revert_render', array( $this, 'handle_revert_render' ) );
+		add_action( 'admin_post_hgd_upscale_render', array( $this, 'handle_upscale_render' ) );
 		add_action( 'admin_post_hgd_generate_plan', array( $this, 'handle_generate_plan' ) );
 		add_action( 'admin_post_hgd_save_plan_prompt', array( $this, 'handle_save_plan_prompt' ) );
 		add_action( 'admin_post_hgd_compose_plan_prompt', array( $this, 'handle_compose_plan_prompt' ) );
@@ -154,6 +160,7 @@ class HGD_Admin {
 
 		wp_enqueue_style( 'hgd-admin', HGD_URL . 'admin/css/admin.css', array( 'hgd-fonts' ), HGD_VERSION );
 		wp_enqueue_script( 'hgd-admin', HGD_URL . 'admin/js/admin.js', array(), HGD_VERSION, true );
+		wp_enqueue_script( 'hgd-studio', HGD_URL . 'admin/js/hgd-studio.js', array(), HGD_VERSION, true );
 
 		// The media-library picker (plant image) is only needed on the plant edit/new screen.
 		$page   = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
@@ -1063,16 +1070,22 @@ class HGD_Admin {
 			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_error' => 'noflux' ) );
 		}
 
-		// Structural guide: the most recent approved plan, else the sketch.
+		// Structural guide, best first: the deterministic existing-conditions base
+		// plan (crisp, exact) → the most recent design plan → the raw sketch.
 		$control_id = 0;
-		$plans      = HGD_Project_Asset::for_project( $id, 'plan' );
-		if ( ! empty( $plans ) ) {
-			$latest     = end( $plans );
-			$control_id = (int) $latest['attachment_id'];
+		$base_plan  = HGD_Project_Asset::base_plan( $id );
+		if ( $base_plan && ! empty( $base_plan['attachment_id'] ) ) {
+			$control_id = (int) $base_plan['attachment_id'];
 		} else {
-			$sketches = HGD_Project_Asset::for_project( $id, 'sketch' );
-			if ( ! empty( $sketches ) ) {
-				$control_id = (int) $sketches[0]['attachment_id'];
+			$plans = HGD_Project_Asset::for_project( $id, 'plan' );
+			if ( ! empty( $plans ) ) {
+				$latest     = end( $plans );
+				$control_id = (int) $latest['attachment_id'];
+			} else {
+				$sketches = HGD_Project_Asset::for_project( $id, 'sketch' );
+				if ( ! empty( $sketches ) ) {
+					$control_id = (int) $sketches[0]['attachment_id'];
+				}
 			}
 		}
 		if ( ! $control_id ) {
@@ -1092,6 +1105,11 @@ class HGD_Admin {
 			if ( '' !== $line ) {
 				$prompt .= "\n\nScale reference: " . $line;
 			}
+		}
+		// Pin the fixed reality in words as well as via the control image.
+		$constraints = HGD_Site_Model::constraints_text( $project );
+		if ( '' !== $constraints ) {
+			$prompt .= "\n\n" . $constraints;
 		}
 
 		$result = HGD_Flux::generate_image( $prompt, $control_id, $id );
@@ -2115,6 +2133,205 @@ class HGD_Admin {
 	}
 
 	// -------------------------------------------------------------------------
+
+	// -------------------------------------------------------------------------
+	// Render fidelity — existing-conditions base plan + correction loop
+	// -------------------------------------------------------------------------
+
+	/** Decode a `data:...;base64,...` URL to raw bytes ('' on failure). */
+	private function decode_data_url( $data_url ) {
+		$data_url = (string) $data_url;
+		if ( false === strpos( $data_url, 'base64,' ) ) {
+			return '';
+		}
+		$b64   = substr( $data_url, strpos( $data_url, 'base64,' ) + 7 );
+		$bytes = base64_decode( $b64, true );
+		return false === $bytes ? '' : $bytes;
+	}
+
+	/** Auto-detect the existing-conditions layer with vision, then save the proposal. */
+	public function handle_extract_existing() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_extract_existing_' . $id );
+		if ( ! $id || ! HGD_Project::get( $id ) ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		$proposed = HGD_Existing_Extract::propose( $id );
+		if ( is_wp_error( $proposed ) ) {
+			set_transient( 'hgd_existing_error_' . get_current_user_id(), $proposed->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'existing_error' => 1 ) );
+		}
+		HGD_Site_Model::save( $id, $proposed );
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'existing_detected' => 1 ) );
+	}
+
+	/** Persist the human-confirmed existing-conditions layer (from the editor). */
+	public function handle_save_existing() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_save_existing_' . $id );
+		if ( ! $id || ! HGD_Project::get( $id ) ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+		$raw      = isset( $_POST['existing_json'] ) ? wp_unslash( $_POST['existing_json'] ) : '[]';
+		$existing = json_decode( (string) $raw, true );
+		HGD_Site_Model::save( $id, is_array( $existing ) ? $existing : array() );
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'existing_saved' => 1 ) );
+	}
+
+	/** Render the deterministic technical base plan from the confirmed layer. */
+	public function handle_generate_base_plan() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_generate_base_plan_' . $id );
+		if ( ! $id || ! HGD_Project::get( $id ) ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+		$res = HGD_Base_Plan::generate_and_store( $id );
+		if ( is_wp_error( $res ) ) {
+			set_transient( 'hgd_existing_error_' . get_current_user_id(), $res->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'baseplan_error' => 1 ) );
+		}
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'baseplan_done' => 1 ) );
+	}
+
+	/** The circle-and-fix correction loop: masked inpaint + composite-back. */
+	public function handle_inpaint_render() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_inpaint_render_' . $id );
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+		$redir = array( 'action' => 'edit', 'id' => $id, 'step' => 'renders' );
+
+		$asset_id = isset( $_POST['asset_id'] ) ? (int) $_POST['asset_id'] : 0;
+		$asset    = $asset_id ? HGD_Project_Asset::get( $asset_id ) : null;
+		if ( ! $asset || (int) $asset['project_id'] !== $id ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'noasset' ) );
+		}
+		$instruction = isset( $_POST['instruction'] ) ? sanitize_textarea_field( wp_unslash( $_POST['instruction'] ) ) : '';
+		$mask_bytes  = $this->decode_data_url( isset( $_POST['mask_data'] ) ? wp_unslash( $_POST['mask_data'] ) : '' );
+		if ( '' === $instruction || '' === $mask_bytes ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'nomask' ) );
+		}
+		if ( ! HGD_Flux::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'noflux' ) );
+		}
+
+		$base_path  = get_attached_file( (int) $asset['attachment_id'] );
+		$base_bytes = $base_path && file_exists( $base_path ) ? file_get_contents( $base_path ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions
+		$base_url   = wp_get_attachment_url( (int) $asset['attachment_id'] );
+		if ( '' === $base_bytes || ! $base_url ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'nobase' ) );
+		}
+
+		// The mask needs a publicly-reachable URL for fal to fetch it.
+		$mask_att = HGD_Gemini::save_image_as_attachment( $mask_bytes, 'image/png', $id, 'inpaint-mask' );
+		if ( is_wp_error( $mask_att ) ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'save' ) );
+		}
+		$mask_url = wp_get_attachment_url( (int) $mask_att );
+
+		// Optional reference crop.
+		$ref_url  = '';
+		$ref_att  = 0;
+		$ref_data = $this->decode_data_url( isset( $_POST['reference_data'] ) ? wp_unslash( $_POST['reference_data'] ) : '' );
+		if ( '' !== $ref_data ) {
+			$ra = HGD_Gemini::save_image_as_attachment( $ref_data, 'image/png', $id, 'inpaint-ref' );
+			if ( ! is_wp_error( $ra ) ) {
+				$ref_att = (int) $ra;
+				$ref_url = wp_get_attachment_url( $ra );
+			}
+		}
+
+		// Constrain the edit to the fixed reality too (belt and braces with the mask).
+		$prompt = $instruction;
+		$constraints = HGD_Site_Model::constraints_text( $project );
+		if ( '' !== $constraints ) {
+			$prompt .= "\n\n" . $constraints;
+		}
+
+		$result = HGD_Flux::inpaint( $base_url, $mask_url, $prompt, $ref_url, $id );
+		if ( $ref_att ) {
+			wp_delete_attachment( $ref_att, true );
+		}
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_render_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'api' ) );
+		}
+
+		// Composite-back — only the masked pixels change; the rest stays identical.
+		$final_bytes = $result['bytes'];
+		$final_mime  = $result['mime'];
+		$comp        = HGD_Image_Composite::composite( $base_bytes, $result['bytes'], $mask_bytes );
+		if ( is_wp_error( $comp ) ) {
+			HGD_Log::warning( 'inpaint.composite', $comp->get_error_message(), array( 'project_id' => $id ) );
+		} else {
+			$final_bytes = $comp['bytes'];
+			$final_mime  = $comp['mime'];
+		}
+
+		$att = HGD_Gemini::save_image_as_attachment( $final_bytes, $final_mime, $id, 'render-fix' );
+		if ( is_wp_error( $att ) ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'save' ) );
+		}
+		HGD_Project_Asset::add_correction( $id, (int) $att, $asset_id, (int) $mask_att, $instruction, __( 'Correction', 'hillcroft-garden-designer' ) );
+		HGD_Project_Asset::approve_only( (int) $att, $id );
+
+		$this->redirect_with( 'hgd-projects', $redir + array( 'render_done' => 1 ) );
+	}
+
+	/** Revert: make an earlier render the approved/active one. */
+	public function handle_revert_render() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_revert_render_' . $id );
+		$asset_id = isset( $_POST['asset_id'] ) ? (int) $_POST['asset_id'] : 0;
+		$asset    = $asset_id ? HGD_Project_Asset::get( $asset_id ) : null;
+		if ( $asset && (int) $asset['project_id'] === $id ) {
+			HGD_Project_Asset::approve_only( $asset_id, $id );
+		}
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'reverted' => 1 ) );
+	}
+
+	/** Faithful 4K upscale of a locked render for export. */
+	public function handle_upscale_render() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_upscale_render_' . $id );
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+		$redir    = array( 'action' => 'edit', 'id' => $id, 'step' => 'renders' );
+		$asset_id = isset( $_POST['asset_id'] ) ? (int) $_POST['asset_id'] : 0;
+		$asset    = $asset_id ? HGD_Project_Asset::get( $asset_id ) : null;
+		if ( ! $asset || (int) $asset['project_id'] !== $id ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'noasset' ) );
+		}
+		if ( ! HGD_Flux::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'noflux' ) );
+		}
+		$url = wp_get_attachment_url( (int) $asset['attachment_id'] );
+		if ( ! $url ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'nobase' ) );
+		}
+		$res = HGD_Flux::upscale( $url, 4, $id );
+		if ( is_wp_error( $res ) ) {
+			set_transient( 'hgd_render_error_' . get_current_user_id(), $res->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'api' ) );
+		}
+		$att = HGD_Gemini::save_image_as_attachment( $res['bytes'], $res['mime'], $id, 'render-4k' );
+		if ( is_wp_error( $att ) ) {
+			$this->redirect_with( 'hgd-projects', $redir + array( 'render_error' => 'save' ) );
+		}
+		HGD_Project_Asset::add( $id, (int) $att, 'render_4k', 'export', __( '4K export', 'hillcroft-garden-designer' ) );
+		$this->redirect_with( 'hgd-projects', $redir + array( 'upscaled' => 1 ) );
+	}
 
 	private function guard() {
 		if ( ! current_user_can( self::CAP ) ) {
