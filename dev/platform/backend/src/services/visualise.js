@@ -123,8 +123,12 @@ async function listPresets(clientId) {
       ORDER BY (scope = 'shared') DESC, name ASC`,
     [clientId]
   );
-  // Attach the per-image price for the generate model so the UI can show cost.
-  return rows.map(p => ({ ...p, price_per_image: priceFor(p.model_routing?.generate) }));
+  // Attach per-image prices so the UI can show cost before each action.
+  return rows.map(p => ({
+    ...p,
+    price_per_image: priceFor(p.model_routing?.generate),
+    price_inpaint: priceFor(p.model_routing?.inpaint),
+  }));
 }
 
 async function getPreset(id) {
@@ -306,6 +310,84 @@ async function generate(project, { count = 4, orientation = 'portrait', userId =
   return { variant_id: variant.id, steps };
 }
 
+// ── Correction loop (D11/D12 — the crown jewel) ───────────────────────────────
+async function getStep(id) {
+  const { rows } = await pool.query('SELECT * FROM visualise_steps WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+async function fetchRemoteBuffer(url) {
+  const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000, maxContentLength: 40 * 1024 * 1024 });
+  return Buffer.from(res.data);
+}
+
+// D12: paste the model's edit back over the original ONLY inside the mask, with a
+// soft (feathered) edge so there's no seam — guaranteeing every pixel outside the
+// circled area is identical to the source, whatever the inpaint model did globally.
+async function compositeMaskedEdit(originalPath, editedBuf, maskBuf) {
+  const Jimp = require('jimp');
+  const [orig, edited, mask] = await Promise.all([Jimp.read(originalPath), Jimp.read(editedBuf), Jimp.read(maskBuf)]);
+  const w = orig.bitmap.width, h = orig.bitmap.height;
+  edited.resize(w, h);
+  mask.resize(w, h).grayscale().blur(3);       // feather the mask edge
+  edited.mask(mask, 0, 0);                      // alpha from mask brightness: white→edited, black→transparent
+  const composed = orig.clone().composite(edited, 0, 0);
+  return composed.getBufferAsync(Jimp.MIME_PNG);
+}
+
+// Circle-and-fix: regenerate ONLY the masked region of a base step, store the
+// composited result as a new child Step (parent = base), and make it active.
+// Reverting/branching is just moving the active pointer (setActiveStep) — steps
+// are immutable and tree-shaped, so nothing is ever lost (D13/D17).
+async function inpaint(project, { variantId, baseStepId, maskBuffer, instruction, referenceBuffer = null, userId = null }) {
+  const instr = String(instruction || '').trim();
+  if (!instr) { const e = new Error('An instruction is required — say what should change.'); e.status = 400; throw e; }
+  if (!maskBuffer || !maskBuffer.length) { const e = new Error('Circle the area to change first.'); e.status = 400; throw e; }
+
+  const preset = project.preset_id ? await getPreset(project.preset_id) : null;
+  const model = preset?.model_routing?.inpaint;
+  if (!model) { const e = new Error('This preset has no inpaint model configured.'); e.status = 400; throw e; }
+
+  const base = await getStep(baseStepId);
+  if (!base || base.variant_id !== variantId) { const e = new Error('Base image not found on this variant.'); e.status = 404; throw e; }
+  const origPath = diskPathForUrl(base.image_url);
+  if (!origPath || !fs.existsSync(origPath)) { const e = new Error('Base image is missing on disk.'); e.status = 409; throw e; }
+
+  // Persist the mask + optional reference crop for provenance / reopenability.
+  const maskUrl = saveInputBuffer(project.client_id, maskBuffer, 'mask.png');
+  const refUrl = referenceBuffer ? saveInputBuffer(project.client_id, referenceBuffer, 'ref.png') : null;
+
+  // Masked inpaint via fal (white mask = the region to change). Field names are
+  // the common Flux-Fill shape; finalised in the §11 bake-off. NB the reference
+  // crop is stored but not yet fed to the model (its input field is confirmed in
+  // the bake-off) — the region-locked fix works without it.
+  const input = {
+    image_url: fileToDataUri(origPath),
+    mask_url: `data:image/png;base64,${maskBuffer.toString('base64')}`,
+    prompt: instr,
+  };
+  const perImage = priceFor(model);
+  const result = await fal.inpaint(model, input, { clientId: project.client_id, costUsd: null });
+  if (!result.url) { const e = new Error('The edit model returned no image.'); e.status = 502; throw e; }
+
+  const editedBuf = await fetchRemoteBuffer(result.url);
+  const composed = await compositeMaskedEdit(origPath, editedBuf, maskBuffer);   // D12 region-lock
+  const storedUrl = saveInputBuffer(project.client_id, composed, 'edit.png');
+
+  const { rows } = await pool.query(
+    `INSERT INTO visualise_steps (variant_id, parent_step_id, kind, image_url, mask_url, instruction, reference_crop_url, cost_usd, created_by)
+       VALUES ($1, $2, 'correction', $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [variantId, baseStepId, storedUrl, maskUrl, instr, refUrl, perImage, userId]
+  );
+  await pool.query('UPDATE visualise_variants SET active_step_id = $1 WHERE id = $2', [rows[0].id, variantId]);
+  await pool.query(`UPDATE visualise_projects SET updated_at = NOW() WHERE id = $1`, [project.id]);
+  require('./costLog').recordApiCost({
+    provider: 'fal', feature: 'visualise_inpaint', costUsd: perImage, clientId: project.client_id,
+    meta: { model, step_id: rows[0].id },
+  });
+  return rows[0];
+}
+
 // Carry a chosen generation forward (D3: pick one variation as the active step).
 async function setActiveStep(variantId, stepId) {
   // Ensure the step belongs to the variant.
@@ -323,7 +405,7 @@ module.exports = {
   listPresets, getPreset,
   listProjects, createProject, updateProject, getProject, deleteProject,
   addInput, getInput, deleteInput,
-  generate, setActiveStep, getVariant, estimate,
+  generate, setActiveStep, getVariant, getStep, inpaint, estimate,
   saveInputBuffer, serveFilePath,
   buildPrompt, priceFor,      // exported for tests
   UPLOAD_ROOT, diskPathForUrl,
