@@ -1,14 +1,120 @@
-// Visualise studio — orchestration/data layer. Phase 1 (foundations) covers
-// presets + projects; generation, the correction loop, lock and 4K export land
-// in later phases and will call connectors/fal.js from here.
+// Visualise studio — orchestration/data layer.
+//   Phase 1: presets + projects.
+//   Phase 2 (this): inputs, prompt assembly, generation (fal), pick-active.
+// The correction loop, lock and 4K export land in later phases.
 //
-// See docs/omi/visualise-studio.md. Storage of image/mask files mirrors
-// brandAssets (local disk per client, served via an authed route) and is added
-// with the Generate phase.
+// Storage mirrors brandAssets: image/mask files on local disk per client
+// (uploads/<client_id>/visualise/), served through an authed route; rows hold
+// the served URL. Generated images are downloaded from fal and stored locally
+// (fal URLs are ephemeral). See docs/omi/visualise-studio.md.
 
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
 const pool = require('../db');
+const fal = require('../connectors/fal');
 
-// Presets a client can pick: the shared library + any client-specific ones.
+const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
+
+// ── fal model pricing (USD per image) ─────────────────────────────────────────
+// Used for the pre-action estimate (D6) and to log spend after. These are
+// working estimates — confirm real per-call prices in the §11 bake-off and
+// update here; the figure is shown to users as an estimate.
+const FAL_PRICES = {
+  'fal-ai/nano-banana-pro': 0.15,
+  'fal-ai/nano-banana-2/edit': 0.05,
+  'fal-ai/flux-pro/v1/fill': 0.05,
+  'fal-ai/clarity-upscaler': 0.03,
+};
+function priceFor(slug) { return FAL_PRICES[slug] != null ? FAL_PRICES[slug] : 0.10; }
+
+// Orientation → aspect ratio passed to the generate model.
+const ORIENTATION_AR = { portrait: '3:4', landscape: '4:3', square: '1:1' };
+
+// ── Storage helpers ───────────────────────────────────────────────────────────
+function clientDir(clientId) {
+  const dir = path.join(UPLOAD_ROOT, clientId, 'visualise');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+function servedUrl(clientId, filename) {
+  return `/api/visualise/file/${clientId}/${filename}`;
+}
+function randName(ext = '.png') {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+}
+// Resolve a served visualise URL back to its on-disk path (for reading a file to
+// pass to fal as a data URI). Returns null if the URL isn't one of ours.
+function diskPathForUrl(url) {
+  const m = String(url || '').match(/^\/api\/visualise\/file\/([^/]+)\/([^/]+)$/);
+  if (!m) return null;
+  const p = path.join(UPLOAD_ROOT, m[1], 'visualise', m[2]);
+  if (!p.startsWith(path.join(UPLOAD_ROOT, m[1], 'visualise') + path.sep)) return null;
+  return p;
+}
+function fileToDataUri(diskPath) {
+  const ext = (path.extname(diskPath).slice(1) || 'png').toLowerCase();
+  const mime = ext === 'jpg' ? 'jpeg' : ext;
+  return `data:image/${mime};base64,${fs.readFileSync(diskPath).toString('base64')}`;
+}
+// Save an uploaded input buffer to the client's visualise dir; return its URL.
+function saveInputBuffer(clientId, buffer, originalname) {
+  let ext = (path.extname(originalname || '').toLowerCase().replace(/[^a-z0-9.]/g, '')) || '.png';
+  if (!ext.startsWith('.')) ext = '.' + ext;
+  const filename = randName(ext);
+  fs.writeFileSync(path.join(clientDir(clientId), filename), buffer);
+  return servedUrl(clientId, filename);
+}
+// Resolve a served-file request to an on-disk path, with a traversal guard.
+function serveFilePath(clientId, filename) {
+  if (!filename || filename.includes('..') || filename.includes('/')) return null;
+  const dir = clientDir(clientId);
+  const p = path.join(dir, filename);
+  return p.startsWith(dir + path.sep) ? p : null;
+}
+// Download a remote (fal) image to local disk; return its served URL.
+async function saveRemoteImage(clientId, url) {
+  const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000, maxContentLength: 40 * 1024 * 1024 });
+  const ct = res.headers['content-type'] || '';
+  const ext = ct.includes('jpeg') ? '.jpg' : ct.includes('webp') ? '.webp' : '.png';
+  const filename = randName(ext);
+  fs.writeFileSync(path.join(clientDir(clientId), filename), Buffer.from(res.data));
+  return servedUrl(clientId, filename);
+}
+
+// ── Prompt assembly (§10.1) ───────────────────────────────────────────────────
+// locked core + the user's guided-field answers + the preset's always-on floor,
+// deduped so a toggle that repeats an always-on line doesn't double it. No raw
+// prompt is ever accepted from the user (D8).
+function buildPrompt(preset, guided = {}) {
+  const base = String(preset.locked_core_prompt || '').trim();
+  const fields = Array.isArray(preset.guided_fields) ? preset.guided_fields : [];
+  const additions = [];
+  for (const f of fields) {
+    const v = guided[f.key];
+    if (f.type === 'text') {
+      if (v && String(v).trim()) additions.push(String(v).trim());   // inject verbatim as a line
+    } else if (f.type === 'toggle') {
+      const on = v == null ? !!f.default : !!v;
+      if (on && f.emits) additions.push(String(f.emits).trim());
+    }
+  }
+  // Always-on floor — appended to every generation for this preset.
+  for (const line of String(preset.always_on_prompt || '').split('\n').map(s => s.trim()).filter(Boolean)) {
+    additions.push(line);
+  }
+  // Dedupe additions case-insensitively and ignoring trailing punctuation, so
+  // a toggle emit ("…branding") and its always-on twin ("…branding.") collapse.
+  const seen = new Set();
+  const deduped = additions.filter(l => {
+    const k = l.toLowerCase().replace(/[.\s]+$/, '');
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+  return deduped.length ? `${base}\n\n${deduped.join('\n')}` : base;
+}
+
+// ── Presets ───────────────────────────────────────────────────────────────────
 async function listPresets(clientId) {
   const { rows } = await pool.query(
     `SELECT id, scope, client_id, name, guided_fields, input_slots, model_routing, created_at
@@ -17,7 +123,8 @@ async function listPresets(clientId) {
       ORDER BY (scope = 'shared') DESC, name ASC`,
     [clientId]
   );
-  return rows;
+  // Attach the per-image price for the generate model so the UI can show cost.
+  return rows.map(p => ({ ...p, price_per_image: priceFor(p.model_routing?.generate) }));
 }
 
 async function getPreset(id) {
@@ -25,8 +132,7 @@ async function getPreset(id) {
   return rows[0] || null;
 }
 
-// Project cards for a client's library (D15): thumbnail comes from the newest
-// step image; counts summarise the tree.
+// ── Projects ──────────────────────────────────────────────────────────────────
 async function listProjects(clientId) {
   const { rows } = await pool.query(
     `SELECT p.*, pr.name AS preset_name,
@@ -58,8 +164,17 @@ async function createProject(clientId, { name, preset_id = null, guided_values =
   return rows[0];
 }
 
-// A project's full editable state (D8/D13): inputs + variants + each variant's
-// step tree. Returns null if not found (caller maps to 404 + access check).
+async function updateProject(projectId, fields = {}) {
+  const sets = [], vals = [];
+  if ('name' in fields && String(fields.name).trim()) { vals.push(String(fields.name).trim()); sets.push(`name = $${vals.length}`); }
+  if ('guided_values' in fields) { vals.push(JSON.stringify(fields.guided_values || {})); sets.push(`guided_values = $${vals.length}`); }
+  if ('status' in fields) { vals.push(fields.status); sets.push(`status = $${vals.length}`); }
+  if (!sets.length) return getProject(projectId);
+  vals.push(projectId);
+  await pool.query(`UPDATE visualise_projects SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${vals.length}`, vals);
+  return getProject(projectId);
+}
+
 async function getProject(projectId) {
   const { rows } = await pool.query('SELECT * FROM visualise_projects WHERE id = $1', [projectId]);
   const project = rows[0];
@@ -86,4 +201,130 @@ async function deleteProject(projectId) {
   await pool.query('DELETE FROM visualise_projects WHERE id = $1', [projectId]);
 }
 
-module.exports = { listPresets, getPreset, listProjects, createProject, getProject, deleteProject };
+// ── Inputs ────────────────────────────────────────────────────────────────────
+async function addInput(projectId, { kind, url = null, text = null, metadata = {} }) {
+  const { rows } = await pool.query(
+    `INSERT INTO visualise_inputs (project_id, kind, url, text, metadata)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [projectId, kind, url, text, JSON.stringify(metadata || {})]
+  );
+  return rows[0];
+}
+async function getInput(inputId) {
+  const { rows } = await pool.query('SELECT * FROM visualise_inputs WHERE id = $1', [inputId]);
+  return rows[0] || null;
+}
+async function deleteInput(inputId) {
+  const { rows } = await pool.query('DELETE FROM visualise_inputs WHERE id = $1 RETURNING url', [inputId]);
+  const url = rows[0]?.url;
+  const disk = url && diskPathForUrl(url);
+  if (disk) fs.promises.unlink(disk).catch(() => {});
+}
+
+// The reference images (as data URIs) a generation should condition on: every
+// image input on the project (sketches, reference photos, sketch views, swatches).
+function referenceDataUris(inputs) {
+  return (inputs || [])
+    .filter(i => i.url)
+    .map(i => diskPathForUrl(i.url))
+    .filter(p => p && fs.existsSync(p))
+    .map(fileToDataUri);
+}
+
+// ── Generation (D9) ───────────────────────────────────────────────────────────
+async function ensureBaseVariant(projectId, userId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM visualise_variants WHERE project_id = $1 AND scene_prompt IS NULL ORDER BY created_at ASC LIMIT 1`,
+    [projectId]
+  );
+  if (rows[0]) return rows[0];
+  const ins = await pool.query(
+    `INSERT INTO visualise_variants (project_id, name, created_by) VALUES ($1, 'Base', $2) RETURNING *`,
+    [projectId, userId]
+  );
+  return ins.rows[0];
+}
+
+function estimate(preset, count) {
+  return +(priceFor(preset?.model_routing?.generate) * Math.max(1, count)).toFixed(4);
+}
+
+// Generate `count` images for a project's base variant. Returns the new steps.
+async function generate(project, { count = 4, orientation = 'portrait', userId = null }) {
+  const n = Math.min(8, Math.max(1, parseInt(count, 10) || 1));
+  const preset = project.preset_id ? await getPreset(project.preset_id) : null;
+  if (!preset) { const e = new Error('This project has no preset — pick one first.'); e.status = 400; throw e; }
+
+  const model = preset.model_routing?.generate;
+  if (!model) { const e = new Error('Preset has no generate model configured.'); e.status = 400; throw e; }
+
+  const prompt = buildPrompt(preset, project.guided_values || {});
+  const refs = referenceDataUris(project.inputs);
+  const aspect = ORIENTATION_AR[orientation] || ORIENTATION_AR.portrait;
+
+  // One call requesting `n` images (fal image models return an array); the
+  // input field names are finalised in the §11 bake-off — this is the common
+  // reference-edit shape.
+  const input = { prompt, num_images: n, aspect_ratio: aspect };
+  if (refs.length) input.image_urls = refs;
+
+  const perImage = priceFor(model);
+  const result = await fal.generate(model, input, { clientId: project.client_id, costUsd: null });
+  let urls = result.urls && result.urls.length ? result.urls : (result.url ? [result.url] : []);
+  // If the model returned a single image but we asked for more, top up by
+  // calling again (independent variations) until we have n (bounded).
+  let guard = 0;
+  while (urls.length < n && guard < n) {
+    guard++;
+    const more = await fal.generate(model, input, { clientId: project.client_id, costUsd: null });
+    if (more.url) urls.push(more.url);
+    else break;
+  }
+  if (!urls.length) { const e = new Error('The model returned no image.'); e.status = 502; throw e; }
+  urls = urls.slice(0, n);
+
+  const variant = await ensureBaseVariant(project.id, userId);
+  const steps = [];
+  for (let i = 0; i < urls.length; i++) {
+    const stored = await saveRemoteImage(project.client_id, urls[i]);
+    const { rows } = await pool.query(
+      `INSERT INTO visualise_steps (variant_id, kind, image_url, gen_params, cost_usd, created_by)
+         VALUES ($1, 'generation', $2, $3, $4, $5) RETURNING *`,
+      [variant.id, stored, JSON.stringify({ index: i, orientation, model, aspect }), perImage, userId]
+    );
+    steps.push(rows[0]);
+  }
+
+  // Log the real spend (per image actually produced) and move the project on.
+  require('./costLog').recordApiCost({
+    provider: 'fal', feature: 'visualise_generate',
+    costUsd: +(perImage * steps.length).toFixed(4), clientId: project.client_id,
+    meta: { model, count: steps.length, project_id: project.id },
+  });
+  await pool.query(`UPDATE visualise_projects SET status = 'in_progress', updated_at = NOW() WHERE id = $1 AND status = 'draft'`, [project.id]);
+
+  return { variant_id: variant.id, steps };
+}
+
+// Carry a chosen generation forward (D3: pick one variation as the active step).
+async function setActiveStep(variantId, stepId) {
+  // Ensure the step belongs to the variant.
+  const { rows } = await pool.query('SELECT id FROM visualise_steps WHERE id = $1 AND variant_id = $2', [stepId, variantId]);
+  if (!rows[0]) { const e = new Error('Step not found on this variant'); e.status = 404; throw e; }
+  await pool.query('UPDATE visualise_variants SET active_step_id = $1 WHERE id = $2', [stepId, variantId]);
+}
+
+async function getVariant(variantId) {
+  const { rows } = await pool.query('SELECT * FROM visualise_variants WHERE id = $1', [variantId]);
+  return rows[0] || null;
+}
+
+module.exports = {
+  listPresets, getPreset,
+  listProjects, createProject, updateProject, getProject, deleteProject,
+  addInput, getInput, deleteInput,
+  generate, setActiveStep, getVariant, estimate,
+  saveInputBuffer, serveFilePath,
+  buildPrompt, priceFor,      // exported for tests
+  UPLOAD_ROOT, diskPathForUrl,
+};
