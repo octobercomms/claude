@@ -143,6 +143,26 @@ router.post('/projects/:projectId/generate', async (req, res) => {
   } catch (err) { res.status(err.status || 502).json({ error: err.message }); }
 });
 
+// Circle-and-fix (D11/D12): multipart — mask (required PNG), instruction, and an
+// optional reference crop. Produces a new correction step and makes it active.
+router.post('/variants/:variantId/inpaint', uploadMem.fields([{ name: 'mask', maxCount: 1 }, { name: 'reference', maxCount: 1 }]), async (req, res) => {
+  try {
+    const variant = await visualise.getVariant(req.params.variantId);
+    if (!variant) return res.status(404).json({ error: 'Not found' });
+    const project = await visualise.getProject(variant.project_id);
+    assertClientAccess(req, project.client_id);
+    const step = await visualise.inpaint(project, {
+      variantId: variant.id,
+      baseStepId: req.body?.base_step_id,
+      maskBuffer: req.files?.mask?.[0]?.buffer,
+      instruction: req.body?.instruction,
+      referenceBuffer: req.files?.reference?.[0]?.buffer || null,
+      userId: req.user.id,
+    });
+    res.json(step);
+  } catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+
 router.post('/variants/:variantId/active', async (req, res) => {
   try {
     const variant = await visualise.getVariant(req.params.variantId);

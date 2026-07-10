@@ -145,6 +145,7 @@ function Studio({ clientId, projectId, onBack }) {
   const [count, setCount] = useState(4);
   const [orientation, setOrientation] = useState('portrait');
   const [generating, setGenerating] = useState(false);
+  const [fixing, setFixing] = useState(false);
   const [guided, setGuided] = useState({});
 
   useEffect(() => { load(); /* eslint-disable-line */ }, [projectId]);
@@ -177,8 +178,10 @@ function Studio({ clientId, projectId, onBack }) {
   if (!project) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
 
   const baseVariant = (project.variants || []).find(v => !v.scene_prompt) || project.variants?.[0];
-  const steps = (baseVariant?.steps || []).filter(s => s.kind === 'generation');
+  const allSteps = baseVariant?.steps || [];
+  const steps = allSteps.filter(s => s.kind === 'generation');
   const activeId = baseVariant?.active_step_id;
+  const activeStep = allSteps.find(s => s.id === activeId) || null;
   const price = preset?.price_per_image ?? 0.1;
 
   return (
@@ -226,30 +229,32 @@ function Studio({ clientId, projectId, onBack }) {
           </div>
         </div>
 
-        {/* Right: variations */}
+        {/* Right: history + circle-and-fix */}
         <div className="card" style={{ minHeight: '60vh' }}>
           {generating ? (
             <GeneratingState count={count} />
-          ) : !steps.length ? (
+          ) : !allSteps.length ? (
             <div className="text-subtle" style={{ padding: 40, textAlign: 'center' }}>
               No images yet. Add your references on the left, fill the guided fields, then <strong>Generate</strong>.
             </div>
           ) : (
             <>
-              <div className="caption mb-3">Variations — click <strong>Use this</strong> to carry one forward</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-                {steps.map(s => (
-                  <div key={s.id} style={{ border: '2px solid ' + (s.id === activeId ? 'var(--accent)' : 'var(--card-border)'), borderRadius: 10, overflow: 'hidden' }}>
-                    <img src={s.image_url} alt="" style={{ width: '100%', display: 'block', aspectRatio: '3/4', objectFit: 'cover' }} />
-                    <div className="row between center" style={{ padding: 8 }}>
-                      {s.id === activeId
-                        ? <span className="chip chip-accent" style={{ fontSize: 10 }}>✓ In use</span>
-                        : <button className="btn btn-secondary btn-sm" onClick={() => setActive(baseVariant.id, s.id)}>Use this</button>}
-                      <a className="body-xs text-subtle" href={s.image_url} target="_blank" rel="noreferrer">Open ↗</a>
-                    </div>
-                  </div>
+              <div className="caption mb-2">History — click any image to select it ({steps.length} generation{steps.length === 1 ? '' : 's'}{allSteps.length > steps.length ? `, ${allSteps.length - steps.length} fix${allSteps.length - steps.length === 1 ? '' : 'es'}` : ''})</div>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 14 }}>
+                {allSteps.map(s => (
+                  <button key={s.id} onClick={() => setActive(baseVariant.id, s.id)} title={s.kind === 'correction' ? (s.instruction || 'fix') : 'generation'}
+                    style={{ flex: '0 0 auto', border: '2px solid ' + (s.id === activeId ? 'var(--accent)' : 'var(--card-border)'), borderRadius: 8, padding: 0, background: 'none', cursor: 'pointer', position: 'relative', lineHeight: 0 }}>
+                    <img src={s.image_url} alt="" style={{ width: 66, height: 88, objectFit: 'cover', display: 'block', borderRadius: 6 }} />
+                    <span style={{ position: 'absolute', bottom: 3, left: 3, background: s.kind === 'correction' ? 'var(--accent)' : 'rgba(0,0,0,.6)', color: s.kind === 'correction' ? 'var(--accent-on)' : '#fff', fontSize: 8, fontWeight: 800, borderRadius: 3, padding: '0 4px' }}>{s.kind === 'correction' ? 'FIX' : 'GEN'}</span>
+                  </button>
                 ))}
               </div>
+
+              {activeStep ? (
+                <CorrectionCanvas key={activeStep.id} imageUrl={activeStep.image_url} price={preset?.price_inpaint ?? 0.05} busy={fixing} onApply={applyFix} />
+              ) : (
+                <div className="text-subtle" style={{ padding: 20, textAlign: 'center' }}>Select an image above to refine it — then circle the area to change.</div>
+              )}
             </>
           )}
         </div>
@@ -261,6 +266,102 @@ function Studio({ clientId, projectId, onBack }) {
     try { await api.post(`/visualise/variants/${variantId}/active`, { step_id: stepId }); await load(); }
     catch (e) { toast(e.message, 'error'); }
   }
+
+  async function applyFix(maskBlob, instruction, referenceFile) {
+    if (fixing) return;
+    setFixing(true);
+    try {
+      const fd = new FormData();
+      fd.append('mask', maskBlob, 'mask.png');
+      fd.append('instruction', instruction);
+      fd.append('base_step_id', activeId);
+      if (referenceFile) fd.append('reference', referenceFile);
+      await api.postForm(`/visualise/variants/${baseVariant.id}/inpaint`, fd);
+      await load();
+      toast('Fix applied — only the circled area changed.', 'success');
+    } catch (e) { toast(`Fix failed: ${e.message}`, 'error'); }
+    finally { setFixing(false); }
+  }
+}
+
+// The crown jewel (§9): render the active image, let the user circle/paint the
+// region to change, and produce a binary mask PNG at the image's native size.
+// Only that region is regenerated (server composites the edit back inside the
+// mask, so everything else stays pixel-identical).
+function CorrectionCanvas({ imageUrl, price, busy, onApply }) {
+  const viewRef = useRef(null);
+  const maskRef = useRef(null);
+  const drawing = useRef(false);
+  const [brush, setBrush] = useState(40);
+  const [instruction, setInstruction] = useState('');
+  const [reference, setReference] = useState(null);
+  const [hasMask, setHasMask] = useState(false);
+
+  function onImgLoad(e) {
+    const img = e.target, w = img.naturalWidth, h = img.naturalHeight;
+    const view = viewRef.current;
+    view.width = w; view.height = h;
+    const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
+    const mctx = mask.getContext('2d'); mctx.fillStyle = '#000'; mctx.fillRect(0, 0, w, h);
+    maskRef.current = mask;
+    view.getContext('2d').clearRect(0, 0, w, h);
+    setHasMask(false);
+  }
+  function at(e) {
+    const view = viewRef.current, rect = view.getBoundingClientRect();
+    const sx = view.width / rect.width, sy = view.height / rect.height;
+    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy, r: (brush * sx) / 2 };
+  }
+  function paint(e) {
+    if (!maskRef.current) return;
+    const { x, y, r } = at(e);
+    const v = viewRef.current.getContext('2d');
+    v.fillStyle = 'rgba(231,205,65,0.45)'; v.beginPath(); v.arc(x, y, r, 0, Math.PI * 2); v.fill();
+    const m = maskRef.current.getContext('2d');
+    m.fillStyle = '#fff'; m.beginPath(); m.arc(x, y, r, 0, Math.PI * 2); m.fill();
+    if (!hasMask) setHasMask(true);
+  }
+  function down(e) { e.preventDefault(); drawing.current = true; try { viewRef.current.setPointerCapture(e.pointerId); } catch { /* ignore */ } paint(e); }
+  function move(e) { if (drawing.current) paint(e); }
+  function stop() { drawing.current = false; }
+  function clear() {
+    const view = viewRef.current; if (view) view.getContext('2d').clearRect(0, 0, view.width, view.height);
+    const mask = maskRef.current; if (mask) { const m = mask.getContext('2d'); m.fillStyle = '#000'; m.fillRect(0, 0, mask.width, mask.height); }
+    setHasMask(false);
+  }
+  function apply() {
+    if (!hasMask || !instruction.trim() || busy || !maskRef.current) return;
+    maskRef.current.toBlob(b => onApply(b, instruction.trim(), reference), 'image/png');
+  }
+
+  return (
+    <div>
+      <div className="caption mb-2">Circle the area to change, then say what it should be</div>
+      <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto', lineHeight: 0 }}>
+        <img src={imageUrl} alt="" onLoad={onImgLoad} style={{ width: '100%', display: 'block', borderRadius: 8 }} />
+        <canvas ref={viewRef}
+          onPointerDown={down} onPointerMove={move} onPointerUp={stop} onPointerLeave={stop}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'crosshair', touchAction: 'none', borderRadius: 8 }} />
+      </div>
+      <div className="row center wrap" style={{ gap: 12, margin: '12px 0' }}>
+        <label className="row center body-xs text-muted" style={{ gap: 6 }}>Brush
+          <input type="range" min="12" max="120" value={brush} onChange={e => setBrush(parseInt(e.target.value, 10))} /></label>
+        <button className="btn btn-ghost btn-sm" onClick={clear} disabled={!hasMask}>Clear</button>
+      </div>
+      <textarea className="textarea" rows={2} value={instruction} onChange={e => setInstruction(e.target.value)}
+        placeholder="e.g. the collar underside should be red" />
+      <div className="row between center wrap" style={{ gap: 8, marginTop: 8 }}>
+        <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
+          {reference ? '✓ Reference added' : '+ Reference crop (optional)'}
+          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setReference(e.target.files?.[0] || null)} />
+        </label>
+        <span className="body-xs text-subtle">Est. <strong>${price.toFixed(2)}</strong> per fix</span>
+      </div>
+      <button className="btn btn-primary mt-3" style={{ width: '100%' }} onClick={apply} disabled={busy || !hasMask || !instruction.trim()}>
+        {busy ? 'Applying the fix…' : '✎ Apply fix to the circled area'}
+      </button>
+    </div>
+  );
 }
 
 function GuidedField({ field, value, onChange }) {
