@@ -1,0 +1,604 @@
+#!/usr/bin/env python3
+"""
+Falcon Enamelware — Dropbox Image Product Tagger
+------------------------------------------------
+Walks a Dropbox folder full of product photos, asks Claude which Falcon
+Enamelware product(s) appear in each image, and records the result so you can
+filter the folder by product type (e.g. "oval plate", "3 pint jug").
+
+It writes tags to TWO places:
+  1. A local CSV index  — the master, sortable/filterable list (one row per
+     image, with its Dropbox path and the matched product tags). Open it in
+     Excel/Google Sheets and filter the "tags" column.
+  2. Native Dropbox tags — real tags on each file (e.g. `oval_plate`). On
+     dropbox.com you can then filter/sort by Tags, or type the tag into the
+     search box, and just those photos appear.
+
+Safe to re-run: it remembers what it has already tagged (checkpoint.json) and
+skips those files. Start with DRY_RUN=True to fill only the CSV and eyeball the
+accuracy, then set DRY_RUN=False to also write the Dropbox tags.
+
+SETUP: see docs/falcon-image-tagger/README-dropbox.md
+"""
+
+import argparse
+import base64
+import csv
+import io
+import json
+import os
+import re
+import sys
+import time
+
+import anthropic
+import dropbox
+from dropbox.exceptions import ApiError, RateLimitError
+
+# ============================ CONFIG ============================
+CONFIG = {
+    # The Dropbox folder to scan. Use "" for the whole Dropbox, or a path like
+    # "/Falcon Enamelware/Photos" (leading slash, case-sensitive-ish).
+    "FOLDER": "/Falcon Enamelware",
+
+    # Scan sub-folders too?
+    "RECURSIVE": True,
+
+    # Which Claude model. Default is a good accuracy/cost balance.
+    #   claude-sonnet-5   -> recommended default (great on tricky jug sizes)
+    #   claude-haiku-4-5  -> cheapest & fastest, for very large folders
+    #   claude-opus-4-8   -> highest accuracy, most expensive
+    "MODEL": "claude-sonnet-5",
+
+    # Dry run: only fill the CSV, do NOT change anything in Dropbox. Start True,
+    # check the CSV, then set False to apply the changes below.
+    "DRY_RUN": True,
+
+    # Add native Dropbox tags to each file (filterable in the Dropbox web UI).
+    "WRITE_TAGS": True,
+
+    # Trust the FOLDER NAME when it clearly names a product. Your product shots
+    # live in folders like ".../Oval Plate/..." or ".../Jugs/3 pint jug/...", so
+    # the folder is a 100%-reliable answer — no AI call needed (accurate AND
+    # free/fast). The AI is only used where the folder gives no product clue
+    # (Lifestyle, Collaborator, Website shots). Turn off with --no-folder-hints.
+    "USE_FOLDER_HINTS": True,
+
+    # Append the product name(s) into the FILENAME, e.g.
+    #   "IMG_2043.jpg" -> "IMG_2043 {falcon: oval plate, 3 pint jug}.jpg".
+    # Permanent, visible to everyone with folder access, and findable by ANY
+    # search box (Dropbox web, desktop app, synced tools). Re-running updates
+    # the marker rather than stacking a second one.
+    "RENAME_FILES": False,
+
+    # Where the master index and progress checkpoint are written (local files).
+    "CSV_PATH": "falcon_tags.csv",
+    "CHECKPOINT_PATH": "checkpoint.json",
+
+    # Skip files larger than this before any resize (MB).
+    "MAX_FILE_MB": 25,
+
+    # Downscale long edge to this many px before sending to Claude (needs Pillow;
+    # keeps vision accuracy high while cutting tokens/cost). Ignored if Pillow
+    # isn't installed.
+    "RESIZE_LONG_EDGE": 1568,
+
+    # Folder of REFERENCE photos that teach Claude your specific products.
+    # Drop one clear image per product, named by its tag, e.g.
+    #   references/three_pint_jug.jpg, references/mug.png
+    # Claude then matches new photos against these instead of a generic idea of
+    # "a jug". Only add the products it gets wrong — you don't need all of them.
+    # These are sent with every request but cached, so they stay cheap.
+    "REFERENCES_DIR": "references",
+
+    # Gentle pacing between images (seconds).
+    "SLEEP_BETWEEN": 0.15,
+
+    # Save the checkpoint every N images.
+    "CHECKPOINT_EVERY": 10,
+}
+
+# The product catalog — what Claude matches photos against. Edit to mirror your
+# category page. `tag` must be lowercase letters/numbers/underscores, < 32 chars
+# (a Dropbox tag rule). Seeded with Falcon's classic range.
+PRODUCTS = [
+    # Plates & bowls
+    {"tag": "oval_plate",         "name": "Oval Plate",         "hints": "oblong/oval flat plate"},
+    {"tag": "dinner_plate",       "name": "24cm Plate",         "hints": "large round flat plate (24cm), sold as a set"},
+    {"tag": "small_side_plate",   "name": "Small Side Plate",   "hints": "small round flat plate"},
+    {"tag": "deep_plate",         "name": "Deep Plate",         "hints": "round plate with a deep rim / shallow-bowl shape"},
+    {"tag": "bowl_12cm",          "name": "12cm Bowl",          "hints": "small round bowl (12cm)"},
+    {"tag": "fruit_bowl",         "name": "Fruit Bowl",         "hints": "wide bowl on a low pedestal foot"},
+    {"tag": "large_serving_dish", "name": "Large Serving Dish", "hints": "large oval deep serving dish"},
+    {"tag": "medium_serving_dish","name": "Medium Serving Dish","hints": "medium oval deep serving dish"},
+    {"tag": "sauce_dish",         "name": "Small Sauce Dish",   "hints": "very small shallow dish"},
+    {"tag": "pinch_pot",          "name": "Pinch Pot",          "hints": "tiny open pot for salt/spices"},
+    # Cups & drinkware
+    {"tag": "mug",                "name": "Mug",                "hints": "cup with a handle"},
+    {"tag": "espresso_cup",       "name": "Espresso Cup",       "hints": "very small cup with a handle"},
+    {"tag": "tumbler",            "name": "Tumbler",            "hints": "straight-sided beaker, no handle"},
+    {"tag": "mini_tumbler",       "name": "Mini Tumbler",       "hints": "small short tumbler"},
+    {"tag": "tall_tumbler",       "name": "Tall Tumbler",       "hints": "tall tumbler"},
+    # Jugs
+    {"tag": "one_pint_jug",       "name": "1 Pint Jug",         "hints": "small/medium jug, pouring lip and handle"},
+    {"tag": "two_pint_jug",       "name": "2 Pint Jug",         "hints": "large jug, pouring lip and handle"},
+    {"tag": "three_pint_jug",     "name": "3 Pint Jug",         "hints": "extra-large jug, pouring lip and handle"},
+    # Bakeware & tins
+    {"tag": "pie_dish",           "name": "Pie Dish",           "hints": "shallow round baking dish, sloped sides"},
+    {"tag": "pie_set",            "name": "Pie Set",            "hints": "set of pie dishes"},
+    {"tag": "bake_set",           "name": "Bake Set",           "hints": "set of rectangular oven trays"},
+    {"tag": "square_bake_tray",   "name": "Square Bake Tray",   "hints": "square oven tray"},
+    {"tag": "loaf_tin",           "name": "Loaf Tin",           "hints": "deep rectangular loaf tin"},
+    {"tag": "cake_tin",           "name": "Cake Tin",           "hints": "round cake tin"},
+    {"tag": "decorative_cake_tin","name": "Decorative Cake Tin","hints": "patterned round cake tin"},
+    {"tag": "cake_stand",         "name": "Cake Stand",         "hints": "plate raised on a pedestal foot"},
+    {"tag": "prep_set",           "name": "Prep Set",           "hints": "set of nested prep bowls"},
+    # Trays, pots & serving
+    {"tag": "serving_tray",       "name": "Serving Tray",       "hints": "flat rectangular tray with rim"},
+    {"tag": "small_tray",         "name": "Small Tray",         "hints": "small flat tray"},
+    {"tag": "utensil_pot",        "name": "Utensil Pot",        "hints": "tall open cylinder holding utensils"},
+    {"tag": "teapot",             "name": "Teapot",             "hints": "pot with spout, lid and handle"},
+    {"tag": "soap_dish",          "name": "Soap Dish",          "hints": "small shallow dish for soap"},
+    {"tag": "dog_bowl",           "name": "Dog Bowl",           "hints": "sturdy low pet feeding bowl"},
+    {"tag": "candle",             "name": "Cook's Candle",      "hints": "candle in an enamel pot/tin"},
+    {"tag": "gift_set",           "name": "Gift Set",           "hints": "boxed/grouped collection of items"},
+    {"tag": "utensils",           "name": "Utensils",           "hints": "loose kitchen utensils (spoons, etc.)"},
+    # Fabricware (in case group/lifestyle shots include them)
+    {"tag": "apron",              "name": "Apron",              "hints": "fabric apron"},
+    {"tag": "tea_towel",          "name": "Tea Towel",          "hints": "fabric tea towel"},
+    {"tag": "oven_gloves",        "name": "Oven Gloves",        "hints": "fabric oven gloves/mitts"},
+    {"tag": "tote_bag",           "name": "Tote Bag",           "hints": "canvas tote bag"},
+]
+# ===============================================================
+
+VALID_TAGS = {p["tag"] for p in PRODUCTS}
+NAME_BY_TAG = {p["tag"]: p["name"] for p in PRODUCTS}
+MARKER_RE = re.compile(r"\s*\{falcon:[^}]*\}")  # our filename marker, for idempotent re-runs
+IMAGE_MIME = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+    ".gif": "image/gif", ".webp": "image/webp",
+}
+
+try:
+    from PIL import Image
+    HAVE_PIL = True
+except ImportError:
+    HAVE_PIL = False
+
+
+def dropbox_client():
+    """Build a Dropbox client from env vars (refresh token preferred)."""
+    refresh = os.environ.get("DROPBOX_REFRESH_TOKEN")
+    if refresh:
+        return dropbox.Dropbox(
+            oauth2_refresh_token=refresh,
+            app_key=os.environ["DROPBOX_APP_KEY"],
+            app_secret=os.environ["DROPBOX_APP_SECRET"],
+        )
+    token = os.environ.get("DROPBOX_ACCESS_TOKEN")
+    if token:
+        return dropbox.Dropbox(token)
+    sys.exit("Set DROPBOX_REFRESH_TOKEN (+ APP_KEY/APP_SECRET) or DROPBOX_ACCESS_TOKEN.")
+
+
+def iter_images(dbx):
+    """Yield Dropbox FileMetadata for every image in the folder."""
+    path = "" if CONFIG["FOLDER"] in ("", "/") else CONFIG["FOLDER"]
+    res = _rl(lambda: dbx.files_list_folder(path, recursive=CONFIG["RECURSIVE"]))
+    while True:
+        for entry in res.entries:
+            if isinstance(entry, dropbox.files.FileMetadata):
+                ext = os.path.splitext(entry.name)[1].lower()
+                if ext in IMAGE_MIME:
+                    yield entry
+        if not res.has_more:
+            break
+        res = _rl(lambda: dbx.files_list_folder_continue(res.cursor))
+
+
+def _rl(fn, tries=5):
+    """Call a Dropbox function, backing off on rate limits."""
+    for attempt in range(tries):
+        try:
+            return fn()
+        except RateLimitError as e:
+            wait = getattr(e, "backoff", None) or (2 ** attempt)
+            print(f"  rate-limited, waiting {wait:.0f}s")
+            time.sleep(wait)
+    raise RuntimeError("Dropbox rate limit: gave up after retries")
+
+
+def prep_image(raw, ext, max_edge=None):
+    """Return (base64_data, media_type), downscaling with Pillow if available."""
+    max_edge = max_edge or CONFIG["RESIZE_LONG_EDGE"]
+    if HAVE_PIL:
+        try:
+            img = Image.open(io.BytesIO(raw))
+            img = img.convert("RGB")
+            long_edge = max(img.size)
+            if long_edge > max_edge:
+                scale = max_edge / long_edge
+                img = img.resize((int(img.width * scale), int(img.height * scale)))
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=85)
+            return base64.standard_b64encode(buf.getvalue()).decode(), "image/jpeg"
+        except Exception:
+            pass  # fall through to sending the original bytes
+    return base64.standard_b64encode(raw).decode(), IMAGE_MIME[ext]
+
+
+def build_reference_blocks():
+    """Load reference photos from the references/ dir into cached message blocks.
+
+    Each file named <tag>.<ext> becomes a labelled example so Claude matches new
+    photos against your actual products. Returns [] if the dir is missing/empty.
+    """
+    d = CONFIG["REFERENCES_DIR"]
+    if not os.path.isdir(d):
+        return []
+    blocks = []
+
+    # 1. Whole catalogue page, if you dropped one in as references/catalog.<ext>.
+    #    (Your website's category page screenshot works perfectly.)
+    for ext in IMAGE_MIME:
+        sheet = os.path.join(d, "catalog" + ext)
+        if os.path.isfile(sheet):
+            with open(sheet, "rb") as f:
+                b64, mt = prep_image(f.read(), ext, max_edge=2200)  # keep labels legible
+            blocks.append({"type": "text", "text": (
+                "FALCON ENAMELWARE PRODUCT CATALOGUE. The image below is our category "
+                "page; every product is shown with its name. Use it as the reference "
+                "for what each product looks like:")})
+            blocks.append({"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}})
+            print(f"Loaded catalogue sheet: {sheet}")
+            break
+
+    # 2. Per-product reference photos: references/<tag>.<ext>.
+    entries = []
+    for fn in sorted(os.listdir(d)):
+        tag, ext = os.path.splitext(fn)
+        tag, ext = tag.lower(), ext.lower()
+        if tag in VALID_TAGS and ext in IMAGE_MIME:
+            with open(os.path.join(d, fn), "rb") as f:
+                b64, mt = prep_image(f.read(), ext)
+            entries.append((tag, b64, mt))
+    if entries:
+        blocks.append({"type": "text", "text": (
+            "REFERENCE PHOTOS. Each image below is followed by the exact product tag "
+            "it shows. Use these to recognise the same products in the photo you tag:")})
+        for tag, b64, mt in entries:
+            blocks.append({"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}})
+            blocks.append({"type": "text", "text": f"= {tag}"})
+        print(f"Loaded {len(entries)} reference photo(s): {', '.join(t for t, _, _ in entries)}")
+
+    if not blocks:
+        return []
+    blocks[-1]["cache_control"] = {"type": "ephemeral"}  # cache the whole reference prefix
+    return blocks
+
+
+def classify(client, b64, media_type, reference_blocks=()):
+    """Ask Claude which catalog products appear. Returns a list of tags."""
+    catalog = "\n".join(
+        f"- {p['tag']}: {p['name']}" + (f" ({p['hints']})" if p["hints"] else "")
+        for p in PRODUCTS
+    )
+    prompt = (
+        "You are tagging product photos for Falcon Enamelware. Decide which of "
+        "these product types are the MAIN subject(s) of the photo.\n\n"
+        "PRODUCT CATALOG (return the tag on the left):\n" + catalog + "\n\n"
+        "Rules:\n"
+        "- Only include a product that is clearly a featured item, not a tiny background prop.\n"
+        "- A photo can contain more than one product type.\n"
+        "- Judge jug sizes from relative proportions; if genuinely unclear, pick the closest.\n"
+        "- If no catalog product is present, return an empty list.\n"
+        "Return ONLY the matching tags."
+    )
+    schema = {
+        "type": "object",
+        "properties": {
+            "tags": {"type": "array", "items": {"type": "string", "enum": sorted(VALID_TAGS)}}
+        },
+        "required": ["tags"],
+        "additionalProperties": False,
+    }
+    # Stable prefix first (catalog + reference photos, cached), varying target last.
+    content = [{"type": "text", "text": prompt}]
+    content.extend(reference_blocks)
+    content.append({"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}})
+    resp = client.messages.create(
+        model=CONFIG["MODEL"],
+        max_tokens=1024,
+        output_config={"format": {"type": "json_schema", "schema": schema}},
+        messages=[{"role": "user", "content": content}],
+    )
+    text = next((b.text for b in resp.content if b.type == "text"), "")
+    if not text:
+        return []
+    tags = json.loads(text).get("tags", [])
+    return [t for t in tags if t in VALID_TAGS]
+
+
+# Folder-name → tag rules, most specific first. A folder segment that contains
+# any pattern maps to that product. Used to tag your already-sorted product
+# shots without calling the AI.
+FOLDER_RULES = [
+    (["oval plate"], "oval_plate"),
+    (["24cm plate", "plate set"], "dinner_plate"),
+    (["side plate"], "small_side_plate"),
+    (["deep plate"], "deep_plate"),
+    (["12cm bowl"], "bowl_12cm"),
+    (["fruit bowl"], "fruit_bowl"),
+    (["large serving dish", "large salad bowl"], "large_serving_dish"),
+    (["medium serving dish", "medium salad bowl"], "medium_serving_dish"),
+    (["sauce dish"], "sauce_dish"),
+    (["pinch pot"], "pinch_pot"),
+    (["espresso"], "espresso_cup"),
+    (["mini tumbler"], "mini_tumbler"),
+    (["tall tumbler"], "tall_tumbler"),
+    (["tumbler"], "tumbler"),
+    (["mug"], "mug"),
+    (["1 pint jug", "1pint jug"], "one_pint_jug"),
+    (["2 pint jug", "2pint jug"], "two_pint_jug"),
+    (["3 pint jug", "3pint jug"], "three_pint_jug"),
+    (["pie dish"], "pie_dish"),
+    (["pie set"], "pie_set"),
+    (["bake set"], "bake_set"),
+    (["square bake tray"], "square_bake_tray"),
+    (["loaf tin"], "loaf_tin"),
+    (["decorative cake tin"], "decorative_cake_tin"),
+    (["cake tin"], "cake_tin"),
+    (["cake stand"], "cake_stand"),
+    (["prep set"], "prep_set"),
+    (["small serving tray", "small tray"], "small_tray"),
+    (["serving tray"], "serving_tray"),
+    (["utensil pot"], "utensil_pot"),
+    (["teapot", "tea pot"], "teapot"),
+    (["soap dish"], "soap_dish"),
+    (["dog bowl"], "dog_bowl"),
+    (["candle"], "candle"),
+    (["gift set"], "gift_set"),
+    (["apron"], "apron"),
+    (["tea towel"], "tea_towel"),
+    (["oven glove"], "oven_gloves"),
+    (["tote"], "tote_bag"),
+    (["utensils"], "utensils"),
+]
+
+
+def folder_tag_from_path(path):
+    """If a parent folder clearly names a product, return its tag (else None)."""
+    segs = [re.sub(r"[\s_+]+", " ", s.lower()).strip() for s in path.split("/") if s]
+    for seg in reversed(segs[:-1]):  # deepest folder first; skip the filename
+        for patterns, tag in FOLDER_RULES:
+            if any(p in seg for p in patterns):
+                return tag
+    return None
+
+
+def load_checkpoint():
+    try:
+        with open(CONFIG["CHECKPOINT_PATH"]) as f:
+            return set(json.load(f))
+    except (OSError, json.JSONDecodeError):
+        return set()
+
+
+def save_checkpoint(done):
+    with open(CONFIG["CHECKPOINT_PATH"], "w") as f:
+        json.dump(sorted(done), f)
+
+
+def main():
+    dbx = dropbox_client()
+    client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY / ant profile
+
+    # Only LIVE runs record progress. A dry run is for sampling/checking, so it
+    # never writes the checkpoint — otherwise it would mark files "done" and a
+    # later live run would skip them and write no tags.
+    use_checkpoint = not CONFIG["DRY_RUN"]
+    done = load_checkpoint() if use_checkpoint else set()
+    reference_blocks = build_reference_blocks()
+
+    csv_exists = os.path.exists(CONFIG["CSV_PATH"])
+    csv_file = open(CONFIG["CSV_PATH"], "a", newline="", encoding="utf-8")
+    writer = csv.writer(csv_file)
+    if not csv_exists:
+        writer.writerow(["name", "path", "tags", "source", "file_id"])
+
+    processed = tagged = skipped = 0
+    for meta in iter_images(dbx):
+        if meta.id in done:
+            skipped += 1
+            continue
+
+        ext = os.path.splitext(meta.name)[1].lower()
+        try:
+            # 1. Trust the folder name if it clearly says the product (no AI, no download).
+            tags, source = None, "ai"
+            if CONFIG["USE_FOLDER_HINTS"]:
+                hint = folder_tag_from_path(meta.path_display)
+                if hint:
+                    tags, source = [hint], "folder"
+
+            # 2. Otherwise ask Claude (download + classify).
+            if tags is None:
+                if meta.size > CONFIG["MAX_FILE_MB"] * 1024 * 1024:
+                    writer.writerow([meta.name, meta.path_display, "(skipped: too large)", "ai", meta.id])
+                    if use_checkpoint:
+                        done.add(meta.id)
+                    skipped += 1
+                    continue
+                _, resp = _rl(lambda: dbx.files_download(meta.path_lower))
+                b64, media_type = prep_image(resp.content, ext)
+                tags = classify(client, b64, media_type, reference_blocks)
+                time.sleep(CONFIG["SLEEP_BETWEEN"])
+
+            final_name = meta.name
+            if not CONFIG["DRY_RUN"]:
+                if CONFIG["WRITE_TAGS"] and tags:
+                    _apply_tags(dbx, meta.path_lower, tags)
+                    tagged += 1
+                if CONFIG["RENAME_FILES"]:
+                    final_name = _rename_file(dbx, meta.path_lower, meta.name, tags)
+
+            writer.writerow([final_name, meta.path_display, ", ".join(tags) or "(none)", source, meta.id])
+            csv_file.flush()
+
+            if use_checkpoint:
+                done.add(meta.id)
+                if processed % CONFIG["CHECKPOINT_EVERY"] == 0:
+                    save_checkpoint(done)
+            processed += 1
+            print(f"[{processed}] ({source}) {meta.name} -> {', '.join(tags) or '(none)'}")
+        except Exception as e:  # noqa: BLE001 - keep going, record the failure
+            print(f"  error on {meta.name}: {e}")
+            writer.writerow([meta.name, meta.path_display, f"(error: {e})", "ai", meta.id])
+            csv_file.flush()
+            # not added to `done`, so it retries on the next run
+
+    if use_checkpoint:
+        save_checkpoint(done)
+    csv_file.close()
+    mode = "DRY RUN (CSV only)" if CONFIG["DRY_RUN"] else "LIVE (CSV + Dropbox tags)"
+    print(f"\nFinished [{mode}]. processed {processed}, tagged {tagged}, skipped {skipped}.")
+    print(f"Index: {CONFIG['CSV_PATH']}")
+
+
+def _apply_tags(dbx, path, tags):
+    """Add the product tags to a Dropbox file (skips ones already present)."""
+    try:
+        existing = set()
+        got = _rl(lambda: dbx.files_tags_get([path]))
+        for entry in got.paths_to_tags:
+            if entry.path == path:
+                existing = {t.get_user_generated_tag().tag_text for t in entry.tags}
+        for tag in tags:
+            if tag not in existing:
+                _rl(lambda t=tag: dbx.files_tags_add(path, t))
+    except ApiError as e:
+        print(f"  tag error on {path}: {e}")
+
+
+def _rename_file(dbx, path_lower, name, tags):
+    """Append the product names into the filename. Idempotent across re-runs.
+
+    "IMG_2043.jpg" + [oval_plate, three_pint_jug]
+        -> "IMG_2043 {falcon: oval plate, 3 pint jug}.jpg"
+    """
+    base, ext = os.path.splitext(name)
+    base = MARKER_RE.sub("", base).rstrip()  # strip any previous marker first
+    if tags:
+        names = ", ".join(NAME_BY_TAG[t] for t in tags)
+        marker = f" {{falcon: {names}}}"
+        # Dropbox caps a name component at 255 chars.
+        budget = 255 - len(ext) - len(base)
+        if len(marker) > budget:
+            marker = marker[: max(0, budget - 1)].rstrip() + "}"
+        new_name = base + marker + ext
+    else:
+        new_name = base + ext  # no products -> just strip any old marker
+
+    if new_name == name:
+        return name
+    folder = os.path.dirname(path_lower)
+    to_path = (folder + "/" if folder not in ("", "/") else "/") + new_name
+    try:
+        _rl(lambda: dbx.files_move_v2(path_lower, to_path, autorename=True))
+        return new_name
+    except ApiError as e:
+        print(f"  rename error on {name}: {e}")
+        return name
+
+
+def clear_all_tags():
+    """Utility: remove every product tag AND filename marker this tool applied."""
+    dbx = dropbox_client()
+    tags_removed = renamed = 0
+    for meta in iter_images(dbx):
+        try:
+            got = _rl(lambda: dbx.files_tags_get([meta.path_lower]))
+            for entry in got.paths_to_tags:
+                for t in entry.tags:
+                    text = t.get_user_generated_tag().tag_text
+                    if text in VALID_TAGS:
+                        _rl(lambda tx=text: dbx.files_tags_remove(meta.path_lower, tx))
+                        tags_removed += 1
+            if MARKER_RE.search(meta.name):
+                base, ext = os.path.splitext(meta.name)
+                clean = MARKER_RE.sub("", base).rstrip() + ext
+                folder = os.path.dirname(meta.path_lower)
+                to_path = (folder + "/" if folder not in ("", "/") else "/") + clean
+                _rl(lambda: dbx.files_move_v2(meta.path_lower, to_path, autorename=True))
+                renamed += 1
+        except ApiError as e:
+            print(f"  {meta.name}: {e}")
+    print(f"Removed {tags_removed} product tags and cleaned {renamed} filenames.")
+
+
+def list_folders(path=""):
+    """Print the folders directly inside `path` (root by default), as they load.
+
+    Fast because it only lists one level. To look inside a folder, pass it:
+        python3 dropbox_tagger.py list-folders --folder "/Falcon Enamelware"
+    """
+    dbx = dropbox_client()
+    path = "" if path in ("", "/") else path
+    where = path or "your Dropbox (top level)"
+    print(f"Scanning {where}...\n", flush=True)
+    res = _rl(lambda: dbx.files_list_folder(path))  # not recursive -> quick
+    count = 0
+    while True:
+        for e in res.entries:
+            if isinstance(e, dropbox.files.FolderMetadata):
+                print(e.path_display, flush=True)
+                count += 1
+        if not res.has_more:
+            break
+        res = _rl(lambda: dbx.files_list_folder_continue(res.cursor))
+    print(f"\n{count} folders here.")
+    print("Copy the one with your photos, then run (dry run, changes nothing):")
+    print('  python3 dropbox_tagger.py --folder "/That Folder"')
+    print('To look inside a folder instead: '
+          'python3 dropbox_tagger.py list-folders --folder "/That Folder"')
+
+
+def apply_overrides(args):
+    """Let command-line flags / env vars override CONFIG — no file editing needed."""
+    folder = args.folder or os.environ.get("FALCON_FOLDER")
+    if folder is not None:
+        CONFIG["FOLDER"] = folder
+    if args.model:
+        CONFIG["MODEL"] = args.model
+    if args.live:
+        CONFIG["DRY_RUN"] = False
+    if args.rename:
+        CONFIG["RENAME_FILES"] = True
+    if args.no_tags:
+        CONFIG["WRITE_TAGS"] = False
+    if args.no_folder_hints:
+        CONFIG["USE_FOLDER_HINTS"] = False
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(description="Tag Falcon Enamelware photos in Dropbox.")
+    ap.add_argument("command", nargs="?", default="run",
+                    choices=["run", "list-folders", "clear-tags"],
+                    help="run (default), list-folders (show your folders), or clear-tags (undo)")
+    ap.add_argument("--folder", help='Dropbox folder path, e.g. "/Falcon Enamelware"')
+    ap.add_argument("--model", help="Claude model (claude-sonnet-5 / claude-haiku-4-5 / claude-opus-4-8)")
+    ap.add_argument("--live", action="store_true", help="Actually apply changes (off = dry run)")
+    ap.add_argument("--rename", action="store_true", help="Also put the product name in the filename")
+    ap.add_argument("--no-tags", action="store_true", help="Don't write Dropbox tags")
+    ap.add_argument("--no-folder-hints", action="store_true",
+                    help="Always use the AI, even when the folder name says the product")
+    args = ap.parse_args()
+
+    apply_overrides(args)
+
+    if args.command == "list-folders":
+        list_folders(args.folder or os.environ.get("FALCON_FOLDER") or "")
+    elif args.command == "clear-tags":
+        clear_all_tags()
+    else:
+        main()
