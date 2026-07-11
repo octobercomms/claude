@@ -336,20 +336,36 @@ router.get('/clients/:clientId/ad-sizes', async (req, res) => {
   res.json({ groups: adResize.catalog(), prices: adResize.prices() });
 });
 
-router.post('/clients/:clientId/resize', uploadMem.single('file'), async (req, res) => {
+// Accepts one or many images ('files'), plus a legacy single 'file'. Each image
+// is reshaped into the selected sizes independently; one image failing doesn't
+// sink the rest.
+router.post('/clients/:clientId/resize', uploadMem.fields([{ name: 'files', maxCount: 25 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'file required' });
-    if (!req.file.mimetype.startsWith('image/')) return res.status(400).json({ error: 'Image files only.' });
+    const files = [...(req.files?.files || []), ...(req.files?.file || [])];
+    if (!files.length) return res.status(400).json({ error: 'file required' });
     let sizes = req.body?.sizes;
     if (typeof sizes === 'string') {
       try { sizes = JSON.parse(sizes); }
       catch { sizes = sizes.split(',').map(s => s.trim()).filter(Boolean); }
     }
     if (!Array.isArray(sizes) || !sizes.length) return res.status(400).json({ error: 'Pick at least one ad size.' });
-    const out = await adResize.resizeImage({
-      clientId: req.params.clientId, buffer: req.file.buffer, sizeKeys: sizes, userId: req.user.id,
-    });
-    res.json(out);
+
+    const items = [];
+    let total = 0;
+    for (const f of files) {
+      if (!f.mimetype.startsWith('image/')) { items.push({ name: f.originalname, error: 'Not an image file.' }); continue; }
+      try {
+        const out = await adResize.resizeImage({
+          clientId: req.params.clientId, buffer: f.buffer, sizeKeys: sizes, userId: req.user.id,
+        });
+        items.push({ name: f.originalname, ...out });
+        total += out.spend_usd || 0;
+      } catch (err) {
+        console.error(`[ad-resize] ${f.originalname} failed:`, err.message);
+        items.push({ name: f.originalname, error: err.message });
+      }
+    }
+    res.json({ items, spend_usd: +total.toFixed(4) });
   } catch (err) {
     console.error('[ad-resize] failed:', err);
     res.status(err.status || 502).json({ error: err.message });
