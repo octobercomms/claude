@@ -704,9 +704,101 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 		$plan_error   = isset( $_GET['plan_error'] ) ? sanitize_key( $_GET['plan_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		?>
 		<?php if ( 'plan' === $step ) : ?>
+		<?php
+		// ---------------------------------------------------------------
+		// Digitised plan editor — the accurate, human-edited base (no AI drawing)
+		// ---------------------------------------------------------------
+		$hgd_plan_doc   = HGD_Plan_Doc::get( $project );
+		$hgd_plan_base  = HGD_Project_Asset::base_plan( $pid );
+		$hgd_plan_bgurl = '';
+		foreach ( array( 'sketch', 'photo' ) as $hgd_pb_role ) {
+			foreach ( HGD_Project_Asset::for_project( $pid, $hgd_pb_role ) as $hgd_pb_row ) {
+				if ( ! empty( $hgd_pb_row['attachment_id'] ) ) {
+					$hgd_plan_bgurl = (string) wp_get_attachment_image_url( (int) $hgd_pb_row['attachment_id'], 'large' );
+					break 2;
+				}
+			}
+		}
+		?>
 		<div class="hgd-panel">
-			<h2><?php esc_html_e( 'Plan drawing', 'hillcroft-garden-designer' ); ?></h2>
-			<p class="hgd-muted"><?php esc_html_e( 'Generate a clean top-down plan from your sketch and notes, and iterate it until the layout is right. The approved plan becomes the reference for your renders, so they follow the real layout.', 'hillcroft-garden-designer' ); ?></p>
+			<h2><?php esc_html_e( 'Digitised plan (the accurate base)', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Read the sketch into an editable plan, then correct every label and shape by hand. Render a clean technical drawing from it that anchors your renders. Nothing here is AI-drawn — the model only transcribes; you verify.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( isset( $_GET['plandoc_detected'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Read the sketch into the editor — check and correct every label and shape, then Save.', 'hillcroft-garden-designer' ); ?></div>
+			<?php elseif ( isset( $_GET['plandoc_saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Plan saved.', 'hillcroft-garden-designer' ); ?></div>
+			<?php elseif ( isset( $_GET['planrender_done'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Technical plan rendered — it now anchors your renders.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['plandoc_error'] ) || isset( $_GET['planrender_error'] ) ) :
+				$hgd_pl_msg = get_transient( 'hgd_plan_error_' . get_current_user_id() ); delete_transient( 'hgd_plan_error_' . get_current_user_id() ); ?>
+				<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $hgd_pl_msg ? $hgd_pl_msg : __( 'Something went wrong. Please try again.', 'hillcroft-garden-designer' ) ); ?></div>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="hgd_extract_plan" />
+				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<?php wp_nonce_field( 'hgd_extract_plan_' . $pid ); ?>
+				<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Read sketch with Claude', 'hillcroft-garden-designer' ); ?></button>
+				<span class="hgd-muted"><?php esc_html_e( 'Transcribes the layout, dimensions and every label into the editor. Always correct it by hand.', 'hillcroft-garden-designer' ); ?></span>
+			</form>
+
+			<div class="hgd-plan-editor" data-hgd-plan-editor data-bg="<?php echo esc_url( $hgd_plan_bgurl ); ?>">
+				<div class="hgd-plan-tools">
+					<button type="button" class="hgd-pill hgd-pill-ghost is-active" data-tool="select"><?php esc_html_e( 'Select / move', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="boundary"><?php esc_html_e( 'Boundary', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="zone"><?php esc_html_e( 'Zone', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-finish><?php esc_html_e( 'Finish shape', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="tree"><?php esc_html_e( 'Tree', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="structure"><?php esc_html_e( 'Structure', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="water"><?php esc_html_e( 'Water', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="level"><?php esc_html_e( 'Level', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="access"><?php esc_html_e( 'Access', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="dimension"><?php esc_html_e( 'Dimension', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="circle"><?php esc_html_e( 'Circle note', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="note"><?php esc_html_e( 'Note', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="label"><?php esc_html_e( 'Label', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-tool="delete"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-undo><?php esc_html_e( 'Undo point', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-clear><?php esc_html_e( 'Clear', 'hillcroft-garden-designer' ); ?></button>
+				</div>
+				<p class="hgd-muted"><?php esc_html_e( 'Tip: double-click any label to edit its text. Draw the boundary or a zone by clicking points, then “Finish shape”. Use Select to drag things.', 'hillcroft-garden-designer' ); ?></p>
+				<div class="hgd-plan-meta">
+					<label><?php esc_html_e( 'Plan title', 'hillcroft-garden-designer' ); ?> <input type="text" data-plan-title value="<?php echo esc_attr( $hgd_plan_doc['meta']['title'] ); ?>" /></label>
+					<label><?php esc_html_e( 'North (°)', 'hillcroft-garden-designer' ); ?> <input type="number" min="0" max="359" data-north value="<?php echo esc_attr( (float) $hgd_plan_doc['orientation']['north_deg'] ); ?>" /></label>
+				</div>
+				<div class="hgd-konva-frame" data-konva></div>
+				<div class="hgd-existing-edges" data-edges></div>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form-actions">
+					<input type="hidden" name="action" value="hgd_save_plan" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<?php wp_nonce_field( 'hgd_save_plan_' . $pid ); ?>
+					<input type="hidden" name="plan_json" data-plan-json value="<?php echo esc_attr( wp_json_encode( $hgd_plan_doc ) ); ?>" />
+					<button type="submit" class="hgd-pill"><?php esc_html_e( 'Save plan', 'hillcroft-garden-designer' ); ?></button>
+				</form>
+			</div>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form-actions">
+				<input type="hidden" name="action" value="hgd_render_plan" />
+				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<?php wp_nonce_field( 'hgd_render_plan_' . $pid ); ?>
+				<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Render technical plan', 'hillcroft-garden-designer' ); ?></button>
+				<span class="hgd-muted"><?php esc_html_e( 'Draws a clean, labelled plan from what you saved and sets it as the anchor for renders.', 'hillcroft-garden-designer' ); ?></span>
+			</form>
+
+			<?php if ( $hgd_plan_base && ! empty( $hgd_plan_base['attachment_id'] ) ) :
+				$hgd_pb_url = (string) wp_get_attachment_url( (int) $hgd_plan_base['attachment_id'] ); ?>
+				<div class="hgd-base-plan-preview">
+					<h3><?php esc_html_e( 'Current technical plan (render anchor)', 'hillcroft-garden-designer' ); ?></h3>
+					<img src="<?php echo esc_url( $hgd_pb_url ); ?>" alt="<?php esc_attr_e( 'Digitised technical plan', 'hillcroft-garden-designer' ); ?>" style="max-width:100%;border:1px solid #ddd;" />
+				</div>
+			<?php endif; ?>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Optional: AI top-down sketch', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Legacy: generate an impressionistic top-down plan image with Gemini. The digitised plan above is the accurate anchor; use this only for a quick visual mood, not for layout.', 'hillcroft-garden-designer' ); ?></p>
 
 			<?php if ( isset( $_GET['plan_done'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
 				<div class="hgd-flash"><?php esc_html_e( 'Plan drawing generated.', 'hillcroft-garden-designer' ); ?></div>

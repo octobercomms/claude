@@ -3,7 +3,7 @@
  * Plugin Name: Hillcroft Garden Designer
  * Plugin URI: https://octobercomms.com
  * Description: AI-powered garden design system for Hillcroft Gardens — consultation capture, plant catalogue, pricing, visual renders, client proposals and payments. Foundation build.
- * Version: 1.21.0
+ * Version: 1.22.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HGD_VERSION', '1.21.0' );
+define( 'HGD_VERSION', '1.22.0' );
 define( 'HGD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HGD_URL', plugin_dir_url( __FILE__ ) );
 define( 'HGD_BASENAME', plugin_basename( __FILE__ ) );
@@ -55,6 +55,9 @@ require_once HGD_PATH . 'includes/class-hgd-measure.php';
 require_once HGD_PATH . 'includes/class-hgd-site-model.php';
 require_once HGD_PATH . 'includes/class-hgd-base-plan.php';
 require_once HGD_PATH . 'includes/class-hgd-existing-extract.php';
+require_once HGD_PATH . 'includes/class-hgd-plan-doc.php';
+require_once HGD_PATH . 'includes/class-hgd-plan-extract.php';
+require_once HGD_PATH . 'includes/class-hgd-plan-render.php';
 require_once HGD_PATH . 'includes/class-hgd-image-composite.php';
 require_once HGD_PATH . 'includes/class-hgd-plan.php';
 require_once HGD_PATH . 'includes/class-hgd-render-pack.php';

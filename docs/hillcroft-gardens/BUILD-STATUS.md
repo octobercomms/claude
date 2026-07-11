@@ -190,6 +190,32 @@ The full original brief is now delivered end to end across 10 releases.
   `all()`, which would now rewrite secrets in plaintext). Unit-tested the crypto round-trip,
   passthrough, tamper and double-encrypt cases. No schema change.
 
+## ✅ 1.22.0 — Proper vector plan editor (the real cold-start fix)
+
+Two AI-generated "plans" proved the anti-pattern: an image model *painting* a plan gives invented
+layouts + gibberish text + wrong dimensions (6.5×16.5 landscape vs the sketch's 6.5×11.5 portrait).
+The fix is to stop generating the plan with an image model entirely.
+
+- **`HGD_Plan_Doc`** — a unified, editable plan document (meta, boundary, edges, named zones, labelled
+  features, dimensions, note-annotations, free labels, orientation) in a shared 0–1000×0–750 space,
+  stored under `measurements.plan`; seeds from the 1.21.0 `existing` layer.
+- **`HGD_Plan_Extract`** — Claude does a first-pass *transcription* of the sketch into the doc (layout,
+  dimensions, every written label). Proposes only; the human corrects.
+- **`hgd-plan-editor.js`** — a real vector editor on **Konva** (vendored, `admin/js/vendor/konva.min.js`):
+  draw boundary/zones, place trees/structures/water/level/access, dimension lines, circle-notes,
+  notes, labels; **double-click any label to edit text**; drag to move; delete; per-edge treatment.
+- **`HGD_Plan_Render`** — deterministic SVG→PNG of the whole labelled plan (zones filled + named,
+  edges, features, dimensions, notes, north, scale bar, title block). No AI in it. Stored as the
+  `base_plan` asset → the render ControlNet anchor; `constraints_text` now comes from the plan doc.
+
+Handlers (guard + nonce): `hgd_extract_plan`, `hgd_save_plan`, `hgd_render_plan`, in the **Plan** step.
+The old Gemini image-plan is demoted to an optional "mood only" extra. Works with no render engine
+configured (Claude read + editor + deterministic render need no fal).
+
+**Rough edges (tidy next):** the 1.21.0 Capture "existing conditions" panel is now superseded by this
+editor (leave for now, remove later); text editing is via prompt() (inline editing later); polygon
+*point* editing not yet (drag-whole-shape only); Imagick still needed to rasterise the plan SVG.
+
 ## ✅ 1.21.0 — Render fidelity (existing-conditions base plan + correction loop)
 
 First cut of the plan in `render-fidelity-brief.md` — built end to end (rough edges expected; not

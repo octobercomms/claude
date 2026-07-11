@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.21.0
+Stable tag: 1.22.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.22.0 =
+* Proper plan editor — the fix for renders that ignored the sketch. Instead of asking an image model to *draw* a plan (which produced invented layouts and gibberish labels), the plan is now a real, editable technical drawing you build and correct by hand. Read the sketch with Claude to get a first draft — boundary, zones, retained trees/structures, dimensions and every written note, all as **editable text** — then drag, relabel (double-click any label), add or delete anything on a proper drawing canvas. Render a clean, labelled technical plan from it, which becomes the accurate anchor your photoreal renders follow. The model only transcribes; you verify. (Works without the render engine configured; the AI top-down sketch is kept as an optional mood-only extra.)
 
 = 1.21.0 =
 * Render fidelity — two big additions so concept renders are faithful and perfectable. (1) **Existing conditions & base plan:** mark the fixed reality of a plot (boundary, house wall, retained trees/structures, levels, north) on the Capture step — auto-detected from your sketch and photos with Claude, then corrected by hand — and generate a clean technical base plan the renders are anchored to, so they stop inventing random layouts. (2) **Circle-and-fix tweaking:** on any render, paint over a wrong area, say what it should be, and only that area is regenerated — the rest of the image stays exactly as it was. Plus faithful 4K export of an approved render. (First cut; more polish to come.)

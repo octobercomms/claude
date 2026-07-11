@@ -39,6 +39,9 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_extract_existing', array( $this, 'handle_extract_existing' ) );
 		add_action( 'admin_post_hgd_save_existing', array( $this, 'handle_save_existing' ) );
 		add_action( 'admin_post_hgd_generate_base_plan', array( $this, 'handle_generate_base_plan' ) );
+		add_action( 'admin_post_hgd_extract_plan', array( $this, 'handle_extract_plan' ) );
+		add_action( 'admin_post_hgd_save_plan', array( $this, 'handle_save_plan' ) );
+		add_action( 'admin_post_hgd_render_plan', array( $this, 'handle_render_plan' ) );
 		add_action( 'admin_post_hgd_inpaint_render', array( $this, 'handle_inpaint_render' ) );
 		add_action( 'admin_post_hgd_revert_render', array( $this, 'handle_revert_render' ) );
 		add_action( 'admin_post_hgd_upscale_render', array( $this, 'handle_upscale_render' ) );
@@ -161,6 +164,8 @@ class HGD_Admin {
 		wp_enqueue_style( 'hgd-admin', HGD_URL . 'admin/css/admin.css', array( 'hgd-fonts' ), HGD_VERSION );
 		wp_enqueue_script( 'hgd-admin', HGD_URL . 'admin/js/admin.js', array(), HGD_VERSION, true );
 		wp_enqueue_script( 'hgd-studio', HGD_URL . 'admin/js/hgd-studio.js', array(), HGD_VERSION, true );
+		wp_enqueue_script( 'hgd-konva', HGD_URL . 'admin/js/vendor/konva.min.js', array(), '9.3.16', true );
+		wp_enqueue_script( 'hgd-plan-editor', HGD_URL . 'admin/js/hgd-plan-editor.js', array( 'hgd-konva' ), HGD_VERSION, true );
 
 		// The media-library picker (plant image) is only needed on the plant edit/new screen.
 		$page   = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
@@ -1107,7 +1112,7 @@ class HGD_Admin {
 			}
 		}
 		// Pin the fixed reality in words as well as via the control image.
-		$constraints = HGD_Site_Model::constraints_text( $project );
+		$constraints = HGD_Plan_Doc::constraints_text( $project );
 		if ( '' !== $constraints ) {
 			$prompt .= "\n\n" . $constraints;
 		}
@@ -1245,7 +1250,7 @@ class HGD_Admin {
 
 		HGD_Project::update( $id, array( 'plan_prompt' => $plan_prompt ) );
 
-		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_saved' => 1 ) );
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plandoc_saved' => 1 ) );
 	}
 
 	/** Ask Claude to draft a good plan prompt from the site reading + design brief. */
@@ -2197,6 +2202,53 @@ class HGD_Admin {
 		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'baseplan_done' => 1 ) );
 	}
 
+	/** Vision first-pass: read the sketch into an editable plan doc. */
+	public function handle_extract_plan() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_extract_plan_' . $id );
+		if ( ! $id || ! HGD_Project::get( $id ) ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+		$proposed = HGD_Plan_Extract::propose( $id );
+		if ( is_wp_error( $proposed ) ) {
+			set_transient( 'hgd_plan_error_' . get_current_user_id(), $proposed->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plandoc_error' => 1 ) );
+		}
+		HGD_Plan_Doc::save( $id, $proposed );
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plandoc_detected' => 1 ) );
+	}
+
+	/** Persist the human-confirmed plan doc (from the Konva editor). */
+	public function handle_save_plan() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_save_plan_' . $id );
+		if ( ! $id || ! HGD_Project::get( $id ) ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+		$raw  = isset( $_POST['plan_json'] ) ? wp_unslash( $_POST['plan_json'] ) : '[]';
+		$plan = json_decode( (string) $raw, true );
+		HGD_Plan_Doc::save( $id, is_array( $plan ) ? $plan : array() );
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plandoc_saved' => 1 ) );
+	}
+
+	/** Render the deterministic technical plan and set it as the render anchor. */
+	public function handle_render_plan() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_render_plan_' . $id );
+		if ( ! $id || ! HGD_Project::get( $id ) ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+		$res = HGD_Plan_Render::generate_and_store( $id );
+		if ( is_wp_error( $res ) ) {
+			set_transient( 'hgd_plan_error_' . get_current_user_id(), $res->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'planrender_error' => 1 ) );
+		}
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'planrender_done' => 1 ) );
+	}
+
 	/** The circle-and-fix correction loop: masked inpaint + composite-back. */
 	public function handle_inpaint_render() {
 		$this->guard();
@@ -2250,7 +2302,7 @@ class HGD_Admin {
 
 		// Constrain the edit to the fixed reality too (belt and braces with the mask).
 		$prompt = $instruction;
-		$constraints = HGD_Site_Model::constraints_text( $project );
+		$constraints = HGD_Plan_Doc::constraints_text( $project );
 		if ( '' !== $constraints ) {
 			$prompt .= "\n\n" . $constraints;
 		}
