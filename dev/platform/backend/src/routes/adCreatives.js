@@ -365,11 +365,63 @@ router.post('/clients/:clientId/resize', uploadMem.fields([{ name: 'files', maxC
         items.push({ name: f.originalname, error: err.message });
       }
     }
-    res.json({ items, spend_usd: +total.toFixed(4) });
+    const result = { items, spend_usd: +total.toFixed(4) };
+    // Persist the run so it can be reopened / bulk-downloaded later. Don't fail
+    // the response if the save hiccups — the outputs are already on disk.
+    let batch = null;
+    try {
+      batch = await adResize.recordBatch({
+        clientId: req.params.clientId, createdBy: req.user.id,
+        sourceCount: files.length, sizeCount: sizes.length, result,
+      });
+    } catch (e) { console.error('[ad-resize] save batch failed:', e.message); }
+    res.json({ batch_id: batch?.id || null, created_at: batch?.created_at || null, ...result });
   } catch (err) {
     console.error('[ad-resize] failed:', err);
     res.status(err.status || 502).json({ error: err.message });
   }
+});
+
+// Load a saved batch and assert the caller can see its client. Returns the row
+// or sends the response and returns null.
+async function loadResizeBatch(req, res) {
+  const batch = await adResize.getBatch(req.params.batchId);
+  if (!batch) { res.status(404).json({ error: 'Not found' }); return null; }
+  if (!users.canAccessClient(req.visibleClientIds, batch.client_id)) {
+    res.status(403).json({ error: 'Not authorised' }); return null;
+  }
+  return batch;
+}
+
+// Past resize runs for a client (history list).
+router.get('/clients/:clientId/resize-batches', async (req, res) => {
+  try { res.json(await adResize.listBatches(req.params.clientId)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Full payload for one saved run (re-render a past run).
+router.get('/resize-batches/:batchId', async (req, res) => {
+  const batch = await loadResizeBatch(req, res); if (!batch) return;
+  res.json({ batch_id: batch.id, created_at: batch.created_at, ...(batch.result || {}) });
+});
+
+// Download every output in a run as a single .zip.
+router.get('/resize-batches/:batchId/download', async (req, res) => {
+  const batch = await loadResizeBatch(req, res); if (!batch) return;
+  try {
+    const bytes = await adResize.zipBatch(batch);
+    if (!bytes || !bytes.length) return res.status(404).json({ error: 'No files to download.' });
+    const stamp = new Date(batch.created_at).toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="ad-sizes-${stamp}.zip"`);
+    res.send(bytes);
+  } catch (err) { console.error('[ad-resize] zip failed:', err); res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/resize-batches/:batchId', async (req, res) => {
+  const batch = await loadResizeBatch(req, res); if (!batch) return;
+  try { await adResize.deleteBatch(batch); res.status(204).end(); }
+  catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/images/:id', authenticate, loadVisibleClientIds, async (req, res) => {
