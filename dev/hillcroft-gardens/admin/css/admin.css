@@ -569,3 +569,13 @@
 .hgd-mask-stage { max-width: 560px; }
 .hgd-mask-controls { display: flex; gap: 12px; align-items: center; margin: 8px 0; }
 .hgd-mask-form textarea { width: 100%; max-width: 560px; margin: 6px 0; }
+
+/* --- Vector plan editor (Konva) --- */
+.hgd-plan-editor { margin: 12px 0; }
+.hgd-plan-tools { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.hgd-plan-tools .is-active { outline: 2px solid #494a20; outline-offset: 1px; }
+.hgd-plan-meta { display: flex; flex-wrap: wrap; gap: 14px; margin: 6px 0; font-size: 13px; }
+.hgd-plan-meta input[type="text"] { width: 240px; }
+.hgd-plan-meta input[type="number"] { width: 72px; }
+.hgd-konva-frame { width: 100%; max-width: 720px; border: 1px solid #ccc; background: #fbf9f3; }
+.hgd-konva-frame .konvajs-content { max-width: 100%; }
