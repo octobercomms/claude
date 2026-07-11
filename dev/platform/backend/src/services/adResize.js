@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const Jimp = require('jimp');
+const pool = require('../db');
 const fal = require('../connectors/fal');
 
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
@@ -207,4 +208,100 @@ async function resizeImage({ clientId, buffer, sizeKeys, userId = null }) {
   };
 }
 
-module.exports = { catalog, prices, resizeImage, AD_SIZES, priceFor };
+// ── Persistence + bulk download ───────────────────────────────────────────────
+// A filename stem from a source image name ("Hero Shot.png" → "hero-shot").
+function nameStem(n) {
+  return String(n || 'image').replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'image';
+}
+// Map a served output URL (/api/brand/file/<clientId>/<filename>) back to disk,
+// with a traversal guard.
+function diskPathForOutput(url) {
+  const m = String(url || '').match(/^\/api\/brand\/file\/([^/]+)\/([^/]+)$/);
+  if (!m) return null;
+  const base = path.join(UPLOAD_ROOT, m[1]);
+  const p = path.join(base, m[2]);
+  return p.startsWith(base + path.sep) ? p : null;
+}
+
+// Save a completed run so it can be reopened / bulk-downloaded later.
+async function recordBatch({ clientId, createdBy = null, sourceCount = 0, sizeCount = 0, result = {} }) {
+  const spend = result.spend_usd || 0;
+  const { rows } = await pool.query(
+    `INSERT INTO ad_resize_batches (client_id, created_by, source_count, size_count, spend_usd, result)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`,
+    [clientId, createdBy, sourceCount, sizeCount, spend, JSON.stringify(result)]
+  );
+  return rows[0];
+}
+
+// Recent runs for a client — light rows for the history list (thumb + counts).
+async function listBatches(clientId) {
+  const { rows } = await pool.query(
+    `SELECT b.id, b.created_at, b.source_count, b.size_count, b.spend_usd, b.result,
+            u.username AS created_by_name
+       FROM ad_resize_batches b
+       LEFT JOIN users u ON u.id = b.created_by
+      WHERE b.client_id = $1
+      ORDER BY b.created_at DESC
+      LIMIT 100`,
+    [clientId]
+  );
+  return rows.map(r => {
+    const items = r.result?.items || [];
+    let thumb = null, outputCount = 0;
+    for (const it of items) for (const o of (it.outputs || [])) {
+      if (!o.error && o.url) { outputCount++; if (!thumb) thumb = o.url; }
+    }
+    return {
+      id: r.id, created_at: r.created_at, created_by_name: r.created_by_name,
+      source_count: r.source_count, size_count: r.size_count, spend_usd: Number(r.spend_usd),
+      output_count: outputCount, thumb, names: items.map(it => it.name).filter(Boolean),
+    };
+  });
+}
+
+async function getBatch(id) {
+  const { rows } = await pool.query('SELECT * FROM ad_resize_batches WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+async function deleteBatch(batch) {
+  for (const it of (batch.result?.items || [])) for (const o of (it.outputs || [])) {
+    const p = o.url && diskPathForOutput(o.url);
+    if (p) fs.promises.unlink(p).catch(() => {});
+  }
+  await pool.query('DELETE FROM ad_resize_batches WHERE id = $1', [batch.id]);
+}
+
+// Build a .zip of every output in a batch. Many-image runs get one folder per
+// source image; single-image runs are flat. Returns a Buffer (empty → caller
+// 404s).
+async function zipBatch(batch) {
+  const JSZip = require('jszip');
+  const zip = new JSZip();
+  const items = batch.result?.items || [];
+  const many = items.length > 1;
+  const used = new Set();
+  let added = 0;
+  for (const it of items) {
+    const stem = nameStem(it.name);
+    for (const o of (it.outputs || [])) {
+      if (o.error || !o.url) continue;
+      const p = diskPathForOutput(o.url);
+      if (!p || !fs.existsSync(p)) continue;
+      let name = many ? `${stem}/${o.key}.png` : `${stem}-${o.key}.png`;
+      let i = 2;
+      while (used.has(name)) { name = (many ? `${stem}/${o.key}-${i}` : `${stem}-${o.key}-${i}`) + '.png'; i++; }
+      used.add(name);
+      zip.file(name, fs.readFileSync(p));
+      added++;
+    }
+  }
+  if (!added) return Buffer.alloc(0);
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+module.exports = {
+  catalog, prices, resizeImage, AD_SIZES, priceFor,
+  recordBatch, listBatches, getBatch, deleteBatch, zipBatch,
+};

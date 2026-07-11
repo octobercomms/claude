@@ -47,12 +47,37 @@ export default function AdResizePanel({ clientId, clientName }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     api.get(`/ad-creatives/clients/${clientId}/ad-sizes`)
       .then(r => { setGroups(r.groups || []); if (r.prices) setPrices(r.prices); })
       .catch(() => {});
-  }, [clientId]);
+    loadHistory();
+  }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function loadHistory() {
+    api.get(`/ad-creatives/clients/${clientId}/resize-batches`)
+      .then(r => setHistory(Array.isArray(r) ? r : []))
+      .catch(() => {});
+  }
+  // Same-origin, cookie-authed GET — a plain <a download> streams the zip.
+  const zipUrl = batchId => `/api/ad-creatives/resize-batches/${batchId}/download`;
+  async function openBatch(id) {
+    try {
+      const batch = await api.get(`/ad-creatives/resize-batches/${id}`);
+      setResult(batch);
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) { toast(err.message || 'Could not open that run.', 'error'); }
+  }
+  async function removeBatch(id) {
+    try {
+      await api.delete(`/ad-creatives/resize-batches/${id}`);
+      setHistory(prev => prev.filter(b => b.id !== id));
+      setResult(prev => (prev && prev.batch_id === id ? null : prev));
+      toast('Deleted.', 'success');
+    } catch (err) { toast(err.message || 'Delete failed.', 'error'); }
+  }
 
   // Revoke object URLs on unmount.
   useEffect(() => () => { items.forEach(it => URL.revokeObjectURL(it.url)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -135,6 +160,7 @@ export default function AdResizePanel({ clientId, clientName }) {
       const okSizes = resItems.reduce((n, it) => n + (it.outputs || []).filter(o => !o.error).length, 0);
       const failImages = resItems.length - okImages;
       toast(`${okSizes} size${okSizes === 1 ? '' : 's'} across ${okImages} image${okImages === 1 ? '' : 's'}${failImages ? ` · ${failImages} image${failImages === 1 ? '' : 's'} failed` : ''}`, failImages ? 'error' : 'success');
+      loadHistory();
     } catch (err) {
       toast(err.message || 'Resize failed.', 'error');
     } finally {
@@ -256,6 +282,18 @@ export default function AdResizePanel({ clientId, clientName }) {
         )}
       </div>
 
+      {/* Results header — download all */}
+      {result && (result.items || []).some(it => (it.outputs || []).some(o => !o.error)) && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', paddingTop: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Results{result.created_at ? ` · ${new Date(result.created_at).toLocaleDateString()}` : ''}
+          </div>
+          {result.batch_id && (
+            <a className="btn btn-primary btn-sm" href={zipUrl(result.batch_id)} download>Download all (.zip)</a>
+          )}
+        </div>
+      )}
+
       {/* Results — one section per source image */}
       {result && (result.items || []).map((it, idx) => (
         <div key={idx}>
@@ -298,6 +336,35 @@ export default function AdResizePanel({ clientId, clientName }) {
           )}
         </div>
       ))}
+
+      {/* Saved resizes — reopen or bulk-download a past run */}
+      {history.length > 0 && (
+        <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 20, marginTop: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
+            Saved resizes
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {history.map(b => (
+              <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 10, background: 'var(--surface)' }}>
+                {b.thumb
+                  ? <img src={b.thumb} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 'var(--r-sm)', background: '#00000008', flexShrink: 0 }} />
+                  : <div style={{ width: 48, height: 48, borderRadius: 'var(--r-sm)', background: '#00000008', flexShrink: 0 }} />}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {b.source_count} image{b.source_count === 1 ? '' : 's'} → {b.size_count} size{b.size_count === 1 ? '' : 's'} · {b.output_count} output{b.output_count === 1 ? '' : 's'}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {new Date(b.created_at).toLocaleString()}{b.names?.length ? ` · ${b.names.join(', ')}` : ''}
+                  </div>
+                </div>
+                <button className="btn btn-secondary btn-sm" onClick={() => openBatch(b.id)}>Open</button>
+                <a className="btn btn-secondary btn-sm" href={zipUrl(b.id)} download>Download</a>
+                <button className="btn btn-secondary btn-sm" onClick={() => removeBatch(b.id)} title="Delete" style={{ color: 'var(--negative)' }}>×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {busy && <ResizingModal count={totalOutputs} images={items.length} />}
     </div>
