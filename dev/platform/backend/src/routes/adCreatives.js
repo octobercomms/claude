@@ -10,6 +10,7 @@ const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const adCreative = require('../services/adCreative');
+const adResize = require('../services/adResize');
 const replicate = require('../connectors/replicate');
 const ideogram = require('../connectors/ideogram');
 const adobe = require('../connectors/adobe');
@@ -323,6 +324,36 @@ router.post('/images/:id/fan-out', authenticate, loadVisibleClientIds, async (re
     }
     res.status(201).json({ source_image_id: src.id, generated });
   } catch (err) { res.status(502).json({ error: err.message }); }
+});
+
+// ── Resize for ads ────────────────────────────────────────────────────────────
+// Standalone tool: upload one image and reshape it into the standard paid-social
+// + display ad sizes, generatively expanding the background (no cropping) and
+// upscaling first if the source is too small. Built on fal (data URIs) so an
+// auth-behind upload never needs a public URL. Outputs are served via
+// /api/brand/file like every other client upload.
+router.get('/clients/:clientId/ad-sizes', async (req, res) => {
+  res.json({ groups: adResize.catalog(), prices: adResize.prices() });
+});
+
+router.post('/clients/:clientId/resize', uploadMem.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'file required' });
+    if (!req.file.mimetype.startsWith('image/')) return res.status(400).json({ error: 'Image files only.' });
+    let sizes = req.body?.sizes;
+    if (typeof sizes === 'string') {
+      try { sizes = JSON.parse(sizes); }
+      catch { sizes = sizes.split(',').map(s => s.trim()).filter(Boolean); }
+    }
+    if (!Array.isArray(sizes) || !sizes.length) return res.status(400).json({ error: 'Pick at least one ad size.' });
+    const out = await adResize.resizeImage({
+      clientId: req.params.clientId, buffer: req.file.buffer, sizeKeys: sizes, userId: req.user.id,
+    });
+    res.json(out);
+  } catch (err) {
+    console.error('[ad-resize] failed:', err);
+    res.status(err.status || 502).json({ error: err.message });
+  }
 });
 
 router.delete('/images/:id', authenticate, loadVisibleClientIds, async (req, res) => {
