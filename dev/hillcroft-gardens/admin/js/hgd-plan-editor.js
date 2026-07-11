@@ -107,14 +107,17 @@
 
 		function finishPolygon() {
 			if ( temp.length < 3 ) { temp = []; render(); return; }
-			if ( 'boundary' === tool || plan.boundary.length === 0 && temp.length ) {
+			if ( 'boundary' === tool ) {
 				plan.boundary = temp.slice();
 				plan.edges = plan.boundary.map( function () { return { treatment: 'open' }; } );
 				renderEdgeControls();
-			} else {
+			} else if ( 'zone' === tool ) {
 				var name = window.prompt( 'Zone name (e.g. “Main lawn”):', '' ) || '';
 				var type = window.prompt( 'Zone type: lawn, border, patio, path, water, planting, structure, other', 'border' ) || 'other';
 				plan.zones.push( { id: uid( 'z' ), name: name, type: type, fixed: false, points: temp.slice() } );
+			} else {
+				// Not in a shape tool — discard the stray points rather than guess.
+				temp = []; render(); return;
 			}
 			temp = []; render();
 		}
@@ -131,14 +134,20 @@
 			}
 		}
 		function editText( coll, item ) {
-			var key = ( 'labels' === coll || 'annotations' === coll ) ? 'text' : ( 'dimensions' === coll ? 'label' : 'label' );
+			if ( 'boundary' === coll ) { return; } // boundary has no text.
+			var key = ( 'labels' === coll || 'annotations' === coll ) ? 'text' : 'label';
 			if ( 'zones' === coll ) { key = 'name'; }
 			var cur = item[ key ] || '';
 			var v = window.prompt( 'Edit text:', cur );
 			if ( null !== v ) { item[ key ] = v; render(); }
 		}
-		function removeItem( coll, item ) { plan[ coll ] = plan[ coll ].filter( function ( x ) { return x !== item; } ); render(); }
+		function removeItem( coll, item ) {
+			if ( 'boundary' === coll ) { plan.boundary = []; plan.edges = []; renderEdgeControls(); render(); return; }
+			plan[ coll ] = plan[ coll ].filter( function ( x ) { return x !== item; } );
+			render();
+		}
 		function shiftItem( coll, item, dx, dy ) {
+			if ( 'boundary' === coll ) { plan.boundary = plan.boundary.map( function ( p ) { return { x: p.x + dx, y: p.y + dy }; } ); return; }
 			if ( item.points ) { item.points = item.points.map( function ( p ) { return { x: p.x + dx, y: p.y + dy }; } ); }
 			if ( 'cx' in item ) { item.cx += dx; item.cy += dy; }
 			if ( 'x' in item ) { item.x += dx; item.y += dy; }
@@ -174,7 +183,7 @@
 					gb.add( new Konva.Line( { points: [ a.x, a.y, b.x, b.y ], stroke: EDGE[ t ] || EDGE.open, strokeWidth: 'house_wall' === t ? 6 : ( 'hedge' === t ? 7 : 3 ), dash: ( 'fence' === t || 'open' === t ) ? [ 8, 4 ] : undefined } ) );
 				}
 				plan.boundary.forEach( function ( p ) { gb.add( new Konva.Circle( { x: p.x, y: p.y, radius: 4, fill: '#494a20' } ) ); } );
-				shapeLayer.add( gb ); onShape( gb, 'boundary', { points: plan.boundary } );
+				shapeLayer.add( gb ); onShape( gb, 'boundary', null );
 			}
 
 			// features

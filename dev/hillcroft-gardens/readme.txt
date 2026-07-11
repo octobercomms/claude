@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.22.0
+Stable tag: 1.22.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.22.1 =
+* Removed the old, superseded "existing conditions" editor from the Capture step — it was easy to land on by mistake; the plan editor on the Plan step is the one to use. Fixed the plan editor's boundary handling: you can now delete or redraw a boundary you're not happy with (Delete tool, then click the boundary — or “Undo point” while drawing), and dragging the boundary now works. Also: plugin updates now show up on your site within minutes instead of a few hours.
 
 = 1.22.0 =
 * Proper plan editor — the fix for renders that ignored the sketch. Instead of asking an image model to *draw* a plan (which produced invented layouts and gibberish labels), the plan is now a real, editable technical drawing you build and correct by hand. Read the sketch with Claude to get a first draft — boundary, zones, retained trees/structures, dimensions and every written note, all as **editable text** — then drag, relabel (double-click any label), add or delete anything on a proper drawing canvas. Render a clean, labelled technical plan from it, which becomes the accurate anchor your photoreal renders follow. The model only transcribes; you verify. (Works without the render engine configured; the AI top-down sketch is kept as an optional mood-only extra.)
