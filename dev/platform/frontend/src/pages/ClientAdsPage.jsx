@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AdCreativePanel from '../components/AdCreativePanel';
+import AdResizePanel from '../components/AdResizePanel';
 import StrategistPanel from '../components/StrategistPanel';
 import AudiencesPanel from '../components/AudiencesPanel';
 import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
@@ -36,7 +37,7 @@ export default function ClientAdsPage() {
   // 'pipeline' are aliases that resolve to the brief step so old deep
   // links still land sensibly.
   const [tab, setTab] = useTabParam('overview', [
-    'overview', 'performance', 'playbook', 'strategist', 'audiences', 'competitor_ads',
+    'overview', 'performance', 'playbook', 'strategist', 'audiences', 'competitor_ads', 'resize',
     // pipeline sub-tabs
     'pipeline', 'creative',
     'brief', 'concepts', 'render', 'approve', 'launch',
@@ -59,6 +60,7 @@ export default function ClientAdsPage() {
   const ADVISOR_TABS = ['playbook', 'strategist', 'audiences', 'competitor_ads'];
   const currentGroup = normalisedTab === 'overview' ? 'overview'
     : normalisedTab === 'performance' ? 'performance'
+    : normalisedTab === 'resize' ? 'resize'
     : isPipelineGroup ? 'pipeline'
     : ADVISOR_TABS.includes(tab) ? 'advisor'
     : 'overview';
@@ -234,6 +236,7 @@ export default function ClientAdsPage() {
         { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setTab('overview') },
         { key: 'advisor',     label: 'Advise',      active: currentGroup === 'advisor',     onClick: () => setTab('playbook') },
         { key: 'builder',     label: 'Build',       active: currentGroup === 'pipeline',    onClick: () => setTab('brief') },
+        { key: 'resize',      label: 'Resize',      active: currentGroup === 'resize',      onClick: () => setTab('resize') },
         { key: 'performance', label: 'Measure',     active: currentGroup === 'performance', onClick: () => setTab('performance') },
       ]} />
       {currentGroup === 'advisor' && (
@@ -299,6 +302,7 @@ export default function ClientAdsPage() {
       {tab === 'playbook' && <GoogleAdsPlaybook />}
 
       {isPipelineGroup && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />}
+      {normalisedTab === 'resize' && <AdResizePanel clientId={id} clientName={client?.name || ''} />}
       {normalisedTab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
       {normalisedTab === 'audiences' && <AudiencesPanel clientId={id} />}
       {normalisedTab === 'competitor_ads' && <CompetitorAdsPanel clientId={id} />}
