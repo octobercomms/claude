@@ -103,11 +103,11 @@ class HGD_Updater {
 			}
 		}
 
-		// Cache a positive result for a few hours; cache a "no matching release"
-		// result only briefly so a newly published release is noticed quickly
-		// (and a manual "Check again" bypasses this cache entirely).
+		// Cache results only briefly so a newly published release is picked up
+		// within minutes without a manual "Check again" (which bypasses this
+		// cache entirely). Kept short because releases ship frequently here.
 		if ( $best ) {
-			set_transient( $this->cache_key, $best, 3 * HOUR_IN_SECONDS );
+			set_transient( $this->cache_key, $best, 20 * MINUTE_IN_SECONDS );
 		} else {
 			set_transient( $this->cache_key, '', 15 * MINUTE_IN_SECONDS );
 		}
