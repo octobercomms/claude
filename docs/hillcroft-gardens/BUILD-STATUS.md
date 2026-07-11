@@ -190,6 +190,36 @@ The full original brief is now delivered end to end across 10 releases.
   `all()`, which would now rewrite secrets in plaintext). Unit-tested the crypto round-trip,
   passthrough, tamper and double-encrypt cases. No schema change.
 
+## ✅ 1.21.0 — Render fidelity (existing-conditions base plan + correction loop)
+
+First cut of the plan in `render-fidelity-brief.md` — built end to end (rough edges expected; not
+yet exercised on a live site).
+
+**Part A — cold-start faithfulness:**
+- `HGD_Site_Model` — an explicit existing/fixed layer (boundary polygon, per-edge treatment, retained
+  trees/structures/levels/access, north) stored in the `existing` key of the measurements JSON.
+  `HGD_Measure::save` preserves it.
+- `HGD_Existing_Extract` — Claude vision *proposes* the layer from sketch + photos (shared 0–1000
+  coord space); confirmed/edited by hand on a new canvas editor (`hgd-studio.js`).
+- `HGD_Base_Plan` — **deterministic** SVG → PNG (Imagick) technical drawing from the confirmed data
+  (no AI in it). Stored as a `base_plan` asset and used as the Flux ControlNet anchor (+ a textual
+  `constraints_text` block) in place of the raw sketch.
+
+**Part B — the tweaking:**
+- `HGD_Flux::inpaint()` (fal Flux Fill) + `HGD_Image_Composite` (GD feathered composite-back so only
+  masked pixels change) + `HGD_Flux::upscale()` (faithful 4K). Masking canvas in the render list.
+- `project_assets` gains `parent_asset_id` / `kind` / `mask_attachment_id` / `instruction` for
+  correction lineage + revert (`approve_only`). Schema bumped to 18.
+
+Handlers: `hgd_extract_existing`, `hgd_save_existing`, `hgd_generate_base_plan`, `hgd_inpaint_render`,
+`hgd_revert_render`, `hgd_upscale_render` (all guard + nonce). New cost features `flux_inpaint` /
+`flux_upscale`.
+
+**Known rough edges (tidy next):** fal slugs (`flux_inpaint_model` / `flux_upscale_model`) are
+representative defaults and MUST be verified; SVG base-plan storage needs Imagick (else it saves SVG,
+which WP media may reject); the composite is a pixel loop (slow on huge images); the editor is a
+first-cut (no per-feature resize/drag yet). All flagged in the brief.
+
 ## ✅ 1.20.0 — Security audit + hardening
 
 Full security audit (threat model: unauthenticated external attacker + low-priv user). The structural

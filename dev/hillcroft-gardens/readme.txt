@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.20.0
+Stable tag: 1.21.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.21.0 =
+* Render fidelity — two big additions so concept renders are faithful and perfectable. (1) **Existing conditions & base plan:** mark the fixed reality of a plot (boundary, house wall, retained trees/structures, levels, north) on the Capture step — auto-detected from your sketch and photos with Claude, then corrected by hand — and generate a clean technical base plan the renders are anchored to, so they stop inventing random layouts. (2) **Circle-and-fix tweaking:** on any render, paint over a wrong area, say what it should be, and only that area is regenerated — the rest of the image stays exactly as it was. Plus faithful 4K export of an approved render. (First cut; more polish to come.)
 
 = 1.20.0 =
 * Security hardening (following a full audit). Added rate limiting to the public, no-login endpoints so they can't be abused: the "manage my plan" link can no longer be used to flood a customer's inbox (capped per email address and per sender), and online booking, plan sign-up, the enquiry form and form uploads are all throttled against spam and resource abuse. Payment setup errors now show customers a friendly message while the technical detail is recorded in the server log for you, rather than being shown on screen. No change to how the plugin is used day to day. (The audit confirmed the important things were already sound: encrypted secrets, signature-verified payment webhooks, parameterised database queries, capability + nonce checks on every admin action, and locked-down file uploads.)

@@ -12,12 +12,14 @@ class HGD_Project_Asset {
 
 	/** Allowed roles. */
 	const ROLES = array(
-		'sketch' => 'Sketch',
-		'photo'  => 'Photo',
-		'plan'   => 'Plan drawing',
-		'render' => 'Concept render',
-		'pack'   => 'Render pack',
-		'other'  => 'Other',
+		'sketch'    => 'Sketch',
+		'photo'     => 'Photo',
+		'plan'      => 'Plan drawing',
+		'base_plan' => 'Existing-conditions base plan',
+		'render'    => 'Concept render',
+		'render_4k' => '4K export',
+		'pack'      => 'Render pack',
+		'other'     => 'Other',
 	);
 
 	public static function role_label( $role ) {
@@ -43,6 +45,51 @@ class HGD_Project_Asset {
 			'created_at'    => current_time( 'mysql' ),
 		) );
 		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Add a correction step: a child render produced by the masked-inpaint loop.
+	 * Records its parent, the mask used, and the instruction, so history is
+	 * revertable and branchable.
+	 *
+	 * @return int Inserted row id.
+	 */
+	public static function add_correction( $project_id, $attachment_id, $parent_asset_id, $mask_attachment_id, $instruction, $label = '' ) {
+		global $wpdb;
+		$wpdb->insert( HGD_DB::project_assets_table(), array(
+			'project_id'         => (int) $project_id,
+			'attachment_id'      => (int) $attachment_id,
+			'role'               => 'render',
+			'kind'               => 'correction',
+			'parent_asset_id'    => (int) $parent_asset_id,
+			'mask_attachment_id' => $mask_attachment_id ? (int) $mask_attachment_id : null,
+			'instruction'        => sanitize_textarea_field( (string) $instruction ),
+			'label'              => sanitize_text_field( $label ),
+			'created_at'         => current_time( 'mysql' ),
+		) );
+		return (int) $wpdb->insert_id;
+	}
+
+	/** Direct child corrections of an asset (branches from this step). */
+	public static function children( $asset_id ) {
+		global $wpdb;
+		$table = HGD_DB::project_assets_table();
+		$rows  = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM {$table} WHERE parent_asset_id = %d ORDER BY id ASC",
+			(int) $asset_id
+		), ARRAY_A );
+		return $rows ? $rows : array();
+	}
+
+	/** The current existing-conditions base plan for a project, or null. */
+	public static function base_plan( $project_id ) {
+		global $wpdb;
+		$table = HGD_DB::project_assets_table();
+		$row   = $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$table} WHERE project_id = %d AND role = 'base_plan' ORDER BY id DESC LIMIT 1",
+			(int) $project_id
+		), ARRAY_A );
+		return $row ? $row : null;
 	}
 
 	/** Rows for a project, oldest first. Optionally filter by role. */
@@ -107,6 +154,17 @@ class HGD_Project_Asset {
 		}
 		$wpdb->update( $table, array( 'approved' => 1 ), array( 'id' => (int) $asset_id ) );
 		return 'approved';
+	}
+
+	/** Force a specific render to be the approved/active one (used by revert). */
+	public static function approve_only( $asset_id, $project_id ) {
+		global $wpdb;
+		$table = HGD_DB::project_assets_table();
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE {$table} SET approved = 0 WHERE project_id = %d AND role = 'render'",
+			(int) $project_id
+		) );
+		return false !== $wpdb->update( $table, array( 'approved' => 1 ), array( 'id' => (int) $asset_id ) );
 	}
 
 	/** The approved render row for a project, or null. */
