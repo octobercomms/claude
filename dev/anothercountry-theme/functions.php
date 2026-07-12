@@ -1538,141 +1538,130 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
       if (!isset($_GET['nonce']) || !wp_verify_nonce($_GET['nonce'], 'filter_nonce')) {
           die('Permission denied');
       }
-    // Get the filters from the request
-    $filters = $_GET['filters'];
-    // Capture original query args from the global $wp_query object
-    global $wp_query;
-    $original_query_params = $wp_query->query_vars;
-    // If the category is set in the filters, use it; otherwise, default to the queried category
-    $current_category_id = isset($filters['category']) ? $filters['category'] : get_queried_object_id();
-    // Start the product query
-    $args = [
-        'post_type' => array('product', 'product_variation'), // Query both products and variations
-        'posts_per_page' => -1, // Fetch all matching products
-        'order' => isset($filters['order']) ? $filters['order'] : 'ASC',
-        'nopaging' => true, // Disable pagination completely
-        'iconic_ssv_query' => 1, // Ensure variations are included
-        'wc_query' => 'product_query', // This flag helps identify the query type as a product query
-        'post_status' => 'publish', // Exclude private/unpublished products
-    ];
-    if (isset($filters['showall']) && $filters['showall'] == 'true') {
-        // If 'showall' is true, return products in the original order
-        $args['post__in'] = $filters['original_products']; // Use the original post IDs
-        $args['orderby'] = 'post__in';  // Preserve original order
-    }else{
-        $args['orderby'] = 'menu_order';
-    }
-    // Apply category filter to query
-    if ($current_category_id) {
-        $args['tax_query'] = [
-            [
-                'taxonomy' => 'product_cat',
-                'field' => 'id',
-                'terms' => $current_category_id,
-                'operator' => 'IN',
-               // 'include_children' => 1  // Include child terms in the query
-            ]
-        ];
-    }
 
-   // Apply price filter (if set)
-    $vat_rate = 0.2; // or dynamically calculate this
-    $min_price_ex_vat = round($filters['min_price'] / (1 + $vat_rate)- 1, 2);
-    $max_price_ex_vat = round($filters['max_price'] / (1 + $vat_rate)- 1, 2);
-   if (isset($filters['min_price']) && isset($filters['max_price'])) {
-       // If filtering by price, add a meta_query to filter by price for both simple and variable products
-       $args['meta_query'] = [
-           'relation' => 'OR', // We use 'OR' because it should apply to both simple and variable products
-           [
-               // For simple products, filter by _price meta key
-               'key' => '_price',
-               'value' => [$min_price_ex_vat, $max_price_ex_vat],
-               'compare' => 'BETWEEN',
-               'type' => 'NUMERIC'
-           ],
-           [
-               // For variable products, filter by price for each variation
-               'key' => '_price',
-               'value' => [$min_price_ex_vat, $max_price_ex_vat],
-               'compare' => 'BETWEEN',
-               'type' => 'NUMERIC',
-               'meta_query' => [
-                   // Nested query for variations
-                   'relation' => 'AND',
-                   [
-                       'key' => '_price',
-                       'value' => [$min_price_ex_vat, $max_price_ex_vat],
-                       'compare' => 'BETWEEN',
-                       'type' => 'NUMERIC'
-                   ]
-               ]
-           ]
-       ];
-   }
+      // Read the filters as an array and sanitise every value before it touches
+      // the query. Nothing from the request reaches meta_query / tax_query as a raw
+      // structure — the client supplies scalars and term IDs only.
+      $filters = ( isset($_GET['filters']) && is_array($_GET['filters']) ) ? wp_unslash($_GET['filters']) : [];
 
-    // Apply additional taxonomy filters (size, finish, material, shape, extendable)
-    $tax_query = [];
-    if (!empty($filters['size'])) {
-        $tax_query[] = [
-            'taxonomy' => 'pa_size',  // Assuming 'pa_size' is the attribute taxonomy for size
-            'field' => 'id',
-            'terms' => $filters['size'],
-            'operator' => 'IN'
-        ];
-    }
-    if (!empty($filters['finish'])) {
-        $tax_query[] = [
-            'taxonomy' => 'pa_finish',  // Assuming 'pa_finish' is the attribute taxonomy for finish
-            'field' => 'id',
-            'terms' => $filters['finish'],
-            'operator' => 'IN'
-        ];
-    }
-    if (!empty($filters['material'])) {
-        $tax_query[] = [
-            'taxonomy' => 'pa_material',  // Assuming 'pa_material' is the attribute taxonomy for material
-            'field' => 'id',
-            'terms' => $filters['material'],
-            'operator' => 'IN'
-        ];
-    }
+      // Pagination. Page size mirrors the shop archive (default 45); the requested
+      // page defaults to 1. per_page is clamped so a request can never ask for an
+      // unbounded set the way the old posts_per_page => -1 did.
+      $per_page = absint( $filters['per_page'] ?? 0 );
+      if ( $per_page < 1 || $per_page > 48 ) {
+          $per_page = 45;
+      }
+      $page = max( 1, absint( $filters['page'] ?? ( $_GET['page'] ?? 1 ) ) );
 
-	  if (!empty($filters['shape'])) {
-        $tax_query[] = [
-            'taxonomy' => 'pa_shape',  // Assuming 'pa_shape' is the attribute taxonomy for shape
-            'field' => 'id',
-            'terms' => $filters['shape'],
-            'operator' => 'IN'
-        ];
-    }
-    if (!empty($filters['extendable'])) {
-        $tax_query[] = [
-            'taxonomy' => 'pa_extendable',  // Assuming 'pa_extendable' is the attribute taxonomy for extendable
-            'field' => 'id',
-            'terms' => $filters['extendable'],
-            'operator' => 'IN'
-        ];
-    }
-    // Add product visibility filter: Exclude 'exclude-from-catalog' term
-    $tax_query[] = [
-        'taxonomy' => 'product_visibility',
-        'field' => 'term_taxonomy_id',
-        'terms' => [7], // Exclude the 'exclude-from-catalog' term (term ID 7)
-        'operator' => 'NOT IN'
-    ];
-    // If there are any taxonomy filters, add them to the query
-    if (!empty($tax_query)) {
-        $args['tax_query'] = array_merge($args['tax_query'], $tax_query);
-    }
-    // Apply the meta_query sent with the filters (if it exists)
-    if (!empty($filters['meta_query'])) {
-        // Ensure that the meta_query from AJAX is merged with any existing meta_query (e.g., price)
-        if (isset($args['meta_query']) && is_array($args['meta_query'])) {
-            $args['meta_query'] = array_merge($args['meta_query'], $filters['meta_query']);
-        } else {
-            $args['meta_query'] = $filters['meta_query'];
-        }
-    }
+      // Category is an integer term ID, defaulting to the current archive term.
+      $current_category_id = ! empty( $filters['category'] ) ? absint( $filters['category'] ) : absint( get_queried_object_id() );
+
+      // Sort direction is whitelisted to ASC / DESC.
+      $order = ( isset($filters['order']) && strtoupper($filters['order']) === 'DESC' ) ? 'DESC' : 'ASC';
+
+      // Start the product query — now bounded by posts_per_page + paged.
+      $args = [
+          'post_type'        => array('product', 'product_variation'), // Products and variations
+          'posts_per_page'   => $per_page,
+          'paged'            => $page,
+          'order'            => $order,
+          'iconic_ssv_query' => 1, // Ensure variations are included
+          'wc_query'         => 'product_query', // Identify this as a product query
+          'post_status'      => 'publish', // Exclude private / unpublished products
+      ];
+
+      if ( isset($filters['showall']) && $filters['showall'] === 'true' ) {
+          // 'showall' returns the original catalogue set, in its original order.
+          $original_products = array_filter( array_map( 'absint', (array) ( $filters['original_products'] ?? [] ) ) );
+          $args['post__in']  = ! empty($original_products) ? $original_products : [ 0 ]; // [0] => empty result, never "everything"
+          $args['orderby']   = 'post__in';  // Preserve original order
+      } else {
+          $args['orderby'] = 'menu_order';
+      }
+
+      // Build the taxonomy query in one place: category + attribute filters + the
+      // catalogue-visibility exclusion (relation AND).
+      $args['tax_query'] = [ 'relation' => 'AND' ];
+      if ( $current_category_id ) {
+          $args['tax_query'][] = [
+              'taxonomy' => 'product_cat',
+              'field'    => 'id',
+              'terms'    => $current_category_id,
+              'operator' => 'IN',
+          ];
+      }
+
+      // Price filter (optional). Prices arrive incl. VAT from the UI; convert to the
+      // ex-VAT figure stored in _price. Bounds are cast to float — never trusted raw.
+      if ( isset($filters['min_price'], $filters['max_price']) && is_numeric($filters['min_price']) && is_numeric($filters['max_price']) ) {
+          $vat_rate         = 0.2;
+          $min_price_ex_vat = round( (float) $filters['min_price'] / (1 + $vat_rate) - 1, 2 );
+          $max_price_ex_vat = round( (float) $filters['max_price'] / (1 + $vat_rate) - 1, 2 );
+          $args['meta_query'] = [
+              'relation' => 'OR', // applies to both simple and variable products
+              [
+                  'key'     => '_price',
+                  'value'   => [ $min_price_ex_vat, $max_price_ex_vat ],
+                  'compare' => 'BETWEEN',
+                  'type'    => 'NUMERIC',
+              ],
+              [
+                  'key'        => '_price',
+                  'value'      => [ $min_price_ex_vat, $max_price_ex_vat ],
+                  'compare'    => 'BETWEEN',
+                  'type'       => 'NUMERIC',
+                  'meta_query' => [
+                      'relation' => 'AND',
+                      [
+                          'key'     => '_price',
+                          'value'   => [ $min_price_ex_vat, $max_price_ex_vat ],
+                          'compare' => 'BETWEEN',
+                          'type'    => 'NUMERIC',
+                      ],
+                  ],
+              ],
+          ];
+      }
+
+      // Attribute filters. Each is a list of term IDs (integers) against a fixed,
+      // whitelisted attribute taxonomy — the client sends term IDs only, never a
+      // taxonomy name or a query structure.
+      $attribute_taxonomies = [
+          'size'       => 'pa_size',
+          'finish'     => 'pa_finish',
+          'material'   => 'pa_material',
+          'shape'      => 'pa_shape',
+          'extendable' => 'pa_extendable',
+      ];
+      foreach ( $attribute_taxonomies as $filter_key => $taxonomy ) {
+          if ( empty( $filters[ $filter_key ] ) ) {
+              continue;
+          }
+          $terms = array_filter( array_map( 'absint', (array) $filters[ $filter_key ] ) );
+          if ( empty( $terms ) ) {
+              continue;
+          }
+          $args['tax_query'][] = [
+              'taxonomy' => $taxonomy,
+              'field'    => 'id',
+              'terms'    => $terms,
+              'operator' => 'IN',
+          ];
+      }
+
+      // Exclude products flagged 'exclude-from-catalog' (product_visibility term 7).
+      $args['tax_query'][] = [
+          'taxonomy' => 'product_visibility',
+          'field'    => 'term_taxonomy_id',
+          'terms'    => [ 7 ],
+          'operator' => 'NOT IN',
+      ];
+
+      // NOTE: a client-supplied meta_query is deliberately NOT accepted here. The
+      // previous version merged $_GET['filters']['meta_query'] straight into the
+      // query, letting arbitrary query structures reach WP_Query — a performance
+      // and injection / abuse risk. Only the server-built price meta_query is used.
+
     // Run the product query
     $query = new WP_Query($args);
     $s=0;
@@ -1772,11 +1761,19 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
            }
         // Return the products
         wp_send_json_success([
-            'products' => $products_html,
+            'products'      => $products_html,
+            'max_num_pages' => (int) $query->max_num_pages,
+            'found'         => (int) $query->found_posts,
+            'page'          => $page,
+            'per_page'      => $per_page,
         ]);
     } else {
         wp_send_json_success([
-            'products' => '<p>No products found for these filters.</p>'
+            'products'      => '<p>No products found for these filters.</p>',
+            'max_num_pages' => 0,
+            'found'         => 0,
+            'page'          => $page,
+            'per_page'      => $per_page,
         ]);
     }
     wp_die();
