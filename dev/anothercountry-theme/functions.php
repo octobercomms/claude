@@ -1544,11 +1544,15 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
       // structure — the client supplies scalars and term IDs only.
       $filters = ( isset($_GET['filters']) && is_array($_GET['filters']) ) ? wp_unslash($_GET['filters']) : [];
 
-      // Pagination. Page size mirrors the shop archive (default 45); the requested
-      // page defaults to 1. per_page is clamped so a request can never ask for an
-      // unbounded set the way the old posts_per_page => -1 did.
+      // Pagination is OPT-IN so this handler is safe to deploy before the companion
+      // JS (lscustom.js) is updated. If the request asks for a page (updated JS) we
+      // run a bounded per-page query; if it doesn't (current JS) we return the whole
+      // filtered set exactly as today — just now fully sanitised. Page size mirrors
+      // the shop archive (default 45) and is clamped so a request can never ask for
+      // an unbounded set.
+      $wants_paging = isset( $filters['page'] ) || isset( $filters['per_page'] ) || isset( $_GET['page'] );
       $per_page = absint( $filters['per_page'] ?? 0 );
-      if ( $per_page < 1 || $per_page > 48 ) {
+      if ( $per_page < 1 || $per_page > 100 ) {
           $per_page = 45;
       }
       $page = max( 1, absint( $filters['page'] ?? ( $_GET['page'] ?? 1 ) ) );
@@ -1559,11 +1563,9 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
       // Sort direction is whitelisted to ASC / DESC.
       $order = ( isset($filters['order']) && strtoupper($filters['order']) === 'DESC' ) ? 'DESC' : 'ASC';
 
-      // Start the product query — now bounded by posts_per_page + paged.
+      // Start the product query.
       $args = [
           'post_type'        => array('product', 'product_variation'), // Products and variations
-          'posts_per_page'   => $per_page,
-          'paged'            => $page,
           'order'            => $order,
           'iconic_ssv_query' => 1, // Ensure variations are included
           'wc_query'         => 'product_query', // Identify this as a product query
@@ -1661,6 +1663,15 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
       // previous version merged $_GET['filters']['meta_query'] straight into the
       // query, letting arbitrary query structures reach WP_Query — a performance
       // and injection / abuse risk. Only the server-built price meta_query is used.
+
+      // Bound the query only when the front end asks for a page (see $wants_paging).
+      if ( $wants_paging ) {
+          $args['posts_per_page'] = $per_page;
+          $args['paged']          = $page;
+      } else {
+          $args['posts_per_page'] = -1;
+          $args['nopaging']       = true;
+      }
 
     // Run the product query
     $query = new WP_Query($args);
@@ -1762,18 +1773,18 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
         // Return the products
         wp_send_json_success([
             'products'      => $products_html,
-            'max_num_pages' => (int) $query->max_num_pages,
+            'max_num_pages' => $wants_paging ? (int) $query->max_num_pages : 1,
             'found'         => (int) $query->found_posts,
-            'page'          => $page,
-            'per_page'      => $per_page,
+            'page'          => $wants_paging ? $page : 1,
+            'per_page'      => $wants_paging ? $per_page : (int) $query->found_posts,
         ]);
     } else {
         wp_send_json_success([
             'products'      => '<p>No products found for these filters.</p>',
             'max_num_pages' => 0,
             'found'         => 0,
-            'page'          => $page,
-            'per_page'      => $per_page,
+            'page'          => $wants_paging ? $page : 1,
+            'per_page'      => $wants_paging ? $per_page : 0,
         ]);
     }
     wp_die();
