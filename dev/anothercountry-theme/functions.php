@@ -1543,13 +1543,16 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
           die('Permission denied');
       }
 
-      // Pull the raw filter bag once and baseline-sanitise EVERY value in it at the
-      // point of read: map_deep runs sanitize_text_field across the whole nested
-      // array, so no request value is ever used raw. Each value is then re-read below
-      // with its own stricter sanitiser (absint / float / whitelist), and nothing
-      // reaches tax_query / meta_query / orderby except values the server builds.
-      $filters = ( isset($_GET['filters']) && is_array($_GET['filters']) ) ? wp_unslash($_GET['filters']) : [];
-      $filters = map_deep( $filters, 'sanitize_text_field' );
+      // Pull the raw filter bag and sanitise it INLINE at the point of read:
+      // map_deep runs sanitize_text_field across the whole nested array, so the raw
+      // filter value is never assigned unsanitised. Its values DO flow into the
+      // query (tax_query term IDs, the price meta_query, sort direction), so each is
+      // additionally re-read below with its own stricter sanitiser (absint / float /
+      // ASC-DESC + fixed pa_* taxonomy whitelist); a client meta_query/tax_query/
+      // orderby is never used.
+      $filters = ( isset($_GET['filters']) && is_array($_GET['filters']) )
+          ? map_deep( wp_unslash( $_GET['filters'] ), 'sanitize_text_field' )
+          : [];
 
       // Pagination is ALWAYS bounded — there is no unbounded branch. per_page mirrors
       // the shop archive (default 45, clamped 1–100); page defaults to 1. Every
