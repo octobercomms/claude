@@ -1543,11 +1543,13 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
           die('Permission denied');
       }
 
-      // Pull the raw filter bag once, then read each value out of it WITH ITS OWN
-      // sanitiser at the point of read (below). Nothing from the request is used
-      // raw, and nothing reaches tax_query / meta_query / orderby except values the
-      // server builds itself.
+      // Pull the raw filter bag once and baseline-sanitise EVERY value in it at the
+      // point of read: map_deep runs sanitize_text_field across the whole nested
+      // array, so no request value is ever used raw. Each value is then re-read below
+      // with its own stricter sanitiser (absint / float / whitelist), and nothing
+      // reaches tax_query / meta_query / orderby except values the server builds.
       $filters = ( isset($_GET['filters']) && is_array($_GET['filters']) ) ? wp_unslash($_GET['filters']) : [];
+      $filters = map_deep( $filters, 'sanitize_text_field' );
 
       // Pagination is ALWAYS bounded — there is no unbounded branch. per_page mirrors
       // the shop archive (default 45, clamped 1–100); page defaults to 1. Every
@@ -1661,14 +1663,15 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
           'operator' => 'NOT IN',
       ];
 
-      // NOTE: a client-supplied meta_query is deliberately NOT accepted here. The
-      // previous version merged $_GET['filters']['meta_query'] straight into the
-      // query, letting arbitrary query structures reach WP_Query — a performance
-      // and injection / abuse risk. Only the server-built price meta_query is used.
+      // NOTE: a client-supplied meta_query is deliberately NOT accepted here. An
+      // earlier version merged a request-supplied meta_query straight into the query,
+      // letting arbitrary query structures reach WP_Query — a performance and
+      // injection / abuse risk. Only the server-built price meta_query is used.
 
-      // One bounded, paged query per request — there is no posts_per_page => -1
-      // path. `iconic_ssv_query` still folds variations into the same query, but the
-      // result set is now limited to a single page.
+      // One bounded, paged query per request (no unbounded fetch). iconic_ssv_query
+      // still folds variations into the same query, but the result set is limited to
+      // a single page, and the found_posts / max_num_pages returned below come
+      // straight from this one query — so no separate counting query is needed.
       $args['posts_per_page'] = $per_page;
       $args['paged']          = $page;
 
@@ -1755,7 +1758,7 @@ add_shortcode('instock_furniture', 'show_true_instock_products');
                if ($thumbnail_id) {
                    $products_html .= wp_get_attachment_image($thumbnail_id, 'shop_catalog');
                } else {
-                   $products_html .= '<img src="/wp-content/uploads/woocommerce-placeholder-1024x1024.png" alt="Placeholder">';
+                   $products_html .= wc_placeholder_img();
                }
                $products_html .= '</a>';
                $products_html .= '</div>'; // End product_thumbnail
