@@ -144,7 +144,7 @@ async function stitch(canvasImg, editedBuf, maskImg) {
 // ── Main ────────────────────────────────────────────────────────────────────
 // Reshape `buffer` into every requested ad size. Upscales the source once up
 // front when it's too small to fill the biggest target sharply.
-async function resizeImage({ clientId, buffer, sizeKeys, userId = null }) {
+async function resizeImage({ clientId, buffer, sizeKeys, userId = null, saveSource = true }) {
   const requested = AD_SIZES.filter(s => sizeKeys.includes(s.key));
   if (!requested.length) { const e = new Error('Pick at least one ad size.'); e.status = 400; throw e; }
 
@@ -152,6 +152,10 @@ async function resizeImage({ clientId, buffer, sizeKeys, userId = null }) {
   const srcW0 = original.bitmap.width, srcH0 = original.bitmap.height;
   let src = original;
   let srcBuf = await original.getBufferAsync(Jimp.MIME_PNG);   // normalise to PNG for fal
+  // Keep the original on disk so a later "retry failed" can re-run without a
+  // re-upload. Saved before any upscale, so retries start from the true source.
+  let sourceUrl = null;
+  if (saveSource) sourceUrl = saveOutput(clientId, srcBuf, 'src');
   let upscaled = false, spend = 0;
 
   const maxTargetEdge = Math.max(...requested.map(s => Math.max(s.w, s.h)));
@@ -202,6 +206,7 @@ async function resizeImage({ clientId, buffer, sizeKeys, userId = null }) {
     source: {
       width: srcW0, height: srcH0, upscaled,
       upscaled_to: upscaled ? { width: src.bitmap.width, height: src.bitmap.height } : null,
+      url: sourceUrl,
     },
     outputs,
     spend_usd: +spend.toFixed(4),
@@ -248,14 +253,19 @@ async function listBatches(clientId) {
   );
   return rows.map(r => {
     const items = r.result?.items || [];
-    let thumb = null, outputCount = 0;
-    for (const it of items) for (const o of (it.outputs || [])) {
-      if (!o.error && o.url) { outputCount++; if (!thumb) thumb = o.url; }
+    let thumb = null, outputCount = 0, failedCount = 0, retryableFailed = 0;
+    for (const it of items) {
+      const hasSource = !!(it.source?.url);
+      for (const o of (it.outputs || [])) {
+        if (o.error) { failedCount++; if (hasSource) retryableFailed++; }
+        else if (o.url) { outputCount++; if (!thumb) thumb = o.url; }
+      }
     }
     return {
       id: r.id, created_at: r.created_at, created_by_name: r.created_by_name,
       source_count: r.source_count, size_count: r.size_count, spend_usd: Number(r.spend_usd),
-      output_count: outputCount, thumb, names: items.map(it => it.name).filter(Boolean),
+      output_count: outputCount, failed_count: failedCount, retryable_failed: retryableFailed,
+      thumb, names: items.map(it => it.name).filter(Boolean),
     };
   });
 }
@@ -266,11 +276,56 @@ async function getBatch(id) {
 }
 
 async function deleteBatch(batch) {
-  for (const it of (batch.result?.items || [])) for (const o of (it.outputs || [])) {
-    const p = o.url && diskPathForOutput(o.url);
-    if (p) fs.promises.unlink(p).catch(() => {});
+  for (const it of (batch.result?.items || [])) {
+    for (const o of (it.outputs || [])) {
+      const p = o.url && diskPathForOutput(o.url);
+      if (p) fs.promises.unlink(p).catch(() => {});
+    }
+    const sp = it.source?.url && diskPathForOutput(it.source.url);
+    if (sp) fs.promises.unlink(sp).catch(() => {});
   }
   await pool.query('DELETE FROM ad_resize_batches WHERE id = $1', [batch.id]);
+}
+
+// Re-run only the failed sizes in a saved batch, using each image's stored
+// source (no re-upload). Successful outputs are untouched; failed ones are
+// replaced in place. Returns { recovered, still_failed, skipped, batch }.
+async function retryBatch(batch, { userId = null } = {}) {
+  const result = batch.result || {};
+  const items = result.items || [];
+  let addedSpend = 0, recovered = 0, stillFailed = 0, skipped = 0;
+
+  for (const item of items) {
+    const failedKeys = (item.outputs || []).filter(o => o.error).map(o => o.key);
+    if (!failedKeys.length) continue;
+    const srcPath = item.source?.url && diskPathForOutput(item.source.url);
+    if (!srcPath || !fs.existsSync(srcPath)) {
+      item.retry_note = 'Original image is no longer available — re-upload this one to retry.';
+      skipped += failedKeys.length;
+      continue;
+    }
+    delete item.retry_note;
+    let out;
+    try {
+      out = await resizeImage({
+        clientId: batch.client_id, buffer: fs.readFileSync(srcPath),
+        sizeKeys: failedKeys, userId, saveSource: false,
+      });
+    } catch (e) {
+      item.retry_note = e.message;
+      stillFailed += failedKeys.length;
+      continue;
+    }
+    addedSpend += out.spend_usd || 0;
+    const byKey = {};
+    for (const o of out.outputs) { byKey[o.key] = o; if (o.error) stillFailed++; else recovered++; }
+    item.outputs = (item.outputs || []).map(o => (byKey[o.key] ? byKey[o.key] : o));
+  }
+
+  result.spend_usd = +((result.spend_usd || 0) + addedSpend).toFixed(4);
+  await pool.query('UPDATE ad_resize_batches SET result = $1, spend_usd = $2 WHERE id = $3',
+    [JSON.stringify(result), result.spend_usd, batch.id]);
+  return { recovered, still_failed: stillFailed, skipped, batch: await getBatch(batch.id) };
 }
 
 // Build a .zip of every output in a batch. Many-image runs get one folder per
@@ -303,5 +358,5 @@ async function zipBatch(batch) {
 
 module.exports = {
   catalog, prices, resizeImage, AD_SIZES, priceFor,
-  recordBatch, listBatches, getBatch, deleteBatch, zipBatch,
+  recordBatch, listBatches, getBatch, deleteBatch, zipBatch, retryBatch,
 };
