@@ -303,14 +303,23 @@ export default function AdResizePanel({ clientId, clientName }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Results{result.created_at ? ` · ${new Date(result.created_at).toLocaleDateString()}` : ''}
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             {(() => {
+              // Only failures whose image still has a stored source can be retried
+              // in place; older runs (pre source-saving) must be re-uploaded.
+              const retryable = (result.items || []).reduce((n, it) => n + (it.source?.url ? (it.outputs || []).filter(o => o.error).length : 0), 0);
               const failed = (result.items || []).reduce((n, it) => n + (it.outputs || []).filter(o => o.error).length, 0);
-              return failed > 0 && result.batch_id ? (
-                <button className="btn btn-secondary btn-sm" disabled={retrying} onClick={() => retry(result.batch_id)}>
-                  {retrying ? 'Retrying…' : `Retry failed (${failed})`}
-                </button>
-              ) : null;
+              if (retryable > 0 && result.batch_id) {
+                return (
+                  <button className="btn btn-secondary btn-sm" disabled={retrying} onClick={() => retry(result.batch_id)}>
+                    {retrying ? 'Retrying…' : `Retry failed (${retryable})`}
+                  </button>
+                );
+              }
+              if (failed > 0) {
+                return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{failed} failed — re-upload the image above to redo them.</span>;
+              }
+              return null;
             })()}
             {result.batch_id && (
               <a className="btn btn-primary btn-sm" href={zipUrl(result.batch_id)} download>Download all (.zip)</a>
