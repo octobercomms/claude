@@ -418,6 +418,14 @@ router.get('/resize-batches/:batchId/download', async (req, res) => {
   } catch (err) { console.error('[ad-resize] zip failed:', err); res.status(500).json({ error: err.message }); }
 });
 
+// Re-run only the failed sizes in a saved run (uses each image's stored source
+// — no re-upload). Runs that predate source-saving fall back to a re-upload.
+router.post('/resize-batches/:batchId/retry', async (req, res) => {
+  const batch = await loadResizeBatch(req, res); if (!batch) return;
+  try { res.json(await adResize.retryBatch(batch, { userId: req.user.id })); }
+  catch (err) { console.error('[ad-resize] retry failed:', err); res.status(err.status || 502).json({ error: err.message }); }
+});
+
 router.delete('/resize-batches/:batchId', async (req, res) => {
   const batch = await loadResizeBatch(req, res); if (!batch) return;
   try { await adResize.deleteBatch(batch); res.status(204).end(); }

@@ -78,6 +78,21 @@ export default function AdResizePanel({ clientId, clientName }) {
       toast('Deleted.', 'success');
     } catch (err) { toast(err.message || 'Delete failed.', 'error'); }
   }
+  const [retrying, setRetrying] = useState(false);
+  async function retry(id) {
+    setRetrying(true);
+    try {
+      const out = await api.post(`/ad-creatives/resize-batches/${id}/retry`);
+      if (out.batch) setResult(out.batch);   // show the updated run
+      loadHistory();
+      const parts = [];
+      if (out.recovered) parts.push(`${out.recovered} recovered`);
+      if (out.still_failed) parts.push(`${out.still_failed} still failing`);
+      if (out.skipped) parts.push(`${out.skipped} need re-upload`);
+      toast(parts.join(' · ') || 'Nothing to retry.', out.recovered ? 'success' : 'error');
+    } catch (err) { toast(err.message || 'Retry failed.', 'error'); }
+    finally { setRetrying(false); }
+  }
 
   // Revoke object URLs on unmount.
   useEffect(() => () => { items.forEach(it => URL.revokeObjectURL(it.url)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -288,9 +303,19 @@ export default function AdResizePanel({ clientId, clientName }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Results{result.created_at ? ` · ${new Date(result.created_at).toLocaleDateString()}` : ''}
           </div>
-          {result.batch_id && (
-            <a className="btn btn-primary btn-sm" href={zipUrl(result.batch_id)} download>Download all (.zip)</a>
-          )}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {(() => {
+              const failed = (result.items || []).reduce((n, it) => n + (it.outputs || []).filter(o => o.error).length, 0);
+              return failed > 0 && result.batch_id ? (
+                <button className="btn btn-secondary btn-sm" disabled={retrying} onClick={() => retry(result.batch_id)}>
+                  {retrying ? 'Retrying…' : `Retry failed (${failed})`}
+                </button>
+              ) : null;
+            })()}
+            {result.batch_id && (
+              <a className="btn btn-primary btn-sm" href={zipUrl(result.batch_id)} download>Download all (.zip)</a>
+            )}
+          </div>
         </div>
       )}
 
@@ -305,6 +330,9 @@ export default function AdResizePanel({ clientId, clientName }) {
               </span>
             )}
           </div>
+          {it.retry_note && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{it.retry_note}</div>
+          )}
           {it.error ? (
             <div className="text-negative" style={{ fontSize: 13, marginBottom: 8 }}>{it.error}</div>
           ) : (
@@ -352,11 +380,17 @@ export default function AdResizePanel({ clientId, clientName }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {b.source_count} image{b.source_count === 1 ? '' : 's'} → {b.size_count} size{b.size_count === 1 ? '' : 's'} · {b.output_count} output{b.output_count === 1 ? '' : 's'}
+                    {b.failed_count > 0 && <span style={{ color: 'var(--negative)', fontWeight: 600 }}> · {b.failed_count} failed</span>}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {new Date(b.created_at).toLocaleString()}{b.names?.length ? ` · ${b.names.join(', ')}` : ''}
                   </div>
                 </div>
+                {b.retryable_failed > 0 && (
+                  <button className="btn btn-secondary btn-sm" disabled={retrying} onClick={() => retry(b.id)}>
+                    {retrying ? '…' : `Retry (${b.retryable_failed})`}
+                  </button>
+                )}
                 <button className="btn btn-secondary btn-sm" onClick={() => openBatch(b.id)}>Open</button>
                 <a className="btn btn-secondary btn-sm" href={zipUrl(b.id)} download>Download</a>
                 <button className="btn btn-secondary btn-sm" onClick={() => removeBatch(b.id)} title="Delete" style={{ color: 'var(--negative)' }}>×</button>
