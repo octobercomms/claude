@@ -490,7 +490,8 @@ function GuidedField({ field, value, onChange }) {
   }
   return (
     <Field label={field.label}>
-      <input className="input" defaultValue={value || ''} placeholder={field.placeholder || ''}
+      <textarea className="input" rows={field.rows || 4} defaultValue={value || ''} placeholder={field.placeholder || ''}
+        style={{ resize: 'vertical', minHeight: 96, width: '100%', lineHeight: 1.45 }}
         onBlur={e => e.target.value !== (value || '') && onChange(e.target.value)} />
     </Field>
   );
@@ -504,12 +505,17 @@ function InputsPanel({ clientId, project, preset, onChange }) {
   const slots = preset?.input_slots || [{ kind: 'sketch', label: 'Reference image' }];
   const imageSlots = slots.filter(s => s.kind !== 'note');
 
-  async function upload(file, forKind) {
-    if (!file) return;
+  async function upload(files, forKind) {
+    const list = Array.from(files || []);
+    if (!list.length) return;
     setBusy(true);
     try {
-      const fd = new FormData(); fd.append('file', file); fd.append('kind', forKind);
-      await api.postForm(`/visualise/projects/${project.id}/inputs`, fd);
+      // Upload each selected file as its own input of this kind — a slot can
+      // hold several reference images, and every image is fed to the model.
+      for (const file of list) {
+        const fd = new FormData(); fd.append('file', file); fd.append('kind', forKind);
+        await api.postForm(`/visualise/projects/${project.id}/inputs`, fd);
+      }
       await onChange();
     } catch (e) { toast(`Upload failed: ${e.message}`, 'error'); }
     finally { setBusy(false); }
@@ -521,7 +527,8 @@ function InputsPanel({ clientId, project, preset, onChange }) {
 
   return (
     <div className="card">
-      <div className="caption mb-3">References</div>
+      <div className="caption mb-1">References</div>
+      <div className="body-xs text-subtle" style={{ marginBottom: 10 }}>Add one or several images per reference — all of them guide the render.</div>
       {imageSlots.map(slot => {
         const items = (project.inputs || []).filter(i => i.kind === slot.kind);
         return (
@@ -543,8 +550,8 @@ function InputsPanel({ clientId, project, preset, onChange }) {
           </div>
         );
       })}
-      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
-        onChange={e => { upload(e.target.files?.[0], kind); e.target.value = ''; }} />
+      <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+        onChange={e => { upload(e.target.files, kind); e.target.value = ''; }} />
     </div>
   );
 }

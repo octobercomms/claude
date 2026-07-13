@@ -20,9 +20,38 @@ const { getSetting } = require('../utils/settings');
 const QUEUE_BASE = 'https://queue.fal.run';
 
 async function authHeader() {
-  const key = await getSetting('FAL_KEY');
+  // Trim whitespace and a pasted-in "Key " prefix so a slightly-off paste in
+  // Settings doesn't silently become a malformed Authorization header.
+  const key = (await getSetting('FAL_KEY') || '').trim().replace(/^Key\s+/i, '');
   if (!key) throw new Error('FAL_KEY not set in Settings');
   return { Authorization: `Key ${key}`, 'Content-Type': 'application/json' };
+}
+
+// Turn an axios failure into a message that says WHAT fal actually rejected —
+// the raw "Request failed with status code 403" is useless to a user. fal puts
+// the reason in the response body (a string, or { detail } / { error }).
+function falError(err, model, phase) {
+  const status = err.response?.status;
+  const data = err.response?.data;
+  let detail = '';
+  if (data != null) {
+    detail = typeof data === 'string' ? data
+      : (data.detail || data.error || data.message || JSON.stringify(data));
+    if (typeof detail !== 'string') detail = JSON.stringify(detail);
+  } else {
+    detail = err.message || 'unknown error';
+  }
+  if (detail.length > 400) detail = detail.slice(0, 400) + '…';
+  const hint = status === 403
+    ? ' — fal returned 403. Usually the FAL_KEY is invalid or lacks access to this model, or the fal account has no billing/credit set up. Check the key at fal.ai → Settings → API keys and that the account can run this model.'
+    : status === 401 ? ' — fal auth failed (401): the FAL_KEY looks wrong.'
+    : status === 404 ? ` — fal has no model at "${model}" (404): the model slug may be wrong.`
+    : status === 422 ? ' — fal rejected the request fields (422): the model expected a different input shape.'
+    : '';
+  const e = new Error(`fal ${model} ${phase} failed${status ? ` (${status})` : ''}: ${detail}${hint}`);
+  e.status = 502;              // to our API this is an upstream failure
+  e.falStatus = status || null;
+  return e;
 }
 
 // Pull the image URL(s) out of a fal result, tolerant of the shapes different
@@ -47,7 +76,10 @@ async function run(model, input = {}, { feature = 'fal', clientId = null, costUs
   const headers = await authHeader();
 
   // Submit to the queue.
-  const { data: submit } = await axios.post(`${QUEUE_BASE}/${model}`, input, { headers });
+  let submit;
+  try {
+    ({ data: submit } = await axios.post(`${QUEUE_BASE}/${model}`, input, { headers }));
+  } catch (err) { throw falError(err, model, 'submit'); }
   const statusUrl = submit.status_url || `${QUEUE_BASE}/${model}/requests/${submit.request_id}/status`;
   const responseUrl = submit.response_url || `${QUEUE_BASE}/${model}/requests/${submit.request_id}`;
 
@@ -58,11 +90,16 @@ async function run(model, input = {}, { feature = 'fal', clientId = null, costUs
     if (status === 'ERROR' || status === 'FAILED') throw new Error(`fal ${model} failed: ${status}`);
     if (Date.now() > deadline) throw new Error(`fal ${model} timed out`);
     await new Promise(r => setTimeout(r, pollMs));
-    const { data } = await axios.get(statusUrl, { headers });
-    status = data.status;
+    try {
+      const { data } = await axios.get(statusUrl, { headers });
+      status = data.status;
+    } catch (err) { throw falError(err, model, 'poll'); }
   }
 
-  const { data: result } = await axios.get(responseUrl, { headers });
+  let result;
+  try {
+    ({ data: result } = await axios.get(responseUrl, { headers }));
+  } catch (err) { throw falError(err, model, 'result'); }
   const urls = extractUrls(result);
 
   if (costUsd != null) {
