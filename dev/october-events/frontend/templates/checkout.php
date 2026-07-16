@@ -140,11 +140,22 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
          the only charge; with a paid ticket it rides the same card. It also unlocks
          any members-only rate. Hidden for people already detected as members. -->
     <div class="oct-section oct-membership-optin" id="oct-membership-optin" style="display:none">
-      <label class="oct-membership-optin__row">
-        <input type="checkbox" id="oct-join-toggle">
-        <span class="oct-membership-optin__label" id="oct-join-label"></span>
-      </label>
-      <p class="oct-membership-optin__help" id="oct-join-help"></p>
+      <div class="oct-membership-card">
+        <div class="oct-membership-card__head">
+          <span class="oct-membership-card__title" id="oct-join-title"></span>
+          <span class="oct-membership-card__price" id="oct-join-price"></span>
+        </div>
+        <p class="oct-membership-card__pitch"><?php esc_html_e('Support the festival all year round. As a member you’ll get:', 'october-events'); ?></p>
+        <ul class="oct-membership-card__benefits" id="oct-join-benefits"></ul>
+        <label class="oct-membership-optin__row">
+          <input type="checkbox" id="oct-join-toggle">
+          <span class="oct-membership-optin__label" id="oct-join-label"></span>
+        </label>
+        <div class="oct-membership-card__foot">
+          <span class="oct-membership-optin__help" id="oct-join-help"></span>
+          <a href="#" id="oct-join-readmore" class="oct-btn oct-btn--secondary oct-membership-card__btn" target="_blank" rel="noopener" style="display:none"><?php esc_html_e('Read benefits &amp; terms', 'october-events'); ?></a>
+        </div>
+      </div>
     </div>
 
     <div class="oct-section oct-section--summary oct-summary" id="oct-summary">

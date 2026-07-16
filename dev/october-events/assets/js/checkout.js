@@ -22,7 +22,7 @@
     // Membership join: whether inline same-card join is available, its display
     // amount, and whether the buyer ticked the voluntary "add membership" opt-in.
     // (A member-only rate auto-includes membership for non-members — no opt-in.)
-    joinInline: false, joinAmount: 0, optIn: false,
+    joinInline: false, joinAmount: 0, optIn: false, optinBuilt: false,
   };
 
   function rest(path, body) {
@@ -106,8 +106,7 @@
     // (a member rate auto-includes membership, so no checkbox there).
     var showOptin = !state.isMember && !hasMR && readCart().length > 0;
     $('#oct-membership-optin').toggle(showOptin);
-    $('#oct-join-label').text(cfg.membershipJoinLabel || 'Add a Friend membership');
-    $('#oct-join-help').text('Billed monthly — cancel anytime.');
+    if (showOptin && !state.optinBuilt) { buildMembershipCard(); state.optinBuilt = true; }
     if ($('#oct-join-toggle').is(':checked') !== state.optIn) { $('#oct-join-toggle').prop('checked', state.optIn); }
     // Membership-added note (+ terms link), shown whenever membership joins this order.
     var joining = joiningEffective();
@@ -123,6 +122,23 @@
       else { $('#oct-membership-note-terms').hide(); }
       $note.css('display', 'block');
     } else { $note.hide(); }
+  }
+  // Fill the upsell card once: title, price, benefit bullets, checkbox label,
+  // helper text and the "read benefits & terms" button.
+  function buildMembershipCard() {
+    var amt = state.joinAmount > 0 ? (currencySymbol + (state.joinAmount / 100).toFixed(2) + '/mo') : '';
+    $('#oct-join-title').text(cfg.membershipJoinLabel || 'Become a member');
+    if (amt) { $('#oct-join-price').text(amt).show(); } else { $('#oct-join-price').hide(); }
+    var benefits = cfg.membershipBenefits || [];
+    var $ul = $('#oct-join-benefits').empty();
+    if (benefits.length) {
+      benefits.forEach(function (b) { $('<li>').text(b).appendTo($ul); });
+      $ul.show(); $('.oct-membership-card__pitch').show();
+    } else { $ul.hide(); $('.oct-membership-card__pitch').hide(); }
+    $('#oct-join-label').text('Add to my order' + (amt ? ' — ' + amt : ''));
+    $('#oct-join-help').text('Billed monthly — cancel anytime.');
+    if (cfg.membershipInfoUrl) { $('#oct-join-readmore').attr('href', cfg.membershipInfoUrl).show(); }
+    else { $('#oct-join-readmore').hide(); }
   }
   function bindJoinToggle() {
     $(document).on('change', '#oct-join-toggle', function () {

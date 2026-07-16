@@ -104,6 +104,7 @@ final class Checkout {
             'membershipJoinInline' => (bool) Settings::get('membership_enabled', false) && trim((string) Settings::get('membership_join_price_id', '')) !== '',
             'membershipJoinAmount' => (int) Settings::get('membership_join_amount', 0),
             'membershipInfoUrl'    => (string) Settings::get('membership_info_url', ''),
+            'membershipBenefits'   => array_values((array) Settings::get('membership_benefits', [])),
             'types'             => $types,
         ]);
 

@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.76.0 — membership upsell card (benefits + read-more button)
+
+The voluntary "add a Friend membership" opt-in on a normal checkout is no longer a
+bare checkbox — it's now a proper upsell card: a bordered, grey-backgrounded panel
+with the plan name + price, a few key benefit bullets, an "Add to my order"
+checkbox, and a **Read benefits & terms** button linking your membership page.
+
+- **Settings → Checkout → Membership → Membership benefits**: a new field — one
+  perk per line (lifted from your membership page) — rendered as the card's
+  bullets. Leave blank for no bullets.
+- The card uses the existing join label, join amount (for the price), and info-page
+  URL. The member-rate summary note is unchanged.
+
 ## 1.75.3 — tighter ticket-description line spacing
 
 Added `line-height: 1` to `.oct-ticket-row__desc` so a wrapping two-line

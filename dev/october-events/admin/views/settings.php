@@ -338,6 +338,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="text" name="membership_join_label" class="regular-text" value="<?php echo esc_attr((string) ($cfg['membership_join_label'] ?? '')); ?>" placeholder="<?php esc_attr_e('Join as a Friend — $5/mo', 'october-events'); ?>"></label></p>
         <p><label><strong><?php esc_html_e('Membership info page', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('linked at checkout as “Read about Membership Benefits and Terms”', 'october-events'); ?></span><br>
             <input type="url" name="membership_info_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['membership_info_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net/membership/"></label></p>
+        <p><label><strong><?php esc_html_e('Membership benefits', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one per line — a few key perks from your membership page, shown as bullets in the checkout upsell card. Leave blank for no bullets.', 'october-events'); ?></span><br>
+            <textarea name="membership_benefits" rows="4" class="large-text" placeholder="<?php esc_attr_e("Regular email updates about upcoming events&#10;Your name on the Friends wall on our website&#10;Support student-led installations & public workshops", 'october-events'); ?>"><?php echo esc_textarea(implode("\n", (array) ($cfg['membership_benefits'] ?? []))); ?></textarea></label></p>
 
         <h4 style="margin:16px 0 6px"><?php esc_html_e('Test: is this email a member?', 'october-events'); ?></h4>
         <p><?php esc_html_e('Check a known member’s email to confirm your price IDs resolve in Stripe.', 'october-events'); ?></p>

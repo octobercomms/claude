@@ -79,6 +79,9 @@ final class Settings {
             // is added at checkout, e.g. https://…/membership/. Shown as
             // "Read about Membership Benefits and Terms".
             'membership_info_url'      => '',
+            // A few key benefit lines (one per entry) shown in the checkout upsell
+            // card, lifted from the membership page. Empty = no bullet list.
+            'membership_benefits'      => [],
             // Rejection email copy per listing type (§3.3). Empty => default.
             'rejection_copy'  => [],
             // AI Stories connector source URLs (RSS preferred) (§6).
