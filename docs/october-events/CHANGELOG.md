@@ -5,6 +5,28 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.75.0 — membership on every checkout: auto-join for member rates, free-ticket join, T&Cs link
+
+Refines the join-at-checkout UX (from 1.74.0) into the full "offer membership on
+any ticket" flow.
+
+- **Member rates are no longer locked** — anyone can select one. The order then
+  reacts to the buyer's email: an active member simply pays the member price; a
+  non-member automatically has the **Friend membership ($5/mo) added** to the
+  order so they qualify. No checkbox to hunt for.
+- **Free ticket + membership**: a free RSVP can become a **$5 checkout** — tick
+  "Add a Friend membership" and the membership's first month is the only charge.
+  Handled by a new membership-only Stripe path (`/membership-intent` +
+  `/membership-confirm`): the subscription's first invoice is confirmed with the
+  card, then the free ticket is issued.
+- **Voluntary opt-in on any checkout**: on a normal (non-member-rate) ticket,
+  non-members see an "Add a Friend membership — $5/mo" checkbox.
+- **Order Summary now sits below Your Details**, so the membership appears right
+  after the buyer enters their email and it's checked against Stripe.
+- **Membership info link**: wherever a membership is added, the summary shows
+  "Read about Membership Benefits and Terms" linking to your membership page (new
+  Settings → Checkout → Membership → *Membership info page*).
+
 ## 1.74.0 — one-click join: subscribe + buy the member rate with the same card (part 3)
 
 A non-member can now join the membership **and** buy the member-rate ticket in a

@@ -336,6 +336,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="url" name="membership_join_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['membership_join_url'] ?? '')); ?>" placeholder="https://buy.stripe.com/…"></label></p>
         <p><label><strong><?php esc_html_e('Join button label', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('shown on the offer checkbox/button', 'october-events'); ?></span><br>
             <input type="text" name="membership_join_label" class="regular-text" value="<?php echo esc_attr((string) ($cfg['membership_join_label'] ?? '')); ?>" placeholder="<?php esc_attr_e('Join as a Friend — $5/mo', 'october-events'); ?>"></label></p>
+        <p><label><strong><?php esc_html_e('Membership info page', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('linked at checkout as “Read about Membership Benefits and Terms”', 'october-events'); ?></span><br>
+            <input type="url" name="membership_info_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['membership_info_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net/membership/"></label></p>
 
         <h4 style="margin:16px 0 6px"><?php esc_html_e('Test: is this email a member?', 'october-events'); ?></h4>
         <p><?php esc_html_e('Check a known member’s email to confirm your price IDs resolve in Stripe.', 'october-events'); ?></p>

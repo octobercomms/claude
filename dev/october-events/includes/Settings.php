@@ -75,6 +75,10 @@ final class Settings {
             // First-month/display amount of the join plan, in the smallest currency
             // unit (e.g. 500 = $5.00), shown in the checkout summary. 0 = hide it.
             'membership_join_amount'   => 0,
+            // Membership info page (benefits + terms), linked wherever a membership
+            // is added at checkout, e.g. https://…/membership/. Shown as
+            // "Read about Membership Benefits and Terms".
+            'membership_info_url'      => '',
             // Rejection email copy per listing type (§3.3). Empty => default.
             'rejection_copy'  => [],
             // AI Stories connector source URLs (RSS preferred) (§6).

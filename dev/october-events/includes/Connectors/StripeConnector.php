@@ -110,6 +110,48 @@ final class StripeConnector {
     }
 
     /**
+     * Create a subscription whose first invoice must be paid on-session — used
+     * when the membership is the ONLY charge (e.g. a free ticket + join): there's
+     * no ticket payment to ride, so we return the first invoice's PaymentIntent
+     * client_secret for the buyer to confirm with their card. The card is saved to
+     * the customer for future renewals.
+     *
+     * @return array{id:string,client_secret:string,status:string,error:string}
+     */
+    public static function create_incomplete_subscription(string $customer_id, string $price_id, array $metadata = []): array {
+        if ($customer_id === '' || $price_id === '' || ! self::is_ready()) {
+            return ['id' => '', 'client_secret' => '', 'status' => '', 'error' => 'missing_customer_or_price'];
+        }
+        $params = [
+            'customer'         => $customer_id,
+            'items'            => [['price' => $price_id]],
+            'payment_behavior' => 'default_incomplete',
+            'payment_settings' => ['save_default_payment_method' => 'on_subscription'],
+            'expand'           => ['latest_invoice.payment_intent'],
+        ];
+        foreach ($metadata as $k => $v) {
+            $params["metadata[{$k}]"] = (string) $v;
+        }
+        $sub = self::request('POST', '/subscriptions', $params);
+        $err = is_array($sub['error'] ?? null) ? $sub['error'] : [];
+        $pi  = is_array($sub['latest_invoice']['payment_intent'] ?? null) ? $sub['latest_invoice']['payment_intent'] : [];
+        return [
+            'id'            => (string) ($sub['id'] ?? ''),
+            'client_secret' => (string) ($pi['client_secret'] ?? ''),
+            'status'        => (string) ($sub['status'] ?? ''),
+            'error'         => (string) ($err['message'] ?? ''),
+        ];
+    }
+
+    /** Fetch a subscription (to confirm it went active after the buyer paid). */
+    public static function retrieve_subscription(string $id): array {
+        if ($id === '' || ! self::is_ready()) {
+            return [];
+        }
+        return self::request('GET', '/subscriptions/' . rawurlencode($id));
+    }
+
+    /**
      * Create a PaymentIntent for a listing payment. Returns
      * ['id' => pi_x, 'client_secret' => ...] for client-side confirmation.
      *
