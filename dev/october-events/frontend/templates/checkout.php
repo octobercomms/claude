@@ -85,16 +85,6 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
           </div>
         <?php endforeach; ?>
       </div>
-      <!-- Member join offer — shown by checkout.js when a non-member picks a
-           members-only rate and a join link is configured. -->
-      <div id="oct-member-offer" class="oct-member-offer" style="display:none" role="note">
-        <div class="oct-member-offer__text">
-          <strong><?php esc_html_e('That’s a members-only rate.', 'october-events'); ?></strong>
-          <span id="oct-member-offer__msg"><?php esc_html_e('Add a Friend membership below to unlock it — or enter the email on your membership under “Your Details”.', 'october-events'); ?></span>
-        </div>
-        <!-- Fallback: external Payment Link when no inline join price is configured. -->
-        <a href="#" id="oct-member-join" class="oct-btn oct-btn--primary oct-member-offer__btn" target="_blank" rel="noopener" style="display:none"></a>
-      </div>
     </div>
 
     <!-- Waitlist modal (sold-out) -->

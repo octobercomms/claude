@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.75.1 — member rates are freely selectable (no lock, no click-through message)
+
+Member-only rates are now always selectable by anyone — the greyed-out lock and
+the "That's a members-only rate" message on click are gone. Selecting one adds it
+straight to the cart; the order then reacts to the buyer's email (member → member
+price; non-member → membership auto-added). Note: for the non-member auto-join to
+charge, a **Join price ID** must be set (Settings → Checkout → Membership).
+
 ## 1.75.0 — membership on every checkout: auto-join for member rates, free-ticket join, T&Cs link
 
 Refines the join-at-checkout UX (from 1.74.0) into the full "offer membership on

@@ -56,7 +56,6 @@
     bindWaitlist();
     bindMemberEmail();
     bindJoinToggle();
-    applyMemberLocks();
     updateSummary();
   }
 
@@ -65,10 +64,7 @@
      confirmed as an active member they simply pay the member price; when it isn't,
      the Friend membership ($5/mo) is auto-added to the order so they qualify. On a
      plain (non-member-rate) ticket, a voluntary "add a Friend membership" opt-in is
-     offered instead. The server re-checks on price/pay — this is UI only.
-     Fallback: if no same-card join price is configured (joinInline=false) we keep
-     the old behaviour — member rates lock until a member email / external link. ---- */
-  function isMembersOnlyRow($row) { return String($row.data('members-only')) === '1'; }
+     offered instead. The server re-checks on price/pay — this is UI only. ---- */
   function membershipActive() { return cfg.membershipEnabled && (state.hasMembersOnly || state.joinInline); }
   // The membership is being added to THIS order when: a same-card join is possible,
   // the buyer isn't already a member, and either they're taking a member rate
@@ -84,7 +80,7 @@
       state.memberCheckTimer = setTimeout(checkMemberEmail, 600);
     }).on('blur', checkMemberEmail);
   }
-  function onMemberStatusChange() { applyMemberLocks(); updateSummary(); }
+  function onMemberStatusChange() { updateSummary(); }
   function checkMemberEmail() {
     var email = $('#oct-email').val().trim();
     if (email === state.memberEmail) { return; }          // already checked this address
@@ -99,23 +95,6 @@
       state.isMember = !!(res.ok && res.body && res.body.member);
       onMemberStatusChange();
     });
-  }
-  // Member rows: in the same-card (inline) flow they're never locked — anyone may
-  // select them. In the fallback flow (external link only) keep the old lock.
-  function applyMemberLocks() {
-    if (!state.hasMembersOnly) { return; }
-    var lockable = !state.joinInline; // only the external-link fallback locks rows
-    $('.oct-ticket-row[data-members-only="1"]').each(function () {
-      var $row = $(this);
-      if ($row.hasClass('oct-ticket-row--unavailable')) { return; }
-      var locked = lockable && !state.isMember;
-      $row.toggleClass('oct-ticket-row--locked', locked);
-      if (locked && (parseInt($row.find('.oct-qty-val').text(), 10) || 0) > 0) {
-        $row.find('.oct-qty-val').text('0');
-        $row.removeClass('oct-ticket-row--selected');
-      }
-    });
-    if (state.isMember || state.joinInline) { hideMemberOffer(); }
   }
   // Sync the membership UI bits (voluntary opt-in checkbox + the "membership added"
   // note with its T&Cs link) to the current cart + member status. Pure UI — called
@@ -152,16 +131,6 @@
       updateSummary();
     });
   }
-  function showMemberOffer() {
-    // Only used in the external-link fallback (inline flow never locks rows).
-    var $offer = $('#oct-member-offer');
-    if (!$offer.length || state.isMember || state.joinInline) { return; }
-    if (cfg.membershipJoinUrl) {
-      $('#oct-member-join').attr('href', cfg.membershipJoinUrl).text(cfg.membershipJoinLabel || 'Join to unlock this rate').show();
-    }
-    $offer.show();
-  }
-  function hideMemberOffer() { $('#oct-member-offer').hide(); }
   // Whether the current cart contains a member-rate line.
   function cartHasMemberRate() {
     return readCart().some(function (c) { return c.type && c.type.membersOnly; });
@@ -185,15 +154,8 @@
     return cart;
   }
   function setRowQty($row, n) {
-    // Fallback flow only (no same-card join): a member rate stays locked for
-    // non-members — show the external join offer instead of adding it.
-    if (n > 0 && isMembersOnlyRow($row) && !state.joinInline && !state.isMember) {
-      $row.find('.oct-qty-val').text('0');
-      $row.removeClass('oct-ticket-row--selected');
-      showMemberOffer();
-      updateSummary();
-      return;
-    }
+    // Member rates are selectable by everyone — the order then reacts to the
+    // buyer's email (member → member price; non-member → membership added).
     var max = parseInt($row.data('max-qty'), 10) || 99;
     n = Math.max(0, Math.min(max, n));
     $row.find('.oct-qty-val').text(n);
