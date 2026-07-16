@@ -64,6 +64,9 @@ final class TicketTypes {
                     static fn($v) => sanitize_text_field((string) $v),
                     (array) ($t['venues'] ?? [])
                 ))),
+                // A member-only rate: only buyers with an active Stripe membership
+                // may purchase it. Non-members see a "Join to unlock" offer instead.
+                'members_only'     => ! empty($t['members_only']),
                 'active'           => ! empty($t['active']),
                 'sale_from'        => sanitize_text_field((string) ($t['sale_from'] ?? '')),
                 'sale_until'       => sanitize_text_field((string) ($t['sale_until'] ?? '')),
@@ -88,6 +91,15 @@ final class TicketTypes {
      */
     public static function max_per_order(array $type): int {
         return min(99, max(1, (int) ($type['max_per_order'] ?? 99)));
+    }
+
+    /**
+     * Whether this ticket type is a members-only rate — only buyers with an
+     * active Stripe membership may purchase it. Types saved before this setting
+     * existed read as false (open to everyone), the safe default.
+     */
+    public static function is_members_only(array $type): bool {
+        return ! empty($type['members_only']);
     }
 
     /**

@@ -55,10 +55,11 @@ final class Checkout {
                 'price'      => (float) $t['price'],
                 'sale_price' => $t['sale_price'],
                 'effective'  => TicketTypes::effective_price($t),
-                'admits'     => (int) $t['qty_per_purchase'],
-                'max'        => TicketTypes::max_per_order($t),
-                'state'      => $avail['state'],
-                'opens'      => $avail['opens'],
+                'admits'      => (int) $t['qty_per_purchase'],
+                'max'         => TicketTypes::max_per_order($t),
+                'membersOnly' => TicketTypes::is_members_only($t),
+                'state'       => $avail['state'],
+                'opens'       => $avail['opens'],
             ];
         }
         if (! $types) {
@@ -91,6 +92,12 @@ final class Checkout {
             'currency'          => $currency,
             'currencySymbol'    => $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$'),
             'termsUrl'          => (string) Settings::get('checkout_terms_url', ''),
+            // Membership: when enabled, the checkout checks the buyer's email and
+            // unlocks member-only rates for members; non-members trying to pick one
+            // are offered the join link (a Stripe Payment Link).
+            'membershipEnabled' => (bool) Settings::get('membership_enabled', false),
+            'membershipJoinUrl' => (string) Settings::get('membership_join_url', ''),
+            'membershipJoinLabel' => (string) (Settings::get('membership_join_label', '') ?: __('Join to unlock this rate', 'october-events')),
             'types'             => $types,
         ]);
 

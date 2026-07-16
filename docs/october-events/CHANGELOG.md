@@ -5,6 +5,30 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.72.0 — members-only ticket rates + join-at-checkout offer (part 2)
+
+Ticket types can now be flagged **Members only**, so a special member rate is
+reserved for people with an active membership — and everyone else is invited to
+join right at checkout.
+
+- **Ticket type editor**: a new **Members** checkbox on each ticket type. Tick it
+  to make that rate members-only (e.g. a discounted member price).
+- **Checkout**: a members-only rate shows a "Members only" badge and stays locked
+  until the buyer's email is confirmed as an active member. As soon as they enter
+  a member email under *Your Details*, the rate unlocks automatically. A
+  non-member who tries to pick it sees a **join offer** with a button to your
+  membership plan.
+- **Settings → Checkout → Membership**: new **join link** (paste your Stripe
+  Payment Link — e.g. the Friend monthly plan) and **join button label** for that
+  offer. Leave the link blank to simply keep member rates locked to non-members.
+- **Enforced server-side**: pricing/checkout re-checks membership for any
+  members-only line, so the rate can't be grabbed by editing the page — you must
+  buy with the email on an active membership. A new public, rate-limited
+  `/member-check` endpoint powers the live unlock (returns only yes/no).
+
+Still to come (next stages): subscribe-with-the-same-card during checkout, and
+the follow-up email nudging non-members to join a few days after purchase.
+
 ## 1.71.1 — membership detection: match by product ID too
 
 Member detection now matches a subscription if **either** its price ID **or** its

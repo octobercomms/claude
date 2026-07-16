@@ -66,7 +66,7 @@ final class TicketsAdmin {
             $venues
         )));
         ?>
-        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2). "Max/order" caps how many of a type one buyer can take at once — it defaults to 99 (no practical limit, good for group buyers like colleges); lower it on a type you want to restrict. "Valid at" scopes a ticket to specific doors: add your doors in Check-in venues below and Save, then tick the doors each ticket may enter at (tick none = valid at every door) — e.g. a lower-priced Serenbe-only ticket that scans only at the Serenbe homes. The doors are not shown to buyers — name the ticket type (and use its description) to tell them what it covers.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Define one or more ticket types. "Admits" lets a single purchase generate multiple admissions (e.g. a couples ticket = 2). "Max/order" caps how many of a type one buyer can take at once — it defaults to 99 (no practical limit, good for group buyers like colleges); lower it on a type you want to restrict. "Members" makes a rate members-only — only buyers whose email is an active Stripe member can buy it, and non-members are offered the chance to join at checkout (set the join link under Settings → Checkout → Membership). "Valid at" scopes a ticket to specific doors: add your doors in Check-in venues below and Save, then tick the doors each ticket may enter at (tick none = valid at every door) — e.g. a lower-priced Serenbe-only ticket that scans only at the Serenbe homes. The doors are not shown to buyers — name the ticket type (and use its description) to tell them what it covers.', 'october-events'); ?></p>
         <table class="widefat" id="oe-tt-table">
             <thead><tr>
                 <th><?php esc_html_e('Label', 'october-events'); ?></th>
@@ -74,6 +74,7 @@ final class TicketsAdmin {
                 <th><?php esc_html_e('Sale', 'october-events'); ?></th>
                 <th><?php esc_html_e('Admits', 'october-events'); ?></th>
                 <th><?php esc_html_e('Max/order', 'october-events'); ?></th>
+                <th><?php esc_html_e('Members', 'october-events'); ?></th>
                 <th><?php esc_html_e('Valid at', 'october-events'); ?></th>
                 <th><?php esc_html_e('On sale from', 'october-events'); ?></th>
                 <th><?php esc_html_e('until', 'october-events'); ?></th>
@@ -256,6 +257,7 @@ final class TicketsAdmin {
             <td><input type="number" step="0.01" min="0" name="oe_tt[<?php echo $i; ?>][sale_price]" value="<?php echo esc_attr($t['sale_price'] ?? ''); ?>" style="width:80px"></td>
             <td><input type="number" min="1" max="20" name="oe_tt[<?php echo $i; ?>][qty_per_purchase]" value="<?php echo $g('qty_per_purchase', '1'); ?>" style="width:55px"></td>
             <td><input type="number" min="1" max="99" name="oe_tt[<?php echo $i; ?>][max_per_order]" value="<?php echo $g('max_per_order', '99'); ?>" style="width:55px" title="<?php esc_attr_e('Most of this ticket one buyer can purchase at once (1–99). Default 99 — lower it to restrict.', 'october-events'); ?>"></td>
+            <td style="text-align:center"><input type="checkbox" name="oe_tt[<?php echo $i; ?>][members_only]" value="1" <?php checked(! empty($t['members_only'])); ?> title="<?php esc_attr_e('Members only — only buyers with an active membership can purchase this rate. Non-members are offered the chance to join.', 'october-events'); ?>"></td>
             <td>
                 <?php
                 $sel = array_map('strtolower', TicketTypes::type_venues($t));
@@ -337,6 +339,7 @@ final class TicketsAdmin {
                 'sale_price'       => $r['sale_price'] ?? '',
                 'qty_per_purchase' => $r['qty_per_purchase'] ?? 1,
                 'max_per_order'    => $r['max_per_order'] ?? 99,
+                'members_only'     => ! empty($r['members_only']),
                 'venues'           => array_keys($picked),
                 'active'           => ! empty($r['active']),
                 'sale_from'        => $this->from_local((string) ($r['sale_from'] ?? '')),

@@ -16,6 +16,9 @@
     promoCode: '', discountAmount: 0, promoValid: false,
     subtotal: 0, total: 0, stripe: null, cardElement: null,
     processing: false, hasTerms: false,
+    // Membership: whether the buyer's email is an active member, the email we
+    // last checked, and whether the event has any members-only rate at all.
+    isMember: false, memberEmail: '', hasMembersOnly: false, memberCheckTimer: null,
   };
 
   function rest(path, body) {
@@ -37,6 +40,7 @@
     state.eventId  = parseInt($checkout.data('event-id'), 10) || 0;
     state.hasTerms = String($checkout.data('has-terms')) === '1';
     state.ticketTypes = cfg.types || [];
+    state.hasMembersOnly = $('.oct-ticket-row[data-members-only="1"]').length > 0;
 
     bindTicketRows();
     bindPromo();
@@ -44,8 +48,65 @@
     initPayPal();
     bindFreeRegistration();
     bindWaitlist();
+    bindMemberEmail();
+    applyMemberLocks();
     updateSummary();
   }
+
+  /* ---- Membership: unlock member-only rates for members, offer joining to
+     everyone else. The server re-checks on price/pay, so this is UI only. ---- */
+  function isMembersOnlyRow($row) { return String($row.data('members-only')) === '1'; }
+  function bindMemberEmail() {
+    if (!cfg.membershipEnabled || !state.hasMembersOnly) { return; }
+    // Check membership shortly after the buyer stops typing their email, and on blur.
+    $('#oct-email').on('input', function () {
+      clearTimeout(state.memberCheckTimer);
+      state.memberCheckTimer = setTimeout(checkMemberEmail, 600);
+    }).on('blur', checkMemberEmail);
+  }
+  function checkMemberEmail() {
+    var email = $('#oct-email').val().trim();
+    if (email === state.memberEmail) { return; }          // already checked this address
+    if (!email || !isValidEmail(email)) {
+      state.memberEmail = ''; state.isMember = false; applyMemberLocks();
+      return;
+    }
+    state.memberEmail = email;
+    rest('/member-check', { email: email }).then(function (res) {
+      // Ignore a stale response if the email changed again while in flight.
+      if ($('#oct-email').val().trim() !== email) { return; }
+      state.isMember = !!(res.ok && res.body && res.body.member);
+      applyMemberLocks();
+    });
+  }
+  // Lock every members-only row for non-members (qty forced to 0), unlock for
+  // members. Reveal the join offer while a non-member is looking at these rates.
+  function applyMemberLocks() {
+    if (!state.hasMembersOnly) { return; }
+    var member = state.isMember;
+    $('.oct-ticket-row[data-members-only="1"]').each(function () {
+      var $row = $(this);
+      if ($row.hasClass('oct-ticket-row--unavailable')) { return; }
+      $row.toggleClass('oct-ticket-row--locked', !member);
+      if (!member && (parseInt($row.find('.oct-qty-val').text(), 10) || 0) > 0) {
+        $row.find('.oct-qty-val').text('0');
+        $row.removeClass('oct-ticket-row--selected');
+      }
+    });
+    if (member) { hideMemberOffer(); }
+    updateSummary();
+  }
+  function showMemberOffer() {
+    var $offer = $('#oct-member-offer');
+    if (!$offer.length) { return; }
+    var url = cfg.membershipJoinUrl || '';
+    var $btn = $('#oct-member-join');
+    if (url) {
+      $btn.attr('href', url).text(cfg.membershipJoinLabel || 'Join to unlock this rate').show();
+    } else { $btn.hide(); }
+    $offer.show();
+  }
+  function hideMemberOffer() { $('#oct-member-offer').hide(); }
 
   /* ---- Cart: every row with qty > 0 is a line. Rows are independent. ---- */
   function typeFor(key) {
@@ -65,6 +126,14 @@
     return cart;
   }
   function setRowQty($row, n) {
+    // Members-only rate + non-member: don't add it — show the join offer instead.
+    if (n > 0 && isMembersOnlyRow($row) && !state.isMember) {
+      $row.find('.oct-qty-val').text('0');
+      $row.removeClass('oct-ticket-row--selected');
+      showMemberOffer();
+      updateSummary();
+      return;
+    }
     var max = parseInt($row.data('max-qty'), 10) || 99;
     n = Math.max(0, Math.min(max, n));
     $row.find('.oct-qty-val').text(n);

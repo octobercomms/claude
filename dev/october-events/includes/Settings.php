@@ -61,6 +61,12 @@ final class Settings {
             // enabled and at least one price ID is set.
             'membership_enabled'    => false,
             'membership_price_ids'  => [],
+            // The Stripe Payment Link (or any join URL) for the membership we
+            // offer non-members at checkout — e.g. the Friend monthly plan. Shown
+            // as the "Join to unlock this rate" button next to member-only tickets.
+            'membership_join_url'   => '',
+            // Label for the join offer button/plan (e.g. "Friend — $5/mo").
+            'membership_join_label' => '',
             // Rejection email copy per listing type (§3.3). Empty => default.
             'rejection_copy'  => [],
             // AI Stories connector source URLs (RSS preferred) (§6).

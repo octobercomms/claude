@@ -111,6 +111,14 @@ final class RestApi {
             'callback'            => [$this, 'paypal_capture'],
             'permission_callback' => '__return_true',
         ]);
+        // Is this email an active member? Public (used at checkout to unlock
+        // member-only rates and hide the join offer). Rate-limited; returns only a
+        // boolean, never any Stripe/customer detail.
+        register_rest_route(self::NS, '/member-check', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'member_check'],
+            'permission_callback' => '__return_true',
+        ]);
         register_rest_route(self::NS, '/waitlist-join', [
             'methods'             => 'POST',
             'callback'            => [$this, 'waitlist_join'],
@@ -401,6 +409,12 @@ final class RestApi {
             $raw[] = ['type_key' => sanitize_key((string) $req->get_param('type_key')), 'qty' => max(1, min(99, (int) $req->get_param('qty')))];
         }
 
+        // Member-only rates are enforced here (server-side), not just hidden in the
+        // UI: resolve the buyer's membership once, lazily, only if the cart touches
+        // a member-only type. `null` = "not yet checked".
+        $buyer_email = sanitize_email((string) $req->get_param('email'));
+        $is_member   = null;
+
         $lines = [];
         $subtotal = 0.0;
         foreach ($raw as $li) {
@@ -414,6 +428,19 @@ final class RestApi {
             $avail = \OE\Ticketing\TicketTypes::availability($event_id, $type);
             if ($avail['state'] !== 'available') {
                 return new \WP_Error('oe_unavailable', __('Those tickets are not currently on sale.', 'october-events'), ['status' => 409]);
+            }
+            if (\OE\Ticketing\TicketTypes::is_members_only($type)) {
+                if ($is_member === null) {
+                    $is_member = is_email($buyer_email)
+                        && ! empty(\OE\Connectors\StripeConnector::member_status($buyer_email)['active']);
+                }
+                if (! $is_member) {
+                    return new \WP_Error('oe_members_only', sprintf(
+                        /* translators: %s: ticket type label */
+                        __('“%s” is a members-only rate. Join the membership (or use the email on your membership) to unlock it.', 'october-events'),
+                        (string) $type['label']
+                    ), ['status' => 403]);
+                }
             }
             $max = \OE\Ticketing\TicketTypes::max_per_order($type);
             if ($li['qty'] > $max) {
@@ -467,6 +494,25 @@ final class RestApi {
             'discount' => $priced['discount'],
             'total'    => $priced['total'],
         ], 200);
+    }
+
+    /**
+     * Public membership check for the checkout: given an email, report whether it
+     * is an active member so the front-end can unlock member-only rates and hide
+     * the join offer. Returns only a boolean — no customer or Stripe detail leaks.
+     * Server-side pricing (price_checkout) re-checks, so this is a UI hint only.
+     */
+    public function member_check(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('member_check', 30)) {
+            return $this->too_many();
+        }
+        $enabled = ! empty(\OE\Settings::get('membership_enabled', false));
+        $email   = sanitize_email((string) $req->get_param('email'));
+        if (! $enabled || ! is_email($email)) {
+            return new \WP_REST_Response(['member' => false], 200);
+        }
+        $status = \OE\Connectors\StripeConnector::member_status($email);
+        return new \WP_REST_Response(['member' => ! empty($status['active'])], 200);
     }
 
     public function waitlist_join(\WP_REST_Request $req): \WP_REST_Response {

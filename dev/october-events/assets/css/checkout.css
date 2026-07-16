@@ -713,3 +713,34 @@
 .oct-pay-or::before, .oct-pay-or::after { content: ""; flex: 1; height: 1px; background: #e6dfcf; }
 .oct-pay-or span { padding: 0 12px; text-transform: uppercase; letter-spacing: .08em; }
 #oct-paypal-buttons { margin-top: 4px; }
+
+/* ---- Members-only rates + join offer ---- */
+.oct-members-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  vertical-align: middle;
+  border-radius: 999px;
+  background: #1a1a1a;
+  color: #fff;
+}
+.oct-ticket-row--members.oct-ticket-row--locked { opacity: .7; }
+.oct-ticket-row--members.oct-ticket-row--locked .oct-ticket-row__qty { opacity: .5; }
+.oct-member-offer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 2px solid #1a1a1a;
+  border-radius: 10px;
+  background: #fbf7e9;
+}
+.oct-member-offer__text { flex: 1 1 220px; font-size: 14px; line-height: 1.4; }
+.oct-member-offer__text strong { display: block; margin-bottom: 2px; }
+.oct-member-offer__btn { flex: 0 0 auto; white-space: nowrap; text-decoration: none; }

@@ -41,16 +41,18 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
             if ($is_first) { $first_available_done = true; }
             $row_class   = 'oct-ticket-row' . ($is_first ? ' oct-ticket-row--selected' : '') . ($unavailable ? ' oct-ticket-row--unavailable' : '') . ($state === 'sold_out' ? ' oct-ticket-row--soldout' : '');
         ?>
-          <div class="<?php echo esc_attr($row_class); ?>"
+          <?php $members_only = ! empty($tt['membersOnly']); ?>
+          <div class="<?php echo esc_attr($row_class . ($members_only ? ' oct-ticket-row--members' : '')); ?>"
                data-key="<?php echo esc_attr((string) $tt['key']); ?>"
                data-price="<?php echo esc_attr($unavailable ? '0' : (string) $eff); ?>"
                data-label="<?php echo esc_attr((string) $tt['label']); ?>"
                data-qty-per-purchase="<?php echo esc_attr((string) ($tt['admits'] ?? 1)); ?>"
                data-max-qty="<?php echo esc_attr((string) ($tt['max'] ?? 99)); ?>"
+               data-members-only="<?php echo $members_only ? '1' : '0'; ?>"
                <?php echo $unavailable ? '' : 'role="button" tabindex="0"'; ?>>
             <input type="radio" name="oct_ticket_type" value="<?php echo esc_attr((string) $tt['key']); ?>" <?php echo $is_first ? 'checked' : ''; ?> style="display:none">
             <div class="oct-ticket-row__info">
-              <div class="oct-ticket-row__name"><?php echo esc_html((string) $tt['label']); ?></div>
+              <div class="oct-ticket-row__name"><?php echo esc_html((string) $tt['label']); ?><?php if ($members_only) : ?> <span class="oct-members-badge"><?php esc_html_e('Members only', 'october-events'); ?></span><?php endif; ?></div>
               <?php if (! empty($tt['desc'])) : ?>
                 <div class="oct-ticket-row__desc"><?php echo esc_html((string) $tt['desc']); ?></div>
               <?php endif; ?>
@@ -82,6 +84,15 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
             <?php endif; ?>
           </div>
         <?php endforeach; ?>
+      </div>
+      <!-- Member join offer — shown by checkout.js when a non-member picks a
+           members-only rate and a join link is configured. -->
+      <div id="oct-member-offer" class="oct-member-offer" style="display:none" role="note">
+        <div class="oct-member-offer__text">
+          <strong><?php esc_html_e('That’s a members-only rate.', 'october-events'); ?></strong>
+          <span id="oct-member-offer__msg"><?php esc_html_e('Join the membership to unlock it — or enter the email on your membership under “Your Details” below.', 'october-events'); ?></span>
+        </div>
+        <a href="#" id="oct-member-join" class="oct-btn oct-btn--primary oct-member-offer__btn" target="_blank" rel="noopener" style="display:none"></a>
       </div>
     </div>
 

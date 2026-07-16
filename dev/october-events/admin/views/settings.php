@@ -320,6 +320,13 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p><label><strong><?php esc_html_e('Membership product / price IDs', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one per line — a prod_… covers all its prices, a price_… is that exact one', 'october-events'); ?></span><br>
             <textarea name="membership_price_ids" rows="4" class="large-text code" placeholder="prod_FriendMembership&#10;prod_PatronMembership"><?php echo esc_textarea(implode("\n", (array) ($cfg['membership_price_ids'] ?? []))); ?></textarea></label></p>
 
+        <h4 style="margin:16px 0 6px"><?php esc_html_e('Join offer (for member-only ticket rates)', 'october-events'); ?></h4>
+        <p class="description"><?php esc_html_e('When a ticket type is marked "Members" and a non-member tries to buy it, the checkout offers them the chance to join. Paste the Stripe Payment Link for the plan you want to promote (e.g. Friend monthly, $5/mo). Leave blank to hide the offer (member-only rates then simply stay locked to non-members).', 'october-events'); ?></p>
+        <p><label><strong><?php esc_html_e('Membership join link', 'october-events'); ?></strong><br>
+            <input type="url" name="membership_join_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['membership_join_url'] ?? '')); ?>" placeholder="https://buy.stripe.com/…"></label></p>
+        <p><label><strong><?php esc_html_e('Join button label', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('shown on the offer button', 'october-events'); ?></span><br>
+            <input type="text" name="membership_join_label" class="regular-text" value="<?php echo esc_attr((string) ($cfg['membership_join_label'] ?? '')); ?>" placeholder="<?php esc_attr_e('Join as a Friend — $5/mo', 'october-events'); ?>"></label></p>
+
         <h4 style="margin:16px 0 6px"><?php esc_html_e('Test: is this email a member?', 'october-events'); ?></h4>
         <p><?php esc_html_e('Check a known member’s email to confirm your price IDs resolve in Stripe.', 'october-events'); ?></p>
         <p><input type="email" id="oe-mem-email" class="regular-text" placeholder="member@example.com">
