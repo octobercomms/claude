@@ -1,0 +1,69 @@
+# Auto-publishes a GitHub Release for the OC Ad Manager plugin whenever a new
+# version lands on `main`. The release IS the build: the Action reads the version
+# from the plugin header, and if no release exists for it yet, builds the zip and
+# creates the tag + release itself (no manual tag push needed).
+#
+# The plugin talks to Stripe over the REST API via wp_remote_post (no Composer
+# dependency), so the zip is just the plugin source — no vendor step required.
+#
+# Scoped to changes under the plugin folder; uses the first-party GitHub CLI so it
+# doesn't depend on any third-party action being allow-listed.
+name: OC Ad Manager — Release
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'dev/oc-ad-manager/**'
+      - '.github/workflows/oc-ad-manager-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read plugin version
+        id: ver
+        working-directory: dev/oc-ad-manager
+        run: |
+          V="$(grep -m1 -E '^\s*\*\s*Version:' oc-ad-manager.php | sed -E 's/.*Version:\s*//' | tr -d '[:space:]')"
+          if [ -z "$V" ]; then echo "::error::Could not read version from plugin header"; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag=ocad-v$V" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this release already exists
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.ver.outputs.tag }}" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release ${{ steps.ver.outputs.tag }} already exists — nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build plugin zip
+        if: steps.exists.outputs.exists == 'false'
+        working-directory: dev/oc-ad-manager
+        run: |
+          chmod +x bin/build-zip.sh
+          bin/build-zip.sh "$GITHUB_WORKSPACE/dist"
+
+      - name: Create tag + release with the zip asset
+        if: steps.exists.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.ver.outputs.tag }}" \
+            "$GITHUB_WORKSPACE/dist/oc-ad-manager-${{ steps.ver.outputs.version }}.zip" \
+            -R "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "OC Ad Manager ${{ steps.ver.outputs.version }}" \
+            --generate-notes
