@@ -98,6 +98,11 @@ final class Checkout {
             'membershipEnabled' => (bool) Settings::get('membership_enabled', false),
             'membershipJoinUrl' => (string) Settings::get('membership_join_url', ''),
             'membershipJoinLabel' => (string) (Settings::get('membership_join_label', '') ?: __('Join to unlock this rate', 'october-events')),
+            // One-click join: when a recurring join price is configured, the offer
+            // becomes a checkbox that joins + buys with the same card. Amount is for
+            // display only (Stripe bills the real price).
+            'membershipJoinInline' => (bool) Settings::get('membership_enabled', false) && trim((string) Settings::get('membership_join_price_id', '')) !== '',
+            'membershipJoinAmount' => (int) Settings::get('membership_join_amount', 0),
             'types'             => $types,
         ]);
 

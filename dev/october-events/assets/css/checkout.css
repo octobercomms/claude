@@ -744,3 +744,26 @@
 .oct-member-offer__text { flex: 1 1 220px; font-size: 14px; line-height: 1.4; }
 .oct-member-offer__text strong { display: block; margin-bottom: 2px; }
 .oct-member-offer__btn { flex: 0 0 auto; white-space: nowrap; text-decoration: none; }
+
+/* One-click join: checkbox inside the member offer + post-purchase confirmation */
+.oct-member-offer__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.oct-member-offer__check input { width: 16px; height: 16px; cursor: pointer; }
+.oct-join-confirm {
+  margin: 6px 0 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #eaf7ea;
+  border: 1px solid #b6e0b6;
+  color: #1a7f1a;
+  font-weight: 600;
+}
+#oct-join-row .oct-summary-label { font-style: italic; }

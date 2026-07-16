@@ -5,6 +5,32 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.74.0 — one-click join: subscribe + buy the member rate with the same card (part 3)
+
+A non-member can now join the membership **and** buy the member-rate ticket in a
+single checkout — no leaving the page, one card entry, one click.
+
+- **Settings → Checkout → Membership → Join offer**: paste the recurring **join
+  price ID** (e.g. Friend monthly, `price_…`) and an optional **display amount**
+  (in cents). With a price set, the member-rate offer becomes a one-click join;
+  with no price set, it falls back to the external Payment-Link button as before.
+- **Checkout**: when a non-member picks a member rate, the offer shows a "Join as
+  a Friend — $5/mo" **checkbox**. Ticking it unlocks the rate, adds the first
+  month to the summary (shown separately — Stripe bills it apart from the ticket),
+  and lets them pay once. Behind the scenes the ticket is charged at the member
+  rate and the card is saved; the membership subscription is then created and
+  billed off-session against that same card. The success screen confirms the new
+  membership.
+- **Server-side**: the ticket PaymentIntent is tied to a Stripe customer with
+  `setup_future_usage` so the card is on file; on confirm we create the
+  subscription (idempotent — it won't double-subscribe on a retry), then bust the
+  member cache. PayPal is hidden while joining (the subscription needs the card),
+  and the member rate still can't be taken by a non-member who isn't joining.
+
+Heads-up: this path moves real money on your **live** Stripe keys. Do one real
+join to verify end-to-end (member rate charged + a live subscription created),
+then refund/cancel that test.
+
 ## 1.73.0 — ticket-type editor: drag to reorder + per-type description
 
 Two refinements to the ticket-type editor:

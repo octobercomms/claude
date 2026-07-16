@@ -92,6 +92,12 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
           <strong><?php esc_html_e('That’s a members-only rate.', 'october-events'); ?></strong>
           <span id="oct-member-offer__msg"><?php esc_html_e('Join the membership to unlock it — or enter the email on your membership under “Your Details” below.', 'october-events'); ?></span>
         </div>
+        <!-- One-click join (inline): tick to join + buy at the member rate with the same card. -->
+        <label id="oct-member-join-check" class="oct-member-offer__check" style="display:none">
+          <input type="checkbox" id="oct-join-toggle">
+          <span id="oct-join-label"></span>
+        </label>
+        <!-- Fallback: external Payment Link when no inline join price is configured. -->
         <a href="#" id="oct-member-join" class="oct-btn oct-btn--primary oct-member-offer__btn" target="_blank" rel="noopener" style="display:none"></a>
       </div>
     </div>

@@ -321,10 +321,20 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <textarea name="membership_price_ids" rows="4" class="large-text code" placeholder="prod_FriendMembership&#10;prod_PatronMembership"><?php echo esc_textarea(implode("\n", (array) ($cfg['membership_price_ids'] ?? []))); ?></textarea></label></p>
 
         <h4 style="margin:16px 0 6px"><?php esc_html_e('Join offer (for member-only ticket rates)', 'october-events'); ?></h4>
-        <p class="description"><?php esc_html_e('When a ticket type is marked "Members" and a non-member tries to buy it, the checkout offers them the chance to join. Paste the Stripe Payment Link for the plan you want to promote (e.g. Friend monthly, $5/mo). Leave blank to hide the offer (member-only rates then simply stay locked to non-members).', 'october-events'); ?></p>
-        <p><label><strong><?php esc_html_e('Membership join link', 'october-events'); ?></strong><br>
+        <p class="description"><?php esc_html_e('When a ticket type is marked "Members" and a non-member tries to buy it, the checkout offers them the chance to join. Two ways to run the offer:', 'october-events'); ?></p>
+        <p class="description" style="margin-left:4px">
+            <strong><?php esc_html_e('One-click (recommended):', 'october-events'); ?></strong>
+            <?php esc_html_e('paste the recurring Stripe price ID below. The buyer ticks "Join", enters their card once, and clicking Pay joins them AND buys the ticket at the member rate in one step (the first month is billed immediately, then monthly). Their card must clear.', 'october-events'); ?><br>
+            <strong><?php esc_html_e('External link:', 'october-events'); ?></strong>
+            <?php esc_html_e('if no price ID is set, the offer instead shows a button linking to the Payment Link below (opens in a new tab; they return and re-enter their member email to unlock).', 'october-events'); ?>
+        </p>
+        <p><label><strong><?php esc_html_e('Join price ID (one-click join)', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('a recurring price_… e.g. the Friend monthly plan', 'october-events'); ?></span><br>
+            <input type="text" name="membership_join_price_id" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['membership_join_price_id'] ?? '')); ?>" placeholder="price_1RA8GK…"></label></p>
+        <p><label><strong><?php esc_html_e('Join amount for display', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('in cents (e.g. 500 = $5.00); shown in the checkout summary. Purely informational — Stripe bills the real price.', 'october-events'); ?></span><br>
+            <input type="number" min="0" name="membership_join_amount" value="<?php echo esc_attr((string) ($cfg['membership_join_amount'] ?? 0)); ?>" style="width:120px" placeholder="500"></label></p>
+        <p><label><strong><?php esc_html_e('Membership join link (fallback)', 'october-events'); ?></strong><br>
             <input type="url" name="membership_join_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['membership_join_url'] ?? '')); ?>" placeholder="https://buy.stripe.com/…"></label></p>
-        <p><label><strong><?php esc_html_e('Join button label', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('shown on the offer button', 'october-events'); ?></span><br>
+        <p><label><strong><?php esc_html_e('Join button label', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('shown on the offer checkbox/button', 'october-events'); ?></span><br>
             <input type="text" name="membership_join_label" class="regular-text" value="<?php echo esc_attr((string) ($cfg['membership_join_label'] ?? '')); ?>" placeholder="<?php esc_attr_e('Join as a Friend — $5/mo', 'october-events'); ?>"></label></p>
 
         <h4 style="margin:16px 0 6px"><?php esc_html_e('Test: is this email a member?', 'october-events'); ?></h4>
