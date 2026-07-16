@@ -30,10 +30,39 @@ final class Settings {
         add_action('admin_post_oe_test_voice', [$this, 'test_voice']);
         add_action('admin_post_oe_send_test_email', [$this, 'send_test_email']);
         add_action('wp_ajax_oe_reveal_secret', [$this, 'ajax_reveal_secret']);
+        add_action('wp_ajax_oe_check_membership', [$this, 'ajax_check_membership']);
         // Allow brand font files (.woff2/.woff/.ttf/.otf) to be uploaded to the
         // media library (WordPress blocks these MIME types by default).
         add_filter('upload_mimes', [$this, 'allow_font_mimes']);
         add_filter('wp_check_filetype_and_ext', [$this, 'fix_font_filetype'], 10, 4);
+    }
+
+    /**
+     * Admin test: look up whether an email is an active member, so you can
+     * confirm the configured membership price IDs actually resolve in Stripe
+     * before wiring member rates into checkout. Admin + nonce gated.
+     */
+    public function ajax_check_membership(): void {
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'forbidden'], 403);
+        }
+        check_ajax_referer('oe_check_membership', 'nonce');
+        $email = sanitize_email((string) ($_POST['email'] ?? ''));
+        if (! is_email($email)) {
+            wp_send_json_error(['message' => __('Enter a valid email.', 'october-events')]);
+        }
+        if (! \OE\Connectors\StripeConnector::is_ready()) {
+            wp_send_json_error(['message' => __('Stripe isn’t configured on this site.', 'october-events')]);
+        }
+        \OE\Connectors\StripeConnector::bust_member_status($email); // always a fresh check here
+        $m = \OE\Connectors\StripeConnector::member_status($email);
+        wp_send_json_success([
+            'active'   => (bool) $m['active'],
+            'price_id' => (string) $m['price_id'],
+            'message'  => $m['active']
+                ? sprintf(__('✓ Active member (price %s).', 'october-events'), $m['price_id'])
+                : __('Not an active member (no live subscription on the configured prices).', 'october-events'),
+        ]);
     }
 
     /**
@@ -305,6 +334,12 @@ final class Settings {
             'paypal_enabled'   => empty($in['paypal_enabled']) ? '0' : '1',
             'paypal_env'       => (($in['paypal_env'] ?? 'sandbox') === 'live') ? 'live' : 'sandbox',
             'paypal_client_id' => sanitize_text_field((string) ($in['paypal_client_id'] ?? '')),
+            // Membership: enable + the Stripe price IDs that count as membership.
+            'membership_enabled'   => ! empty($in['membership_enabled']),
+            'membership_price_ids' => array_values(array_unique(array_filter(array_map(
+                static fn($p) => sanitize_text_field(trim((string) $p)),
+                preg_split('/[\r\n,\s]+/', (string) ($in['membership_price_ids'] ?? ''))
+            )))),
             // Pre-event reminder to ticket-holders.
             'attendee_reminder_enabled' => empty($in['attendee_reminder_enabled']) ? '0' : '1',
             'attendee_reminder_hours'   => max(1, min(168, (int) ($in['attendee_reminder_hours'] ?? 24))),

@@ -55,6 +55,12 @@ final class Settings {
             'paypal_enabled'   => false,
             'paypal_env'       => 'sandbox',
             'paypal_client_id' => '',
+            // Membership: the Stripe subscription price IDs (Friend/Patron,
+            // monthly + yearly) that count as an active membership. Used to
+            // detect members at checkout and offer member ticket rates. Off until
+            // enabled and at least one price ID is set.
+            'membership_enabled'    => false,
+            'membership_price_ids'  => [],
             // Rejection email copy per listing type (§3.3). Empty => default.
             'rejection_copy'  => [],
             // AI Stories connector source URLs (RSS preferred) (§6).

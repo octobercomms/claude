@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.71.0 — membership foundation: detect Stripe members (part 1 of the checkout upsell)
+
+First stage of the ticket-checkout membership feature. This part is the
+foundation — detecting who's a member — with nothing wired into checkout yet, so
+it's safe to install and configure ahead of the rest.
+
+- **Settings → Checkout → Membership**: enable the feature and paste your
+  membership **Stripe price IDs** (Friend/Patron, monthly + yearly). Anyone with a
+  live Stripe subscription on one of those prices counts as an active member.
+- **`StripeConnector::member_status($email)`** looks a member up by email (customer
+  → active subscription on a configured price), cached briefly.
+- **"Is this email a member?" test** in Settings, so you can confirm your price IDs
+  resolve before member rates go into checkout.
+
+Still to come (next stages): member ticket rates + the "join at checkout" offer,
+subscribe-with-the-same-card, and the follow-up email for non-members.
+
 ## 1.70.6 — dashboard revenue reflects total Stripe income for the year
 
 The Revenue KPI (platform dashboard + wp-admin) read only tickets sold *through

@@ -313,6 +313,39 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             </tr>
         </tbody></table>
         </div></details>
+
+        <details class="oe-acc" id="membership"><summary><?php esc_html_e('Membership (early access)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Members are detected from your Stripe subscriptions. Paste the Stripe price IDs (starts price_…) for each membership option — Friend and Patron, monthly and yearly. Anyone with a live subscription on one of these counts as an active member. Find them in Stripe → Products → your membership product → its prices. Leave off until you’re ready.', 'october-events'); ?></p>
+        <p><label><input type="checkbox" name="membership_enabled" value="1" <?php checked(! empty($cfg['membership_enabled'])); ?>> <strong><?php esc_html_e('Enable membership features (member detection & rates at checkout)', 'october-events'); ?></strong></label></p>
+        <p><label><strong><?php esc_html_e('Membership Stripe price IDs', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one per line', 'october-events'); ?></span><br>
+            <textarea name="membership_price_ids" rows="4" class="large-text code" placeholder="price_1AbcFriendMonthly&#10;price_1AbcFriendYearly&#10;price_1AbcPatronMonthly&#10;price_1AbcPatronYearly"><?php echo esc_textarea(implode("\n", (array) ($cfg['membership_price_ids'] ?? []))); ?></textarea></label></p>
+
+        <h4 style="margin:16px 0 6px"><?php esc_html_e('Test: is this email a member?', 'october-events'); ?></h4>
+        <p><?php esc_html_e('Check a known member’s email to confirm your price IDs resolve in Stripe.', 'october-events'); ?></p>
+        <p><input type="email" id="oe-mem-email" class="regular-text" placeholder="member@example.com">
+            <button type="button" class="button" id="oe-mem-check"><?php esc_html_e('Check membership', 'october-events'); ?></button>
+            <span id="oe-mem-result" style="margin-left:10px;font-weight:600"></span></p>
+        <script>
+        (function(){
+            var NONCE = <?php echo wp_json_encode(wp_create_nonce('oe_check_membership')); ?>;
+            var btn = document.getElementById('oe-mem-check'),
+                inp = document.getElementById('oe-mem-email'),
+                out = document.getElementById('oe-mem-result');
+            if (!btn) { return; }
+            btn.addEventListener('click', function(){
+                out.style.color = '#50575e'; out.textContent = '…';
+                var body = new URLSearchParams({ action: 'oe_check_membership', nonce: NONCE, email: inp.value });
+                fetch(ajaxurl, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString() })
+                    .then(function(r){ return r.json(); })
+                    .then(function(j){
+                        if (j && j.success) { out.style.color = j.data.active ? '#008a20' : '#b32d2e'; out.textContent = j.data.message; }
+                        else { out.style.color = '#b32d2e'; out.textContent = (j && j.data && j.data.message) || 'Error'; }
+                    })
+                    .catch(function(){ out.style.color = '#b32d2e'; out.textContent = 'Error'; });
+            });
+        })();
+        </script>
+        </div></details>
         </section>
 
         <section class="oe-set-panel" data-tab="emailsms">
