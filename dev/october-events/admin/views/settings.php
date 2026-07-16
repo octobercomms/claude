@@ -315,10 +315,10 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </div></details>
 
         <details class="oe-acc" id="membership"><summary><?php esc_html_e('Membership (early access)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Members are detected from your Stripe subscriptions. Paste the Stripe price IDs (starts price_…) for each membership option — Friend and Patron, monthly and yearly. Anyone with a live subscription on one of these counts as an active member. Find them in Stripe → Products → your membership product → its prices. Leave off until you’re ready.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Members are detected from your Stripe subscriptions. Paste a Stripe product ID (starts prod_…) to count everyone subscribed to that product (e.g. the Friend product covers both its monthly and yearly prices), or a specific price ID (starts price_…) to count just that one. One per line. Anyone with a live subscription matching any of these counts as an active member. Find them in Stripe → Products. Leave off until you’re ready.', 'october-events'); ?></p>
         <p><label><input type="checkbox" name="membership_enabled" value="1" <?php checked(! empty($cfg['membership_enabled'])); ?>> <strong><?php esc_html_e('Enable membership features (member detection & rates at checkout)', 'october-events'); ?></strong></label></p>
-        <p><label><strong><?php esc_html_e('Membership Stripe price IDs', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one per line', 'october-events'); ?></span><br>
-            <textarea name="membership_price_ids" rows="4" class="large-text code" placeholder="price_1AbcFriendMonthly&#10;price_1AbcFriendYearly&#10;price_1AbcPatronMonthly&#10;price_1AbcPatronYearly"><?php echo esc_textarea(implode("\n", (array) ($cfg['membership_price_ids'] ?? []))); ?></textarea></label></p>
+        <p><label><strong><?php esc_html_e('Membership product / price IDs', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one per line — a prod_… covers all its prices, a price_… is that exact one', 'october-events'); ?></span><br>
+            <textarea name="membership_price_ids" rows="4" class="large-text code" placeholder="prod_FriendMembership&#10;prod_PatronMembership"><?php echo esc_textarea(implode("\n", (array) ($cfg['membership_price_ids'] ?? []))); ?></textarea></label></p>
 
         <h4 style="margin:16px 0 6px"><?php esc_html_e('Test: is this email a member?', 'october-events'); ?></h4>
         <p><?php esc_html_e('Check a known member’s email to confirm your price IDs resolve in Stripe.', 'october-events'); ?></p>
