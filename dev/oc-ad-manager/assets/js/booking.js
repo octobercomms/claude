@@ -4,7 +4,7 @@
 	var form = document.getElementById( 'ocad-booking-form' );
 	if ( ! form ) return;
 
-	var pkgSelect  = document.getElementById( 'ocad-package' );
+	var pkgRadios  = form.querySelectorAll( 'input[name="package_name"]' );
 	var promoInput = document.getElementById( 'ocad-promo' );
 	var applyBtn   = document.getElementById( 'ocad-apply-promo' );
 	var submitBtn  = document.getElementById( 'ocad-submit-btn' );
@@ -22,9 +22,13 @@
 	}
 
 	function getSelectedPackage() {
-		var name = pkgSelect.value;
-		for ( var i = 0; i < packages.length; i++ ) {
-			if ( packages[ i ].name === name ) return packages[ i ];
+		var name = '';
+		for ( var i = 0; i < pkgRadios.length; i++ ) {
+			if ( pkgRadios[ i ].checked ) { name = pkgRadios[ i ].value; break; }
+		}
+		if ( ! name ) return null;
+		for ( var j = 0; j < packages.length; j++ ) {
+			if ( packages[ j ].name === name ) return packages[ j ];
 		}
 		return null;
 	}
@@ -57,7 +61,15 @@
 		summary.style.display = '';
 	}
 
-	pkgSelect.addEventListener( 'change', updateSummary );
+	for ( var p = 0; p < pkgRadios.length; p++ ) {
+		pkgRadios[ p ].addEventListener( 'change', function () {
+			var rows = form.querySelectorAll( '.ocad-package-row' );
+			for ( var r = 0; r < rows.length; r++ ) {
+				rows[ r ].classList.toggle( 'ocad-package-row--selected', rows[ r ].contains( this ) );
+			}
+			updateSummary();
+		} );
+	}
 
 	// Promo code
 	applyBtn.addEventListener( 'click', function () {

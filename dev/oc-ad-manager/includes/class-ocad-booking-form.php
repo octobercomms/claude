@@ -80,117 +80,130 @@ class OCAD_Booking_Form {
 
 			<form class="ocad-booking-form" id="ocad-booking-form" novalidate>
 
-				<fieldset class="ocad-booking-section">
-					<legend class="ocad-booking-section-title">Campaign Details</legend>
+				<section class="ocad-section">
+					<h3 class="ocad-section-title">Choose Your Package</h3>
+					<div class="ocad-package-list">
+						<?php foreach ( $packages as $pkg ) :
+							if ( empty( $pkg['name'] ) || empty( $pkg['price'] ) ) continue;
+							$qty_label = ! empty( $pkg['quantity'] ) ? number_format( $pkg['quantity'] ) . ' ' . ( $pkg['type'] === 'clicks' ? 'clicks' : 'impressions' ) : '';
+						?>
+						<label class="ocad-package-row">
+							<input type="radio" name="package_name" value="<?php echo esc_attr( $pkg['name'] ); ?>" data-price="<?php echo (int) $pkg['price']; ?>" required>
+							<span class="ocad-package-info">
+								<span class="ocad-package-name"><?php echo esc_html( $pkg['name'] ); ?></span>
+								<?php if ( $qty_label ) : ?>
+								<span class="ocad-package-desc"><?php echo esc_html( $qty_label ); ?></span>
+								<?php endif; ?>
+							</span>
+							<span class="ocad-package-price"><?php echo esc_html( number_format( (int) $pkg['price'] ) ); ?></span>
+						</label>
+						<?php endforeach; ?>
+					</div>
+				</section>
 
-					<div class="ocad-booking-row ocad-booking-row--2">
-						<div class="ocad-booking-field">
-							<label for="ocad-campaign-name">Campaign Name <span class="ocad-req">*</span></label>
-							<input type="text" id="ocad-campaign-name" name="campaign_name" required placeholder="e.g. Summer Sale 2026">
-						</div>
-						<div class="ocad-booking-field">
-							<label for="ocad-client">Client / Advertiser</label>
-							<input type="text" id="ocad-client" name="company" autocomplete="organization">
+				<section class="ocad-section">
+					<h3 class="ocad-section-title">Campaign Details</h3>
+
+					<div class="ocad-field-group">
+						<label class="ocad-label" for="ocad-campaign-name">Campaign Name <span class="ocad-req">*</span></label>
+						<div class="ocad-field-input">
+							<input type="text" class="ocad-input" id="ocad-campaign-name" name="campaign_name" required placeholder="e.g. Summer Sale 2026">
 						</div>
 					</div>
 
-					<div class="ocad-booking-row ocad-booking-row--2">
-						<div class="ocad-booking-field">
-							<label for="ocad-email">Email Address <span class="ocad-req">*</span></label>
-							<input type="email" id="ocad-email" name="email" required autocomplete="email" placeholder="jane@example.com">
-						</div>
-						<div class="ocad-booking-field">
-							<label for="ocad-destination">Destination URL <span class="ocad-req">*</span></label>
-							<input type="url" id="ocad-destination" name="destination_url" required placeholder="https://" autocomplete="url">
-							<small>Where ad clicks take visitors</small>
+					<div class="ocad-field-group">
+						<label class="ocad-label" for="ocad-client">Client / Advertiser <span class="ocad-optional">(optional)</span></label>
+						<div class="ocad-field-input">
+							<input type="text" class="ocad-input" id="ocad-client" name="company" autocomplete="organization" placeholder="Company or brand name">
 						</div>
 					</div>
 
-					<div class="ocad-booking-row ocad-booking-row--2">
-						<div class="ocad-booking-field">
-							<label for="ocad-start-date">Start Date <span class="ocad-req">*</span></label>
-							<input type="date" id="ocad-start-date" name="start_date" required min="<?php echo esc_attr( $min_date ); ?>">
-						</div>
-						<div class="ocad-booking-field">
-							<label for="ocad-end-date">End Date <span class="ocad-req">*</span></label>
-							<input type="date" id="ocad-end-date" name="end_date" required min="<?php echo esc_attr( $min_date ); ?>">
-							<small>Campaign deactivates after this date</small>
+					<div class="ocad-field-group">
+						<label class="ocad-label" for="ocad-email">Email Address <span class="ocad-req">*</span></label>
+						<div class="ocad-field-input">
+							<input type="email" class="ocad-input" id="ocad-email" name="email" required autocomplete="email" placeholder="jane@example.com">
+							<span class="ocad-field-hint">Confirmation and campaign reports are sent here</span>
 						</div>
 					</div>
-				</fieldset>
 
-				<fieldset class="ocad-booking-section">
-					<legend class="ocad-booking-section-title">Ad Creatives</legend>
-					<p class="ocad-booking-creative-note">Upload artwork for each format you require. At least one is required. Leave formats blank if not needed.</p>
+					<div class="ocad-field-group">
+						<label class="ocad-label" for="ocad-destination">Destination URL <span class="ocad-req">*</span></label>
+						<div class="ocad-field-input">
+							<input type="url" class="ocad-input" id="ocad-destination" name="destination_url" required placeholder="https://" autocomplete="url">
+							<span class="ocad-field-hint">Where ad clicks take visitors</span>
+						</div>
+					</div>
+
+					<div class="ocad-field-group">
+						<label class="ocad-label" for="ocad-start-date">Start Date <span class="ocad-req">*</span></label>
+						<div class="ocad-field-input">
+							<input type="date" class="ocad-input" id="ocad-start-date" name="start_date" required min="<?php echo esc_attr( $min_date ); ?>">
+						</div>
+					</div>
+
+					<div class="ocad-field-group">
+						<label class="ocad-label" for="ocad-end-date">End Date <span class="ocad-req">*</span></label>
+						<div class="ocad-field-input">
+							<input type="date" class="ocad-input" id="ocad-end-date" name="end_date" required min="<?php echo esc_attr( $min_date ); ?>">
+							<span class="ocad-field-hint">Campaign deactivates after this date</span>
+						</div>
+					</div>
+				</section>
+
+				<section class="ocad-section">
+					<h3 class="ocad-section-title">Ad Creatives</h3>
+					<p class="ocad-section-note">Upload artwork for each format you require. At least one is required. Leave formats blank if not needed.</p>
 
 					<?php foreach ( OCAD_FORMATS as $fmt_key => $fmt_info ) : ?>
-					<div class="ocad-booking-creative-row">
-						<div class="ocad-booking-creative-label">
+					<div class="ocad-creative-row">
+						<div class="ocad-creative-label">
 							<strong><?php echo esc_html( $fmt_info['label'] ); ?></strong>
-							<span class="ocad-booking-creative-spec"><?php echo esc_html( $fmt_info['width'] . ' × ' . $fmt_info['height'] . ' px' ); ?></span>
+							<span class="ocad-creative-spec"><?php echo esc_html( $fmt_info['width'] . ' × ' . $fmt_info['height'] . ' px' ); ?></span>
 						</div>
-						<div class="ocad-booking-field" style="flex:1;">
+						<div class="ocad-field-input">
 							<input type="file" name="image_<?php echo esc_attr( $fmt_key ); ?>" accept="image/jpeg,image/png,image/gif,image/webp">
-							<small>JPG, PNG, GIF or WebP · Max 5 MB</small>
+							<span class="ocad-field-hint">JPG, PNG, GIF or WebP · Max 5 MB</span>
 						</div>
 					</div>
 					<?php endforeach; ?>
-				</fieldset>
+				</section>
 
-				<fieldset class="ocad-booking-section">
-					<legend class="ocad-booking-section-title">Package</legend>
+				<section id="ocad-summary" class="ocad-section ocad-summary" style="display:none;">
+					<h3 class="ocad-section-title">Order Summary</h3>
 
-					<div class="ocad-booking-field">
-						<label for="ocad-package">Select a package <span class="ocad-req">*</span></label>
-						<select id="ocad-package" name="package_name" required>
-							<option value="">— Choose a package —</option>
-							<?php foreach ( $packages as $pkg ) :
-								if ( empty( $pkg['name'] ) || empty( $pkg['price'] ) ) continue;
-								$qty_label = ! empty( $pkg['quantity'] ) ? number_format( $pkg['quantity'] ) . ' ' . ( $pkg['type'] === 'clicks' ? 'clicks' : 'impressions' ) : '';
-							?>
-							<option value="<?php echo esc_attr( $pkg['name'] ); ?>"
-							        data-price="<?php echo (int) $pkg['price']; ?>">
-								<?php echo esc_html( $pkg['name'] . ( $qty_label ? ' — ' . $qty_label : '' ) ); ?>
-							</option>
-							<?php endforeach; ?>
-						</select>
+					<div class="ocad-summary-row">
+						<span>Package</span>
+						<span id="ocad-sum-package" class="ocad-summary-price">—</span>
+					</div>
+					<div class="ocad-summary-row" id="ocad-sum-promo-row" style="display:none;">
+						<span>Discount</span>
+						<span id="ocad-sum-discount" class="ocad-discount-value">—</span>
+					</div>
+					<div class="ocad-summary-row ocad-summary-total">
+						<span>Total</span>
+						<span id="ocad-sum-total">—</span>
 					</div>
 
-					<div id="ocad-summary" class="ocad-booking-summary" style="display:none;">
-						<table class="ocad-booking-summary-table">
-							<tr><td>Package</td><td id="ocad-sum-package">—</td></tr>
-							<tr id="ocad-sum-promo-row" style="display:none;">
-								<td>Discount</td>
-								<td id="ocad-sum-discount" style="color:#16a34a;">—</td>
-							</tr>
-							<tr class="ocad-booking-summary-total">
-								<td><strong>Total</strong></td>
-								<td id="ocad-sum-total">—</td>
-							</tr>
-						</table>
-
-						<div class="ocad-booking-promo">
-							<label for="ocad-promo">Promo code</label>
-							<div class="ocad-booking-promo-row">
-								<input type="text" id="ocad-promo" name="promo_code" placeholder="Enter code" autocomplete="off">
-								<button type="button" id="ocad-apply-promo" class="ocad-booking-btn ocad-booking-btn--outline">Apply</button>
-							</div>
-							<small id="ocad-promo-msg"></small>
+					<div class="ocad-promo">
+						<div class="ocad-promo-row">
+							<input type="text" class="ocad-input" id="ocad-promo" name="promo_code" placeholder="Promo code" autocomplete="off">
+							<button type="button" id="ocad-apply-promo" class="ocad-btn ocad-btn--secondary">Apply</button>
 						</div>
+						<small id="ocad-promo-msg" class="ocad-promo-message"></small>
 					</div>
-				</fieldset>
+				</section>
 
-				<fieldset class="ocad-booking-section">
-					<legend class="ocad-booking-section-title">Payment</legend>
-					<div class="ocad-booking-field">
-						<label>Card Details <span class="ocad-req">*</span></label>
+				<section class="ocad-section">
+					<h3 class="ocad-section-title">Payment</h3>
+					<div class="ocad-field-input">
+						<label class="ocad-label">Card Details <span class="ocad-req">*</span></label>
 						<div id="ocad-card-element" class="ocad-card-element"></div>
 						<div id="ocad-card-errors" class="ocad-card-errors" role="alert"></div>
 					</div>
-				</fieldset>
+				</section>
 
 				<div class="ocad-booking-actions">
-					<button type="submit" class="ocad-booking-btn ocad-booking-btn--primary" id="ocad-submit-btn" disabled>
+					<button type="submit" class="ocad-btn ocad-btn--primary ocad-btn--full" id="ocad-submit-btn" disabled>
 						Pay Now
 					</button>
 					<p class="ocad-booking-secure">Secured by Stripe</p>
