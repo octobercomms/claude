@@ -5,6 +5,17 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.75.2 — checkout mobile restyle + bigger ticket descriptions
+
+- **Mobile layout**: on phones the ticket row now puts the name + description on
+  their own line with the price and quantity stepper sharing the line below
+  (price left, stepper right) — far more compact than the old stacked layout, so
+  more tickets fit on screen. The oversized desktop price is scaled down on small
+  screens so large amounts don't overflow, and the promo / details / summary rows
+  reflow cleanly. Breakpoint widened to 560px.
+- **Ticket description**: shown larger and in solid black (1.5em) so it reads as
+  part of the ticket, not fine print.
+
 ## 1.75.1 — member rates are freely selectable (no lock, no click-through message)
 
 Member-only rates are now always selectable by anyone — the greyed-out lock and

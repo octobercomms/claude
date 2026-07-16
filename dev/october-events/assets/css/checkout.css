@@ -79,8 +79,8 @@
 }
 
 .oct-ticket-row__desc {
-  font-size: 13px;
-  color: #555;
+  font-size: 1.5em !important;
+  color: #000000 !important;
   margin-top: 3px;
 }
 
@@ -665,15 +665,44 @@
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 480px) {
+@media (max-width: 560px) {
+  /* Ticket row: name + description on their own line (full width), then the price
+     and the qty stepper share the line below — price left, stepper hard right. Far
+     more compact than stacking everything, and stops the big price crowding the name. */
   .oct-ticket-row {
-    flex-direction: column;
-    align-items: flex-start !important;
-    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center !important;
+    gap: 10px 14px !important;
+    padding: 16px !important;
+  }
+
+  .oct-ticket-row__info {
+    flex: 1 1 100%;
   }
 
   .oct-ticket-row__price {
     text-align: left;
+    flex: 0 1 auto;
+    line-height: 1;
+  }
+
+  .oct-ticket-row__qty {
+    margin-left: auto;   /* push the stepper to the right edge, same line as price */
+  }
+
+  /* Scale the oversized desktop price down so large amounts don't overflow. */
+  .oct-price-current {
+    font-size: 2.1em !important;
+  }
+
+  .oct-price-old {
+    display: inline-block !important;
+    font-size: 1.1em !important;
+    margin-left: 8px;
+  }
+
+  .oct-section__title {
+    font-size: 1.3em;
   }
 
   .oct-payment-tabs {
@@ -693,18 +722,34 @@
     flex-wrap: wrap;
   }
 
+  .oct-section--promo .oct-promo-row .oct-input {
+    flex: 1 1 60%;
+  }
+
   .oct-section--promo .oct-promo-row .oct-label {
     width: 100%;
   }
 
+  /* Your Details: label above the field (not a cramped 50/50 split). */
   .oct-section--details .oct-field-group {
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
+    padding-top: 12px;
   }
 
   .oct-section--details .oct-label {
     width: 100%;
     padding-top: 0;
+  }
+
+  /* Summary rows: let a long label wrap without squashing the price. */
+  .oct-summary-row {
+    flex-wrap: wrap;
+    gap: 2px 10px;
+  }
+
+  .oct-summary-price {
+    margin-left: auto;
   }
 }
 
