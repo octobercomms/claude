@@ -5,6 +5,11 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.75.3 — tighter ticket-description line spacing
+
+Added `line-height: 1` to `.oct-ticket-row__desc` so a wrapping two-line
+description sits tight under the ticket name instead of looking double-spaced.
+
 ## 1.75.2 — checkout mobile restyle + bigger ticket descriptions
 
 - **Mobile layout**: on phones the ticket row now puts the name + description on
