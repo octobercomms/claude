@@ -244,13 +244,18 @@ final class StripeConnector {
             if ($cid === '') {
                 continue;
             }
-            // Active subscriptions for this customer; check each line's price.
+            // Active subscriptions for this customer; a line matches if EITHER its
+            // price id OR its product id is in the configured list — so a pasted
+            // product id (prod_…) counts every price under it (monthly + yearly),
+            // and a specific price id (price_…) matches just that one.
             $subs = self::request('GET', '/subscriptions', ['customer' => $cid, 'status' => 'active', 'limit' => 100]);
             foreach ((array) ($subs['data'] ?? []) as $sub) {
                 foreach ((array) ($sub['items']['data'] ?? []) as $item) {
-                    $pid = (string) ($item['price']['id'] ?? '');
-                    if ($pid !== '' && in_array($pid, $price_ids, true)) {
-                        $result = ['active' => true, 'price_id' => $pid, 'customer' => $cid, 'status' => (string) ($sub['status'] ?? 'active')];
+                    $pid  = (string) ($item['price']['id'] ?? '');
+                    $prod = is_string($item['price']['product'] ?? null) ? (string) $item['price']['product'] : '';
+                    if (($pid !== '' && in_array($pid, $price_ids, true))
+                        || ($prod !== '' && in_array($prod, $price_ids, true))) {
+                        $result = ['active' => true, 'price_id' => ($pid !== '' ? $pid : $prod), 'customer' => $cid, 'status' => (string) ($sub['status'] ?? 'active')];
                         break 3;
                     }
                 }

@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.71.1 — membership detection: match by product ID too
+
+Member detection now matches a subscription if **either** its price ID **or** its
+**product ID** is in the configured list. So you can paste a product ID (`prod_…`)
+and it counts everyone subscribed to that product — both its monthly and yearly
+prices — rather than needing every individual price ID. (Fixes member checks
+returning "not a member" when a product ID was pasted instead of a price ID.)
+
 ## 1.71.0 — membership foundation: detect Stripe members (part 1 of the checkout upsell)
 
 First stage of the ticket-checkout membership feature. This part is the
