@@ -61,6 +61,27 @@ final class Settings {
             // enabled and at least one price ID is set.
             'membership_enabled'    => false,
             'membership_price_ids'  => [],
+            // The Stripe Payment Link (or any join URL) for the membership we
+            // offer non-members at checkout — e.g. the Friend monthly plan. Shown
+            // as the "Join to unlock this rate" button next to member-only tickets.
+            'membership_join_url'   => '',
+            // Label for the join offer button/plan (e.g. "Friend — $5/mo").
+            'membership_join_label' => '',
+            // The recurring Stripe PRICE id (price_…) to subscribe a joiner to when
+            // they join with the same card at checkout (e.g. Friend monthly). When
+            // set, the checkout offers one-click "join + buy at the member rate";
+            // when blank, it falls back to the external join link above.
+            'membership_join_price_id' => '',
+            // First-month/display amount of the join plan, in the smallest currency
+            // unit (e.g. 500 = $5.00), shown in the checkout summary. 0 = hide it.
+            'membership_join_amount'   => 0,
+            // Membership info page (benefits + terms), linked wherever a membership
+            // is added at checkout, e.g. https://…/membership/. Shown as
+            // "Read about Membership Benefits and Terms".
+            'membership_info_url'      => '',
+            // A few key benefit lines (one per entry) shown in the checkout upsell
+            // card, lifted from the membership page. Empty = no bullet list.
+            'membership_benefits'      => [],
             // Rejection email copy per listing type (§3.3). Empty => default.
             'rejection_copy'  => [],
             // AI Stories connector source URLs (RSS preferred) (§6).

@@ -340,6 +340,15 @@ final class Settings {
                 static fn($p) => sanitize_text_field(trim((string) $p)),
                 preg_split('/[\r\n,\s]+/', (string) ($in['membership_price_ids'] ?? ''))
             )))),
+            'membership_join_url'      => esc_url_raw(trim((string) ($in['membership_join_url'] ?? ''))),
+            'membership_join_label'    => sanitize_text_field((string) ($in['membership_join_label'] ?? '')),
+            'membership_join_price_id' => sanitize_text_field(trim((string) ($in['membership_join_price_id'] ?? ''))),
+            'membership_join_amount'   => max(0, (int) ($in['membership_join_amount'] ?? 0)),
+            'membership_info_url'      => esc_url_raw(trim((string) ($in['membership_info_url'] ?? ''))),
+            'membership_benefits'      => array_values(array_filter(array_map(
+                static fn($b) => sanitize_text_field(trim((string) $b)),
+                preg_split('/\r\n|\r|\n/', (string) ($in['membership_benefits'] ?? ''))
+            ))),
             // Pre-event reminder to ticket-holders.
             'attendee_reminder_enabled' => empty($in['attendee_reminder_enabled']) ? '0' : '1',
             'attendee_reminder_hours'   => max(1, min(168, (int) ($in['attendee_reminder_hours'] ?? 24))),

@@ -111,6 +111,26 @@ final class RestApi {
             'callback'            => [$this, 'paypal_capture'],
             'permission_callback' => '__return_true',
         ]);
+        // Is this email an active member? Public (used at checkout to unlock
+        // member-only rates and hide the join offer). Rate-limited; returns only a
+        // boolean, never any Stripe/customer detail.
+        register_rest_route(self::NS, '/member-check', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'member_check'],
+            'permission_callback' => '__return_true',
+        ]);
+        // Membership-only checkout (a free ticket + join): the $5 membership is the
+        // only charge, so we subscribe on-session and confirm the invoice card-side.
+        register_rest_route(self::NS, '/membership-intent', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'membership_intent'],
+            'permission_callback' => '__return_true',
+        ]);
+        register_rest_route(self::NS, '/membership-confirm', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'membership_confirm'],
+            'permission_callback' => '__return_true',
+        ]);
         register_rest_route(self::NS, '/waitlist-join', [
             'methods'             => 'POST',
             'callback'            => [$this, 'waitlist_join'],
@@ -387,7 +407,7 @@ final class RestApi {
      * (back-compat). Returns event_id, priced lines, subtotal, discount, total,
      * promo. Promo discount applies once to the cart subtotal.
      */
-    private function price_checkout(\WP_REST_Request $req) {
+    private function price_checkout(\WP_REST_Request $req, bool $allow_join = false) {
         $event_id = absint($req->get_param('event_id'));
         $cart_in  = $req->get_param('cart');
         $raw      = [];
@@ -401,8 +421,21 @@ final class RestApi {
             $raw[] = ['type_key' => sanitize_key((string) $req->get_param('type_key')), 'qty' => max(1, min(99, (int) $req->get_param('qty')))];
         }
 
+        // Member-only rates are enforced here (server-side), not just hidden in the
+        // UI: resolve the buyer's membership once, lazily, only if the cart touches
+        // a member-only type. `null` = "not yet checked".
+        $buyer_email = sanitize_email((string) $req->get_param('email'));
+        $is_member   = null;
+        // A non-member may still take a member rate if they're joining in this same
+        // checkout (one-click join) — allowed only on gateways that can create the
+        // subscription (Stripe), and only when a join price is actually configured.
+        $joining = $allow_join
+            && ! empty($req->get_param('join'))
+            && $this->join_price_id() !== '';
+
         $lines = [];
         $subtotal = 0.0;
+        $needs_join = false; // cart has a member rate the buyer is taking via joining
         foreach ($raw as $li) {
             if ($li['qty'] < 1) {
                 continue;
@@ -414,6 +447,22 @@ final class RestApi {
             $avail = \OE\Ticketing\TicketTypes::availability($event_id, $type);
             if ($avail['state'] !== 'available') {
                 return new \WP_Error('oe_unavailable', __('Those tickets are not currently on sale.', 'october-events'), ['status' => 409]);
+            }
+            if (\OE\Ticketing\TicketTypes::is_members_only($type)) {
+                if ($is_member === null) {
+                    $is_member = is_email($buyer_email)
+                        && ! empty(\OE\Connectors\StripeConnector::member_status($buyer_email)['active']);
+                }
+                if (! $is_member && $joining) {
+                    $needs_join = true; // resolve the subscription at confirm time
+                }
+                if (! $is_member && ! $joining) {
+                    return new \WP_Error('oe_members_only', sprintf(
+                        /* translators: %s: ticket type label */
+                        __('“%s” is a members-only rate. Join the membership (or use the email on your membership) to unlock it.', 'october-events'),
+                        (string) $type['label']
+                    ), ['status' => 403]);
+                }
             }
             $max = \OE\Ticketing\TicketTypes::max_per_order($type);
             if ($li['qty'] > $max) {
@@ -433,6 +482,17 @@ final class RestApi {
         }
         $subtotal = round($subtotal, 2);
 
+        // A general "add a Friend membership" opt-in (not tied to a member rate)
+        // also flags the checkout to create a subscription — but never for someone
+        // who is already an active member.
+        if ($joining && ! $needs_join) {
+            if ($is_member === null) {
+                $is_member = is_email($buyer_email)
+                    && ! empty(\OE\Connectors\StripeConnector::member_status($buyer_email)['active']);
+            }
+            $needs_join = ! $is_member;
+        }
+
         $discount = 0.0;
         $promo    = null;
         $code     = trim((string) $req->get_param('promo_code'));
@@ -446,7 +506,7 @@ final class RestApi {
         }
         $total = max(0, round($subtotal - $discount, 2));
 
-        return compact('event_id', 'lines', 'subtotal', 'discount', 'total', 'promo');
+        return compact('event_id', 'lines', 'subtotal', 'discount', 'total', 'promo', 'needs_join');
     }
 
     /** A cart's lines as a compact [{type_key, qty}] list for PI metadata. */
@@ -455,11 +515,24 @@ final class RestApi {
         return wp_json_encode($out) ?: '[]';
     }
 
+    /**
+     * The configured recurring Stripe price to subscribe a joiner to at checkout
+     * (the "join with the same card" plan, e.g. Friend monthly). Empty unless
+     * membership is enabled and a join price is set.
+     */
+    private function join_price_id(): string {
+        if (empty(\OE\Settings::get('membership_enabled', false))) {
+            return '';
+        }
+        return trim((string) \OE\Settings::get('membership_join_price_id', ''));
+    }
+
     public function ticket_promo(\WP_REST_Request $req): \WP_REST_Response {
         if (! $this->rl('promo', 20)) {
             return $this->too_many();
         }
-        $priced = $this->price_checkout($req);
+        // Allow join so a member-rate line prices for the preview instead of 403ing.
+        $priced = $this->price_checkout($req, true);
         if (is_wp_error($priced)) {
             return new \WP_REST_Response(['error' => $priced->get_error_message()], 400);
         }
@@ -467,6 +540,129 @@ final class RestApi {
             'discount' => $priced['discount'],
             'total'    => $priced['total'],
         ], 200);
+    }
+
+    /**
+     * Public membership check for the checkout: given an email, report whether it
+     * is an active member so the front-end can unlock member-only rates and hide
+     * the join offer. Returns only a boolean — no customer or Stripe detail leaks.
+     * Server-side pricing (price_checkout) re-checks, so this is a UI hint only.
+     */
+    public function member_check(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('member_check', 30)) {
+            return $this->too_many();
+        }
+        $enabled = ! empty(\OE\Settings::get('membership_enabled', false));
+        $email   = sanitize_email((string) $req->get_param('email'));
+        if (! $enabled || ! is_email($email)) {
+            return new \WP_REST_Response(['member' => false], 200);
+        }
+        $status = \OE\Connectors\StripeConnector::member_status($email);
+        return new \WP_REST_Response(['member' => ! empty($status['active'])], 200);
+    }
+
+    /**
+     * Start a membership-only checkout — the buyer is taking a FREE ticket and has
+     * opted to join, so the membership's first month is the only charge. We create
+     * the subscription on-session and hand back the invoice's PaymentIntent for the
+     * buyer to confirm with their card. The (free) ticket order is stashed and
+     * issued at /membership-confirm once the first payment clears.
+     */
+    public function membership_intent(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('membership_intent', 15)) {
+            return $this->too_many();
+        }
+        if (! \OE\Connectors\StripeConnector::is_ready()) {
+            return new \WP_REST_Response(['error' => 'payments_unavailable'], 503);
+        }
+        $price_id = $this->join_price_id();
+        if ($price_id === '') {
+            return new \WP_REST_Response(['error' => 'join_not_configured'], 400);
+        }
+        $priced = $this->price_checkout($req, true);
+        if (is_wp_error($priced)) {
+            return new \WP_REST_Response(['error' => $priced->get_error_message()], (int) ($priced->get_error_data()['status'] ?? 400));
+        }
+        // This endpoint is only for carts whose TICKETS are free — a paid ticket
+        // rides its own PaymentIntent (see /ticket-intent join), not this one.
+        if ((int) round($priced['total'] * 100) >= 50) {
+            return new \WP_REST_Response(['error' => 'use_ticket_flow'], 400);
+        }
+        $email = sanitize_email((string) $req->get_param('email'));
+        $name  = sanitize_text_field((string) $req->get_param('name'));
+        if (! is_email($email)) {
+            return new \WP_REST_Response(['error' => 'Enter a valid email address.'], 400);
+        }
+        // Don't let an existing member pay to "join" again.
+        \OE\Connectors\StripeConnector::bust_member_status($email);
+        if (! empty(\OE\Connectors\StripeConnector::member_status($email)['active'])) {
+            return new \WP_REST_Response(['error' => 'already_member', 'message' => __('You’re already a member — no need to join again. Just complete your free registration.', 'october-events')], 400);
+        }
+        $customer = \OE\Connectors\StripeConnector::ensure_customer_by_email($email, $name);
+        if ($customer === '') {
+            return new \WP_REST_Response(['error' => 'join_init_failed'], 502);
+        }
+        $sub = \OE\Connectors\StripeConnector::create_incomplete_subscription($customer, $price_id, [
+            'source' => 'ticket_checkout_free_join',
+            'email'  => $email,
+        ]);
+        if (($sub['id'] ?? '') === '' || ($sub['client_secret'] ?? '') === '') {
+            $message = (string) ($sub['error'] ?? '') !== ''
+                ? (string) $sub['error']
+                : __('We couldn’t start the membership signup. Please try again, or use a different card.', 'october-events');
+            return new \WP_REST_Response(['error' => 'join_init_failed', 'message' => $message], 502);
+        }
+        // Stash the (free) ticket order so /membership-confirm can issue it once the
+        // membership's first payment succeeds. Keyed by the subscription id.
+        $attendees = $this->attendee_names_param($req);
+        set_transient('oe_join_ctx_' . $sub['id'], [
+            'event_id'  => $priced['event_id'],
+            'cart'      => $this->cart_meta($priced['lines']),
+            'email'     => $email,
+            'name'      => $name,
+            'promo'     => $priced['promo']['code'] ?? '',
+            'attendees' => wp_json_encode($attendees) ?: '[]',
+        ], HOUR_IN_SECONDS);
+
+        return new \WP_REST_Response([
+            'client_secret' => $sub['client_secret'],
+            'sub_id'        => $sub['id'],
+        ], 200);
+    }
+
+    /**
+     * Finish a membership-only checkout: once the buyer has paid the membership's
+     * first invoice (card confirmed client-side), verify the subscription is live
+     * and issue the stashed free ticket order. Idempotent on the subscription id.
+     */
+    public function membership_confirm(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('membership_confirm', 30)) {
+            return $this->too_many();
+        }
+        $sub_id = sanitize_text_field((string) $req->get_param('sub_id'));
+        if ($sub_id === '') {
+            return new \WP_REST_Response(['error' => 'missing_subscription'], 400);
+        }
+        // Already issued? (a retried confirm) — return the same tickets.
+        if (\OE\Ticketing\Orders::by_payment($sub_id)) {
+            return new \WP_REST_Response(['ok' => true, 'tickets' => \OE\Ticketing\Orders::ticket_dtos_for($sub_id), 'joined' => true], 200);
+        }
+        $sub = \OE\Connectors\StripeConnector::retrieve_subscription($sub_id);
+        if (! in_array((string) ($sub['status'] ?? ''), ['active', 'trialing'], true)) {
+            return new \WP_REST_Response(['error' => 'membership_incomplete'], 402);
+        }
+        $ctx = get_transient('oe_join_ctx_' . $sub_id);
+        if (! is_array($ctx)) {
+            return new \WP_REST_Response(['error' => 'order_context_lost'], 400);
+        }
+        // Issue the free ticket order (amount_paid = 0: the ticket total must be 0).
+        $result = $this->create_ticket_order_from_meta($sub_id, $ctx, 0, 'free');
+        if (! is_array($result)) {
+            return new \WP_REST_Response(['error' => 'order_failed'], 400);
+        }
+        delete_transient('oe_join_ctx_' . $sub_id);
+        \OE\Connectors\StripeConnector::bust_member_status(sanitize_email((string) ($ctx['email'] ?? '')));
+        return new \WP_REST_Response(['ok' => true, 'tickets' => $result['tickets'], 'joined' => true], 200);
     }
 
     public function waitlist_join(\WP_REST_Request $req): \WP_REST_Response {
@@ -494,7 +690,7 @@ final class RestApi {
         if (! \OE\Connectors\StripeConnector::is_ready()) {
             return new \WP_REST_Response(['error' => 'payments_unavailable'], 503);
         }
-        $priced = $this->price_checkout($req);
+        $priced = $this->price_checkout($req, true);
         if (is_wp_error($priced)) {
             return new \WP_REST_Response(['error' => $priced->get_error_message()], (int) ($priced->get_error_data()['status'] ?? 400));
         }
@@ -504,6 +700,11 @@ final class RestApi {
 
         $cents = (int) round($priced['total'] * 100);
         if ($cents < 50) {
+            // Free ticket + a membership join belongs on the membership-only flow
+            // (the $5 is the only charge) — tell the client to switch endpoints.
+            if (! empty($priced['needs_join'])) {
+                return new \WP_REST_Response(['error' => 'use_membership_flow'], 409);
+            }
             // Free/comp orders skip Stripe — create immediately.
             $order = \OE\Ticketing\Orders::create_cart($priced['event_id'], $cart, $buyer, '', 'free', 'public', $priced['promo'], $this->attendee_names_param($req), $priced['discount']);
             if (is_wp_error($order)) {
@@ -518,7 +719,7 @@ final class RestApi {
         $att_json  = wp_json_encode($attendees) ?: '[]';
         while (strlen($att_json) > 480 && $attendees) { array_pop($attendees); $att_json = wp_json_encode($attendees) ?: '[]'; }
 
-        $intent = \OE\Connectors\StripeConnector::create_payment_intent($cents, (string) \OE\Settings::get('currency', 'usd'), '', [
+        $meta = [
             'kind'      => 'ticket',
             'event_id'  => $priced['event_id'],
             'cart'      => $this->cart_meta($priced['lines']),
@@ -526,7 +727,23 @@ final class RestApi {
             'name'      => $buyer['name'],
             'promo'     => $priced['promo']['code'] ?? '',
             'attendees' => $att_json,
-        ]);
+        ];
+
+        // One-click join: when the cart takes a member rate via joining, tie the
+        // PaymentIntent to a Stripe customer and save the card (setup_future_usage)
+        // so the membership subscription can be billed off-session at confirm time.
+        $customer_id = '';
+        $options     = [];
+        if (! empty($priced['needs_join']) && $this->join_price_id() !== '') {
+            $customer_id = \OE\Connectors\StripeConnector::ensure_customer_by_email($buyer['email'], $buyer['name']);
+            if ($customer_id !== '') {
+                $options['setup_future_usage'] = 'off_session';
+                $meta['join']       = 'friend';
+                $meta['join_price'] = $this->join_price_id();
+            }
+        }
+
+        $intent = \OE\Connectors\StripeConnector::create_payment_intent($cents, (string) \OE\Settings::get('currency', 'usd'), $customer_id, $meta, $options);
         if (($intent['id'] ?? '') === '') {
             // Surface the Stripe reason to the buyer only when it's safe + useful
             // (a card or validation problem they can act on). Config/auth/API
@@ -565,7 +782,58 @@ final class RestApi {
         if (! is_array($result)) {
             return new \WP_REST_Response(['error' => 'order_failed'], 400);
         }
-        return new \WP_REST_Response(['ok' => true, 'tickets' => $result['tickets']], 200);
+        // One-click join: the buyer opted to join and just paid for the member-rate
+        // ticket with a saved card — create the membership subscription now, billed
+        // off-session against that same card. Best-effort: the ticket is already
+        // issued (they paid), so a subscription hiccup never blocks the tickets.
+        $joined = $this->maybe_create_join_subscription($pi, $meta);
+
+        return new \WP_REST_Response(array_filter([
+            'ok'      => true,
+            'tickets' => $result['tickets'],
+            'joined'  => $joined,
+        ], static fn($v) => $v !== null), 200);
+    }
+
+    /**
+     * If a confirmed ticket PaymentIntent was flagged for one-click membership
+     * join, create the subscription off-session against the card just used. Skips
+     * cleanly if the buyer already turns out to be an active member (idempotent
+     * against a double confirm). Returns true on success, false on failure, null
+     * when no join was requested.
+     */
+    private function maybe_create_join_subscription(array $pi, array $meta): ?bool {
+        if (($meta['join'] ?? '') !== 'friend') {
+            return null;
+        }
+        $price_id    = (string) ($meta['join_price'] ?? '');
+        $customer_id = is_string($pi['customer'] ?? null) ? (string) $pi['customer'] : (string) ($pi['customer']['id'] ?? '');
+        $pm_id       = is_string($pi['payment_method'] ?? null) ? (string) $pi['payment_method'] : (string) ($pi['payment_method']['id'] ?? '');
+        $email       = sanitize_email((string) ($meta['email'] ?? ''));
+        if ($price_id === '' || $customer_id === '') {
+            return false;
+        }
+        // Don't double-subscribe: if they're already an active member (e.g. a
+        // retried confirm created the sub on the first pass), stop here.
+        \OE\Connectors\StripeConnector::bust_member_status($email);
+        if (! empty(\OE\Connectors\StripeConnector::member_status($email)['active'])) {
+            return true;
+        }
+        $sub = \OE\Connectors\StripeConnector::create_membership_subscription($customer_id, $price_id, $pm_id, [
+            'source'   => 'ticket_checkout_join',
+            'email'    => $email,
+        ]);
+        \OE\Connectors\StripeConnector::bust_member_status($email);
+        $ok = in_array($sub['status'], ['active', 'trialing'], true);
+        if (! $ok) {
+            \OE\Logger::log('Membership join subscription not active after ticket checkout', [
+                'intent'   => (string) ($pi['id'] ?? ''),
+                'email'    => $email,
+                'status'   => $sub['status'],
+                'error'    => $sub['error'],
+            ]);
+        }
+        return $ok;
     }
 
     /**

@@ -41,16 +41,18 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
             if ($is_first) { $first_available_done = true; }
             $row_class   = 'oct-ticket-row' . ($is_first ? ' oct-ticket-row--selected' : '') . ($unavailable ? ' oct-ticket-row--unavailable' : '') . ($state === 'sold_out' ? ' oct-ticket-row--soldout' : '');
         ?>
-          <div class="<?php echo esc_attr($row_class); ?>"
+          <?php $members_only = ! empty($tt['membersOnly']); ?>
+          <div class="<?php echo esc_attr($row_class . ($members_only ? ' oct-ticket-row--members' : '')); ?>"
                data-key="<?php echo esc_attr((string) $tt['key']); ?>"
                data-price="<?php echo esc_attr($unavailable ? '0' : (string) $eff); ?>"
                data-label="<?php echo esc_attr((string) $tt['label']); ?>"
                data-qty-per-purchase="<?php echo esc_attr((string) ($tt['admits'] ?? 1)); ?>"
                data-max-qty="<?php echo esc_attr((string) ($tt['max'] ?? 99)); ?>"
+               data-members-only="<?php echo $members_only ? '1' : '0'; ?>"
                <?php echo $unavailable ? '' : 'role="button" tabindex="0"'; ?>>
             <input type="radio" name="oct_ticket_type" value="<?php echo esc_attr((string) $tt['key']); ?>" <?php echo $is_first ? 'checked' : ''; ?> style="display:none">
             <div class="oct-ticket-row__info">
-              <div class="oct-ticket-row__name"><?php echo esc_html((string) $tt['label']); ?></div>
+              <div class="oct-ticket-row__name"><?php echo esc_html((string) $tt['label']); ?><?php if ($members_only) : ?> <span class="oct-members-badge"><?php esc_html_e('Members only', 'october-events'); ?></span><?php endif; ?></div>
               <?php if (! empty($tt['desc'])) : ?>
                 <div class="oct-ticket-row__desc"><?php echo esc_html((string) $tt['desc']); ?></div>
               <?php endif; ?>
@@ -116,6 +118,46 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
       <div id="oct-promo-message" class="oct-promo-message" style="display:none"></div>
     </div>
 
+    <!-- Your Details comes before the summary so the summary can react to the
+         email (member → member price only; non-member → membership added). -->
+    <div class="oct-section oct-section--details">
+      <h6 class="oct-section__title"><?php esc_html_e('Your Details', 'october-events'); ?></h6>
+      <div class="oct-field-group">
+        <label for="oct-name" class="oct-label"><?php esc_html_e('Name', 'october-events'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-events'); ?></span></label>
+        <div class="oct-field-input"><input type="text" id="oct-name" name="oct_name" class="oct-input" placeholder="<?php esc_attr_e('Your full name', 'october-events'); ?>" autocomplete="name"></div>
+      </div>
+      <div class="oct-field-group">
+        <label for="oct-email" class="oct-label"><?php esc_html_e('Email', 'october-events'); ?> <span class="oct-required" aria-hidden="true">*</span></label>
+        <div class="oct-field-input">
+          <input type="email" id="oct-email" name="oct_email" class="oct-input" required placeholder="<?php esc_attr_e('you@example.com', 'october-events'); ?>" autocomplete="email">
+          <span class="oct-field-hint"><?php esc_html_e('Tickets will be sent here.', 'october-events'); ?></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Membership opt-in — shown to non-members when a join price is configured.
+         Ticking it adds a Friend membership ($5/mo): with a free ticket it becomes
+         the only charge; with a paid ticket it rides the same card. It also unlocks
+         any members-only rate. Hidden for people already detected as members. -->
+    <div class="oct-section oct-membership-optin" id="oct-membership-optin" style="display:none">
+      <div class="oct-membership-card">
+        <div class="oct-membership-card__head">
+          <span class="oct-membership-card__title" id="oct-join-title"></span>
+          <span class="oct-membership-card__price" id="oct-join-price"></span>
+        </div>
+        <p class="oct-membership-card__pitch"><?php esc_html_e('Support the festival all year round. As a member you’ll get:', 'october-events'); ?></p>
+        <ul class="oct-membership-card__benefits" id="oct-join-benefits"></ul>
+        <label class="oct-membership-optin__row">
+          <input type="checkbox" id="oct-join-toggle">
+          <span class="oct-membership-optin__label" id="oct-join-label"></span>
+        </label>
+        <div class="oct-membership-card__foot">
+          <span class="oct-membership-optin__help" id="oct-join-help"></span>
+          <a href="#" id="oct-join-readmore" class="oct-btn oct-btn--secondary oct-membership-card__btn" target="_blank" rel="noopener" style="display:none"><?php esc_html_e('Read benefits &amp; terms', 'october-events'); ?></a>
+        </div>
+      </div>
+    </div>
+
     <div class="oct-section oct-section--summary oct-summary" id="oct-summary">
       <h6 class="oct-section__title"><?php esc_html_e('Order Summary', 'october-events'); ?></h6>
       <!-- One row per ticket line in the cart (filled by checkout.js) -->
@@ -134,20 +176,10 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
         <span class="oct-summary-label"><?php esc_html_e('Total', 'october-events'); ?></span>
         <span class="oct-summary-price" id="oct-summary-total"><?php echo esc_html($sym . '0.00'); ?></span>
       </div>
-    </div>
-
-    <div class="oct-section oct-section--details">
-      <h6 class="oct-section__title"><?php esc_html_e('Your Details', 'october-events'); ?></h6>
-      <div class="oct-field-group">
-        <label for="oct-name" class="oct-label"><?php esc_html_e('Name', 'october-events'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-events'); ?></span></label>
-        <div class="oct-field-input"><input type="text" id="oct-name" name="oct_name" class="oct-input" placeholder="<?php esc_attr_e('Your full name', 'october-events'); ?>" autocomplete="name"></div>
-      </div>
-      <div class="oct-field-group">
-        <label for="oct-email" class="oct-label"><?php esc_html_e('Email', 'october-events'); ?> <span class="oct-required" aria-hidden="true">*</span></label>
-        <div class="oct-field-input">
-          <input type="email" id="oct-email" name="oct_email" class="oct-input" required placeholder="<?php esc_attr_e('you@example.com', 'october-events'); ?>" autocomplete="email">
-          <span class="oct-field-hint"><?php esc_html_e('Tickets will be sent here.', 'october-events'); ?></span>
-        </div>
+      <!-- Shown by checkout.js whenever a Friend membership is added to this order. -->
+      <div id="oct-membership-note" class="oct-membership-note" style="display:none">
+        <span id="oct-membership-note-text"></span>
+        <a href="#" id="oct-membership-note-terms" target="_blank" rel="noopener" style="display:none"><?php esc_html_e('Read about Membership Benefits and Terms', 'october-events'); ?></a>
       </div>
     </div>
 

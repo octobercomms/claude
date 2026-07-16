@@ -54,12 +54,110 @@ final class StripeConnector {
     }
 
     /**
+     * Find a Stripe customer by email (first match) or create one. Used by the
+     * ticket checkout's "join the membership with the same card" flow, where the
+     * buyer isn't a WP account — we key the customer off their email so a repeat
+     * buyer/member reuses the same Stripe customer.
+     */
+    public static function ensure_customer_by_email(string $email, string $name = ''): string {
+        $email = trim(strtolower($email));
+        if ($email === '' || ! is_email($email) || ! self::is_ready()) {
+            return '';
+        }
+        $found = self::request('GET', '/customers', ['email' => $email, 'limit' => 1]);
+        $id    = (string) ($found['data'][0]['id'] ?? '');
+        if ($id !== '') {
+            return $id;
+        }
+        $created = self::request('POST', '/customers', array_filter([
+            'email' => $email,
+            'name'  => $name,
+        ]));
+        return (string) ($created['id'] ?? '');
+    }
+
+    /**
+     * Create a membership subscription for a customer on a given recurring price,
+     * billing the supplied (already-saved) payment method off-session — the buyer
+     * has just authenticated it for their ticket, so the first month is charged
+     * immediately without a second card prompt.
+     *
+     * @return array{id:string,status:string,error:string}
+     */
+    public static function create_membership_subscription(string $customer_id, string $price_id, string $payment_method_id = '', array $metadata = []): array {
+        if ($customer_id === '' || $price_id === '' || ! self::is_ready()) {
+            return ['id' => '', 'status' => '', 'error' => 'missing_customer_or_price'];
+        }
+        $params = [
+            'customer'         => $customer_id,
+            'items'            => [['price' => $price_id]],
+            'off_session'      => 'true',
+            'expand'           => ['latest_invoice.payment_intent'],
+        ];
+        if ($payment_method_id !== '') {
+            $params['default_payment_method'] = $payment_method_id;
+        }
+        foreach ($metadata as $k => $v) {
+            $params["metadata[{$k}]"] = (string) $v;
+        }
+        $sub = self::request('POST', '/subscriptions', $params);
+        $err = is_array($sub['error'] ?? null) ? $sub['error'] : [];
+        return [
+            'id'     => (string) ($sub['id'] ?? ''),
+            'status' => (string) ($sub['status'] ?? ''),
+            'error'  => (string) ($err['message'] ?? ''),
+        ];
+    }
+
+    /**
+     * Create a subscription whose first invoice must be paid on-session — used
+     * when the membership is the ONLY charge (e.g. a free ticket + join): there's
+     * no ticket payment to ride, so we return the first invoice's PaymentIntent
+     * client_secret for the buyer to confirm with their card. The card is saved to
+     * the customer for future renewals.
+     *
+     * @return array{id:string,client_secret:string,status:string,error:string}
+     */
+    public static function create_incomplete_subscription(string $customer_id, string $price_id, array $metadata = []): array {
+        if ($customer_id === '' || $price_id === '' || ! self::is_ready()) {
+            return ['id' => '', 'client_secret' => '', 'status' => '', 'error' => 'missing_customer_or_price'];
+        }
+        $params = [
+            'customer'         => $customer_id,
+            'items'            => [['price' => $price_id]],
+            'payment_behavior' => 'default_incomplete',
+            'payment_settings' => ['save_default_payment_method' => 'on_subscription'],
+            'expand'           => ['latest_invoice.payment_intent'],
+        ];
+        foreach ($metadata as $k => $v) {
+            $params["metadata[{$k}]"] = (string) $v;
+        }
+        $sub = self::request('POST', '/subscriptions', $params);
+        $err = is_array($sub['error'] ?? null) ? $sub['error'] : [];
+        $pi  = is_array($sub['latest_invoice']['payment_intent'] ?? null) ? $sub['latest_invoice']['payment_intent'] : [];
+        return [
+            'id'            => (string) ($sub['id'] ?? ''),
+            'client_secret' => (string) ($pi['client_secret'] ?? ''),
+            'status'        => (string) ($sub['status'] ?? ''),
+            'error'         => (string) ($err['message'] ?? ''),
+        ];
+    }
+
+    /** Fetch a subscription (to confirm it went active after the buyer paid). */
+    public static function retrieve_subscription(string $id): array {
+        if ($id === '' || ! self::is_ready()) {
+            return [];
+        }
+        return self::request('GET', '/subscriptions/' . rawurlencode($id));
+    }
+
+    /**
      * Create a PaymentIntent for a listing payment. Returns
      * ['id' => pi_x, 'client_secret' => ...] for client-side confirmation.
      *
      * @return array{id:string,client_secret:string}
      */
-    public static function create_payment_intent(int $amount, string $currency, string $customer_id = '', array $metadata = []): array {
+    public static function create_payment_intent(int $amount, string $currency, string $customer_id = '', array $metadata = [], array $options = []): array {
         $params = [
             'amount'                      => $amount,
             'currency'                    => $currency,
@@ -70,6 +168,11 @@ final class StripeConnector {
         }
         foreach ($metadata as $k => $v) {
             $params["metadata[{$k}]"] = (string) $v;
+        }
+        // Extra top-level PI params (e.g. setup_future_usage=off_session to save
+        // the card to the customer so a membership subscription can bill it).
+        foreach ($options as $k => $v) {
+            $params[$k] = $v;
         }
 
         $intent = self::request('POST', '/payment_intents', $params);

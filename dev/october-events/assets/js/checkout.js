@@ -16,6 +16,13 @@
     promoCode: '', discountAmount: 0, promoValid: false,
     subtotal: 0, total: 0, stripe: null, cardElement: null,
     processing: false, hasTerms: false,
+    // Membership: whether the buyer's email is an active member, the email we
+    // last checked, and whether the event has any members-only rate at all.
+    isMember: false, memberEmail: '', hasMembersOnly: false, memberCheckTimer: null,
+    // Membership join: whether inline same-card join is available, its display
+    // amount, and whether the buyer ticked the voluntary "add membership" opt-in.
+    // (A member-only rate auto-includes membership for non-members — no opt-in.)
+    joinInline: false, joinAmount: 0, optIn: false, optinBuilt: false,
   };
 
   function rest(path, body) {
@@ -37,6 +44,9 @@
     state.eventId  = parseInt($checkout.data('event-id'), 10) || 0;
     state.hasTerms = String($checkout.data('has-terms')) === '1';
     state.ticketTypes = cfg.types || [];
+    state.hasMembersOnly = $('.oct-ticket-row[data-members-only="1"]').length > 0;
+    state.joinInline = !!cfg.membershipJoinInline;
+    state.joinAmount = parseInt(cfg.membershipJoinAmount, 10) || 0;
 
     bindTicketRows();
     bindPromo();
@@ -44,7 +54,102 @@
     initPayPal();
     bindFreeRegistration();
     bindWaitlist();
+    bindMemberEmail();
+    bindJoinToggle();
     updateSummary();
+  }
+
+  /* ---- Membership ----
+     Member-only rates are open to everyone to select. When the buyer's email is
+     confirmed as an active member they simply pay the member price; when it isn't,
+     the Friend membership ($5/mo) is auto-added to the order so they qualify. On a
+     plain (non-member-rate) ticket, a voluntary "add a Friend membership" opt-in is
+     offered instead. The server re-checks on price/pay — this is UI only. ---- */
+  function membershipActive() { return cfg.membershipEnabled && (state.hasMembersOnly || state.joinInline); }
+  // The membership is being added to THIS order when: a same-card join is possible,
+  // the buyer isn't already a member, and either they're taking a member rate
+  // (required) or they ticked the voluntary opt-in.
+  function joiningEffective() {
+    return state.joinInline && !state.isMember && (cartHasMemberRate() || state.optIn);
+  }
+  function bindMemberEmail() {
+    if (!membershipActive()) { return; }
+    // Check membership shortly after the buyer stops typing their email, and on blur.
+    $('#oct-email').on('input', function () {
+      clearTimeout(state.memberCheckTimer);
+      state.memberCheckTimer = setTimeout(checkMemberEmail, 600);
+    }).on('blur', checkMemberEmail);
+  }
+  function onMemberStatusChange() { updateSummary(); }
+  function checkMemberEmail() {
+    var email = $('#oct-email').val().trim();
+    if (email === state.memberEmail) { return; }          // already checked this address
+    if (!email || !isValidEmail(email)) {
+      state.memberEmail = ''; state.isMember = false; onMemberStatusChange();
+      return;
+    }
+    state.memberEmail = email;
+    rest('/member-check', { email: email }).then(function (res) {
+      // Ignore a stale response if the email changed again while in flight.
+      if ($('#oct-email').val().trim() !== email) { return; }
+      state.isMember = !!(res.ok && res.body && res.body.member);
+      onMemberStatusChange();
+    });
+  }
+  // Sync the membership UI bits (voluntary opt-in checkbox + the "membership added"
+  // note with its T&Cs link) to the current cart + member status. Pure UI — called
+  // at the end of updateSummary, so it must not call updateSummary itself.
+  function syncMembershipUI() {
+    if (!state.joinInline) { $('#oct-membership-optin, #oct-membership-note').hide(); return; }
+    var hasMR = cartHasMemberRate();
+    // Voluntary opt-in: only for non-members on a cart WITHOUT a member rate
+    // (a member rate auto-includes membership, so no checkbox there).
+    var showOptin = !state.isMember && !hasMR && readCart().length > 0;
+    $('#oct-membership-optin').toggle(showOptin);
+    if (showOptin && !state.optinBuilt) { buildMembershipCard(); state.optinBuilt = true; }
+    if ($('#oct-join-toggle').is(':checked') !== state.optIn) { $('#oct-join-toggle').prop('checked', state.optIn); }
+    // Membership-added note (+ terms link), shown whenever membership joins this order.
+    var joining = joiningEffective();
+    var $note = $('#oct-membership-note');
+    if (joining) {
+      var amt = state.joinAmount > 0 ? (currencySymbol + (state.joinAmount / 100).toFixed(2) + '/mo') : '$5/mo';
+      var plan = cfg.membershipJoinLabel || 'Friend membership';
+      var lead = hasMR
+        ? 'A ' + plan + ' (' + amt + ') is included so you qualify for the member rate — cancel anytime.'
+        : 'A ' + plan + ' (' + amt + ') will be added — billed monthly, cancel anytime.';
+      $('#oct-membership-note-text').text(lead);
+      if (cfg.membershipInfoUrl) { $('#oct-membership-note-terms').attr('href', cfg.membershipInfoUrl).show(); }
+      else { $('#oct-membership-note-terms').hide(); }
+      $note.css('display', 'block');
+    } else { $note.hide(); }
+  }
+  // Fill the upsell card once: title, price, benefit bullets, checkbox label,
+  // helper text and the "read benefits & terms" button.
+  function buildMembershipCard() {
+    var amt = state.joinAmount > 0 ? (currencySymbol + (state.joinAmount / 100).toFixed(2) + '/mo') : '';
+    $('#oct-join-title').text(cfg.membershipJoinLabel || 'Become a member');
+    if (amt) { $('#oct-join-price').text(amt).show(); } else { $('#oct-join-price').hide(); }
+    var benefits = cfg.membershipBenefits || [];
+    var $ul = $('#oct-join-benefits').empty();
+    if (benefits.length) {
+      benefits.forEach(function (b) { $('<li>').text(b).appendTo($ul); });
+      $ul.show(); $('.oct-membership-card__pitch').show();
+    } else { $ul.hide(); $('.oct-membership-card__pitch').hide(); }
+    $('#oct-join-label').text('Add to my order' + (amt ? ' — ' + amt : ''));
+    $('#oct-join-help').text('Billed monthly — cancel anytime.');
+    if (cfg.membershipInfoUrl) { $('#oct-join-readmore').attr('href', cfg.membershipInfoUrl).show(); }
+    else { $('#oct-join-readmore').hide(); }
+  }
+  function bindJoinToggle() {
+    $(document).on('change', '#oct-join-toggle', function () {
+      state.optIn = $(this).is(':checked');
+      resetPromo();
+      updateSummary();
+    });
+  }
+  // Whether the current cart contains a member-rate line.
+  function cartHasMemberRate() {
+    return readCart().some(function (c) { return c.type && c.type.membersOnly; });
   }
 
   /* ---- Cart: every row with qty > 0 is a line. Rows are independent. ---- */
@@ -65,6 +170,8 @@
     return cart;
   }
   function setRowQty($row, n) {
+    // Member rates are selectable by everyone — the order then reacts to the
+    // buyer's email (member → member price; non-member → membership added).
     var max = parseInt($row.data('max-qty'), 10) || 99;
     n = Math.max(0, Math.min(max, n));
     $row.find('.oct-qty-val').text(n);
@@ -133,7 +240,7 @@
     var $msg = $('#oct-promo-message');
     $msg.removeClass('success error').text('Validating…').show();
     $('#oct-apply-promo').prop('disabled', true);
-    rest('/ticket-promo', { event_id: state.eventId, cart: cart, promo_code: code }).then(function (res) {
+    rest('/ticket-promo', { event_id: state.eventId, cart: cart, promo_code: code, join: joiningEffective() ? 1 : 0 }).then(function (res) {
       $('#oct-apply-promo').prop('disabled', false);
       if (res.ok) {
         state.promoCode = code; state.discountAmount = parseFloat(res.body.discount) || 0; state.promoValid = true;
@@ -173,13 +280,38 @@
       $('#oct-summary-discount').text('−' + currencySymbol + discount.toFixed(2));
     } else { $('#oct-discount-row').hide(); }
 
-    $('#oct-summary-total').text(currencySymbol + total.toFixed(2));
-    $('#oct-card-btn-amount').text(currencySymbol + total.toFixed(2));
+    // Membership: when it joins this order, show the first month as its own line
+    // (Stripe bills it separately from the ticket). Add it to the DISPLAYED total
+    // only when we know the amount — the ticket charge is always just the ticket.
+    var joining = joiningEffective();
+    var displayTotal = total;
+    $('#oct-join-row').remove();
+    if (joining) {
+      var joinLabel = (cfg.membershipJoinLabel || 'Friend membership') + ' — first month';
+      var joinAmt = state.joinAmount > 0 ? (state.joinAmount / 100) : null;
+      if (joinAmt !== null) { displayTotal = Math.round((total + joinAmt) * 100) / 100; }
+      var priceTxt = joinAmt !== null ? (currencySymbol + joinAmt.toFixed(2)) : '';
+      $('<div class="oct-summary-row" id="oct-join-row"></div>')
+        .append('<span class="oct-summary-label">' + escHtml(joinLabel) + '</span>')
+        .append('<span class="oct-summary-label"></span>')
+        .append('<span class="oct-summary-price">' + priceTxt + '</span>')
+        .insertBefore('.oct-summary-total');
+    }
+
+    $('#oct-summary-total').text(currencySymbol + displayTotal.toFixed(2));
+    $('#oct-card-btn-amount').text(currencySymbol + displayTotal.toFixed(2));
     updateAttendeeNames(cart);
 
+    // A free ticket that now carries a membership must go through the card (the $5
+    // membership is the only charge) rather than the free "Complete Registration".
     var isFree = cart.length > 0 && total === 0;
-    $('#oct-payment-section').toggle(!isFree);
-    $('#oct-free-section').toggle(!!isFree);
+    var membershipOnly = isFree && joining;
+    $('#oct-payment-section').toggle(!isFree || membershipOnly);
+    $('#oct-free-section').toggle(isFree && !membershipOnly);
+    // Joining needs the card path (it subscribes the same card), so hide PayPal.
+    $('#panel-paypal, .oct-pay-or').toggle(!joining);
+
+    syncMembershipUI();
   }
 
   /* ---- Free registration ---- */
@@ -212,7 +344,7 @@
     $('#oct-pay-card').on('click', handleCard);
   }
   function payload(name, email) {
-    return { event_id: state.eventId, cart: cartParam(), promo_code: state.promoCode, name: name, email: email, attendee_names: getAttendeeNames() };
+    return { event_id: state.eventId, cart: cartParam(), promo_code: state.promoCode, name: name, email: email, attendee_names: getAttendeeNames(), join: joiningEffective() ? 1 : 0 };
   }
   function handleCard() {
     if (state.processing) { return; }
@@ -220,6 +352,9 @@
     if (!email || !isValidEmail(email)) { $('#oct-email').addClass('error').focus(); showCardError('Please enter a valid email address.'); return; }
     if (!readCart().length) { showCardError('Please choose at least one ticket.'); return; }
     if (!checkTerms()) { showCardError('Please agree to the Terms & Conditions.'); return; }
+    // Free ticket + membership: the $5 membership is the only charge — take the
+    // membership-only path (subscribe on-session, then issue the free ticket).
+    if (joiningEffective() && state.total === 0) { handleMembershipOnly(name, email); return; }
     hideCardError(); setProcessing(true, '#oct-pay-card');
 
     rest('/ticket-intent', payload(name, email)).then(function (res) {
@@ -231,8 +366,39 @@
         if (result.error) { setProcessing(false, '#oct-pay-card'); showCardError(friendlyStripeError(result.error)); return; }
         rest('/ticket-confirm', { intent_id: res.body.intent_id }).then(function (c) {
           setProcessing(false, '#oct-pay-card');
-          if (c.ok) { showSuccess(c.body.tickets); }
+          if (c.ok) { showSuccess(c.body.tickets, c.body.joined); }
           else { showCardError(friendlyServerError(c.body, 'Payment confirmed but order creation failed. Please contact us.')); }
+        });
+      });
+    });
+  }
+  // Free ticket + Friend membership: the membership's first month is the only
+  // charge. Subscribe on-session (confirm the invoice card-side), then issue the
+  // free ticket order.
+  function handleMembershipOnly(name, email) {
+    if (state.processing) { return; }
+    hideCardError(); setProcessing(true, '#oct-pay-card');
+    rest('/membership-intent', payload(name, email)).then(function (res) {
+      if (!res.ok) {
+        setProcessing(false, '#oct-pay-card');
+        // Turns out they're already a member — drop the membership and switch the
+        // UI to the free registration button.
+        if (res.body && res.body.error === 'already_member') {
+          state.isMember = true; state.optIn = false; $('#oct-join-toggle').prop('checked', false);
+          onMemberStatusChange();
+          showCardError(friendlyServerError(res.body, 'You’re already a member — use “Complete Registration” below.'));
+          return;
+        }
+        showCardError(friendlyServerError(res.body, 'Could not start membership signup.')); return;
+      }
+      state.stripe.confirmCardPayment(res.body.client_secret, {
+        payment_method: { card: state.cardElement, billing_details: { name: name, email: email } },
+      }).then(function (result) {
+        if (result.error) { setProcessing(false, '#oct-pay-card'); showCardError(friendlyStripeError(result.error)); return; }
+        rest('/membership-confirm', { sub_id: res.body.sub_id }).then(function (c) {
+          setProcessing(false, '#oct-pay-card');
+          if (c.ok) { showSuccess(c.body.tickets, c.body.joined); }
+          else { showCardError(friendlyServerError(c.body, 'Membership charged but registration failed — please contact us, do not pay again.')); }
         });
       });
     });
@@ -282,7 +448,12 @@
     payment_init_failed: 'We couldn’t start the payment. Please try again in a moment — if it keeps happening, try a different card or contact us.',
     paypal_init_failed: 'We couldn’t start PayPal checkout. Please try again, or pay by card.',
     payments_unavailable: 'Card payments are temporarily unavailable. Please try again shortly, or contact us.',
-    amount_too_low: 'This order is free — use “Complete Registration”.'
+    amount_too_low: 'This order is free — use “Complete Registration”.',
+    join_not_configured: 'Membership signup isn’t available right now. Please try again later.',
+    join_init_failed: 'We couldn’t start the membership signup. Please try again, or use a different card.',
+    membership_incomplete: 'Your membership payment didn’t complete. Please try again.',
+    order_context_lost: 'Your membership was set up but we lost the registration details — please contact us before trying again.',
+    already_member: 'You’re already a member — just complete your free registration below.'
   };
   // The server may send a friendly `message`, a known error code, or (for priced
   // errors) an already-human sentence — prefer them in that order.
@@ -358,9 +529,14 @@
   }
 
   /* ---- Success ---- */
-  function showSuccess(tickets) {
+  function showSuccess(tickets, joined) {
     $('#oct-checkout-form').hide();
     $('#oct-success').show();
+    var $note = $('#oct-join-confirm');
+    if (joined === true) {
+      if (!$note.length) { $note = $('<p id="oct-join-confirm" class="oct-join-confirm"></p>').insertAfter('#oct-success h2'); }
+      $note.text('You’re now a member — welcome! Your membership is active and your member rate has been applied.').show();
+    } else if ($note.length) { $note.hide(); }
     var $links = $('#oct-ticket-links').empty();
     (tickets || []).forEach(function (t, i) {
       if (!t || !t.url) { return; }

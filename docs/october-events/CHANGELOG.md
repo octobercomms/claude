@@ -5,6 +5,127 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.76.0 — membership upsell card (benefits + read-more button)
+
+The voluntary "add a Friend membership" opt-in on a normal checkout is no longer a
+bare checkbox — it's now a proper upsell card: a bordered, grey-backgrounded panel
+with the plan name + price, a few key benefit bullets, an "Add to my order"
+checkbox, and a **Read benefits & terms** button linking your membership page.
+
+- **Settings → Checkout → Membership → Membership benefits**: a new field — one
+  perk per line (lifted from your membership page) — rendered as the card's
+  bullets. Leave blank for no bullets.
+- The card uses the existing join label, join amount (for the price), and info-page
+  URL. The member-rate summary note is unchanged.
+
+## 1.75.3 — tighter ticket-description line spacing
+
+Added `line-height: 1` to `.oct-ticket-row__desc` so a wrapping two-line
+description sits tight under the ticket name instead of looking double-spaced.
+
+## 1.75.2 — checkout mobile restyle + bigger ticket descriptions
+
+- **Mobile layout**: on phones the ticket row now puts the name + description on
+  their own line with the price and quantity stepper sharing the line below
+  (price left, stepper right) — far more compact than the old stacked layout, so
+  more tickets fit on screen. The oversized desktop price is scaled down on small
+  screens so large amounts don't overflow, and the promo / details / summary rows
+  reflow cleanly. Breakpoint widened to 560px.
+- **Ticket description**: shown larger and in solid black (1.5em) so it reads as
+  part of the ticket, not fine print.
+
+## 1.75.1 — member rates are freely selectable (no lock, no click-through message)
+
+Member-only rates are now always selectable by anyone — the greyed-out lock and
+the "That's a members-only rate" message on click are gone. Selecting one adds it
+straight to the cart; the order then reacts to the buyer's email (member → member
+price; non-member → membership auto-added). Note: for the non-member auto-join to
+charge, a **Join price ID** must be set (Settings → Checkout → Membership).
+
+## 1.75.0 — membership on every checkout: auto-join for member rates, free-ticket join, T&Cs link
+
+Refines the join-at-checkout UX (from 1.74.0) into the full "offer membership on
+any ticket" flow.
+
+- **Member rates are no longer locked** — anyone can select one. The order then
+  reacts to the buyer's email: an active member simply pays the member price; a
+  non-member automatically has the **Friend membership ($5/mo) added** to the
+  order so they qualify. No checkbox to hunt for.
+- **Free ticket + membership**: a free RSVP can become a **$5 checkout** — tick
+  "Add a Friend membership" and the membership's first month is the only charge.
+  Handled by a new membership-only Stripe path (`/membership-intent` +
+  `/membership-confirm`): the subscription's first invoice is confirmed with the
+  card, then the free ticket is issued.
+- **Voluntary opt-in on any checkout**: on a normal (non-member-rate) ticket,
+  non-members see an "Add a Friend membership — $5/mo" checkbox.
+- **Order Summary now sits below Your Details**, so the membership appears right
+  after the buyer enters their email and it's checked against Stripe.
+- **Membership info link**: wherever a membership is added, the summary shows
+  "Read about Membership Benefits and Terms" linking to your membership page (new
+  Settings → Checkout → Membership → *Membership info page*).
+
+## 1.74.0 — one-click join: subscribe + buy the member rate with the same card (part 3)
+
+A non-member can now join the membership **and** buy the member-rate ticket in a
+single checkout — no leaving the page, one card entry, one click.
+
+- **Settings → Checkout → Membership → Join offer**: paste the recurring **join
+  price ID** (e.g. Friend monthly, `price_…`) and an optional **display amount**
+  (in cents). With a price set, the member-rate offer becomes a one-click join;
+  with no price set, it falls back to the external Payment-Link button as before.
+- **Checkout**: when a non-member picks a member rate, the offer shows a "Join as
+  a Friend — $5/mo" **checkbox**. Ticking it unlocks the rate, adds the first
+  month to the summary (shown separately — Stripe bills it apart from the ticket),
+  and lets them pay once. Behind the scenes the ticket is charged at the member
+  rate and the card is saved; the membership subscription is then created and
+  billed off-session against that same card. The success screen confirms the new
+  membership.
+- **Server-side**: the ticket PaymentIntent is tied to a Stripe customer with
+  `setup_future_usage` so the card is on file; on confirm we create the
+  subscription (idempotent — it won't double-subscribe on a retry), then bust the
+  member cache. PayPal is hidden while joining (the subscription needs the card),
+  and the member rate still can't be taken by a non-member who isn't joining.
+
+Heads-up: this path moves real money on your **live** Stripe keys. Do one real
+join to verify end-to-end (member rate charged + a live subscription created),
+then refund/cancel that test.
+
+## 1.73.0 — ticket-type editor: drag to reorder + per-type description
+
+Two refinements to the ticket-type editor:
+
+- **Drag to reorder**: each ticket-type row now has a drag handle (⣿) — grab it to
+  reorder the types. The order you set is the order buyers see at checkout.
+- **Description field**: a per-type description input (under the label). Whatever
+  you type shows under the ticket name on the checkout row, so it's always visible
+  — useful for spelling out what a rate covers (e.g. the member rate, a group
+  bundle, or a Serenbe-only ticket). The checkout already rendered descriptions;
+  there just wasn't a place to enter one.
+
+## 1.72.0 — members-only ticket rates + join-at-checkout offer (part 2)
+
+Ticket types can now be flagged **Members only**, so a special member rate is
+reserved for people with an active membership — and everyone else is invited to
+join right at checkout.
+
+- **Ticket type editor**: a new **Members** checkbox on each ticket type. Tick it
+  to make that rate members-only (e.g. a discounted member price).
+- **Checkout**: a members-only rate shows a "Members only" badge and stays locked
+  until the buyer's email is confirmed as an active member. As soon as they enter
+  a member email under *Your Details*, the rate unlocks automatically. A
+  non-member who tries to pick it sees a **join offer** with a button to your
+  membership plan.
+- **Settings → Checkout → Membership**: new **join link** (paste your Stripe
+  Payment Link — e.g. the Friend monthly plan) and **join button label** for that
+  offer. Leave the link blank to simply keep member rates locked to non-members.
+- **Enforced server-side**: pricing/checkout re-checks membership for any
+  members-only line, so the rate can't be grabbed by editing the page — you must
+  buy with the email on an active membership. A new public, rate-limited
+  `/member-check` endpoint powers the live unlock (returns only yes/no).
+
+Still to come (next stages): subscribe-with-the-same-card during checkout, and
+the follow-up email nudging non-members to join a few days after purchase.
+
 ## 1.71.1 — membership detection: match by product ID too
 
 Member detection now matches a subscription if **either** its price ID **or** its
