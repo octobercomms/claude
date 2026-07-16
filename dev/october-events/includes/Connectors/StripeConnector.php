@@ -215,6 +215,60 @@ final class StripeConnector {
     }
 
     /**
+     * Whether an email is an ACTIVE member — i.e. it has a live Stripe
+     * subscription on one of the configured membership prices (Settings →
+     * Membership). Read-only; cached briefly per email since checkout may check
+     * it repeatedly. "trialing" counts as active; past_due/canceled do not.
+     *
+     * @return array{active:bool,price_id:string,customer:string,status:string}
+     */
+    public static function member_status(string $email): array {
+        $none  = ['active' => false, 'price_id' => '', 'customer' => '', 'status' => ''];
+        $email = trim(strtolower($email));
+        if ($email === '' || ! is_email($email) || ! self::is_ready()) {
+            return $none;
+        }
+        $price_ids = array_values(array_filter(array_map('strval', (array) Settings::get('membership_price_ids', []))));
+        if (! $price_ids) {
+            return $none;
+        }
+        $key    = 'oe_member_' . md5($email);
+        $cached = get_transient($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
+        $result = $none;
+        $custs  = self::request('GET', '/customers', ['email' => $email, 'limit' => 20]);
+        foreach ((array) ($custs['data'] ?? []) as $cust) {
+            $cid = (string) ($cust['id'] ?? '');
+            if ($cid === '') {
+                continue;
+            }
+            // Active subscriptions for this customer; check each line's price.
+            $subs = self::request('GET', '/subscriptions', ['customer' => $cid, 'status' => 'active', 'limit' => 100]);
+            foreach ((array) ($subs['data'] ?? []) as $sub) {
+                foreach ((array) ($sub['items']['data'] ?? []) as $item) {
+                    $pid = (string) ($item['price']['id'] ?? '');
+                    if ($pid !== '' && in_array($pid, $price_ids, true)) {
+                        $result = ['active' => true, 'price_id' => $pid, 'customer' => $cid, 'status' => (string) ($sub['status'] ?? 'active')];
+                        break 3;
+                    }
+                }
+            }
+        }
+        set_transient($key, $result, 5 * MINUTE_IN_SECONDS);
+        return $result;
+    }
+
+    /** Drop the cached membership status for an email (e.g. right after they join). */
+    public static function bust_member_status(string $email): void {
+        $email = trim(strtolower($email));
+        if ($email !== '') {
+            delete_transient('oe_member_' . md5($email));
+        }
+    }
+
+    /**
      * Recent failed charges (for the assistant's "failed payments" answers).
      *
      * @return array<int,array<string,mixed>>
