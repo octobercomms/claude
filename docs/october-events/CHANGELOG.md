@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.73.0 — ticket-type editor: drag to reorder + per-type description
+
+Two refinements to the ticket-type editor:
+
+- **Drag to reorder**: each ticket-type row now has a drag handle (⣿) — grab it to
+  reorder the types. The order you set is the order buyers see at checkout.
+- **Description field**: a per-type description input (under the label). Whatever
+  you type shows under the ticket name on the checkout row, so it's always visible
+  — useful for spelling out what a rate covers (e.g. the member rate, a group
+  bundle, or a Serenbe-only ticket). The checkout already rendered descriptions;
+  there just wasn't a place to enter one.
+
 ## 1.72.0 — members-only ticket rates + join-at-checkout offer (part 2)
 
 Ticket types can now be flagged **Members only**, so a special member rate is
