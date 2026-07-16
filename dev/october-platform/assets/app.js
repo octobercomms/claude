@@ -699,7 +699,7 @@ async function renderOverview() {
   const yr = k.year ? String(k.year) : '';
   const stats = el('<div class="oe-stats"></div>');
   stats.appendChild(statCard('Tickets sold', kpis ? String(k.tickets_year) : '—', yr ? yr + ' to date' : 'this year', true));
-  stats.appendChild(statCard('Revenue', kpis ? money(k.revenue_year, cur) : '—', yr ? yr + ' to date' : 'this year', false));
+  stats.appendChild(statCard('Revenue', kpis ? money(k.revenue_year, cur) : '—', (k.revenue_source === 'stripe' ? 'Stripe · ' : '') + (yr ? yr + ' to date' : 'this year'), false));
   stats.appendChild(statCard('Subscribers', kpis ? String(k.subscribers) : '—', 'on the email list', false));
   stats.appendChild(statCard('Events live', kpis ? (eventsLive + '/' + eventsTotal) : '—', 'published on the site', false));
   main.appendChild(stats);
