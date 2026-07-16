@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.70.6 — dashboard revenue reflects total Stripe income for the year
+
+The Revenue KPI (platform dashboard + wp-admin) read only tickets sold *through
+this plugin*, so it showed $0 whenever sales run through Stripe another way. It now
+shows the **total Stripe volume for the calendar year** — every succeeded charge on
+the account, in the account's currency — via a new `StripeConnector::year_revenue()`
+(paged from the charges API, cached for an hour). Falls back to the plugin's own
+ticket revenue if Stripe isn't configured. The platform's Revenue card notes
+"Stripe · YYYY to date" when the figure comes from Stripe.
+
 ## 1.70.5 — refund / cancellation emails now use the branded template
 
 The refund, cancellation, rejection and waitlist emails were going out through a

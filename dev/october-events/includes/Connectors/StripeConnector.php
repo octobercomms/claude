@@ -145,6 +145,76 @@ final class StripeConnector {
     }
 
     /**
+     * Total Stripe revenue for the current calendar year — the sum of every
+     * succeeded charge on the account (not just tickets sold through this plugin),
+     * with refunds, in the account's currency. Paged from the charges API and
+     * cached for an hour, since the dashboard KPI calls this on every load. Use
+     * `bust_year_revenue()` to force a refresh.
+     *
+     * @return array{gross:float,refunded:float,net:float,currency:string,count:int,partial:bool}
+     */
+    public static function year_revenue(): array {
+        $empty = ['gross' => 0.0, 'refunded' => 0.0, 'net' => 0.0, 'currency' => '', 'count' => 0, 'partial' => false];
+        if (! self::is_ready()) {
+            return $empty;
+        }
+        $cache = get_transient('oe_stripe_year_revenue');
+        if (is_array($cache)) {
+            return $cache;
+        }
+        $since  = strtotime(gmdate('Y') . '-01-01T00:00:00+00:00');
+        $gross  = 0;
+        $refund = 0;
+        $count  = 0;
+        $currency = '';
+        $after  = '';
+        $pages  = 0;
+        $partial = false;
+        do {
+            $params = ['limit' => 100, 'created' => ['gte' => $since]];
+            if ($after !== '') {
+                $params['starting_after'] = $after;
+            }
+            $res  = self::request('GET', '/charges', $params);
+            $data = is_array($res['data'] ?? null) ? $res['data'] : [];
+            if (! $data) {
+                break;
+            }
+            foreach ($data as $ch) {
+                $after = (string) ($ch['id'] ?? $after); // cursor advances over every charge
+                if (($ch['status'] ?? '') !== 'succeeded' || empty($ch['paid'])) {
+                    continue;
+                }
+                $gross   += (int) ($ch['amount'] ?? 0);
+                $refund  += (int) ($ch['amount_refunded'] ?? 0);
+                $currency = $currency !== '' ? $currency : (string) ($ch['currency'] ?? '');
+                $count++;
+            }
+            $pages++;
+            if ($pages >= 100) { // ~10k charges safety cap
+                $partial = ! empty($res['has_more']);
+                break;
+            }
+        } while (! empty($res['has_more']));
+
+        $out = [
+            'gross'    => round($gross / 100, 2),
+            'refunded' => round($refund / 100, 2),
+            'net'      => round(($gross - $refund) / 100, 2),
+            'currency' => strtoupper($currency),
+            'count'    => $count,
+            'partial'  => $partial,
+        ];
+        set_transient('oe_stripe_year_revenue', $out, HOUR_IN_SECONDS);
+        return $out;
+    }
+
+    /** Drop the cached year-revenue total so the next read recomputes. */
+    public static function bust_year_revenue(): void {
+        delete_transient('oe_stripe_year_revenue');
+    }
+
+    /**
      * Recent failed charges (for the assistant's "failed payments" answers).
      *
      * @return array<int,array<string,mixed>>

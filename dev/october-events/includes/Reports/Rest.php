@@ -56,10 +56,22 @@ final class Rest {
         ]));
         $total = count(Events::all_event_ids(500));
 
+        // Revenue KPI: total Stripe volume for the year (every succeeded charge on
+        // the account, not only tickets sold through this plugin), so it reflects
+        // real income even when sales don't run through the plugin's ticketing.
+        // Falls back to the plugin's own ticket revenue if Stripe isn't configured.
+        $stripe        = \OE\Connectors\StripeConnector::year_revenue();
+        $stripe_ready  = \OE\Connectors\StripeConnector::is_ready();
+        $revenue_year  = $stripe_ready ? (float) $stripe['gross'] : (float) ($sales['year_revenue'] ?? 0);
+        $currency      = ($stripe_ready && $stripe['currency'] !== '')
+            ? $stripe['currency']
+            : strtoupper((string) Settings::get('currency', 'usd'));
+
         return [
-            'currency'       => strtoupper((string) Settings::get('currency', 'usd')),
+            'currency'       => $currency,
             'tickets_year'   => (int) ($sales['year_tickets'] ?? 0),
-            'revenue_year'   => (float) ($sales['year_revenue'] ?? 0),
+            'revenue_year'   => $revenue_year,
+            'revenue_source' => $stripe_ready ? 'stripe' : 'tickets',
             'tickets_all'    => (int) ($sales['tickets'] ?? 0),
             'revenue_all'    => (float) ($sales['revenue'] ?? 0),
             'subscribers'    => (int) ($contacts['subscribed'] ?? 0),
