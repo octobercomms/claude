@@ -2015,12 +2015,24 @@ function ac_fabric_term_media_script() {
   <?php
 }
 /**
- * Request-level memoisation of WC_Product::get_available_variations().
+ * Cached access to WC_Product::get_available_variations().
  *
- * get_available_variations() is expensive (it builds full data for every
- * variation) and was being called multiple times per request on the fabric
- * drawer PDP. This returns the same result for a given product within a single
- * request, calling the underlying WooCommerce method at most once per product.
+ * get_available_variations() is very expensive on this site's fabric-drawer
+ * "sofa" product: it builds full data for all ~384 variations and measures at
+ * ~3s per call. It is invoked more than once per PDP request (this helper's
+ * callers, plus a direct call in the single-product template), so it is cached
+ * on two levels:
+ *
+ *   1. Request-static memo — one build per product per request.
+ *   2. Cross-request persistence in POST META, keyed by currency. Post meta is
+ *      database-backed. Transients are NOT a safe store here: this site runs an
+ *      external object cache, under which transients live only in that cache
+ *      with no database fallback, and the large variations payload is silently
+ *      dropped above the cache's per-item size limit (observed: the 281 KB
+ *      matrix transient never survived between requests). Currency is part of
+ *      the key because the built array carries currency-dependent prices (Aelia
+ *      Currency Switcher). Invalidated on product/variation save and on stock
+ *      change via ac_clear_fabric_caches().
  */
 function ac_get_cached_available_variations( $product ) {
   static $cache = array();
@@ -2028,10 +2040,19 @@ function ac_get_cached_available_variations( $product ) {
     return array();
   }
   $pid = $product->get_id();
-  if ( ! isset( $cache[ $pid ] ) ) {
-    $cache[ $pid ] = $product->get_available_variations();
+  if ( isset( $cache[ $pid ] ) ) {
+    return $cache[ $pid ];
   }
-  return $cache[ $pid ];
+  $meta_key = '_ac_avail_variations_' . get_woocommerce_currency();
+  $stored   = get_post_meta( $pid, $meta_key, true );
+  if ( is_array( $stored ) && ! empty( $stored ) ) {
+    return $cache[ $pid ] = $stored;
+  }
+  $variations = $product->get_available_variations();
+  if ( ! empty( $variations ) ) {
+    update_post_meta( $pid, $meta_key, $variations );
+  }
+  return $cache[ $pid ] = $variations;
 }
 function ac_build_product_fabric_data( $product ) {
   if ( ! $product || ! $product->is_type( 'variable' ) ) {
@@ -2268,10 +2289,25 @@ function ac_clear_fabric_caches( $product_id ) {
   foreach ( $currencies as $currency ) {
     delete_transient( 'ac_fabric_data_' . $product_id . '_' . $currency );
     delete_transient( 'ac_fabric_matrix_' . $product_id . '_' . $currency );
+    // Also drop the persistent per-currency raw-variations cache (post meta).
+    delete_post_meta( $product_id, '_ac_avail_variations_' . $currency );
   }
 }
 add_action( 'woocommerce_update_product', 'ac_clear_fabric_caches' );
 add_action( 'woocommerce_save_product_variation', 'ac_clear_fabric_caches' );
+
+/**
+ * Also clear the caches when stock changes (an order depleting stock, or a
+ * manual stock edit), since the cached variations array carries per-variation
+ * stock status. These hooks pass a product/variation object rather than an ID.
+ */
+function ac_clear_fabric_caches_from_object( $product ) {
+  if ( is_object( $product ) && method_exists( $product, 'get_id' ) ) {
+    ac_clear_fabric_caches( $product->get_id() );
+  }
+}
+add_action( 'woocommerce_variation_set_stock', 'ac_clear_fabric_caches_from_object' );
+add_action( 'woocommerce_product_set_stock', 'ac_clear_fabric_caches_from_object' );
 
 /** AJAX: add selected fabrics to the cart as the £0 swatch product. */
 add_action( 'wp_ajax_ac_add_fabric_swatches', 'ac_add_fabric_swatches' );
