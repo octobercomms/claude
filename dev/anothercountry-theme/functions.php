@@ -2037,6 +2037,15 @@ function ac_build_product_fabric_data( $product ) {
   if ( ! $product || ! $product->is_type( 'variable' ) ) {
     return array();
   }
+  // Cache the built output per product + currency. The data includes
+  // currency-dependent display_price values, so the currency MUST be part of
+  // the key (this site runs the Aelia Currency Switcher). Cleared on save via
+  // ac_clear_fabric_caches().
+  $cache_key = 'ac_fabric_data_' . $product->get_id() . '_' . get_woocommerce_currency();
+  $cached    = get_transient( $cache_key );
+  if ( false !== $cached ) {
+    return $cached;
+  }
   $available_variations = ac_get_cached_available_variations( $product );
   if ( empty( $available_variations ) ) {
     return array();
@@ -2108,6 +2117,7 @@ function ac_build_product_fabric_data( $product ) {
     }
     return $a['sort_order'] <=> $b['sort_order'];
   } );
+  set_transient( $cache_key, $fabrics, WEEK_IN_SECONDS );
   return $fabrics;
 }
 
@@ -2173,6 +2183,14 @@ function ac_build_fabric_size_matrix( $product ) {
   if ( ! $product || ! $product->is_type( 'variable' ) ) {
     return $matrix;
   }
+  // Cache the built matrix per product + currency. The values include
+  // currency-dependent price_html / wc_price() output, so the currency MUST be
+  // part of the key. Cleared on save via ac_clear_fabric_caches().
+  $cache_key = 'ac_fabric_matrix_' . $product->get_id() . '_' . get_woocommerce_currency();
+  $cached    = get_transient( $cache_key );
+  if ( false !== $cached ) {
+    return $cached;
+  }
   foreach ( ac_get_cached_available_variations( $product ) as $v ) {
     $attrs  = isset( $v['attributes'] ) ? $v['attributes'] : array();
     $fabric = isset( $attrs['attribute_pa_fabric'] ) ? $attrs['attribute_pa_fabric'] : '';
@@ -2214,8 +2232,46 @@ function ac_build_fabric_size_matrix( $product ) {
       'preview' => $preview,
     );
   }
+  set_transient( $cache_key, $matrix, WEEK_IN_SECONDS );
   return $matrix;
 }
+
+/**
+ * Invalidate the fabric drawer transient caches for a product.
+ *
+ * Hooked to product/variation saves. Accepts either a product ID or a
+ * variation ID (resolved up to its parent), and deletes both the data and
+ * matrix transients for every active currency so no currency serves stale
+ * prices after an edit.
+ */
+function ac_clear_fabric_caches( $product_id ) {
+  $product_id = (int) $product_id;
+  if ( ! $product_id ) {
+    return;
+  }
+  // Resolve a variation ID up to its parent product.
+  $parent = wp_get_post_parent_id( $product_id );
+  if ( $parent ) {
+    $product_id = $parent;
+  }
+  // Build the list of currencies to clear: the Aelia enabled-currency list if
+  // available, otherwise at least the shop base currency.
+  $currencies = apply_filters( 'wc_aelia_cs_enabled_currencies', array() );
+  if ( ! is_array( $currencies ) ) {
+    $currencies = array();
+  }
+  $currencies[] = get_option( 'woocommerce_currency' );
+  if ( function_exists( 'get_woocommerce_currency' ) ) {
+    $currencies[] = get_woocommerce_currency();
+  }
+  $currencies = array_unique( array_filter( $currencies ) );
+  foreach ( $currencies as $currency ) {
+    delete_transient( 'ac_fabric_data_' . $product_id . '_' . $currency );
+    delete_transient( 'ac_fabric_matrix_' . $product_id . '_' . $currency );
+  }
+}
+add_action( 'woocommerce_update_product', 'ac_clear_fabric_caches' );
+add_action( 'woocommerce_save_product_variation', 'ac_clear_fabric_caches' );
 
 /** AJAX: add selected fabrics to the cart as the £0 swatch product. */
 add_action( 'wp_ajax_ac_add_fabric_swatches', 'ac_add_fabric_swatches' );
