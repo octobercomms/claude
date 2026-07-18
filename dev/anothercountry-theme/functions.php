@@ -2014,11 +2014,30 @@ function ac_fabric_term_media_script() {
   </script>
   <?php
 }
+/**
+ * Request-level memoisation of WC_Product::get_available_variations().
+ *
+ * get_available_variations() is expensive (it builds full data for every
+ * variation) and was being called multiple times per request on the fabric
+ * drawer PDP. This returns the same result for a given product within a single
+ * request, calling the underlying WooCommerce method at most once per product.
+ */
+function ac_get_cached_available_variations( $product ) {
+  static $cache = array();
+  if ( ! $product || ! $product->is_type( 'variable' ) ) {
+    return array();
+  }
+  $pid = $product->get_id();
+  if ( ! isset( $cache[ $pid ] ) ) {
+    $cache[ $pid ] = $product->get_available_variations();
+  }
+  return $cache[ $pid ];
+}
 function ac_build_product_fabric_data( $product ) {
   if ( ! $product || ! $product->is_type( 'variable' ) ) {
     return array();
   }
-  $available_variations = $product->get_available_variations();
+  $available_variations = ac_get_cached_available_variations( $product );
   if ( empty( $available_variations ) ) {
     return array();
   }
@@ -2154,7 +2173,7 @@ function ac_build_fabric_size_matrix( $product ) {
   if ( ! $product || ! $product->is_type( 'variable' ) ) {
     return $matrix;
   }
-  foreach ( $product->get_available_variations() as $v ) {
+  foreach ( ac_get_cached_available_variations( $product ) as $v ) {
     $attrs  = isset( $v['attributes'] ) ? $v['attributes'] : array();
     $fabric = isset( $attrs['attribute_pa_fabric'] ) ? $attrs['attribute_pa_fabric'] : '';
     if ( '' === $fabric ) {
