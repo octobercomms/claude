@@ -16,6 +16,7 @@ const { recordApiCost } = require('./costLog');
 const { getSetting } = require('../utils/settings');
 
 const YTDLP = process.env.YTDLP_PATH || 'yt-dlp';
+const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 const WHISPER_USD_PER_MIN = 0.006; // OpenAI whisper-1 pricing
 let _running = false;
 
@@ -69,10 +70,18 @@ async function downloadAudio(url, cookies, dir) {
     if (fs.existsSync(audioPath)) return audioPath;
   } catch (e) {
     // Login / no-video-formats / private → surface as-is (a retry with a
-    // different format won't help). Only retry the codec/postprocess case.
+    // different format won't help). Only fall back on the codec/postprocess case.
     if (!/audio codec|ffprobe|postprocess/i.test(e.message)) throw e;
   }
-  await run(YTDLP, [...common, url]);   // fallback: default best, then extract
+  // Fallback: download the full video, then extract audio with ffmpeg directly.
+  // yt-dlp's own audio postprocessor probes the file with ffprobe to detect the
+  // codec and errors ("unable to obtain file audio codec") on some IG reels;
+  // a direct ffmpeg extract is far more tolerant.
+  await run(YTDLP, [...cookies, '-q', '--no-playlist', '--no-warnings', '-f', 'best', '-o', path.join(dir, 'video.%(ext)s'), url]);
+  const vid = fs.readdirSync(dir).find(f => f.startsWith('video.'));
+  if (!vid) throw new Error('Could not download the video file.');
+  // -vn drops video; mono 16 kHz mp3 is plenty for speech and keeps the file small.
+  await run(FFMPEG, ['-y', '-i', path.join(dir, vid), '-vn', '-ac', '1', '-ar', '16000', '-f', 'mp3', audioPath]);
   return audioPath;
 }
 
