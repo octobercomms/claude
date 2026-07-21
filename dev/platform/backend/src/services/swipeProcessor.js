@@ -81,7 +81,17 @@ async function downloadAudio(url, cookies, dir) {
   const vid = fs.readdirSync(dir).find(f => f.startsWith('video.'));
   if (!vid) throw new Error('Could not download the video file.');
   // -vn drops video; mono 16 kHz mp3 is plenty for speech and keeps the file small.
-  await run(FFMPEG, ['-y', '-i', path.join(dir, vid), '-vn', '-ac', '1', '-ar', '16000', '-f', 'mp3', audioPath]);
+  // If ffmpeg fails here it's almost always because the reel has no audio stream
+  // (silent, or music added in-app that IG strips) — flag that so the caller can
+  // fall back to the caption instead.
+  try {
+    await run(FFMPEG, ['-y', '-i', path.join(dir, vid), '-vn', '-ac', '1', '-ar', '16000', '-f', 'mp3', audioPath]);
+  } catch (e) {
+    const err = new Error('This video has no audio track.'); err.audioLess = true; throw err;
+  }
+  if (!fs.existsSync(audioPath) || fs.statSync(audioPath).size < 1024) {
+    const err = new Error('This video has no audio track.'); err.audioLess = true; throw err;
+  }
   return audioPath;
 }
 
@@ -92,6 +102,8 @@ function friendlyError(raw) {
     return 'This looks like a photo post — there’s no video to transcribe. Paste a Reel or video URL instead.';
   if (/login required|logged.?in|--cookies|cookies-to-yt-dlp|rate.?limit|requested content is not available|main webpage is locked|empty media response/.test(m))
     return 'Instagram needs a logged-in session to fetch this one. Add or refresh your Instagram session cookie in Settings → AI, then hit Retry. (Public YouTube/TikTok links don’t need it.)';
+  if (/does not contain any stream|no audio|ffmpeg exited/.test(m))
+    return 'This reel has no audio (it’s silent, or the sound was added in-app), so there’s nothing to transcribe.';
   if (/audio codec|ffprobe|postprocessing/.test(m))
     return 'Couldn’t pull the audio from this video — it may have no sound or use an unusual format. Try Retry; if it keeps failing, the reel is likely audio-less.';
   if (/private|age.?restricted|sign in to confirm/.test(m))
@@ -104,7 +116,9 @@ function friendlyError(raw) {
 // post can still become an idea card. Returns '' if none is available.
 async function fetchCaption(url, cookies = []) {
   try {
-    const out = await run(YTDLP, [...cookies, '--no-playlist', '--skip-download', '--print', '%(description)s', url]);
+    // --ignore-no-formats-error lets extraction finish (and print the caption)
+    // even when there's no downloadable video — the case for photo/silent posts.
+    const out = await run(YTDLP, [...cookies, '--no-playlist', '--skip-download', '--ignore-no-formats-error', '--print', '%(description)s', url]);
     const cap = String(out || '').trim();
     return cap === 'NA' ? '' : cap;
   } catch { return ''; }
@@ -144,9 +158,10 @@ async function processOne(item, apiKey) {
     await swipeFile.saveTranscript(item.id, { transcript, title });
     console.log(`[swipe] ✓ item ${item.id} transcribed (${transcript.length} chars)`);
   } catch (err) {
-    // Photo / carousel posts have no video to transcribe — fall back to the
-    // post's caption so it still becomes an idea card.
-    if (/no video formats|there is no video|not a video|no video could be found/i.test(err.message)) {
+    // Posts with no usable video/audio — photo/carousel posts, or silent reels —
+    // fall back to the post's caption so they still become an idea card.
+    const noMedia = err.audioLess || /no video formats|there is no video|not a video|no video could be found/i.test(err.message);
+    if (noMedia) {
       try {
         const caption = await fetchCaption(item.url, cookies);
         if (caption && caption.replace(/\s+/g, ' ').trim().length >= 20) {
@@ -157,7 +172,10 @@ async function processOne(item, apiKey) {
       } catch (e2) { console.error(`[swipe] caption fallback failed for ${item.id}: ${e2.message}`); }
     }
     console.error(`[swipe] ✗ item ${item.id}: ${err.message}`);
-    await swipeFile.failItem(item.id, friendlyError(err.message)).catch(() => {});
+    const friendly = err.audioLess
+      ? 'This reel has no audio (it’s silent, or the sound was added in-app), so there’s nothing to transcribe — and no caption was available to use instead.'
+      : friendlyError(err.message);
+    await swipeFile.failItem(item.id, friendly).catch(() => {});
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
