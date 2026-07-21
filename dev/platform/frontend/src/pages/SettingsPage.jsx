@@ -28,7 +28,8 @@ const KEY_GROUPS = [
     hint: 'Powers Whisper speech-to-text — the Swipe file ("reel → ideas") transcribes pasted videos with it, and the video caption stage uses it too. ~$0.006 per minute of audio (about half a cent per reel). Get a key at platform.openai.com → API keys (add a little billing credit).',
     keys: [
       { key: 'OPENAI_API_KEY', label: 'OpenAI API Key', placeholder: 'sk-… — enables reel transcription', type: 'password' },
-      { key: 'IG_SESSIONID', label: 'Instagram session cookie (optional — for Instagram reels)', placeholder: 'sessionid value from your browser cookies for instagram.com — lets the swipe file download IG reels (YouTube/TikTok work without it)', type: 'password' },
+      { key: 'IG_SESSIONID', label: 'Instagram session cookie (optional — for Instagram reels)', placeholder: 'paste the sessionid value here', type: 'password',
+        note: 'How to get it (Chrome/desktop):\n1. Log in to instagram.com in your browser.\n2. Open DevTools (⌥⌘I on Mac, F12 on Windows) → Application tab → Cookies → https://www.instagram.com.\n3. Find the row named “sessionid”, copy its Value, and paste it above.\nIt expires every so often, so re-paste it if Instagram reels start failing with a “needs a logged-in session” error. Tip: use a low-traffic or dedicated IG account. Public YouTube/TikTok links don’t need this.' },
     ],
   },
   {
@@ -653,7 +654,7 @@ export default function SettingsPage() {
                         )}
                         {group.scopes && <ScopesBlock scopes={group.scopes} />}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: group.hint || group.note ? 12 : 0 }}>
-                          {group.keys.map(({ key, label, placeholder, type }) => {
+                          {group.keys.map(({ key, label, placeholder, type, note }) => {
                             // Each row turns green on its own once stored, so a
                             // group with one field deliberately left blank still
                             // shows clearly which keys ARE set (the whole cell only
@@ -686,6 +687,7 @@ export default function SettingsPage() {
                                 )}
                               </div>
                               <span className="body-xs text-subtle"><code>{key}</code></span>
+                              {note && <p className="body-xs text-muted" style={{ marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{note}</p>}
                             </div>
                             );
                           })}

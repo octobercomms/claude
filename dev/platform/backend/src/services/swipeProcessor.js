@@ -16,6 +16,7 @@ const { recordApiCost } = require('./costLog');
 const { getSetting } = require('../utils/settings');
 
 const YTDLP = process.env.YTDLP_PATH || 'yt-dlp';
+const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 const WHISPER_USD_PER_MIN = 0.006; // OpenAI whisper-1 pricing
 let _running = false;
 
@@ -69,10 +70,18 @@ async function downloadAudio(url, cookies, dir) {
     if (fs.existsSync(audioPath)) return audioPath;
   } catch (e) {
     // Login / no-video-formats / private → surface as-is (a retry with a
-    // different format won't help). Only retry the codec/postprocess case.
+    // different format won't help). Only fall back on the codec/postprocess case.
     if (!/audio codec|ffprobe|postprocess/i.test(e.message)) throw e;
   }
-  await run(YTDLP, [...common, url]);   // fallback: default best, then extract
+  // Fallback: download the full video, then extract audio with ffmpeg directly.
+  // yt-dlp's own audio postprocessor probes the file with ffprobe to detect the
+  // codec and errors ("unable to obtain file audio codec") on some IG reels;
+  // a direct ffmpeg extract is far more tolerant.
+  await run(YTDLP, [...cookies, '-q', '--no-playlist', '--no-warnings', '-f', 'best', '-o', path.join(dir, 'video.%(ext)s'), url]);
+  const vid = fs.readdirSync(dir).find(f => f.startsWith('video.'));
+  if (!vid) throw new Error('Could not download the video file.');
+  // -vn drops video; mono 16 kHz mp3 is plenty for speech and keeps the file small.
+  await run(FFMPEG, ['-y', '-i', path.join(dir, vid), '-vn', '-ac', '1', '-ar', '16000', '-f', 'mp3', audioPath]);
   return audioPath;
 }
 
@@ -89,6 +98,16 @@ function friendlyError(raw) {
     return 'This post is private or age-restricted, so it can’t be downloaded.';
   if (/no speech/.test(m)) return String(raw);   // already clear
   return 'Couldn’t process this video. ' + String(raw || '').replace(/\s+/g, ' ').slice(0, 160);
+}
+
+// Photo / carousel posts have no audio. Best-effort: pull the caption so the
+// post can still become an idea card. Returns '' if none is available.
+async function fetchCaption(url, cookies = []) {
+  try {
+    const out = await run(YTDLP, [...cookies, '--no-playlist', '--skip-download', '--print', '%(description)s', url]);
+    const cap = String(out || '').trim();
+    return cap === 'NA' ? '' : cap;
+  } catch { return ''; }
 }
 
 async function transcribe(audioPath, apiKey) {
@@ -109,20 +128,34 @@ async function transcribe(audioPath, apiKey) {
 
 async function processOne(item, apiKey) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `swipe-${item.id}-`));
+  let cookies = [], title = null;
   try {
     const sid = (await getSetting('IG_SESSIONID')) || process.env.IG_SESSIONID;
-    const cookies = cookieArgs(dir, sid);
-    const { title, duration } = await fetchMeta(item.url, cookies);
+    cookies = cookieArgs(dir, sid);
+    const meta = await fetchMeta(item.url, cookies);
+    title = meta.title;
     const audioPath = await downloadAudio(item.url, cookies, dir);
     if (!fs.existsSync(audioPath)) throw new Error('Could not fetch this video (private, age-gated, or login required).');
     const transcript = await transcribe(audioPath, apiKey);
     if (!transcript) throw new Error('No speech could be transcribed from this video.');
-    if (duration) {
-      recordApiCost({ provider: 'openai', feature: 'swipe_transcription', costUsd: (duration / 60) * WHISPER_USD_PER_MIN, clientId: item.client_id || null, meta: { model: 'whisper-1', duration_s: Math.round(duration) } });
+    if (meta.duration) {
+      recordApiCost({ provider: 'openai', feature: 'swipe_transcription', costUsd: (meta.duration / 60) * WHISPER_USD_PER_MIN, clientId: item.client_id || null, meta: { model: 'whisper-1', duration_s: Math.round(meta.duration) } });
     }
     await swipeFile.saveTranscript(item.id, { transcript, title });
     console.log(`[swipe] ✓ item ${item.id} transcribed (${transcript.length} chars)`);
   } catch (err) {
+    // Photo / carousel posts have no video to transcribe — fall back to the
+    // post's caption so it still becomes an idea card.
+    if (/no video formats|there is no video|not a video|no video could be found/i.test(err.message)) {
+      try {
+        const caption = await fetchCaption(item.url, cookies);
+        if (caption && caption.replace(/\s+/g, ' ').trim().length >= 20) {
+          await swipeFile.saveTranscript(item.id, { transcript: caption, title, source: 'caption' });
+          console.log(`[swipe] ✓ item ${item.id} idea card from caption (${caption.length} chars)`);
+          return;
+        }
+      } catch (e2) { console.error(`[swipe] caption fallback failed for ${item.id}: ${e2.message}`); }
+    }
     console.error(`[swipe] ✗ item ${item.id}: ${err.message}`);
     await swipeFile.failItem(item.id, friendlyError(err.message)).catch(() => {});
   } finally {
