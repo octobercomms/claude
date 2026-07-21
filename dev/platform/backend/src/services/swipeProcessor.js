@@ -91,6 +91,16 @@ function friendlyError(raw) {
   return 'Couldn’t process this video. ' + String(raw || '').replace(/\s+/g, ' ').slice(0, 160);
 }
 
+// Photo / carousel posts have no audio. Best-effort: pull the caption so the
+// post can still become an idea card. Returns '' if none is available.
+async function fetchCaption(url, cookies = []) {
+  try {
+    const out = await run(YTDLP, [...cookies, '--no-playlist', '--skip-download', '--print', '%(description)s', url]);
+    const cap = String(out || '').trim();
+    return cap === 'NA' ? '' : cap;
+  } catch { return ''; }
+}
+
 async function transcribe(audioPath, apiKey) {
   const buf = fs.readFileSync(audioPath);
   const form = new FormData();
@@ -109,20 +119,34 @@ async function transcribe(audioPath, apiKey) {
 
 async function processOne(item, apiKey) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `swipe-${item.id}-`));
+  let cookies = [], title = null;
   try {
     const sid = (await getSetting('IG_SESSIONID')) || process.env.IG_SESSIONID;
-    const cookies = cookieArgs(dir, sid);
-    const { title, duration } = await fetchMeta(item.url, cookies);
+    cookies = cookieArgs(dir, sid);
+    const meta = await fetchMeta(item.url, cookies);
+    title = meta.title;
     const audioPath = await downloadAudio(item.url, cookies, dir);
     if (!fs.existsSync(audioPath)) throw new Error('Could not fetch this video (private, age-gated, or login required).');
     const transcript = await transcribe(audioPath, apiKey);
     if (!transcript) throw new Error('No speech could be transcribed from this video.');
-    if (duration) {
-      recordApiCost({ provider: 'openai', feature: 'swipe_transcription', costUsd: (duration / 60) * WHISPER_USD_PER_MIN, clientId: item.client_id || null, meta: { model: 'whisper-1', duration_s: Math.round(duration) } });
+    if (meta.duration) {
+      recordApiCost({ provider: 'openai', feature: 'swipe_transcription', costUsd: (meta.duration / 60) * WHISPER_USD_PER_MIN, clientId: item.client_id || null, meta: { model: 'whisper-1', duration_s: Math.round(meta.duration) } });
     }
     await swipeFile.saveTranscript(item.id, { transcript, title });
     console.log(`[swipe] ✓ item ${item.id} transcribed (${transcript.length} chars)`);
   } catch (err) {
+    // Photo / carousel posts have no video to transcribe — fall back to the
+    // post's caption so it still becomes an idea card.
+    if (/no video formats|there is no video|not a video|no video could be found/i.test(err.message)) {
+      try {
+        const caption = await fetchCaption(item.url, cookies);
+        if (caption && caption.replace(/\s+/g, ' ').trim().length >= 20) {
+          await swipeFile.saveTranscript(item.id, { transcript: caption, title, source: 'caption' });
+          console.log(`[swipe] ✓ item ${item.id} idea card from caption (${caption.length} chars)`);
+          return;
+        }
+      } catch (e2) { console.error(`[swipe] caption fallback failed for ${item.id}: ${e2.message}`); }
+    }
     console.error(`[swipe] ✗ item ${item.id}: ${err.message}`);
     await swipeFile.failItem(item.id, friendlyError(err.message)).catch(() => {});
   } finally {

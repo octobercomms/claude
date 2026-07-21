@@ -92,7 +92,7 @@ async function failItem(id, error) {
 
 // Worker posts the transcript; we generate the idea card, store everything,
 // mark done, and email the result if a recipient is set.
-async function saveTranscript(id, { transcript, title }) {
+async function saveTranscript(id, { transcript, title, source = 'transcript' }) {
   const text = String(transcript || '').trim();
   const { rows: cur } = await pool.query('SELECT * FROM swipe_items WHERE id = $1', [id]);
   const item = cur[0];
@@ -104,7 +104,7 @@ async function saveTranscript(id, { transcript, title }) {
   }
 
   let card = null;
-  try { card = await generateIdeaCard({ transcript: text, platform: item.platform, title, clientId: item.client_id }); }
+  try { card = await generateIdeaCard({ transcript: text, platform: item.platform, title, clientId: item.client_id, source }); }
   catch (e) { console.error('[swipe] idea card failed:', e.message); }
 
   // Prefer Claude's plain-English label over the scraped metadata title
@@ -133,10 +133,12 @@ async function saveTranscript(id, { transcript, title }) {
 }
 
 // Turn a transcript into a structured, reusable idea card via Claude.
-async function generateIdeaCard({ transcript, platform, title, clientId }) {
-  const system = `You analyse short-form social videos and turn their transcript into a reusable content idea for a marketing team. Be concrete and concise. Respond with ONLY a JSON object, no prose, in this exact shape:
-{"title": "a plain-English 4-8 word label for what this video is about, so it can be found at a glance (describe the content, NOT the uploader/handle)", "hook": "the opening hook/first line, paraphrased", "summary": "2-3 sentence summary of what the video does", "why_it_works": "1-2 sentences on why this format/angle is effective", "angles": ["3-5 specific ways the team could adapt this idea for their own brand"], "format": "e.g. talking-head, listicle, skit, tutorial, b-roll voiceover", "tags": ["3-6 short topical tags"]}`;
-  const user = `Platform: ${platform || 'unknown'}${title ? `\nTitle: ${title}` : ''}\n\nTranscript:\n"""\n${transcript.slice(0, 8000)}\n"""`;
+async function generateIdeaCard({ transcript, platform, title, clientId, source = 'transcript' }) {
+  const isCaption = source === 'caption';
+  const system = `You analyse short-form social posts and turn their ${isCaption ? 'caption' : 'transcript'} into a reusable content idea for a marketing team. Be concrete and concise. Respond with ONLY a JSON object, no prose, in this exact shape:
+{"title": "a plain-English 4-8 word label for what this post is about, so it can be found at a glance (describe the content, NOT the uploader/handle)", "hook": "the opening hook/first line, paraphrased", "summary": "2-3 sentence summary of what the post does", "why_it_works": "1-2 sentences on why this format/angle is effective", "angles": ["3-5 specific ways the team could adapt this idea for their own brand"], "format": "e.g. talking-head, listicle, skit, tutorial, carousel, photo + caption", "tags": ["3-6 short topical tags"]}`;
+  const label = isCaption ? 'Caption (photo/carousel post — no video)' : 'Transcript';
+  const user = `Platform: ${platform || 'unknown'}${title ? `\nTitle: ${title}` : ''}\n\n${label}:\n"""\n${transcript.slice(0, 8000)}\n"""`;
   const raw = await callClaude({ system, user, max_tokens: 900, feature: 'swipe_idea_card', clientId });
   const match = String(raw || '').match(/\{[\s\S]*\}/);
   if (!match) return null;
