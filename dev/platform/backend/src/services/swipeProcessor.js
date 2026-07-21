@@ -57,6 +57,40 @@ async function fetchMeta(url, extra = []) {
   } catch { return { title: null, duration: null }; }
 }
 
+// Download the audio track as mp3. Prefer an audio-only stream (smaller, and
+// dodges the "unable to obtain file audio codec" ffprobe error you get when a
+// video-only stream is downloaded then asked for audio); fall back to the
+// default best stream + extract if that specific postprocessing error hits.
+async function downloadAudio(url, cookies, dir) {
+  const audioPath = path.join(dir, 'audio.mp3');
+  const common = [...cookies, '-q', '--no-playlist', '--no-warnings', '-o', path.join(dir, 'audio.%(ext)s'), '-x', '--audio-format', 'mp3'];
+  try {
+    await run(YTDLP, [...common, '-f', 'bestaudio/best', url]);
+    if (fs.existsSync(audioPath)) return audioPath;
+  } catch (e) {
+    // Login / no-video-formats / private → surface as-is (a retry with a
+    // different format won't help). Only retry the codec/postprocess case.
+    if (!/audio codec|ffprobe|postprocess/i.test(e.message)) throw e;
+  }
+  await run(YTDLP, [...common, url]);   // fallback: default best, then extract
+  return audioPath;
+}
+
+// Turn raw yt-dlp / pipeline noise into a short, actionable message for the AM.
+function friendlyError(raw) {
+  const m = String(raw || '').toLowerCase();
+  if (/no video formats|no video could be found|there is no video|not a video/.test(m))
+    return 'This looks like a photo post — there’s no video to transcribe. Paste a Reel or video URL instead.';
+  if (/login required|logged.?in|--cookies|cookies-to-yt-dlp|rate.?limit|requested content is not available|main webpage is locked|empty media response/.test(m))
+    return 'Instagram needs a logged-in session to fetch this one. Add or refresh your Instagram session cookie in Settings → AI, then hit Retry. (Public YouTube/TikTok links don’t need it.)';
+  if (/audio codec|ffprobe|postprocessing/.test(m))
+    return 'Couldn’t pull the audio from this video — it may have no sound or use an unusual format. Try Retry; if it keeps failing, the reel is likely audio-less.';
+  if (/private|age.?restricted|sign in to confirm/.test(m))
+    return 'This post is private or age-restricted, so it can’t be downloaded.';
+  if (/no speech/.test(m)) return String(raw);   // already clear
+  return 'Couldn’t process this video. ' + String(raw || '').replace(/\s+/g, ' ').slice(0, 160);
+}
+
 async function transcribe(audioPath, apiKey) {
   const buf = fs.readFileSync(audioPath);
   const form = new FormData();
@@ -79,8 +113,7 @@ async function processOne(item, apiKey) {
     const sid = (await getSetting('IG_SESSIONID')) || process.env.IG_SESSIONID;
     const cookies = cookieArgs(dir, sid);
     const { title, duration } = await fetchMeta(item.url, cookies);
-    const audioPath = path.join(dir, 'audio.mp3');
-    await run(YTDLP, [...cookies, '-q', '--no-playlist', '--no-warnings', '-x', '--audio-format', 'mp3', '-o', path.join(dir, 'audio.%(ext)s'), item.url]);
+    const audioPath = await downloadAudio(item.url, cookies, dir);
     if (!fs.existsSync(audioPath)) throw new Error('Could not fetch this video (private, age-gated, or login required).');
     const transcript = await transcribe(audioPath, apiKey);
     if (!transcript) throw new Error('No speech could be transcribed from this video.');
@@ -91,7 +124,7 @@ async function processOne(item, apiKey) {
     console.log(`[swipe] ✓ item ${item.id} transcribed (${transcript.length} chars)`);
   } catch (err) {
     console.error(`[swipe] ✗ item ${item.id}: ${err.message}`);
-    await swipeFile.failItem(item.id, err.message).catch(() => {});
+    await swipeFile.failItem(item.id, friendlyError(err.message)).catch(() => {});
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
