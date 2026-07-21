@@ -1,0 +1,39 @@
+/* =========================================================================
+   Concrete Communities — Testimonials JetEngine Listing Grid slider arrows
+   -------------------------------------------------------------------------
+   Replaces JetEngine's default dark, rounded-box slider icons with the same
+   simple arrow the Elementor Image Carousel uses elsewhere on the site —
+   solid black, no background.
+
+   Position is intentionally left untouched, so the arrows stay exactly where
+   JetEngine already places them (above the grid).
+
+   Paste into: WordPress Customiser → Additional CSS (or the JetEngine
+   listing/Elementor section "Custom CSS" box). See README in
+   docs/concrete-communities/ for details.
+   ========================================================================= */
+
+/* 1. Hide JetEngine's built-in arrow SVG (the dark rounded-square icon). */
+.jet-listing-grid__slider-icon.swiper-arrow > svg {
+	display: none;
+}
+
+/* 2. Paint the matching arrow with a mask so it renders as a flat black
+      shape with no background. The mask points left; JetEngine already
+      mirrors the "next" arrow with transform: scaleX(-1), so the right-hand
+      arrow points right automatically. */
+.jet-listing-grid__slider-icon.swiper-arrow {
+	background: none;
+	background-color: #000; /* arrow colour */
+	border: 0;
+	box-shadow: none;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2030%2026'%3E%3Cpath%20d='M12.9,25.9l2-1.9L5.3,14.6v-.4h24.7v-2.4H5.3v-.4L14.9,1.9l-2-1.9L0,12.9l12.9,12.9Z'/%3E%3C/svg%3E") no-repeat center;
+	-webkit-mask-size: 26px auto;
+	        mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2030%2026'%3E%3Cpath%20d='M12.9,25.9l2-1.9L5.3,14.6v-.4h24.7v-2.4H5.3v-.4L14.9,1.9l-2-1.9L0,12.9l12.9,12.9Z'/%3E%3C/svg%3E") no-repeat center;
+	        mask-size: 26px auto;
+}
+
+/* 3. Gentle hover feedback (optional — delete if you don't want it). */
+.jet-listing-grid__slider-icon.swiper-arrow:hover {
+	opacity: .6;
+}
