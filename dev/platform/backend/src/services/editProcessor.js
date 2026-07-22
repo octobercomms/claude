@@ -60,6 +60,41 @@ function captionStyle(style = {}) {
   return parts.join(',');
 }
 
+async function hasAudioStream(file) {
+  try {
+    const out = await run(FFPROBE, ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'csv=p=0', file]);
+    return out.trim().length > 0;
+  } catch { return false; }
+}
+
+// Combine several clips into one video. Each clip is normalised to the FIRST
+// clip's dimensions (scaled to fit + letterboxed) with a uniform codec/fps/audio,
+// then the segments are concatenated (stream copy). Clips with no audio get a
+// silent track so the concat stays in sync.
+async function combineClips(clipPaths, work) {
+  const first = await probe(clipPaths[0]);
+  const W = first.width || 1080, H = first.height || 1920;
+  const segs = [];
+  for (let i = 0; i < clipPaths.length; i++) {
+    const seg = path.join(work, `seg${i}.mp4`);
+    const audio = await hasAudioStream(clipPaths[i]);
+    const vf = `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=30,format=yuv420p`;
+    const args = ['-y', '-i', clipPaths[i]];
+    if (!audio) args.push('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo');
+    args.push('-map', '0:v:0', '-map', audio ? '0:a:0?' : '1:a:0');
+    if (!audio) args.push('-shortest');
+    args.push('-vf', vf, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-ar', '48000', '-b:a', '160k', '-video_track_timescale', '30000', seg);
+    await run(FFMPEG, args);
+    segs.push(seg);
+  }
+  const list = path.join(work, 'concat.txt');
+  fs.writeFileSync(list, segs.map(s => `file '${s.replace(/'/g, "'\\''")}'`).join('\n'));
+  const combined = path.join(work, 'combined.mp4');
+  await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', combined]);
+  return combined;
+}
+
 async function whisperSrt(audioPath, apiKey) {
   const buf = fs.readFileSync(audioPath);
   const form = new FormData();
@@ -121,11 +156,18 @@ async function render(srcPath, ops, work, apiKey) {
 }
 
 async function processOne(job) {
-  const srcPath = editJobs.diskPathForUrl(job.source_url);
-  if (!srcPath || !fs.existsSync(srcPath)) { await editJobs.fail(job.id, 'Source video is missing on disk.'); return; }
+  const clips = (Array.isArray(job.clips) && job.clips.length) ? job.clips : [{ url: job.source_url }];
+  const paths = [];
+  for (const c of clips) {
+    const p = c.url && editJobs.diskPathForUrl(c.url);
+    if (p && fs.existsSync(p)) paths.push(p);
+  }
+  if (!paths.length) { await editJobs.fail(job.id, 'Source video is missing on disk.'); return; }
   const work = fs.mkdtempSync(path.join(os.tmpdir(), `edit-${job.id}-`));
   try {
     const apiKey = (await getSetting('OPENAI_API_KEY')) || process.env.OPENAI_API_KEY;
+    // Combine first when there are several clips; then trim/clean/caption the result.
+    const srcPath = paths.length > 1 ? await combineClips(paths, work) : paths[0];
     const { outputPath, srtPath, durationS } = await render(srcPath, job.ops || {}, work, apiKey);
 
     const outputUrl = editJobs.adoptFile(job.client_id, outputPath, '.mp4');

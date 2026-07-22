@@ -51,8 +51,21 @@ queued and rendered inline; the UI polls until it's **Ready**, then offers
   commands were validated by construction. First real run on the server confirms
   the ffmpeg build has the needed filters.
 
+## Phase 2 (shipped 2026-07-22)
+
+- **Combine clips** — upload several clips (or drop them in); they're normalised
+  to the first clip's shape (scale + letterbox, uniform codec/fps, silent track
+  added where missing) and concatenated into one video, which then flows through
+  the same trim/clean/caption render. `combineClips()` in editProcessor; ordered
+  `clips` jsonb on the job (migration 129).
+- **Reopen** ("Edit again") — re-edit a saved job without re-uploading: the
+  stored source clip(s) are copied to fresh files and a new job is queued with
+  the tweaked ops (`editJobs.reopen`, `POST /edit/:id/reopen`).
+- **Rename** — an optional `name` per job so the history stays scannable
+  (`PATCH /edit/:id`).
+
 ## Later (not built)
 
 - Full timeline editor via an embedded OpenCut (see `opencut-evaluation.md`).
 - More caption styles / positions; music bed; simple transitions; a probe step
-  to skip audio filters on silent clips.
+  to skip audio filters on silent clips; per-clip trim before combining.
