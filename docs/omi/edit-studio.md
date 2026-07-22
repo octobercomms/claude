@@ -69,7 +69,14 @@ queued and rendered inline; the UI polls until it's **Ready**, then offers
   ASS `MarginV`; the live preview mirrors it (`marginVFor`).
 - **Safe-zone overlay** (preview only) — toggle Reel/Ad to see where Instagram's
   UI (top bar, action rail, handle/caption, and the ad CTA box) covers the frame,
-  so captions/subject stay clear.
+  so captions/subject stay clear. Captions are clamped out of the active zone
+  (the position slider's range shrinks for Reel/Ad).
+- **Aspect-accurate preview** — choosing a Format letterboxes the preview into
+  that frame (`objectFit: contain`), so the safe zones + caption sit exactly
+  where they'll render.
+- **Save as draft** — save the current clips + settings without rendering
+  (`status='draft'`); Resume loads it back, Render (`POST /edit/:id/render`)
+  queues it in place.
 
 ## Later (not built)
 

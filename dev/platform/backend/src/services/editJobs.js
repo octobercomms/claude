@@ -55,13 +55,23 @@ function serveFilePath(clientId, filename) {
 }
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
-async function create(clientId, { sourceName, sourceUrl, sourceMeta = {}, ops = {}, clips = [], name = null, createdBy = null }) {
+async function create(clientId, { sourceName, sourceUrl, sourceMeta = {}, ops = {}, clips = [], name = null, status = 'queued', createdBy = null }) {
   const list = (clips && clips.length) ? clips : [{ url: sourceUrl, name: sourceName }];
   const { rows } = await pool.query(
     `INSERT INTO edit_jobs (client_id, created_by, source_name, source_url, source_meta, ops, clips, name, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'queued') RETURNING *`,
-    [clientId, createdBy, sourceName || null, sourceUrl, JSON.stringify(sourceMeta || {}), JSON.stringify(ops || {}), JSON.stringify(list), name || null]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+    [clientId, createdBy, sourceName || null, sourceUrl, JSON.stringify(sourceMeta || {}), JSON.stringify(ops || {}), JSON.stringify(list), name || null, status]
   );
+  return rows[0];
+}
+
+// Queue a saved draft for rendering (in place).
+async function queueDraft(clientId, id) {
+  const { rows } = await pool.query(
+    `UPDATE edit_jobs SET status = 'queued', error = NULL WHERE client_id = $1 AND id = $2 AND status = 'draft' RETURNING *`,
+    [clientId, id]
+  );
+  if (!rows[0]) { const e = new Error('Only a draft can be rendered this way.'); e.status = 400; throw e; }
   return rows[0];
 }
 
@@ -157,7 +167,7 @@ async function fail(id, error) {
 }
 
 module.exports = {
-  create, list, get, getById, remove, retry, reopen, rename,
+  create, list, get, getById, remove, retry, reopen, rename, queueDraft,
   claimNext, complete, fail,
   saveBuffer, adoptFile, servedUrl, serveFilePath, diskPathForUrl, clientDir,
   UPLOAD_ROOT,
