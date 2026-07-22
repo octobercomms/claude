@@ -34,6 +34,18 @@ export default function ClientEditPage() {
   const [busy, setBusy] = useState(false);
   const [jobs, setJobs] = useState([]);
   const pollRef = useRef(null);
+  const videoRef = useRef(null);
+  const [previewH, setPreviewH] = useState(0);
+
+  // Keep the caption-preview overlay scaled to the rendered video height.
+  useEffect(() => {
+    function measure() { if (videoRef.current) setPreviewH(videoRef.current.clientHeight); }
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+  function seek(t) { if (videoRef.current && isFinite(t)) videoRef.current.currentTime = Math.max(0, t); }
+
+  const ASS_SIZE = { small: 18, medium: 24, large: 30 };   // must match editProcessor
 
   useEffect(() => {
     api.get(`/clients/${clientId}`).then(setClient).catch(() => {});
@@ -153,7 +165,24 @@ export default function ClientEditPage() {
         <input ref={fileRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={e => { pickFile(e.target.files?.[0]); e.target.value = ''; }} />
         {preview ? (
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', textAlign: 'left', flexWrap: 'wrap' }}>
-            <video src={preview} controls style={{ maxHeight: 200, maxWidth: 280, borderRadius: 'var(--r-sm)', background: '#000' }} />
+            <div style={{ position: 'relative', lineHeight: 0 }}>
+              <video ref={videoRef} src={preview} controls
+                onLoadedMetadata={e => setPreviewH(e.target.clientHeight)}
+                style={{ maxHeight: 260, maxWidth: 300, borderRadius: 'var(--r-sm)', background: '#000' }} />
+              {captions && previewH > 0 && (() => {
+                // Mirror the burned caption scale: ASS FontSize is relative to a
+                // 288-tall canvas, so on-screen height ≈ size/288 × video height.
+                const fontPx = Math.max(9, previewH * (ASS_SIZE[capSize] || 24) / 288);
+                const marginPx = previewH * 48 / 288;
+                return (
+                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: marginPx, textAlign: 'center', pointerEvents: 'none', padding: '0 5%' }}>
+                    <span style={{ fontFamily: 'Arial, sans-serif', fontWeight: 800, fontSize: fontPx, lineHeight: 1.15, color: '#fff', WebkitTextStrokeColor: '#000', WebkitTextStrokeWidth: Math.max(1, fontPx * 0.07), paintOrder: 'stroke', textShadow: '0 1px 2px rgba(0,0,0,.6)' }}>
+                      the quick brown fox
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
             <div style={{ flex: 1, minWidth: 200 }}>
               <div style={{ fontWeight: 700, fontSize: 14 }}>{file?.name}</div>
               <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{duration ? `${fmt(duration)} long` : 'reading…'}</div>
@@ -176,17 +205,22 @@ export default function ClientEditPage() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
             <input type="checkbox" checked={doTrim} onChange={e => setDoTrim(e.target.checked)} /> Trim
           </label>
-          {doTrim && (
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', paddingLeft: 24 }}>
-              <label style={{ fontSize: 13, color: 'var(--text-muted)' }}>Start (s)
-                <input type="number" min="0" max={duration || 0} step="0.1" value={trimStart}
-                  onChange={e => setTrimStart(Math.min(Number(e.target.value) || 0, trimEnd))}
-                  style={{ width: 90, marginLeft: 8 }} className="input" /></label>
-              <label style={{ fontSize: 13, color: 'var(--text-muted)' }}>End (s)
-                <input type="number" min="0" max={duration || 0} step="0.1" value={trimEnd}
-                  onChange={e => setTrimEnd(Math.min(Number(e.target.value) || 0, duration || 0))}
-                  style={{ width: 90, marginLeft: 8 }} className="input" /></label>
-              <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>keeps {fmt(Math.max(0, (trimEnd || 0) - (trimStart || 0)))}</span>
+          {doTrim && duration > 0 && (
+            <div style={{ paddingLeft: 24, paddingRight: 8 }}>
+              <div className="trim-slider">
+                <div style={{ position: 'absolute', top: 14, left: 0, right: 0, height: 4, borderRadius: 2, background: 'var(--card-border)' }} />
+                <div style={{ position: 'absolute', top: 14, height: 4, borderRadius: 2, background: 'var(--text)', left: `${(trimStart / duration) * 100}%`, right: `${100 - (trimEnd / duration) * 100}%` }} />
+                <input type="range" min="0" max={duration} step="0.05" value={trimStart}
+                  onChange={e => { const v = Math.min(Number(e.target.value), trimEnd - 0.1); setTrimStart(Math.max(0, v)); seek(v); }} />
+                <input type="range" min="0" max={duration} step="0.05" value={trimEnd}
+                  onChange={e => { const v = Math.max(Number(e.target.value), trimStart + 0.1); setTrimEnd(Math.min(duration, v)); seek(v); }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                <span>Start {fmt(trimStart)}</span>
+                <span style={{ color: 'var(--text-subtle)' }}>keeps {fmt(Math.max(0, (trimEnd || 0) - (trimStart || 0)))}</span>
+                <span>End {fmt(trimEnd)}</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>Drag a handle to set the in/out point — the preview scrubs as you drag.</div>
             </div>
           )}
 
