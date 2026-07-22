@@ -64,7 +64,10 @@ function captionStyle(style = {}) {
   const parts = [
     'FontName=Arial', 'Bold=1', `FontSize=${size}`,
     'PrimaryColour=&H00FFFFFF', 'OutlineColour=&H00000000', 'BackColour=&H80000000',
-    'BorderStyle=1', 'Outline=2', 'Shadow=1', 'Alignment=2', `MarginV=${marginVFor(style.pos)}`,
+    'BorderStyle=1', 'Outline=2', 'Shadow=1', 'Alignment=2',
+    // Side margins (ASS 384-wide canvas ≈ 16%) keep long captions off the
+    // right-hand action rail; MarginV is the vertical position.
+    'MarginL=60', 'MarginR=60', `MarginV=${marginVFor(style.pos)}`,
   ];
   return parts.join(',');
 }
@@ -137,11 +140,12 @@ async function render(srcPath, ops, work, apiKey) {
   const af = [];
   if (cleanAudio) af.push('afftdn=nf=-25', 'highpass=f=80', 'loudnorm=I=-16:TP=-1.5:LRA=11');
   if (af.length) a1.push('-af', af.join(','));
-  // Reframe to a target aspect (scale to fit + letterbox) when asked.
+  // Reframe to a target aspect by filling the frame (scale to cover + centre
+  // crop) — matches how CapCut reframes, no black bars.
   const ar = ASPECTS[ops.aspect];
   if (ar) {
     const [W, H] = ar;
-    a1.push('-vf', `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`);
+    a1.push('-vf', `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1`);
   }
   a1.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', base);

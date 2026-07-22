@@ -87,9 +87,12 @@ export default function ClientEditPage() {
   useEffect(() => { measurePreview(); }, [aspect, clips.length]); // eslint-disable-line
   function seek(t) { if (videoRef.current && isFinite(t)) videoRef.current.currentTime = Math.max(0, t); }
 
-  // Keep captions out of the platform safe zones (clamped when a zone is shown).
-  const capMin = safeZone === 'ad' ? 0.15 : safeZone === 'reel' ? 0.05 : 0;
-  const capMax = 0.85;
+  // Keep captions out of the platform safe zones (clamped when a zone is shown):
+  // above the bottom UI (handle/caption for Reel, the bigger CTA box for Ad),
+  // and below the top bar. Horizontal clearance of the side rail is handled by
+  // narrowing the caption box.
+  const capMin = safeZone === 'ad' ? 0.20 : safeZone === 'reel' ? 0.10 : 0;
+  const capMax = 0.82;
   useEffect(() => { setCapPos(p => Math.min(capMax, Math.max(capMin, p))); }, [safeZone]); // eslint-disable-line
 
   function loadJobs() {
@@ -278,7 +281,7 @@ export default function ClientEditPage() {
                     <video ref={videoRef} src={clips[0].url} controls
                       onLoadedMetadata={e => { measurePreview(); if (clips[0].remote && !clips[0].duration) { const d = e.target.duration; setClips(prev => prev.map((x, i) => i === 0 ? { ...x, duration: d } : x)); if (trimEnd === 0) setTrimEnd(d); } }}
                       style={frameAR
-                        ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000' }
+                        ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }
                         : { maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
                     {safeZone !== 'off' && previewH > 0 && safeBoxes(safeZone).map(b => (
                       <div key={b.key} style={{ position: 'absolute', ...b.style, background: 'rgba(255,70,70,0.16)', border: '1px dashed rgba(255,70,70,0.8)', borderRadius: 3, pointerEvents: 'none', boxSizing: 'border-box' }}>
@@ -289,7 +292,7 @@ export default function ClientEditPage() {
                       const fontPx = Math.max(9, previewH * (ASS_SIZE[capSize] || 24) / 288);
                       const marginPx = previewH * marginVFor(capPos) / 288;
                       return (
-                        <div style={{ position: 'absolute', left: 0, right: 0, bottom: marginPx, textAlign: 'center', pointerEvents: 'none', padding: '0 5%' }}>
+                        <div style={{ position: 'absolute', left: 0, right: 0, bottom: marginPx, textAlign: 'center', pointerEvents: 'none', padding: '0 16%' }}>
                           <span style={{ fontFamily: 'Arial, sans-serif', fontWeight: 800, fontSize: fontPx, lineHeight: 1.15, color: '#fff', WebkitTextStrokeColor: '#000', WebkitTextStrokeWidth: Math.max(1, fontPx * 0.07), paintOrder: 'stroke', textShadow: '0 1px 2px rgba(0,0,0,.6)' }}>the quick brown fox</span>
                         </div>
                       );
