@@ -121,9 +121,15 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
             into Pipeline → Find &apos;From your own site&apos; mode.
           </p>
         </div>
-        <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNow, disabled: running })}>
-          {running ? 'Crawling…' : audit ? 'Re-run audit' : 'Run first audit'}
-        </button>
+        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
+          {audit && audit.status === 'complete' && (
+            <a className="btn btn-secondary" href={`/api/seo/clients/${clientId}/site-audits/latest.pdf`} download
+              title="Download a branded PDF to send to the client">Export PDF</a>
+          )}
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNow, disabled: running })}>
+            {running ? 'Crawling…' : audit ? 'Re-run audit' : 'Run first audit'}
+          </button>
+        </div>
       </div>
 
       {err && <div className="callout callout-danger mb-3">{err}</div>}

@@ -797,6 +797,8 @@ router.delete('/journalist-responses/:id', async (req, res) => {
 // them so they can be dismissed individually + pulled into Pipeline as
 // content opportunities.
 const siteAudit = require('../services/siteAudit');
+const siteAuditReport = require('../services/siteAuditReport');
+const pdfService = require('../services/pdfService');
 
 router.get('/clients/:clientId/site-audits', async (req, res) => {
   try {
@@ -883,6 +885,41 @@ router.get('/clients/:clientId/site-audits/latest', async (req, res) => {
     );
     res.json({ audit, issues });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Client-facing PDF of the latest complete audit — branded, ready to send.
+router.get('/clients/:clientId/site-audits/latest.pdf', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM site_audits WHERE client_id = $1 AND status = 'complete'
+       ORDER BY completed_at DESC LIMIT 1`,
+      [req.params.clientId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'No completed audit to export yet.' });
+    const audit = rows[0];
+    const { rows: issues } = await pool.query(
+      `SELECT id, page_url, category, severity, detail, metadata, status
+       FROM site_audit_issues WHERE audit_id = $1
+       ORDER BY CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, category`,
+      [audit.id]
+    );
+    const { rows: cr } = await pool.query('SELECT name, domain FROM clients WHERE id = $1', [req.params.clientId]);
+    const client = cr[0] || { name: '', domain: audit.domain };
+
+    const html = siteAuditReport.buildHtml({ client, audit, issues });
+    const buffer = await pdfService.generatePDFBuffer(html);
+
+    const safe = String(client.name || 'client').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'client';
+    const stamp = new Date(audit.completed_at || audit.started_at).toISOString().slice(0, 10);
+    const filename = `October Site Audit — ${client.name || 'client'} — ${stamp}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition',
+      `attachment; filename="october-site-audit-${safe}-${stamp}.pdf"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.send(buffer);
+  } catch (err) {
+    console.error('[site-audit] pdf export failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Open issues across all audits — what Pipeline → Find "From your own
