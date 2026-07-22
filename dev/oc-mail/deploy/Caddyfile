@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# OC Mail — host-level reverse proxy for co-hosting on the `email` box
+#
+# One Caddy on the host owns public :80/:443, terminates TLS with automatic
+# Let's Encrypt certs, and routes by hostname:
+#
+#   mail.octobercomms.com   -> MailFlow  (localhost 127.0.0.1:8443, self-signed)
+#   email.octobercomms.com  -> Mautic    (localhost 127.0.0.1:8081)  [transition]
+#
+# This replaces the self-signed-cert warning the fresh-box runbook lives with:
+# each app gets a real, trusted cert.
+#
+# Prereqs:
+#   * DNS A records for BOTH hostnames point at this box's public IP.
+#   * Nothing else is bound to host :80/:443 (move Mautic's own web server to a
+#     localhost port first — see the runbook, "Reverse proxy" step).
+#   * MailFlow's frontend is bound to 127.0.0.1:8443 (install-existing.sh does
+#     this). We proxy over HTTPS to it and skip verification because its internal
+#     cert is self-signed.
+#
+# Install:
+#   apt-get install -y caddy        # or the official Caddy repo
+#   cp Caddyfile /etc/caddy/Caddyfile
+#   systemctl reload caddy
+# ─────────────────────────────────────────────────────────────────────────────
+
+mail.octobercomms.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8443 {
+		transport http {
+			tls
+			tls_insecure_skip_verify
+		}
+	}
+}
+
+# ── Mautic, during the transition window. Point its web server (Apache/nginx)
+# at 127.0.0.1:8081, then this block fronts it. DELETE this block once Mautic
+# is decommissioned and MailFlow has the box to itself.
+email.octobercomms.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8081
+}
