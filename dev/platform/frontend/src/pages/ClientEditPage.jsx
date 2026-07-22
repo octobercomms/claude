@@ -1,0 +1,259 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
+
+// Edit — a guided video editor. Upload a clip, pick trim / clean audio /
+// auto-captions, and OMI renders it server-side (ffmpeg + Whisper). No footage
+// leaves October's box. Guided now; a full timeline editor can come later.
+
+const WHISPER_PER_MIN = 0.006;
+function fmt(s) {
+  if (s == null || isNaN(s)) return '—';
+  const t = Math.max(0, Math.round(s));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+}
+
+export default function ClientEditPage() {
+  const { id: clientId } = useParams();
+  const toast = useToast();
+  const fileRef = useRef(null);
+  const [client, setClient] = useState(null);
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [duration, setDuration] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const [doTrim, setDoTrim] = useState(false);
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(0);
+  const [cleanAudio, setCleanAudio] = useState(true);
+  const [captions, setCaptions] = useState(true);
+  const [capSize, setCapSize] = useState('medium');
+
+  const [busy, setBusy] = useState(false);
+  const [jobs, setJobs] = useState([]);
+  const pollRef = useRef(null);
+
+  useEffect(() => {
+    api.get(`/clients/${clientId}`).then(setClient).catch(() => {});
+    loadJobs();
+    return () => clearInterval(pollRef.current);
+  }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function loadJobs() {
+    api.get(`/edit/clients/${clientId}/edit`)
+      .then(rows => {
+        const list = Array.isArray(rows) ? rows : [];
+        setJobs(list);
+        // Keep polling while anything is still running.
+        const running = list.some(j => j.status === 'queued' || j.status === 'processing');
+        if (running && !pollRef.current) startPoll();
+        if (!running && pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      })
+      .catch(() => {});
+  }
+  function startPoll() {
+    pollRef.current = setInterval(() => {
+      api.get(`/edit/clients/${clientId}/edit`)
+        .then(rows => {
+          const list = Array.isArray(rows) ? rows : [];
+          setJobs(list);
+          if (!list.some(j => j.status === 'queued' || j.status === 'processing')) {
+            clearInterval(pollRef.current); pollRef.current = null;
+          }
+        })
+        .catch(() => {});
+    }, 3000);
+  }
+
+  function pickFile(f) {
+    if (!f) return;
+    if (!f.type.startsWith('video/')) { toast('Please choose a video file.', 'error'); return; }
+    setFile(f);
+    const url = URL.createObjectURL(f);
+    setPreview(url);
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.onloadedmetadata = () => { setDuration(v.duration); setTrimStart(0); setTrimEnd(v.duration); };
+    v.src = url;
+  }
+
+  const capCost = captions && duration ? (duration / 60) * WHISPER_PER_MIN : 0;
+  const nothingChosen = !((doTrim && (trimStart > 0 || trimEnd < (duration || 0))) || cleanAudio || captions);
+
+  async function submit() {
+    if (!file) { toast('Upload a video first.', 'error'); return; }
+    if (nothingChosen) { toast('Pick at least one edit.', 'error'); return; }
+    setBusy(true);
+    try {
+      const ops = {
+        trim: doTrim ? { start: Math.max(0, trimStart), end: trimEnd || 0 } : null,
+        clean_audio: cleanAudio,
+        captions,
+        caption_style: { size: capSize },
+      };
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('ops', JSON.stringify(ops));
+      if (duration) fd.append('duration', String(duration));
+      await api.postForm(`/edit/clients/${clientId}/edit`, fd);
+      toast('Edit queued — rendering…', 'success');
+      // Reset the picker; the job appears in history and polls to done.
+      setFile(null); setPreview(null); setDuration(null); setDoTrim(false);
+      loadJobs(); if (!pollRef.current) startPoll();
+    } catch (err) {
+      toast(err.message || 'Could not start the edit.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function retry(jobId) {
+    try { await api.post(`/edit/clients/${clientId}/edit/${jobId}/retry`); loadJobs(); if (!pollRef.current) startPoll(); }
+    catch (err) { toast(err.message, 'error'); }
+  }
+  async function remove(jobId) {
+    try { await api.delete(`/edit/clients/${clientId}/edit/${jobId}`); setJobs(prev => prev.filter(j => j.id !== jobId)); }
+    catch (err) { toast(err.message, 'error'); }
+  }
+
+  function opsSummary(ops = {}) {
+    const bits = [];
+    if (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)) bits.push(`trim ${fmt(ops.trim.start)}–${fmt(ops.trim.end)}`);
+    if (ops.clean_audio) bits.push('clean audio');
+    if (ops.captions) bits.push('captions');
+    return bits.join(' · ') || 'edit';
+  }
+
+  const STATUS = {
+    queued: { label: 'Queued', cls: 'chip-neutral' },
+    processing: { label: 'Rendering…', cls: 'chip-info' },
+    done: { label: 'Ready', cls: 'chip-success' },
+    failed: { label: 'Failed', cls: 'chip-warning' },
+  };
+
+  return (
+    <div className="stack stack-lg">
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Edit</span></div>
+      <header className="hero"><div><h1 className="display mt-2">Edit</h1></div></header>
+      <p style={{ color: 'var(--text-muted)', fontSize: 14, maxWidth: 640, marginTop: -8 }}>
+        Trim a clip, clean up the audio, and add auto-captions — rendered on our own servers,
+        nothing uploaded to a third party. Drop a video in to start.
+      </p>
+
+      {/* Upload */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files?.[0]); }}
+        onClick={() => !preview && fileRef.current?.click()}
+        style={{ border: `2px dashed ${dragOver ? 'var(--text)' : 'var(--card-border)'}`, borderRadius: 'var(--r-md)', padding: preview ? 16 : 40, textAlign: 'center', cursor: preview ? 'default' : 'pointer', background: 'var(--surface)' }}
+      >
+        <input ref={fileRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={e => { pickFile(e.target.files?.[0]); e.target.value = ''; }} />
+        {preview ? (
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', textAlign: 'left', flexWrap: 'wrap' }}>
+            <video src={preview} controls style={{ maxHeight: 200, maxWidth: 280, borderRadius: 'var(--r-sm)', background: '#000' }} />
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{file?.name}</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{duration ? `${fmt(duration)} long` : 'reading…'}</div>
+              <button className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => fileRef.current?.click()}>Choose a different clip</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Drop a video here, or click to choose</div>
+            <div style={{ fontSize: 13, color: 'var(--text-subtle)', marginTop: 6 }}>MP4 or MOV · up to 500MB</div>
+          </>
+        )}
+      </div>
+
+      {/* Controls */}
+      {preview && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="caption">Edits</div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+            <input type="checkbox" checked={doTrim} onChange={e => setDoTrim(e.target.checked)} /> Trim
+          </label>
+          {doTrim && (
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', paddingLeft: 24 }}>
+              <label style={{ fontSize: 13, color: 'var(--text-muted)' }}>Start (s)
+                <input type="number" min="0" max={duration || 0} step="0.1" value={trimStart}
+                  onChange={e => setTrimStart(Math.min(Number(e.target.value) || 0, trimEnd))}
+                  style={{ width: 90, marginLeft: 8 }} className="input" /></label>
+              <label style={{ fontSize: 13, color: 'var(--text-muted)' }}>End (s)
+                <input type="number" min="0" max={duration || 0} step="0.1" value={trimEnd}
+                  onChange={e => setTrimEnd(Math.min(Number(e.target.value) || 0, duration || 0))}
+                  style={{ width: 90, marginLeft: 8 }} className="input" /></label>
+              <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>keeps {fmt(Math.max(0, (trimEnd || 0) - (trimStart || 0)))}</span>
+            </div>
+          )}
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+            <input type="checkbox" checked={cleanAudio} onChange={e => setCleanAudio(e.target.checked)} /> Clean audio
+            <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>— denoise + level out volume</span>
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+            <input type="checkbox" checked={captions} onChange={e => setCaptions(e.target.checked)} /> Auto-captions
+            <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>— burned onto the video + a .srt file</span>
+          </label>
+          {captions && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', paddingLeft: 24 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Caption size</span>
+              {['small', 'medium', 'large'].map(s => (
+                <button key={s} onClick={() => setCapSize(s)}
+                  className={'btn btn-sm ' + (capSize === s ? 'btn-primary' : 'btn-secondary')} style={{ textTransform: 'capitalize' }}>{s}</button>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 4 }}>
+            <button className="btn btn-primary" disabled={busy || nothingChosen} onClick={submit}>
+              {busy ? 'Starting…' : 'Render edit'}
+            </button>
+            {capCost > 0 && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Est. ~${capCost.toFixed(2)} (captions)</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Jobs / history */}
+      {jobs.length > 0 && (
+        <div>
+          <div className="caption mb-3">Your edits</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {jobs.map(j => {
+              const st = STATUS[j.status] || STATUS.queued;
+              return (
+                <div key={j.id} className="card" style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ width: 200, flexShrink: 0 }}>
+                    {j.status === 'done' && j.output_url
+                      ? <video src={j.output_url} controls style={{ width: '100%', borderRadius: 'var(--r-sm)', background: '#000' }} />
+                      : <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: 'var(--r-sm)', background: '#00000010', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {(j.status === 'processing' || j.status === 'queued') && <div className="spinner" />}
+                        </div>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.source_name || 'clip'}</span>
+                      <span className={'chip ' + st.cls} style={{ fontSize: 10 }}>{st.label}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '3px 0 8px' }}>{opsSummary(j.ops)} · {new Date(j.created_at).toLocaleString()}</div>
+                    {j.status === 'failed' && j.error && <div className="callout callout-warning" style={{ fontSize: 13, marginBottom: 8 }}>{j.error}</div>}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {j.status === 'done' && j.output_url && <a className="btn btn-primary btn-sm" href={j.output_url} download={`${(j.source_name || 'edit').replace(/\.[^.]+$/, '')}-edited.mp4`}>Download MP4</a>}
+                      {j.status === 'done' && j.srt_url && <a className="btn btn-secondary btn-sm" href={j.srt_url} download={`${(j.source_name || 'edit').replace(/\.[^.]+$/, '')}.srt`}>Download .srt</a>}
+                      {j.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(j.id)}>Retry</button>}
+                      <button className="btn btn-secondary btn-sm" onClick={() => remove(j.id)} style={{ color: 'var(--negative)' }}>Delete</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
