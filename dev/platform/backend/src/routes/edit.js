@@ -37,7 +37,7 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
     if (typeof ops === 'string') { try { ops = JSON.parse(ops); } catch { ops = {}; } }
     ops = ops || {};
     const combining = files.length > 1;
-    const wantsSomething = combining || (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)) || ops.clean_audio || ops.captions;
+    const wantsSomething = combining || (ops.aspect && ops.aspect !== 'original') || (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)) || ops.clean_audio || ops.captions;
     if (!wantsSomething) return res.status(400).json({ error: 'Pick at least one edit (trim, clean audio, or captions).' });
 
     const clips = files.map(f => ({ url: editJobs.saveBuffer(req.params.clientId, f.buffer, f.originalname, '.mp4'), name: f.originalname }));
