@@ -26,6 +26,7 @@ const ASPECTS = [
   { key: '1:1', label: 'Square 1:1' },
   { key: '4:5', label: 'Portrait 4:5' },
 ];
+const AR_DIMS = { '9:16': [9, 16], '1:1': [1, 1], '4:5': [4, 5] };
 
 // Instagram UI regions to keep clear of key content. Fractions of a 9:16 frame.
 function safeBoxes(mode) {
@@ -43,6 +44,7 @@ export default function ClientEditPage() {
   const toast = useToast();
   const fileRef = useRef(null);
   const videoRef = useRef(null);
+  const frameRef = useRef(null);
   const pollRef = useRef(null);
   const [client, setClient] = useState(null);
 
@@ -66,6 +68,7 @@ export default function ClientEditPage() {
 
   const single = clips.length === 1;
   const combining = clips.length > 1;
+  const frameAR = aspect !== 'original' ? AR_DIMS[aspect] : null;
   const duration = single ? clips[0].duration : null;
   const totalDuration = clips.reduce((s, c) => s + (c.duration || 0), 0);
 
@@ -75,12 +78,19 @@ export default function ClientEditPage() {
     return () => { clearInterval(pollRef.current); clips.forEach(c => !c.remote && URL.revokeObjectURL(c.url)); };
   }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  function measurePreview() { const el = frameRef.current || videoRef.current; if (el) setPreviewH(el.clientHeight); }
   useEffect(() => {
-    function measure() { if (videoRef.current) setPreviewH(videoRef.current.clientHeight); }
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    window.addEventListener('resize', measurePreview);
+    return () => window.removeEventListener('resize', measurePreview);
   }, []);
+  // Re-measure when the frame's aspect changes.
+  useEffect(() => { measurePreview(); }, [aspect, clips.length]); // eslint-disable-line
   function seek(t) { if (videoRef.current && isFinite(t)) videoRef.current.currentTime = Math.max(0, t); }
+
+  // Keep captions out of the platform safe zones (clamped when a zone is shown).
+  const capMin = safeZone === 'ad' ? 0.15 : safeZone === 'reel' ? 0.05 : 0;
+  const capMax = 0.85;
+  useEffect(() => { setCapPos(p => Math.min(capMax, Math.max(capMin, p))); }, [safeZone]); // eslint-disable-line
 
   function loadJobs() {
     api.get(`/edit/clients/${clientId}/edit`)
@@ -150,26 +160,33 @@ export default function ClientEditPage() {
     };
   }
 
-  async function submit() {
+  async function submit(draft = false) {
     if (!clips.length) { toast('Add a clip first.', 'error'); return; }
-    if (nothingChosen) { toast('Pick at least one edit.', 'error'); return; }
+    if (!draft && nothingChosen) { toast('Pick at least one edit.', 'error'); return; }
+    const localClips = clips.filter(c => c.file);
+    if (draft && !localClips.length) { toast('This is already saved — render or delete it.', 'error'); return; }
     setBusy(true);
     try {
-      if (reopenJobId && clips.every(c => c.remote)) {
+      if (!draft && reopenJobId && clips.every(c => c.remote)) {
         await api.post(`/edit/clients/${clientId}/edit/${reopenJobId}/reopen`, { ops: opsPayload() });
       } else {
         const fd = new FormData();
         clips.forEach(c => c.file && fd.append('files', c.file));
         fd.append('ops', JSON.stringify(opsPayload()));
+        if (draft) fd.append('draft', 'true');
         if (single && duration) fd.append('duration', String(duration));
         await api.postForm(`/edit/clients/${clientId}/edit`, fd);
       }
-      toast(combining ? 'Combining & rendering…' : 'Edit queued — rendering…', 'success');
+      toast(draft ? 'Saved as draft.' : combining ? 'Combining & rendering…' : 'Edit queued — rendering…', 'success');
       clearClips(); setReopenJobId(null); setDoTrim(false); setTrimStart(0); setTrimEnd(0);
-      loadJobs(); if (!pollRef.current) startPoll();
+      loadJobs(); if (!draft && !pollRef.current) startPoll();
     } catch (err) {
-      toast(err.message || 'Could not start the edit.', 'error');
+      toast(err.message || 'Could not save the edit.', 'error');
     } finally { setBusy(false); }
+  }
+  async function renderDraft(jobId) {
+    try { await api.post(`/edit/clients/${clientId}/edit/${jobId}/render`); loadJobs(); if (!pollRef.current) startPoll(); }
+    catch (err) { toast(err.message, 'error'); }
   }
 
   async function retry(jobId) {
@@ -211,6 +228,7 @@ export default function ClientEditPage() {
   }
 
   const STATUS = {
+    draft: { label: 'Draft', cls: 'chip-neutral' },
     queued: { label: 'Queued', cls: 'chip-neutral' },
     processing: { label: 'Rendering…', cls: 'chip-info' },
     done: { label: 'Ready', cls: 'chip-success' },
@@ -254,10 +272,14 @@ export default function ClientEditPage() {
             {single ? (
               <>
                 <div style={{ display: 'flex', justifyContent: 'center', background: '#000', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
-                  <div style={{ position: 'relative', lineHeight: 0, maxWidth: '100%' }}>
+                  <div ref={frameRef} style={frameAR
+                    ? { position: 'relative', aspectRatio: `${frameAR[0]} / ${frameAR[1]}`, height: '62vh', maxWidth: '100%', background: '#000' }
+                    : { position: 'relative', lineHeight: 0, maxWidth: '100%' }}>
                     <video ref={videoRef} src={clips[0].url} controls
-                      onLoadedMetadata={e => { setPreviewH(e.target.clientHeight); if (clips[0].remote && !clips[0].duration) { const d = e.target.duration; setClips(prev => prev.map((x, i) => i === 0 ? { ...x, duration: d } : x)); if (trimEnd === 0) setTrimEnd(d); } }}
-                      style={{ maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
+                      onLoadedMetadata={e => { measurePreview(); if (clips[0].remote && !clips[0].duration) { const d = e.target.duration; setClips(prev => prev.map((x, i) => i === 0 ? { ...x, duration: d } : x)); if (trimEnd === 0) setTrimEnd(d); } }}
+                      style={frameAR
+                        ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000' }
+                        : { maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
                     {safeZone !== 'off' && previewH > 0 && safeBoxes(safeZone).map(b => (
                       <div key={b.key} style={{ position: 'absolute', ...b.style, background: 'rgba(255,70,70,0.16)', border: '1px dashed rgba(255,70,70,0.8)', borderRadius: 3, pointerEvents: 'none', boxSizing: 'border-box' }}>
                         <span style={{ position: 'absolute', top: 2, left: 4, fontSize: 9, fontWeight: 700, color: '#fff', textShadow: '0 1px 2px #000', textTransform: 'uppercase', letterSpacing: 0.3 }}>{b.label}</span>
@@ -366,7 +388,8 @@ export default function ClientEditPage() {
                   <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>Position</div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 10, color: 'var(--text-subtle)' }}>
                     <span>top</span>
-                    <input type="range" min="0" max="1" step="0.02" value={capPos} onChange={e => setCapPos(Number(e.target.value))}
+                    <input type="range" min={capMin} max={capMax} step="0.02" value={capPos}
+                      onChange={e => setCapPos(Math.min(capMax, Math.max(capMin, Number(e.target.value))))}
                       style={{ writingMode: 'vertical-lr', direction: 'rtl', WebkitAppearance: 'slider-vertical', width: 24, height: 104, margin: '4px 0' }} />
                     <span>bottom</span>
                   </div>
@@ -375,9 +398,12 @@ export default function ClientEditPage() {
             )}
 
             <div style={{ marginTop: 4 }}>
-              <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || nothingChosen} onClick={submit}>
+              <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || nothingChosen} onClick={() => submit(false)}>
                 {busy ? 'Starting…' : combining ? `Combine ${clips.length} & render` : 'Render edit'}
               </button>
+              {clips.some(c => c.file) && (
+                <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} disabled={busy} onClick={() => submit(true)}>Save as draft</button>
+              )}
               {capCost > 0 && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center' }}>Est. ~${capCost.toFixed(2)} (captions)</div>}
             </div>
           </div>
@@ -410,6 +436,8 @@ export default function ClientEditPage() {
                     <div style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '3px 0 8px' }}>{opsSummary(j.ops, clipCount)} · {new Date(j.created_at).toLocaleString()}</div>
                     {j.status === 'failed' && j.error && <div className="callout callout-warning" style={{ fontSize: 13, marginBottom: 8 }}>{j.error}</div>}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {j.status === 'draft' && <button className="btn btn-primary btn-sm" onClick={() => renderDraft(j.id)}>Render</button>}
+                      {j.status === 'draft' && <button className="btn btn-secondary btn-sm" onClick={() => editAgain(j)}>Resume</button>}
                       {j.status === 'done' && j.output_url && <a className="btn btn-primary btn-sm" href={j.output_url} download={`${stem}-edited.mp4`}>Download MP4</a>}
                       {j.status === 'done' && j.srt_url && <a className="btn btn-secondary btn-sm" href={j.srt_url} download={`${stem}.srt`}>Download .srt</a>}
                       {(j.status === 'done' || j.status === 'failed') && <button className="btn btn-secondary btn-sm" onClick={() => editAgain(j)}>Edit again</button>}

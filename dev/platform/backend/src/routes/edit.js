@@ -36,9 +36,10 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
     let ops = req.body?.ops;
     if (typeof ops === 'string') { try { ops = JSON.parse(ops); } catch { ops = {}; } }
     ops = ops || {};
+    const isDraft = String(req.body?.draft) === 'true';
     const combining = files.length > 1;
     const wantsSomething = combining || (ops.aspect && ops.aspect !== 'original') || (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)) || ops.clean_audio || ops.captions;
-    if (!wantsSomething) return res.status(400).json({ error: 'Pick at least one edit (trim, clean audio, or captions).' });
+    if (!isDraft && !wantsSomething) return res.status(400).json({ error: 'Pick at least one edit (trim, clean audio, or captions).' });
 
     const clips = files.map(f => ({ url: editJobs.saveBuffer(req.params.clientId, f.buffer, f.originalname, '.mp4'), name: f.originalname }));
     const sourceMeta = {};
@@ -46,9 +47,9 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
 
     const job = await editJobs.create(req.params.clientId, {
       sourceName: files[0].originalname, sourceUrl: clips[0].url, sourceMeta, ops, clips,
-      name: req.body?.name || null, createdBy: req.user.id,
+      name: req.body?.name || null, status: isDraft ? 'draft' : 'queued', createdBy: req.user.id,
     });
-    editProcessor.kick();
+    if (!isDraft) editProcessor.kick();
     res.status(201).json(job);
   } catch (err) {
     console.error('[edit] create failed:', err.message);
@@ -65,6 +66,12 @@ router.post('/clients/:clientId/edit/:id/reopen', requireClientAccess({ paramNam
     editProcessor.kick();
     res.status(201).json(job);
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Render a saved draft (in place).
+router.post('/clients/:clientId/edit/:id/render', requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+  try { const job = await editJobs.queueDraft(req.params.clientId, req.params.id); editProcessor.kick(); res.json(job); }
+  catch (err) { res.status(err.status || 400).json({ error: err.message }); }
 });
 
 // Rename a saved edit.
