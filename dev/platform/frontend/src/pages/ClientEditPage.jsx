@@ -17,6 +17,26 @@ function fmt(s) {
   const t = Math.max(0, Math.round(s));
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 }
+// Caption vertical margin in the 288-tall ASS canvas — mirrors editProcessor.
+function marginVFor(pos) { return Math.min(250, Math.max(40, 40 + (pos || 0) * 200)); }
+
+const ASPECTS = [
+  { key: 'original', label: 'Original' },
+  { key: '9:16', label: 'Reel 9:16' },
+  { key: '1:1', label: 'Square 1:1' },
+  { key: '4:5', label: 'Portrait 4:5' },
+];
+
+// Instagram UI regions to keep clear of key content. Fractions of a 9:16 frame.
+function safeBoxes(mode) {
+  const boxes = [
+    { key: 'top', style: { top: 0, left: 0, right: 0, height: '9%' }, label: 'top bar' },
+    { key: 'rail', style: { right: '1.5%', top: '40%', width: '17%', height: '42%' }, label: 'buttons' },
+    { key: 'bottom', style: { left: '1.5%', bottom: '2%', width: '72%', height: '15%' }, label: 'handle · caption' },
+  ];
+  if (mode === 'ad') boxes.push({ key: 'cta', style: { left: '3%', right: '3%', bottom: '9%', height: '15%' }, label: 'CTA box' });
+  return boxes;
+}
 
 export default function ClientEditPage() {
   const { id: clientId } = useParams();
@@ -37,6 +57,9 @@ export default function ClientEditPage() {
   const [cleanAudio, setCleanAudio] = useState(true);
   const [captions, setCaptions] = useState(true);
   const [capSize, setCapSize] = useState('medium');
+  const [capPos, setCapPos] = useState(0);
+  const [aspect, setAspect] = useState('original');
+  const [safeZone, setSafeZone] = useState('off');
 
   const [busy, setBusy] = useState(false);
   const [jobs, setJobs] = useState([]);
@@ -115,14 +138,15 @@ export default function ClientEditPage() {
 
   const capCost = captions && totalDuration ? (totalDuration / 60) * WHISPER_PER_MIN : 0;
   const effectiveTrim = single && doTrim && (trimStart > 0 || (duration && trimEnd < duration));
-  const nothingChosen = !(combining || effectiveTrim || cleanAudio || captions);
+  const nothingChosen = !(combining || aspect !== 'original' || effectiveTrim || cleanAudio || captions);
 
   function opsPayload() {
     return {
+      aspect,
       trim: effectiveTrim ? { start: Math.max(0, trimStart), end: trimEnd || 0 } : null,
       clean_audio: cleanAudio,
       captions,
-      caption_style: { size: capSize },
+      caption_style: { size: capSize, pos: capPos },
     };
   }
 
@@ -172,7 +196,8 @@ export default function ClientEditPage() {
     setDoTrim(!!(o.trim && (o.trim.start > 0 || o.trim.end > 0)));
     setTrimStart(o.trim?.start || 0); setTrimEnd(o.trim?.end || 0);
     setCleanAudio(o.clean_audio !== false); setCaptions(!!o.captions);
-    setCapSize(o.caption_style?.size || 'medium');
+    setCapSize(o.caption_style?.size || 'medium'); setCapPos(o.caption_style?.pos || 0);
+    setAspect(o.aspect || 'original');
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -233,9 +258,14 @@ export default function ClientEditPage() {
                     <video ref={videoRef} src={clips[0].url} controls
                       onLoadedMetadata={e => { setPreviewH(e.target.clientHeight); if (clips[0].remote && !clips[0].duration) { const d = e.target.duration; setClips(prev => prev.map((x, i) => i === 0 ? { ...x, duration: d } : x)); if (trimEnd === 0) setTrimEnd(d); } }}
                       style={{ maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
+                    {safeZone !== 'off' && previewH > 0 && safeBoxes(safeZone).map(b => (
+                      <div key={b.key} style={{ position: 'absolute', ...b.style, background: 'rgba(255,70,70,0.16)', border: '1px dashed rgba(255,70,70,0.8)', borderRadius: 3, pointerEvents: 'none', boxSizing: 'border-box' }}>
+                        <span style={{ position: 'absolute', top: 2, left: 4, fontSize: 9, fontWeight: 700, color: '#fff', textShadow: '0 1px 2px #000', textTransform: 'uppercase', letterSpacing: 0.3 }}>{b.label}</span>
+                      </div>
+                    ))}
                     {captions && previewH > 0 && (() => {
                       const fontPx = Math.max(9, previewH * (ASS_SIZE[capSize] || 24) / 288);
-                      const marginPx = previewH * 48 / 288;
+                      const marginPx = previewH * marginVFor(capPos) / 288;
                       return (
                         <div style={{ position: 'absolute', left: 0, right: 0, bottom: marginPx, textAlign: 'center', pointerEvents: 'none', padding: '0 5%' }}>
                           <span style={{ fontFamily: 'Arial, sans-serif', fontWeight: 800, fontSize: fontPx, lineHeight: 1.15, color: '#fff', WebkitTextStrokeColor: '#000', WebkitTextStrokeWidth: Math.max(1, fontPx * 0.07), paintOrder: 'stroke', textShadow: '0 1px 2px rgba(0,0,0,.6)' }}>the quick brown fox</span>
@@ -295,6 +325,24 @@ export default function ClientEditPage() {
             <div className="caption">Edits</div>
             {reopenJobId && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Re-editing a saved clip — renders a new copy.</div>}
 
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Format</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {ASPECTS.map(a => <button key={a.key} onClick={() => setAspect(a.key)} className={'btn btn-sm ' + (aspect === a.key ? 'btn-primary' : 'btn-secondary')}>{a.label}</button>)}
+              </div>
+              {aspect !== 'original' && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>Reframed to {aspect} — scaled to fit + letterboxed.</div>}
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Safe zones (preview)</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {[['off', 'Off'], ['reel', 'Reel'], ['ad', 'Ad']].map(([k, l]) => <button key={k} onClick={() => setSafeZone(k)} className={'btn btn-sm ' + (safeZone === k ? 'btn-primary' : 'btn-secondary')}>{l}</button>)}
+              </div>
+              {safeZone !== 'off' && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>Red = where Instagram’s UI sits — keep captions/subject clear. Preview only.</div>}
+            </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: 0 }} />
+
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
               <input type="checkbox" checked={cleanAudio} onChange={e => setCleanAudio(e.target.checked)} /> Clean audio
             </label>
@@ -305,11 +353,24 @@ export default function ClientEditPage() {
             </label>
             <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: -8, paddingLeft: 24 }}>burned onto the video + a .srt file</div>
             {captions && (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingLeft: 24, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Size</span>
-                {['small', 'medium', 'large'].map(s => (
-                  <button key={s} onClick={() => setCapSize(s)} className={'btn btn-sm ' + (capSize === s ? 'btn-primary' : 'btn-secondary')} style={{ textTransform: 'capitalize' }}>{s}</button>
-                ))}
+              <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', paddingLeft: 24, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>Size</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {['small', 'medium', 'large'].map(s => (
+                      <button key={s} onClick={() => setCapSize(s)} className={'btn btn-sm ' + (capSize === s ? 'btn-primary' : 'btn-secondary')} style={{ textTransform: 'capitalize' }}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>Position</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 10, color: 'var(--text-subtle)' }}>
+                    <span>top</span>
+                    <input type="range" min="0" max="1" step="0.02" value={capPos} onChange={e => setCapPos(Number(e.target.value))}
+                      style={{ writingMode: 'vertical-lr', direction: 'rtl', WebkitAppearance: 'slider-vertical', width: 24, height: 104, margin: '4px 0' }} />
+                    <span>bottom</span>
+                  </div>
+                </div>
               </div>
             )}
 

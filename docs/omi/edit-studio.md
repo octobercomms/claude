@@ -63,6 +63,13 @@ queued and rendered inline; the UI polls until it's **Ready**, then offers
   the tweaked ops (`editJobs.reopen`, `POST /edit/:id/reopen`).
 - **Rename** — an optional `name` per job so the history stays scannable
   (`PATCH /edit/:id`).
+- **Reframe to an aspect ratio** — `ops.aspect` (`9:16` / `1:1` / `4:5`) scales +
+  letterboxes the video to that frame in pass 1 (for Reels/ads).
+- **Caption position** — `ops.caption_style.pos` (0 bottom → 1 top) drives the
+  ASS `MarginV`; the live preview mirrors it (`marginVFor`).
+- **Safe-zone overlay** (preview only) — toggle Reel/Ad to see where Instagram's
+  UI (top bar, action rail, handle/caption, and the ad CTA box) covers the frame,
+  so captions/subject stay clear.
 
 ## Later (not built)
 
