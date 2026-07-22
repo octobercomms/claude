@@ -190,6 +190,7 @@ app.use('/api/heygen', require('./routes/heygen'));
 app.use('/api/brand', require('./routes/brandAssets'));
 // Visualise — image generation + surgical-refinement studio (Workspace module).
 app.use('/api/visualise', require('./routes/visualise'));
+app.use('/api/edit', require('./routes/edit'));
 app.use('/api/ad-creatives', require('./routes/adCreatives'));
 app.use('/api/approvals', require('./routes/approvals'));
 app.use('/api/dashboard', require('./routes/dashboard'));
