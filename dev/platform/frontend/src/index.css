@@ -1598,3 +1598,7 @@ a:hover > .card-stat,
   pointer-events: auto; width: 16px; height: 16px; border-radius: 50%;
   background: var(--text); border: 2px solid #fff; cursor: pointer;
 }
+
+/* Edit studio — split editor layout: big preview left, settings right. */
+.edit-split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .edit-split { grid-template-columns: 1fr; } }
