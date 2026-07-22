@@ -4,6 +4,7 @@
 
 const express = require('express');
 const fs = require('fs');
+const path = require('path');
 const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
@@ -12,9 +13,18 @@ const editProcessor = require('../services/editProcessor');
 
 const router = express.Router();
 
-const uploadMem = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 500 * 1024 * 1024 },   // 500MB — raw phone clips are big
+// Stream uploads straight to the client's edit dir (never buffer a multi-GB
+// clip in RAM). Files land pre-named; the route reads req.files[].filename.
+const uploadDisk = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => { try { cb(null, editJobs.clientDir(req.params.clientId)); } catch (e) { cb(e); } },
+    filename: (req, file, cb) => {
+      let ext = (path.extname(file.originalname || '').toLowerCase().replace(/[^a-z0-9.]/g, '')) || '.mp4';
+      if (!ext.startsWith('.')) ext = '.' + ext;
+      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 },   // 2GB — long source clips
   fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith('video/')),
 });
 
@@ -29,7 +39,7 @@ router.use(loadVisibleClientIds);
 // Create an edit job from one or several uploaded clips + chosen operations.
 // Several clips → combined into one video (in upload order) before editing.
 router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clientId'] }),
-  uploadMem.fields([{ name: 'files', maxCount: 20 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
+  uploadDisk.fields([{ name: 'files', maxCount: 20 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
   try {
     const files = [...(req.files?.files || []), ...(req.files?.file || [])];
     if (!files.length) return res.status(400).json({ error: 'Upload a video file.' });
@@ -38,10 +48,12 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
     ops = ops || {};
     const isDraft = String(req.body?.draft) === 'true';
     const combining = files.length > 1;
-    const wantsSomething = combining || (ops.aspect && ops.aspect !== 'original') || (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)) || ops.clean_audio || ops.captions;
+    const hasCuts = Array.isArray(ops.segments) ? ops.segments.length > 0 : (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0));
+    const wantsSomething = combining || (ops.aspect && ops.aspect !== 'original') || hasCuts || ops.clean_audio || ops.captions;
     if (!isDraft && !wantsSomething) return res.status(400).json({ error: 'Pick at least one edit (trim, clean audio, or captions).' });
 
-    const clips = files.map(f => ({ url: editJobs.saveBuffer(req.params.clientId, f.buffer, f.originalname, '.mp4'), name: f.originalname }));
+    // Files are already on disk (streamed); reference them by served URL.
+    const clips = files.map(f => ({ url: editJobs.servedUrl(req.params.clientId, f.filename), name: f.originalname }));
     const sourceMeta = {};
     if (req.body?.duration) sourceMeta.duration = Number(req.body.duration) || null;
 

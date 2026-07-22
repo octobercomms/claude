@@ -107,6 +107,37 @@ async function combineClips(clipPaths, work) {
   return combined;
 }
 
+// Keep several ranges of one clip and join them in order (multi-cut). Each range
+// is re-encoded to uniform params, then concatenated (stream copy).
+async function cutSegments(srcPath, segments, work) {
+  const meta = await probe(srcPath);
+  const W = meta.width || 1080, H = meta.height || 1920;
+  const audio = await hasAudioStream(srcPath);
+  const segs = [];
+  for (const s of segments) {
+    const start = Math.max(0, Number(s.start) || 0);
+    const end = Number(s.end) || 0;
+    if (!(end > start)) continue;
+    const seg = path.join(work, `cut${segs.length}.mp4`);
+    const a = ['-y'];
+    if (start > 0) a.push('-ss', String(start));
+    a.push('-i', srcPath, '-t', String(Math.max(0.05, end - start)));
+    if (!audio) a.push('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-shortest', '-map', '0:v:0', '-map', '1:a:0');
+    a.push('-vf', `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=30`,
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-ar', '48000', '-b:a', '160k', '-video_track_timescale', '30000', seg);
+    await run(FFMPEG, a);
+    segs.push(seg);
+  }
+  if (!segs.length) return srcPath;
+  if (segs.length === 1) return segs[0];
+  const list = path.join(work, 'cuts.txt');
+  fs.writeFileSync(list, segs.map(s => `file '${s.replace(/'/g, "'\\''")}'`).join('\n'));
+  const out = path.join(work, 'cutjoined.mp4');
+  await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', out]);
+  return out;
+}
+
 async function whisperSrt(audioPath, apiKey) {
   const buf = fs.readFileSync(audioPath);
   const form = new FormData();
@@ -185,9 +216,15 @@ async function processOne(job) {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), `edit-${job.id}-`));
   try {
     const apiKey = (await getSetting('OPENAI_API_KEY')) || process.env.OPENAI_API_KEY;
-    // Combine first when there are several clips; then trim/clean/caption the result.
-    const srcPath = paths.length > 1 ? await combineClips(paths, work) : paths[0];
-    const { outputPath, srtPath, durationS } = await render(srcPath, job.ops || {}, work, apiKey);
+    // Combine several clips first; else, on a single clip, apply multi-cut.
+    let srcPath = paths.length > 1 ? await combineClips(paths, work) : paths[0];
+    let renderOps = job.ops || {};
+    const segs = Array.isArray(renderOps.segments) ? renderOps.segments : null;
+    if (segs && segs.length && paths.length === 1) {
+      srcPath = await cutSegments(srcPath, segs, work);
+      renderOps = { ...renderOps, trim: null };   // cuts already applied
+    }
+    const { outputPath, srtPath, durationS } = await render(srcPath, renderOps, work, apiKey);
 
     const outputUrl = editJobs.adoptFile(job.client_id, outputPath, '.mp4');
     const srtUrl = srtPath ? editJobs.adoptFile(job.client_id, srtPath, '.srt') : null;

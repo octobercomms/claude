@@ -54,8 +54,7 @@ export default function ClientEditPage() {
   const [previewH, setPreviewH] = useState(0);
 
   const [doTrim, setDoTrim] = useState(false);
-  const [trimStart, setTrimStart] = useState(0);
-  const [trimEnd, setTrimEnd] = useState(0);
+  const [segments, setSegments] = useState([]);   // [{ id, start, end }] — keep-ranges, joined in order
   const [cleanAudio, setCleanAudio] = useState(true);
   const [captions, setCaptions] = useState(true);
   const [capSize, setCapSize] = useState('medium');
@@ -146,17 +145,24 @@ export default function ClientEditPage() {
     });
   }
 
-  // When the single clip's duration lands, default the trim range to full.
-  useEffect(() => { if (single && clips[0].duration && trimEnd === 0) setTrimEnd(clips[0].duration); }, [clips]); // eslint-disable-line
+  // When the single clip's duration lands, seed one keep-range spanning the clip.
+  useEffect(() => { if (single && clips[0].duration && segments.length === 0) setSegments([{ id: ++_uid, start: 0, end: clips[0].duration }]); }, [clips]); // eslint-disable-line
 
-  const capCost = captions && totalDuration ? (totalDuration / 60) * WHISPER_PER_MIN : 0;
-  const effectiveTrim = single && doTrim && (trimStart > 0 || (duration && trimEnd < duration));
+  function updateSeg(id, patch) { setSegments(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s)); }
+  function addSeg() { setSegments(prev => { const last = prev[prev.length - 1]; const start = Math.min(duration - 0.1, last ? last.end : 0); return [...prev, { id: ++_uid, start: Math.max(0, start), end: duration }]; }); }
+  function removeSeg(id) { setSegments(prev => prev.length > 1 ? prev.filter(s => s.id !== id) : prev); }
+
+  const validSegs = segments.filter(s => s.end > s.start);
+  const effectiveTrim = single && doTrim && validSegs.length > 0 &&
+    (validSegs.length > 1 || validSegs[0].start > 0 || (duration && validSegs[0].end < duration - 0.01));
+  const keptDuration = effectiveTrim ? validSegs.reduce((s, x) => s + (x.end - x.start), 0) : totalDuration;
+  const capCost = captions && keptDuration ? (keptDuration / 60) * WHISPER_PER_MIN : 0;
   const nothingChosen = !(combining || aspect !== 'original' || effectiveTrim || cleanAudio || captions);
 
   function opsPayload() {
     return {
       aspect,
-      trim: effectiveTrim ? { start: Math.max(0, trimStart), end: trimEnd || 0 } : null,
+      segments: effectiveTrim ? validSegs.map(s => ({ start: Math.max(0, s.start), end: s.end })) : null,
       clean_audio: cleanAudio,
       captions,
       caption_style: { size: capSize, pos: capPos },
@@ -181,7 +187,7 @@ export default function ClientEditPage() {
         await api.postForm(`/edit/clients/${clientId}/edit`, fd);
       }
       toast(draft ? 'Saved as draft.' : combining ? 'Combining & rendering…' : 'Edit queued — rendering…', 'success');
-      clearClips(); setReopenJobId(null); setDoTrim(false); setTrimStart(0); setTrimEnd(0);
+      clearClips(); setReopenJobId(null); setDoTrim(false); setSegments([]);
       loadJobs(); if (!draft && !pollRef.current) startPoll();
     } catch (err) {
       toast(err.message || 'Could not save the edit.', 'error');
@@ -213,8 +219,9 @@ export default function ClientEditPage() {
     setClips(src.map(c => ({ id: ++_uid, file: null, url: c.url, name: c.name || 'clip', duration: null, remote: true })));
     setReopenJobId(job.id);
     const o = job.ops || {};
-    setDoTrim(!!(o.trim && (o.trim.start > 0 || o.trim.end > 0)));
-    setTrimStart(o.trim?.start || 0); setTrimEnd(o.trim?.end || 0);
+    const segs = Array.isArray(o.segments) ? o.segments : (o.trim ? [o.trim] : []);
+    setDoTrim(segs.length > 0);
+    setSegments(segs.map(s => ({ id: ++_uid, start: s.start || 0, end: s.end || 0 })));
     setCleanAudio(o.clean_audio !== false); setCaptions(!!o.captions);
     setCapSize(o.caption_style?.size || 'medium'); setCapPos(o.caption_style?.pos || 0);
     setAspect(o.aspect || 'original');
@@ -224,7 +231,8 @@ export default function ClientEditPage() {
   function opsSummary(ops = {}, clipCount = 1) {
     const bits = [];
     if (clipCount > 1) bits.push(`combined ${clipCount} clips`);
-    if (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)) bits.push(`trim ${fmt(ops.trim.start)}–${fmt(ops.trim.end)}`);
+    if (Array.isArray(ops.segments) && ops.segments.length) bits.push(ops.segments.length > 1 ? `${ops.segments.length} cuts` : `trim ${fmt(ops.segments[0].start)}–${fmt(ops.segments[0].end)}`);
+    else if (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)) bits.push(`trim ${fmt(ops.trim.start)}–${fmt(ops.trim.end)}`);
     if (ops.clean_audio) bits.push('clean audio');
     if (ops.captions) bits.push('captions');
     return bits.join(' · ') || 'edit';
@@ -259,7 +267,7 @@ export default function ClientEditPage() {
           style={{ border: `2px dashed ${dragOver ? 'var(--text)' : 'var(--card-border)'}`, borderRadius: 'var(--r-md)', padding: 64, textAlign: 'center', cursor: 'pointer', background: 'var(--surface)' }}
         >
           <div style={{ fontWeight: 700, fontSize: 16 }}>Drop a video here, or click to choose</div>
-          <div style={{ fontSize: 13, color: 'var(--text-subtle)', marginTop: 6 }}>MP4 or MOV · up to 500MB · add several to combine</div>
+          <div style={{ fontSize: 13, color: 'var(--text-subtle)', marginTop: 6 }}>MP4 or MOV · up to 2GB · add several to combine</div>
         </div>
       )}
 
@@ -279,7 +287,7 @@ export default function ClientEditPage() {
                     ? { position: 'relative', aspectRatio: `${frameAR[0]} / ${frameAR[1]}`, height: '62vh', maxWidth: '100%', background: '#000' }
                     : { position: 'relative', lineHeight: 0, maxWidth: '100%' }}>
                     <video ref={videoRef} src={clips[0].url} controls
-                      onLoadedMetadata={e => { measurePreview(); if (clips[0].remote && !clips[0].duration) { const d = e.target.duration; setClips(prev => prev.map((x, i) => i === 0 ? { ...x, duration: d } : x)); if (trimEnd === 0) setTrimEnd(d); } }}
+                      onLoadedMetadata={e => { measurePreview(); if (clips[0].remote && !clips[0].duration) { const d = e.target.duration; setClips(prev => prev.map((x, i) => i === 0 ? { ...x, duration: d } : x)); if (segments.length === 0) setSegments([{ id: ++_uid, start: 0, end: d }]); } }}
                       style={frameAR
                         ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }
                         : { maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
@@ -301,21 +309,32 @@ export default function ClientEditPage() {
                 </div>
                 <div className="card" style={{ marginTop: 12 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
-                    <input type="checkbox" checked={doTrim} onChange={e => setDoTrim(e.target.checked)} /> Trim
+                    <input type="checkbox" checked={doTrim} onChange={e => setDoTrim(e.target.checked)} /> Trim / cut
+                    <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>— keep one or more sections; they join in order</span>
                   </label>
-                  {doTrim && duration > 0 && (
-                    <div style={{ marginTop: 10 }}>
+                  {doTrim && duration > 0 && segments.map((s, i) => (
+                    <div key={s.id} style={{ marginTop: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-subtle)', marginBottom: 2 }}>
+                        <span style={{ fontWeight: 700 }}>Cut {i + 1}</span>
+                        {segments.length > 1 && <button onClick={() => removeSeg(s.id)} style={{ border: 'none', background: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 11, padding: 0 }}>remove</button>}
+                      </div>
                       <div className="trim-slider">
                         <div style={{ position: 'absolute', top: 14, left: 0, right: 0, height: 4, borderRadius: 2, background: 'var(--card-border)' }} />
-                        <div style={{ position: 'absolute', top: 14, height: 4, borderRadius: 2, background: 'var(--text)', left: `${(trimStart / duration) * 100}%`, right: `${100 - (trimEnd / duration) * 100}%` }} />
-                        <input type="range" min="0" max={duration} step="0.05" value={trimStart} onChange={e => { const v = Math.min(Number(e.target.value), trimEnd - 0.1); setTrimStart(Math.max(0, v)); seek(v); }} />
-                        <input type="range" min="0" max={duration} step="0.05" value={trimEnd} onChange={e => { const v = Math.max(Number(e.target.value), trimStart + 0.1); setTrimEnd(Math.min(duration, v)); seek(v); }} />
+                        <div style={{ position: 'absolute', top: 14, height: 4, borderRadius: 2, background: 'var(--text)', left: `${(s.start / duration) * 100}%`, right: `${100 - (s.end / duration) * 100}%` }} />
+                        <input type="range" min="0" max={duration} step="0.05" value={s.start} onChange={e => { const v = Math.min(Number(e.target.value), s.end - 0.1); updateSeg(s.id, { start: Math.max(0, v) }); seek(v); }} />
+                        <input type="range" min="0" max={duration} step="0.05" value={s.end} onChange={e => { const v = Math.max(Number(e.target.value), s.start + 0.1); updateSeg(s.id, { end: Math.min(duration, v) }); seek(v); }} />
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                        <span>Start {fmt(trimStart)}</span>
-                        <span style={{ color: 'var(--text-subtle)' }}>keeps {fmt(Math.max(0, (trimEnd || 0) - (trimStart || 0)))}</span>
-                        <span>End {fmt(trimEnd)}</span>
+                        <span>Start {fmt(s.start)}</span>
+                        <span style={{ color: 'var(--text-subtle)' }}>keeps {fmt(Math.max(0, s.end - s.start))}</span>
+                        <span>End {fmt(s.end)}</span>
                       </div>
+                    </div>
+                  ))}
+                  {doTrim && duration > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, flexWrap: 'wrap', gap: 8 }}>
+                      <button className="btn btn-secondary btn-sm" onClick={addSeg}>+ Add cut</button>
+                      {segments.length > 1 && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Final length ~{fmt(keptDuration)}</span>}
                     </div>
                   )}
                 </div>
@@ -355,7 +374,7 @@ export default function ClientEditPage() {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {ASPECTS.map(a => <button key={a.key} onClick={() => setAspect(a.key)} className={'btn btn-sm ' + (aspect === a.key ? 'btn-primary' : 'btn-secondary')}>{a.label}</button>)}
               </div>
-              {aspect !== 'original' && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>Reframed to {aspect} — scaled to fit + letterboxed.</div>}
+              {aspect !== 'original' && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>Reframed to {aspect} — filled to the frame (edges cropped).</div>}
             </div>
 
             <div>
