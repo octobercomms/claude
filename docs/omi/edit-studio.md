@@ -78,6 +78,18 @@ queued and rendered inline; the UI polls until it's **Ready**, then offers
   (`status='draft'`); Resume loads it back, Render (`POST /edit/:id/render`)
   queues it in place.
 
+## Phase 3 (shipped 2026-07-22)
+
+- **Multi-cut** — keep several ranges of one clip (`ops.segments = [{start,end}…]`);
+  each is trimmed and the kept ranges are concatenated in order
+  (`cutSegments()`), then cleaned/reframed/captioned. Old single-`trim` jobs
+  still reopen (mapped to one segment).
+- **Large uploads** — edit uploads stream straight to disk (multer diskStorage,
+  no RAM buffering) with a 2GB cap, and nginx gets a dedicated `/api/edit/`
+  location (`client_max_body_size 2048M`, `proxy_request_buffering off`) so the
+  128M global cap no longer 413s big clips. Auto-deploys via update.sh's nginx
+  sync. MOV needs no pre-conversion — ffmpeg reads it; output is always mp4.
+
 ## Later (not built)
 
 - Full timeline editor via an embedded OpenCut (see `opencut-evaluation.md`).
