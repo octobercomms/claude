@@ -55,12 +55,41 @@ function serveFilePath(clientId, filename) {
 }
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
-async function create(clientId, { sourceName, sourceUrl, sourceMeta = {}, ops = {}, createdBy = null }) {
+async function create(clientId, { sourceName, sourceUrl, sourceMeta = {}, ops = {}, clips = [], name = null, createdBy = null }) {
+  const list = (clips && clips.length) ? clips : [{ url: sourceUrl, name: sourceName }];
   const { rows } = await pool.query(
-    `INSERT INTO edit_jobs (client_id, created_by, source_name, source_url, source_meta, ops, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'queued') RETURNING *`,
-    [clientId, createdBy, sourceName || null, sourceUrl, JSON.stringify(sourceMeta || {}), JSON.stringify(ops || {})]
+    `INSERT INTO edit_jobs (client_id, created_by, source_name, source_url, source_meta, ops, clips, name, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'queued') RETURNING *`,
+    [clientId, createdBy, sourceName || null, sourceUrl, JSON.stringify(sourceMeta || {}), JSON.stringify(ops || {}), JSON.stringify(list), name || null]
   );
+  return rows[0];
+}
+
+// Re-open a saved edit: copy its source clip(s) to fresh files and queue a new
+// job with (possibly changed) ops — so a tweak needs no re-upload, and deleting
+// the original later can't break the new one.
+async function reopen(clientId, jobId, { ops = {}, name = null, createdBy = null }) {
+  const job = await get(clientId, jobId);
+  if (!job) { const e = new Error('Edit not found.'); e.status = 404; throw e; }
+  const srcClips = (Array.isArray(job.clips) && job.clips.length) ? job.clips : [{ url: job.source_url, name: job.source_name }];
+  const copied = [];
+  for (const c of srcClips) {
+    const disk = c.url && diskPathForUrl(c.url);
+    if (!disk || !fs.existsSync(disk)) { const e = new Error('The original clip is no longer available — re-upload it.'); e.status = 409; throw e; }
+    copied.push({ url: adoptFile(clientId, disk, path.extname(disk) || '.mp4'), name: c.name || null });
+  }
+  return create(clientId, {
+    sourceName: job.source_name, sourceUrl: copied[0].url, sourceMeta: job.source_meta || {},
+    ops, clips: copied, name: name || job.name, createdBy,
+  });
+}
+
+async function rename(clientId, id, name) {
+  const { rows } = await pool.query(
+    `UPDATE edit_jobs SET name = $3 WHERE client_id = $1 AND id = $2 RETURNING *`,
+    [clientId, id, name ? String(name).trim().slice(0, 200) : null]
+  );
+  if (!rows[0]) { const e = new Error('Edit not found.'); e.status = 404; throw e; }
   return rows[0];
 }
 
@@ -85,8 +114,9 @@ async function getById(id) {
 }
 
 async function remove(clientId, id) {
-  const { rows } = await pool.query('DELETE FROM edit_jobs WHERE client_id = $1 AND id = $2 RETURNING source_url, output_url, srt_url', [clientId, id]);
-  for (const url of [rows[0]?.source_url, rows[0]?.output_url, rows[0]?.srt_url]) {
+  const { rows } = await pool.query('DELETE FROM edit_jobs WHERE client_id = $1 AND id = $2 RETURNING source_url, output_url, srt_url, clips', [clientId, id]);
+  const urls = [rows[0]?.source_url, rows[0]?.output_url, rows[0]?.srt_url, ...((rows[0]?.clips || []).map(c => c?.url))];
+  for (const url of urls) {
     const p = url && diskPathForUrl(url);
     if (p) fs.promises.unlink(p).catch(() => {});
   }
@@ -127,7 +157,7 @@ async function fail(id, error) {
 }
 
 module.exports = {
-  create, list, get, getById, remove, retry,
+  create, list, get, getById, remove, retry, reopen, rename,
   claimNext, complete, fail,
   saveBuffer, adoptFile, servedUrl, serveFilePath, diskPathForUrl, clientDir,
   UPLOAD_ROOT,

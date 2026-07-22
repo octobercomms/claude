@@ -26,22 +26,27 @@ router.use((req, res, next) => {
 });
 router.use(loadVisibleClientIds);
 
-// Create an edit job from an uploaded clip + chosen operations.
-router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clientId'] }), uploadMem.single('file'), async (req, res) => {
+// Create an edit job from one or several uploaded clips + chosen operations.
+// Several clips → combined into one video (in upload order) before editing.
+router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clientId'] }),
+  uploadMem.fields([{ name: 'files', maxCount: 20 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'Upload a video file.' });
+    const files = [...(req.files?.files || []), ...(req.files?.file || [])];
+    if (!files.length) return res.status(400).json({ error: 'Upload a video file.' });
     let ops = req.body?.ops;
     if (typeof ops === 'string') { try { ops = JSON.parse(ops); } catch { ops = {}; } }
     ops = ops || {};
-    const wantsSomething = (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)) || ops.clean_audio || ops.captions;
+    const combining = files.length > 1;
+    const wantsSomething = combining || (ops.trim && (ops.trim.start > 0 || ops.trim.end > 0)) || ops.clean_audio || ops.captions;
     if (!wantsSomething) return res.status(400).json({ error: 'Pick at least one edit (trim, clean audio, or captions).' });
 
-    const sourceUrl = editJobs.saveBuffer(req.params.clientId, req.file.buffer, req.file.originalname, '.mp4');
+    const clips = files.map(f => ({ url: editJobs.saveBuffer(req.params.clientId, f.buffer, f.originalname, '.mp4'), name: f.originalname }));
     const sourceMeta = {};
     if (req.body?.duration) sourceMeta.duration = Number(req.body.duration) || null;
 
     const job = await editJobs.create(req.params.clientId, {
-      sourceName: req.file.originalname, sourceUrl, sourceMeta, ops, createdBy: req.user.id,
+      sourceName: files[0].originalname, sourceUrl: clips[0].url, sourceMeta, ops, clips,
+      name: req.body?.name || null, createdBy: req.user.id,
     });
     editProcessor.kick();
     res.status(201).json(job);
@@ -49,6 +54,23 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
     console.error('[edit] create failed:', err.message);
     res.status(err.status || 500).json({ error: err.message });
   }
+});
+
+// Re-open a saved edit with (possibly changed) ops — reuses the stored source,
+// no re-upload.
+router.post('/clients/:clientId/edit/:id/reopen', requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+  try {
+    let ops = req.body?.ops || {};
+    const job = await editJobs.reopen(req.params.clientId, req.params.id, { ops, name: req.body?.name || null, createdBy: req.user.id });
+    editProcessor.kick();
+    res.status(201).json(job);
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Rename a saved edit.
+router.patch('/clients/:clientId/edit/:id', requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
+  try { res.json(await editJobs.rename(req.params.clientId, req.params.id, req.body?.name)); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.get('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
