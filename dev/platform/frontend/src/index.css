@@ -1578,3 +1578,27 @@ a:hover > .card-stat,
   .suite-cap:hover,
   .btn-primary:hover:not(:disabled) { transform: none; }
 }
+
+/* Edit studio — dual-handle trim slider. Two overlaid range inputs; the tracks
+   are transparent (a div behind draws the rail + selected band) and only the
+   thumbs catch pointer events so both handles are draggable. */
+.trim-slider { position: relative; height: 32px; }
+.trim-slider input[type="range"] {
+  position: absolute; top: 0; left: 0; width: 100%; height: 32px; margin: 0;
+  -webkit-appearance: none; appearance: none; background: transparent;
+  pointer-events: none;
+}
+.trim-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; pointer-events: auto;
+  width: 16px; height: 16px; margin-top: 8px; border-radius: 50%;
+  background: var(--text); border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.4); cursor: pointer;
+}
+.trim-slider input[type="range"]::-moz-range-thumb {
+  pointer-events: auto; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--text); border: 2px solid #fff; cursor: pointer;
+}
+
+/* Edit studio — split editor layout: big preview left, settings right. */
+.edit-split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .edit-split { grid-template-columns: 1fr; } }

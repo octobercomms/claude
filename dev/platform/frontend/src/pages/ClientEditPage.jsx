@@ -34,6 +34,18 @@ export default function ClientEditPage() {
   const [busy, setBusy] = useState(false);
   const [jobs, setJobs] = useState([]);
   const pollRef = useRef(null);
+  const videoRef = useRef(null);
+  const [previewH, setPreviewH] = useState(0);
+
+  // Keep the caption-preview overlay scaled to the rendered video height.
+  useEffect(() => {
+    function measure() { if (videoRef.current) setPreviewH(videoRef.current.clientHeight); }
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+  function seek(t) { if (videoRef.current && isFinite(t)) videoRef.current.currentTime = Math.max(0, t); }
+
+  const ASS_SIZE = { small: 18, medium: 24, large: 30 };   // must match editProcessor
 
   useEffect(() => {
     api.get(`/clients/${clientId}`).then(setClient).catch(() => {});
@@ -142,78 +154,113 @@ export default function ClientEditPage() {
         nothing uploaded to a third party. Drop a video in to start.
       </p>
 
-      {/* Upload */}
-      <div
-        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files?.[0]); }}
-        onClick={() => !preview && fileRef.current?.click()}
-        style={{ border: `2px dashed ${dragOver ? 'var(--text)' : 'var(--card-border)'}`, borderRadius: 'var(--r-md)', padding: preview ? 16 : 40, textAlign: 'center', cursor: preview ? 'default' : 'pointer', background: 'var(--surface)' }}
-      >
-        <input ref={fileRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={e => { pickFile(e.target.files?.[0]); e.target.value = ''; }} />
-        {preview ? (
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', textAlign: 'left', flexWrap: 'wrap' }}>
-            <video src={preview} controls style={{ maxHeight: 200, maxWidth: 280, borderRadius: 'var(--r-sm)', background: '#000' }} />
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{file?.name}</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{duration ? `${fmt(duration)} long` : 'reading…'}</div>
-              <button className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => fileRef.current?.click()}>Choose a different clip</button>
+      <input ref={fileRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={e => { pickFile(e.target.files?.[0]); e.target.value = ''; }} />
+
+      {/* Empty state — big dropzone */}
+      {!preview && (
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files?.[0]); }}
+          onClick={() => fileRef.current?.click()}
+          style={{ border: `2px dashed ${dragOver ? 'var(--text)' : 'var(--card-border)'}`, borderRadius: 'var(--r-md)', padding: 64, textAlign: 'center', cursor: 'pointer', background: 'var(--surface)' }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 16 }}>Drop a video here, or click to choose</div>
+          <div style={{ fontSize: 13, color: 'var(--text-subtle)', marginTop: 6 }}>MP4 or MOV · up to 500MB</div>
+        </div>
+      )}
+
+      {/* Editor — video + trim left, settings right */}
+      {preview && (
+        <div className="edit-split"
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files?.[0]); }}>
+
+          {/* LEFT — big preview + trim */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'center', background: '#000', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', lineHeight: 0, maxWidth: '100%' }}>
+                <video ref={videoRef} src={preview} controls
+                  onLoadedMetadata={e => setPreviewH(e.target.clientHeight)}
+                  style={{ maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
+                {captions && previewH > 0 && (() => {
+                  // Mirror the burned caption scale: ASS FontSize is relative to a
+                  // 288-tall canvas, so on-screen height ≈ size/288 × video height.
+                  const fontPx = Math.max(9, previewH * (ASS_SIZE[capSize] || 24) / 288);
+                  const marginPx = previewH * 48 / 288;
+                  return (
+                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: marginPx, textAlign: 'center', pointerEvents: 'none', padding: '0 5%' }}>
+                      <span style={{ fontFamily: 'Arial, sans-serif', fontWeight: 800, fontSize: fontPx, lineHeight: 1.15, color: '#fff', WebkitTextStrokeColor: '#000', WebkitTextStrokeWidth: Math.max(1, fontPx * 0.07), paintOrder: 'stroke', textShadow: '0 1px 2px rgba(0,0,0,.6)' }}>
+                        the quick brown fox
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Trim — under the video */}
+            <div className="card" style={{ marginTop: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+                <input type="checkbox" checked={doTrim} onChange={e => setDoTrim(e.target.checked)} /> Trim
+              </label>
+              {doTrim && duration > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div className="trim-slider">
+                    <div style={{ position: 'absolute', top: 14, left: 0, right: 0, height: 4, borderRadius: 2, background: 'var(--card-border)' }} />
+                    <div style={{ position: 'absolute', top: 14, height: 4, borderRadius: 2, background: 'var(--text)', left: `${(trimStart / duration) * 100}%`, right: `${100 - (trimEnd / duration) * 100}%` }} />
+                    <input type="range" min="0" max={duration} step="0.05" value={trimStart}
+                      onChange={e => { const v = Math.min(Number(e.target.value), trimEnd - 0.1); setTrimStart(Math.max(0, v)); seek(v); }} />
+                    <input type="range" min="0" max={duration} step="0.05" value={trimEnd}
+                      onChange={e => { const v = Math.max(Number(e.target.value), trimStart + 0.1); setTrimEnd(Math.min(duration, v)); seek(v); }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    <span>Start {fmt(trimStart)}</span>
+                    <span style={{ color: 'var(--text-subtle)' }}>keeps {fmt(Math.max(0, (trimEnd || 0) - (trimStart || 0)))}</span>
+                    <span>End {fmt(trimEnd)}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>Drag a handle to set the in/out point — the preview scrubs as you drag.</div>
+                </div>
+              )}
             </div>
           </div>
-        ) : (
-          <>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Drop a video here, or click to choose</div>
-            <div style={{ fontSize: 13, color: 'var(--text-subtle)', marginTop: 6 }}>MP4 or MOV · up to 500MB</div>
-          </>
-        )}
-      </div>
 
-      {/* Controls */}
-      {preview && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="caption">Edits</div>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
-            <input type="checkbox" checked={doTrim} onChange={e => setDoTrim(e.target.checked)} /> Trim
-          </label>
-          {doTrim && (
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', paddingLeft: 24 }}>
-              <label style={{ fontSize: 13, color: 'var(--text-muted)' }}>Start (s)
-                <input type="number" min="0" max={duration || 0} step="0.1" value={trimStart}
-                  onChange={e => setTrimStart(Math.min(Number(e.target.value) || 0, trimEnd))}
-                  style={{ width: 90, marginLeft: 8 }} className="input" /></label>
-              <label style={{ fontSize: 13, color: 'var(--text-muted)' }}>End (s)
-                <input type="number" min="0" max={duration || 0} step="0.1" value={trimEnd}
-                  onChange={e => setTrimEnd(Math.min(Number(e.target.value) || 0, duration || 0))}
-                  style={{ width: 90, marginLeft: 8 }} className="input" /></label>
-              <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>keeps {fmt(Math.max(0, (trimEnd || 0) - (trimStart || 0)))}</span>
+          {/* RIGHT — settings */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'sticky', top: 16 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, wordBreak: 'break-all' }}>{file?.name}</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{duration ? `${fmt(duration)} long` : 'reading…'}</div>
+              <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => fileRef.current?.click()}>Choose a different clip</button>
             </div>
-          )}
+            <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: 0 }} />
+            <div className="caption">Edits</div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
-            <input type="checkbox" checked={cleanAudio} onChange={e => setCleanAudio(e.target.checked)} /> Clean audio
-            <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>— denoise + level out volume</span>
-          </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+              <input type="checkbox" checked={cleanAudio} onChange={e => setCleanAudio(e.target.checked)} /> Clean audio
+            </label>
+            <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: -8, paddingLeft: 24 }}>denoise + level out volume</div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
-            <input type="checkbox" checked={captions} onChange={e => setCaptions(e.target.checked)} /> Auto-captions
-            <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>— burned onto the video + a .srt file</span>
-          </label>
-          {captions && (
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', paddingLeft: 24 }}>
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Caption size</span>
-              {['small', 'medium', 'large'].map(s => (
-                <button key={s} onClick={() => setCapSize(s)}
-                  className={'btn btn-sm ' + (capSize === s ? 'btn-primary' : 'btn-secondary')} style={{ textTransform: 'capitalize' }}>{s}</button>
-              ))}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+              <input type="checkbox" checked={captions} onChange={e => setCaptions(e.target.checked)} /> Auto-captions
+            </label>
+            <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: -8, paddingLeft: 24 }}>burned onto the video + a .srt file</div>
+            {captions && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingLeft: 24, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Size</span>
+                {['small', 'medium', 'large'].map(s => (
+                  <button key={s} onClick={() => setCapSize(s)}
+                    className={'btn btn-sm ' + (capSize === s ? 'btn-primary' : 'btn-secondary')} style={{ textTransform: 'capitalize' }}>{s}</button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: 4 }}>
+              <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || nothingChosen} onClick={submit}>
+                {busy ? 'Starting…' : 'Render edit'}
+              </button>
+              {capCost > 0 && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center' }}>Est. ~${capCost.toFixed(2)} (captions)</div>}
             </div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 4 }}>
-            <button className="btn btn-primary" disabled={busy || nothingChosen} onClick={submit}>
-              {busy ? 'Starting…' : 'Render edit'}
-            </button>
-            {capCost > 0 && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Est. ~${capCost.toFixed(2)} (captions)</span>}
           </div>
         </div>
       )}
