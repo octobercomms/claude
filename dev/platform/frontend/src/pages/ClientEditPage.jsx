@@ -131,7 +131,7 @@ export default function ClientEditPage() {
     });
     setClips(prev => {
       const merged = [...prev, ...next].slice(0, 20);
-      if (prev.length === 0 && merged.length === 1) { setTrimStart(0); setTrimEnd(0); }
+      if (prev.length === 0 && merged.length === 1) setSegments([]);   // re-seeded when duration loads
       return merged;
     });
   }
