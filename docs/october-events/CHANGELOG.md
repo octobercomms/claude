@@ -5,6 +5,29 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.77.0 — event dates on orders, order details, and weekly sales analytics
+
+Tools for tracking ticket sales week-by-week as an event approaches.
+
+- **Event date column** on the Registrations/Orders table, so every order shows
+  which event date it's for (not just the event name).
+- **Order details**: each order row now has a **Details** toggle that expands to
+  show the buyer, when it was placed, the payment method + reference, any
+  discount, and every ticket in the order (number, attendee, status) — one extra
+  query for the whole page, no per-row overhead.
+- **New "Sales analytics" tab** (Tickets → Sales analytics): pick an event, set
+  its date, and see sales counted **backwards from that date** — week 0 is the
+  event week, −1 the week before, and so on. Shows a cumulative-sold curve
+  approaching the event, a tickets-per-week bar chart, KPI cards (total sold,
+  revenue, best week, days to event), and a full weekly breakdown table with
+  running cumulative tickets + revenue. Event-only (driven by each event's date);
+  charts are self-contained inline SVG/CSS (no external libraries).
+- You can **set/override an event's date right on the analytics screen** (writes
+  the plugin's `start_datetime`), so the "weeks before" maths always has an anchor
+  even for events whose date lives elsewhere.
+- New helpers: `Orders::tickets_for_orders()` (batch) and
+  `Orders::event_weekly_sales()`.
+
 ## 1.76.0 — membership upsell card (benefits + read-more button)
 
 The voluntary "add a Friend membership" opt-in on a normal checkout is no longer a

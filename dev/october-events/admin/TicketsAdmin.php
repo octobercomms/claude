@@ -37,6 +37,7 @@ final class TicketsAdmin {
         add_action('admin_post_oe_delete_order', [$this, 'handle_delete_order']);
         add_action('admin_post_oe_refund_tickets', [$this, 'handle_refund_tickets']);
         add_action('admin_post_oe_resend_confirmation', [$this, 'handle_resend_confirmation']);
+        add_action('admin_post_oe_set_event_date', [$this, 'handle_set_event_date']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
         add_action('admin_post_oe_delete_promo', [$this, 'handle_delete_promo']);
         add_action('admin_post_oe_waitlist_promote', [$this, 'handle_waitlist_promote']);
@@ -409,6 +410,9 @@ final class TicketsAdmin {
         // Active tickets per transaction (one query) for the refund panel — keyed
         // by payment id so a mixed cart's sibling orders all appear together.
         $txn_tickets = Orders::active_tickets_for_payments(array_map(static fn($o) => (string) $o->payment_id, (array) ($orders ?: [])));
+        // Every ticket row for the shown orders (one query) for the expandable
+        // order-detail rows.
+        $order_tickets = Orders::tickets_for_orders(array_map(static fn($o) => (int) $o->id, (array) ($orders ?: [])));
 
         // All published events, for the manual-add form + filter (the form marks
         // which have ticket types — only those can have tickets issued).
@@ -512,6 +516,60 @@ final class TicketsAdmin {
         self::prime_event_titles($events);
         $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
         require OE_DIR . 'admin/views/sales.php';
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Sales analytics — weekly sales leading up to an event's date
+     * ------------------------------------------------------------------ */
+
+    public function render_analytics(): void {
+        // Events that have ever sold a ticket, plus all published events, so the
+        // picker covers both. Default to ?event=, else the event with the nearest
+        // upcoming date, else the first with any date.
+        $events = get_posts([
+            'post_type'      => PostTypes::slug('event'),
+            'post_status'    => ['publish', 'draft', 'private'],
+            'posts_per_page' => 300,
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+        ]);
+        $event_id = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        if (! $event_id) {
+            $now = time();
+            $best = 0; $best_delta = PHP_INT_MAX;
+            foreach ($events as $ev) {
+                $ts = \OE\Ticketing\Ics::start_ts((int) $ev->ID);
+                if (! $ts) { continue; }
+                $delta = abs($ts - $now);
+                // Prefer the nearest upcoming; fall back to nearest overall.
+                if ($ts >= $now && $delta < $best_delta) { $best = (int) $ev->ID; $best_delta = $delta; }
+            }
+            if (! $best) {
+                foreach ($events as $ev) { if (\OE\Ticketing\Ics::start_ts((int) $ev->ID)) { $best = (int) $ev->ID; break; } }
+            }
+            $event_id = $best ?: ((int) ($events[0]->ID ?? 0));
+        }
+
+        $event_ts = $event_id ? \OE\Ticketing\Ics::start_ts($event_id) : 0;
+        $series   = ($event_id && $event_ts) ? Orders::event_weekly_sales($event_id, $event_ts) : [];
+        $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
+        require OE_DIR . 'admin/views/analytics.php';
+    }
+
+    /** Set/override an event's start date from the analytics screen. */
+    public function handle_set_event_date(): void {
+        $this->guard('oe_set_event_date');
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $date     = sanitize_text_field((string) ($_POST['event_date'] ?? ''));
+        if ($event_id && get_post_type($event_id) === PostTypes::slug('event')) {
+            if ($date === '') {
+                delete_post_meta($event_id, \OE\Planning\Events::key('start_datetime'));
+            } else {
+                update_post_meta($event_id, \OE\Planning\Events::key('start_datetime'), $date);
+            }
+        }
+        wp_safe_redirect(admin_url('admin.php?page=oe-tickets&tab=analytics&event=' . $event_id));
+        exit;
     }
 
     /* ------------------------------------------------------------------ *

@@ -213,6 +213,8 @@ final class Admin {
             TicketsAdmin::get_instance()->render_waitlist();
         } elseif ($tab === 'sales') {
             TicketsAdmin::get_instance()->render_sales();
+        } elseif ($tab === 'analytics') {
+            TicketsAdmin::get_instance()->render_analytics();
         } elseif ($tab === 'failed') {
             TicketsAdmin::get_instance()->render_failed_payments();
         } elseif ($tab === 'transactions') {
@@ -228,6 +230,7 @@ final class Admin {
             'orders'   => [__('Registrations', 'october-events'), admin_url('admin.php?page=oe-tickets')],
             'transactions' => [__('Transactions', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=transactions')],
             'sales'    => [__('Sales', 'october-events'),         admin_url('admin.php?page=oe-tickets&tab=sales')],
+            'analytics' => [__('Sales analytics', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=analytics')],
             'promos'   => [__('Promo codes', 'october-events'),   admin_url('admin.php?page=oe-tickets&tab=promos')],
             'waitlist' => [__('Waitlist', 'october-events'),      admin_url('admin.php?page=oe-tickets&tab=waitlist')],
             'checkin'  => [__('Check-in log', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=checkin')],
