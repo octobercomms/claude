@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.78.0 — year-over-year overlay on the sales-analytics chart
+
+The Sales analytics cumulative chart can now plot **prior years alongside the live
+current year**, aligned by weeks-before-event — so you can see at a glance whether
+this year is pacing ahead of or behind previous years (like the "Revenue YoY by
+weeks" view teams keep in spreadsheets).
+
+- **Import prior-year weekly history** (Sales analytics → *Prior-year data*): paste
+  CSV rows `year, weeks_before, quantity, revenue` (a header row is fine). Stored
+  per event; re-importing replaces it, an empty box clears it.
+- The cumulative-sold chart draws one line per imported year plus the live year
+  (highlighted), with a legend. Still self-contained inline SVG — no libraries.
+- Works even before this year has sales, so you can pre-load history and watch the
+  live line build against it.
+
 ## 1.77.0 — event dates on orders, order details, and weekly sales analytics
 
 Tools for tracking ticket sales week-by-week as an event approaches.

@@ -38,6 +38,7 @@ final class TicketsAdmin {
         add_action('admin_post_oe_refund_tickets', [$this, 'handle_refund_tickets']);
         add_action('admin_post_oe_resend_confirmation', [$this, 'handle_resend_confirmation']);
         add_action('admin_post_oe_set_event_date', [$this, 'handle_set_event_date']);
+        add_action('admin_post_oe_import_history', [$this, 'handle_import_history']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
         add_action('admin_post_oe_delete_promo', [$this, 'handle_delete_promo']);
         add_action('admin_post_oe_waitlist_promote', [$this, 'handle_waitlist_promote']);
@@ -550,10 +551,61 @@ final class TicketsAdmin {
             $event_id = $best ?: ((int) ($events[0]->ID ?? 0));
         }
 
-        $event_ts = $event_id ? \OE\Ticketing\Ics::start_ts($event_id) : 0;
-        $series   = ($event_id && $event_ts) ? Orders::event_weekly_sales($event_id, $event_ts) : [];
+        $event_ts   = $event_id ? \OE\Ticketing\Ics::start_ts($event_id) : 0;
+        $event_year = $event_ts ? (int) wp_date('Y', $event_ts) : 0;
+        $series     = ($event_id && $event_ts) ? Orders::event_weekly_sales($event_id, $event_ts) : [];
+        // Prior-year weekly history for the YoY overlay (imported per event).
+        $raw     = $event_id ? get_post_meta($event_id, '_oe_hist_series', true) : '';
+        $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
+        $history = is_array($decoded) ? $decoded : [];
+        krsort($history); // newest year first for the legend
         $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
         require OE_DIR . 'admin/views/analytics.php';
+    }
+
+    /** Import prior-year weekly sales (CSV: year,weeks_before,quantity,revenue) for the YoY overlay. */
+    public function handle_import_history(): void {
+        $this->guard('oe_import_history');
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $raw      = (string) wp_unslash($_POST['history_csv'] ?? '');
+        if ($event_id && get_post_type($event_id) === PostTypes::slug('event')) {
+            $data = self::parse_history_csv($raw);
+            if ($data) {
+                update_post_meta($event_id, '_oe_hist_series', wp_json_encode($data));
+            } else {
+                delete_post_meta($event_id, '_oe_hist_series');
+            }
+        }
+        wp_safe_redirect(admin_url('admin.php?page=oe-tickets&tab=analytics&event=' . $event_id));
+        exit;
+    }
+
+    /**
+     * Parse pasted history CSV into [year => [weeks_before => ['q'=>int,'r'=>float]]].
+     * Accepts an optional header row; ignores blanks and anything unparseable.
+     */
+    private static function parse_history_csv(string $raw): array {
+        $out = [];
+        foreach (preg_split('/\r\n|\r|\n/', $raw) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $c = str_getcsv($line);
+            if (! isset($c[1]) || ! is_numeric(trim((string) $c[0])) || ! is_numeric(trim((string) $c[1]))) {
+                continue; // header or junk row
+            }
+            $year = (int) $c[0];
+            $wb   = (int) $c[1];
+            if ($year < 1990 || $year > 2100 || $wb < 0 || $wb > 104) {
+                continue;
+            }
+            $out[(string) $year][(string) $wb] = [
+                'q' => max(0, (int) round((float) ($c[2] ?? 0))),
+                'r' => round((float) ($c[3] ?? 0), 2),
+            ];
+        }
+        return $out;
     }
 
     /** Set/override an event's start date from the analytics screen. */
