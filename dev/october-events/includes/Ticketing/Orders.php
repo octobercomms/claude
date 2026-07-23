@@ -726,6 +726,100 @@ final class Orders {
     }
 
     /**
+     * All ticket rows (every status) for a set of orders, keyed by order id — one
+     * query, for the registrations order-detail view. Batches the per-order
+     * Orders::tickets() call so the list screen stays a fixed number of queries.
+     *
+     * @param int[] $order_ids
+     * @return array<int,array<int,object>>
+     */
+    public static function tickets_for_orders(array $order_ids): array {
+        global $wpdb;
+        $ids = array_values(array_unique(array_filter(array_map('intval', $order_ids))));
+        if (! $ids) {
+            return [];
+        }
+        $in   = implode(',', array_fill(0, count($ids), '%d'));
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM " . Schema::tickets() . " WHERE order_id IN ($in) ORDER BY order_id ASC, ticket_number ASC",
+            ...$ids
+        )) ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r->order_id][] = $r;
+        }
+        return $out;
+    }
+
+    /**
+     * Weekly ticket sales for one event, bucketed by how many whole weeks BEFORE
+     * the event each sale happened — for the "sales leading up to the event"
+     * analytics. Week 0 is the event week (and anything sold on/after the event);
+     * week 1 is 7–14 days before, etc. Returned oldest-first (highest week → 0)
+     * with a running cumulative, so it reads left-to-right toward the event date.
+     *
+     * created_at is stored in UTC; $event_ts is a UTC timestamp (Ics::start_ts).
+     *
+     * @return array<int,array{week_before:int,tickets:int,revenue:float,cum_tickets:int,cum_revenue:float}>
+     */
+    public static function event_weekly_sales(int $event_id, int $event_ts): array {
+        global $wpdb;
+        if ($event_id <= 0 || $event_ts <= 0) {
+            return [];
+        }
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $week = 7 * DAY_IN_SECONDS;
+
+        // One row per active ticket in a paid order (the "tickets sold" count).
+        $trows = $wpdb->get_results($wpdb->prepare(
+            "SELECT ti.created_at c FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
+             WHERE o.event_id = %d AND o.status = 'paid' AND ti.status = 'active'",
+            $event_id
+        )) ?: [];
+        // Paid order rows carry the money (an order can hold several tickets).
+        $rrows = $wpdb->get_results($wpdb->prepare(
+            "SELECT created_at c, total FROM {$o} WHERE event_id = %d AND status = 'paid'",
+            $event_id
+        )) ?: [];
+
+        $sold = [];
+        $rev  = [];
+        $bucket = static function ($created) use ($event_ts, $week): int {
+            $ts = strtotime((string) $created . ' UTC'); // stored UTC → epoch
+            if (! $ts) {
+                return 0;
+            }
+            $wb = (int) floor(($event_ts - $ts) / $week);
+            return $wb > 0 ? min($wb, 104) : 0; // clamp early outliers to 2 years
+        };
+        foreach ($trows as $r) { $b = $bucket($r->c); $sold[$b] = ($sold[$b] ?? 0) + 1; }
+        foreach ($rrows as $r) { $b = $bucket($r->c); $rev[$b] = ($rev[$b] ?? 0.0) + (float) $r->total; }
+
+        if (! $sold && ! $rev) {
+            return [];
+        }
+        $maxw = max(array_merge([0], array_keys($sold), array_keys($rev)));
+        $series = [];
+        $cumT = 0;
+        $cumR = 0.0;
+        for ($w = $maxw; $w >= 0; $w--) {
+            $tk = (int) ($sold[$w] ?? 0);
+            $rv = (float) ($rev[$w] ?? 0.0);
+            $cumT += $tk;
+            $cumR += $rv;
+            $series[] = [
+                'week_before'  => $w,
+                'tickets'      => $tk,
+                'revenue'      => $rv,
+                'cum_tickets'  => $cumT,
+                'cum_revenue'  => $cumR,
+            ];
+        }
+        return $series;
+    }
+
+    /**
      * Public DTOs of the tickets for a given payment intent (used to return
      * tickets after an idempotent re-confirm).
      *

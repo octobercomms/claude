@@ -105,21 +105,27 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
     <h2 style="margin-top:24px"><?php esc_html_e('Orders', 'october-events'); ?></h2>
     <table class="widefat striped">
         <thead><tr>
-            <th>#</th><th><?php esc_html_e('Event', 'october-events'); ?></th><th><?php esc_html_e('Purchaser', 'october-events'); ?></th>
+            <th>#</th><th><?php esc_html_e('Event', 'october-events'); ?></th><th><?php esc_html_e('Event date', 'october-events'); ?></th><th><?php esc_html_e('Purchaser', 'october-events'); ?></th>
             <th><?php esc_html_e('Type', 'october-events'); ?></th><th><?php esc_html_e('Qty', 'october-events'); ?></th>
             <th><?php esc_html_e('Total', 'october-events'); ?></th><th><?php esc_html_e('Status', 'october-events'); ?></th>
             <th><?php esc_html_e('Source', 'october-events'); ?></th><th><?php esc_html_e('Actions', 'october-events'); ?></th>
         </tr></thead>
         <tbody>
-        <?php if (! $orders) : ?><tr><td colspan="9"><?php esc_html_e('No registrations yet.', 'october-events'); ?></td></tr><?php endif; ?>
+        <?php if (! $orders) : ?><tr><td colspan="10"><?php esc_html_e('No registrations yet.', 'october-events'); ?></td></tr><?php endif; ?>
         <?php foreach (($orders ?: []) as $o) :
             $cancel = wp_nonce_url(admin_url('admin-post.php?action=oe_cancel_order&id=' . $o->id), 'oe_cancel_order');
             $refund = wp_nonce_url(admin_url('admin-post.php?action=oe_cancel_order&refund=1&id=' . $o->id), 'oe_cancel_order');
             $resend = wp_nonce_url(admin_url('admin-post.php?action=oe_resend_confirmation&id=' . $o->id), 'oe_resend_confirmation');
             $delete = wp_nonce_url(admin_url('admin-post.php?action=oe_delete_order&id=' . $o->id), 'oe_delete_order'); ?>
+            <?php
+            $ev_date = \OE\Ticketing\Ics::date_label((int) $o->event_id);
+            $ev_when = \OE\Ticketing\Ics::when_label((int) $o->event_id);
+            $o_tickets = $order_tickets[(int) $o->id] ?? [];
+            ?>
             <tr>
                 <td><?php echo (int) $o->id; ?></td>
                 <td><?php echo esc_html(get_the_title((int) $o->event_id)); ?></td>
+                <td><?php echo $ev_date ? esc_html($ev_date) : '<span class="description">—</span>'; ?></td>
                 <td><?php echo esc_html($o->name); ?><br><span class="description"><?php echo esc_html($o->email); ?></span></td>
                 <td><?php echo esc_html($o->ticket_type_label); ?></td>
                 <td><?php echo (int) $o->qty; ?></td>
@@ -127,6 +133,7 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                 <td><span class="oe-status oe-status-<?php echo esc_attr($o->status); ?>"><?php echo esc_html($o->status); ?></span></td>
                 <td><?php echo esc_html($o->source); ?></td>
                 <td>
+                    <button type="button" class="button button-small oe-od-toggle" aria-expanded="false" data-target="oe-od-<?php echo (int) $o->id; ?>"><?php esc_html_e('Details', 'october-events'); ?></button>
                     <?php if ($o->status === 'paid' && $o->email) : ?>
                         <a class="button button-small" href="<?php echo esc_url($resend); ?>" title="<?php esc_attr_e('Email the buyer their tickets again', 'october-events'); ?>"><?php esc_html_e('Resend', 'october-events'); ?></a>
                     <?php endif; ?>
@@ -147,7 +154,61 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                     <a class="button button-small button-link-delete" href="<?php echo esc_url($delete); ?>" title="<?php esc_attr_e('Permanently delete (for test data)', 'october-events'); ?>" onclick="return confirm('<?php echo esc_js(__('Permanently delete this order, its tickets and any check-in scans? This cannot be undone, and no refund is issued.', 'october-events')); ?>')"><?php esc_html_e('Delete', 'october-events'); ?></a>
                 </td>
             </tr>
+            <tr class="oe-od-row" id="oe-od-<?php echo (int) $o->id; ?>" style="display:none">
+                <td colspan="10" style="background:#faf9f5">
+                    <div style="display:flex;flex-wrap:wrap;gap:24px;padding:6px 4px 10px">
+                        <div style="min-width:220px">
+                            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Order', 'october-events'); ?></div>
+                            <div><strong><?php echo esc_html(get_the_title((int) $o->event_id) ?: ('#' . (int) $o->event_id)); ?></strong></div>
+                            <?php if ($ev_when) : ?><div><?php echo esc_html($ev_when); ?></div><?php endif; ?>
+                            <div><?php echo esc_html($o->name); ?> &lt;<?php echo esc_html($o->email); ?>&gt;</div>
+                            <?php
+                            $placed = $o->created_at ? (strtotime((string) $o->created_at . ' UTC') ?: 0) : 0;
+                            if ($placed) : ?>
+                                <div class="description"><?php echo esc_html(sprintf(__('Placed %s', 'october-events'), wp_date('M j, Y g:i A', $placed))); ?></div>
+                            <?php endif; ?>
+                        </div>
+                        <div style="min-width:200px">
+                            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Payment', 'october-events'); ?></div>
+                            <div><?php echo esc_html(ucfirst((string) $o->payment_method) . ' · ' . $o->total . ' ' . $o->currency); ?></div>
+                            <?php if ((float) $o->discount_amount > 0) : ?>
+                                <div class="description"><?php echo esc_html(sprintf(__('%1$s %2$s off (%3$s)', 'october-events'), $o->currency, number_format((float) $o->discount_amount, 2), $o->promo_code ?: __('discount', 'october-events'))); ?></div>
+                            <?php endif; ?>
+                            <?php if ($o->payment_id) : ?><div class="description" style="word-break:break-all"><?php echo esc_html((string) $o->payment_id); ?></div><?php endif; ?>
+                        </div>
+                        <div style="flex:1;min-width:260px">
+                            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php echo esc_html(sprintf(__('Tickets (%d)', 'october-events'), count($o_tickets))); ?></div>
+                            <?php if ($o_tickets) : ?>
+                                <table style="width:100%;border-collapse:collapse;margin-top:4px">
+                                    <?php foreach ($o_tickets as $tk) : ?>
+                                        <tr style="border-bottom:1px solid #eee">
+                                            <td style="padding:3px 8px 3px 0;white-space:nowrap"><code>#<?php echo esc_html((string) $tk->ticket_number); ?></code></td>
+                                            <td style="padding:3px 8px"><?php echo esc_html($tk->attendee_name ?: '—'); ?></td>
+                                            <td style="padding:3px 0"><span class="oe-status oe-status-<?php echo esc_attr($tk->status); ?>"><?php echo esc_html($tk->status); ?></span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </table>
+                            <?php else : ?>
+                                <div class="description"><?php esc_html_e('No ticket rows.', 'october-events'); ?></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </td>
+            </tr>
         <?php endforeach; ?>
         </tbody>
     </table>
+    <script>
+    (function(){
+        document.querySelectorAll('.oe-od-toggle').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                var row = document.getElementById(btn.getAttribute('data-target'));
+                if (!row) { return; }
+                var open = row.style.display !== 'none';
+                row.style.display = open ? 'none' : 'table-row';
+                btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+            });
+        });
+    })();
+    </script>
 </div>
