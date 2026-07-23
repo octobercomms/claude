@@ -18,6 +18,7 @@
 defined('ABSPATH') || exit;
 
 $money  = static fn($n) => esc_html($currency . ' ' . number_format((float) $n, 2));
+$cur_sym = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$currency] ?? ($currency . ' ');
 $title  = $event_id ? (get_the_title($event_id) ?: ('#' . $event_id)) : '';
 $dinput = $event_ts ? wp_date('Y-m-d', $event_ts) : '';
 $week   = 7 * DAY_IN_SECONDS;
@@ -37,23 +38,75 @@ foreach ($history as $yr => $weeks) {
     foreach ($weeks as $wb => $v) { $hist_csv .= $yr . ',' . $wb . ',' . (int) $v['q'] . ',' . (float) $v['r'] . "\n"; }
 }
 
-// ---- Build the overlay series (cumulative tickets by weeks-before) -----------
+// ---- Build overlay series (cumulative by weeks-before) for a given metric ----
 $palette = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#0891b2', '#be185d', '#4d7c0f', '#9333ea', '#0d9488'];
-$chart_series = [];
-$gmw = 0; $gmy = 1;
-if ($series) {
-    $pts = [];
-    foreach ($series as $s) { $pts[(int) $s['week_before']] = (int) $s['cum_tickets']; $gmw = max($gmw, (int) $s['week_before']); $gmy = max($gmy, (int) $s['cum_tickets']); }
-    $chart_series[] = ['label' => ($event_year ?: __('This year', 'october-events')) . ' · ' . __('live', 'october-events'), 'color' => '#d14900', 'points' => $pts, 'w' => 3.2, 'live' => true];
-}
-$ci = 0;
-foreach ($history as $yr => $weeks) {
-    $maxw = 0; foreach ($weeks as $wb => $v) { $maxw = max($maxw, (int) $wb); }
-    $cum = 0; $pts = [];
-    for ($w = $maxw; $w >= 0; $w--) { $cum += (int) ($weeks[(string) $w]['q'] ?? 0); $pts[$w] = $cum; }
-    $gmw = max($gmw, $maxw); $gmy = max($gmy, $cum);
-    $chart_series[] = ['label' => (string) $yr, 'color' => $palette[$ci++ % count($palette)], 'points' => $pts, 'w' => 1.8, 'live' => false];
-}
+// $metric = 'tickets' | 'revenue'. Returns [series[], maxWeek, maxY].
+$build_overlay = static function (string $metric) use ($series, $history, $event_year, $palette): array {
+    $live_key = $metric === 'revenue' ? 'cum_revenue' : 'cum_tickets';
+    $hist_key = $metric === 'revenue' ? 'r' : 'q';
+    $cs = []; $gmw = 0; $gmy = 0.0;
+    if ($series) {
+        $pts = [];
+        foreach ($series as $s) { $pts[(int) $s['week_before']] = (float) $s[$live_key]; $gmw = max($gmw, (int) $s['week_before']); $gmy = max($gmy, (float) $s[$live_key]); }
+        $cs[] = ['label' => ($event_year ?: __('This year', 'october-events')) . ' · ' . __('live', 'october-events'), 'color' => '#d14900', 'points' => $pts, 'w' => 3.2, 'live' => true];
+    }
+    $ci = 0;
+    foreach ($history as $yr => $weeks) {
+        $maxw = 0; foreach ($weeks as $wb => $v) { $maxw = max($maxw, (int) $wb); }
+        $cum = 0.0; $pts = [];
+        for ($w = $maxw; $w >= 0; $w--) { $cum += (float) ($weeks[(string) $w][$hist_key] ?? 0); $pts[$w] = $cum; }
+        $gmw = max($gmw, $maxw); $gmy = max($gmy, $cum);
+        $cs[] = ['label' => (string) $yr, 'color' => $palette[$ci++ % count($palette)], 'points' => $pts, 'w' => 1.8, 'live' => false];
+    }
+    return [$cs, $gmw, $gmy];
+};
+[$overlay_t, $gmw_t, $gmy_t] = $build_overlay('tickets');
+[$overlay_r, $gmw_r, $gmy_r] = $build_overlay('revenue');
+$has_charts = ! empty($overlay_t); // live sales OR imported history
+
+// Compact axis-number formatter (e.g. 50900 → "50.9k").
+$axis_num = static function (float $v): string {
+    if ($v >= 1000) { return rtrim(rtrim(number_format($v / 1000, 1), '0'), '.') . 'k'; }
+    return (string) (int) round($v);
+};
+
+// Draw one cumulative overlay chart (SVG + legend) for a metric.
+$draw_overlay = static function (array $cs, int $gmw, float $gmy, string $metric) use ($wlabel, $axis_num, $cur_sym): void {
+    $W = 1000; $H = 320; $padL = 52; $padR = 12; $padT = 12; $padB = 30;
+    $plotW = $W - $padL - $padR; $plotH = $H - $padT - $padB;
+    $gmw = max(1, $gmw); $gmy = max(1.0, $gmy);
+    $X = static fn($wb) => $padL + (($gmw - $wb) / $gmw) * $plotW;
+    $Y = static fn($v) => $padT + $plotH - ($v / $gmy) * $plotH;
+    $stride = max(1, (int) ceil($gmw / 12));
+    ?>
+    <svg viewBox="0 0 <?php echo $W; ?> <?php echo $H; ?>" width="100%" style="display:block;max-height:340px" preserveAspectRatio="xMidYMid meet" role="img">
+        <?php for ($g = 0; $g <= 4; $g++) : $gv = $gmy * $g / 4; $gy = $Y($gv); ?>
+            <line x1="<?php echo $padL; ?>" y1="<?php echo round($gy, 1); ?>" x2="<?php echo $W - $padR; ?>" y2="<?php echo round($gy, 1); ?>" stroke="#eee" stroke-width="1"/>
+            <text x="<?php echo $padL - 6; ?>" y="<?php echo round($gy + 3, 1); ?>" text-anchor="end" font-size="11" fill="#999"><?php echo esc_html($metric === 'revenue' ? ($cur_sym . $axis_num($gv)) : $axis_num($gv)); ?></text>
+        <?php endfor; ?>
+        <?php for ($wb = $gmw; $wb >= 0; $wb -= $stride) : $anchor = $wb === $gmw ? 'start' : ($wb === 0 ? 'end' : 'middle'); ?>
+            <text x="<?php echo round($X($wb), 1); ?>" y="<?php echo $H - 10; ?>" text-anchor="<?php echo $anchor; ?>" font-size="11" fill="#777"><?php echo esc_html($wlabel((int) $wb)); ?></text>
+        <?php endfor; ?>
+        <?php foreach ($cs as $one) :
+            $wbs = array_keys($one['points']); rsort($wbs, SORT_NUMERIC);
+            $pline = [];
+            foreach ($wbs as $wb) { $pline[] = round($X($wb), 1) . ',' . round($Y($one['points'][$wb]), 1); }
+            if ($one['live']) : ?>
+                <polygon points="<?php echo round($X($gmw), 1) . ',' . round($padT + $plotH, 1) . ' ' . esc_attr(implode(' ', $pline)) . ' ' . round($X(0), 1) . ',' . round($padT + $plotH, 1); ?>" fill="#E7CD41" fill-opacity="0.14"/>
+            <?php endif; ?>
+            <polyline points="<?php echo esc_attr(implode(' ', $pline)); ?>" fill="none" stroke="<?php echo esc_attr($one['color']); ?>" stroke-width="<?php echo (float) $one['w']; ?>" stroke-linejoin="round" stroke-linecap="round"<?php echo $one['live'] ? '' : ' opacity="0.85"'; ?>/>
+        <?php endforeach; ?>
+    </svg>
+    <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:10px">
+        <?php foreach ($cs as $one) : ?>
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#444">
+                <span style="width:14px;height:3px;border-radius:2px;background:<?php echo esc_attr($one['color']); ?>;display:inline-block"></span>
+                <?php echo esc_html($one['label']); ?>
+            </span>
+        <?php endforeach; ?>
+    </div>
+    <?php
+};
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
@@ -114,7 +167,7 @@ foreach ($history as $yr => $weeks) {
 
     <?php if (! $event_id) : ?>
         <div class="notice notice-warning inline"><p><?php esc_html_e('No events found. Create an event with ticket types first.', 'october-events'); ?></p></div>
-    <?php elseif (! $chart_series) : ?>
+    <?php elseif (! $has_charts) : ?>
         <div class="notice notice-info inline"><p>
             <?php if (! $event_ts) : ?>
                 <?php echo esc_html(sprintf(__('“%s” has no date set. Add the event date above (and/or import prior years) to see the charts.', 'october-events'), $title)); ?>
@@ -133,50 +186,37 @@ foreach ($history as $yr => $weeks) {
         </div>
         <?php endif; ?>
 
-        <?php
-        // ---- Cumulative overlay (inline SVG, multi-series) -------------------
-        $W = 1000; $H = 320; $padL = 44; $padR = 12; $padT = 12; $padB = 30;
-        $plotW = $W - $padL - $padR;
-        $plotH = $H - $padT - $padB;
-        $gmw = max(1, $gmw);
-        $gmy = max(1, $gmy);
-        $X = static fn($wb) => $padL + (($gmw - $wb) / $gmw) * $plotW;
-        $Y = static fn($v) => $padT + $plotH - ($v / $gmy) * $plotH;
-        $stride = max(1, (int) ceil($gmw / 12));
-        ?>
-        <div class="oe-panel-label"><?php echo count($chart_series) > 1 ? esc_html__('Cumulative tickets sold — year over year', 'october-events') : esc_html__('Cumulative tickets sold — approaching the event', 'october-events'); ?></div>
-        <div style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:14px">
-            <svg viewBox="0 0 <?php echo $W; ?> <?php echo $H; ?>" width="100%" style="display:block;max-height:340px" preserveAspectRatio="xMidYMid meet" role="img" aria-label="<?php esc_attr_e('Cumulative tickets sold by week before the event, per year', 'october-events'); ?>">
-                <?php for ($g = 0; $g <= 4; $g++) : $gv = $gmy * $g / 4; $gy = $Y($gv); ?>
-                    <line x1="<?php echo $padL; ?>" y1="<?php echo round($gy, 1); ?>" x2="<?php echo $W - $padR; ?>" y2="<?php echo round($gy, 1); ?>" stroke="#eee" stroke-width="1"/>
-                    <text x="<?php echo $padL - 6; ?>" y="<?php echo round($gy + 3, 1); ?>" text-anchor="end" font-size="11" fill="#999"><?php echo (int) round($gv); ?></text>
-                <?php endfor; ?>
-                <?php // x-axis labels (weeks before)
-                for ($wb = $gmw; $wb >= 0; $wb -= $stride) :
-                    $anchor = $wb === $gmw ? 'start' : ($wb === 0 ? 'end' : 'middle'); ?>
-                    <text x="<?php echo round($X($wb), 1); ?>" y="<?php echo $H - 10; ?>" text-anchor="<?php echo $anchor; ?>" font-size="11" fill="#777"><?php echo esc_html($wlabel((int) $wb)); ?></text>
-                <?php endfor; ?>
-                <?php foreach ($chart_series as $cs) :
-                    $wbs = array_keys($cs['points']);
-                    rsort($wbs, SORT_NUMERIC); // high weeks-before → 0 (left → right)
-                    $pline = [];
-                    foreach ($wbs as $wb) { $pline[] = round($X($wb), 1) . ',' . round($Y($cs['points'][$wb]), 1); }
-                    ?>
-                    <?php if ($cs['live']) : ?>
-                        <polygon points="<?php echo round($X($gmw), 1) . ',' . round($padT + $plotH, 1) . ' ' . esc_attr(implode(' ', $pline)) . ' ' . round($X(0), 1) . ',' . round($padT + $plotH, 1); ?>" fill="#E7CD41" fill-opacity="0.14"/>
-                    <?php endif; ?>
-                    <polyline points="<?php echo esc_attr(implode(' ', $pline)); ?>" fill="none" stroke="<?php echo esc_attr($cs['color']); ?>" stroke-width="<?php echo (float) $cs['w']; ?>" stroke-linejoin="round" stroke-linecap="round"<?php echo $cs['live'] ? '' : ' opacity="0.85"'; ?>/>
-                <?php endforeach; ?>
-            </svg>
-            <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:10px">
-                <?php foreach ($chart_series as $cs) : ?>
-                    <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#444">
-                        <span style="width:14px;height:3px;border-radius:2px;background:<?php echo esc_attr($cs['color']); ?>;display:inline-block"></span>
-                        <?php echo esc_html($cs['label']); ?>
-                    </span>
-                <?php endforeach; ?>
-            </div>
+        <div class="oe-panel-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <span><?php echo count($overlay_t) > 1 ? esc_html__('Cumulative sales — year over year', 'october-events') : esc_html__('Cumulative sales — approaching the event', 'october-events'); ?></span>
+            <span class="oe-metric-toggle" role="tablist" style="font-weight:400">
+                <button type="button" class="button button-small oe-metric-btn is-active" data-metric="tickets" aria-pressed="true"><?php esc_html_e('Tickets', 'october-events'); ?></button>
+                <button type="button" class="button button-small oe-metric-btn" data-metric="revenue" aria-pressed="false"><?php esc_html_e('Revenue', 'october-events'); ?></button>
+            </span>
         </div>
+        <div style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:14px">
+            <div class="oe-metric-panel" data-metric="tickets"><?php $draw_overlay($overlay_t, $gmw_t, $gmy_t, 'tickets'); ?></div>
+            <div class="oe-metric-panel" data-metric="revenue" style="display:none"><?php $draw_overlay($overlay_r, $gmw_r, $gmy_r, 'revenue'); ?></div>
+        </div>
+        <style>
+            .oe-metric-toggle { display:inline-flex; gap:0 }
+            .oe-metric-toggle .oe-metric-btn { border-radius:0 }
+            .oe-metric-toggle .oe-metric-btn:first-child { border-radius:4px 0 0 4px }
+            .oe-metric-toggle .oe-metric-btn:last-child { border-radius:0 4px 4px 0; margin-left:-1px }
+            .oe-metric-toggle .oe-metric-btn.is-active { background:#1a1a1a; color:#fff; border-color:#1a1a1a; z-index:1 }
+        </style>
+        <script>
+        (function(){
+            var btns = document.querySelectorAll('.oe-metric-btn');
+            var panels = document.querySelectorAll('.oe-metric-panel');
+            btns.forEach(function(b){
+                b.addEventListener('click', function(){
+                    var m = b.getAttribute('data-metric');
+                    btns.forEach(function(x){ var on = x === b; x.classList.toggle('is-active', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+                    panels.forEach(function(p){ p.style.display = p.getAttribute('data-metric') === m ? '' : 'none'; });
+                });
+            });
+        })();
+        </script>
 
         <?php if ($series) : ?>
         <?php $maxWk = 1; foreach ($series as $s) { $maxWk = max($maxWk, (int) $s['tickets']); } ?>

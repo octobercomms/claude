@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.79.0 — sales-analytics chart: Tickets ⇄ Revenue toggle
+
+The year-over-year cumulative chart now has a **Tickets / Revenue** toggle. Tickets
+stays the default; flip to Revenue to see cumulative revenue by weeks-before-event
+across all years (live + imported history), with the y-axis in the account
+currency (abbreviated, e.g. `$50.9k`). Client-side toggle — both series render
+inline, no page reload, still no external chart libraries.
+
 ## 1.78.0 — year-over-year overlay on the sales-analytics chart
 
 The Sales analytics cumulative chart can now plot **prior years alongside the live
