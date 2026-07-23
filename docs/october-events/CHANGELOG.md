@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.80.0 — interactive YoY chart (toggle years, hover, rescale) + gross-profit KPI
+
+The year-over-year chart is now interactive, and the KPIs show profit after fees.
+
+- **Toggle years on/off**: click any year in the legend to hide/show it. The
+  y-axis **rescales to the visible lines**, so hiding the big historical years lets
+  you actually compare this year against a similar one.
+- **Hover a line** to see which year it is and the cumulative value at that point.
+- **Tickets ⇄ Revenue** toggle retained; both now drawn by a small self-contained
+  chart script (no external libraries) rather than pre-rendered.
+- **New "Gross profit (after fees)" KPI** next to Revenue — revenue minus card
+  fees. The fee is configurable under **Settings → Checkout** (*Card fee %* + fixed
+  per transaction), defaulting to Stripe's 2.9% + 0.30. Fees are applied per
+  distinct paid transaction.
+
 ## 1.79.0 — sales-analytics chart: Tickets ⇄ Revenue toggle
 
 The year-over-year cumulative chart now has a **Tickets / Revenue** toggle. Tickets
