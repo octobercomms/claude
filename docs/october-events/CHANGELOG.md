@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.84.3 — address/date flow with no config
+
+The partner feed now defaults its address/date field mapping to the tours
+schema's own field names (`address`, `date`), and falls back to them even if the
+mapping was saved blank. So address and date come through with no configuration
+— the only requirement is that the tours (source) site runs this version. (The
+"0 address · 0 date" readout meant the tours site was on older code that didn't
+send them.)
+
 ## 1.84.2 — refresh readout for diagnosing the feed
 
 The **↻ Refresh tour locations** button now reports what the feed actually

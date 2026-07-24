@@ -560,8 +560,11 @@ final class Volunteers {
                 ['key' => '_oe_loc_vol_host', 'value' => 'partner'],
             ],
         ]);
-        $addr_key = trim((string) Settings::get('location_address_field', ''));
-        $date_key = trim((string) Settings::get('location_date_field', ''));
+        // Fall back to the tours schema's own field names when unset, so address
+        // and date flow through even if the mapping was never configured (or was
+        // saved blank). Override in settings only if your fields differ.
+        $addr_key = trim((string) Settings::get('location_address_field', '')) ?: 'address';
+        $date_key = trim((string) Settings::get('location_date_field', '')) ?: 'date';
         $out = [];
         foreach ($ids as $id) {
             $out[] = [
