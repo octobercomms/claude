@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.84.1 — re-apply location details after a refresh
+
+Small fix to the tour-location picker: clicking **↻ Refresh tour locations** now
+re-applies the selected location's details, and a Location field still holding
+the title *fallback* is upgraded to the real street address once the address
+comes through. Previously you had to re-pick the location after a refresh for
+the address/shifts to fill.
+
+Note: address, dated shifts and the featured image only appear when the tours
+site has its **Address field** / **Date field** mappings set (Settings → Events
+→ Volunteer locations) and the list has been refreshed since. The featured image
+is copied when the volunteer post is **published/saved**, not while drafting.
+
 ## 1.84.0 — picking a tour location fills more of the post
 
 Builds on 1.83.0: when you link a volunteer post to a tour location, it now pulls

@@ -253,15 +253,20 @@ final class Volunteers {
                     });
                 });
             }
-            sel.addEventListener('change', function(){
+            function applyLoc(){
                 var loc = byRef[sel.value];
                 if (!loc) { return; }
                 var locInput = document.getElementById('oe-location-input');
-                if (locInput && !locInput.value) { locInput.value = loc.address || loc.title || ''; }
+                // Fill when empty; also upgrade a title-fallback to the real address
+                // once a refresh brings the address through.
+                if (locInput && (!locInput.value || locInput.value === loc.title)) {
+                    locInput.value = loc.address || loc.title || '';
+                }
                 var roleInput = document.querySelector('[name="oe_role"]');
                 if (roleInput && !roleInput.value && defaultRole) { roleInput.value = defaultRole; }
                 if (loc.date && tableIsEmpty()) { seedShifts(loc); }
-            });
+            }
+            sel.addEventListener('change', applyLoc);
             var btn = document.getElementById('oe-loc-refresh');
             var msg = document.getElementById('oe-loc-refresh-msg');
             if (btn) {
@@ -282,7 +287,7 @@ final class Volunteers {
                                 o.value = 'loc:' + l.ref; o.textContent = l.title || '';
                                 og.appendChild(o);
                             });
-                            if (byRef[keep]) { sel.value = keep; }
+                            if (byRef[keep]) { sel.value = keep; applyLoc(); }
                             msg.textContent = res.data.count + ' <?php echo esc_js(__('locations', 'october-events')); ?>';
                         })
                         .catch(function(){ btn.disabled = false; msg.textContent = '<?php echo esc_js(__('Refresh failed', 'october-events')); ?>'; });
