@@ -669,13 +669,13 @@ z7r;XM{2yN+?ToIse1slLxC(dOB3)Y6zd*x><+^<H@jp6Go{jRfeL)z-AZME{;qtqL
 tQg3;PMOrI@@~iK@e(!u<ZT|lP3;<6a*49s~Pi6oB002ovPDHLkV1lrcsJ{RJ
 
 diff --git a/frontend/public/icon-192.png b/frontend/public/icon-192.png
-index 677607b221cca2c05b8c8b3e81ca2253496223e8..5e729f369d4707331f8b427b49f42a41cedffaa8 100644
+index 677607b221cca2c05b8c8b3e81ca2253496223e8..c03ee5e1bea6c0eaa6d3f74c730ee03405846254 100644
 GIT binary patch
-literal 623
-zcmeAS@N?(olHy`uVBq!ia0vp^2SAvE4M+yv$zf+;U{djPaSW-L^X3{O?;!^PhJ(MK
-zv^-?t*KiWBE4UbT;#|dzlyZd}_CqWVvlu*t88Vp^d>NK-HkdF@P-D16cfsHP_wHj3
-zw0^#aeUXj;Ro(J!-fLrlQno`>HkR%oM2q<02d0+)|4kdp6MzghP<mlzco@%-=&Sp`
-Q0w}`Z>FVdQ&MBb@0Pe-0J^%m!
+literal 622
+zcmeAS@N?(olHy`uVBq!ia0vp^2SAvE4M+yv$zf+;U{dyUaSW-L^X8f(?_mdl0|)kI
+zBz_H4TN>u@P*95TktE-=J<N&L0%{DGSR7_CcnC9OGAZ~nEa7Z0VVppB!Q0RO{bOHL
+zcJ3#yOQZr-9rU*JY`VfLo)#(_J21gS<w%MHCYJyIADmYQ(hO{%<igDGB$>^~I@zuc
+OB;@Jp=d#Wzp$Pz=QJ|Lq
 
 literal 6922
 zcmX9@c|26#`yX2vTXqqn>|{wq!XT1eRMre-sf1)1>kMNnOJvQ~gh;Y4WuHOWGklbt
@@ -813,14 +813,15 @@ z5L%T0+#m~8H5mL#oQw+Ak9b08(gAqZmUi^0#h!PzkglhxKKn?PW1!O32Kcv^ZylIF
 Pw?I}F_U4Ud-l+craBkAx
 
 diff --git a/frontend/public/icon-384.png b/frontend/public/icon-384.png
-index e821b6414243a5867577fb20ef3c3893bbc21aa9..015d7711f146a08cf253a33332692063169ad291 100644
+index e821b6414243a5867577fb20ef3c3893bbc21aa9..9b4fb24f549f5b7e1d06f2ca8b94585969fc50e2 100644
 GIT binary patch
-literal 1511
-zcmeAS@N?(olHy`uVBq!ia0y~yU~B+k4mP03lH*(VGcd5u@pN$vshIQThNG`@qJZ1Q
-z%Cq@Qk{S$C8o5~>H0tVja&#mFi!KpifBWg_yv-8a=AYLxDrE99crq~vs4_4Fj#6|8
-zg4aL(7ML?USz~$jH^YQvCZ-M{h6W8rhG9mnD789!o?*gfVB%6!7*zgSQTk_By-dSi
-z>zw)K+w<2SK6+06z&8_y>hIR)pKCLO8!$4ua56YdVPF_$)RlUMIJSiMe4h<tQl%Lt
-x`8bT`cX}3i^}tg4|9^RzecV6>8>pOSW(Z~yV}G~E-U2AX;OXk;vd$@?2>?<9<SzgK
+literal 1514
+zcmeAS@N?(olHy`uVBq!ia0y~yU~B+k4mP03lH*(VGcd5u_jGX#shIQThNCZYfPm}8
+z%+JBxD;%61MLHbV>=Yy#Y`LU#CR_;Oe7kAq^BlKBXZM&gsH|mF@MK_E#KNH9HA>Mw
+z2(o1N$$e*bI5+EZ4G)8*nnHsHBSVJ}!*HXl*dP3`VR(|m)}SIR;4p=O!G)7ya8OsQ
+zYTnIfdvGkb{Pov&|K6tWxbc(u#y*|{y}y6k?wjAw5Oa`)ML?B-A&`k-xKY_=pA8ty
+z^WOU1KOAbt>@bOwV>HjxvDkYh&%p5izg4brAh5({0~OWG3@<{(*ZnqrG8-tu;OXk;
+Jvd$@?2>=(w45|PC
 
 literal 13331
 zcmZvDc|26#|Nj^Y6;q_e5|!nxENv)ZDhesezE6nCk}b)4EeXk9maHjzNVdorTO>rn
@@ -1064,15 +1065,15 @@ zb}#U$oQs<l4ve2?y|`6FuDggcY&2m`fv-@jG7b@t6U3prr`$k*VK*w7F!Us{Kl&{4
 QUp^?+>*`AR*Y5fK9|Q{nJOBUy
 
 diff --git a/frontend/public/icon-512.png b/frontend/public/icon-512.png
-index 35138e6ac2594433d40cb52d438a2323fe0f6f45..2c04ce7d98647a1bfed2e262a120289eff276cae 100644
+index 35138e6ac2594433d40cb52d438a2323fe0f6f45..e00e39f37647af713cf2087908f771003aba951e 100644
 GIT binary patch
-literal 2285
-zcmeAS@N?(olHy`uVBq!ia0y~yU;;9k7&zE~)R&4YzZe)e7J0fjhE&XXb91AoOQ4AB
-z#orHaHYm)<;JlU~cx%bAYY9rnp0P=Fc6Kz@<R&E~te-kZ%xsP+gTpx~1_gHp28Rg@
-z3=Im53=EDylbcu=7+5%gW(qMd2&gbHD0qx27!3z}>EYV#%U|y@Flc6Pdt1iPAR<1R
-zerS-7wtTCtmt;^#m1a;l&N}RK>V>N6efuOCEGB&3Jiq<zqmR`VTG`*;)-gPAu(R{m
-z`~SSuLQ4-{k{m6=C@9M>-1>HZHDd#_<=>xG@_pyb7##YzN9%>r`jL`$!WVW1hX4QN
-jmKE3n8!c?0)(SI2-aNUqS8c6gKoJH{S3j3^P6<r_O`Hzp
+literal 2279
+zcmeAS@N?(olHy`uVBq!ia0y~yU;;9k7&zE~)R&4YzZe)e=6Jd|hE&XXbJNkYHBiF!
+z;`>9oiM+xuJh&qc2AN%8IycvDxtPF~mJh$ZY$`TfpEZX|`kWktLOMUg1Z4&W1rG)W
+zhY1V}4GN45430p<n^+haSU7>k3NbJUsEjHY4F`Pb;rI8F?^X;Br{-;)$Hw4M$T*so
+zXpm)o&#07PP)OxvnDCfs*k{y?|26mQc^G02MAhFn-!312`0CB<XSECunEI0U&v{<C
+z!%A<oY@$IKopHW!4=+Q^p{V5#wbn8+6vd2|{-d=Z#jSz=z*frt|9>^s@d6oapmqu~
+YgWqk*%*WF2LV+R-p00i_>zopr0PXM#kpKVy
 
 literal 17774
 zcmaKUc|26#|Nph`QIv$HMM=_BLWuFMkQ9|rq|t)1O=U}#OQOYA2}v5IsHADJX1OFJ
@@ -1650,7 +1651,7 @@ index 82835b5..ab8b95b 100644
            /* Folder picker view */
            <>
 diff --git a/frontend/src/components/LoginPage.jsx b/frontend/src/components/LoginPage.jsx
-index 5dea09a..a59e80c 100644
+index 5dea09a..d259580 100644
 --- a/frontend/src/components/LoginPage.jsx
 +++ b/frontend/src/components/LoginPage.jsx
 @@ -269,12 +269,8 @@ export default function LoginPage() {
@@ -1664,38 +1665,46 @@ index 5dea09a..a59e80c 100644
 -              <span style={{ fontFamily: "'Syne', sans-serif", fontSize: 30, fontWeight: 600, color: 'var(--accent)', letterSpacing: '-0.03em' }}>Flow</span>
 -            </span>
 +          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-+            <LogoMark size={72} />
++            <LogoMark size={140} />
            </div>
            <p style={{ color: 'var(--text-tertiary)', fontSize: 14, margin: 0 }}>{t('login.tagline')}</p>
          </div>
 diff --git a/frontend/src/components/LogoMark.jsx b/frontend/src/components/LogoMark.jsx
-index 802c11f..738b1bf 100644
+index 802c11f..06488ae 100644
 --- a/frontend/src/components/LogoMark.jsx
 +++ b/frontend/src/components/LogoMark.jsx
-@@ -1,7 +1,7 @@
+@@ -1,11 +1,15 @@
 -// Shared MailFlow logo mark — used in Sidebar and LoginPage.
 +// October logomark — two horizontal bars, used in Sidebar and LoginPage.
++// Exact geometry from the October brand mark (410×182): top bar full width,
++// bottom bar 80% width, both h=68 with a 46 gap, bars flush to top/bottom edges.
  // Reads the *effective* accent hex (theme value, or a custom-CSS override of
 -// --accent) so the SVG colour matches var(--accent) without relying on CSS
 -// variable resolution inside SVG, and updates on theme AND custom-CSS changes.
-+// --accent) so the bars match var(--accent) — October gold by default — and
-+// re-render on theme AND custom-CSS changes.
++// --accent) so the bars are October gold and re-render on theme/custom-CSS changes.
++// `size` sets the WIDTH; height follows the mark's natural aspect ratio.
  import { useState, useEffect } from 'react';
  import { getEffectiveAccent, subscribeAccent } from '../themes.js';
  
-@@ -14,65 +14,22 @@ export default function LogoMark({ size = 32 }) {
+-export default function LogoMark({ size = 32 }) {
++const AR = 182 / 410; // native height / width
++
++export default function LogoMark({ size = 40 }) {
+   const [accent, setAccent] = useState(getEffectiveAccent);
+   useEffect(() => {
+     // Re-sync in case the accent changed between render and this effect, then
+@@ -14,65 +18,20 @@ export default function LogoMark({ size = 32 }) {
      return subscribeAccent(setAccent);
    }, []);
  
 -  const id = `lm_${size}`;
-+  // Two-bar October mark, centred in a square box. Top bar full width, bottom
-+  // bar ~80% width (matching the October logomark proportions).
    return (
      <svg
        width={size}
-       height={size}
+-      height={size}
 -      viewBox="0 0 32 32"
-+      viewBox="0 0 100 100"
++      height={size * AR}
++      viewBox="0 0 410 182"
        xmlns="http://www.w3.org/2000/svg"
        style={{ flexShrink: 0 }}
 +      role="img"
@@ -1751,8 +1760,8 @@ index 802c11f..738b1bf 100644
 -        <line x1="5"  y1="25.5" x2="13" y2="20" stroke="rgba(0,0,0,0.14)" strokeWidth="1.1"/>
 -        <line x1="27" y1="25.5" x2="19" y2="20" stroke="rgba(0,0,0,0.14)" strokeWidth="1.1"/>
 +      <g fill={accent}>
-+        <rect x="0" y="27.8" width="100"  height="16.7" />
-+        <rect x="0" y="55.6" width="80.1" height="16.7" />
++        <rect x="0" y="0"   width="410" height="68" />
++        <rect x="0" y="114" width="328" height="68" />
        </g>
      </svg>
    );
@@ -1822,7 +1831,7 @@ index efb16df..c46adab 100644
          const snoozedMsg = message;
          const untilIso = data;
 diff --git a/frontend/src/components/Sidebar.jsx b/frontend/src/components/Sidebar.jsx
-index a155ef3..0bc8c06 100644
+index a155ef3..e63e756 100644
 --- a/frontend/src/components/Sidebar.jsx
 +++ b/frontend/src/components/Sidebar.jsx
 @@ -826,25 +826,7 @@ export default function Sidebar() {
@@ -1848,7 +1857,7 @@ index a155ef3..0bc8c06 100644
 -                Flow
 -              </span>
 -            </span>
-+            <LogoMark size={26} />
++            <LogoMark size={40} />
            </div>
          )}
          <button
