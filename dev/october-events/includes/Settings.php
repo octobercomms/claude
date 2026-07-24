@@ -59,8 +59,11 @@ final class Settings {
             'volunteer_feed_app_password' => '',
             'volunteer_feed_last_sync'    => 0,
             // Cached pickable tour locations pulled from the partner feed. Each:
-            // { ref:"<site>#<id>", title, url, address, date, capacity }.
+            // { ref:"<site>#<id>", title, url, address, date, capacity, image }.
             'volunteer_feed_locations'    => [],
+            // Role pre-filled when a volunteer post is linked to a tour location
+            // (tour stops are docent-led). Blank = don't pre-fill.
+            'location_default_role'       => 'Docent',
             // Per-listing-type, per-tier pricing in cents. Admin-editable (§4).
             'pricing' => [
                 'directory'   => ['featured' => 9900,  'premium' => 19900],

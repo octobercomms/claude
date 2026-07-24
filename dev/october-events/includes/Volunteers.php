@@ -156,9 +156,17 @@ final class Volunteers {
         <script type="text/html" id="oe-shift-tpl"><?php $this->shift_row(9999, []); ?></script>
         <script>
         (function(){
-            var idx = <?php echo (int) max(1, count($shifts)); ?>;
+            // Next shift index = max existing + 1, so rows seeded from a tour date
+            // never collide with rows added by hand.
+            function nextIdx(){
+                var max = -1;
+                document.querySelectorAll('#oe-shift-table tbody tr [name^="oe_shift["]').forEach(function(inp){
+                    var m = inp.name.match(/oe_shift\[(\d+)\]/); if (m) { max = Math.max(max, parseInt(m[1], 10)); }
+                });
+                return max + 1;
+            }
             document.getElementById('oe-shift-add').addEventListener('click', function(){
-                var html = document.getElementById('oe-shift-tpl').innerHTML.replace(/9999/g, idx++);
+                var html = document.getElementById('oe-shift-tpl').innerHTML.replace(/9999/g, nextIdx());
                 document.querySelector('#oe-shift-table tbody').insertAdjacentHTML('beforeend', html);
             });
             document.querySelector('#oe-shift-table').addEventListener('click', function(e){
@@ -173,31 +181,86 @@ final class Volunteers {
             var LOCS = <?php echo wp_json_encode(self::feed_locations()); ?>;
             var ajax = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
             var nonce = <?php echo wp_json_encode(wp_create_nonce('oe_refresh_partner_locs')); ?>;
+            var defaultRole = <?php echo wp_json_encode((string) Settings::get('location_default_role', 'Docent')); ?>;
             var byRef = {};
             function indexLocs(){ byRef = {}; LOCS.forEach(function(l){ byRef['loc:' + l.ref] = l; }); }
             indexLocs();
-            // Fill the ISO-ish date into a datetime-local value ("YYYY-MM-DDTHH:mm").
-            function asStart(d){
-                if (!d) { return ''; }
-                var m = String(d).match(/(\d{4})-(\d{2})-(\d{2})/);
-                if (m) { return m[1] + '-' + m[2] + '-' + m[3] + 'T10:00'; }
-                return '';
+            var MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+            var ABBR   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var WDS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            function pad(n){ return (n < 10 ? '0' : '') + n; }
+            function t12(hm){ var p = hm.split(':'); var h = parseInt(p[0], 10); var ap = h < 12 ? 'am' : 'pm'; var h12 = (h % 12) || 12; return h12 + ':' + p[1] + ap; }
+            // Parse a human tour date ("October 3—4, 2026" or "October 3, 2026")
+            // into the individual days it covers.
+            function parseDays(str){
+                if (!str) { return []; }
+                var m = String(str).toLowerCase().match(/([a-z]+)\s+(\d{1,2})(?:\s*[–—-]\s*(\d{1,2}))?,?\s*(\d{4})/);
+                if (!m) { return []; }
+                var mon = MONTHS.indexOf(m[1]);
+                if (mon < 0) { mon = ABBR.findIndex(function(a){ return a.toLowerCase() === m[1].slice(0, 3); }); }
+                if (mon < 0) { return []; }
+                var d1 = parseInt(m[2], 10), d2 = m[3] ? parseInt(m[3], 10) : d1, y = parseInt(m[4], 10);
+                if (d2 < d1) { d2 = d1; }
+                var out = [];
+                for (var d = d1; d <= d2 && d < d1 + 14; d++) {
+                    var dt = new Date(y, mon, d);
+                    out.push({ y: y, m: mon + 1, d: d, wd: WDS[dt.getDay()], mon: ABBR[mon] });
+                }
+                return out;
+            }
+            // True when no shift row has been filled in yet (safe to auto-seed).
+            function tableIsEmpty(){
+                var rows = document.querySelectorAll('#oe-shift-table tbody tr');
+                for (var i = 0; i < rows.length; i++) {
+                    var l = rows[i].querySelector('[name$="[label]"]'), s = rows[i].querySelector('[name$="[start]"]');
+                    if ((l && l.value.trim()) || (s && s.value)) { return false; }
+                }
+                return true;
+            }
+            function rowFor(i, vals){
+                var tmp = document.createElement('tbody');
+                tmp.innerHTML = document.getElementById('oe-shift-tpl').innerHTML.replace(/9999/g, i);
+                var tr = tmp.firstElementChild;
+                tr.querySelector('[name$="[label]"]').value    = vals.label || '';
+                tr.querySelector('[name$="[start]"]').value    = vals.start || '';
+                tr.querySelector('[name$="[end]"]').value      = vals.end || '';
+                tr.querySelector('[name$="[capacity]"]').value = (vals.capacity != null ? vals.capacity : '');
+                return tr;
+            }
+            // Build an AM (10–1) + PM (1–4) shift for each day of the tour.
+            // Falls back to putting the raw date in the first shift label when the
+            // date string can't be parsed, so the info is never lost.
+            function seedShifts(loc){
+                var days = parseDays(loc.date);
+                if (!days.length) {
+                    var firstLabel = document.querySelector('#oe-shift-table tbody tr [name$="[label]"]');
+                    if (firstLabel && !firstLabel.value) { firstLabel.value = (loc.title ? loc.title + ' — ' : '') + loc.date; }
+                    return;
+                }
+                var tbody = document.querySelector('#oe-shift-table tbody');
+                tbody.innerHTML = '';
+                var slots = [['10:00','13:00'], ['13:00','16:00']];
+                var i = 0;
+                days.forEach(function(day){
+                    slots.forEach(function(sl){
+                        var date = day.y + '-' + pad(day.m) + '-' + pad(day.d);
+                        tbody.appendChild(rowFor(i++, {
+                            label: day.wd + ' ' + day.mon + ' ' + day.d + ' — ' + t12(sl[0]) + '–' + t12(sl[1]),
+                            start: date + 'T' + sl[0],
+                            end:   date + 'T' + sl[1],
+                            capacity: loc.capacity || ''
+                        }));
+                    });
+                });
             }
             sel.addEventListener('change', function(){
                 var loc = byRef[sel.value];
                 if (!loc) { return; }
                 var locInput = document.getElementById('oe-location-input');
                 if (locInput && !locInput.value) { locInput.value = loc.address || loc.title || ''; }
-                // Seed the first (empty) shift with the location's date as context.
-                // Tour dates are human ranges ("October 3—4, 2026"), so put the date
-                // in the label; only set a start time when it parses as ISO.
-                if (loc.date) {
-                    var firstLabel = document.querySelector('#oe-shift-table tbody tr [name$="[label]"]');
-                    var firstStart = document.querySelector('#oe-shift-table tbody tr [name$="[start]"]');
-                    if (firstLabel && !firstLabel.value) { firstLabel.value = (loc.title ? loc.title + ' — ' : '') + loc.date; }
-                    var start = asStart(loc.date);
-                    if (firstStart && !firstStart.value && start) { firstStart.value = start; }
-                }
+                var roleInput = document.querySelector('[name="oe_role"]');
+                if (roleInput && !roleInput.value && defaultRole) { roleInput.value = defaultRole; }
+                if (loc.date && tableIsEmpty()) { seedShifts(loc); }
             });
             var btn = document.getElementById('oe-loc-refresh');
             var msg = document.getElementById('oe-loc-refresh-msg');
@@ -268,7 +331,7 @@ final class Volunteers {
             return;
         }
 
-        update_post_meta($post_id, '_oe_role', sanitize_text_field((string) ($_POST['oe_role'] ?? '')));
+        $role = sanitize_text_field((string) ($_POST['oe_role'] ?? ''));
         update_post_meta($post_id, '_oe_location', sanitize_text_field((string) ($_POST['oe_location'] ?? '')));
         update_post_meta($post_id, '_oe_signups_open', empty($_POST['oe_signups_open']) ? '0' : '1');
 
@@ -277,12 +340,23 @@ final class Volunteers {
         // other so an opportunity is only ever linked to one thing.
         $linked_val = (string) ($_POST['oe_linked_event'] ?? '0');
         if (strpos($linked_val, 'loc:') === 0) {
-            update_post_meta($post_id, '_oe_linked_location_ref', sanitize_text_field(substr($linked_val, 4)));
+            $ref = sanitize_text_field(substr($linked_val, 4));
+            update_post_meta($post_id, '_oe_linked_location_ref', $ref);
             update_post_meta($post_id, '_oe_linked_event', 0);
+            $fl = self::feed_location($ref);
+            // Default the role for docent-led tour stops when left blank.
+            if ($role === '') {
+                $role = (string) Settings::get('location_default_role', '');
+            }
+            // Reuse the location's featured image, once, if none is set here.
+            if ($fl && ! empty($fl['image']) && ! has_post_thumbnail($post_id)) {
+                self::sideload_thumbnail($post_id, (string) $fl['image']);
+            }
         } else {
             update_post_meta($post_id, '_oe_linked_event', absint($linked_val));
             delete_post_meta($post_id, '_oe_linked_location_ref');
         }
+        update_post_meta($post_id, '_oe_role', $role);
 
         // Structured shift rows. Each carries its id (hidden field) so signups
         // stay attached even if the label changes; fall back to a label match for
@@ -539,6 +613,7 @@ final class Volunteers {
                 'address'  => sanitize_text_field((string) ($l['address'] ?? '')),
                 'date'     => sanitize_text_field((string) ($l['date'] ?? '')),
                 'capacity' => max(0, (int) ($l['capacity'] ?? 0)),
+                'image'    => esc_url_raw((string) ($l['image'] ?? '')),
             ];
         }
         Settings::update([
@@ -562,6 +637,23 @@ final class Volunteers {
             }
         }
         return null;
+    }
+
+    /**
+     * Download a remote image into the media library and set it as the post's
+     * featured image. Best-effort: failures are swallowed so a save never breaks.
+     */
+    private static function sideload_thumbnail(int $post_id, string $url): void {
+        if ($url === '') {
+            return;
+        }
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        $att_id = media_sideload_image($url, $post_id, null, 'id');
+        if (! is_wp_error($att_id) && $att_id) {
+            set_post_thumbnail($post_id, (int) $att_id);
+        }
     }
 
     /**

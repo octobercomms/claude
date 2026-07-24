@@ -5,6 +5,24 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.84.0 — picking a tour location fills more of the post
+
+Builds on 1.83.0: when you link a volunteer post to a tour location, it now pulls
+through the details so the post is almost complete before you touch it.
+
+- **Role** pre-fills to a configurable default (**Docent** out of the box) —
+  set it under Settings → Events → Volunteer locations → *Default role*.
+- **Shifts** are generated from the tour **date**: an AM (10–1) and PM (1–4)
+  shift for each day the tour runs, with dates filled in — e.g. "October 3—4,
+  2026" becomes four dated shifts (Sat/Sun × AM/PM). Accepts full or abbreviated
+  month names and range dashes; unparseable dates drop into the first shift
+  label instead. Only auto-fills when no shift has been entered yet.
+- **Featured image**: the location's featured image is copied to the volunteer
+  post (once, if none is set) so the sign-up card looks right.
+- **Address** continues to fill the Location field.
+
+The tours site now also sends each location's featured image in the feed.
+
 ## 1.83.0 — pick a tour location when building a volunteer post
 
 Reworks cross-site tour-location volunteers around how staff actually work: you

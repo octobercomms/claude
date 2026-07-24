@@ -91,6 +91,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 <td><input type="text" name="volunteer_feed_user" class="regular-text" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_user'] ?? '')); ?>" autocomplete="off"></td></tr>
             <tr><th scope="row"><?php esc_html_e('Application password', 'october-events'); ?></th>
                 <td><input type="password" name="volunteer_feed_app_password" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_app_password'] ?? '')); ?>" autocomplete="new-password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Default role', 'october-events'); ?></th>
+                <td><input type="text" name="location_default_role" class="regular-text" value="<?php echo esc_attr((string) ($cfg['location_default_role'] ?? '')); ?>" placeholder="Docent">
+                    <p class="description"><?php esc_html_e('Pre-filled as the role when you link a volunteer post to a tour location (tour stops are docent-led). Blank = don’t pre-fill.', 'october-events'); ?></p></td></tr>
         </tbody></table>
         <?php
         $last = (int) ($cfg['volunteer_feed_last_sync'] ?? 0);
