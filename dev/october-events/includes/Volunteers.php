@@ -288,7 +288,13 @@ final class Volunteers {
                                 og.appendChild(o);
                             });
                             if (byRef[keep]) { sel.value = keep; applyLoc(); }
-                            msg.textContent = res.data.count + ' <?php echo esc_js(__('locations', 'october-events')); ?>';
+                            // Diagnostic readout: shows whether the feed is actually
+                            // carrying address / date / image, so a blank pull-through
+                            // is easy to pin on the source site's config vs. here.
+                            var wA = LOCS.filter(function(l){ return l.address; }).length;
+                            var wD = LOCS.filter(function(l){ return l.date; }).length;
+                            var wI = LOCS.filter(function(l){ return l.image; }).length;
+                            msg.textContent = LOCS.length + ' <?php echo esc_js(__('locations', 'october-events')); ?> · ' + wA + ' address · ' + wD + ' date · ' + wI + ' image';
                         })
                         .catch(function(){ btn.disabled = false; msg.textContent = '<?php echo esc_js(__('Refresh failed', 'october-events')); ?>'; });
                 });

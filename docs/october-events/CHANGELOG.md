@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.84.2 — refresh readout for diagnosing the feed
+
+The **↻ Refresh tour locations** button now reports what the feed actually
+contains — e.g. "5 locations · 5 address · 5 date · 3 image" — so a blank
+pull-through can be pinned on the source site (its version / field mapping)
+rather than the editor. If it shows "0 address / 0 date", the tours site either
+isn't on 1.83.0+ or doesn't have its Address/Date field mapping set.
+
 ## 1.84.1 — re-apply location details after a refresh
 
 Small fix to the tour-location picker: clicking **↻ Refresh tour locations** now
