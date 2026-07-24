@@ -59,6 +59,49 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </tbody></table>
         </div></details>
 
+        <details class="oe-acc" id="volunteer-locations"><summary><?php esc_html_e('Volunteer locations', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('If your tour has a “Locations” post type (e.g. homes/stops on the tour), choose it here. Each location then gets a one-click “Needs volunteers” box that creates and links a volunteer opportunity for it — no more building them by hand. Leave blank if you only need volunteers for events.', 'october-events'); ?></p>
+        <?php
+        $loc_pt  = (string) ($cfg['location_post_type'] ?? '');
+        $cpts    = get_post_types(['public' => true, '_builtin' => false], 'objects');
+        ?>
+        <p><label><strong><?php esc_html_e('Locations post type', 'october-events'); ?></strong><br>
+            <select name="location_post_type">
+                <option value="">— <?php esc_html_e('none', 'october-events'); ?> —</option>
+                <?php foreach ($cpts as $pt) : if ($pt->name === \OE\PostTypes::slug('event') || $pt->name === \OE\Volunteers::slug()) { continue; } ?>
+                    <option value="<?php echo esc_attr($pt->name); ?>" <?php selected($loc_pt, $pt->name); ?>><?php echo esc_html($pt->labels->singular_name . ' (' . $pt->name . ')'); ?></option>
+                <?php endforeach; ?>
+            </select></label></p>
+
+        <hr style="margin:18px 0;border:0;border-top:1px solid #eee">
+        <h4 style="margin:0 0 4px"><?php esc_html_e('Partner volunteer feed (host another site’s locations here)', 'october-events'); ?></h4>
+        <p class="description" style="max-width:820px"><?php esc_html_e('Use this on the site that HOSTS the sign-ups (e.g. the festival site). Point it at a tours site and it pulls in that site’s locations flagged “Needs volunteers → Partner site”, creating a local volunteer opportunity for each so people sign up here. Auth: create an Application Password on the tours site (Users → Profile → Application Passwords) for an admin, and paste the username + password below.', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr><th scope="row"><?php esc_html_e('Tours site URL', 'october-events'); ?></th>
+                <td><input type="url" name="volunteer_feed_url" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_url'] ?? '')); ?>" placeholder="https://architecturetours.us"></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Username', 'october-events'); ?></th>
+                <td><input type="text" name="volunteer_feed_user" class="regular-text" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_user'] ?? '')); ?>" autocomplete="off"></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Application password', 'october-events'); ?></th>
+                <td><input type="password" name="volunteer_feed_app_password" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_app_password'] ?? '')); ?>" autocomplete="new-password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></td></tr>
+        </tbody></table>
+        <?php
+        $last = (int) ($cfg['volunteer_feed_last_sync'] ?? 0);
+        $sync = get_transient('oe_vol_sync_' . get_current_user_id());
+        if (is_array($sync)) {
+            delete_transient('oe_vol_sync_' . get_current_user_id());
+            if (! empty($sync['error'])) {
+                echo '<div class="notice notice-error inline" style="margin:8px 0"><p>' . esc_html(sprintf(__('Sync failed: %s', 'october-events'), $sync['error'])) . '</p></div>';
+            } else {
+                echo '<div class="notice notice-success inline" style="margin:8px 0"><p>' . esc_html(sprintf(__('Synced — %1$d created, %2$d updated, %3$d closed.', 'october-events'), (int) ($sync['created'] ?? 0), (int) ($sync['updated'] ?? 0), (int) ($sync['closed'] ?? 0))) . '</p></div>';
+            }
+        }
+        ?>
+        <p>
+            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_sync_partner_vol'), 'oe_sync_partner_vol')); ?>"><?php esc_html_e('Sync now', 'october-events'); ?></a>
+            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last synced %s ago. Auto-syncs daily.', 'october-events'), human_time_diff($last))) : esc_html__('Not synced yet. Also runs automatically once a day.', 'october-events'); ?></span>
+        </p>
+        </div></details>
+
         <details class="oe-acc" id="pricing"><summary><?php esc_html_e('Tier pricing', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Amounts in your chosen currency. Leave 0 for free.', 'october-events'); ?></p>
         <table class="widefat striped" style="max-width:640px">

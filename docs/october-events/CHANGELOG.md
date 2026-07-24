@@ -5,6 +5,55 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.82.0 — cross-site volunteers (part 2): host tour-location sign-ups on a partner site
+
+Completes the "for Atlanta, host tour-location volunteers on the festival site"
+flow. A location flagged **Needs volunteers → Partner site** on the tours site is
+now pulled onto the festival site and hosted there.
+
+- **Source (tours) site**: exposes partner-flagged locations at
+  `GET oe/v1/volunteers/partner-locations` (auth = an admin Application Password).
+- **Partner (festival) site**: **Settings → Events → Volunteer locations →
+  Partner volunteer feed** — enter the tours site URL + an Application Password
+  (username + password). **Sync now** (and a daily auto-sync) pulls those
+  locations and creates a **local** volunteer opportunity for each, so sign-ups,
+  the roster, and reminders all live on the festival site. Re-syncing keeps
+  capacity/title in step; a location dropped from the feed has its local sign-ups
+  closed (kept, not deleted). Materialised opportunities are keyed by
+  `site#remote-id` so syncs are idempotent.
+- **`[oe_location_volunteers]`** shortcode: a grid of all location-linked
+  opportunities (local or pulled) with spots-left — drop it on the festival page
+  that hosts sign-ups.
+- Server-to-server over `wp_remote_get` (no CORS/browser involved); reuses the
+  `manage_options` capability the platform already uses.
+
+## 1.81.1 — fix: location Volunteers box not appearing
+
+The per-location Volunteers box (1.81.0) didn't show even with the Locations post
+type set. The meta-box hooks were only attached when the location post type already
+existed at `plugins_loaded` — but external (JetEngine) CPTs register later on
+`init`, so the check failed and the hooks were skipped. Now the hooks always
+attach and resolve the configured post type at admin-load/save time.
+
+## 1.81.0 — one-click volunteers on tour locations (part 1: local hosting)
+
+Volunteer opportunities can now be created from tour **locations** with one click,
+the same idea as events — no more building them by hand.
+
+- **Settings → Volunteer locations**: choose the post type that holds your tour
+  locations (an external JetEngine CPT). Once set, locations get a Volunteers box.
+- **Per-location "Volunteers" box**: tick **Needs volunteers**, set how many are
+  needed, and choose where sign-ups are hosted — **This site** or a **Partner
+  site**. On save with "This site", a linked volunteer opportunity is created
+  (published, one open shift with that capacity) and kept in sync; unticking closes
+  its sign-ups (kept, not deleted). You refine shifts/dates on the opportunity as
+  normal, and it shows up in Volunteers with the location as its location.
+- The **Partner site** option is stored/flagged now; the cross-site piece (exposing
+  those locations so a festival site can pull and host the sign-ups) lands next.
+- New: `Volunteers::create_or_sync_for_location()`, `for_location()`,
+  `linked_location()`, `close_for_location()`, `location_post_type()`; new
+  `_oe_linked_location` opportunity meta and a `location_post_type` setting.
+
 ## 1.80.0 — interactive YoY chart (toggle years, hover, rescale) + gross-profit KPI
 
 The year-over-year chart is now interactive, and the KPIs show profit after fees.

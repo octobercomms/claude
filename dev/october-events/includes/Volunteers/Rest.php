@@ -35,6 +35,13 @@ final class Rest {
             'callback'            => [self::class, 'list_opportunities'],
             'permission_callback' => [self::class, 'can'],
         ]);
+        // Source-side feed: tour locations flagged "host volunteers on a partner
+        // site". A partner site (e.g. the festival) pulls these to host sign-ups.
+        register_rest_route(self::NS, '/volunteers/partner-locations', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'partner_locations'],
+            'permission_callback' => [self::class, 'can'],
+        ]);
         register_rest_route(self::NS, '/volunteers/opportunity/(?P<id>\d+)', [
             'methods'             => 'GET',
             'callback'            => [self::class, 'get_opportunity'],
@@ -65,6 +72,13 @@ final class Rest {
             $out[] = \OE\Volunteers::opportunity_summary($id);
         }
         return new \WP_REST_Response($out, 200);
+    }
+
+    public static function partner_locations(\WP_REST_Request $req): \WP_REST_Response {
+        return new \WP_REST_Response([
+            'site'      => home_url(),
+            'locations' => \OE\Volunteers::partner_locations(),
+        ], 200);
     }
 
     public static function get_opportunity(\WP_REST_Request $req): \WP_REST_Response {
