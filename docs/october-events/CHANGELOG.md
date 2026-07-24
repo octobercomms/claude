@@ -5,6 +5,67 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.80.0 — interactive YoY chart (toggle years, hover, rescale) + gross-profit KPI
+
+The year-over-year chart is now interactive, and the KPIs show profit after fees.
+
+- **Toggle years on/off**: click any year in the legend to hide/show it. The
+  y-axis **rescales to the visible lines**, so hiding the big historical years lets
+  you actually compare this year against a similar one.
+- **Hover a line** to see which year it is and the cumulative value at that point.
+- **Tickets ⇄ Revenue** toggle retained; both now drawn by a small self-contained
+  chart script (no external libraries) rather than pre-rendered.
+- **New "Gross profit (after fees)" KPI** next to Revenue — revenue minus card
+  fees. The fee is configurable under **Settings → Checkout** (*Card fee %* + fixed
+  per transaction), defaulting to Stripe's 2.9% + 0.30. Fees are applied per
+  distinct paid transaction.
+
+## 1.79.0 — sales-analytics chart: Tickets ⇄ Revenue toggle
+
+The year-over-year cumulative chart now has a **Tickets / Revenue** toggle. Tickets
+stays the default; flip to Revenue to see cumulative revenue by weeks-before-event
+across all years (live + imported history), with the y-axis in the account
+currency (abbreviated, e.g. `$50.9k`). Client-side toggle — both series render
+inline, no page reload, still no external chart libraries.
+
+## 1.78.0 — year-over-year overlay on the sales-analytics chart
+
+The Sales analytics cumulative chart can now plot **prior years alongside the live
+current year**, aligned by weeks-before-event — so you can see at a glance whether
+this year is pacing ahead of or behind previous years (like the "Revenue YoY by
+weeks" view teams keep in spreadsheets).
+
+- **Import prior-year weekly history** (Sales analytics → *Prior-year data*): paste
+  CSV rows `year, weeks_before, quantity, revenue` (a header row is fine). Stored
+  per event; re-importing replaces it, an empty box clears it.
+- The cumulative-sold chart draws one line per imported year plus the live year
+  (highlighted), with a legend. Still self-contained inline SVG — no libraries.
+- Works even before this year has sales, so you can pre-load history and watch the
+  live line build against it.
+
+## 1.77.0 — event dates on orders, order details, and weekly sales analytics
+
+Tools for tracking ticket sales week-by-week as an event approaches.
+
+- **Event date column** on the Registrations/Orders table, so every order shows
+  which event date it's for (not just the event name).
+- **Order details**: each order row now has a **Details** toggle that expands to
+  show the buyer, when it was placed, the payment method + reference, any
+  discount, and every ticket in the order (number, attendee, status) — one extra
+  query for the whole page, no per-row overhead.
+- **New "Sales analytics" tab** (Tickets → Sales analytics): pick an event, set
+  its date, and see sales counted **backwards from that date** — week 0 is the
+  event week, −1 the week before, and so on. Shows a cumulative-sold curve
+  approaching the event, a tickets-per-week bar chart, KPI cards (total sold,
+  revenue, best week, days to event), and a full weekly breakdown table with
+  running cumulative tickets + revenue. Event-only (driven by each event's date);
+  charts are self-contained inline SVG/CSS (no external libraries).
+- You can **set/override an event's date right on the analytics screen** (writes
+  the plugin's `start_datetime`), so the "weeks before" maths always has an anchor
+  even for events whose date lives elsewhere.
+- New helpers: `Orders::tickets_for_orders()` (batch) and
+  `Orders::event_weekly_sales()`.
+
 ## 1.76.0 — membership upsell card (benefits + read-more button)
 
 The voluntary "add a Friend membership" opt-in on a normal checkout is no longer a

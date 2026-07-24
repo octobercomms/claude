@@ -37,6 +37,8 @@ final class TicketsAdmin {
         add_action('admin_post_oe_delete_order', [$this, 'handle_delete_order']);
         add_action('admin_post_oe_refund_tickets', [$this, 'handle_refund_tickets']);
         add_action('admin_post_oe_resend_confirmation', [$this, 'handle_resend_confirmation']);
+        add_action('admin_post_oe_set_event_date', [$this, 'handle_set_event_date']);
+        add_action('admin_post_oe_import_history', [$this, 'handle_import_history']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
         add_action('admin_post_oe_delete_promo', [$this, 'handle_delete_promo']);
         add_action('admin_post_oe_waitlist_promote', [$this, 'handle_waitlist_promote']);
@@ -409,6 +411,9 @@ final class TicketsAdmin {
         // Active tickets per transaction (one query) for the refund panel — keyed
         // by payment id so a mixed cart's sibling orders all appear together.
         $txn_tickets = Orders::active_tickets_for_payments(array_map(static fn($o) => (string) $o->payment_id, (array) ($orders ?: [])));
+        // Every ticket row for the shown orders (one query) for the expandable
+        // order-detail rows.
+        $order_tickets = Orders::tickets_for_orders(array_map(static fn($o) => (int) $o->id, (array) ($orders ?: [])));
 
         // All published events, for the manual-add form + filter (the form marks
         // which have ticket types — only those can have tickets issued).
@@ -512,6 +517,151 @@ final class TicketsAdmin {
         self::prime_event_titles($events);
         $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
         require OE_DIR . 'admin/views/sales.php';
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Sales analytics — weekly sales leading up to an event's date
+     * ------------------------------------------------------------------ */
+
+    public function render_analytics(): void {
+        // Events that have ever sold a ticket, plus all published events, so the
+        // picker covers both. Default to ?event=, else the event with the nearest
+        // upcoming date, else the first with any date.
+        $events = get_posts([
+            'post_type'      => PostTypes::slug('event'),
+            'post_status'    => ['publish', 'draft', 'private'],
+            'posts_per_page' => 300,
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+        ]);
+        $event_id = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        if (! $event_id) {
+            $now = time();
+            $best = 0; $best_delta = PHP_INT_MAX;
+            foreach ($events as $ev) {
+                $ts = \OE\Ticketing\Ics::start_ts((int) $ev->ID);
+                if (! $ts) { continue; }
+                $delta = abs($ts - $now);
+                // Prefer the nearest upcoming; fall back to nearest overall.
+                if ($ts >= $now && $delta < $best_delta) { $best = (int) $ev->ID; $best_delta = $delta; }
+            }
+            if (! $best) {
+                foreach ($events as $ev) { if (\OE\Ticketing\Ics::start_ts((int) $ev->ID)) { $best = (int) $ev->ID; break; } }
+            }
+            $event_id = $best ?: ((int) ($events[0]->ID ?? 0));
+        }
+
+        $event_ts   = $event_id ? \OE\Ticketing\Ics::start_ts($event_id) : 0;
+        $event_year = $event_ts ? (int) wp_date('Y', $event_ts) : 0;
+        $series     = ($event_id && $event_ts) ? Orders::event_weekly_sales($event_id, $event_ts) : [];
+        // Prior-year weekly history for the YoY overlay (imported per event).
+        $raw     = $event_id ? get_post_meta($event_id, '_oe_hist_series', true) : '';
+        $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
+        $history = is_array($decoded) ? $decoded : [];
+        krsort($history); // newest year first for the legend
+        $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
+        $cur_sym  = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$currency] ?? ($currency . ' ');
+
+        // Build the overlay series (cumulative by weeks-before) for BOTH metrics, as
+        // plain arrays for the interactive JS chart (toggle years, hover, rescale).
+        $palette = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#0891b2', '#be185d', '#4d7c0f', '#9333ea', '#0d9488'];
+        $mk = function (string $metric) use ($series, $history, $event_year, $palette): array {
+            $lk = $metric === 'revenue' ? 'cum_revenue' : 'cum_tickets';
+            $hk = $metric === 'revenue' ? 'r' : 'q';
+            $out = []; $gmw = 0;
+            if ($series) {
+                $pts = [];
+                foreach ($series as $s) { $pts[] = [(int) $s['week_before'], round((float) $s[$lk], 2)]; $gmw = max($gmw, (int) $s['week_before']); }
+                $out[] = ['label' => ($event_year ?: __('This year', 'october-events')) . ' · ' . __('live', 'october-events'), 'color' => '#d14900', 'live' => true, 'points' => $pts];
+            }
+            $ci = 0;
+            foreach ($history as $yr => $weeks) {
+                $maxw = 0; foreach ($weeks as $wb => $v) { $maxw = max($maxw, (int) $wb); }
+                $cum = 0.0; $pts = [];
+                for ($w = $maxw; $w >= 0; $w--) { $cum += (float) ($weeks[(string) $w][$hk] ?? 0); $pts[] = [$w, round($cum, 2)]; }
+                $gmw = max($gmw, $maxw);
+                $out[] = ['label' => (string) $yr, 'color' => $palette[$ci++ % count($palette)], 'live' => false, 'points' => $pts];
+            }
+            return ['series' => $out, 'maxW' => $gmw];
+        };
+        $chart_data = ['tickets' => $mk('tickets'), 'revenue' => $mk('revenue'), 'curSym' => $cur_sym];
+        $has_charts = ! empty($chart_data['tickets']['series']);
+
+        // Gross profit (after card fees) for the live year — revenue minus a
+        // percent + fixed-per-transaction fee (default Stripe's 2.9% + $0.30).
+        global $wpdb;
+        $paid_txns = $event_id ? (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT payment_id) FROM " . Schema::orders() . " WHERE event_id = %d AND status = 'paid' AND payment_id <> ''",
+            $event_id
+        )) : 0;
+        $fee_pct   = (float) \OE\Settings::get('card_fee_percent', 2.9);
+        $fee_fixed = (float) \OE\Settings::get('card_fee_fixed', 0.30);
+
+        wp_enqueue_script('oe-analytics', OE_URL . 'assets/js/analytics.js', [], OE_VERSION, true);
+        wp_localize_script('oe-analytics', 'octYoY', $chart_data);
+
+        require OE_DIR . 'admin/views/analytics.php';
+    }
+
+    /** Import prior-year weekly sales (CSV: year,weeks_before,quantity,revenue) for the YoY overlay. */
+    public function handle_import_history(): void {
+        $this->guard('oe_import_history');
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $raw      = (string) wp_unslash($_POST['history_csv'] ?? '');
+        if ($event_id && get_post_type($event_id) === PostTypes::slug('event')) {
+            $data = self::parse_history_csv($raw);
+            if ($data) {
+                update_post_meta($event_id, '_oe_hist_series', wp_json_encode($data));
+            } else {
+                delete_post_meta($event_id, '_oe_hist_series');
+            }
+        }
+        wp_safe_redirect(admin_url('admin.php?page=oe-tickets&tab=analytics&event=' . $event_id));
+        exit;
+    }
+
+    /**
+     * Parse pasted history CSV into [year => [weeks_before => ['q'=>int,'r'=>float]]].
+     * Accepts an optional header row; ignores blanks and anything unparseable.
+     */
+    private static function parse_history_csv(string $raw): array {
+        $out = [];
+        foreach (preg_split('/\r\n|\r|\n/', $raw) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $c = str_getcsv($line);
+            if (! isset($c[1]) || ! is_numeric(trim((string) $c[0])) || ! is_numeric(trim((string) $c[1]))) {
+                continue; // header or junk row
+            }
+            $year = (int) $c[0];
+            $wb   = (int) $c[1];
+            if ($year < 1990 || $year > 2100 || $wb < 0 || $wb > 104) {
+                continue;
+            }
+            $out[(string) $year][(string) $wb] = [
+                'q' => max(0, (int) round((float) ($c[2] ?? 0))),
+                'r' => round((float) ($c[3] ?? 0), 2),
+            ];
+        }
+        return $out;
+    }
+
+    /** Set/override an event's start date from the analytics screen. */
+    public function handle_set_event_date(): void {
+        $this->guard('oe_set_event_date');
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $date     = sanitize_text_field((string) ($_POST['event_date'] ?? ''));
+        if ($event_id && get_post_type($event_id) === PostTypes::slug('event')) {
+            if ($date === '') {
+                delete_post_meta($event_id, \OE\Planning\Events::key('start_datetime'));
+            } else {
+                update_post_meta($event_id, \OE\Planning\Events::key('start_datetime'), $date);
+            }
+        }
+        wp_safe_redirect(admin_url('admin.php?page=oe-tickets&tab=analytics&event=' . $event_id));
+        exit;
     }
 
     /* ------------------------------------------------------------------ *
