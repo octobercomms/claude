@@ -454,39 +454,28 @@ index eabed8e..f0c89dc 100644
      mockQuery({ rows: [
        { thread_key: 't1', uid: 70, folder: 'INBOX', from_email: 'me@example.com', date: '2026-07-09T10:00:00Z', id: 'r1' },
 diff --git a/backend/src/services/imapManager.js b/backend/src/services/imapManager.js
-index 74a112b..8a5b432 100644
+index 74a112b..0d35ce1 100644
 --- a/backend/src/services/imapManager.js
 +++ b/backend/src/services/imapManager.js
-@@ -825,6 +825,28 @@ function relocateMessageQuery(folder, parsed, accountId, msgId, gtdFolders) {
-   };
- }
- 
-+// Intra-folder UID-churn dedup. Gmail can hand a label copy a *fresh UID without bumping
-+// UIDVALIDITY* (so the syncMessages/backfill UIDVALIDITY purge never fires), and the
-+// cross-folder relocate above deliberately sits out a *multi-labeled* message via its
-+// `1 = COUNT(message_id)` guard — a "1: to respond" message also lives in INBOX/All Mail, so
-+// COUNT > 1 and the relocate never repoints it. With both dedups sitting this one out, a new
-+// UID for a message already present in THIS folder makes the INSERT below add a SECOND row
-+// instead of updating the existing one, and the folder accumulates one duplicate per message
-+// every sync (observed live: ~178 rows for a 52-message Gmail label). Reconcile then keeps
-+// hard-deleting the stale-UID orphans, so the folder churns and the live set collapses.
-+//
-+// `uid` is THIS folder's current server UID for the message (it was just fetched from this
-+// mailbox), so any *same-folder* row carrying the same message_id but a different UID is a
-+// stale duplicate by definition — delete it before the upsert so exactly one row per
-+// (account, folder, message_id) survives. The folder is pinned, so sibling rows in OTHER
-+// folders (the INBOX / All Mail copies) are never touched and multi-label copies are kept.
-+export function dedupeFolderByMessageIdQuery(accountId, folder, messageId, uid) {
-+  return {
-+    sql: 'DELETE FROM messages WHERE account_id = $1 AND folder = $2 AND message_id = $3 AND uid <> $4',
-+    params: [accountId, folder, messageId, uid],
-+  };
-+}
-+
- // Strip null bytes that PostgreSQL's UTF-8 encoding rejects (some emails contain them)
- function sanitizeStr(str) {
-   if (typeof str !== 'string') return str;
-@@ -2260,6 +2282,27 @@ export class ImapManager {
+@@ -447,6 +447,17 @@ const PROVIDERS = {
+     pushesFlags: false,
+     snippetIndex: false,
+     speculativeFetch: false,
++    // Gmail is LABEL-based: one message legitimately appears in several mailboxes at once
++    // (INBOX + any user label + All Mail) as independent per-folder copies with their own
++    // UIDs. The move-detector relocate-in-place (RELOCATE_MESSAGE_SQL) treats "same
++    // Message-ID in another folder" as a MOVE and collapses those legitimate siblings into a
++    // SINGLE row, then repoints it to whichever folder synced last — so INBOX (synced every
++    // ~60 s) and a heavily-overlapping user label like "1: to respond" endlessly steal the
++    // one row from each other and the label's count(*) oscillates (unlogged, because it is an
++    // UPDATE, not a DELETE). Skip relocate for label-based providers: a plain per-folder
++    // INSERT builds the correct sibling rows, and reconcileDeletes still removes a copy that
++    // genuinely leaves a folder on the server.
++    labelBased: true,
+     skipFolderPatterns: ['all mail', '[gmail]/starred', '[gmail]/important'],
+     // [Gmail] is a namespace container — not a selectable mailbox. It must be
+     // matched exactly so that real subfolders like [Gmail]/Drafts are not skipped.
+@@ -2260,6 +2271,27 @@ export class ImapManager {
            ON CONFLICT (account_id, path) DO NOTHING
          `, [account.id, delimiter]);
        }
@@ -514,31 +503,34 @@ index 74a112b..8a5b432 100644
      } catch (err) {
        console.error(`Folder sync error for ${logAccount(account)}:`, err.message);
      }
-@@ -2430,6 +2473,11 @@ export class ImapManager {
+@@ -2425,7 +2457,13 @@ export class ImapManager {
+             // than inserting a duplicate. The COUNT=1 guard prevents incorrectly
+             // merging Gmail's virtual-folder copies (same message_id in INBOX and
+             // [Gmail]/All Mail simultaneously).
+-            if (msgId) {
++            //
++            // Skipped for label-based providers (Gmail): there a message legitimately lives in
++            // several mailboxes at once, so "same Message-ID elsewhere" is a sibling, not a
++            // move. Relocating would collapse the siblings to one row and ping-pong it between
++            // INBOX and the label every sync (see PROVIDERS.google.labelBased). Fall through to
++            // the per-folder INSERT instead; reconcileDeletes handles genuine per-folder removals.
++            if (msgId && !provider.labelBased) {
+               const { sql: relocateSql, params: relocateParams } =
                  relocateMessageQuery(folder, parsed, account.id, msgId, gtdFolderPaths);
                const relocated = await query(relocateSql, relocateParams);
-               if (relocated.rows.length > 0) return;
-+
-+              // Collapse any stale-UID duplicate of this message already sitting in THIS same
-+              // folder (Gmail label UID churn) before the upsert — see dedupeFolderByMessageIdQuery.
-+              const dedupe = dedupeFolderByMessageIdQuery(account.id, folder, msgId, parsed.uid);
-+              await query(dedupe.sql, dedupe.params);
-             }
+@@ -3076,7 +3114,10 @@ export class ImapManager {
+                 const bfRefs     = sanitizeStr(parsed.references);
+                 const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject));
  
-             let msgCategory = null;
-@@ -3081,6 +3129,11 @@ export class ImapManager {
+-                if (bfMsgId) {
++                // Skipped for label-based providers (Gmail) — see the sync processMsg relocate
++                // and PROVIDERS.google.labelBased: relocating collapses legitimate multi-label
++                // siblings and ping-pongs the row between INBOX and the label.
++                if (bfMsgId && !cfg.labelBased) {
+                   const { sql: relocateSql, params: relocateParams } =
                      relocateMessageQuery(folder, parsed, account.id, bfMsgId, gtdFolderPaths);
                    const relocated = await query(relocateSql, relocateParams);
-                   if (relocated.rows.length > 0) { backfilledRows += relocated.rows.length; continue; }
-+
-+                  // Collapse any stale-UID duplicate of this message already in THIS same folder
-+                  // (Gmail label UID churn) before the upsert — see dedupeFolderByMessageIdQuery.
-+                  const dedupe = dedupeFolderByMessageIdQuery(account.id, folder, bfMsgId, parsed.uid);
-+                  await query(dedupe.sql, dedupe.params);
-                 }
- 
-                 let bfCategory = null;
-@@ -4286,6 +4339,48 @@ export class ImapManager {
+@@ -4286,6 +4327,48 @@ export class ImapManager {
      return newUid;
    }
  
@@ -587,7 +579,7 @@ index 74a112b..8a5b432 100644
    async permanentDeleteMessage(account, uid, folder) {
      await withFreshClient(account, async (client) => {
        const lock = await client.getMailboxLock(folder);
-@@ -4837,9 +4932,13 @@ export class ImapManager {
+@@ -4837,9 +4920,13 @@ export class ImapManager {
        await withFreshClient(account, async (client) => {
          for (const folder of folders) {
            let serverUids;
@@ -601,7 +593,7 @@ index 74a112b..8a5b432 100644
                serverUids = await client.search({ all: true }, { uid: true });
              } finally {
                lock.release();
-@@ -4849,7 +4948,7 @@ export class ImapManager {
+@@ -4849,7 +4936,7 @@ export class ImapManager {
              console.warn(`Reconcile: could not open ${logAccount(account)}/${folder}: ${extractImapError(err)}`);
              continue;
            }
@@ -610,7 +602,7 @@ index 74a112b..8a5b432 100644
          }
        });
      } catch (err) {
-@@ -4860,7 +4959,7 @@ export class ImapManager {
+@@ -4860,7 +4947,7 @@ export class ImapManager {
      // Phase 2 — diff each folder's server UIDs against the DB and delete orphans.
      // Runs outside withFreshClient so DB errors never cause unnecessary pool eviction.
      let deletedCount = 0;
@@ -619,7 +611,7 @@ index 74a112b..8a5b432 100644
        const dbResult = await query(
          'SELECT uid FROM messages WHERE account_id = $1 AND folder = $2 AND (synced_at IS NULL OR synced_at < $3)',
          [account.id, folder, reconcileStartedAt]
-@@ -4871,6 +4970,23 @@ export class ImapManager {
+@@ -4871,6 +4958,23 @@ export class ImapManager {
  
        if (orphanUids.length === 0) continue;
  
@@ -644,41 +636,28 @@ index 74a112b..8a5b432 100644
        // Re-assert the cutoff in the DELETE: a row updated to a fresh synced_at between
        // the SELECT above and here (e.g. a concurrent bulk-move reinsert) is spared.
 diff --git a/backend/src/services/imapManager.test.js b/backend/src/services/imapManager.test.js
-index 5d1a8fa..00bf225 100644
+index 5d1a8fa..074c945 100644
 --- a/backend/src/services/imapManager.test.js
 +++ b/backend/src/services/imapManager.test.js
-@@ -11,7 +11,7 @@ vi.mock('../utils/redact.js', () => ({ redactEmail: vi.fn() }));
- vi.mock('./hostValidation.js', () => ({ resolveForConnection: vi.fn() }));
- vi.mock('./gtdTransitions.js', () => ({ runGtdTransitions: vi.fn(), threadKeysForMessageIds: vi.fn(), threadKeysInFolders: vi.fn() }));
- 
--import { ImapManager, providerProfile, makeClientCfg, gtdRelocateGuard, insertCopiedSibling, deleteMessageCopyRow, emitAfterDeferredCopySync, emitGtdSectionsRefreshOnDelete, emitGtdSectionsRefreshIfEnabled, selectGtdReevalIds, ensureMailbox, runGtdSyncTick, createKeyedSemaphore, isConnectionRefusal, connectCooldownMs, effectiveSyncIntervalMs, folderSyncDue, planModseqSync, connectStaggerFor } from './imapManager.js';
-+import { ImapManager, providerProfile, makeClientCfg, gtdRelocateGuard, dedupeFolderByMessageIdQuery, insertCopiedSibling, deleteMessageCopyRow, emitAfterDeferredCopySync, emitGtdSectionsRefreshOnDelete, emitGtdSectionsRefreshIfEnabled, selectGtdReevalIds, ensureMailbox, runGtdSyncTick, createKeyedSemaphore, isConnectionRefusal, connectCooldownMs, effectiveSyncIntervalMs, folderSyncDue, planModseqSync, connectStaggerFor } from './imapManager.js';
- import { query } from './db.js';
- import { invalidateGtdConfigCache } from './gtdConfig.js';
- import { runGtdTransitions, threadKeysInFolders } from './gtdTransitions.js';
-@@ -307,6 +307,22 @@ describe('insertCopiedSibling', () => {
-   });
- });
- 
-+// ── intra-folder UID-churn dedup — dedupeFolderByMessageIdQuery ──────────────
-+
-+describe('dedupeFolderByMessageIdQuery', () => {
-+  it('drops same-folder stale-UID copies of one message, scoped and never crossing folders', () => {
-+    const { sql, params } = dedupeFolderByMessageIdQuery('acct-1', '1: to respond', '<m@x>', 600);
-+    // Keyed on (account_id, folder, message_id) and excludes the current UID.
-+    expect(sql).toContain('DELETE FROM messages');
-+    expect(sql).toContain('account_id = $1');
-+    expect(sql).toContain('folder = $2');
-+    expect(sql).toContain('message_id = $3');
-+    expect(sql).toContain('uid <> $4');
-+    // Folder is pinned so sibling copies in INBOX / All Mail are never touched.
-+    expect(params).toEqual(['acct-1', '1: to respond', '<m@x>', 600]);
+@@ -33,6 +33,18 @@ describe('providerProfile — host detection', () => {
+     expect(providerProfile(account(host)).pushesFlags).toBe(false);
+     expect(providerProfile(account(host)).speculativeFetch).toBe(false);
+     expect(providerProfile(account(host)).snippetIndex).toBe(false);
++    // Gmail is label-based, so relocate-in-place must be skipped (multi-label siblings).
++    expect(providerProfile(account(host)).labelBased).toBe(true);
 +  });
-+});
 +
- // ── removeMessageCopy DB side — deleteMessageCopyRow ─────────────────────────
++  it.each([
++    ['imap.mail.yahoo.com'],
++    ['imap.mail.me.com'],
++    ['outlook.office365.com'],
++    ['mail.purelymail.com'],
++    ['imap.example.org'],
++  ])('leaves relocate enabled (not label-based) for non-Gmail host %s', host => {
++    expect(providerProfile(account(host)).labelBased).toBeFalsy();
+   });
  
- describe('deleteMessageCopyRow', () => {
+   it.each([
 diff --git a/frontend/index.html b/frontend/index.html
 index dc7460d..314846e 100644
 --- a/frontend/index.html
