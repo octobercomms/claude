@@ -54,12 +54,12 @@ final class Volunteers {
             add_action('add_meta_boxes', [$this, 'add_event_meta_box']);
             add_action('save_post_' . self::slug(), [$this, 'save_meta']);
 
-            // One-click "Needs volunteers" on each tour location (when configured).
-            $loc = self::location_post_type();
-            if ($loc !== '') {
-                add_action('add_meta_boxes', [$this, 'add_location_meta_box']);
-                add_action('save_post_' . $loc, [$this, 'save_location_meta'], 20, 1);
-            }
+            // One-click "Needs volunteers" on each tour location. Always hook —
+            // the callbacks resolve the configured location post type at
+            // admin-load/save time, because CPTs (e.g. the JetEngine "location"
+            // type) aren't registered yet at plugins_loaded, when this init runs.
+            add_action('add_meta_boxes', [$this, 'add_location_meta_box']);
+            add_action('save_post', [$this, 'save_location_meta'], 20, 2);
         }
     }
 
@@ -893,7 +893,12 @@ final class Volunteers {
         <?php
     }
 
-    public function save_location_meta(int $post_id): void {
+    public function save_location_meta(int $post_id, $post = null): void {
+        // Generic save_post hook — only act on the configured location post type.
+        $loc = self::location_post_type();
+        if ($loc === '' || get_post_type($post_id) !== $loc) {
+            return;
+        }
         if (! isset($_POST['oe_loc_vol_nonce']) || ! wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['oe_loc_vol_nonce'])), 'oe_save_loc_vol')) {
             return;
         }

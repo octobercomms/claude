@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.81.1 — fix: location Volunteers box not appearing
+
+The per-location Volunteers box (1.81.0) didn't show even with the Locations post
+type set. The meta-box hooks were only attached when the location post type already
+existed at `plugins_loaded` — but external (JetEngine) CPTs register later on
+`init`, so the check failed and the hooks were skipped. Now the hooks always
+attach and resolve the configured post type at admin-load/save time.
+
 ## 1.81.0 — one-click volunteers on tour locations (part 1: local hosting)
 
 Volunteer opportunities can now be created from tour **locations** with one click,
