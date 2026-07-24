@@ -8,11 +8,17 @@ brief and deploy runbooks.
 
 | Path | What it is |
 |------|------------|
-| `deploy/cloud-init.sh` | One-shot bootstrap for a **Hetzner Cloud** box (x86 or Arm) — installs Docker and stands up stock MailFlow from prebuilt images. Runbook: [`docs/oc-mail/hetzner-deploy.md`](../../docs/oc-mail/hetzner-deploy.md). |
-| `deploy/oracle-cloud-init.sh` | Same bootstrap adapted for **Oracle Cloud Always-Free (Ampere A1, ARM)** — also opens host iptables 80/443 (an Oracle-specific gotcha). Runbook: [`docs/oc-mail/oracle-deploy.md`](../../docs/oc-mail/oracle-deploy.md). |
+| `deploy/cloud-init.sh` | **Fresh Hetzner box (x86 or Arm).** One-shot cloud-init bootstrap — installs Docker and stands up stock MailFlow from prebuilt images. Paste into the "Cloud config" field at server creation. Runbook: [`hetzner-deploy.md`](../../docs/oc-mail/hetzner-deploy.md) (Option A). |
+| `deploy/oracle-cloud-init.sh` | **Oracle Cloud Always-Free (Ampere A1, ARM).** Same bootstrap, and also opens host iptables 80/443 (an Oracle-specific gotcha). Runbook: [`oracle-deploy.md`](../../docs/oc-mail/oracle-deploy.md). |
+| `deploy/install-existing.sh` | **Existing box already using 80/443** (e.g. the `email` box that runs Mautic). Binds MailFlow's frontend to localhost and is re-run safe (never clobbers `ENCRYPTION_KEY`). Runbook: [`hetzner-deploy.md`](../../docs/oc-mail/hetzner-deploy.md) (Option B). |
+| `deploy/Caddyfile` | Host reverse proxy for the existing-box path — routes `mail.` → MailFlow and (during a transition) `email.` → Mautic by hostname, with automatic Let's Encrypt certs. |
 
-Both paste into the provider's cloud-init / user-data field at server-creation
-time. Neither contains secrets — secrets are generated on the server.
+Pick by situation: a **fresh box** (`cloud-init.sh`) is cleanest when the
+cost-optimised Hetzner types are available; the **free ARM** path
+(`oracle-cloud-init.sh`) avoids per-month cost; the **existing-box** path
+(`install-existing.sh` + `Caddyfile`) co-hosts on a server you already run when
+you'd rather not provision a new one. The cloud-init scripts paste into the
+provider's user-data field; none contain secrets — they're generated on the box.
 
 ## Status
 

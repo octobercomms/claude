@@ -9,12 +9,33 @@ first boot.
 > prebuilt Docker images pulled from GHCR. The repo/fork matters only later, when
 > we add the cross-account move feature.
 
+## Which path do I want?
+
+There are two ways to deploy, covered in this runbook:
+
+- **Option A — fresh Hetzner box (§1–§9).** The original plan: create a new
+  `oc-mail-test` server whose cloud-init script installs everything on first
+  boot. Cleanest and most disposable. **Caveat (July 2026):** the cost-optimised
+  Shared vCPU line (CX22 and its CX2x successors) is intermittently showing
+  **"unavailable"** at provisioning time. If you can't create one, use Option B.
+- **Option B — repurpose the existing `email` box (§10).** Reuse the CX33 in
+  Helsinki (`65.108.219.243`) that currently runs the soon-to-be-retired Mautic.
+  MailFlow runs alongside Mautic behind a reverse proxy during a short transition
+  window, then Mautic is decommissioned and MailFlow keeps the box. No new server,
+  no waiting on capacity, no extra cost. **This is the recommended path while the
+  cost-optimised types are unavailable.**
+
+Options A and B install the *same* MailFlow stack — they differ only in *where*
+it runs and how the public 80/443 ports are handled.
+
+# Option A — fresh Hetzner box
+
 ## 1. Server spec
 
 | Setting | Value |
 |---|---|
 | Image | **Ubuntu 24.04** |
-| Type | **CX22** (x86, 2 vCPU / 4 GB / 40 GB) — ~€4–5/mo. Use x86, not Arm, to avoid image-arch surprises. |
+| Type | **CX22** (x86, 2 vCPU / 4 GB / 40 GB) — ~€4–5/mo. Use x86, not Arm, to avoid image-arch surprises. If CX22 shows **unavailable**, its direct successor **CX23** (same 2 vCPU / 4 GB / 40 GB) is fine; if the whole Shared vCPU line is unavailable, switch to **Option B** (§10). |
 | Location | Any EU region (e.g. Nuremberg / Falkenstein / Helsinki) |
 | Public IPv4 | **Yes** (required) |
 | SSH key | Attach yours if you have one in Hetzner (lets you SSH in later). Optional — without it, Hetzner emails a root password. |
@@ -132,3 +153,123 @@ can.
 `docker compose -f /opt/mailflow/docker-compose.yml down -v` on the server, or
 just delete the server in the Hetzner console. Nothing here is load-bearing —
 mail lives at the providers, not on this box.
+
+---
+
+# Option B — repurpose the existing `email` box
+
+Use this when you can't (or don't want to) provision a fresh server. It reuses
+the existing **`email`** box — a CX33 in Helsinki, `65.108.219.243` — which today
+runs a Mautic install that is being retired. MailFlow runs **alongside** Mautic
+behind a single reverse proxy for a short transition window, then Mautic is
+decommissioned and MailFlow keeps the box.
+
+**Why not just paste the cloud-init script onto it?** Two reasons, and they're the
+whole design of this option:
+
+1. **Port collision.** `cloud-init.sh` (and MailFlow's compose defaults) bind the
+   frontend to the host's public **:80 and :443** — which Mautic already holds.
+   Two things can't own those ports. So on this box MailFlow's frontend is bound
+   to **localhost** (`127.0.0.1:8443` / `:8080`) and a host reverse proxy routes
+   traffic to it by hostname.
+2. **Subdomain, not subpath.** MailFlow is a React SPA that expects to live at a
+   web root, so it gets its own hostname — **`mail.octobercomms.com`** — rather
+   than a `/mail` subpath. (Mautic is a traditional PHP app and *can* live under a
+   subpath, but during the transition it's simplest to leave it exactly where it
+   is on `email.octobercomms.com`.)
+
+Files for this path live in
+[`dev/oc-mail/deploy/`](../../dev/oc-mail/deploy/):
+[`install-existing.sh`](../../dev/oc-mail/deploy/install-existing.sh) and
+[`Caddyfile`](../../dev/oc-mail/deploy/Caddyfile).
+
+### 10.1 Before you touch the box
+
+- **Snapshot it.** Hetzner Console → the `email` server → **Snapshots → Take
+  snapshot**. This box has live Mautic data; a snapshot is your undo button.
+- **Check headroom.** SSH in and confirm there's room for a second stack
+  (Postgres + Redis + Node + nginx) next to Mautic (PHP + MySQL):
+  `free -m` (want ≳1.5 GB free) and `df -h /` (want a few GB free).
+- **See what owns 80/443:** `ss -ltnp '( sport = :80 or sport = :443 )'`. That's
+  the web server you'll put behind the new proxy in §10.4.
+
+### 10.2 DNS
+
+Add an **A record** for `mail.octobercomms.com` → `65.108.219.243`. Leave the
+existing `email.octobercomms.com` record pointing at the same box (Mautic keeps
+it during the transition). Wait for it to resolve before requesting certs in
+§10.4 (Let's Encrypt validates over HTTP).
+
+### 10.3 Install MailFlow (localhost-bound)
+
+SSH into the box as root and run the existing-server installer. It installs
+Docker only if missing, binds the frontend to localhost, and — critically — is
+**re-run safe**: it never overwrites an existing `.env`, so `ENCRYPTION_KEY`
+stays stable.
+
+```bash
+curl -fsSL -o install-existing.sh \
+  https://raw.githubusercontent.com/octobercomms/claude/main/dev/oc-mail/deploy/install-existing.sh
+MAIL_DOMAIN=mail.octobercomms.com bash install-existing.sh
+```
+
+At this point MailFlow is up but only reachable on `127.0.0.1:8443` — not yet
+public. That's intentional; the proxy in the next step exposes it.
+
+### 10.4 Reverse proxy (pick one)
+
+**Recommended — a host Caddy fronts both apps** (clean end state, real certs for
+both):
+
+1. Move Mautic's own web server off the public ports onto a localhost port, e.g.
+   have Apache/nginx listen on `127.0.0.1:8081` instead of `:80/:443`. (Since
+   Mautic is being retired, this reconfiguration is temporary.)
+2. Install Caddy and drop in [`Caddyfile`](../../dev/oc-mail/deploy/Caddyfile):
+   ```bash
+   cp dev/oc-mail/deploy/Caddyfile /etc/caddy/Caddyfile
+   systemctl reload caddy
+   ```
+   It terminates TLS for both hostnames and routes `mail.` → MailFlow
+   (`127.0.0.1:8443`, self-signed, verification skipped) and `email.` → Mautic
+   (`127.0.0.1:8081`). Each gets an automatic Let's Encrypt cert — the
+   self-signed warning from Option A is gone.
+
+**Zero-touch-Mautic alternative** — if Mautic is on native Apache and you'd
+rather not move it, keep it on `:80/:443` and just add **one proxy vhost** to its
+existing Apache for `mail.octobercomms.com` → `https://127.0.0.1:8443/`
+(`SSLProxyEngine on`, `SSLProxyVerify none`), with a certbot cert for the new
+hostname. No new proxy layer; you're only adding a vhost to the server that's
+already terminating TLS.
+
+> **Which one?** It depends on how Mautic runs today (native LAMP vs Docker) —
+> check with the `ss` command in §10.1. The Caddy path is the cleaner end state
+> and what the retirement is heading toward; the Apache-vhost path is the least
+> invasive if you want to touch Mautic as little as possible.
+
+### 10.5 First login, accounts, Claude
+
+Identical to **§4** and **§5** above, except you browse to
+`https://mail.octobercomms.com` (a real, trusted cert — no warning to accept).
+
+### 10.6 Cut over, then retire Mautic
+
+Once MailFlow has your accounts connected and feels right:
+
+1. Export/back up anything still wanted from Mautic.
+2. Stop Mautic and its DB (e.g. `docker compose down` in its dir, or
+   `systemctl stop` its services + MySQL).
+3. **Delete the `email.octobercomms.com` block from the `Caddyfile`** and
+   `systemctl reload caddy`. Optionally repoint `mail`'s role onto the bare host
+   or move DNS as you like — MailFlow now has the box to itself.
+4. Keep the pre-change snapshot from §10.1 until you're certain nothing from
+   Mautic is needed.
+
+### 10.7 Notes specific to co-hosting
+
+- **Don't re-run the installer expecting a reset** — it deliberately preserves
+  `.env`. To truly start over, `docker compose down -v` in `/opt/mailflow` and
+  remove the dir first.
+- **Firewall:** if a Hetzner Cloud Firewall is attached to this box, make sure
+  inbound **80** and **443** are allowed (Caddy needs 80 for ACME challenges).
+- Everything in **§8 Security notes** still applies — especially keeping
+  `ENCRYPTION_KEY` stable.
