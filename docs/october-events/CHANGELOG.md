@@ -5,6 +5,25 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.81.0 — one-click volunteers on tour locations (part 1: local hosting)
+
+Volunteer opportunities can now be created from tour **locations** with one click,
+the same idea as events — no more building them by hand.
+
+- **Settings → Volunteer locations**: choose the post type that holds your tour
+  locations (an external JetEngine CPT). Once set, locations get a Volunteers box.
+- **Per-location "Volunteers" box**: tick **Needs volunteers**, set how many are
+  needed, and choose where sign-ups are hosted — **This site** or a **Partner
+  site**. On save with "This site", a linked volunteer opportunity is created
+  (published, one open shift with that capacity) and kept in sync; unticking closes
+  its sign-ups (kept, not deleted). You refine shifts/dates on the opportunity as
+  normal, and it shows up in Volunteers with the location as its location.
+- The **Partner site** option is stored/flagged now; the cross-site piece (exposing
+  those locations so a festival site can pull and host the sign-ups) lands next.
+- New: `Volunteers::create_or_sync_for_location()`, `for_location()`,
+  `linked_location()`, `close_for_location()`, `location_post_type()`; new
+  `_oe_linked_location` opportunity meta and a `location_post_type` setting.
+
 ## 1.80.0 — interactive YoY chart (toggle years, hover, rescale) + gross-profit KPI
 
 The year-over-year chart is now interactive, and the KPIs show profit after fees.

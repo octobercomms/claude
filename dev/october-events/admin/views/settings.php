@@ -59,6 +59,21 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </tbody></table>
         </div></details>
 
+        <details class="oe-acc" id="volunteer-locations"><summary><?php esc_html_e('Volunteer locations', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('If your tour has a “Locations” post type (e.g. homes/stops on the tour), choose it here. Each location then gets a one-click “Needs volunteers” box that creates and links a volunteer opportunity for it — no more building them by hand. Leave blank if you only need volunteers for events.', 'october-events'); ?></p>
+        <?php
+        $loc_pt  = (string) ($cfg['location_post_type'] ?? '');
+        $cpts    = get_post_types(['public' => true, '_builtin' => false], 'objects');
+        ?>
+        <p><label><strong><?php esc_html_e('Locations post type', 'october-events'); ?></strong><br>
+            <select name="location_post_type">
+                <option value="">— <?php esc_html_e('none', 'october-events'); ?> —</option>
+                <?php foreach ($cpts as $pt) : if ($pt->name === \OE\PostTypes::slug('event') || $pt->name === \OE\Volunteers::slug()) { continue; } ?>
+                    <option value="<?php echo esc_attr($pt->name); ?>" <?php selected($loc_pt, $pt->name); ?>><?php echo esc_html($pt->labels->singular_name . ' (' . $pt->name . ')'); ?></option>
+                <?php endforeach; ?>
+            </select></label></p>
+        </div></details>
+
         <details class="oe-acc" id="pricing"><summary><?php esc_html_e('Tier pricing', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Amounts in your chosen currency. Leave 0 for free.', 'october-events'); ?></p>
         <table class="widefat striped" style="max-width:640px">

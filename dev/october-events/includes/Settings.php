@@ -41,6 +41,10 @@ final class Settings {
             // read when the plugin's own field is empty, so tickets/emails/reports
             // can resolve an event's date, price and location.
             'event_field_map' => [],
+            // The post type that holds tour "locations" (an external JetEngine CPT
+            // on the tours sites). When set, each location gets a one-click "Needs
+            // volunteers" box that creates/links a volunteer opportunity. Blank = off.
+            'location_post_type' => '',
             // Per-listing-type, per-tier pricing in cents. Admin-editable (§4).
             'pricing' => [
                 'directory'   => ['featured' => 9900,  'premium' => 19900],

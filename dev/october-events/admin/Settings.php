@@ -286,6 +286,7 @@ final class Settings {
         Config::update([
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
             'event_field_map'  => $event_field_map,
+            'location_post_type' => sanitize_key((string) ($in['location_post_type'] ?? '')),
             'pricing'          => $pricing,
             'currency'         => sanitize_text_field((string) ($in['currency'] ?? 'usd')),
             'card_fee_percent' => max(0, min(20, (float) ($in['card_fee_percent'] ?? 2.9))),

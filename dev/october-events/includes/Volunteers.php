@@ -26,6 +26,16 @@ final class Volunteers {
         return PostTypes::slug('volunteer'); // adopted `volunteer` CPT
     }
 
+    /**
+     * The configured "locations" post type (tour stops/homes), or '' if none set
+     * or it doesn't exist. When set, each location gets a one-click "Needs
+     * volunteers" box that creates/links an opportunity.
+     */
+    public static function location_post_type(): string {
+        $pt = (string) Settings::get('location_post_type', '');
+        return ($pt !== '' && post_type_exists($pt)) ? $pt : '';
+    }
+
     public function init(): void {
         add_action('init', [$this, 'register_meta'], 30);
 
@@ -43,6 +53,13 @@ final class Volunteers {
             add_action('add_meta_boxes', [$this, 'add_meta_box']);
             add_action('add_meta_boxes', [$this, 'add_event_meta_box']);
             add_action('save_post_' . self::slug(), [$this, 'save_meta']);
+
+            // One-click "Needs volunteers" on each tour location (when configured).
+            $loc = self::location_post_type();
+            if ($loc !== '') {
+                add_action('add_meta_boxes', [$this, 'add_location_meta_box']);
+                add_action('save_post_' . $loc, [$this, 'save_location_meta'], 20, 1);
+            }
         }
     }
 
@@ -203,10 +220,11 @@ final class Volunteers {
     public function register_meta(): void {
         $slug = self::slug();
         foreach ([
-            '_oe_role'         => 'string',
-            '_oe_location'     => 'string',
-            '_oe_signups_open' => 'boolean',
-            '_oe_linked_event' => 'integer',
+            '_oe_role'            => 'string',
+            '_oe_location'        => 'string',
+            '_oe_signups_open'    => 'boolean',
+            '_oe_linked_event'    => 'integer',
+            '_oe_linked_location' => 'integer',
         ] as $key => $type) {
             register_post_meta($slug, $key, ['type' => $type, 'single' => true, 'show_in_rest' => true]);
         }
@@ -233,7 +251,90 @@ final class Volunteers {
             return $loc;
         }
         $event = self::linked_event($opportunity_id);
-        return $event ? (string) \OE\Planning\Events::get($event, 'location', '') : '';
+        if ($event) {
+            return (string) \OE\Planning\Events::get($event, 'location', '');
+        }
+        $loc = self::linked_location($opportunity_id);
+        return $loc ? (string) get_the_title($loc) : '';
+    }
+
+    /** The tour location this opportunity is attached to (0 if none). */
+    public static function linked_location(int $opportunity_id): int {
+        return (int) get_post_meta($opportunity_id, '_oe_linked_location', true);
+    }
+
+    /** @return array<int,int> opportunity ids linked to a given location. */
+    public static function for_location(int $location_id): array {
+        if ($location_id <= 0) {
+            return [];
+        }
+        return array_map('intval', get_posts([
+            'post_type'      => self::slug(),
+            'post_status'    => ['publish', 'draft', 'pending', 'private'],
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+            'meta_key'       => '_oe_linked_location',
+            'meta_value'     => $location_id,
+            'orderby'        => 'ID',
+            'order'          => 'ASC',
+        ]));
+    }
+
+    /**
+     * Create (or update) the volunteer opportunity linked to a tour location — the
+     * one-click "Needs volunteers" flow. Reuses the existing linked opportunity if
+     * there is one (so signups are never orphaned); on first create it gets a
+     * single default shift with the given capacity, published and open. Returns the
+     * opportunity id (0 on failure).
+     */
+    public static function create_or_sync_for_location(int $location_id, int $capacity, bool $open): int {
+        if ($location_id <= 0 || get_post_status($location_id) === false) {
+            return 0;
+        }
+        $loc_title = get_the_title($location_id) ?: ('#' . $location_id);
+        $existing  = self::for_location($location_id);
+        $opp_id    = $existing[0] ?? 0;
+
+        if (! $opp_id) {
+            $opp_id = (int) wp_insert_post([
+                'post_type'   => self::slug(),
+                'post_status' => 'publish',
+                /* translators: %s: tour location title */
+                'post_title'  => sprintf(__('%s — Volunteers', 'october-events'), $loc_title),
+            ]);
+            if ($opp_id <= 0) {
+                return 0;
+            }
+            update_post_meta($opp_id, '_oe_role', 'general');
+            // One default shift to sign up to — staff refine dates/shifts on the
+            // opportunity editor. Only ever seeded on first create.
+            self::set_shifts($opp_id, [[
+                'id'       => wp_generate_password(8, false),
+                'label'    => __('Volunteer shift', 'october-events'),
+                'start'    => '',
+                'end'      => '',
+                'capacity' => max(0, $capacity),
+            ]]);
+        }
+        update_post_meta($opp_id, '_oe_linked_location', $location_id);
+        update_post_meta($opp_id, '_oe_location', sanitize_text_field($loc_title));
+        update_post_meta($opp_id, '_oe_signups_open', $open ? '1' : '0');
+        // Keep the capacity in sync while there's still just the one auto shift
+        // (once staff add their own shifts we leave shift capacities to them).
+        $shifts = self::shifts($opp_id);
+        if (count($shifts) === 1) {
+            $shifts[0]['capacity'] = max(0, $capacity);
+            self::set_shifts($opp_id, $shifts);
+        }
+        self::sync_fully_booked($opp_id);
+        return $opp_id;
+    }
+
+    /** Close signups on any opportunity linked to a location (kept, not deleted). */
+    public static function close_for_location(int $location_id): void {
+        foreach (self::for_location($location_id) as $oid) {
+            update_post_meta($oid, '_oe_signups_open', '0');
+        }
     }
 
     /** @return array<int,int> opportunity ids linked to a given event (newest first). */
@@ -744,6 +845,78 @@ final class Volunteers {
         }
         $new = add_query_arg(['post_type' => self::slug(), 'oe_link_event' => $post->ID], admin_url('post-new.php'));
         echo '<a href="' . esc_url($new) . '" class="button">' . esc_html__('+ New volunteer opportunity', 'october-events') . '</a>';
+    }
+
+    /* ------------------------------------------------------------------ *
+     * One-click volunteers on a tour location
+     * ------------------------------------------------------------------ */
+
+    public function add_location_meta_box(): void {
+        $loc = self::location_post_type();
+        if ($loc === '') {
+            return;
+        }
+        add_meta_box('oe_location_volunteers', __('Volunteers', 'october-events'), [$this, 'render_location_meta_box'], $loc, 'side', 'default');
+    }
+
+    /** "Needs volunteers" one-click box on a location. */
+    public function render_location_meta_box(\WP_Post $post): void {
+        wp_nonce_field('oe_save_loc_vol', 'oe_loc_vol_nonce');
+        $opps  = self::for_location($post->ID);
+        $opp   = $opps[0] ?? 0;
+        $saved = (string) get_post_meta($post->ID, '_oe_loc_needs_volunteers', true);
+        $needs = $saved === '' ? (bool) $opp : ($saved === '1');
+        $host  = (string) get_post_meta($post->ID, '_oe_loc_vol_host', true) ?: 'local';
+        $cap   = (int) get_post_meta($post->ID, '_oe_loc_vol_capacity', true);
+        if (! $cap && $opp) { $sh = self::shifts($opp); $cap = (int) ($sh[0]['capacity'] ?? 0); }
+        ?>
+        <p><label><input type="checkbox" name="oe_loc_needs" value="1" <?php checked($needs); ?>> <strong><?php esc_html_e('Needs volunteers', 'october-events'); ?></strong></label></p>
+        <p><label><?php esc_html_e('Volunteers needed', 'october-events'); ?><br>
+            <input type="number" min="0" name="oe_loc_capacity" value="<?php echo esc_attr((string) $cap); ?>" style="width:90px"></label>
+            <span class="description"><?php esc_html_e('slots on the default shift', 'october-events'); ?></span></p>
+        <p style="margin-bottom:2px"><strong><?php esc_html_e('Host sign-ups on', 'october-events'); ?></strong></p>
+        <p style="margin-top:2px">
+            <label><input type="radio" name="oe_loc_host" value="local" <?php checked($host, 'local'); ?>> <?php esc_html_e('This site', 'october-events'); ?></label><br>
+            <label><input type="radio" name="oe_loc_host" value="partner" <?php checked($host, 'partner'); ?>> <?php esc_html_e('Partner site (e.g. the festival site)', 'october-events'); ?></label>
+        </p>
+        <?php if ($host === 'partner') : ?>
+            <p class="description"><?php esc_html_e('Cross-site partner hosting is set up under Settings → Volunteers. Until that’s connected this just flags the location.', 'october-events'); ?></p>
+        <?php endif; ?>
+        <?php if ($opp) : $s = self::opportunity_summary($opp); ?>
+            <p style="border-top:1px solid #f0f0f1;padding-top:8px;margin-top:8px">
+                <a href="<?php echo esc_url((string) get_edit_post_link($opp)); ?>"><?php esc_html_e('Edit the volunteer opportunity →', 'october-events'); ?></a><br>
+                <span class="description"><?php echo esc_html(sprintf(__('%1$d/%2$d filled', 'october-events'), (int) $s['filled'], (int) $s['capacity'])); ?></span>
+            </p>
+        <?php else : ?>
+            <p class="description"><?php esc_html_e('Tick “Needs volunteers” and Update — an opportunity is created and linked to this location.', 'october-events'); ?></p>
+        <?php endif; ?>
+        <?php
+    }
+
+    public function save_location_meta(int $post_id): void {
+        if (! isset($_POST['oe_loc_vol_nonce']) || ! wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['oe_loc_vol_nonce'])), 'oe_save_loc_vol')) {
+            return;
+        }
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+        if (! current_user_can('edit_post', $post_id)) {
+            return;
+        }
+        $needs = ! empty($_POST['oe_loc_needs']);
+        $host  = (($_POST['oe_loc_host'] ?? 'local') === 'partner') ? 'partner' : 'local';
+        $cap   = max(0, (int) ($_POST['oe_loc_capacity'] ?? 0));
+        update_post_meta($post_id, '_oe_loc_needs_volunteers', $needs ? '1' : '0');
+        update_post_meta($post_id, '_oe_loc_vol_host', $host);
+        update_post_meta($post_id, '_oe_loc_vol_capacity', $cap);
+
+        if ($needs && $host === 'local') {
+            self::create_or_sync_for_location($post_id, $cap, true);
+        } else {
+            // Unticked, or handed to the partner site: close any local signups
+            // (kept, not deleted, so nothing is lost if it's re-enabled).
+            self::close_for_location($post_id);
+        }
     }
 
     /**
