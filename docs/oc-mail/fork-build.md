@@ -1,4 +1,4 @@
-# OC Mail — build & deploy the branded fork
+# October Mail — build & deploy the branded fork
 
 The stock MailFlow you deployed runs from **prebuilt images**. The October
 branding (logo, favicon, theme) and the **cross-account move** feature change the
@@ -83,7 +83,7 @@ docker compose -p mailflow -f docker-compose.yml -f docker-compose.https.yml --p
 `mailflow_caddy_data` volumes, so accounts, sessions, and the Let's Encrypt cert
 carry straight over. First build takes a few minutes (compiles frontend + backend).
 
-> Don't need the old data? Drop `-p mailflow` and just re-add accounts — OC Mail
+> Don't need the old data? Drop `-p mailflow` and just re-add accounts — October Mail
 > is a *window, not a warehouse*, so nothing but credentials is re-entered; no
 > mail is ever lost (it lives on Gmail/20i). See `brief.md`.
 

@@ -1,4 +1,4 @@
-# OC Mail — the October MailFlow fork
+# October Mail — the October MailFlow fork
 
 This folder holds October's customizations to [MailFlow](https://github.com/maathimself/mailflow)
 (AGPL-3.0) as a single, self-contained patch plus a script to build a branded
@@ -17,7 +17,7 @@ source tree. Two things live here:
 - `LogoMark.jsx` → the two-bar October logomark (reads the accent, so it's gold), no wordmark.
 - `favicon.svg` + `themes.js` favicon rasteriser → the October mail mark (black envelope + gold asterisk), keeping MailFlow's unread-count badge.
 - `icon-*.png` (72–512) → regenerated from the October logomark (transparent).
-- `manifest.json`, `index.html`, runtime `document.title` → "OC Mail", white background, gold theme colour.
+- `manifest.json`, `index.html`, runtime `document.title` → "October Mail", white background, gold theme colour.
 - `themes.js` → a new **October** theme (`#fff` bg, `#000` text, `#e7cd41` accent) baked in as the **default** look, so branding survives without the admin Custom-CSS box.
 
 **Cross-account move** (the Airmail feature MailFlow lacks)

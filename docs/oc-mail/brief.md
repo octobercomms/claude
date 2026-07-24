@@ -1,4 +1,4 @@
-# OC Mail — Project Brief
+# October Mail — Project Brief
 
 **One web-based email client for all of October's accounts** — some Gmail, some
 IMAP — with Gmail-quality threading, search, and unified inbox, plus an AI
@@ -7,8 +7,8 @@ UI: one window into everything.
 
 ## The core principle: window, not warehouse
 
-OC Mail is a **client**, not a mail host. Mail continues to live where it
-already does (Gmail, 20i/StackMail, etc.). OC Mail connects to those mailboxes
+October Mail is a **client**, not a mail host. Mail continues to live where it
+already does (Gmail, 20i/StackMail, etc.). October Mail connects to those mailboxes
 over IMAP and sends through each account's own SMTP. We replace the *interface*,
 not the *hosting* — which means:
 
