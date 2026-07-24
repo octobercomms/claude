@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.83.0 — pick a tour location when building a volunteer post
+
+Reworks cross-site tour-location volunteers around how staff actually work: you
+build the volunteer post by hand (as you always have) and just **link it to a
+tour location** from the same dropdown that already links events.
+
+- **Volunteer editor**: the "Linked event" dropdown is now **"Linked event or
+  tour location"**, with a second group listing the tour locations pulled from
+  the partner site. Pick one and it fills the **Location** (street address) and
+  seeds the first shift with the tour **date** — no retyping.
+- **↻ Refresh tour locations** button right in the editor: create a location on
+  the tours site, come back, click refresh, and it's instantly pickable — no
+  waiting for the daily cron.
+- **Feed no longer auto-creates posts.** Its only job now is keeping that
+  pickable list fresh (daily, on "Save & sync now", or via the editor button).
+  This removes the materialise-and-close machinery that felt heavier than just
+  making the post by hand.
+- **Source (tours) site** now sends each flagged location's **address** and
+  **date**. Configure which meta fields hold them under **Settings → Events →
+  Volunteer locations** (e.g. `address` and `date`). Blank = don't send.
+
 ## 1.82.1 — partner feed: one-click "Save & sync now"
 
 Fixes a usability trap in the **Partner volunteer feed** setup. The old **Sync

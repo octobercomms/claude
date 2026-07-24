@@ -287,6 +287,8 @@ final class Settings {
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
             'event_field_map'  => $event_field_map,
             'location_post_type' => sanitize_key((string) ($in['location_post_type'] ?? '')),
+            'location_address_field' => sanitize_key((string) ($in['location_address_field'] ?? '')),
+            'location_date_field'    => sanitize_key((string) ($in['location_date_field'] ?? '')),
             'volunteer_feed_url'          => esc_url_raw(trim((string) ($in['volunteer_feed_url'] ?? ''))),
             'volunteer_feed_user'         => sanitize_text_field((string) ($in['volunteer_feed_user'] ?? '')),
             'volunteer_feed_app_password' => trim((string) ($in['volunteer_feed_app_password'] ?? '')),
