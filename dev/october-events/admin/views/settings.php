@@ -97,8 +97,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         }
         ?>
         <p>
-            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_sync_partner_vol'), 'oe_sync_partner_vol')); ?>"><?php esc_html_e('Sync now', 'october-events'); ?></a>
-            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last synced %s ago. Auto-syncs daily.', 'october-events'), human_time_diff($last))) : esc_html__('Not synced yet. Also runs automatically once a day.', 'october-events'); ?></span>
+            <button type="submit" name="oe_sync_after_save" value="1" class="button button-secondary"><?php esc_html_e('Save & sync now', 'october-events'); ?></button>
+            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last synced %s ago. Saves your changes first, then pulls; also auto-syncs daily.', 'october-events'), human_time_diff($last))) : esc_html__('Saves your changes first, then pulls in the partner site’s volunteer locations. Also runs automatically once a day.', 'october-events'); ?></span>
         </p>
         </div></details>
 

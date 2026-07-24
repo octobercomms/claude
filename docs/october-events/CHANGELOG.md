@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.82.1 — partner feed: one-click "Save & sync now"
+
+Fixes a usability trap in the **Partner volunteer feed** setup. The old **Sync
+now** button was a plain link that acted on the *saved* settings only, so typing
+in the URL / username / Application Password and clicking it (instead of the
+far-away **Save Changes** button at the bottom of the page) navigated away
+without saving — the fields came back blank and the sync reported
+`not_configured`.
+
+- The button is now **Save & sync now**, a form submit that saves the feed
+  credentials **and then** runs the sync in one action — no save-first /
+  sync-second ordering to get wrong.
+- Help text updated to say it saves first, then pulls.
+
 ## 1.82.0 — cross-site volunteers (part 2): host tour-location sign-ups on a partner site
 
 Completes the "for Atlanta, host tour-location volunteers on the festival site"
