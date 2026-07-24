@@ -48,6 +48,12 @@ final class Volunteers {
         add_shortcode('oe_volunteer_signup', [$this, 'render_signup_widget']);
         // Surfaces an event's linked volunteer opportunities on its public page.
         add_shortcode('oe_event_volunteers', [$this, 'render_event_volunteers']);
+        // Lists all location-linked volunteer opportunities (local or pulled from a
+        // partner tours site) — put on the festival page that hosts sign-ups.
+        add_shortcode('oe_location_volunteers', [$this, 'render_location_volunteers']);
+
+        // Daily pull of a partner volunteer feed (no-op unless configured).
+        add_action(\OE\Cron::HOOK_DAILY, [self::class, 'sync_partner_feed']);
 
         if (is_admin()) {
             add_action('add_meta_boxes', [$this, 'add_meta_box']);
@@ -225,6 +231,8 @@ final class Volunteers {
             '_oe_signups_open'    => 'boolean',
             '_oe_linked_event'    => 'integer',
             '_oe_linked_location' => 'integer',
+            '_oe_remote_ref'      => 'string',
+            '_oe_remote_url'      => 'string',
         ] as $key => $type) {
             register_post_meta($slug, $key, ['type' => $type, 'single' => true, 'show_in_rest' => true]);
         }
@@ -335,6 +343,166 @@ final class Volunteers {
         foreach (self::for_location($location_id) as $oid) {
             update_post_meta($oid, '_oe_signups_open', '0');
         }
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Cross-site: expose partner-hosted locations (source side) + pull them
+     * onto a partner site as local opportunities (the ADF festival site).
+     * ------------------------------------------------------------------ */
+
+    /**
+     * Tour locations flagged "Needs volunteers → Partner site", for the partner
+     * site to pull over the REST API and host sign-ups for. Source-side.
+     *
+     * @return array<int,array{id:int,title:string,url:string,capacity:int,image:string}>
+     */
+    public static function partner_locations(): array {
+        $loc = self::location_post_type();
+        if ($loc === '') {
+            return [];
+        }
+        $ids = get_posts([
+            'post_type'      => $loc,
+            'post_status'    => 'publish',
+            'posts_per_page' => 300,
+            'fields'         => 'ids',
+            'meta_query'     => [
+                'relation' => 'AND',
+                ['key' => '_oe_loc_needs_volunteers', 'value' => '1'],
+                ['key' => '_oe_loc_vol_host', 'value' => 'partner'],
+            ],
+        ]);
+        $out = [];
+        foreach ($ids as $id) {
+            $out[] = [
+                'id'       => (int) $id,
+                'title'    => (string) (get_the_title($id) ?: ('#' . $id)),
+                'url'      => (string) get_permalink($id),
+                'capacity' => (int) get_post_meta($id, '_oe_loc_vol_capacity', true),
+                'image'    => (string) (get_the_post_thumbnail_url($id, 'medium') ?: ''),
+            ];
+        }
+        return $out;
+    }
+
+    /** A materialised (pulled-from-partner) opportunity by its remote reference. */
+    public static function opportunity_by_remote_ref(string $ref): int {
+        if ($ref === '') {
+            return 0;
+        }
+        $ids = get_posts([
+            'post_type'      => self::slug(),
+            'post_status'    => ['publish', 'draft', 'private'],
+            'posts_per_page' => 1,
+            'fields'         => 'ids',
+            'meta_key'       => '_oe_remote_ref',
+            'meta_value'     => $ref,
+        ]);
+        return (int) ($ids[0] ?? 0);
+    }
+
+    /** All opportunities materialised from a given source site. @return int[] */
+    public static function remote_opportunity_ids(string $site): array {
+        $ids = array_map('intval', get_posts([
+            'post_type'      => self::slug(),
+            'post_status'    => ['publish', 'draft', 'private'],
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+            'meta_key'       => '_oe_remote_ref',
+        ]));
+        if ($site === '') {
+            return $ids;
+        }
+        $prefix = $site . '#';
+        return array_values(array_filter($ids, static fn($id) => strpos((string) get_post_meta($id, '_oe_remote_ref', true), $prefix) === 0));
+    }
+
+    /**
+     * Pull the partner feed (this = the ADF festival site) and materialise each
+     * remote partner-hosted location as a LOCAL volunteer opportunity, so sign-ups
+     * and management live here. Idempotent: keyed on "<site>#<remote id>". Ones no
+     * longer in the feed have their sign-ups closed (kept, not deleted).
+     *
+     * @return array{created?:int,updated?:int,closed?:int,error?:string}
+     */
+    public static function sync_partner_feed(): array {
+        $url  = trim((string) Settings::get('volunteer_feed_url', ''));
+        $user = trim((string) Settings::get('volunteer_feed_user', ''));
+        $pass = trim((string) Settings::get('volunteer_feed_app_password', ''));
+        if ($url === '' || $user === '' || $pass === '') {
+            return ['error' => 'not_configured'];
+        }
+        $endpoint = rtrim($url, '/') . '/wp-json/oe/v1/volunteers/partner-locations';
+        $res = wp_remote_get($endpoint, [
+            'timeout' => 20,
+            'headers' => ['Authorization' => 'Basic ' . base64_encode($user . ':' . $pass)],
+        ]);
+        if (is_wp_error($res)) {
+            return ['error' => $res->get_error_message()];
+        }
+        $code = (int) wp_remote_retrieve_response_code($res);
+        if ($code !== 200) {
+            return ['error' => 'http_' . $code];
+        }
+        $body = json_decode((string) wp_remote_retrieve_body($res), true);
+        if (! is_array($body)) {
+            return ['error' => 'bad_response'];
+        }
+        $site = (string) ($body['site'] ?? $url);
+        $locs = is_array($body['locations'] ?? null) ? $body['locations'] : [];
+
+        $seen = [];
+        $created = 0;
+        $updated = 0;
+        foreach ($locs as $l) {
+            $rid = (int) ($l['id'] ?? 0);
+            if ($rid <= 0) {
+                continue;
+            }
+            $ref = $site . '#' . $rid;
+            $seen[$ref] = true;
+            $cap   = max(0, (int) ($l['capacity'] ?? 0));
+            $title = sanitize_text_field((string) ($l['title'] ?? 'Location'));
+            $opp   = self::opportunity_by_remote_ref($ref);
+            if (! $opp) {
+                $opp = (int) wp_insert_post([
+                    'post_type'   => self::slug(),
+                    'post_status' => 'publish',
+                    /* translators: %s: tour location title */
+                    'post_title'  => sprintf(__('%s — Volunteers', 'october-events'), $title),
+                ]);
+                if ($opp <= 0) {
+                    continue;
+                }
+                update_post_meta($opp, '_oe_role', 'general');
+                self::set_shifts($opp, [[
+                    'id'       => wp_generate_password(8, false),
+                    'label'    => __('Volunteer shift', 'october-events'),
+                    'start'    => '', 'end' => '', 'capacity' => $cap,
+                ]]);
+                update_post_meta($opp, '_oe_remote_ref', $ref);
+                $created++;
+            } else {
+                $sh = self::shifts($opp);
+                if (count($sh) === 1) { $sh[0]['capacity'] = $cap; self::set_shifts($opp, $sh); }
+                $updated++;
+            }
+            update_post_meta($opp, '_oe_remote_url', (string) ($l['url'] ?? ''));
+            update_post_meta($opp, '_oe_location', $title);
+            update_post_meta($opp, '_oe_signups_open', '1');
+            self::sync_fully_booked($opp);
+        }
+        // Close any previously-materialised opportunity that dropped out of the feed.
+        $closed = 0;
+        foreach (self::remote_opportunity_ids($site) as $opp) {
+            $ref = (string) get_post_meta($opp, '_oe_remote_ref', true);
+            if (! isset($seen[$ref]) && get_post_meta($opp, '_oe_signups_open', true) !== '0') {
+                update_post_meta($opp, '_oe_signups_open', '0');
+                $closed++;
+            }
+        }
+        Settings::update(['volunteer_feed_last_sync' => time()]);
+        return ['created' => $created, 'updated' => $updated, 'closed' => $closed];
     }
 
     /** @return array<int,int> opportunity ids linked to a given event (newest first). */
@@ -948,6 +1116,61 @@ final class Volunteers {
             $cards .= '<a class="oe-evol-card" href="' . esc_url(get_permalink($oid)) . '">'
                 . '<span class="oe-evol-title">' . esc_html($s['title']) . '</span>'
                 . ($meta ? '<span class="oe-evol-role">' . $meta . '</span>' : '')
+                . '<span class="oe-evol-avail">' . $avail . '</span></a>';
+        }
+        if ($cards === '') {
+            return '';
+        }
+        static $css_done = false;
+        $css = '';
+        if (! $css_done) {
+            $css_done = true;
+            $css = '<style>'
+                . '.oe-evol{margin:24px 0}.oe-evol-h{font-size:18px;font-weight:800;margin:0 0 12px}'
+                . '.oe-evol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}'
+                . '.oe-evol-card{display:block;border:2px solid #111;padding:14px;text-decoration:none;color:#111;background:#fff}'
+                . '.oe-evol-card:hover{background:#faf7ee}'
+                . '.oe-evol-title{display:block;font-weight:800;font-size:15px;line-height:1.25}'
+                . '.oe-evol-role{display:block;font-size:13px;color:#555;margin-top:3px}'
+                . '.oe-evol-avail{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}'
+                . '</style>';
+        }
+        return $css . '<div class="oe-evol"><h3 class="oe-evol-h">' . esc_html((string) $atts['title']) . '</h3><div class="oe-evol-grid">' . $cards . '</div></div>';
+    }
+
+    /**
+     * Public grid of all volunteer opportunities tied to a tour location — local
+     * ones (this site's locations) and any pulled from a partner tours site. Drop
+     * `[oe_location_volunteers]` on the festival page that hosts sign-ups.
+     */
+    public function render_location_volunteers(array $atts = []): string {
+        $atts = shortcode_atts(['title' => __('Volunteer on the tour', 'october-events')], $atts, 'oe_location_volunteers');
+        $ids = get_posts([
+            'post_type'      => self::slug(),
+            'post_status'    => 'publish',
+            'posts_per_page' => 200,
+            'fields'         => 'ids',
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+            'meta_query'     => [
+                'relation' => 'OR',
+                ['key' => '_oe_linked_location', 'compare' => 'EXISTS'],
+                ['key' => '_oe_remote_ref', 'compare' => 'EXISTS'],
+            ],
+        ]);
+        $cards = '';
+        foreach ($ids as $oid) {
+            if (get_post_meta($oid, '_oe_signups_open', true) === '0') {
+                continue;
+            }
+            $s = self::opportunity_summary($oid);
+            $left = max(0, (int) $s['capacity'] - (int) $s['filled']);
+            $avail = $left > 0
+                ? esc_html(sprintf(_n('%d spot left', '%d spots left', $left, 'october-events'), $left))
+                : esc_html__('Full', 'october-events');
+            $cards .= '<a class="oe-evol-card" href="' . esc_url((string) get_permalink($oid)) . '">'
+                . '<span class="oe-evol-title">' . esc_html($s['title']) . '</span>'
+                . ($s['location'] ? '<span class="oe-evol-role">' . esc_html($s['location']) . '</span>' : '')
                 . '<span class="oe-evol-avail">' . $avail . '</span></a>';
         }
         if ($cards === '') {

@@ -5,6 +5,28 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.82.0 — cross-site volunteers (part 2): host tour-location sign-ups on a partner site
+
+Completes the "for Atlanta, host tour-location volunteers on the festival site"
+flow. A location flagged **Needs volunteers → Partner site** on the tours site is
+now pulled onto the festival site and hosted there.
+
+- **Source (tours) site**: exposes partner-flagged locations at
+  `GET oe/v1/volunteers/partner-locations` (auth = an admin Application Password).
+- **Partner (festival) site**: **Settings → Events → Volunteer locations →
+  Partner volunteer feed** — enter the tours site URL + an Application Password
+  (username + password). **Sync now** (and a daily auto-sync) pulls those
+  locations and creates a **local** volunteer opportunity for each, so sign-ups,
+  the roster, and reminders all live on the festival site. Re-syncing keeps
+  capacity/title in step; a location dropped from the feed has its local sign-ups
+  closed (kept, not deleted). Materialised opportunities are keyed by
+  `site#remote-id` so syncs are idempotent.
+- **`[oe_location_volunteers]`** shortcode: a grid of all location-linked
+  opportunities (local or pulled) with spots-left — drop it on the festival page
+  that hosts sign-ups.
+- Server-to-server over `wp_remote_get` (no CORS/browser involved); reuses the
+  `manage_options` capability the platform already uses.
+
 ## 1.81.1 — fix: location Volunteers box not appearing
 
 The per-location Volunteers box (1.81.0) didn't show even with the Locations post

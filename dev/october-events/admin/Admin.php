@@ -30,6 +30,7 @@ final class Admin {
         add_action('admin_post_oe_approve', [$this, 'handle_approve']);
         add_action('admin_post_oe_reject', [$this, 'handle_reject']);
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
+        add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
         add_action('admin_post_oe_import_contacts', [$this, 'handle_import_contacts']);
@@ -354,6 +355,17 @@ final class Admin {
             Volunteers::mark_no_show($id);
         }
         $this->redirect_back();
+    }
+
+    public function handle_sync_partner_vol(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_sync_partner_vol');
+        $result = Volunteers::sync_partner_feed();
+        set_transient('oe_vol_sync_' . get_current_user_id(), $result, 60);
+        wp_safe_redirect(admin_url('admin.php?page=oe-settings#volunteer-locations'));
+        exit;
     }
 
     public function handle_send_digest(): void {

@@ -45,6 +45,13 @@ final class Settings {
             // on the tours sites). When set, each location gets a one-click "Needs
             // volunteers" box that creates/links a volunteer opportunity. Blank = off.
             'location_post_type' => '',
+            // Partner volunteer feed (used on the FESTIVAL site): pull tour-location
+            // volunteer opportunities flagged "host on partner" from a tours site and
+            // host their sign-ups here. Auth = an Application Password on that site.
+            'volunteer_feed_url'          => '',
+            'volunteer_feed_user'         => '',
+            'volunteer_feed_app_password' => '',
+            'volunteer_feed_last_sync'    => 0,
             // Per-listing-type, per-tier pricing in cents. Admin-editable (§4).
             'pricing' => [
                 'directory'   => ['featured' => 9900,  'premium' => 19900],
