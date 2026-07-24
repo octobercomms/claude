@@ -180,7 +180,7 @@ index 74a112b..8d0120e 100644
      await withFreshClient(account, async (client) => {
        const lock = await client.getMailboxLock(folder);
 diff --git a/frontend/index.html b/frontend/index.html
-index dc7460d..cb972ef 100644
+index dc7460d..17bf771 100644
 --- a/frontend/index.html
 +++ b/frontend/index.html
 @@ -3,9 +3,9 @@
@@ -196,7 +196,7 @@ index dc7460d..cb972ef 100644
  
    <!-- PWA manifest -->
    <link rel="manifest" href="/manifest.json"/>
-@@ -13,8 +13,8 @@
+@@ -13,11 +13,11 @@
    <!-- iOS home-screen PWA -->
    <meta name="mobile-web-app-capable" content="yes"/>
    <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -206,7 +206,66 @@ index dc7460d..cb972ef 100644
 +  <meta name="apple-mobile-web-app-title" content="October Mail"/>
    <!-- Favicon -->
    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
-   <link rel="apple-touch-icon" href="/icon-512.png"/>
+-  <link rel="apple-touch-icon" href="/icon-512.png"/>
++  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=oct2"/>
+ 
+   <!--
+     Self-hosted fonts — no external font requests. Generated into public/fonts/ by
+diff --git a/frontend/public/apple-touch-icon.png b/frontend/public/apple-touch-icon.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..c8efb0b888f49005842646c8895bbf0281d9ccc9
+GIT binary patch
+literal 2677
+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
+
+literal 0
+HcmV?d00001
+
 diff --git a/frontend/public/favicon.svg b/frontend/public/favicon.svg
 index 089ada9..589f2fb 100644
 --- a/frontend/public/favicon.svg
