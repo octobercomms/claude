@@ -560,6 +560,46 @@ final class TicketsAdmin {
         $history = is_array($decoded) ? $decoded : [];
         krsort($history); // newest year first for the legend
         $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
+        $cur_sym  = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$currency] ?? ($currency . ' ');
+
+        // Build the overlay series (cumulative by weeks-before) for BOTH metrics, as
+        // plain arrays for the interactive JS chart (toggle years, hover, rescale).
+        $palette = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#0891b2', '#be185d', '#4d7c0f', '#9333ea', '#0d9488'];
+        $mk = function (string $metric) use ($series, $history, $event_year, $palette): array {
+            $lk = $metric === 'revenue' ? 'cum_revenue' : 'cum_tickets';
+            $hk = $metric === 'revenue' ? 'r' : 'q';
+            $out = []; $gmw = 0;
+            if ($series) {
+                $pts = [];
+                foreach ($series as $s) { $pts[] = [(int) $s['week_before'], round((float) $s[$lk], 2)]; $gmw = max($gmw, (int) $s['week_before']); }
+                $out[] = ['label' => ($event_year ?: __('This year', 'october-events')) . ' · ' . __('live', 'october-events'), 'color' => '#d14900', 'live' => true, 'points' => $pts];
+            }
+            $ci = 0;
+            foreach ($history as $yr => $weeks) {
+                $maxw = 0; foreach ($weeks as $wb => $v) { $maxw = max($maxw, (int) $wb); }
+                $cum = 0.0; $pts = [];
+                for ($w = $maxw; $w >= 0; $w--) { $cum += (float) ($weeks[(string) $w][$hk] ?? 0); $pts[] = [$w, round($cum, 2)]; }
+                $gmw = max($gmw, $maxw);
+                $out[] = ['label' => (string) $yr, 'color' => $palette[$ci++ % count($palette)], 'live' => false, 'points' => $pts];
+            }
+            return ['series' => $out, 'maxW' => $gmw];
+        };
+        $chart_data = ['tickets' => $mk('tickets'), 'revenue' => $mk('revenue'), 'curSym' => $cur_sym];
+        $has_charts = ! empty($chart_data['tickets']['series']);
+
+        // Gross profit (after card fees) for the live year — revenue minus a
+        // percent + fixed-per-transaction fee (default Stripe's 2.9% + $0.30).
+        global $wpdb;
+        $paid_txns = $event_id ? (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT payment_id) FROM " . Schema::orders() . " WHERE event_id = %d AND status = 'paid' AND payment_id <> ''",
+            $event_id
+        )) : 0;
+        $fee_pct   = (float) \OE\Settings::get('card_fee_percent', 2.9);
+        $fee_fixed = (float) \OE\Settings::get('card_fee_fixed', 0.30);
+
+        wp_enqueue_script('oe-analytics', OE_URL . 'assets/js/analytics.js', [], OE_VERSION, true);
+        wp_localize_script('oe-analytics', 'octYoY', $chart_data);
+
         require OE_DIR . 'admin/views/analytics.php';
     }
 

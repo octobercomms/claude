@@ -76,6 +76,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             </tbody>
         </table>
         <p><label><?php esc_html_e('Currency', 'october-events'); ?> <input type="text" name="currency" value="<?php echo esc_attr((string) ($cfg['currency'] ?? 'usd')); ?>" size="5"></label></p>
+        <p><label><?php esc_html_e('Card fee %', 'october-events'); ?> <input type="number" step="0.01" min="0" max="20" name="card_fee_percent" value="<?php echo esc_attr((string) ($cfg['card_fee_percent'] ?? 2.9)); ?>" size="5"></label>
+            &nbsp; <label><?php esc_html_e('+ fixed per transaction', 'october-events'); ?> <input type="number" step="0.01" min="0" name="card_fee_fixed" value="<?php echo esc_attr((string) ($cfg['card_fee_fixed'] ?? 0.30)); ?>" size="5"></label>
+            <span class="description"><?php esc_html_e('Used for the “gross profit after fees” figure on Tickets → Sales analytics. Default is Stripe’s 2.9% + 0.30.', 'october-events'); ?></span></p>
         </div></details>
 
         <details class="oe-acc" id="rejection"><summary><?php esc_html_e('Rejection email copy', 'october-events'); ?></summary><div class="oe-acc-body">

@@ -51,6 +51,11 @@ final class Settings {
                 'ad'          => ['featured' => 29900, 'premium' => 49900],
             ],
             'currency'        => 'usd',
+            // Card-processing fee used for the "gross profit after fees" figure on
+            // the sales-analytics screen. Defaults to Stripe's standard 2.9% + 30¢
+            // per transaction. Edit under Settings → Checkout.
+            'card_fee_percent' => 2.9,
+            'card_fee_fixed'   => 0.30,
             // PayPal — a second checkout gateway alongside Stripe (off until set up).
             'paypal_enabled'   => false,
             'paypal_env'       => 'sandbox',
