@@ -45,13 +45,22 @@ final class Settings {
             // on the tours sites). When set, each location gets a one-click "Needs
             // volunteers" box that creates/links a volunteer opportunity. Blank = off.
             'location_post_type' => '',
-            // Partner volunteer feed (used on the FESTIVAL site): pull tour-location
-            // volunteer opportunities flagged "host on partner" from a tours site and
-            // host their sign-ups here. Auth = an Application Password on that site.
+            // On a SOURCE (tours) site: the meta keys on a location that hold its
+            // street address and its date, so the partner feed can pass them to the
+            // festival site's volunteer-post picker. Blank = don't send that field.
+            'location_address_field' => '',
+            'location_date_field'    => '',
+            // Partner volunteer feed (used on the FESTIVAL site): pull the tour
+            // locations flagged "host on partner" from a tours site so they can be
+            // picked when building a volunteer post here. Auth = an Application
+            // Password on that site.
             'volunteer_feed_url'          => '',
             'volunteer_feed_user'         => '',
             'volunteer_feed_app_password' => '',
             'volunteer_feed_last_sync'    => 0,
+            // Cached pickable tour locations pulled from the partner feed. Each:
+            // { ref:"<site>#<id>", title, url, address, date, capacity }.
+            'volunteer_feed_locations'    => [],
             // Per-listing-type, per-tier pricing in cents. Admin-editable (§4).
             'pricing' => [
                 'directory'   => ['featured' => 9900,  'premium' => 19900],

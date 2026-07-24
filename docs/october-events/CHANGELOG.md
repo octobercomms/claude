@@ -5,6 +5,41 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.83.0 — pick a tour location when building a volunteer post
+
+Reworks cross-site tour-location volunteers around how staff actually work: you
+build the volunteer post by hand (as you always have) and just **link it to a
+tour location** from the same dropdown that already links events.
+
+- **Volunteer editor**: the "Linked event" dropdown is now **"Linked event or
+  tour location"**, with a second group listing the tour locations pulled from
+  the partner site. Pick one and it fills the **Location** (street address) and
+  seeds the first shift with the tour **date** — no retyping.
+- **↻ Refresh tour locations** button right in the editor: create a location on
+  the tours site, come back, click refresh, and it's instantly pickable — no
+  waiting for the daily cron.
+- **Feed no longer auto-creates posts.** Its only job now is keeping that
+  pickable list fresh (daily, on "Save & sync now", or via the editor button).
+  This removes the materialise-and-close machinery that felt heavier than just
+  making the post by hand.
+- **Source (tours) site** now sends each flagged location's **address** and
+  **date**. Configure which meta fields hold them under **Settings → Events →
+  Volunteer locations** (e.g. `address` and `date`). Blank = don't send.
+
+## 1.82.1 — partner feed: one-click "Save & sync now"
+
+Fixes a usability trap in the **Partner volunteer feed** setup. The old **Sync
+now** button was a plain link that acted on the *saved* settings only, so typing
+in the URL / username / Application Password and clicking it (instead of the
+far-away **Save Changes** button at the bottom of the page) navigated away
+without saving — the fields came back blank and the sync reported
+`not_configured`.
+
+- The button is now **Save & sync now**, a form submit that saves the feed
+  credentials **and then** runs the sync in one action — no save-first /
+  sync-second ordering to get wrong.
+- Help text updated to say it saves first, then pulls.
+
 ## 1.82.0 — cross-site volunteers (part 2): host tour-location sign-ups on a partner site
 
 Completes the "for Atlanta, host tour-location volunteers on the festival site"

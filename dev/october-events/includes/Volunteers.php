@@ -59,6 +59,8 @@ final class Volunteers {
             add_action('add_meta_boxes', [$this, 'add_meta_box']);
             add_action('add_meta_boxes', [$this, 'add_event_meta_box']);
             add_action('save_post_' . self::slug(), [$this, 'save_meta']);
+            // Manual "refresh tour locations" button in the volunteer editor.
+            add_action('wp_ajax_oe_refresh_partner_locs', [self::class, 'ajax_refresh_partner_locs']);
 
             // One-click "Needs volunteers" on each tour location. Always hook —
             // the callbacks resolve the configured location post type at
@@ -104,18 +106,34 @@ final class Volunteers {
         ]);
         $event_loc = $linked ? (string) \OE\Planning\Events::get($linked, 'location', '') : '';
         $shifts    = self::shifts($post->ID);
+        // Tour locations pulled from a partner site — pickable alongside events.
+        $feed_locs  = self::feed_locations();
+        $linked_ref = (string) get_post_meta($post->ID, '_oe_linked_location_ref', true);
+        $feed_host  = (string) Settings::get('volunteer_feed_url', '');
+        $feed_label = $feed_host !== '' ? (string) wp_parse_url($feed_host, PHP_URL_HOST) : __('partner site', 'october-events');
         ?>
-        <p><label><strong><?php esc_html_e('Linked event', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('optional; reuses the event\'s location and shows a “Volunteer” call-out on the event page', 'october-events'); ?></span><br>
-            <select name="oe_linked_event" class="widefat">
-                <option value="0"><?php esc_html_e('— Not linked to an event —', 'october-events'); ?></option>
-                <?php foreach ($events as $ev) : ?>
-                    <option value="<?php echo (int) $ev->ID; ?>" <?php selected($linked, (int) $ev->ID); ?>><?php echo esc_html(get_the_title($ev)); ?></option>
-                <?php endforeach; ?>
-            </select></label></p>
+        <p><label><strong><?php esc_html_e('Linked event or tour location', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('optional; reuses the location and shows a “Volunteer” call-out on the event/location page', 'october-events'); ?></span><br>
+            <select name="oe_linked_event" id="oe-linked-select" class="widefat">
+                <option value="0"><?php esc_html_e('— Not linked —', 'october-events'); ?></option>
+                <?php if ($events) : ?>
+                <optgroup label="<?php esc_attr_e('Events', 'october-events'); ?>">
+                    <?php foreach ($events as $ev) : ?>
+                        <option value="<?php echo (int) $ev->ID; ?>" <?php selected($linked, (int) $ev->ID); ?>><?php echo esc_html(get_the_title($ev)); ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+                <?php endif; ?>
+                <optgroup id="oe-loc-optgroup" label="<?php echo esc_attr(sprintf(__('Tour locations (%s)', 'october-events'), $feed_label)); ?>">
+                    <?php foreach ($feed_locs as $fl) : $rv = 'loc:' . (string) ($fl['ref'] ?? ''); ?>
+                        <option value="<?php echo esc_attr($rv); ?>" <?php selected('loc:' . $linked_ref, $rv); ?>><?php echo esc_html((string) ($fl['title'] ?? '')); ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+            </select></label>
+            <button type="button" class="button button-small" id="oe-loc-refresh" style="margin-top:6px"><?php esc_html_e('↻ Refresh tour locations', 'october-events'); ?></button>
+            <span class="description" id="oe-loc-refresh-msg" style="margin-left:6px"></span></p>
         <p><label><strong><?php esc_html_e('Role', 'october-events'); ?></strong><br>
             <input type="text" name="oe_role" class="widefat" value="<?php echo esc_attr($role); ?>" placeholder="e.g. Meet &amp; Greet Host"></label></p>
         <p><label><strong><?php esc_html_e('Location', 'october-events'); ?></strong><br>
-            <input type="text" name="oe_location" class="widefat" value="<?php echo esc_attr($location); ?>" placeholder="<?php echo $event_loc !== '' ? esc_attr(sprintf(__('Inherits from event: %s', 'october-events'), $event_loc)) : ''; ?>"></label>
+            <input type="text" name="oe_location" id="oe-location-input" class="widefat" value="<?php echo esc_attr($location); ?>" placeholder="<?php echo $event_loc !== '' ? esc_attr(sprintf(__('Inherits from event: %s', 'october-events'), $event_loc)) : ''; ?>"></label>
             <?php if ($event_loc !== '') : ?><span class="description"><?php esc_html_e('Leave blank to use the linked event\'s location.', 'october-events'); ?></span><?php endif; ?></p>
         <p><label><input type="checkbox" name="oe_signups_open" value="1" <?php checked($open, 1); ?>> <?php esc_html_e('Signups open', 'october-events'); ?></label></p>
 
@@ -146,6 +164,67 @@ final class Volunteers {
             document.querySelector('#oe-shift-table').addEventListener('click', function(e){
                 if (e.target.classList.contains('oe-shift-del')) { e.target.closest('tr').remove(); }
             });
+        })();
+        </script>
+        <script>
+        (function(){
+            var sel = document.getElementById('oe-linked-select');
+            if (!sel) { return; }
+            var LOCS = <?php echo wp_json_encode(self::feed_locations()); ?>;
+            var ajax = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+            var nonce = <?php echo wp_json_encode(wp_create_nonce('oe_refresh_partner_locs')); ?>;
+            var byRef = {};
+            function indexLocs(){ byRef = {}; LOCS.forEach(function(l){ byRef['loc:' + l.ref] = l; }); }
+            indexLocs();
+            // Fill the ISO-ish date into a datetime-local value ("YYYY-MM-DDTHH:mm").
+            function asStart(d){
+                if (!d) { return ''; }
+                var m = String(d).match(/(\d{4})-(\d{2})-(\d{2})/);
+                if (m) { return m[1] + '-' + m[2] + '-' + m[3] + 'T10:00'; }
+                return '';
+            }
+            sel.addEventListener('change', function(){
+                var loc = byRef[sel.value];
+                if (!loc) { return; }
+                var locInput = document.getElementById('oe-location-input');
+                if (locInput && !locInput.value) { locInput.value = loc.address || loc.title || ''; }
+                // Seed the first (empty) shift with the location's date as context.
+                // Tour dates are human ranges ("October 3—4, 2026"), so put the date
+                // in the label; only set a start time when it parses as ISO.
+                if (loc.date) {
+                    var firstLabel = document.querySelector('#oe-shift-table tbody tr [name$="[label]"]');
+                    var firstStart = document.querySelector('#oe-shift-table tbody tr [name$="[start]"]');
+                    if (firstLabel && !firstLabel.value) { firstLabel.value = (loc.title ? loc.title + ' — ' : '') + loc.date; }
+                    var start = asStart(loc.date);
+                    if (firstStart && !firstStart.value && start) { firstStart.value = start; }
+                }
+            });
+            var btn = document.getElementById('oe-loc-refresh');
+            var msg = document.getElementById('oe-loc-refresh-msg');
+            if (btn) {
+                btn.addEventListener('click', function(){
+                    btn.disabled = true; msg.textContent = '<?php echo esc_js(__('Refreshing…', 'october-events')); ?>';
+                    var body = new URLSearchParams({ action: 'oe_refresh_partner_locs', _wpnonce: nonce });
+                    fetch(ajax, { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString() })
+                        .then(function(r){ return r.json(); })
+                        .then(function(res){
+                            btn.disabled = false;
+                            if (!res || !res.success) { msg.textContent = (res && res.data && res.data.error) ? res.data.error : '<?php echo esc_js(__('Refresh failed', 'october-events')); ?>'; return; }
+                            LOCS = res.data.locations || []; indexLocs();
+                            var og = document.getElementById('oe-loc-optgroup');
+                            var keep = sel.value;
+                            og.innerHTML = '';
+                            LOCS.forEach(function(l){
+                                var o = document.createElement('option');
+                                o.value = 'loc:' + l.ref; o.textContent = l.title || '';
+                                og.appendChild(o);
+                            });
+                            if (byRef[keep]) { sel.value = keep; }
+                            msg.textContent = res.data.count + ' <?php echo esc_js(__('locations', 'october-events')); ?>';
+                        })
+                        .catch(function(){ btn.disabled = false; msg.textContent = '<?php echo esc_js(__('Refresh failed', 'october-events')); ?>'; });
+                });
+            }
         })();
         </script>
         <?php
@@ -192,7 +271,18 @@ final class Volunteers {
         update_post_meta($post_id, '_oe_role', sanitize_text_field((string) ($_POST['oe_role'] ?? '')));
         update_post_meta($post_id, '_oe_location', sanitize_text_field((string) ($_POST['oe_location'] ?? '')));
         update_post_meta($post_id, '_oe_signups_open', empty($_POST['oe_signups_open']) ? '0' : '1');
-        update_post_meta($post_id, '_oe_linked_event', absint($_POST['oe_linked_event'] ?? 0));
+
+        // The single dropdown carries either an event ID (numeric) or a pulled
+        // tour location ("loc:<site>#<id>"). Store whichever was picked; clear the
+        // other so an opportunity is only ever linked to one thing.
+        $linked_val = (string) ($_POST['oe_linked_event'] ?? '0');
+        if (strpos($linked_val, 'loc:') === 0) {
+            update_post_meta($post_id, '_oe_linked_location_ref', sanitize_text_field(substr($linked_val, 4)));
+            update_post_meta($post_id, '_oe_linked_event', 0);
+        } else {
+            update_post_meta($post_id, '_oe_linked_event', absint($linked_val));
+            delete_post_meta($post_id, '_oe_linked_location_ref');
+        }
 
         // Structured shift rows. Each carries its id (hidden field) so signups
         // stay attached even if the label changes; fall back to a label match for
@@ -231,6 +321,8 @@ final class Volunteers {
             '_oe_signups_open'    => 'boolean',
             '_oe_linked_event'    => 'integer',
             '_oe_linked_location' => 'integer',
+            // A tour location pulled from a partner site, keyed "<site>#<id>".
+            '_oe_linked_location_ref' => 'string',
             '_oe_remote_ref'      => 'string',
             '_oe_remote_url'      => 'string',
         ] as $key => $type) {
@@ -263,7 +355,18 @@ final class Volunteers {
             return (string) \OE\Planning\Events::get($event, 'location', '');
         }
         $loc = self::linked_location($opportunity_id);
-        return $loc ? (string) get_the_title($loc) : '';
+        if ($loc) {
+            return (string) get_the_title($loc);
+        }
+        // A tour location pulled from a partner site.
+        $ref = (string) get_post_meta($opportunity_id, '_oe_linked_location_ref', true);
+        if ($ref !== '') {
+            $fl = self::feed_location($ref);
+            if ($fl) {
+                return (string) (($fl['address'] ?? '') !== '' ? $fl['address'] : ($fl['title'] ?? ''));
+            }
+        }
+        return '';
     }
 
     /** The tour location this opportunity is attached to (0 if none). */
@@ -372,12 +475,16 @@ final class Volunteers {
                 ['key' => '_oe_loc_vol_host', 'value' => 'partner'],
             ],
         ]);
+        $addr_key = trim((string) Settings::get('location_address_field', ''));
+        $date_key = trim((string) Settings::get('location_date_field', ''));
         $out = [];
         foreach ($ids as $id) {
             $out[] = [
                 'id'       => (int) $id,
                 'title'    => (string) (get_the_title($id) ?: ('#' . $id)),
                 'url'      => (string) get_permalink($id),
+                'address'  => $addr_key !== '' ? (string) get_post_meta($id, $addr_key, true) : '',
+                'date'     => $date_key !== '' ? (string) get_post_meta($id, $date_key, true) : '',
                 'capacity' => (int) get_post_meta($id, '_oe_loc_vol_capacity', true),
                 'image'    => (string) (get_the_post_thumbnail_url($id, 'medium') ?: ''),
             ];
@@ -385,45 +492,13 @@ final class Volunteers {
         return $out;
     }
 
-    /** A materialised (pulled-from-partner) opportunity by its remote reference. */
-    public static function opportunity_by_remote_ref(string $ref): int {
-        if ($ref === '') {
-            return 0;
-        }
-        $ids = get_posts([
-            'post_type'      => self::slug(),
-            'post_status'    => ['publish', 'draft', 'private'],
-            'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'meta_key'       => '_oe_remote_ref',
-            'meta_value'     => $ref,
-        ]);
-        return (int) ($ids[0] ?? 0);
-    }
-
-    /** All opportunities materialised from a given source site. @return int[] */
-    public static function remote_opportunity_ids(string $site): array {
-        $ids = array_map('intval', get_posts([
-            'post_type'      => self::slug(),
-            'post_status'    => ['publish', 'draft', 'private'],
-            'posts_per_page' => -1,
-            'fields'         => 'ids',
-            'meta_key'       => '_oe_remote_ref',
-        ]));
-        if ($site === '') {
-            return $ids;
-        }
-        $prefix = $site . '#';
-        return array_values(array_filter($ids, static fn($id) => strpos((string) get_post_meta($id, '_oe_remote_ref', true), $prefix) === 0));
-    }
-
     /**
-     * Pull the partner feed (this = the ADF festival site) and materialise each
-     * remote partner-hosted location as a LOCAL volunteer opportunity, so sign-ups
-     * and management live here. Idempotent: keyed on "<site>#<remote id>". Ones no
-     * longer in the feed have their sign-ups closed (kept, not deleted).
+     * Pull the partner feed (this = the ADF festival site) and cache the tour
+     * locations flagged "host on partner" so they can be picked when building a
+     * volunteer post here. We deliberately do NOT auto-create posts — staff make
+     * the opportunity by hand and link it to the location via the picker.
      *
-     * @return array{created?:int,updated?:int,closed?:int,error?:string}
+     * @return array{locations?:int,error?:string}
      */
     public static function sync_partner_feed(): array {
         $url  = trim((string) Settings::get('volunteer_feed_url', ''));
@@ -451,58 +526,60 @@ final class Volunteers {
         $site = (string) ($body['site'] ?? $url);
         $locs = is_array($body['locations'] ?? null) ? $body['locations'] : [];
 
-        $seen = [];
-        $created = 0;
-        $updated = 0;
+        $list = [];
         foreach ($locs as $l) {
             $rid = (int) ($l['id'] ?? 0);
             if ($rid <= 0) {
                 continue;
             }
-            $ref = $site . '#' . $rid;
-            $seen[$ref] = true;
-            $cap   = max(0, (int) ($l['capacity'] ?? 0));
-            $title = sanitize_text_field((string) ($l['title'] ?? 'Location'));
-            $opp   = self::opportunity_by_remote_ref($ref);
-            if (! $opp) {
-                $opp = (int) wp_insert_post([
-                    'post_type'   => self::slug(),
-                    'post_status' => 'publish',
-                    /* translators: %s: tour location title */
-                    'post_title'  => sprintf(__('%s — Volunteers', 'october-events'), $title),
-                ]);
-                if ($opp <= 0) {
-                    continue;
-                }
-                update_post_meta($opp, '_oe_role', 'general');
-                self::set_shifts($opp, [[
-                    'id'       => wp_generate_password(8, false),
-                    'label'    => __('Volunteer shift', 'october-events'),
-                    'start'    => '', 'end' => '', 'capacity' => $cap,
-                ]]);
-                update_post_meta($opp, '_oe_remote_ref', $ref);
-                $created++;
-            } else {
-                $sh = self::shifts($opp);
-                if (count($sh) === 1) { $sh[0]['capacity'] = $cap; self::set_shifts($opp, $sh); }
-                $updated++;
-            }
-            update_post_meta($opp, '_oe_remote_url', (string) ($l['url'] ?? ''));
-            update_post_meta($opp, '_oe_location', $title);
-            update_post_meta($opp, '_oe_signups_open', '1');
-            self::sync_fully_booked($opp);
+            $list[] = [
+                'ref'      => $site . '#' . $rid,
+                'title'    => sanitize_text_field((string) ($l['title'] ?? 'Location')),
+                'url'      => esc_url_raw((string) ($l['url'] ?? '')),
+                'address'  => sanitize_text_field((string) ($l['address'] ?? '')),
+                'date'     => sanitize_text_field((string) ($l['date'] ?? '')),
+                'capacity' => max(0, (int) ($l['capacity'] ?? 0)),
+            ];
         }
-        // Close any previously-materialised opportunity that dropped out of the feed.
-        $closed = 0;
-        foreach (self::remote_opportunity_ids($site) as $opp) {
-            $ref = (string) get_post_meta($opp, '_oe_remote_ref', true);
-            if (! isset($seen[$ref]) && get_post_meta($opp, '_oe_signups_open', true) !== '0') {
-                update_post_meta($opp, '_oe_signups_open', '0');
-                $closed++;
+        Settings::update([
+            'volunteer_feed_locations' => $list,
+            'volunteer_feed_last_sync' => time(),
+        ]);
+        return ['locations' => count($list)];
+    }
+
+    /** Cached pickable tour locations pulled from the partner feed. @return array[] */
+    public static function feed_locations(): array {
+        $list = Settings::get('volunteer_feed_locations', []);
+        return is_array($list) ? $list : [];
+    }
+
+    /** One cached feed location by its "<site>#<id>" ref, or null. */
+    public static function feed_location(string $ref): ?array {
+        foreach (self::feed_locations() as $l) {
+            if (($l['ref'] ?? '') === $ref) {
+                return $l;
             }
         }
-        Settings::update(['volunteer_feed_last_sync' => time()]);
-        return ['created' => $created, 'updated' => $updated, 'closed' => $closed];
+        return null;
+    }
+
+    /**
+     * AJAX: refresh the pickable tour-location list on demand, so a location just
+     * created on the tours site is immediately selectable here without waiting for
+     * the daily cron. Returns the fresh list for the volunteer-editor dropdown.
+     */
+    public static function ajax_refresh_partner_locs(): void {
+        check_ajax_referer('oe_refresh_partner_locs');
+        if (! current_user_can('edit_posts')) {
+            wp_send_json_error(['error' => __('Not allowed', 'october-events')], 403);
+        }
+        $res = self::sync_partner_feed();
+        if (! empty($res['error'])) {
+            wp_send_json_error(['error' => $res['error']]);
+        }
+        $locs = self::feed_locations();
+        wp_send_json_success(['locations' => array_values($locs), 'count' => count($locs)]);
     }
 
     /** @return array<int,int> opportunity ids linked to a given event (newest first). */

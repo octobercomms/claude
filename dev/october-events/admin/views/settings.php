@@ -72,10 +72,18 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                     <option value="<?php echo esc_attr($pt->name); ?>" <?php selected($loc_pt, $pt->name); ?>><?php echo esc_html($pt->labels->singular_name . ' (' . $pt->name . ')'); ?></option>
                 <?php endforeach; ?>
             </select></label></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr><th scope="row"><?php esc_html_e('Address field', 'october-events'); ?></th>
+                <td><input type="text" name="location_address_field" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['location_address_field'] ?? '')); ?>" placeholder="address">
+                    <p class="description"><?php esc_html_e('Meta field name on a location that holds its street address (e.g. “address”). Sent to the festival site so picking a location fills in the address. Blank = don’t send.', 'october-events'); ?></p></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Date field', 'october-events'); ?></th>
+                <td><input type="text" name="location_date_field" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['location_date_field'] ?? '')); ?>" placeholder="date">
+                    <p class="description"><?php esc_html_e('Meta field name that holds the location’s tour date (e.g. “date”). Used to pre-fill the volunteer shift. Blank = don’t send.', 'october-events'); ?></p></td></tr>
+        </tbody></table>
 
         <hr style="margin:18px 0;border:0;border-top:1px solid #eee">
-        <h4 style="margin:0 0 4px"><?php esc_html_e('Partner volunteer feed (host another site’s locations here)', 'october-events'); ?></h4>
-        <p class="description" style="max-width:820px"><?php esc_html_e('Use this on the site that HOSTS the sign-ups (e.g. the festival site). Point it at a tours site and it pulls in that site’s locations flagged “Needs volunteers → Partner site”, creating a local volunteer opportunity for each so people sign up here. Auth: create an Application Password on the tours site (Users → Profile → Application Passwords) for an admin, and paste the username + password below.', 'october-events'); ?></p>
+        <h4 style="margin:0 0 4px"><?php esc_html_e('Partner volunteer feed (pick another site’s locations here)', 'october-events'); ?></h4>
+        <p class="description" style="max-width:820px"><?php esc_html_e('Use this on the site that HOSTS the sign-ups (e.g. the festival site). Point it at a tours site and it pulls in that site’s locations flagged “Needs volunteers → Partner site” so you can pick them when building a volunteer post (Volunteer → Add, “Linked event or tour location”). It does not create posts for you — you stay in control. Auth: create an Application Password on the tours site (Users → Profile → Application Passwords) for an admin, and paste the username + password below.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
             <tr><th scope="row"><?php esc_html_e('Tours site URL', 'october-events'); ?></th>
                 <td><input type="url" name="volunteer_feed_url" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_url'] ?? '')); ?>" placeholder="https://architecturetours.us"></td></tr>
@@ -92,13 +100,14 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             if (! empty($sync['error'])) {
                 echo '<div class="notice notice-error inline" style="margin:8px 0"><p>' . esc_html(sprintf(__('Sync failed: %s', 'october-events'), $sync['error'])) . '</p></div>';
             } else {
-                echo '<div class="notice notice-success inline" style="margin:8px 0"><p>' . esc_html(sprintf(__('Synced — %1$d created, %2$d updated, %3$d closed.', 'october-events'), (int) ($sync['created'] ?? 0), (int) ($sync['updated'] ?? 0), (int) ($sync['closed'] ?? 0))) . '</p></div>';
+                $n = (int) ($sync['locations'] ?? 0);
+                echo '<div class="notice notice-success inline" style="margin:8px 0"><p>' . esc_html(sprintf(_n('Synced — %d tour location available to pick.', 'Synced — %d tour locations available to pick.', $n, 'october-events'), $n)) . '</p></div>';
             }
         }
         ?>
         <p>
-            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_sync_partner_vol'), 'oe_sync_partner_vol')); ?>"><?php esc_html_e('Sync now', 'october-events'); ?></a>
-            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last synced %s ago. Auto-syncs daily.', 'october-events'), human_time_diff($last))) : esc_html__('Not synced yet. Also runs automatically once a day.', 'october-events'); ?></span>
+            <button type="submit" name="oe_sync_after_save" value="1" class="button button-secondary"><?php esc_html_e('Save & sync now', 'october-events'); ?></button>
+            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last refreshed %s ago. Saves your changes first, then pulls the pickable list; also auto-refreshes daily. You can also refresh from the volunteer editor.', 'october-events'), human_time_diff($last))) : esc_html__('Saves your changes first, then pulls the pickable list of tour locations. Also runs automatically once a day, and there’s a refresh button in the volunteer editor.', 'october-events'); ?></span>
         </p>
         </div></details>
 

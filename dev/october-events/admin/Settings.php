@@ -287,6 +287,8 @@ final class Settings {
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
             'event_field_map'  => $event_field_map,
             'location_post_type' => sanitize_key((string) ($in['location_post_type'] ?? '')),
+            'location_address_field' => sanitize_key((string) ($in['location_address_field'] ?? '')),
+            'location_date_field'    => sanitize_key((string) ($in['location_date_field'] ?? '')),
             'volunteer_feed_url'          => esc_url_raw(trim((string) ($in['volunteer_feed_url'] ?? ''))),
             'volunteer_feed_user'         => sanitize_text_field((string) ($in['volunteer_feed_user'] ?? '')),
             'volunteer_feed_app_password' => trim((string) ($in['volunteer_feed_app_password'] ?? '')),
@@ -364,6 +366,16 @@ final class Settings {
             'chatwoot_base_url'     => esc_url_raw(trim((string) ($in['chatwoot_base_url'] ?? ''))),
             'chatwoot_token'        => sanitize_text_field((string) ($in['chatwoot_token'] ?? '')),
         ]);
+
+        // "Save & sync now" (a submit button in the Volunteer-locations accordion)
+        // saves the feed credentials above and immediately runs the partner sync
+        // against them, so there's no save-first/sync-second ordering to trip on.
+        if (! empty($in['oe_sync_after_save'])) {
+            $res = \OE\Volunteers::sync_partner_feed();
+            set_transient('oe_vol_sync_' . get_current_user_id(), $res, 60);
+            wp_safe_redirect(admin_url('admin.php?page=oe-settings&updated=1#volunteer-locations'));
+            exit;
+        }
 
         wp_safe_redirect(add_query_arg('updated', '1', admin_url('admin.php?page=oe-settings')));
         exit;
