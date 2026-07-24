@@ -105,6 +105,26 @@ and on the server `git pull` (fork) or re-run `apply.sh` into a fresh dir, then
 repeat §3. Because the DB volume is external to the build, rebuilds never touch
 your accounts.
 
+> **Gotcha — asset-only changes need `--no-cache`.** A plain
+> `docker compose … up -d --build` can hit the Docker layer cache for
+> `COPY . /repo` / `npm run build` / `COPY dist → nginx` and serve the **old**
+> build even after `git pull` brought new files — most visibly when you only
+> changed static assets (icons, images, favicon). If a rebuild doesn't take,
+> force the frontend fresh:
+> ```bash
+> docker compose -p mailflow -f docker-compose.yml -f docker-compose.https.yml --profile https build --no-cache frontend
+> docker compose -p mailflow -f docker-compose.yml -f docker-compose.https.yml --profile https up -d
+> ```
+> Verify the container actually has the new file (hashes must match):
+> ```bash
+> sha256sum frontend/public/apple-touch-icon.png
+> docker compose -p mailflow exec frontend sha256sum /usr/share/nginx/html/apple-touch-icon.png
+> ```
+> Note browser + iOS also cache icons hard: check with a fresh cache-buster
+> (`…/apple-touch-icon.png?x=<new-number>`), and on iPhone delete + re-add the
+> home-screen icon (the `apple-touch-icon` link carries a `?v=` query so a fresh
+> add re-fetches).
+
 ## Cross-account move — how it behaves
 
 Right-click any message → **Move to account →** → pick a destination account. The
