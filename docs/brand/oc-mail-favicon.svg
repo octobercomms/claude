@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- envelope body -->
+  <rect x="2.5" y="8.5" width="19" height="15" rx="2.5" stroke="#231f20" stroke-width="2.2"/>
+  <!-- flap -->
+  <path d="M3.5 10 L12 16.5 L20.5 10" stroke="#231f20" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- asterisk (October gold) -->
+  <g stroke="#e7cd41" stroke-width="2.6" stroke-linecap="round">
+    <line x1="25.5" y1="18.5" x2="25.5" y2="29.5"/>
+    <line x1="20.7" y1="21.25" x2="30.3" y2="26.75"/>
+    <line x1="30.3" y1="21.25" x2="20.7" y2="26.75"/>
+  </g>
+</svg>
