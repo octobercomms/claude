@@ -292,6 +292,7 @@ final class Settings {
             'volunteer_feed_url'          => esc_url_raw(trim((string) ($in['volunteer_feed_url'] ?? ''))),
             'volunteer_feed_user'         => sanitize_text_field((string) ($in['volunteer_feed_user'] ?? '')),
             'volunteer_feed_app_password' => trim((string) ($in['volunteer_feed_app_password'] ?? '')),
+            'location_default_role'       => sanitize_text_field((string) ($in['location_default_role'] ?? '')),
             'pricing'          => $pricing,
             'currency'         => sanitize_text_field((string) ($in['currency'] ?? 'usd')),
             'card_fee_percent' => max(0, min(20, (float) ($in['card_fee_percent'] ?? 2.9))),

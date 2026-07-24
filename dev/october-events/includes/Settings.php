@@ -47,9 +47,10 @@ final class Settings {
             'location_post_type' => '',
             // On a SOURCE (tours) site: the meta keys on a location that hold its
             // street address and its date, so the partner feed can pass them to the
-            // festival site's volunteer-post picker. Blank = don't send that field.
-            'location_address_field' => '',
-            'location_date_field'    => '',
+            // festival site's volunteer-post picker. Default to the tours schema's
+            // own field names so it works with no config; override if yours differ.
+            'location_address_field' => 'address',
+            'location_date_field'    => 'date',
             // Partner volunteer feed (used on the FESTIVAL site): pull the tour
             // locations flagged "host on partner" from a tours site so they can be
             // picked when building a volunteer post here. Auth = an Application
@@ -59,8 +60,11 @@ final class Settings {
             'volunteer_feed_app_password' => '',
             'volunteer_feed_last_sync'    => 0,
             // Cached pickable tour locations pulled from the partner feed. Each:
-            // { ref:"<site>#<id>", title, url, address, date, capacity }.
+            // { ref:"<site>#<id>", title, url, address, date, capacity, image }.
             'volunteer_feed_locations'    => [],
+            // Role pre-filled when a volunteer post is linked to a tour location
+            // (tour stops are docent-led). Blank = don't pre-fill.
+            'location_default_role'       => 'Docent',
             // Per-listing-type, per-tier pricing in cents. Admin-editable (§4).
             'pricing' => [
                 'directory'   => ['featured' => 9900,  'premium' => 19900],

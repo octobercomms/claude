@@ -5,6 +5,54 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.84.3 — address/date flow with no config
+
+The partner feed now defaults its address/date field mapping to the tours
+schema's own field names (`address`, `date`), and falls back to them even if the
+mapping was saved blank. So address and date come through with no configuration
+— the only requirement is that the tours (source) site runs this version. (The
+"0 address · 0 date" readout meant the tours site was on older code that didn't
+send them.)
+
+## 1.84.2 — refresh readout for diagnosing the feed
+
+The **↻ Refresh tour locations** button now reports what the feed actually
+contains — e.g. "5 locations · 5 address · 5 date · 3 image" — so a blank
+pull-through can be pinned on the source site (its version / field mapping)
+rather than the editor. If it shows "0 address / 0 date", the tours site either
+isn't on 1.83.0+ or doesn't have its Address/Date field mapping set.
+
+## 1.84.1 — re-apply location details after a refresh
+
+Small fix to the tour-location picker: clicking **↻ Refresh tour locations** now
+re-applies the selected location's details, and a Location field still holding
+the title *fallback* is upgraded to the real street address once the address
+comes through. Previously you had to re-pick the location after a refresh for
+the address/shifts to fill.
+
+Note: address, dated shifts and the featured image only appear when the tours
+site has its **Address field** / **Date field** mappings set (Settings → Events
+→ Volunteer locations) and the list has been refreshed since. The featured image
+is copied when the volunteer post is **published/saved**, not while drafting.
+
+## 1.84.0 — picking a tour location fills more of the post
+
+Builds on 1.83.0: when you link a volunteer post to a tour location, it now pulls
+through the details so the post is almost complete before you touch it.
+
+- **Role** pre-fills to a configurable default (**Docent** out of the box) —
+  set it under Settings → Events → Volunteer locations → *Default role*.
+- **Shifts** are generated from the tour **date**: an AM (10–1) and PM (1–4)
+  shift for each day the tour runs, with dates filled in — e.g. "October 3—4,
+  2026" becomes four dated shifts (Sat/Sun × AM/PM). Accepts full or abbreviated
+  month names and range dashes; unparseable dates drop into the first shift
+  label instead. Only auto-fills when no shift has been entered yet.
+- **Featured image**: the location's featured image is copied to the volunteer
+  post (once, if none is set) so the sign-up card looks right.
+- **Address** continues to fill the Location field.
+
+The tours site now also sends each location's featured image in the feed.
+
 ## 1.83.0 — pick a tour location when building a volunteer post
 
 Reworks cross-site tour-location volunteers around how staff actually work: you
