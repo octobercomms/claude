@@ -1,3 +1,153 @@
+diff --git a/backend/src/routes/ai.js b/backend/src/routes/ai.js
+index 088fc38..b49161e 100644
+--- a/backend/src/routes/ai.js
++++ b/backend/src/routes/ai.js
+@@ -208,4 +208,145 @@ router.post('/ai/chat', requireAuth, async (req, res) => {
+   }
+ });
+ 
++// ── AI task list ──────────────────────────────────────────────────────────────
++// Reads every message in one account's folder (e.g. a "to respond" folder) and
++// asks the configured AI provider for a prioritized, de-duplicated task list of
++// what actually needs the user's action. Runs per account + folder (the user
++// selects the folder in the UI). Non-streaming: returns structured JSON the panel
++// renders, each task carrying the source email id so the UI can open it.
++const AI_TASKS_MAX_EMAILS = 120;
++
++router.post('/ai/tasks', requireAuth, async (req, res) => {
++  const { accountId, folder } = req.body || {};
++  if (!accountId || !folder) {
++    return res.status(400).json({ error: 'accountId and folder are required' });
++  }
++
++  const cfgResult = await query("SELECT value FROM system_settings WHERE key = 'ai_config'");
++  if (!cfgResult.rows.length) return res.status(503).json({ error: 'AI provider not configured' });
++  let cfg;
++  try { cfg = JSON.parse(cfgResult.rows[0].value); } catch {
++    return res.status(500).json({ error: 'Corrupted AI config' });
++  }
++  if (!cfg.enabled) return res.status(503).json({ error: 'AI features are disabled' });
++  if (!cfg.baseUrl || !cfg.model) return res.status(503).json({ error: 'AI provider not fully configured' });
++
++  // Account must belong to the caller.
++  const acct = await query(
++    'SELECT id, email FROM email_accounts WHERE id = $1 AND user_id = $2',
++    [accountId, req.session.userId]
++  );
++  if (!acct.rows.length) return res.status(404).json({ error: 'Account not found' });
++
++  // Pull the folder's messages (newest first, capped). The local index already
++  // holds subject/sender/snippet, so no IMAP round-trip is needed.
++  const msgResult = await query(
++    `SELECT id, subject, from_name, from_email, snippet, date, is_read
++       FROM messages
++      WHERE account_id = $1 AND folder = $2
++      ORDER BY date DESC
++      LIMIT $3`,
++    [accountId, folder, AI_TASKS_MAX_EMAILS + 1]
++  );
++  const capped = msgResult.rows.length > AI_TASKS_MAX_EMAILS;
++  const emails = msgResult.rows.slice(0, AI_TASKS_MAX_EMAILS);
++  if (emails.length === 0) {
++    return res.json({ tasks: [], scanned: 0, capped: false });
++  }
++
++  // Build the prompt. Emails are numbered [1..N]; the model refers back by index.
++  const clip = (s, n) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
++  const lines = emails.map((m, i) => {
++    const from = clip(m.from_name || m.from_email || 'unknown', 80);
++    const subject = clip(m.subject, 160) || '(no subject)';
++    const when = m.date ? new Date(m.date).toISOString().slice(0, 10) : '';
++    const snippet = clip(m.snippet, 240);
++    return `[${i + 1}] From: ${from} — Subject: ${subject}${when ? ` — ${when}` : ''}\nSnippet: ${snippet}`;
++  }).join('\n\n');
++
++  const system = 'You turn a folder of emails into a concise, prioritized to-do list. ' +
++    'Only include emails that genuinely require an action FROM THE USER (a reply, a decision, ' +
++    'a task, a follow-up). Skip newsletters, receipts, notifications, and anything already handled. ' +
++    'Merge related emails into a single task. Keep each task short, specific, and action-first ' +
++    '(start with a verb). Do not invent tasks that are not supported by an email.';
++  const user = `Here are the emails in the "${folder}" folder for ${acct.rows[0].email} (newest first):\n\n` +
++    `${lines}\n\n` +
++    'Return ONLY valid JSON, no prose, in this exact shape:\n' +
++    '{"tasks":[{"emailIndex":<number>,"title":"<short action>","priority":"high|medium|low"}]}\n' +
++    'emailIndex is the [n] of the email the task comes from. Order tasks high → low priority. ' +
++    'If nothing needs action, return {"tasks":[]}.';
++
++  const apiKey = cfg.apiKey ? decrypt(cfg.apiKey) : null;
++  const headers = { 'Content-Type': 'application/json' };
++  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
++
++  let content;
++  try {
++    const aiRes = await fetch(`${cfg.baseUrl}/chat/completions`, {
++      method: 'POST',
++      headers,
++      body: JSON.stringify({
++        model: cfg.model,
++        messages: [
++          { role: 'system', content: system },
++          { role: 'user', content: user },
++        ],
++        stream: false,
++        temperature: 0.2,
++      }),
++      signal: AbortSignal.timeout(120000),
++    });
++    if (!aiRes.ok) {
++      const errText = await aiRes.text();
++      return res.status(502).json({ error: `AI provider error (${aiRes.status}): ${errText.slice(0, 300)}` });
++    }
++    const data = await aiRes.json();
++    content = data?.choices?.[0]?.message?.content;
++    if (typeof content !== 'string') {
++      return res.status(502).json({ error: 'AI provider returned an unexpected response' });
++    }
++  } catch (err) {
++    return res.status(502).json({ error: `AI request failed: ${err.message}` });
++  }
++
++  // Parse the JSON the model returned, tolerating ```json fences or surrounding prose.
++  let parsed;
++  try {
++    let text = content.trim();
++    const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
++    if (fence) text = fence[1].trim();
++    else {
++      const start = text.indexOf('{');
++      const end = text.lastIndexOf('}');
++      if (start >= 0 && end > start) text = text.slice(start, end + 1);
++    }
++    parsed = JSON.parse(text);
++  } catch {
++    return res.status(502).json({ error: 'Could not parse the AI task list' });
++  }
++
++  const rank = { high: 0, medium: 1, low: 2 };
++  const tasks = (Array.isArray(parsed?.tasks) ? parsed.tasks : [])
++    .map(t => {
++      const idx = Number(t?.emailIndex);
++      const src = Number.isInteger(idx) && idx >= 1 && idx <= emails.length ? emails[idx - 1] : null;
++      const priority = ['high', 'medium', 'low'].includes(t?.priority) ? t.priority : 'medium';
++      const title = clip(t?.title, 200);
++      if (!title) return null;
++      return src
++        ? {
++            title, priority,
++            emailId: src.id,
++            subject: src.subject || '(no subject)',
++            from: src.from_name || src.from_email || 'unknown',
++            date: src.date,
++          }
++        : { title, priority, emailId: null };
++    })
++    .filter(Boolean)
++    .sort((a, b) => rank[a.priority] - rank[b.priority]);
++
++  res.json({ tasks, scanned: emails.length, capped });
++});
++
+ export default router;
 diff --git a/backend/src/routes/mail.js b/backend/src/routes/mail.js
 index e35d815..e61e359 100644
 --- a/backend/src/routes/mail.js
@@ -3134,10 +3284,37 @@ index 8e2df0e..7a308be 100644
      // App-icon badge always reflects total unread across all accounts so that
      // selecting a zero-unread account never clears the home screen badge.
 diff --git a/frontend/src/components/MessageList.jsx b/frontend/src/components/MessageList.jsx
-index efb16df..c46adab 100644
+index efb16df..564577b 100644
 --- a/frontend/src/components/MessageList.jsx
 +++ b/frontend/src/components/MessageList.jsx
-@@ -1937,6 +1937,44 @@ export default function MessageList() {
+@@ -9,6 +9,7 @@ import { useSwipeRow } from '../hooks/useSwipeRow.js';
+ import ContextMenu from './ContextMenu.jsx';
+ import RowHoverActions from './RowHoverActions.jsx';
+ import GtdTabList from './GtdTabList.jsx';
++import TaskListModal from './TaskListModal.jsx';
+ import {
+   gtdActiveForContext, buildGtdDisplaySections, GTD_COLORS, GTD_CHIP_BG, sectionBadge, isSelectedRow,
+   classifyThread, unclassifyThread,
+@@ -153,6 +154,8 @@ export default function MessageList() {
+   }, []);
+ 
+   const [unreadOnly, setUnreadOnly] = useState(false);
++  const [showTaskList, setShowTaskList] = useState(false);
++  const [aiEnabled, setAiEnabled] = useState(false);
+   const [activeCategory, setActiveCategory] = useState('primary');
+   const [currentPage, setCurrentPage] = useState(1);
+   const currentPageRef = useRef(1);
+@@ -197,6 +200,9 @@ export default function MessageList() {
+ 
+   useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
+   useEffect(() => { setActiveCategory('primary'); setActiveGtdTab(null); }, [selectedAccountId, selectedFolder, setActiveGtdTab]);
++
++  // Is an AI provider configured? Gates the "Task list" button.
++  useEffect(() => { api.aiStatus().then(s => setAiEnabled(!!s.enabled)).catch(() => setAiEnabled(false)); }, []);
+   useEffect(() => {
+     const markOpening = () => {
+       recentMessageOpenUntilRef.current = Date.now() + 1500;
+@@ -1937,6 +1943,44 @@ export default function MessageList() {
          });
          break;
        }
@@ -3182,6 +3359,49 @@ index efb16df..c46adab 100644
        case 'snooze': {
          const snoozedMsg = message;
          const untilIso = data;
+@@ -2318,6 +2362,25 @@ export default function MessageList() {
+             </svg>
+           </button>
+ 
++          {/* AI task list — scans the current account's folder for actionable items */}
++          {aiEnabled && selectedAccountId && selectedFolder && (
++            <button
++              onClick={() => setShowTaskList(true)}
++              title={t('tasks.button', { defaultValue: 'Task list from this folder' })}
++              aria-label={t('tasks.button', { defaultValue: 'Task list from this folder' })}
++              style={{
++                background: 'none', border: 'none', color: 'var(--text-tertiary)',
++                cursor: 'pointer', padding: 0, borderRadius: 7, display: 'flex',
++                alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44,
++              }}
++            >
++              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
++                <path d="M9 11l3 3L22 4"/>
++                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
++              </svg>
++            </button>
++          )}
++
+           {/* Select / Cancel — replaces compose button; FAB is the primary compose affordance */}
+           {selectionMode ? (
+             <button
+@@ -3449,6 +3512,16 @@ export default function MessageList() {
+           />
+         )}
+ 
++        {showTaskList && selectedAccountId && selectedFolder && (
++          <TaskListModal
++            accountId={selectedAccountId}
++            folder={selectedFolder}
++            folderLabel={selectedFolder}
++            onClose={() => setShowTaskList(false)}
++            onOpenEmail={(id) => useStore.getState().setSelectedMessage(id)}
++          />
++        )}
++
+         {/* Infinite scroll footer */}
+         {scrollMode === 'infinite' && (<>
+           {/* Search mode: load more search results */}
 diff --git a/frontend/src/components/Sidebar.jsx b/frontend/src/components/Sidebar.jsx
 index a155ef3..e63e756 100644
 --- a/frontend/src/components/Sidebar.jsx
@@ -3213,6 +3433,189 @@ index a155ef3..e63e756 100644
            </div>
          )}
          <button
+diff --git a/frontend/src/components/TaskListModal.jsx b/frontend/src/components/TaskListModal.jsx
+new file mode 100644
+index 0000000..61ac933
+--- /dev/null
++++ b/frontend/src/components/TaskListModal.jsx
+@@ -0,0 +1,177 @@
++// AI task list — reads a folder (e.g. a "to respond" folder) via /ai/tasks and
++// shows a prioritized, de-duplicated to-do list. Each task links back to the
++// email it came from. Display-only (v1): no filing into GTD/Todoist yet.
++import { useState, useEffect } from 'react';
++import { useTranslation } from 'react-i18next';
++import { api } from '../utils/api.js';
++
++const PRIORITY = {
++  high:   { label: 'High',   color: 'var(--red, #e03131)' },
++  medium: { label: 'Medium', color: 'var(--amber, #d9a520)' },
++  low:    { label: 'Low',    color: 'var(--text-tertiary)' },
++};
++
++export default function TaskListModal({ accountId, folder, folderLabel, onClose, onOpenEmail }) {
++  const { t } = useTranslation();
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState('');
++  const [tasks, setTasks] = useState([]);
++  const [meta, setMeta] = useState({ scanned: 0, capped: false });
++
++  useEffect(() => {
++    let alive = true;
++    setLoading(true); setError('');
++    api.aiTasks(accountId, folder)
++      .then(data => {
++        if (!alive) return;
++        setTasks(Array.isArray(data.tasks) ? data.tasks : []);
++        setMeta({ scanned: data.scanned || 0, capped: !!data.capped });
++      })
++      .catch(err => { if (alive) setError(err.message || 'Failed to generate the task list'); })
++      .finally(() => { if (alive) setLoading(false); });
++    return () => { alive = false; };
++  }, [accountId, folder]);
++
++  useEffect(() => {
++    const onKey = e => { if (e.key === 'Escape') onClose(); };
++    document.addEventListener('keydown', onKey);
++    return () => document.removeEventListener('keydown', onKey);
++  }, [onClose]);
++
++  const openTask = (task) => {
++    if (task.emailId && onOpenEmail) { onOpenEmail(task.emailId); onClose(); }
++  };
++
++  return (
++    <div
++      onClick={e => e.target === e.currentTarget && onClose()}
++      style={{
++        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
++        backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
++        display: 'flex', alignItems: 'center', justifyContent: 'center',
++        zIndex: 3000, padding: 24,
++      }}
++    >
++      <div style={{
++        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
++        borderRadius: 14, width: '100%', maxWidth: 560,
++        boxShadow: 'var(--shadow-modal)', overflow: 'hidden',
++        maxHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column',
++      }}>
++        {/* Header */}
++        <div style={{
++          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
++          padding: '16px 18px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0,
++        }}>
++          <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
++            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
++              <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
++            </svg>
++            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
++              {t('tasks.title', { defaultValue: 'Task list' })}
++            </span>
++            {folderLabel && (
++              <span style={{
++                fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap',
++                overflow: 'hidden', textOverflow: 'ellipsis',
++              }}>· {folderLabel}</span>
++            )}
++          </div>
++          <button
++            onClick={onClose}
++            aria-label={t('common.close', { defaultValue: 'Close' })}
++            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: 4, display: 'flex' }}
++          >
++            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
++              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
++            </svg>
++          </button>
++        </div>
++
++        {/* Body */}
++        <div style={{ overflowY: 'auto', padding: '10px 12px', flex: 1 }}>
++          {loading && (
++            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '22px 10px', color: 'var(--text-secondary)', fontSize: 13 }}>
++              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"
++                style={{ animation: 'spin 0.8s linear infinite' }}>
++                <path d="M21 12a9 9 0 11-6.219-8.56"/>
++              </svg>
++              {t('tasks.loading', { defaultValue: 'Claude is reading your emails…' })}
++            </div>
++          )}
++
++          {!loading && error && (
++            <div style={{ fontSize: 13, color: 'var(--red, #e03131)', padding: '12px', borderRadius: 8, background: 'rgba(224,49,49,0.08)', lineHeight: 1.5 }}>
++              {error}
++            </div>
++          )}
++
++          {!loading && !error && tasks.length === 0 && (
++            <div style={{ padding: '26px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 14 }}>
++              {t('tasks.empty', { defaultValue: 'Nothing here needs an action — you’re clear. 🎉' })}
++            </div>
++          )}
++
++          {!loading && !error && tasks.map((task, i) => {
++            const p = PRIORITY[task.priority] || PRIORITY.medium;
++            const clickable = !!task.emailId;
++            return (
++              <div
++                key={i}
++                onClick={() => openTask(task)}
++                style={{
++                  display: 'flex', gap: 11, padding: '11px 10px', borderRadius: 9,
++                  cursor: clickable ? 'pointer' : 'default',
++                  borderBottom: i < tasks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
++                }}
++                onMouseEnter={e => { if (clickable) e.currentTarget.style.background = 'var(--bg-hover)'; }}
++                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
++              >
++                <span title={p.label} style={{
++                  flexShrink: 0, marginTop: 5, width: 9, height: 9, borderRadius: '50%', background: p.color,
++                }} />
++                <div style={{ minWidth: 0, flex: 1 }}>
++                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.4 }}>
++                    {task.title}
++                  </div>
++                  {clickable && (
++                    <div style={{
++                      fontSize: 12, color: 'var(--text-tertiary)', marginTop: 3,
++                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
++                    }}>
++                      {task.from} · {task.subject}
++                    </div>
++                  )}
++                </div>
++                {clickable && (
++                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2"
++                    style={{ flexShrink: 0, alignSelf: 'center' }} strokeLinecap="round" strokeLinejoin="round">
++                    <polyline points="9 18 15 12 9 6"/>
++                  </svg>
++                )}
++              </div>
++            );
++          })}
++        </div>
++
++        {/* Footer */}
++        {!loading && !error && (
++          <div style={{
++            padding: '10px 16px', borderTop: '1px solid var(--border-subtle)', flexShrink: 0,
++            fontSize: 11.5, color: 'var(--text-tertiary)', display: 'flex', justifyContent: 'space-between',
++          }}>
++            <span>
++              {t('tasks.footer', {
++                defaultValue: '{{tasks}} task(s) from {{scanned}} email(s)',
++                tasks: tasks.length, scanned: meta.scanned,
++              })}
++            </span>
++            {meta.capped && (
++              <span>{t('tasks.capped', { defaultValue: 'newest 120 scanned' })}</span>
++            )}
++          </div>
++        )}
++      </div>
++    </div>
++  );
++}
 diff --git a/frontend/src/themes.js b/frontend/src/themes.js
 index 8583eff..58bd99c 100644
 --- a/frontend/src/themes.js
@@ -3322,7 +3725,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..9db9535 100644
+index c62ac69..e49b33e 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -3336,3 +3739,13 @@ index c62ac69..9db9535 100644
    getUnreadCounts: () => request('GET', '/mail/unread-counts'),
  
    // Antispam (v0.1) — manual user feedback.
+@@ -312,6 +316,9 @@ export const api = {
+   },
+   gtdClassify: (messageId, state) => request('POST', '/gtd/classify', { messageId, state }),
+   gtdUnclassify: (messageId, state) => request('DELETE', '/gtd/classify', { messageId, state }),
++  // AI — is a provider configured/enabled, and generate a task list from a folder.
++  aiStatus: () => request('GET', '/ai/status'),
++  aiTasks: (accountId, folder) => request('POST', '/ai/tasks', { accountId, folder }),
+   // GTD "done": strip the row's label(s) for these states, mark read, archive the INBOX
+   // copy. id is the rail head's row id (its label-folder copy); the server resolves the
+   // INBOX copy from the shared Message-ID.
