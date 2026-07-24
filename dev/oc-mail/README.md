@@ -12,6 +12,9 @@ brief and deploy runbooks.
 | `deploy/oracle-cloud-init.sh` | **Oracle Cloud Always-Free (Ampere A1, ARM).** Same bootstrap, and also opens host iptables 80/443 (an Oracle-specific gotcha). Runbook: [`oracle-deploy.md`](../../docs/oc-mail/oracle-deploy.md). |
 | `deploy/install-existing.sh` | **Existing box already using 80/443** (e.g. the `email` box that runs Mautic). Binds MailFlow's frontend to localhost and is re-run safe (never clobbers `ENCRYPTION_KEY`). Runbook: [`hetzner-deploy.md`](../../docs/oc-mail/hetzner-deploy.md) (Option B). |
 | `deploy/Caddyfile` | Host reverse proxy for the existing-box path — routes `mail.` → MailFlow and (during a transition) `email.` → Mautic by hostname, with automatic Let's Encrypt certs. |
+| `fork/october-branding-and-cross-account-move.patch` | **The October fork, as one patch** (`git diff --binary` vs pinned upstream). October theme + logomark + favicon + app icons, and the **cross-account move** feature. |
+| `fork/apply.sh` | Clones pinned upstream and applies the patch → a ready-to-build branded checkout. |
+| `fork/README.md` | What the patch changes and the two ways to ship it (public fork vs build-from-patch). Deploy: [`fork-build.md`](../../docs/oc-mail/fork-build.md). |
 
 Pick by situation: a **fresh box** (`cloud-init.sh`) is cleanest when the
 cost-optimised Hetzner types are available; the **free ARM** path
@@ -27,7 +30,12 @@ OC Mail is built on [MailFlow](https://github.com/maathimself/mailflow)
 Gmail and IMAP mailboxes; it does not host mail itself. Images are multi-arch
 (amd64 + arm64), so cheap/free ARM hosts (Oracle A1, Hetzner CAX) are viable.
 
-The application code itself is **not yet vendored here** — phase 1 runs stock
-MailFlow to validate it. Once confirmed, a fork lands under this directory to
-add the cross-account **move** feature (Airmail parity) and wire in Claude.
-See the brief for the phased plan.
+Phase 1 (stock MailFlow) is deployed and validated on the Hetzner CX23. The
+October **fork** now lives in [`fork/`](fork/) as a self-contained patch: it
+rebrands the app (theme, two-bar logomark, mail favicon, app icons) and adds the
+cross-account **move** feature (Airmail parity) — right-click a message →
+"Move to account →". Build & switch the running server with
+[`docs/oc-mail/fork-build.md`](../../docs/oc-mail/fork-build.md). Tighter Claude
+wiring (prompt caching, your-voice drafting) is the next phase; the AI assistant
+already works today via the OpenAI-compatible endpoint. See the brief for the
+phased plan.
