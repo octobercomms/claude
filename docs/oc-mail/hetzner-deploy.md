@@ -1,4 +1,4 @@
-# OC Mail — Hetzner Deploy Runbook (test environment)
+# October Mail — Hetzner Deploy Runbook (test environment)
 
 Stand up a stock MailFlow instance on a single Hetzner Cloud server. Designed so
 the whole install is **one self-running script** — you (or a browser agent like

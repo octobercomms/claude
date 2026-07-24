@@ -180,7 +180,7 @@ index 74a112b..8d0120e 100644
      await withFreshClient(account, async (client) => {
        const lock = await client.getMailboxLock(folder);
 diff --git a/frontend/index.html b/frontend/index.html
-index dc7460d..cf510b0 100644
+index dc7460d..cb972ef 100644
 --- a/frontend/index.html
 +++ b/frontend/index.html
 @@ -3,9 +3,9 @@
@@ -190,8 +190,8 @@ index dc7460d..cf510b0 100644
 -  <title>MailFlow</title>
 -  <meta name="description" content="MailFlow — your unified inbox"/>
 -  <meta name="theme-color" content="#7c6af7"/>
-+  <title>OC Mail</title>
-+  <meta name="description" content="OC Mail — October's unified inbox"/>
++  <title>October Mail</title>
++  <meta name="description" content="October Mail — one inbox for every account"/>
 +  <meta name="theme-color" content="#e7cd41"/>
  
    <!-- PWA manifest -->
@@ -203,7 +203,7 @@ index dc7460d..cf510b0 100644
 -  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 -  <meta name="apple-mobile-web-app-title" content="MailFlow"/>
 +  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-+  <meta name="apple-mobile-web-app-title" content="OC Mail"/>
++  <meta name="apple-mobile-web-app-title" content="October Mail"/>
    <!-- Favicon -->
    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
    <link rel="apple-touch-icon" href="/icon-512.png"/>
@@ -1531,7 +1531,7 @@ z?vyU3MstTpzCJVNeS?_3#M%YlOJ?HPEWqbdK$yGu+J`hQjL}y?>BE#jEc*Wg{0lUh
 kLiv33vzn$D{!f4b06c|SX)SI*nE(I)07*qoM6N<$f~%IsqW}N^
 
 diff --git a/frontend/public/manifest.json b/frontend/public/manifest.json
-index 3d9d110..9df0431 100644
+index 3d9d110..f6e3787 100644
 --- a/frontend/public/manifest.json
 +++ b/frontend/public/manifest.json
 @@ -1,11 +1,11 @@
@@ -1539,8 +1539,8 @@ index 3d9d110..9df0431 100644
 -  "name": "MailFlow",
 -  "short_name": "MailFlow",
 -  "description": "Your unified inbox",
-+  "name": "OC Mail",
-+  "short_name": "OC Mail",
++  "name": "October Mail",
++  "short_name": "October Mail",
 +  "description": "October's unified inbox",
    "start_url": "/",
    "display": "standalone",
@@ -1769,7 +1769,7 @@ index 802c11f..06488ae 100644
 \ No newline at end of file
 +}
 diff --git a/frontend/src/components/MailApp.jsx b/frontend/src/components/MailApp.jsx
-index 8e2df0e..ca46e07 100644
+index 8e2df0e..7a308be 100644
 --- a/frontend/src/components/MailApp.jsx
 +++ b/frontend/src/components/MailApp.jsx
 @@ -477,7 +477,7 @@ export default function MailApp() {
@@ -1777,7 +1777,7 @@ index 8e2df0e..ca46e07 100644
        ? (unreadCounts.byAccount[selectedAccountId] ?? 0)
        : total;
 -    document.title = 'MailFlow';
-+    document.title = 'OC Mail';
++    document.title = 'October Mail';
      updateFaviconBadge(showFaviconBadge ? tabCount : 0);
      // App-icon badge always reflects total unread across all accounts so that
      // selecting a zero-unread account never clears the home screen badge.

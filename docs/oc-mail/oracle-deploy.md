@@ -1,4 +1,4 @@
-# OC Mail — Oracle Cloud (Always Free, ARM) Deploy Runbook
+# October Mail — Oracle Cloud (Always Free, ARM) Deploy Runbook
 
 Deploy MailFlow on Oracle Cloud's **Always Free** Ampere A1 (ARM) shape — €0
 forever, up to 4 OCPU / 24 GB RAM. MailFlow's images are multi-arch

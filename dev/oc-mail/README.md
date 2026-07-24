@@ -1,6 +1,6 @@
 # dev/oc-mail
 
-Code + deploy tooling for **OC Mail** — October's self-hosted, multi-account
+Code + deploy tooling for **October Mail** — October's self-hosted, multi-account
 web email client. See [`docs/oc-mail/`](../../docs/oc-mail/) for the project
 brief and deploy runbooks.
 
@@ -25,7 +25,7 @@ provider's user-data field; none contain secrets — they're generated on the bo
 
 ## Status
 
-OC Mail is built on [MailFlow](https://github.com/maathimself/mailflow)
+October Mail is built on [MailFlow](https://github.com/maathimself/mailflow)
 (AGPL-3.0) — the "window, not warehouse" model: it connects to your existing
 Gmail and IMAP mailboxes; it does not host mail itself. Images are multi-arch
 (amd64 + arm64), so cheap/free ARM hosts (Oracle A1, Hetzner CAX) are viable.
