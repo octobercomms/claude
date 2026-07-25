@@ -1,8 +1,8 @@
 diff --git a/backend/src/routes/ai.js b/backend/src/routes/ai.js
-index 088fc38..dc02851 100644
+index 088fc38..e964aa8 100644
 --- a/backend/src/routes/ai.js
 +++ b/backend/src/routes/ai.js
-@@ -208,4 +208,145 @@ router.post('/ai/chat', requireAuth, async (req, res) => {
+@@ -208,4 +208,144 @@ router.post('/ai/chat', requireAuth, async (req, res) => {
    }
  });
  
@@ -90,7 +90,6 @@ index 088fc38..dc02851 100644
 +          { role: 'user', content: user },
 +        ],
 +        stream: false,
-+        temperature: 0.2,
 +      }),
 +      signal: AbortSignal.timeout(120000),
 +    });
