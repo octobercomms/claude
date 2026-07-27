@@ -2729,13 +2729,19 @@ function ac_lt_inline_assets() {
 			content:none !important;
 			display:none !important;
 		}
-		/* Seasonal note — dropped INTO the "Made to Order" badge (same element, so it
-		   inherits the badge's green colour, size and weight) and reads straight after
-		   it: "Made to Order: Allow up to 15 weeks…". Kept out of the hidden <del> copy
-		   and re-applied on each variation change (see placeSeason). */
+		/* Seasonal note — its own line just under the price, in the "Made to Order"
+		   green, reading e.g. "Made to Order: Allow up to 15 weeks…". Rendered as a
+		   standalone block OUTSIDE the price flex (so the sale strikethrough / price
+		   layout is never disturbed) and only once a made-to-order variation is
+		   selected. See placeSeason(). */
 		.single-product .ac-seasonal-note{
-			color:inherit;
-			font:inherit;
+			display:block;
+			clear:both;
+			margin:.4em 0 0 0;
+			color:#77a464;
+			font-size:15px;
+			line-height:1.5;
+			font-weight:400;
 			font-style:normal;
 			opacity:1;
 		}
@@ -2808,27 +2814,30 @@ function ac_lt_inline_assets() {
 		// block (never before it, so the badge's :nth-of-type rules are unaffected),
 		// and re-place it after each variation render. It's product-level (one
 		// supplier per product), so the text is constant across variations.
-		function placeSeason(){
+		function placeSeason(label){
 			if (!data.season) { return; }
 			$scope.find('.ac-seasonal-note').remove();
-			// Drop the note INTO the visible "Made to Order" badge so it inherits its
-			// style and reads straight after it ("Made to Order: …"). Skip the hidden
-			// copy inside the struck-through <del> sale price. WooCommerce rebuilds the
-			// badge on each variation change, so refresh() re-appends after applyInline.
+			// Only when a real "Made to Order" badge is on the page — i.e. a
+			// made-to-order variation is selected. Nothing shows on a variable
+			// product's initial price-range view. Ignore the hidden copy inside the
+			// struck-through <del> sale price.
 			var $badge = $scope.find('p.available-on-backorder').filter(function(){
 				return $(this).is(':visible') && 0 === $(this).closest('del').length;
 			}).first();
-			if (!$badge.length) { $badge = $scope.find('p.available-on-backorder:visible').first(); }
-			if ($badge.length) {
-				$badge.append($('<span class="ac-seasonal-note"></span>').text(': ' + data.season));
-				return;
-			}
-			// Fallback: no visible badge — drop it under the price so it isn't lost.
-			var $host = $scope.find('.woocommerce-variation-price:visible, .product_price').first();
-			if ($host.length) { $host.append($('<p class="ac-seasonal-note"></p>').text(data.season)); }
+			if (!$badge.length) { return; }
+			// Reprint the badge label + the note as a standalone block just below the
+			// price — NEVER inside the price amount, so the sale strikethrough / price
+			// layout is left untouched — then hide WooCommerce's inline badge so the
+			// label isn't shown twice. Re-runs after each variation render.
+			label = $.trim(label || data.label || $badge.text() || 'Made to Order');
+			var $host = $badge.closest('.woocommerce-variation-price, .product_price').first();
+			if (!$host.length) { $host = $badge.closest('.price').parent(); }
+			if (!$host.length) { $host = $badge.parent(); }
+			$host.append($('<p class="ac-seasonal-note"></p>').text(label + ': ' + data.season));
+			$badge.hide();
 		}
 
-		function refresh(lead, label){ applyInline(lead, label); placeSeason(); }
+		function refresh(lead, label){ applyInline(lead, label); placeSeason(label); }
 
 		refresh();
 
