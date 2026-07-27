@@ -2729,16 +2729,15 @@ function ac_lt_inline_assets() {
 			content:none !important;
 			display:none !important;
 		}
-		/* Seasonal note — rendered as its own element (NOT inside the stock badge)
-		   so the theme's badge-hiding rules and WooCommerce's variation JS (which
-		   rebuilds the availability node) can't swallow it. See ac_lt_inline_assets. */
+		/* Seasonal note — dropped INTO the "Made to Order" badge (same element, so it
+		   inherits the badge's green colour, size and weight) and reads straight after
+		   it: "Made to Order: Allow up to 15 weeks…". Kept out of the hidden <del> copy
+		   and re-applied on each variation change (see placeSeason). */
 		.single-product .ac-seasonal-note{
-			display:block;
-			margin:.4em 0 0 0;
-			font-size:14px;
-			line-height:1.4;
-			font-style:italic;
-			opacity:.85;
+			color:inherit;
+			font:inherit;
+			font-style:normal;
+			opacity:1;
 		}
 		/* The badge is not a real link — neutralise the old tooltip trigger. */
 		.single-product p.available-on-backorder{ cursor:default !important; }
@@ -2812,11 +2811,21 @@ function ac_lt_inline_assets() {
 		function placeSeason(){
 			if (!data.season) { return; }
 			$scope.find('.ac-seasonal-note').remove();
-			var $host = $scope.find('.woocommerce-variation-price:visible').first();
-			if (!$host.length) { $host = $scope.find('.product_price').first(); }
-			if (!$host.length) { $host = $scope.find('p.available-on-backorder:visible').first().closest('.price, .product_price'); }
-			if (!$host.length) { return; }
-			$host.append($('<p class="ac-seasonal-note"></p>').text(data.season));
+			// Drop the note INTO the visible "Made to Order" badge so it inherits its
+			// style and reads straight after it ("Made to Order: …"). Skip the hidden
+			// copy inside the struck-through <del> sale price. WooCommerce rebuilds the
+			// badge on each variation change, so refresh() re-appends after applyInline.
+			var $badge = $scope.find('p.available-on-backorder').filter(function(){
+				return $(this).is(':visible') && 0 === $(this).closest('del').length;
+			}).first();
+			if (!$badge.length) { $badge = $scope.find('p.available-on-backorder:visible').first(); }
+			if ($badge.length) {
+				$badge.append($('<span class="ac-seasonal-note"></span>').text(': ' + data.season));
+				return;
+			}
+			// Fallback: no visible badge — drop it under the price so it isn't lost.
+			var $host = $scope.find('.woocommerce-variation-price:visible, .product_price').first();
+			if ($host.length) { $host.append($('<p class="ac-seasonal-note"></p>').text(data.season)); }
 		}
 
 		function refresh(lead, label){ applyInline(lead, label); placeSeason(); }
