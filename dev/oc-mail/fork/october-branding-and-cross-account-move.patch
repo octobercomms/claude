@@ -617,7 +617,7 @@ index eabed8e..f0c89dc 100644
      mockQuery({ rows: [
        { thread_key: 't1', uid: 70, folder: 'INBOX', from_email: 'me@example.com', date: '2026-07-09T10:00:00Z', id: 'r1' },
 diff --git a/backend/src/services/imapManager.js b/backend/src/services/imapManager.js
-index 74a112b..fe95379 100644
+index 74a112b..b4abf3c 100644
 --- a/backend/src/services/imapManager.js
 +++ b/backend/src/services/imapManager.js
 @@ -447,6 +447,17 @@ const PROVIDERS = {
@@ -887,7 +887,7 @@ index 74a112b..fe95379 100644
        const dbResult = await query(
          'SELECT uid FROM messages WHERE account_id = $1 AND folder = $2 AND (synced_at IS NULL OR synced_at < $3)',
          [account.id, folder, reconcileStartedAt]
-@@ -4871,6 +4990,23 @@ export class ImapManager {
+@@ -4871,6 +4990,28 @@ export class ImapManager {
  
        if (orphanUids.length === 0) continue;
  
@@ -903,8 +903,13 @@ index 74a112b..fe95379 100644
 +        console.warn(`Reconcile: SEARCH returned ${serverUidSet.size} UIDs but EXISTS=${serverExists} for ${logAccount(account)}/${folder} — incomplete search, skipping delete of ${orphanUids.length}.`);
 +        continue;
 +      }
-+      if (serverUidSet.size === 0 && dbResult.rows.length > 0) {
-+        console.warn(`Reconcile: server returned 0 UIDs for ${logAccount(account)}/${folder} but ${dbResult.rows.length} stored — skipping delete (stale/partial search).`);
++      // A zero-UID search is only suspect when we CAN'T confirm the mailbox is empty.
++      // When EXISTS is known to be 0 the folder genuinely holds nothing (e.g. every
++      // message was archived out of INBOX), so the stored rows are real orphans and must
++      // be removed — otherwise archived/unlabelled mail lingers forever. Only skip when
++      // EXISTS is unavailable (null) and a 0 result would just be a guess.
++      if (serverExists == null && serverUidSet.size === 0 && dbResult.rows.length > 0) {
++        console.warn(`Reconcile: server returned 0 UIDs and no EXISTS for ${logAccount(account)}/${folder} but ${dbResult.rows.length} stored — skipping delete (unverifiable).`);
 +        continue;
 +      }
 +
