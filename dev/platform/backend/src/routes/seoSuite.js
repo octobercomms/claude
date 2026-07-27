@@ -906,7 +906,33 @@ router.get('/clients/:clientId/site-audits/latest.pdf', async (req, res) => {
     const { rows: cr } = await pool.query('SELECT name, domain FROM clients WHERE id = $1', [req.params.clientId]);
     const client = cr[0] || { name: '', domain: audit.domain };
 
-    const html = siteAuditReport.buildHtml({ client, audit, issues });
+    // Previous audit score (for the trend line).
+    const { rows: prev } = await pool.query(
+      `SELECT score FROM site_audits WHERE client_id = $1 AND status = 'complete' AND id <> $2
+       ORDER BY completed_at DESC LIMIT 1`,
+      [req.params.clientId, audit.id]
+    );
+    const prevScore = prev.length ? prev[0].score : null;
+
+    // Core Web Vitals for the homepage (best-effort — never fail the PDF on it).
+    let cwv = null;
+    try {
+      const domain = (client.domain || audit.domain || '').trim();
+      if (domain) {
+        const url = /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
+        cwv = await pageSpeed.fetchCoreWebVitals(url, { strategy: 'mobile' });
+      }
+    } catch (e) { console.warn('[site-audit] CWV fetch skipped:', e.message); }
+
+    // AI consultant summary (best-effort).
+    let aiSummary = null;
+    try {
+      const p = siteAuditReport.buildSummaryPrompt({ client, audit, issues, cwv });
+      const reply = await claudeService.callClaude({ max_tokens: 300, system: p.system, user: p.user, feature: 'site_audit_summary', clientId: req.params.clientId });
+      aiSummary = String(reply || '').trim() || null;
+    } catch (e) { console.warn('[site-audit] AI summary skipped:', e.message); }
+
+    const html = siteAuditReport.buildHtml({ client, audit, issues, cwv, aiSummary, prevScore });
     const buffer = await pdfService.generatePDFBuffer(html);
 
     const safe = String(client.name || 'client').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'client';
