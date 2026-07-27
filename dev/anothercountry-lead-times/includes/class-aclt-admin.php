@@ -220,6 +220,11 @@ class ACLT_Admin {
 						<td><input type="text" id="aclt_label_outofstock" name="settings[label_outofstock]" value="<?php echo esc_attr( $settings['label_outofstock'] ); ?>" placeholder="Out of Stock" />
 							&nbsp;<input type="text" size="9" name="settings[label_color_oos]" value="<?php echo esc_attr( $settings['label_color_oos'] ); ?>" placeholder="#ff0000" /></td>
 					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( '“Can be backordered” suffix', 'anothercountry-lead-times' ); ?></th>
+						<td><label><input type="checkbox" name="settings[hide_backorder_suffix]" value="1" <?php checked( $settings['hide_backorder_suffix'], 1 ); ?> /> <?php esc_html_e( 'Hide WooCommerce’s “(can be backordered)” text on in-stock products.', 'anothercountry-lead-times' ); ?></label>
+							<p class="description"><?php esc_html_e( 'A product set to “In stock” with backorders “Allow, notify” shows e.g. “In Stock (Can Be Backordered)”. Enable this to strip the parenthetical so the label reads cleanly. (If such a product is really made to order, set its stock status accordingly instead — it will then show the “On backorder” label above.)', 'anothercountry-lead-times' ); ?></p></td>
+					</tr>
 				</table>
 
 				<h2><?php esc_html_e( 'Standalone notice (optional)', 'anothercountry-lead-times' ); ?></h2>
@@ -499,6 +504,7 @@ class ACLT_Admin {
 			'default_season_end'     => ACLT_Resolver::sanitize_md( $in['default_season_end'] ?? '' ),
 			'default_season_note'    => sanitize_text_field( $in['default_season_note'] ?? '' ),
 			'relabel_stock'          => empty( $in['relabel_stock'] ) ? 0 : 1,
+			'hide_backorder_suffix'  => empty( $in['hide_backorder_suffix'] ) ? 0 : 1,
 			'label_backorder'        => sanitize_text_field( $in['label_backorder'] ?? '' ),
 			'label_outofstock'       => sanitize_text_field( $in['label_outofstock'] ?? '' ),
 			'label_color'            => sanitize_hex_color( $in['label_color'] ?? '' ) ?: $defaults['label_color'],
