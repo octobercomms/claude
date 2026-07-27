@@ -617,7 +617,7 @@ index eabed8e..f0c89dc 100644
      mockQuery({ rows: [
        { thread_key: 't1', uid: 70, folder: 'INBOX', from_email: 'me@example.com', date: '2026-07-09T10:00:00Z', id: 'r1' },
 diff --git a/backend/src/services/imapManager.js b/backend/src/services/imapManager.js
-index 74a112b..7b942b0 100644
+index 74a112b..fe95379 100644
 --- a/backend/src/services/imapManager.js
 +++ b/backend/src/services/imapManager.js
 @@ -447,6 +447,17 @@ const PROVIDERS = {
@@ -745,7 +745,37 @@ index 74a112b..7b942b0 100644
                const { sql: relocateSql, params: relocateParams } =
                  relocateMessageQuery(folder, parsed, account.id, msgId, gtdFolderPaths);
                const relocated = await query(relocateSql, relocateParams);
-@@ -3076,7 +3125,10 @@ export class ImapManager {
+@@ -3012,6 +3061,11 @@ export class ImapManager {
+       // refreshed once at completion when the account is gtd_enabled — the tick's fingerprint
+       // can't see rows backfill already wrote (before==after). See emitGtdSectionsRefreshIfEnabled.
+       let backfilledRows = 0;
++      // UIDs a truncated/throttled FETCH silently skipped get re-queued to the end of
++      // missingUids ONCE (tracked here) so a single interrupted pass can't strand a
++      // message. Bounded: anything still missing after its retry waits for the next
++      // full backfill rather than looping forever.
++      const requeuedUids = new Set();
+ 
+       while (i < missingUids.length) {
+         // Stop immediately if the account was deleted while backfilling
+@@ -3034,6 +3088,9 @@ export class ImapManager {
+         const batch = missingUids.slice(i, i + cfg.batchSize);
+         // Comma-separated UID list — e.g. "1234,5678,9012"
+         const uidSet = batch.join(',');
++        // Track which of this batch's UIDs the FETCH actually returned, so we can
++        // re-queue any the server silently dropped (Gmail truncates under load).
++        const fetchedUids = new Set();
+ 
+         try {
+           const lock = await bfClient.getMailboxLock(folder);
+@@ -3062,6 +3119,7 @@ export class ImapManager {
+                   console.warn(`Backfill skipped: IMAP FETCH returned no UID for ${account.email}/${folder}`);
+                   continue;
+                 }
++                fetchedUids.add(String(parsed.uid));
+                 let safeHtml = null, bodyText = null, atts = [];
+ 
+                 if (cfg.fetchBody) {
+@@ -3076,7 +3134,10 @@ export class ImapManager {
                  const bfRefs     = sanitizeStr(parsed.references);
                  const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject));
  
@@ -757,7 +787,26 @@ index 74a112b..7b942b0 100644
                    const { sql: relocateSql, params: relocateParams } =
                      relocateMessageQuery(folder, parsed, account.id, bfMsgId, gtdFolderPaths);
                    const relocated = await query(relocateSql, relocateParams);
-@@ -4286,6 +4338,48 @@ export class ImapManager {
+@@ -3182,6 +3243,18 @@ export class ImapManager {
+           batchesOnConn++;
+           consecutiveErrors = 0;
+ 
++          // Re-queue UIDs this FETCH silently skipped (Gmail can return fewer messages
++          // than requested under load). Append each to the end of missingUids exactly
++          // once so the existing insert path retries it; still-missing UIDs are left for
++          // the next full backfill rather than looping.
++          for (const u of batch) {
++            const key = String(u);
++            if (!fetchedUids.has(key) && !requeuedUids.has(key)) {
++              requeuedUids.add(key);
++              missingUids.push(u);
++            }
++          }
++
+           // Log progress every 10 batches to avoid log spam
+           if (batchesOnConn % 10 === 1 || i >= missingUids.length) {
+             console.log(`Backfill ${logAccount(account)}: ${i}/${missingUids.length} missing fetched`);
+@@ -4286,6 +4359,48 @@ export class ImapManager {
      return newUid;
    }
  
@@ -806,7 +855,7 @@ index 74a112b..7b942b0 100644
    async permanentDeleteMessage(account, uid, folder) {
      await withFreshClient(account, async (client) => {
        const lock = await client.getMailboxLock(folder);
-@@ -4837,9 +4931,13 @@ export class ImapManager {
+@@ -4837,9 +4952,13 @@ export class ImapManager {
        await withFreshClient(account, async (client) => {
          for (const folder of folders) {
            let serverUids;
@@ -820,7 +869,7 @@ index 74a112b..7b942b0 100644
                serverUids = await client.search({ all: true }, { uid: true });
              } finally {
                lock.release();
-@@ -4849,7 +4947,7 @@ export class ImapManager {
+@@ -4849,7 +4968,7 @@ export class ImapManager {
              console.warn(`Reconcile: could not open ${logAccount(account)}/${folder}: ${extractImapError(err)}`);
              continue;
            }
@@ -829,7 +878,7 @@ index 74a112b..7b942b0 100644
          }
        });
      } catch (err) {
-@@ -4860,7 +4958,7 @@ export class ImapManager {
+@@ -4860,7 +4979,7 @@ export class ImapManager {
      // Phase 2 — diff each folder's server UIDs against the DB and delete orphans.
      // Runs outside withFreshClient so DB errors never cause unnecessary pool eviction.
      let deletedCount = 0;
@@ -838,7 +887,7 @@ index 74a112b..7b942b0 100644
        const dbResult = await query(
          'SELECT uid FROM messages WHERE account_id = $1 AND folder = $2 AND (synced_at IS NULL OR synced_at < $3)',
          [account.id, folder, reconcileStartedAt]
-@@ -4871,6 +4969,23 @@ export class ImapManager {
+@@ -4871,6 +4990,23 @@ export class ImapManager {
  
        if (orphanUids.length === 0) continue;
  
