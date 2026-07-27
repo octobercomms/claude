@@ -41,6 +41,11 @@ class OCPOP_Meta {
 			'tpl_text_color'   => '',
 			'tpl_button_bg'    => '',
 			'tpl_button_color' => '#ffffff',
+			'tpl_heading_size' => 30,        // px
+			'tpl_text_size'    => 16,        // px
+			'tpl_padding'      => 32,        // px, content area
+			'tpl_button_radius' => 4,        // px
+			'tpl_button_font'  => '',        // font-family; blank = inherit theme
 
 			// Trigger.
 			'trigger_type'     => 'delay',   // load|delay|scroll|exit|idle|click|manual
@@ -67,6 +72,7 @@ class OCPOP_Meta {
 			'position'         => 'center',  // center|top-bar|bottom-bar|slide-left|slide-right
 			'width'            => 600,       // desktop max width (px)
 			'width_mobile'     => 360,       // mobile max width (px)
+			'radius'           => 0,         // popup corner radius (px)
 			'animation'        => 'fade',    // fade|slide|zoom|none
 			'overlay'          => 1,
 			'overlay_color'    => 'rgba(0,0,0,0.6)',
@@ -201,6 +207,11 @@ class OCPOP_Meta {
 			'frequency_days' => array( 1, 365 ),
 			'width'          => array( 200, 2000 ),
 			'width_mobile'   => array( 150, 2000 ),
+			'radius'         => array( 0, 100 ),
+			'tpl_heading_size' => array( 10, 100 ),
+			'tpl_text_size'  => array( 8, 60 ),
+			'tpl_padding'    => array( 0, 120 ),
+			'tpl_button_radius' => array( 0, 100 ),
 			'close_delay'    => array( 0, 120 ),
 		);
 		foreach ( $ints as $key => $range ) {
@@ -220,6 +231,10 @@ class OCPOP_Meta {
 		foreach ( array( 'tpl_bg', 'tpl_heading_color', 'tpl_text_color', 'tpl_button_bg', 'tpl_button_color' ) as $ckey ) {
 			$out[ $ckey ] = isset( $in[ $ckey ] ) ? sanitize_text_field( $in[ $ckey ] ) : '';
 		}
+
+		// Font family: allow only characters valid in a CSS font-family list.
+		$font = isset( $in['tpl_button_font'] ) ? sanitize_text_field( $in['tpl_button_font'] ) : '';
+		$out['tpl_button_font'] = preg_replace( '/[^A-Za-z0-9 ,\'"\-]/', '', $font );
 
 		// Dates: keep only valid Y-m-d, otherwise blank.
 		foreach ( array( 'start_date', 'end_date' ) as $key ) {

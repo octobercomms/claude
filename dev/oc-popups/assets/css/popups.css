@@ -43,7 +43,7 @@ html.ocpop-locked {
 	overflow-y: auto;
 	margin: auto;
 	background: #fff;
-	border-radius: 8px;
+	border-radius: var( --ocpop-radius, 0px );
 	box-shadow: 0 12px 48px rgba( 0, 0, 0, 0.28 );
 	pointer-events: auto;
 	outline: none;
@@ -188,8 +188,6 @@ html.ocpop-locked {
 		max-height: 40vh;
 	}
 	.ocpop-tpl--hide-image-mobile .ocpop-tpl__media { display: none; }
-	.ocpop-tpl__content { padding: 24px 22px; }
-	.ocpop-tpl__heading { font-size: 1.5em; }
 }
 
 /* --- Positions ------------------------------------------------------- */

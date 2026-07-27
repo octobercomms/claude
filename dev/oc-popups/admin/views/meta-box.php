@@ -81,8 +81,11 @@ $trigger_labels = OCPOP_CPT_Registrar::trigger_labels();
 				<th scope="row"><label for="ocpop_tpl_heading"><?php esc_html_e( 'Heading', 'october-popups' ); ?></label></th>
 				<td>
 					<input type="text" class="large-text" name="ocpop[tpl_heading]" id="ocpop_tpl_heading" value="<?php echo esc_attr( $s['tpl_heading'] ); ?>" placeholder="<?php esc_attr_e( 'A West Country Giveaway', 'october-popups' ); ?>">
-					<label style="display:inline-block;margin-top:6px;"><?php esc_html_e( 'Heading colour:', 'october-popups' ); ?>
+					<label style="display:inline-block;margin-top:6px;margin-right:14px;"><?php esc_html_e( 'Heading colour:', 'october-popups' ); ?>
 						<input type="text" name="ocpop[tpl_heading_color]" value="<?php echo esc_attr( $s['tpl_heading_color'] ); ?>" placeholder="#1a3b2a" style="width:120px;">
+					</label>
+					<label style="display:inline-block;margin-top:6px;"><?php esc_html_e( 'Size (px):', 'october-popups' ); ?>
+						<input type="number" min="10" max="100" name="ocpop[tpl_heading_size]" value="<?php echo esc_attr( $s['tpl_heading_size'] ); ?>" style="width:80px;">
 					</label>
 				</td>
 			</tr>
@@ -91,8 +94,11 @@ $trigger_labels = OCPOP_CPT_Registrar::trigger_labels();
 				<td>
 					<textarea class="large-text" rows="6" name="ocpop[tpl_text]" id="ocpop_tpl_text"><?php echo esc_textarea( $s['tpl_text'] ); ?></textarea>
 					<p class="description"><?php esc_html_e( 'Basic HTML allowed (links, bold, line breaks). Paragraphs are added automatically.', 'october-popups' ); ?></p>
-					<label style="display:inline-block;"><?php esc_html_e( 'Text colour:', 'october-popups' ); ?>
+					<label style="display:inline-block;margin-right:14px;"><?php esc_html_e( 'Text colour:', 'october-popups' ); ?>
 						<input type="text" name="ocpop[tpl_text_color]" value="<?php echo esc_attr( $s['tpl_text_color'] ); ?>" placeholder="#333333" style="width:120px;">
+					</label>
+					<label style="display:inline-block;"><?php esc_html_e( 'Size (px):', 'october-popups' ); ?>
+						<input type="number" min="8" max="60" name="ocpop[tpl_text_size]" value="<?php echo esc_attr( $s['tpl_text_size'] ); ?>" style="width:80px;">
 					</label>
 				</td>
 			</tr>
@@ -105,14 +111,28 @@ $trigger_labels = OCPOP_CPT_Registrar::trigger_labels();
 					<label style="margin-right:14px;"><?php esc_html_e( 'Button colour:', 'october-popups' ); ?>
 						<input type="text" name="ocpop[tpl_button_bg]" value="<?php echo esc_attr( $s['tpl_button_bg'] ); ?>" placeholder="#1a3b2a" style="width:120px;">
 					</label>
-					<label><?php esc_html_e( 'Button text colour:', 'october-popups' ); ?>
+					<label style="margin-right:14px;"><?php esc_html_e( 'Button text colour:', 'october-popups' ); ?>
 						<input type="text" name="ocpop[tpl_button_color]" value="<?php echo esc_attr( $s['tpl_button_color'] ); ?>" placeholder="#ffffff" style="width:120px;">
 					</label>
+					<label style="display:inline-block;margin-top:8px;margin-right:14px;"><?php esc_html_e( 'Corner radius (px):', 'october-popups' ); ?>
+						<input type="number" min="0" max="100" name="ocpop[tpl_button_radius]" value="<?php echo esc_attr( $s['tpl_button_radius'] ); ?>" style="width:80px;">
+					</label>
+					<label style="display:inline-block;margin-top:8px;"><?php esc_html_e( 'Font family:', 'october-popups' ); ?>
+						<input type="text" name="ocpop[tpl_button_font]" value="<?php echo esc_attr( $s['tpl_button_font'] ); ?>" placeholder="<?php esc_attr_e( 'inherit (theme font)', 'october-popups' ); ?>" style="width:200px;">
+					</label>
+					<p class="description"><?php esc_html_e( 'Font family: leave blank to use the theme font, or type a CSS font stack, e.g. Georgia, serif.', 'october-popups' ); ?></p>
 				</td>
 			</tr>
 			<tr>
 				<th scope="row"><label for="ocpop_tpl_bg"><?php esc_html_e( 'Background colour', 'october-popups' ); ?></label></th>
 				<td><input type="text" name="ocpop[tpl_bg]" id="ocpop_tpl_bg" value="<?php echo esc_attr( $s['tpl_bg'] ); ?>" placeholder="#ffffff" style="width:120px;"></td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="ocpop_tpl_padding"><?php esc_html_e( 'Text area padding (px)', 'october-popups' ); ?></label></th>
+				<td>
+					<input type="number" min="0" max="120" name="ocpop[tpl_padding]" id="ocpop_tpl_padding" value="<?php echo esc_attr( $s['tpl_padding'] ); ?>" style="width:80px;">
+					<p class="description"><?php esc_html_e( 'Space around the heading, text and button.', 'october-popups' ); ?></p>
+				</td>
 			</tr>
 		</table>
 	</div>
@@ -256,6 +276,13 @@ $trigger_labels = OCPOP_CPT_Registrar::trigger_labels();
 			<td>
 				<input type="number" min="150" max="2000" name="ocpop[width_mobile]" id="ocpop_width_mobile" value="<?php echo esc_attr( $s['width_mobile'] ); ?>">
 				<p class="description"><?php esc_html_e( 'Used on phones (screens up to 600px). The popup never exceeds the screen width regardless of this value.', 'october-popups' ); ?></p>
+			</td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="ocpop_radius"><?php esc_html_e( 'Corner radius (px)', 'october-popups' ); ?></label></th>
+			<td>
+				<input type="number" min="0" max="100" name="ocpop[radius]" id="ocpop_radius" value="<?php echo esc_attr( $s['radius'] ); ?>">
+				<p class="description"><?php esc_html_e( 'Rounds the popup corners. 0 = square. Applies to both content modes.', 'october-popups' ); ?></p>
 			</td>
 		</tr>
 		<tr>

@@ -194,10 +194,11 @@ class OCPOP_Frontend {
 				echo '<div class="ocpop-overlay"></div>';
 			}
 			printf(
-				'<div class="%1$s" role="dialog" aria-modal="true" style="--ocpop-w:%2$dpx;--ocpop-w-mobile:%3$dpx">',
+				'<div class="%1$s" role="dialog" aria-modal="true" style="--ocpop-w:%2$dpx;--ocpop-w-mobile:%3$dpx;--ocpop-radius:%4$dpx">',
 				esc_attr( $classes ),
 				(int) $s['width'],
-				(int) $s['width_mobile']
+				(int) $s['width_mobile'],
+				(int) $s['radius']
 			);
 			if ( ! empty( $s['show_close'] ) ) {
 				echo '<button type="button" class="ocpop-close" aria-label="' . esc_attr__( 'Close', 'october-popups' ) . '">&times;</button>';

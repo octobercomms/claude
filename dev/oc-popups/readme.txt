@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -98,6 +98,11 @@ Yes. Targeting by page is decided server-side; frequency caps and device rules
 are enforced in the browser, so a cached page still behaves correctly.
 
 == Changelog ==
+
+= 1.0.5 =
+* New style controls: popup corner radius (default 0); and for the Simple
+  template — heading size, body-text size, text-area padding, button corner
+  radius and button font family.
 
 = 1.0.4 =
 * New: "Simple template" content mode — image + heading + body text + button,

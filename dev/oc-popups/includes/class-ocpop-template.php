@@ -51,27 +51,45 @@ class OCPOP_Template {
 				</div>
 			<?php endif; ?>
 
-			<div class="ocpop-tpl__content">
+			<?php
+			$content_style = 'padding:' . (int) $s['tpl_padding'] . 'px;';
+			?>
+			<div class="ocpop-tpl__content" style="<?php echo esc_attr( $content_style ); ?>">
 				<?php if ( '' !== $s['tpl_heading'] ) : ?>
-					<h2 class="ocpop-tpl__heading"<?php echo self::color_style( $s['tpl_heading_color'] ); ?>>
+					<?php
+					$head_style = 'font-size:' . (int) $s['tpl_heading_size'] . 'px;';
+					if ( ! empty( $s['tpl_heading_color'] ) ) {
+						$head_style .= 'color:' . $s['tpl_heading_color'] . ';';
+					}
+					?>
+					<h2 class="ocpop-tpl__heading" style="<?php echo esc_attr( $head_style ); ?>">
 						<?php echo esc_html( $s['tpl_heading'] ); ?>
 					</h2>
 				<?php endif; ?>
 
 				<?php if ( '' !== $s['tpl_text'] ) : ?>
-					<div class="ocpop-tpl__text"<?php echo self::color_style( $s['tpl_text_color'] ); ?>>
+					<?php
+					$text_style = 'font-size:' . (int) $s['tpl_text_size'] . 'px;';
+					if ( ! empty( $s['tpl_text_color'] ) ) {
+						$text_style .= 'color:' . $s['tpl_text_color'] . ';';
+					}
+					?>
+					<div class="ocpop-tpl__text" style="<?php echo esc_attr( $text_style ); ?>">
 						<?php echo wpautop( wp_kses_post( $s['tpl_text'] ) ); ?>
 					</div>
 				<?php endif; ?>
 
 				<?php if ( '' !== $s['tpl_button_text'] ) : ?>
 					<?php
-					$btn_style = '';
+					$btn_style = 'border-radius:' . (int) $s['tpl_button_radius'] . 'px;';
 					if ( ! empty( $s['tpl_button_bg'] ) ) {
 						$btn_style .= 'background:' . $s['tpl_button_bg'] . ';';
 					}
 					if ( ! empty( $s['tpl_button_color'] ) ) {
 						$btn_style .= 'color:' . $s['tpl_button_color'] . ';';
+					}
+					if ( ! empty( $s['tpl_button_font'] ) ) {
+						$btn_style .= 'font-family:' . $s['tpl_button_font'] . ';';
 					}
 					$href = $s['tpl_button_url'] ? $s['tpl_button_url'] : '#';
 					?>
@@ -83,13 +101,5 @@ class OCPOP_Template {
 		</div>
 		<?php
 		return ob_get_clean();
-	}
-
-	private static function color_style( $color ) {
-		$color = trim( (string) $color );
-		if ( '' === $color ) {
-			return '';
-		}
-		return ' style="color:' . esc_attr( $color ) . '"';
 	}
 }
