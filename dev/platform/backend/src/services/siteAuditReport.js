@@ -49,6 +49,35 @@ function fmtDate(d) {
   catch { return ''; }
 }
 
+function ratingColour(r) {
+  const s = String(r || '').toLowerCase();
+  if (s.includes('good')) return '#1e8449';
+  if (s.includes('poor') || s.includes('slow')) return '#c0392b';
+  if (s.includes('improve') || s.includes('average') || s.includes('moderate')) return '#c77f0a';
+  return '#6b7280';
+}
+
+// Compact Claude prompt for the consultant-style summary paragraph.
+function buildSummaryPrompt({ client, audit, issues, cwv }) {
+  const active = (issues || []).filter(i => i.status !== 'dismissed');
+  const byCat = {};
+  for (const i of active) (byCat[i.category] ||= { n: 0, sev: i.severity }) && (byCat[i.category].n++);
+  const top = Object.entries(byCat)
+    .sort((a, b) => b[1].n - a[1].n).slice(0, 6)
+    .map(([cat, v]) => `- ${categoryLabel(cat)}: ${v.n}`).join('\n');
+  const cwvLine = cwv && cwv.metrics
+    ? `Core Web Vitals (${cwv.strategy || 'mobile'}): LCP ${cwv.metrics.lcp?.value || '—'} (${cwv.metrics.lcp?.rating || '—'}), INP ${cwv.metrics.inp?.value || '—'} (${cwv.metrics.inp?.rating || '—'}), CLS ${cwv.metrics.cls?.value || '—'} (${cwv.metrics.cls?.rating || '—'}).`
+    : 'Core Web Vitals: not available.';
+  return {
+    system: 'You are a senior SEO consultant at October Communications writing the opening summary of a technical site-audit report for a client. British English. 2–3 short sentences, plain and confident, no jargon or lists. Say where the site stands overall and the ONE or TWO things worth fixing first. Do not invent numbers beyond those given.',
+    user: `Client: ${client.name || ''} (${audit.domain || client.domain || ''})
+Health score: ${audit.score == null ? 'n/a' : audit.score}/100. Pages crawled: ${audit.pages_crawled || 0}. Total issues: ${active.length}.
+Top issue types:
+${top || '- none'}
+${cwvLine}`,
+  };
+}
+
 function metric(label, value, colour) {
   return `<div class="metric">
     <div class="metric-value"${colour ? ` style="color:${colour}"` : ''}>${esc(value)}</div>
@@ -57,7 +86,8 @@ function metric(label, value, colour) {
 }
 
 // audit = site_audits row; issues = site_audit_issues rows.
-function buildHtml({ client, audit, issues }) {
+// Optional: cwv (Core Web Vitals payload), aiSummary (string), prevScore (number).
+function buildHtml({ client, audit, issues, cwv = null, aiSummary = null, prevScore = null }) {
   const active = (issues || []).filter(i => i.status !== 'dismissed');
   const counts = { high: 0, medium: 0, low: 0 };
   for (const i of active) if (counts[i.severity] != null) counts[i.severity]++;
@@ -87,6 +117,23 @@ function buildHtml({ client, audit, issues }) {
   const domain = audit.domain || client.domain || '';
   const logo = getLogoDataUri();
 
+  // Score trend vs the previous audit.
+  let trend = '';
+  if (prevScore != null && audit.score != null) {
+    const d = Number(audit.score) - Number(prevScore);
+    if (d > 0) trend = `<span class="trend up">▲ +${d} vs last audit</span>`;
+    else if (d < 0) trend = `<span class="trend down">▼ ${d} vs last audit</span>`;
+    else trend = `<span class="trend flat">no change vs last audit</span>`;
+  }
+
+  // Core Web Vitals block.
+  const m = cwv && cwv.metrics ? cwv.metrics : null;
+  const cwvCell = (label, metric) => metric ? `<div class="metric">
+    <div class="metric-value" style="font-size:17pt;color:${ratingColour(metric.rating)}">${esc(metric.value)}</div>
+    <div class="metric-label">${esc(label)}${metric.rating ? ` · ${esc(metric.rating)}` : ''}</div></div>` : '';
+  const cwvBlock = m ? `<h2 class="sec">Core Web Vitals <span class="src">${esc(cwv.source === 'field' ? 'real-user field data' : 'lab estimate')} · ${esc(cwv.strategy || 'mobile')}</span></h2>
+    <div class="metrics" style="margin-bottom:22px">${cwvCell('LCP', m.lcp)}${cwvCell('INP', m.inp)}${cwvCell('CLS', m.cls)}${cwvCell('FCP', m.fcp)}${cwvCell('TTFB', m.ttfb)}</div>` : '';
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     ${buildFontCSS()}
     * { box-sizing: border-box; }
@@ -101,6 +148,12 @@ function buildHtml({ client, audit, issues }) {
     .metric-value { font-size: 24pt; font-weight: 700; letter-spacing: -1px; }
     .metric-label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.6px; color: #777; margin-top: 4px; }
     .note { color: #555; font-size: 10pt; margin: 14px 0 24px; }
+    .summary { background: #faf6df; border-left: 4px solid ${ACCENT}; border-radius: 8px; padding: 14px 16px; margin: 16px 0 6px; font-size: 11pt; line-height: 1.5; }
+    .summary .lbl { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.6px; color: #9a8a2a; font-weight: 700; display: block; margin-bottom: 5px; }
+    .trend { font-size: 9pt; font-weight: 700; margin-left: 8px; }
+    .trend.up { color: #1e8449; } .trend.down { color: #c0392b; } .trend.flat { color: #888; }
+    h2.sec { font-size: 13pt; font-weight: 700; margin: 26px 0 10px; }
+    h2.sec .src { font-size: 8.5pt; font-weight: 400; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 6px; }
     .group { margin-bottom: 20px; page-break-inside: avoid; }
     .group h3 { font-size: 12pt; font-weight: 700; margin: 0 0 6px; }
     .group h3 .count { display: inline-block; background: ${ACCENT}; color: #111; border-radius: 20px; font-size: 9pt; padding: 1px 9px; margin-left: 6px; vertical-align: middle; }
@@ -118,7 +171,9 @@ function buildHtml({ client, audit, issues }) {
       <div class="wordmark">Site Audit</div>
     </div>
     <h1>${esc(client.name || 'Site audit')}</h1>
-    <div class="sub">${esc(domain)} · Audited ${esc(fmtDate(audit.completed_at || audit.started_at))} · ${audit.pages_crawled || 0} pages crawled</div>
+    <div class="sub">${esc(domain)} · Audited ${esc(fmtDate(audit.completed_at || audit.started_at))} · ${audit.pages_crawled || 0} pages crawled${trend}</div>
+
+    ${aiSummary ? `<div class="summary"><span class="lbl">Summary</span>${esc(aiSummary)}</div>` : ''}
 
     <div class="metrics">
       ${metric('Health score', `${audit.score == null ? '—' : audit.score}/100`, scoreColour(audit.score))}
@@ -129,7 +184,9 @@ function buildHtml({ client, audit, issues }) {
     </div>
     <div class="note">A technical health check of the live site — up to 30 pages crawled for broken links, missing titles and headings, slow responses, missing alt text and thin content. Higher scores are better; fixing the high-severity items first has the biggest impact.</div>
 
-    ${active.length ? sections : '<div class="empty">No outstanding issues found — the site is in good technical health. 🎉</div>'}
+    ${cwvBlock}
+
+    ${active.length ? `<h2 class="sec">Issues to fix</h2>${sections}` : '<div class="empty">No outstanding issues found — the site is in good technical health. 🎉</div>'}
 
     <div class="footer">
       <span>Prepared by October Communications</span>
@@ -138,4 +195,4 @@ function buildHtml({ client, audit, issues }) {
   </div></body></html>`;
 }
 
-module.exports = { buildHtml };
+module.exports = { buildHtml, buildSummaryPrompt };
