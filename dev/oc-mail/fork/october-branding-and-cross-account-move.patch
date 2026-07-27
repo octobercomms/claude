@@ -4129,10 +4129,10 @@ index a155ef3..e63e756 100644
          <button
 diff --git a/frontend/src/components/TaskListModal.jsx b/frontend/src/components/TaskListModal.jsx
 new file mode 100644
-index 0000000..191ef58
+index 0000000..bfd5c29
 --- /dev/null
 +++ b/frontend/src/components/TaskListModal.jsx
-@@ -0,0 +1,367 @@
+@@ -0,0 +1,375 @@
 +// AI task list — reads a folder (e.g. a "to respond" folder) via /ai/tasks and
 +// shows a prioritized to-do digest, grouped by client/project, each task carrying
 +// a one-line context detail and a link back to the source email. A "Copy" button
@@ -4466,10 +4466,18 @@ index 0000000..191ef58
 +                        )}
 +                      </div>
 +                      {clickable && (
-+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2"
-+                          style={{ flexShrink: 0, alignSelf: 'center' }} strokeLinecap="round" strokeLinejoin="round">
-+                          <polyline points="9 18 15 12 9 6"/>
-+                        </svg>
++                        <span
++                          title={t('tasks.openThread', { defaultValue: 'Open the email thread' })}
++                          style={{ flexShrink: 0, alignSelf: 'center', display: 'flex', color: 'var(--text-tertiary)' }}
++                          onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; }}
++                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-tertiary)'; }}
++                        >
++                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
++                            strokeLinecap="round" strokeLinejoin="round">
++                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
++                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
++                          </svg>
++                        </span>
 +                      )}
 +                    </div>
 +                  );
