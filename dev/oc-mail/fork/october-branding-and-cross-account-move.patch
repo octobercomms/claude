@@ -1,5 +1,5 @@
 diff --git a/backend/src/routes/ai.js b/backend/src/routes/ai.js
-index 088fc38..e681b94 100644
+index 088fc38..ee15336 100644
 --- a/backend/src/routes/ai.js
 +++ b/backend/src/routes/ai.js
 @@ -4,6 +4,18 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
@@ -21,7 +21,7 @@ index 088fc38..e681b94 100644
  
  const router = Router();
  
-@@ -208,4 +220,289 @@ router.post('/ai/chat', requireAuth, async (req, res) => {
+@@ -208,4 +220,290 @@ router.post('/ai/chat', requireAuth, async (req, res) => {
    }
  });
  
@@ -103,7 +103,7 @@ index 088fc38..e681b94 100644
 +
 +  // Pull the folder's messages (newest first, capped).
 +  const msgResult = await query(
-+    `SELECT id, uid, subject, from_name, from_email, snippet, body_text, date, is_read
++    `SELECT id, uid, message_id, subject, from_name, from_email, snippet, body_text, date, is_read
 +       FROM messages
 +      WHERE account_id = $1 AND folder = $2
 +      ORDER BY date DESC
@@ -298,11 +298,12 @@ index 088fc38..e681b94 100644
 +        ? {
 +            title, detail, group, priority,
 +            emailId: src.id,
++            messageId: src.message_id || null,
 +            subject: src.subject || '(no subject)',
 +            from: src.from_name || src.from_email || 'unknown',
 +            date: src.date,
 +          }
-+        : { title, detail, group, priority, emailId: null };
++        : { title, detail, group, priority, emailId: null, messageId: null };
 +    })
 +    .filter(Boolean)
 +    .sort((a, b) => rank[a.priority] - rank[b.priority]);
@@ -4129,10 +4130,10 @@ index a155ef3..e63e756 100644
          <button
 diff --git a/frontend/src/components/TaskListModal.jsx b/frontend/src/components/TaskListModal.jsx
 new file mode 100644
-index 0000000..bfd5c29
+index 0000000..4551729
 --- /dev/null
 +++ b/frontend/src/components/TaskListModal.jsx
-@@ -0,0 +1,375 @@
+@@ -0,0 +1,385 @@
 +// AI task list — reads a folder (e.g. a "to respond" folder) via /ai/tasks and
 +// shows a prioritized to-do digest, grouped by client/project, each task carrying
 +// a one-line context detail and a link back to the source email. A "Copy" button
@@ -4177,6 +4178,14 @@ index 0000000..bfd5c29
 +  return out;
 +}
 +
++// Deep link that opens the source email/thread in October Mail. Keyed on the stable
++// Message-ID (survives the email being moved) with the row id as a fallback; both
++// resolve via /?m= → /resolve-message, the same scheme the Todoist integration uses.
++function taskLink(t) {
++  const ref = t.messageId || t.emailId;
++  return ref ? `${window.location.origin}/?m=${encodeURIComponent(ref)}` : '';
++}
++
 +function toMarkdown(grouped, folderLabel) {
 +  const lines = [`# Task list${folderLabel ? ` — ${folderLabel}` : ''}`, ''];
 +  grouped.forEach(g => {
@@ -4184,7 +4193,9 @@ index 0000000..bfd5c29
 +    g.items.forEach(t => {
 +      const p = PRIORITY[t.priority] || PRIORITY.medium;
 +      const detail = t.detail ? ` — ${t.detail}` : '';
-+      lines.push(`- ${p.md} **${t.title}**${detail}`);
++      const url = taskLink(t);
++      const link = url ? ` — [✉ open email](${url})` : '';
++      lines.push(`- ${p.md} **${t.title}**${detail}${link}`);
 +    });
 +    lines.push('');
 +  });
