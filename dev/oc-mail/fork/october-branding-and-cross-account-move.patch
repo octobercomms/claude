@@ -1,3 +1,37 @@
+diff --git a/backend/migrations/0035_rethread_subject_overspan.sql b/backend/migrations/0035_rethread_subject_overspan.sql
+new file mode 100644
+index 0000000..2ea2347
+--- /dev/null
++++ b/backend/migrations/0035_rethread_subject_overspan.sql
+@@ -0,0 +1,28 @@
++-- Repair threads that were over-grouped by the subject fallback's NOW()-anchored window
++-- (see computeThreadId). That bug glued same-subject messages together across huge date
++-- gaps — e.g. a 2016 "website" email and a 2026 "WEBSITE" email ending up in one thread,
++-- so the old one surfaced as a sibling when the thread was expanded in a 2026 folder.
++--
++-- Un-thread ONLY the messages that have no RFC reply linkage (in_reply_to / references) —
++-- those are the ones the subject fallback joined; genuine reply chains are left intact —
++-- and ONLY within threads whose members span more than a year (the hallmark of subject
++-- over-grouping; real conversations don't run continuously for that long). Resetting
++-- thread_id to the message's own Message-ID un-groups it; thread_key is a generated column
++-- (COALESCE(thread_id, id::text)) and updates automatically. Non-destructive: no message
++-- is deleted, they just stop being falsely threaded.
++
++WITH wide AS (
++  SELECT account_id, thread_id
++  FROM messages
++  WHERE thread_id IS NOT NULL
++  GROUP BY account_id, thread_id
++  HAVING MAX(date) - MIN(date) > INTERVAL '365 days'
++)
++UPDATE messages m
++SET thread_id = m.message_id
++FROM wide w
++WHERE m.account_id = w.account_id
++  AND m.thread_id  = w.thread_id
++  AND m.message_id IS NOT NULL
++  AND COALESCE(m.in_reply_to, '') = ''
++  AND COALESCE(m.thread_references, '') = '';
 diff --git a/backend/src/routes/ai.js b/backend/src/routes/ai.js
 index 088fc38..ee15336 100644
 --- a/backend/src/routes/ai.js
@@ -618,7 +652,7 @@ index eabed8e..f0c89dc 100644
      mockQuery({ rows: [
        { thread_key: 't1', uid: 70, folder: 'INBOX', from_email: 'me@example.com', date: '2026-07-09T10:00:00Z', id: 'r1' },
 diff --git a/backend/src/services/imapManager.js b/backend/src/services/imapManager.js
-index 74a112b..5e49245 100644
+index 74a112b..a84ab64 100644
 --- a/backend/src/services/imapManager.js
 +++ b/backend/src/services/imapManager.js
 @@ -447,6 +447,17 @@ const PROVIDERS = {
@@ -639,7 +673,75 @@ index 74a112b..5e49245 100644
      skipFolderPatterns: ['all mail', '[gmail]/starred', '[gmail]/important'],
      // [Gmail] is a namespace container — not a selectable mailbox. It must be
      // matched exactly so that real subfolders like [Gmail]/Drafts are not skipped.
-@@ -1215,6 +1226,7 @@ export class ImapManager {
+@@ -854,7 +865,7 @@ function normalizeSubject(subject) {
+ // Compute the thread_id for an incoming message.
+ // Primary: RFC 5322 References / In-Reply-To header chain.
+ // Fallback: subject normalization when headers are absent (e.g. Outlook RE: replies).
+-async function computeThreadId(accountId, messageId, inReplyTo, references, subject) {
++async function computeThreadId(accountId, messageId, inReplyTo, references, subject, msgDate) {
+   if (!messageId) return null;
+ 
+   const refIds = parseReferences(references);
+@@ -886,23 +897,43 @@ async function computeThreadId(accountId, messageId, inReplyTo, references, subj
+     return candidates[0] || messageId;
+   }
+ 
+-  // No RFC 5322 threading headers — fall back to subject normalization.
+-  // Looks for the earliest message in the same account with the same normalized subject
+-  // within the past 90 days and joins that thread.
++  // No RFC 5322 threading headers — fall back to subject normalization: join the earliest
++  // message in the same account with the same normalized subject that is temporally NEAR
++  // this one.
++  //
++  // The window is anchored to THIS message's own date (±90 days), NOT NOW(). Anchoring to
++  // NOW() was the bug behind cross-decade threads: an old message backfilled today (its
++  // own date years ago) matched *recent* same-subject mail and joined a thread years newer
++  // — e.g. a 2016 "website" email glued onto a 2026 "WEBSITE" conversation. Bounding to the
++  // message's own date means only a genuine burst of same-subject mail threads together.
+   const normalized = normalizeSubject(subject);
+   if (normalized) {
+-    const subjectRow = await query(
+-      `SELECT thread_id FROM messages
+-       WHERE account_id = $1
+-         AND is_deleted = false
+-         AND message_id IS DISTINCT FROM $2
+-         AND thread_id IS NOT NULL
+-         AND normalized_subject = $3
+-         AND date > NOW() - INTERVAL '90 days'
+-       ORDER BY date ASC
+-       LIMIT 1`,
+-      [accountId, messageId, normalized]
+-    );
++    const subjectRow = msgDate
++      ? await query(
++          `SELECT thread_id FROM messages
++           WHERE account_id = $1
++             AND is_deleted = false
++             AND message_id IS DISTINCT FROM $2
++             AND thread_id IS NOT NULL
++             AND normalized_subject = $3
++             AND date BETWEEN $4::timestamptz - INTERVAL '90 days'
++                          AND $4::timestamptz + INTERVAL '90 days'
++           ORDER BY date ASC
++           LIMIT 1`,
++          [accountId, messageId, normalized, msgDate]
++        )
++      : await query(
++          `SELECT thread_id FROM messages
++           WHERE account_id = $1
++             AND is_deleted = false
++             AND message_id IS DISTINCT FROM $2
++             AND thread_id IS NOT NULL
++             AND normalized_subject = $3
++             AND date > NOW() - INTERVAL '90 days'
++           ORDER BY date ASC
++           LIMIT 1`,
++          [accountId, messageId, normalized]
++        );
+     if (subjectRow.rows.length > 0) return subjectRow.rows[0].thread_id;
+   }
+ 
+@@ -1215,6 +1246,7 @@ export class ImapManager {
      this.snippetBackoff = new Map();        // accountId -> { failures, until } circuit breaker
      this.lastUserActivity = new Map();      // accountId -> ms timestamp of last live body fetch
      this.syncTickCount = new Map(); // accountId -> successful sync ticks (for reconcile scheduling)
@@ -647,7 +749,7 @@ index 74a112b..5e49245 100644
      this.lastSyncOkAt = new Map(); // accountId -> ms timestamp of last successful sync tick (staleness detection)
      this._flagDebounceTimers   = new Map(); // accountId -> debounce timer for flag-change syncs
      this._expungeDebounceTimers = new Map(); // accountId -> debounce timer for expunge reconciles
-@@ -1680,6 +1692,15 @@ export class ImapManager {
+@@ -1680,6 +1712,15 @@ export class ImapManager {
      let client;
      try {
        client = new ImapFlow(makeClientCfg(account, resolved, { enableIdle: providerProfile(account).usesIdle !== false, policy }));
@@ -663,7 +765,7 @@ index 74a112b..5e49245 100644
        // Race the connect against a 30-second timeout.
        // client.connect() has no built-in connection timeout — on slow or unresponsive
        // IMAP servers (e.g. purelymail.com during cold starts) it can hang indefinitely,
-@@ -1700,12 +1721,8 @@ export class ImapManager {
+@@ -1700,12 +1741,8 @@ export class ImapManager {
            console.log(`IMAP connection closed for ${logAccount(account)}`);
          }
        });
@@ -678,7 +780,7 @@ index 74a112b..5e49245 100644
        this._attachIdleListeners(client, account);
        this.connections.set(account.id, client);
        await query('UPDATE email_accounts SET sync_error = NULL WHERE id = $1', [account.id]);
-@@ -1755,6 +1772,12 @@ export class ImapManager {
+@@ -1755,6 +1792,12 @@ export class ImapManager {
          logger.debug(`Backfill deferred on connect for ${logAccount(account)} — account already has cached mail`);
        }
  
@@ -691,7 +793,7 @@ index 74a112b..5e49245 100644
        const intervalMs = this.userSyncIntervalMs.get(account.user_id) || 60000;
        this._startSyncInterval(account, intervalMs);
        // Only gtd_enabled accounts arm a GTD tick — a non-GTD account starts no extra
-@@ -1769,6 +1792,9 @@ export class ImapManager {
+@@ -1769,6 +1812,9 @@ export class ImapManager {
      } catch (err) {
        const detail = extractImapError(err);
        console.error(`Failed to connect ${logAccount(account)}:`, detail);
@@ -701,7 +803,7 @@ index 74a112b..5e49245 100644
        // On a connection-refusal/throttle, back this account off with growing delay so we
        // stop hammering a provider that's at its limit. Other errors don't set a cooldown —
        // the health check retries them normally.
-@@ -1908,6 +1934,11 @@ export class ImapManager {
+@@ -1908,6 +1954,11 @@ export class ImapManager {
                const freshAccount = await ensureFreshToken(accountResult.rows[0]);
                const { resolved, policy } = await resolveAccountHost(freshAccount);
                pendingClient = new ImapFlow(makeClientCfg(freshAccount, resolved, { enableIdle: providerProfile(freshAccount).usesIdle !== false, policy }));
@@ -713,7 +815,7 @@ index 74a112b..5e49245 100644
                await pendingClient.connect();
                return { client: pendingClient, account: freshAccount };
              })(),
-@@ -1923,9 +1954,7 @@ export class ImapManager {
+@@ -1923,9 +1974,7 @@ export class ImapManager {
                this.connections.delete(account.id);
              }
            });
@@ -724,7 +826,7 @@ index 74a112b..5e49245 100644
            this._attachIdleListeners(activeClient, syncAccount);
            this.connections.set(account.id, activeClient);
            // Mirror connectAccount's success cleanup: clear the refusal backoff so the next
-@@ -2016,15 +2045,12 @@ export class ImapManager {
+@@ -2016,15 +2065,12 @@ export class ImapManager {
          });
        }
  
@@ -746,7 +848,7 @@ index 74a112b..5e49245 100644
      } catch (err) {
        const detail = extractImapError(err);
        console.error(`Sync error for ${logAccount(account)}:`, detail);
-@@ -2260,6 +2286,27 @@ export class ImapManager {
+@@ -2260,6 +2306,27 @@ export class ImapManager {
            ON CONFLICT (account_id, path) DO NOTHING
          `, [account.id, delimiter]);
        }
@@ -774,7 +876,15 @@ index 74a112b..5e49245 100644
      } catch (err) {
        console.error(`Folder sync error for ${logAccount(account)}:`, err.message);
      }
-@@ -2425,7 +2472,13 @@ export class ImapManager {
+@@ -2418,14 +2485,20 @@ export class ImapManager {
+             const msgId = sanitizeStr(parsed.messageId);
+             const inReplyTo = sanitizeStr(parsed.inReplyTo);
+             const refs = sanitizeStr(parsed.references);
+-            const threadId = await computeThreadId(account.id, msgId, inReplyTo, refs, sanitizeStr(parsed.subject));
++            const threadId = await computeThreadId(account.id, msgId, inReplyTo, refs, sanitizeStr(parsed.subject), safeDate(parsed.date));
+ 
+             // If a row with this message_id already exists for this account at a
+             // different (folder, uid), it was moved. Relocate it in-place rather
              // than inserting a duplicate. The COUNT=1 guard prevents incorrectly
              // merging Gmail's virtual-folder copies (same message_id in INBOX and
              // [Gmail]/All Mail simultaneously).
@@ -789,7 +899,7 @@ index 74a112b..5e49245 100644
                const { sql: relocateSql, params: relocateParams } =
                  relocateMessageQuery(folder, parsed, account.id, msgId, gtdFolderPaths);
                const relocated = await query(relocateSql, relocateParams);
-@@ -3012,6 +3065,11 @@ export class ImapManager {
+@@ -3012,6 +3085,11 @@ export class ImapManager {
        // refreshed once at completion when the account is gtd_enabled — the tick's fingerprint
        // can't see rows backfill already wrote (before==after). See emitGtdSectionsRefreshIfEnabled.
        let backfilledRows = 0;
@@ -801,7 +911,7 @@ index 74a112b..5e49245 100644
  
        while (i < missingUids.length) {
          // Stop immediately if the account was deleted while backfilling
-@@ -3034,6 +3092,9 @@ export class ImapManager {
+@@ -3034,6 +3112,9 @@ export class ImapManager {
          const batch = missingUids.slice(i, i + cfg.batchSize);
          // Comma-separated UID list — e.g. "1234,5678,9012"
          const uidSet = batch.join(',');
@@ -811,7 +921,7 @@ index 74a112b..5e49245 100644
  
          try {
            const lock = await bfClient.getMailboxLock(folder);
-@@ -3062,6 +3123,7 @@ export class ImapManager {
+@@ -3062,6 +3143,7 @@ export class ImapManager {
                    console.warn(`Backfill skipped: IMAP FETCH returned no UID for ${account.email}/${folder}`);
                    continue;
                  }
@@ -819,9 +929,12 @@ index 74a112b..5e49245 100644
                  let safeHtml = null, bodyText = null, atts = [];
  
                  if (cfg.fetchBody) {
-@@ -3076,7 +3138,10 @@ export class ImapManager {
+@@ -3074,9 +3156,12 @@ export class ImapManager {
+                 const bfMsgId    = sanitizeStr(parsed.messageId);
+                 const bfReplyTo  = sanitizeStr(parsed.inReplyTo);
                  const bfRefs     = sanitizeStr(parsed.references);
-                 const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject));
+-                const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject));
++                const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject), safeDate(parsed.date));
  
 -                if (bfMsgId) {
 +                // Skipped for label-based providers (Gmail) — see the sync processMsg relocate
@@ -831,7 +944,7 @@ index 74a112b..5e49245 100644
                    const { sql: relocateSql, params: relocateParams } =
                      relocateMessageQuery(folder, parsed, account.id, bfMsgId, gtdFolderPaths);
                    const relocated = await query(relocateSql, relocateParams);
-@@ -3182,6 +3247,18 @@ export class ImapManager {
+@@ -3182,6 +3267,18 @@ export class ImapManager {
            batchesOnConn++;
            consecutiveErrors = 0;
  
@@ -850,7 +963,7 @@ index 74a112b..5e49245 100644
            // Log progress every 10 batches to avoid log spam
            if (batchesOnConn % 10 === 1 || i >= missingUids.length) {
              console.log(`Backfill ${logAccount(account)}: ${i}/${missingUids.length} missing fetched`);
-@@ -4286,6 +4363,48 @@ export class ImapManager {
+@@ -4286,6 +4383,48 @@ export class ImapManager {
      return newUid;
    }
  
@@ -899,7 +1012,7 @@ index 74a112b..5e49245 100644
    async permanentDeleteMessage(account, uid, folder) {
      await withFreshClient(account, async (client) => {
        const lock = await client.getMailboxLock(folder);
-@@ -4816,7 +4935,24 @@ export class ImapManager {
+@@ -4816,7 +4955,24 @@ export class ImapManager {
    // client). Phase 1: collect all server UID sets via one pool connection (IMAP-only, no
    // DB writes). Phase 2: diff and delete outside the IMAP connection so a DB error never
    // evicts a healthy pool client.
@@ -924,7 +1037,7 @@ index 74a112b..5e49245 100644
      // Captured before the Phase 1 snapshot. Any row inserted or re-synced after this
      // instant (new IDLE mail, a bulk-move reinsert) is NOT in the snapshot yet, so it
      // would look like an orphan. Excluding rows synced at/after the cutoff closes that
-@@ -4837,9 +4973,13 @@ export class ImapManager {
+@@ -4837,9 +4993,13 @@ export class ImapManager {
        await withFreshClient(account, async (client) => {
          for (const folder of folders) {
            let serverUids;
@@ -938,7 +1051,7 @@ index 74a112b..5e49245 100644
                serverUids = await client.search({ all: true }, { uid: true });
              } finally {
                lock.release();
-@@ -4849,7 +4989,7 @@ export class ImapManager {
+@@ -4849,7 +5009,7 @@ export class ImapManager {
              console.warn(`Reconcile: could not open ${logAccount(account)}/${folder}: ${extractImapError(err)}`);
              continue;
            }
@@ -947,7 +1060,7 @@ index 74a112b..5e49245 100644
          }
        });
      } catch (err) {
-@@ -4860,7 +5000,7 @@ export class ImapManager {
+@@ -4860,7 +5020,7 @@ export class ImapManager {
      // Phase 2 — diff each folder's server UIDs against the DB and delete orphans.
      // Runs outside withFreshClient so DB errors never cause unnecessary pool eviction.
      let deletedCount = 0;
@@ -956,7 +1069,7 @@ index 74a112b..5e49245 100644
        const dbResult = await query(
          'SELECT uid FROM messages WHERE account_id = $1 AND folder = $2 AND (synced_at IS NULL OR synced_at < $3)',
          [account.id, folder, reconcileStartedAt]
-@@ -4871,6 +5011,28 @@ export class ImapManager {
+@@ -4871,6 +5031,28 @@ export class ImapManager {
  
        if (orphanUids.length === 0) continue;
  
