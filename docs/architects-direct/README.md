@@ -7,6 +7,13 @@ Tiam Architects.
 Code lives in [`dev/architects-direct/`](../../dev/architects-direct/); this folder
 holds the brief and docs.
 
+> **Two ways to run it:** the original **static site** (this doc) is the quickest
+> way to review the design. The **WordPress theme** —
+> [`dev/architects-direct/theme/architects-direct/`](../../dev/architects-direct/theme/architects-direct/),
+> documented in [`wordpress-theme.md`](./wordpress-theme.md) — wraps the same design
+> into an installable theme and seeds the Phase 1 backend (project-account custom post
+> type, AJAX intake, prices managed in PHP, Customizer-editable copy).
+
 ## What this is
 
 A self-contained static website (no build step, no dependencies) that delivers the

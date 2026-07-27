@@ -1,0 +1,21 @@
+/*
+Theme Name: Architects Direct
+Theme URI: https://architectsdirect.co.uk
+Author: October Communications
+Author URI: https://octobercomms.com
+Description: Fixed-price architectural drawings — the self-service marketing site and intake front end for Architects Direct, a sister service to Tiam Architects. Functional, price-forward brand (chunky sans, thick borders, one signal-yellow accent). Ships an instant pricing calculator, Tiam redirect logic, and an AJAX intake form that opens a project account.
+Version: 1.0.0
+Requires at least: 6.0
+Tested up to: 6.5
+Requires PHP: 7.4
+License: GPL-2.0-or-later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: architects-direct
+Tags: landing-page, one-column, custom-menu, custom-logo, full-width-template
+*/
+
+/*
+ * The visual styles live in assets/css/theme.css (enqueued from functions.php).
+ * WordPress only requires this file for the theme header above, so it is kept
+ * header-only on purpose — do not add rules here.
+ */
