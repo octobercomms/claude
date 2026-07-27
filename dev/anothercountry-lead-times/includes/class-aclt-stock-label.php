@@ -36,7 +36,30 @@ class ACLT_Stock_Label {
 		if ( 'outofstock' === $status && '' !== $s['label_outofstock'] ) {
 			return $s['label_outofstock'];
 		}
+
+		// In-stock products with backorders set to "Allow, notify" get
+		// WooCommerce's "(can be backordered)" suffix appended (see
+		// wc_format_stock_for_display()). Their status is `instock`, so the
+		// relabels above don't touch them and the parenthetical leaks onto the
+		// page (e.g. "In Stock (Can Be Backordered)"). Strip it so the label
+		// stays clean, without otherwise altering the in-stock wording.
+		if ( 'instock' === $status && ! empty( $s['hide_backorder_suffix'] ) ) {
+			return self::strip_backorder_suffix( (string) $text );
+		}
+
 		return $text;
+	}
+
+	/**
+	 * Remove WooCommerce's "(can be backordered)" suffix from availability text.
+	 * Handles the translated phrase and the English fallback, and tidies any
+	 * doubled whitespace left behind.
+	 */
+	public static function strip_backorder_suffix( string $text ): string {
+		$phrase  = __( '(can be backordered)', 'woocommerce' );
+		$text    = str_ireplace( [ $phrase, '(can be backordered)' ], '', $text );
+		$text    = preg_replace( '/\s{2,}/', ' ', $text );
+		return trim( (string) $text );
 	}
 
 	/** Colour the labels to match the approved design. */

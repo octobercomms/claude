@@ -3,7 +3,7 @@
  * Plugin Name: Another Country Lead Times
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Central, supplier-based lead-time manager for Another Country. Set delivery lead times once per supplier/workshop, attach products to suppliers, and have the notice update everywhere automatically — with out-of-stock and seasonal (e.g. summer shutdown) variations, plus per-product overrides.
- * Version:     1.7.0
+ * Version:     1.8.0
  * Author:      October Comms
  * Author URI:  https://octobercomms.com
  * License:     GPL v2 or later
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ACLT_VERSION', '1.7.0' );
+define( 'ACLT_VERSION', '1.8.0' );
 define( 'ACLT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ACLT_URL', plugin_dir_url( __FILE__ ) );
 define( 'ACLT_BASENAME', plugin_basename( __FILE__ ) );
@@ -67,6 +67,13 @@ function aclt_default_settings(): array {
 		'label_outofstock'       => 'Out of Stock',
 		'label_color'            => '#77a464',
 		'label_color_oos'        => '#ff0000',
+
+		// Strip WooCommerce's "(can be backordered)" suffix from the availability
+		// text of IN-STOCK products whose backorders are set to "Allow, notify".
+		// Without this, such a product reads e.g. "In Stock (Can Be Backordered)"
+		// — the parenthetical leaks past the relabeller because the product's
+		// status is `instock`, not `onbackorder`.
+		'hide_backorder_suffix'  => 1,
 	];
 }
 

@@ -2729,7 +2729,17 @@ function ac_lt_inline_assets() {
 			content:none !important;
 			display:none !important;
 		}
-		.single-product .ac-lead-season{ display:block; margin-top:.15em; }
+		/* Seasonal note — rendered as its own element (NOT inside the stock badge)
+		   so the theme's badge-hiding rules and WooCommerce's variation JS (which
+		   rebuilds the availability node) can't swallow it. See ac_lt_inline_assets. */
+		.single-product .ac-seasonal-note{
+			display:block;
+			margin:.4em 0 0 0;
+			font-size:14px;
+			line-height:1.4;
+			font-style:italic;
+			opacity:.85;
+		}
 		/* The badge is not a real link — neutralise the old tooltip trigger. */
 		.single-product p.available-on-backorder{ cursor:default !important; }
 		.single-product p.available-on-backorder a{
@@ -2788,16 +2798,37 @@ function ac_lt_inline_assets() {
 			if (!$badge.length) { $badge = $scope.find('p.available-on-backorder').first(); }
 			if (!$badge.length) { return; }
 			var html = (label ? esc(label) + ' ' : '') + '<span class="ac-lead-inline">in ' + esc(lead) + '</span>';
-			if (data.season) { html += '<br><span class="ac-lead-season">' + esc(data.season) + '</span>'; }
 			$badge.html(html).css('display', '');
 		}
 
-		applyInline();
+		// The seasonal note must NOT go inside the badge: on variable products the
+		// badge is either the hidden copy inside the struck-through <del> price, or
+		// it is rebuilt from the variation JSON by WooCommerce's add-to-cart-variation
+		// JS on every change — either way an appended note is lost. Instead render it
+		// as its own element (class the theme doesn't hide), appended AFTER the price
+		// block (never before it, so the badge's :nth-of-type rules are unaffected),
+		// and re-place it after each variation render. It's product-level (one
+		// supplier per product), so the text is constant across variations.
+		function placeSeason(){
+			if (!data.season) { return; }
+			$scope.find('.ac-seasonal-note').remove();
+			var $host = $scope.find('.woocommerce-variation-price:visible').first();
+			if (!$host.length) { $host = $scope.find('.product_price').first(); }
+			if (!$host.length) { $host = $scope.find('p.available-on-backorder:visible').first().closest('.price, .product_price'); }
+			if (!$host.length) { return; }
+			$host.append($('<p class="ac-seasonal-note"></p>').text(data.season));
+		}
+
+		function refresh(lead, label){ applyInline(lead, label); placeSeason(); }
+
+		refresh();
 
 		// Re-apply per selected variation (the variation JSON carries its own
-		// resolved lead time / label from ac_lt_variation_lead()).
+		// resolved lead time / label from ac_lt_variation_lead()). Runs after
+		// WooCommerce has rebuilt the availability node, so the note lands in the
+		// visible price block.
 		$(document.body).on('show_variation', function (e, v) {
-			applyInline(
+			refresh(
 				v && v.ac_lead_time  ? v.ac_lead_time  : data.lead,
 				v && v.ac_lead_label ? v.ac_lead_label : data.label
 			);

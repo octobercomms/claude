@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.7.0
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,15 @@ Public API for the theme:
 Filter `aclt_notice_html` customises the standalone notice markup.
 
 == Changelog ==
+
+= 1.8.0 =
+* Stock label: strip WooCommerce's "(can be backordered)" suffix from IN-STOCK
+  products whose backorders are set to "Allow, notify" (they read e.g. "In Stock
+  (Can Be Backordered)" because their status is `instock`, so the relabeller —
+  which only fires on the on-backorder / out-of-stock statuses — never touched
+  them). New "Can be backordered suffix" toggle on Defaults & display (on by
+  default). If such a product is actually made to order, correct its WooCommerce
+  stock status instead so it reads "Made to Order".
 
 = 1.7.0 =
 * Per-supplier "Status label": the words before the lead time on the product
