@@ -50,7 +50,8 @@ class OCPOP_Meta {
 
 			// Appearance.
 			'position'         => 'center',  // center|top-bar|bottom-bar|slide-left|slide-right
-			'width'            => 600,
+			'width'            => 600,       // desktop max width (px)
+			'width_mobile'     => 360,       // mobile max width (px)
 			'animation'        => 'fade',    // fade|slide|zoom|none
 			'overlay'          => 1,
 			'overlay_color'    => 'rgba(0,0,0,0.6)',
@@ -115,6 +116,9 @@ class OCPOP_Meta {
 		echo '<p>' . esc_html__( 'Or drop this shortcode anywhere:', 'october-popups' ) . '</p>';
 		echo '<p><code>[october_popup id="' . (int) $post->ID . '" text="Enter now"]</code></p>';
 		echo '<p>' . esc_html__( 'Mark a link inside the popup as the call-to-action (for click tracking) by adding the class:', 'october-popups' ) . ' <code>ocpop-cta</code></p>';
+		echo '<hr>';
+		echo '<p><strong>' . esc_html__( 'Separate mobile design', 'october-popups' ) . '</strong></p>';
+		echo '<p>' . esc_html__( 'Set widths for desktop and mobile in Appearance below. For a different mobile layout you can edit in WP Bakery, duplicate this popup, then under "Where to show → Devices" set one to Desktop only and the other to Mobile only.', 'october-popups' ) . '</p>';
 		echo '</div>';
 	}
 
@@ -167,6 +171,7 @@ class OCPOP_Meta {
 			'idle_seconds'   => array( 1, 3600 ),
 			'frequency_days' => array( 1, 365 ),
 			'width'          => array( 200, 2000 ),
+			'width_mobile'   => array( 150, 2000 ),
 			'close_delay'    => array( 0, 120 ),
 		);
 		foreach ( $ints as $key => $range ) {

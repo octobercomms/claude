@@ -149,8 +149,18 @@ $trigger_labels = OCPOP_CPT_Registrar::trigger_labels();
 			</td>
 		</tr>
 		<tr>
-			<th scope="row"><label for="ocpop_width"><?php esc_html_e( 'Max width (px)', 'october-popups' ); ?></label></th>
-			<td><input type="number" min="200" max="2000" name="ocpop[width]" id="ocpop_width" value="<?php echo esc_attr( $s['width'] ); ?>"></td>
+			<th scope="row"><label for="ocpop_width"><?php esc_html_e( 'Max width — desktop (px)', 'october-popups' ); ?></label></th>
+			<td>
+				<input type="number" min="200" max="2000" name="ocpop[width]" id="ocpop_width" value="<?php echo esc_attr( $s['width'] ); ?>">
+				<p class="description"><?php esc_html_e( 'How wide the popup can grow on larger screens. Increase this if a wide image is being cut off.', 'october-popups' ); ?></p>
+			</td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="ocpop_width_mobile"><?php esc_html_e( 'Max width — mobile (px)', 'october-popups' ); ?></label></th>
+			<td>
+				<input type="number" min="150" max="2000" name="ocpop[width_mobile]" id="ocpop_width_mobile" value="<?php echo esc_attr( $s['width_mobile'] ); ?>">
+				<p class="description"><?php esc_html_e( 'Used on phones (screens up to 600px). The popup never exceeds the screen width regardless of this value.', 'october-popups' ); ?></p>
+			</td>
 		</tr>
 		<tr>
 			<th scope="row"><label for="ocpop_animation"><?php esc_html_e( 'Animation', 'october-popups' ); ?></label></th>

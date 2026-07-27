@@ -35,6 +35,8 @@ html.ocpop-locked {
 	position: relative;
 	box-sizing: border-box;
 	width: 100%;
+	/* Desktop width comes from the --ocpop-w variable set inline per popup. */
+	max-width: var( --ocpop-w, 600px );
 	max-height: 90vh;
 	/* Clip horizontally (kills builder overflow), scroll vertically. */
 	overflow-x: hidden;
@@ -155,7 +157,14 @@ html.ocpop-locked {
 
 @media ( max-width: 600px ) {
 	.ocpop-wrap { padding: 12px; }
-	.ocpop { max-height: 88vh; }
+	/* Mobile width comes from --ocpop-w-mobile, but never exceed the screen. */
+	.ocpop {
+		max-width: min( var( --ocpop-w-mobile, 360px ), calc( 100vw - 24px ) );
+		max-height: 88vh;
+	}
+	/* Bars stay full-bleed on mobile too. */
+	.ocpop--top-bar,
+	.ocpop--bottom-bar { max-width: 100% !important; }
 }
 
 @media ( prefers-reduced-motion: reduce ) {

@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,13 @@ Yes. Targeting by page is decided server-side; frequency caps and device rules
 are enforced in the browser, so a cached page still behaves correctly.
 
 == Changelog ==
+
+= 1.0.3 =
+* New: separate max-width settings for desktop and mobile (the popup never
+  exceeds the screen width on phones). Widen the desktop value to stop a large
+  image being cropped.
+* Docs: help box now explains how to run a separate mobile design via device
+  targeting (duplicate the popup; set one Desktop-only, one Mobile-only).
 
 = 1.0.2 =
 * Fix: builder content (WP Bakery / Elementor) could overflow or clip inside
