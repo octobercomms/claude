@@ -33,9 +33,12 @@ html.ocpop-locked {
 /* The dialog itself */
 .ocpop {
 	position: relative;
+	box-sizing: border-box;
 	width: 100%;
 	max-height: 90vh;
-	overflow: auto;
+	/* Clip horizontally (kills builder overflow), scroll vertically. */
+	overflow-x: hidden;
+	overflow-y: auto;
 	margin: auto;
 	background: #fff;
 	border-radius: 8px;
@@ -46,29 +49,66 @@ html.ocpop-locked {
 
 .ocpop-body {
 	/* Builder content lives here; keep it from bleeding past the corners. */
+	max-width: 100%;
 	overflow: hidden;
 	border-radius: inherit;
 }
 
-/* Close button */
-.ocpop-close {
+/* --- Builder content normalisation --------------------------------------
+   Page builders (WP Bakery, Elementor) assume the full page width. Inside a
+   narrow popup their media and grid can overflow or clip, so constrain them.
+   Scoped strictly to .ocpop-body so nothing else on the page is touched. */
+.ocpop-body img,
+.ocpop-body video,
+.ocpop-body iframe {
+	max-width: 100%;
+	height: auto;
+}
+/* WP Bakery rows use negative side margins that overflow a narrow container. */
+.ocpop-body .vc_row,
+.ocpop-body .wpb_row {
+	margin-left: 0;
+	margin-right: 0;
+}
+/* Drop the trailing bottom margin WP Bakery adds after the last element. */
+.ocpop-body .wpb_row:last-child,
+.ocpop-body .vc_row:last-child,
+.ocpop-body .wpb_content_element:last-child {
+	margin-bottom: 0;
+}
+
+/* Close button — reset hard so the theme's global button styles (padding,
+   pill radius, min-width) can't stretch it into an oval. */
+.ocpop .ocpop-close {
 	position: absolute;
-	top: 8px;
-	right: 8px;
+	top: 10px;
+	right: 10px;
 	z-index: 2;
-	width: 34px;
-	height: 34px;
-	line-height: 30px;
-	font-size: 26px;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px !important;
+	height: 36px !important;
+	min-width: 0 !important;
+	max-width: 36px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	font-size: 24px;
+	line-height: 1;
 	color: #333;
-	background: rgba( 255, 255, 255, 0.9 );
+	background: rgba( 255, 255, 255, 0.92 );
 	border: 0;
-	border-radius: 50%;
+	border-radius: 50% !important;
+	box-shadow: 0 1px 6px rgba( 0, 0, 0, 0.25 );
 	cursor: pointer;
-	box-shadow: 0 1px 4px rgba( 0, 0, 0, 0.2 );
+	-webkit-appearance: none;
+	appearance: none;
+	text-transform: none;
+	letter-spacing: normal;
 	transition: transform 0.15s ease, background 0.15s ease;
 }
-.ocpop-close:hover {
+.ocpop .ocpop-close:hover {
 	background: #fff;
 	transform: scale( 1.08 );
 }

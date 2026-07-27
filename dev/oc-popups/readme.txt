@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,12 @@ Yes. Targeting by page is decided server-side; frequency caps and device rules
 are enforced in the browser, so a cached page still behaves correctly.
 
 == Changelog ==
+
+= 1.0.2 =
+* Fix: builder content (WP Bakery / Elementor) could overflow or clip inside
+  the popup, and the theme's global button styles stretched the close button.
+  Media is now constrained to the popup width, WP Bakery row overflow is
+  neutralised, and the close button is reset to a fixed circle.
 
 = 1.0.1 =
 * Fix: popups never appeared on the frontend because the trigger script ran
