@@ -180,7 +180,9 @@ class OCPOP_Frontend {
 		);
 
 		foreach ( self::$queued as $id => $s ) {
-			$body = OCPOP_Builders::render_content( $id );
+			$body = ( 'template' === $s['content_mode'] )
+				? OCPOP_Template::render( $id, $s )
+				: OCPOP_Builders::render_content( $id );
 
 			$classes = 'ocpop ocpop--' . esc_attr( $s['position'] ) . ' ocpop--anim-' . esc_attr( $s['animation'] );
 			printf(

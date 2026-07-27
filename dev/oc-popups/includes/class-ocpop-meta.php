@@ -27,6 +27,21 @@ class OCPOP_Meta {
 		return array(
 			'enabled'          => 1,
 
+			// Content.
+			'content_mode'     => 'template', // template|builder
+			'tpl_layout'       => 'image-left', // image-left|image-right|image-top|text-only
+			'tpl_image_id'     => 0,
+			'tpl_heading'      => '',
+			'tpl_text'         => '',
+			'tpl_button_text'  => '',
+			'tpl_button_url'   => '',
+			'tpl_show_image_mobile' => 0,
+			'tpl_bg'           => '#ffffff',
+			'tpl_heading_color' => '',
+			'tpl_text_color'   => '',
+			'tpl_button_bg'    => '',
+			'tpl_button_color' => '#ffffff',
+
 			// Trigger.
 			'trigger_type'     => 'delay',   // load|delay|scroll|exit|idle|click|manual
 			'delay_seconds'    => 3,
@@ -70,7 +85,18 @@ class OCPOP_Meta {
 		if ( ! is_array( $saved ) ) {
 			$saved = array();
 		}
-		return array_merge( self::defaults(), $saved );
+		$merged = array_merge( self::defaults(), $saved );
+
+		// Backward compatibility: popups created before the template feature
+		// have no content_mode saved but do have builder content. Keep them in
+		// builder mode so they keep rendering; brand-new popups default to the
+		// simple template.
+		if ( ! array_key_exists( 'content_mode', $saved ) ) {
+			$post = get_post( $post_id );
+			$merged['content_mode'] = ( $post && '' !== trim( (string) $post->post_content ) ) ? 'builder' : 'template';
+		}
+
+		return $merged;
 	}
 
 	public static function add_box() {
@@ -107,7 +133,7 @@ class OCPOP_Meta {
 			$builders[] = 'Elementor';
 		}
 		echo '<div class="ocpop-help">';
-		echo '<p>' . esc_html__( 'Build the popup body with the editor above — the same builder you use for pages.', 'october-popups' ) . '</p>';
+		echo '<p>' . esc_html__( 'Choose a content mode in the Content section: fill in the Simple template fields, or design the body with your page builder (WP Bakery / Elementor) using the editor above.', 'october-popups' ) . '</p>';
 		if ( $builders ) {
 			echo '<p><strong>' . esc_html__( 'Detected builders:', 'october-popups' ) . '</strong> ' . esc_html( implode( ', ', $builders ) ) . '</p>';
 		}
@@ -146,12 +172,15 @@ class OCPOP_Meta {
 		$out = array();
 
 		$out['enabled']       = empty( $in['enabled'] ) ? 0 : 1;
+		$out['tpl_show_image_mobile'] = empty( $in['tpl_show_image_mobile'] ) ? 0 : 1;
 		$out['overlay']       = empty( $in['overlay'] ) ? 0 : 1;
 		$out['overlay_close'] = empty( $in['overlay_close'] ) ? 0 : 1;
 		$out['esc_close']     = empty( $in['esc_close'] ) ? 0 : 1;
 		$out['show_close']    = empty( $in['show_close'] ) ? 0 : 1;
 
 		$enums = array(
+			'content_mode' => array( 'template', 'builder' ),
+			'tpl_layout'   => array( 'image-left', 'image-right', 'image-top', 'text-only' ),
 			'trigger_type' => array( 'load', 'delay', 'scroll', 'exit', 'idle', 'click', 'manual' ),
 			'frequency'    => array( 'always', 'session', 'once', 'days' ),
 			'display_on'   => array( 'all', 'front', 'selected', 'exclude' ),
@@ -181,6 +210,16 @@ class OCPOP_Meta {
 
 		$out['click_selector'] = isset( $in['click_selector'] ) ? sanitize_text_field( $in['click_selector'] ) : '';
 		$out['overlay_color']  = isset( $in['overlay_color'] ) ? sanitize_text_field( $in['overlay_color'] ) : $d['overlay_color'];
+
+		// Template fields.
+		$out['tpl_image_id']    = isset( $in['tpl_image_id'] ) ? absint( $in['tpl_image_id'] ) : 0;
+		$out['tpl_heading']     = isset( $in['tpl_heading'] ) ? sanitize_text_field( $in['tpl_heading'] ) : '';
+		$out['tpl_text']        = isset( $in['tpl_text'] ) ? wp_kses_post( $in['tpl_text'] ) : '';
+		$out['tpl_button_text'] = isset( $in['tpl_button_text'] ) ? sanitize_text_field( $in['tpl_button_text'] ) : '';
+		$out['tpl_button_url']  = isset( $in['tpl_button_url'] ) ? esc_url_raw( trim( $in['tpl_button_url'] ) ) : '';
+		foreach ( array( 'tpl_bg', 'tpl_heading_color', 'tpl_text_color', 'tpl_button_bg', 'tpl_button_color' ) as $ckey ) {
+			$out[ $ckey ] = isset( $in[ $ckey ] ) ? sanitize_text_field( $in[ $ckey ] ) : '';
+		}
 
 		// Dates: keep only valid Y-m-d, otherwise blank.
 		foreach ( array( 'start_date', 'end_date' ) as $key ) {
@@ -212,6 +251,7 @@ class OCPOP_Meta {
 		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) {
 			return;
 		}
+		wp_enqueue_media();
 		wp_enqueue_style( 'ocpop-admin', OCPOP_URL . 'admin/css/admin.css', array(), OCPOP_VERSION );
 		wp_enqueue_script( 'ocpop-admin', OCPOP_URL . 'admin/js/admin.js', array(), OCPOP_VERSION, true );
 	}

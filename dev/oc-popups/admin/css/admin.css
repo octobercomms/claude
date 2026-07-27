@@ -23,6 +23,24 @@
 .ocpop-meta .form-table th {
 	width: 200px;
 }
+.ocpop-img-preview {
+	margin-bottom: 8px;
+}
+.ocpop-img-preview img {
+	max-width: 220px;
+	height: auto;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	display: block;
+}
+.ocpop-img-remove {
+	margin-left: 8px;
+	color: #b32d2e;
+}
+.ocpop-tpl-fields .form-table th {
+	width: 180px;
+}
+
 .ocpop-help p {
 	margin: 0 0 10px;
 }

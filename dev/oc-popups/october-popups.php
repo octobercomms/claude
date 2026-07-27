@@ -3,7 +3,7 @@
  * Plugin Name: October Popups
  * Plugin URI: https://octobercomms.com
  * Description: Lightweight, occasional-use popups (competitions, announcements, offers) whose content you build with WP Bakery or Elementor. Rich trigger, scheduling and targeting options, with a built-in one-click self-updater.
- * Version: 1.0.3
+ * Version: 1.0.4
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCPOP_VERSION', '1.0.3' );
+define( 'OCPOP_VERSION', '1.0.4' );
 define( 'OCPOP_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCPOP_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCPOP_BASENAME', plugin_basename( __FILE__ ) );
@@ -25,6 +25,7 @@ define( 'OCPOP_CPT', 'ocpop_popup' );
 
 require_once OCPOP_PATH . 'includes/class-ocpop-cpt.php';
 require_once OCPOP_PATH . 'includes/class-ocpop-meta.php';
+require_once OCPOP_PATH . 'includes/class-ocpop-template.php';
 require_once OCPOP_PATH . 'includes/class-ocpop-builders.php';
 require_once OCPOP_PATH . 'includes/class-ocpop-frontend.php';
 require_once OCPOP_PATH . 'includes/class-ocpop-analytics.php';

@@ -23,7 +23,7 @@ two-folder rule + self-updater/release pipeline.
 
 | Concern | Where it lives |
 |---------|----------------|
-| Popup **body** (images, text, buttons) | The post content — edited by WP Bakery / Elementor |
+| Popup **body** | Per-popup content mode: **Simple template** (structured image/heading/text/button fields in `_ocpop_settings`, rendered by `OCPOP_Template`) or **Page builder** (the post content, edited by WP Bakery / Elementor) |
 | **Triggers, frequency, schedule, targeting, appearance** | The "Popup Settings" meta box (`_ocpop_settings`) |
 | **Rendering** on the frontend | `OCPOP_Builders::render_content()` — Elementor via its render API, WP Bakery/Gutenberg/classic via `the_content` filters |
 | **Trigger engine** | `assets/js/popups.js` (reads config from a JSON block in the footer) |
@@ -37,6 +37,7 @@ dev/oc-popups/
   includes/
     class-ocpop-cpt.php          CPT registration + admin list columns
     class-ocpop-meta.php         Popup Settings meta box + sanitisation
+    class-ocpop-template.php     Simple-template renderer (image + text + CTA)
     class-ocpop-builders.php     WP Bakery / Elementor enablement + rendering
     class-ocpop-frontend.php     Page matching, enqueue, footer markup, shortcode
     class-ocpop-analytics.php    REST tracking endpoint
