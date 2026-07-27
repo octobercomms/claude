@@ -1,0 +1,124 @@
+/* October Popups — frontend shell.
+   Deliberately unopinionated about the popup body (that is the builder's job);
+   this styles only the container, overlay, positioning and close control. */
+
+html.ocpop-locked {
+	overflow: hidden;
+}
+
+.ocpop-wrap[hidden] {
+	display: none;
+}
+
+.ocpop-wrap {
+	position: fixed;
+	inset: 0;
+	z-index: 999999;
+	display: flex;
+	pointer-events: none;
+}
+
+.ocpop-overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba( 0, 0, 0, 0.6 );
+	opacity: 0;
+	transition: opacity 0.3s ease;
+	pointer-events: auto;
+}
+.ocpop-wrap.is-open .ocpop-overlay {
+	opacity: 1;
+}
+
+/* The dialog itself */
+.ocpop {
+	position: relative;
+	width: 100%;
+	max-height: 90vh;
+	overflow: auto;
+	margin: auto;
+	background: #fff;
+	border-radius: 8px;
+	box-shadow: 0 12px 48px rgba( 0, 0, 0, 0.28 );
+	pointer-events: auto;
+	outline: none;
+}
+
+.ocpop-body {
+	/* Builder content lives here; keep it from bleeding past the corners. */
+	overflow: hidden;
+	border-radius: inherit;
+}
+
+/* Close button */
+.ocpop-close {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	z-index: 2;
+	width: 34px;
+	height: 34px;
+	line-height: 30px;
+	font-size: 26px;
+	color: #333;
+	background: rgba( 255, 255, 255, 0.9 );
+	border: 0;
+	border-radius: 50%;
+	cursor: pointer;
+	box-shadow: 0 1px 4px rgba( 0, 0, 0, 0.2 );
+	transition: transform 0.15s ease, background 0.15s ease;
+}
+.ocpop-close:hover {
+	background: #fff;
+	transform: scale( 1.08 );
+}
+
+/* --- Positions ------------------------------------------------------- */
+
+.ocpop-wrap { align-items: center; justify-content: center; padding: 20px; }
+
+/* Top / bottom bars span the width and stick to an edge. */
+.ocpop--top-bar,
+.ocpop--bottom-bar {
+	max-width: 100% !important;
+	width: 100%;
+	max-height: none;
+	margin: 0;
+	border-radius: 0;
+}
+.ocpop-wrap--top-bar { align-items: flex-start; padding: 0; }
+.ocpop-wrap--bottom-bar { align-items: flex-end; padding: 0; }
+
+/* Slide-in corners */
+.ocpop-wrap--slide-left { align-items: flex-end; justify-content: flex-start; }
+.ocpop-wrap--slide-right { align-items: flex-end; justify-content: flex-end; }
+.ocpop--slide-left,
+.ocpop--slide-right { margin: 0; }
+
+/* --- Animations ------------------------------------------------------ */
+
+.ocpop { opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease; }
+.ocpop-wrap.is-open .ocpop { opacity: 1; transform: none; }
+
+.ocpop--anim-fade .ocpop { transform: translateY( 0 ); }
+.ocpop--anim-zoom .ocpop { transform: scale( 0.9 ); }
+.ocpop--anim-slide.ocpop--top-bar { transform: translateY( -100% ); opacity: 1; }
+.ocpop--anim-slide.ocpop--bottom-bar,
+.ocpop--anim-slide.ocpop--slide-left,
+.ocpop--anim-slide.ocpop--slide-right { transform: translateY( 100% ); opacity: 1; }
+.ocpop--anim-none .ocpop { transition: none; }
+
+/* Open-state resets for the sliding variants */
+.ocpop-wrap.is-open .ocpop--anim-slide { transform: none; }
+
+/* --- Mobile ---------------------------------------------------------- */
+
+@media ( max-width: 600px ) {
+	.ocpop-wrap { padding: 12px; }
+	.ocpop { max-height: 88vh; }
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.ocpop,
+	.ocpop-overlay { transition: opacity 0.01ms; }
+}

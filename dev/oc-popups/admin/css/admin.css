@@ -1,0 +1,37 @@
+/* October Popups — admin */
+.ocpop-meta h3 {
+	margin: 1.4em 0 0;
+	padding-top: 1em;
+	border-top: 1px solid #e2e4e7;
+	font-size: 14px;
+}
+.ocpop-meta h3:first-of-type {
+	border-top: 0;
+	padding-top: 0;
+}
+.ocpop-toggle {
+	padding: 12px 14px;
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-radius: 6px;
+}
+.ocpop-toggle .description {
+	display: block;
+	margin-top: 4px;
+	color: #50575e;
+}
+.ocpop-meta .form-table th {
+	width: 200px;
+}
+.ocpop-help p {
+	margin: 0 0 10px;
+}
+.ocpop-help code {
+	display: inline-block;
+	padding: 2px 6px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	font-size: 12px;
+	word-break: break-all;
+}
