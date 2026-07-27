@@ -617,7 +617,7 @@ index eabed8e..f0c89dc 100644
      mockQuery({ rows: [
        { thread_key: 't1', uid: 70, folder: 'INBOX', from_email: 'me@example.com', date: '2026-07-09T10:00:00Z', id: 'r1' },
 diff --git a/backend/src/services/imapManager.js b/backend/src/services/imapManager.js
-index 74a112b..0d35ce1 100644
+index 74a112b..7b942b0 100644
 --- a/backend/src/services/imapManager.js
 +++ b/backend/src/services/imapManager.js
 @@ -447,6 +447,17 @@ const PROVIDERS = {
@@ -638,7 +638,71 @@ index 74a112b..0d35ce1 100644
      skipFolderPatterns: ['all mail', '[gmail]/starred', '[gmail]/important'],
      // [Gmail] is a namespace container — not a selectable mailbox. It must be
      // matched exactly so that real subfolders like [Gmail]/Drafts are not skipped.
-@@ -2260,6 +2271,27 @@ export class ImapManager {
+@@ -1680,6 +1691,15 @@ export class ImapManager {
+     let client;
+     try {
+       client = new ImapFlow(makeClientCfg(account, resolved, { enableIdle: providerProfile(account).usesIdle !== false, policy }));
++      // Attach the 'error' handler BEFORE connect(). If connect() rejects (e.g. an auth
++      // 'Command failed'), ImapFlow can still emit an async 'error' on the dead socket a
++      // tick later. With no listener attached yet, Node throws on the unhandled 'error'
++      // event and crashes the ENTIRE backend — killing every other account's sync and
++      // forcing a full reconnect/backfill storm on restart. Attaching it here, before the
++      // connect can reject, is what keeps one bad account from taking down the process.
++      client.on('error', (err) => {
++        console.error(`IMAP error for ${logAccount(account)}:`, err.message);
++      });
+       // Race the connect against a 30-second timeout.
+       // client.connect() has no built-in connection timeout — on slow or unresponsive
+       // IMAP servers (e.g. purelymail.com during cold starts) it can hang indefinitely,
+@@ -1700,12 +1720,8 @@ export class ImapManager {
+           console.log(`IMAP connection closed for ${logAccount(account)}`);
+         }
+       });
+-      // Prevent unhandled 'error' events from crashing the Node.js process.
+-      // ImapFlow emits 'error' on socket timeouts and other transport-level failures;
+-      // without this listener Node throws on unhandled EventEmitter errors.
+-      client.on('error', (err) => {
+-        console.error(`IMAP error for ${logAccount(account)}:`, err.message);
+-      });
++      // ('error' handler already attached above, before connect(), so transport-level
++      // failures never surface as an unhandled EventEmitter error.)
+       this._attachIdleListeners(client, account);
+       this.connections.set(account.id, client);
+       await query('UPDATE email_accounts SET sync_error = NULL WHERE id = $1', [account.id]);
+@@ -1769,6 +1785,9 @@ export class ImapManager {
+     } catch (err) {
+       const detail = extractImapError(err);
+       console.error(`Failed to connect ${logAccount(account)}:`, detail);
++      // Tear down the half-open client so its socket doesn't linger and re-emit. Safe now
++      // that the 'error' handler is attached before connect() — close() can emit freely.
++      try { client?.close?.(); } catch { /* already down */ }
+       // On a connection-refusal/throttle, back this account off with growing delay so we
+       // stop hammering a provider that's at its limit. Other errors don't set a cooldown —
+       // the health check retries them normally.
+@@ -1908,6 +1927,11 @@ export class ImapManager {
+               const freshAccount = await ensureFreshToken(accountResult.rows[0]);
+               const { resolved, policy } = await resolveAccountHost(freshAccount);
+               pendingClient = new ImapFlow(makeClientCfg(freshAccount, resolved, { enableIdle: providerProfile(freshAccount).usesIdle !== false, policy }));
++              // Attach 'error' before connect() so a rejected connect can't leave an
++              // unhandled 'error' event to crash the process (see connectAccount).
++              pendingClient.on('error', (err) => {
++                console.error(`IMAP error for ${logAccount(freshAccount)}:`, err.message);
++              });
+               await pendingClient.connect();
+               return { client: pendingClient, account: freshAccount };
+             })(),
+@@ -1923,9 +1947,7 @@ export class ImapManager {
+               this.connections.delete(account.id);
+             }
+           });
+-          activeClient.on('error', (err) => {
+-            console.error(`IMAP error for ${logAccount(syncAccount)}:`, err.message);
+-          });
++          // ('error' handler already attached before connect() above.)
+           this._attachIdleListeners(activeClient, syncAccount);
+           this.connections.set(account.id, activeClient);
+           // Mirror connectAccount's success cleanup: clear the refusal backoff so the next
+@@ -2260,6 +2282,27 @@ export class ImapManager {
            ON CONFLICT (account_id, path) DO NOTHING
          `, [account.id, delimiter]);
        }
@@ -666,7 +730,7 @@ index 74a112b..0d35ce1 100644
      } catch (err) {
        console.error(`Folder sync error for ${logAccount(account)}:`, err.message);
      }
-@@ -2425,7 +2457,13 @@ export class ImapManager {
+@@ -2425,7 +2468,13 @@ export class ImapManager {
              // than inserting a duplicate. The COUNT=1 guard prevents incorrectly
              // merging Gmail's virtual-folder copies (same message_id in INBOX and
              // [Gmail]/All Mail simultaneously).
@@ -681,7 +745,7 @@ index 74a112b..0d35ce1 100644
                const { sql: relocateSql, params: relocateParams } =
                  relocateMessageQuery(folder, parsed, account.id, msgId, gtdFolderPaths);
                const relocated = await query(relocateSql, relocateParams);
-@@ -3076,7 +3114,10 @@ export class ImapManager {
+@@ -3076,7 +3125,10 @@ export class ImapManager {
                  const bfRefs     = sanitizeStr(parsed.references);
                  const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject));
  
@@ -693,7 +757,7 @@ index 74a112b..0d35ce1 100644
                    const { sql: relocateSql, params: relocateParams } =
                      relocateMessageQuery(folder, parsed, account.id, bfMsgId, gtdFolderPaths);
                    const relocated = await query(relocateSql, relocateParams);
-@@ -4286,6 +4327,48 @@ export class ImapManager {
+@@ -4286,6 +4338,48 @@ export class ImapManager {
      return newUid;
    }
  
@@ -742,7 +806,7 @@ index 74a112b..0d35ce1 100644
    async permanentDeleteMessage(account, uid, folder) {
      await withFreshClient(account, async (client) => {
        const lock = await client.getMailboxLock(folder);
-@@ -4837,9 +4920,13 @@ export class ImapManager {
+@@ -4837,9 +4931,13 @@ export class ImapManager {
        await withFreshClient(account, async (client) => {
          for (const folder of folders) {
            let serverUids;
@@ -756,7 +820,7 @@ index 74a112b..0d35ce1 100644
                serverUids = await client.search({ all: true }, { uid: true });
              } finally {
                lock.release();
-@@ -4849,7 +4936,7 @@ export class ImapManager {
+@@ -4849,7 +4947,7 @@ export class ImapManager {
              console.warn(`Reconcile: could not open ${logAccount(account)}/${folder}: ${extractImapError(err)}`);
              continue;
            }
@@ -765,7 +829,7 @@ index 74a112b..0d35ce1 100644
          }
        });
      } catch (err) {
-@@ -4860,7 +4947,7 @@ export class ImapManager {
+@@ -4860,7 +4958,7 @@ export class ImapManager {
      // Phase 2 — diff each folder's server UIDs against the DB and delete orphans.
      // Runs outside withFreshClient so DB errors never cause unnecessary pool eviction.
      let deletedCount = 0;
@@ -774,7 +838,7 @@ index 74a112b..0d35ce1 100644
        const dbResult = await query(
          'SELECT uid FROM messages WHERE account_id = $1 AND folder = $2 AND (synced_at IS NULL OR synced_at < $3)',
          [account.id, folder, reconcileStartedAt]
-@@ -4871,6 +4958,23 @@ export class ImapManager {
+@@ -4871,6 +4969,23 @@ export class ImapManager {
  
        if (orphanUids.length === 0) continue;
  
