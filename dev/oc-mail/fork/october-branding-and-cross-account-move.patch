@@ -1,8 +1,61 @@
+diff --git a/backend/migrations/0035_rethread_subject_overspan.sql b/backend/migrations/0035_rethread_subject_overspan.sql
+new file mode 100644
+index 0000000..2ea2347
+--- /dev/null
++++ b/backend/migrations/0035_rethread_subject_overspan.sql
+@@ -0,0 +1,28 @@
++-- Repair threads that were over-grouped by the subject fallback's NOW()-anchored window
++-- (see computeThreadId). That bug glued same-subject messages together across huge date
++-- gaps — e.g. a 2016 "website" email and a 2026 "WEBSITE" email ending up in one thread,
++-- so the old one surfaced as a sibling when the thread was expanded in a 2026 folder.
++--
++-- Un-thread ONLY the messages that have no RFC reply linkage (in_reply_to / references) —
++-- those are the ones the subject fallback joined; genuine reply chains are left intact —
++-- and ONLY within threads whose members span more than a year (the hallmark of subject
++-- over-grouping; real conversations don't run continuously for that long). Resetting
++-- thread_id to the message's own Message-ID un-groups it; thread_key is a generated column
++-- (COALESCE(thread_id, id::text)) and updates automatically. Non-destructive: no message
++-- is deleted, they just stop being falsely threaded.
++
++WITH wide AS (
++  SELECT account_id, thread_id
++  FROM messages
++  WHERE thread_id IS NOT NULL
++  GROUP BY account_id, thread_id
++  HAVING MAX(date) - MIN(date) > INTERVAL '365 days'
++)
++UPDATE messages m
++SET thread_id = m.message_id
++FROM wide w
++WHERE m.account_id = w.account_id
++  AND m.thread_id  = w.thread_id
++  AND m.message_id IS NOT NULL
++  AND COALESCE(m.in_reply_to, '') = ''
++  AND COALESCE(m.thread_references, '') = '';
 diff --git a/backend/src/routes/ai.js b/backend/src/routes/ai.js
-index 088fc38..f865992 100644
+index 088fc38..ee15336 100644
 --- a/backend/src/routes/ai.js
 +++ b/backend/src/routes/ai.js
-@@ -208,4 +208,224 @@ router.post('/ai/chat', requireAuth, async (req, res) => {
+@@ -4,6 +4,18 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
+ import { encrypt, decrypt } from '../services/encryption.js';
+ import { validateHost } from '../services/hostValidation.js';
+ import { getConnectionPolicy } from '../services/connectionPolicy.js';
++import { imapManager } from '../index.js';
++import { sanitizeEmail } from '../services/emailSanitizer.js';
++import { snippetFromBody } from '../services/messageParser.js';
++
++// Strip a null byte (Postgres text can't hold \0) — mirrors mail.js sanitizeDbText.
++const nz = (s) => (typeof s === 'string' ? s.replace(/\0/g, '') : s);
++// Rough HTML→text for feeding an html-only email to the model (not stored).
++const htmlToText = (html) => String(html || '')
++  .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
++  .replace(/<[^>]+>/g, ' ')
++  .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
++  .replace(/\s+/g, ' ').trim();
+ 
+ const router = Router();
+ 
+@@ -208,4 +220,290 @@ router.post('/ai/chat', requireAuth, async (req, res) => {
    }
  });
  
@@ -73,17 +126,18 @@ index 088fc38..f865992 100644
 +  if (!cfg.enabled) return res.status(503).json({ error: 'AI features are disabled' });
 +  if (!cfg.baseUrl || !cfg.model) return res.status(503).json({ error: 'AI provider not fully configured' });
 +
-+  // Account must belong to the caller.
++  // Account must belong to the caller. Full row — the on-demand body fetch below
++  // needs the IMAP connection details.
 +  const acct = await query(
-+    'SELECT id, email_address AS email FROM email_accounts WHERE id = $1 AND user_id = $2',
++    'SELECT * FROM email_accounts WHERE id = $1 AND user_id = $2',
 +    [accountId, req.session.userId]
 +  );
 +  if (!acct.rows.length) return res.status(404).json({ error: 'Account not found' });
++  const account = acct.rows[0];
 +
-+  // Pull the folder's messages (newest first, capped). The local index already
-+  // holds subject/sender/snippet, so no IMAP round-trip is needed.
++  // Pull the folder's messages (newest first, capped).
 +  const msgResult = await query(
-+    `SELECT id, subject, from_name, from_email, snippet, body_text, date, is_read
++    `SELECT id, uid, message_id, subject, from_name, from_email, snippet, body_text, date, is_read
 +       FROM messages
 +      WHERE account_id = $1 AND folder = $2
 +      ORDER BY date DESC
@@ -94,6 +148,42 @@ index 088fc38..f865992 100644
 +  const emails = msgResult.rows.slice(0, AI_TASKS_MAX_EMAILS);
 +  if (emails.length === 0) {
 +    return res.json({ tasks: [], scanned: 0, capped: false });
++  }
++
++  // Fetch real bodies on demand. Gmail is indexed with fetchBody:false, so most
++  // rows only carry a short snippet — feeding that to the model is why the digest
++  // was shallow. Fetch the full body for any email missing one, cache it (so this
++  // is a one-time cost per email and normal reading benefits too), and use it for
++  // the prompt. Bounded concurrency + stop early if the server starts throttling.
++  const needBody = emails.filter(m => !m.body_text && m.uid);
++  if (needBody.length) {
++    imapManager.noteUserActivity(account.id);
++    const CONCURRENCY = 3;
++    const BODY_FETCH_BUDGET_MS = 120000;   // leave room under the 300s proxy ceiling for the AI call
++    const deadline = Date.now() + BODY_FETCH_BUDGET_MS;
++    let throttled = false;
++    for (let i = 0; i < needBody.length && !throttled && Date.now() < deadline; i += CONCURRENCY) {
++      const batch = needBody.slice(i, i + CONCURRENCY);
++      await Promise.all(batch.map(async (m) => {
++        try {
++          const { html, text, attachments } = await imapManager.fetchMessageBody(account, m.uid, folder);
++          const safeHtml = html ? sanitizeEmail(html) : null;
++          const plain = (text && text.trim()) ? text : (safeHtml ? htmlToText(safeHtml) : '');
++          if (safeHtml || text) {
++            m.body_text = plain || m.snippet;   // in-memory, for the prompt
++            const snip = snippetFromBody(text, safeHtml || html);
++            await query(
++              `UPDATE messages SET body_html = $1, body_text = $2, attachments = $3,
++                   snippet = CASE WHEN $5 != '' THEN $5 ELSE snippet END
++               WHERE id = $4`,
++              [nz(safeHtml), nz(text || ''), JSON.stringify(attachments || []), m.id, nz(snip || '')]
++            );
++          }
++        } catch (err) {
++          if (/THROTTL/i.test(err?.message || '')) throttled = true;
++        }
++      }));
++    }
 +  }
 +
 +  // Load the user's client legend (if any). Terms that match the sender address or
@@ -118,7 +208,7 @@ index 088fc38..f865992 100644
 +    const from = clip(m.from_name || m.from_email || 'unknown', 80);
 +    const subject = clip(m.subject, 160) || '(no subject)';
 +    const when = m.date ? new Date(m.date).toISOString().slice(0, 10) : '';
-+    const bodyText = clip(m.body_text || m.snippet, 900);
++    const bodyText = clip(m.body_text || m.snippet, 2000);
 +    const hint = hintFor(m);
 +    return `[${i + 1}] From: ${from} — Subject: ${subject}${when ? ` — ${when}` : ''}${hint ? ` — CLIENT: ${hint}` : ''}\n${bodyText}`;
 +  }).join('\n\n');
@@ -132,25 +222,42 @@ index 088fc38..f865992 100644
 +      'matching client. If an email genuinely matches no client above, group it under "Other".\n\n'
 +    : '';
 +
-+  const system = 'You turn a folder of emails into a grouped, prioritized to-do digest for a busy agency owner. ' +
-+    'Only include emails that genuinely require an action FROM THE USER (a reply, a decision, a task, a follow-up). ' +
-+    'Skip newsletters, receipts, automated notifications, and anything already handled. ' +
-+    'Merge related emails about the same thing into one task. ' +
++  const system = 'You turn a folder of emails into a thorough, grouped, prioritized to-do digest for a busy agency owner. ' +
++    'Be COMPLETE: go through every email and capture every outstanding action the user still owes — a reply, a ' +
++    'decision, a deliverable, a follow-up, a chase. It is better to include a borderline item than to miss a real one. ' +
++    'If a single email contains several distinct asks, create a SEPARATE task for each one. ' +
++    'Only skip an email if it is a pure newsletter/receipt/automated notification, or the user has plainly already ' +
++    'responded/actioned it in a later message. IMPORTANT: the underlying work being finished does NOT mean skip — ' +
++    'if an email addressed to the user still expects ANY response, including just a short acknowledgement, a ' +
++    'courtesy reply, or a sign-off nod (e.g. a project closure/hand-off, an FYI that invites a reply), include it ' +
++    'as a LOW priority task ("Acknowledge …" / "Reply to …"). When in doubt, include it as low rather than drop it. ' +
++    'Do not collapse unrelated actions together just to shorten the list. NEVER merge two emails just because ' +
++    'they share a subject line — a shared subject is NOT enough. Merge only when emails are genuinely the same ' +
++    'ongoing conversation: the same people AND continuous back-and-forth. Emails from different senders, different ' +
++    'clients, or far apart in time (e.g. one from 2016 and one from this year) are ALWAYS separate tasks — or ' +
++    'omit the stale one entirely — even if the subject is identical. Judge each email by its sender, date, and ' +
++    'body, not its subject. ' +
++    'Emails more than about a year old are very likely stale leftovers — include one only if it clearly describes ' +
++    'an action that is still genuinely open today; otherwise skip it. ' +
 +    'When a KNOWN CLIENTS list is provided, you MUST group strictly by those exact client names — never invent ' +
 +    'per-person or per-project group labels. When no list is provided, infer the client/project from the sender ' +
 +    'domain, names, and content, and use "General" only when nothing more specific fits. ' +
-+    'For each task write: a short action-first title (start with a verb), and a "detail" sentence that captures ' +
-+    'the actual substance — what specifically is being asked, by whom, and any deadline or number of items — ' +
-+    'so the user knows what it involves without opening the email. ' +
++    'For each task write: a short action-first title (start with a verb), and a "detail" of 1–2 sentences that ' +
++    'captures the real substance — what specifically is being asked, by whom, any deadline, and (crucially) the ' +
++    'concrete sub-items if the email lists several (e.g. "needs sign-off on 4 things: X, Y, Z, and W") — so the ' +
++    'user knows exactly what it involves without opening the email. ' +
++    'Use priority honestly: high = urgent/explicitly deadline-bound or chased, medium = normal, low = nice-to-have. ' +
 +    'Do not invent anything not supported by an email.';
-+  const user = `Here are the emails in the "${folder}" folder for ${acct.rows[0].email} (newest first):\n\n` +
++  const user = `Here are the emails in the "${folder}" folder for ${account.email_address} (newest first). ` +
++    `Full message bodies are included — read them, don't just skim the subject.\n\n` +
 +    `${legendBlock}` +
 +    `${lines}\n\n` +
 +    'Return ONLY valid JSON, no prose, in this exact shape:\n' +
 +    '{"tasks":[{"emailIndex":<number>,"group":"<client or project name>","title":"<short action, verb-first>",' +
-+    '"detail":"<one sentence: the specific ask, who from, any deadline>","priority":"high|medium|low"}]}\n' +
++    '"detail":"<1–2 sentences: the specific ask, who from, any deadline, and the concrete sub-items>",' +
++    '"priority":"high|medium|low"}]}\n' +
 +    'emailIndex is the [n] of the email the task comes from. Order tasks high → low priority within the whole list. ' +
-+    'If nothing needs action, return {"tasks":[]}.';
++    'Aim to reflect every genuinely outstanding action across the folder. If truly nothing needs action, return {"tasks":[]}.';
 +
 +  const apiKey = cfg.apiKey ? decrypt(cfg.apiKey) : null;
 +  const headers = { 'Content-Type': 'application/json' };
@@ -186,7 +293,7 @@ index 088fc38..f865992 100644
 +
 +  // Parse the JSON the model returned, tolerating ```json fences or surrounding prose.
 +  let parsed;
-+  try {
++  {
 +    let text = content.trim();
 +    const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
 +    if (fence) text = fence[1].trim();
@@ -195,9 +302,20 @@ index 088fc38..f865992 100644
 +      const end = text.lastIndexOf('}');
 +      if (start >= 0 && end > start) text = text.slice(start, end + 1);
 +    }
-+    parsed = JSON.parse(text);
-+  } catch {
-+    return res.status(502).json({ error: 'Could not parse the AI task list' });
++    try {
++      parsed = JSON.parse(text);
++    } catch {
++      // A long, thorough list can be truncated mid-array by the provider's output
++      // cap, which breaks a strict parse. Salvage every complete {...} task object
++      // so the user still gets a (near-)complete list rather than an error.
++      const objs = text.match(/\{[^{}]*\}/g) || [];
++      const tasksOut = [];
++      for (const o of objs) {
++        try { tasksOut.push(JSON.parse(o)); } catch { /* skip partial */ }
++      }
++      if (tasksOut.length) parsed = { tasks: tasksOut };
++      else return res.status(502).json({ error: 'Could not parse the AI task list' });
++    }
 +  }
 +
 +  const rank = { high: 0, medium: 1, low: 2 };
@@ -214,11 +332,12 @@ index 088fc38..f865992 100644
 +        ? {
 +            title, detail, group, priority,
 +            emailId: src.id,
++            messageId: src.message_id || null,
 +            subject: src.subject || '(no subject)',
 +            from: src.from_name || src.from_email || 'unknown',
 +            date: src.date,
 +          }
-+        : { title, detail, group, priority, emailId: null };
++        : { title, detail, group, priority, emailId: null, messageId: null };
 +    })
 +    .filter(Boolean)
 +    .sort((a, b) => rank[a.priority] - rank[b.priority]);
@@ -533,7 +652,7 @@ index eabed8e..f0c89dc 100644
      mockQuery({ rows: [
        { thread_key: 't1', uid: 70, folder: 'INBOX', from_email: 'me@example.com', date: '2026-07-09T10:00:00Z', id: 'r1' },
 diff --git a/backend/src/services/imapManager.js b/backend/src/services/imapManager.js
-index 74a112b..0d35ce1 100644
+index 74a112b..a84ab64 100644
 --- a/backend/src/services/imapManager.js
 +++ b/backend/src/services/imapManager.js
 @@ -447,6 +447,17 @@ const PROVIDERS = {
@@ -554,7 +673,182 @@ index 74a112b..0d35ce1 100644
      skipFolderPatterns: ['all mail', '[gmail]/starred', '[gmail]/important'],
      // [Gmail] is a namespace container — not a selectable mailbox. It must be
      // matched exactly so that real subfolders like [Gmail]/Drafts are not skipped.
-@@ -2260,6 +2271,27 @@ export class ImapManager {
+@@ -854,7 +865,7 @@ function normalizeSubject(subject) {
+ // Compute the thread_id for an incoming message.
+ // Primary: RFC 5322 References / In-Reply-To header chain.
+ // Fallback: subject normalization when headers are absent (e.g. Outlook RE: replies).
+-async function computeThreadId(accountId, messageId, inReplyTo, references, subject) {
++async function computeThreadId(accountId, messageId, inReplyTo, references, subject, msgDate) {
+   if (!messageId) return null;
+ 
+   const refIds = parseReferences(references);
+@@ -886,23 +897,43 @@ async function computeThreadId(accountId, messageId, inReplyTo, references, subj
+     return candidates[0] || messageId;
+   }
+ 
+-  // No RFC 5322 threading headers — fall back to subject normalization.
+-  // Looks for the earliest message in the same account with the same normalized subject
+-  // within the past 90 days and joins that thread.
++  // No RFC 5322 threading headers — fall back to subject normalization: join the earliest
++  // message in the same account with the same normalized subject that is temporally NEAR
++  // this one.
++  //
++  // The window is anchored to THIS message's own date (±90 days), NOT NOW(). Anchoring to
++  // NOW() was the bug behind cross-decade threads: an old message backfilled today (its
++  // own date years ago) matched *recent* same-subject mail and joined a thread years newer
++  // — e.g. a 2016 "website" email glued onto a 2026 "WEBSITE" conversation. Bounding to the
++  // message's own date means only a genuine burst of same-subject mail threads together.
+   const normalized = normalizeSubject(subject);
+   if (normalized) {
+-    const subjectRow = await query(
+-      `SELECT thread_id FROM messages
+-       WHERE account_id = $1
+-         AND is_deleted = false
+-         AND message_id IS DISTINCT FROM $2
+-         AND thread_id IS NOT NULL
+-         AND normalized_subject = $3
+-         AND date > NOW() - INTERVAL '90 days'
+-       ORDER BY date ASC
+-       LIMIT 1`,
+-      [accountId, messageId, normalized]
+-    );
++    const subjectRow = msgDate
++      ? await query(
++          `SELECT thread_id FROM messages
++           WHERE account_id = $1
++             AND is_deleted = false
++             AND message_id IS DISTINCT FROM $2
++             AND thread_id IS NOT NULL
++             AND normalized_subject = $3
++             AND date BETWEEN $4::timestamptz - INTERVAL '90 days'
++                          AND $4::timestamptz + INTERVAL '90 days'
++           ORDER BY date ASC
++           LIMIT 1`,
++          [accountId, messageId, normalized, msgDate]
++        )
++      : await query(
++          `SELECT thread_id FROM messages
++           WHERE account_id = $1
++             AND is_deleted = false
++             AND message_id IS DISTINCT FROM $2
++             AND thread_id IS NOT NULL
++             AND normalized_subject = $3
++             AND date > NOW() - INTERVAL '90 days'
++           ORDER BY date ASC
++           LIMIT 1`,
++          [accountId, messageId, normalized]
++        );
+     if (subjectRow.rows.length > 0) return subjectRow.rows[0].thread_id;
+   }
+ 
+@@ -1215,6 +1246,7 @@ export class ImapManager {
+     this.snippetBackoff = new Map();        // accountId -> { failures, until } circuit breaker
+     this.lastUserActivity = new Map();      // accountId -> ms timestamp of last live body fetch
+     this.syncTickCount = new Map(); // accountId -> successful sync ticks (for reconcile scheduling)
++    this.lastReconcileAt = new Map(); // accountId -> ms timestamp of last reconcileDeletes run (wall-clock cadence, survives reconnects)
+     this.lastSyncOkAt = new Map(); // accountId -> ms timestamp of last successful sync tick (staleness detection)
+     this._flagDebounceTimers   = new Map(); // accountId -> debounce timer for flag-change syncs
+     this._expungeDebounceTimers = new Map(); // accountId -> debounce timer for expunge reconciles
+@@ -1680,6 +1712,15 @@ export class ImapManager {
+     let client;
+     try {
+       client = new ImapFlow(makeClientCfg(account, resolved, { enableIdle: providerProfile(account).usesIdle !== false, policy }));
++      // Attach the 'error' handler BEFORE connect(). If connect() rejects (e.g. an auth
++      // 'Command failed'), ImapFlow can still emit an async 'error' on the dead socket a
++      // tick later. With no listener attached yet, Node throws on the unhandled 'error'
++      // event and crashes the ENTIRE backend — killing every other account's sync and
++      // forcing a full reconnect/backfill storm on restart. Attaching it here, before the
++      // connect can reject, is what keeps one bad account from taking down the process.
++      client.on('error', (err) => {
++        console.error(`IMAP error for ${logAccount(account)}:`, err.message);
++      });
+       // Race the connect against a 30-second timeout.
+       // client.connect() has no built-in connection timeout — on slow or unresponsive
+       // IMAP servers (e.g. purelymail.com during cold starts) it can hang indefinitely,
+@@ -1700,12 +1741,8 @@ export class ImapManager {
+           console.log(`IMAP connection closed for ${logAccount(account)}`);
+         }
+       });
+-      // Prevent unhandled 'error' events from crashing the Node.js process.
+-      // ImapFlow emits 'error' on socket timeouts and other transport-level failures;
+-      // without this listener Node throws on unhandled EventEmitter errors.
+-      client.on('error', (err) => {
+-        console.error(`IMAP error for ${logAccount(account)}:`, err.message);
+-      });
++      // ('error' handler already attached above, before connect(), so transport-level
++      // failures never surface as an unhandled EventEmitter error.)
+       this._attachIdleListeners(client, account);
+       this.connections.set(account.id, client);
+       await query('UPDATE email_accounts SET sync_error = NULL WHERE id = $1', [account.id]);
+@@ -1755,6 +1792,12 @@ export class ImapManager {
+         logger.debug(`Backfill deferred on connect for ${logAccount(account)} — account already has cached mail`);
+       }
+ 
++      // Reconcile server-side deletes shortly after connecting so archived/unlabelled mail
++      // is swept promptly — the connect path never reconciled before, which (with the
++      // reconnect-resetting tick counter) let stale rows linger indefinitely. Gated by
++      // _maybeReconcile so a reconnect storm doesn't repeat it.
++      this._maybeReconcile(account, 'connect');
++
+       const intervalMs = this.userSyncIntervalMs.get(account.user_id) || 60000;
+       this._startSyncInterval(account, intervalMs);
+       // Only gtd_enabled accounts arm a GTD tick — a non-GTD account starts no extra
+@@ -1769,6 +1812,9 @@ export class ImapManager {
+     } catch (err) {
+       const detail = extractImapError(err);
+       console.error(`Failed to connect ${logAccount(account)}:`, detail);
++      // Tear down the half-open client so its socket doesn't linger and re-emit. Safe now
++      // that the 'error' handler is attached before connect() — close() can emit freely.
++      try { client?.close?.(); } catch { /* already down */ }
+       // On a connection-refusal/throttle, back this account off with growing delay so we
+       // stop hammering a provider that's at its limit. Other errors don't set a cooldown —
+       // the health check retries them normally.
+@@ -1908,6 +1954,11 @@ export class ImapManager {
+               const freshAccount = await ensureFreshToken(accountResult.rows[0]);
+               const { resolved, policy } = await resolveAccountHost(freshAccount);
+               pendingClient = new ImapFlow(makeClientCfg(freshAccount, resolved, { enableIdle: providerProfile(freshAccount).usesIdle !== false, policy }));
++              // Attach 'error' before connect() so a rejected connect can't leave an
++              // unhandled 'error' event to crash the process (see connectAccount).
++              pendingClient.on('error', (err) => {
++                console.error(`IMAP error for ${logAccount(freshAccount)}:`, err.message);
++              });
+               await pendingClient.connect();
+               return { client: pendingClient, account: freshAccount };
+             })(),
+@@ -1923,9 +1974,7 @@ export class ImapManager {
+               this.connections.delete(account.id);
+             }
+           });
+-          activeClient.on('error', (err) => {
+-            console.error(`IMAP error for ${logAccount(syncAccount)}:`, err.message);
+-          });
++          // ('error' handler already attached before connect() above.)
+           this._attachIdleListeners(activeClient, syncAccount);
+           this.connections.set(account.id, activeClient);
+           // Mirror connectAccount's success cleanup: clear the refusal backoff so the next
+@@ -2016,15 +2065,12 @@ export class ImapManager {
+         });
+       }
+ 
+-      // Reconcile remote deletes every 10 successful ticks (~10 min at 60 s interval).
+-      // Uses a pooled connection so it never blocks the sync client.
+-      if (ticks % 10 === 0) {
+-        setImmediate(() => {
+-          this.reconcileDeletes(syncAccount).catch(err =>
+-            console.error(`Reconcile error for ${logAccount(syncAccount)}:`, err.message)
+-          );
+-        });
+-      }
++      // Reconcile remote deletes on a wall-clock cadence (~10 min). NOT tied to the
++      // tick counter: that counter resets on every reconnect, and on a busy multi-account
++      // box the account reconnects (health check / staleness probe) often enough that it
++      // rarely reached 10 uninterrupted ticks — so reconcile was starved and archived /
++      // unlabelled mail never got swept. The wall-clock gate survives reconnects.
++      this._maybeReconcile(syncAccount, 'tick');
+     } catch (err) {
+       const detail = extractImapError(err);
+       console.error(`Sync error for ${logAccount(account)}:`, detail);
+@@ -2260,6 +2306,27 @@ export class ImapManager {
            ON CONFLICT (account_id, path) DO NOTHING
          `, [account.id, delimiter]);
        }
@@ -582,7 +876,15 @@ index 74a112b..0d35ce1 100644
      } catch (err) {
        console.error(`Folder sync error for ${logAccount(account)}:`, err.message);
      }
-@@ -2425,7 +2457,13 @@ export class ImapManager {
+@@ -2418,14 +2485,20 @@ export class ImapManager {
+             const msgId = sanitizeStr(parsed.messageId);
+             const inReplyTo = sanitizeStr(parsed.inReplyTo);
+             const refs = sanitizeStr(parsed.references);
+-            const threadId = await computeThreadId(account.id, msgId, inReplyTo, refs, sanitizeStr(parsed.subject));
++            const threadId = await computeThreadId(account.id, msgId, inReplyTo, refs, sanitizeStr(parsed.subject), safeDate(parsed.date));
+ 
+             // If a row with this message_id already exists for this account at a
+             // different (folder, uid), it was moved. Relocate it in-place rather
              // than inserting a duplicate. The COUNT=1 guard prevents incorrectly
              // merging Gmail's virtual-folder copies (same message_id in INBOX and
              // [Gmail]/All Mail simultaneously).
@@ -597,9 +899,42 @@ index 74a112b..0d35ce1 100644
                const { sql: relocateSql, params: relocateParams } =
                  relocateMessageQuery(folder, parsed, account.id, msgId, gtdFolderPaths);
                const relocated = await query(relocateSql, relocateParams);
-@@ -3076,7 +3114,10 @@ export class ImapManager {
+@@ -3012,6 +3085,11 @@ export class ImapManager {
+       // refreshed once at completion when the account is gtd_enabled — the tick's fingerprint
+       // can't see rows backfill already wrote (before==after). See emitGtdSectionsRefreshIfEnabled.
+       let backfilledRows = 0;
++      // UIDs a truncated/throttled FETCH silently skipped get re-queued to the end of
++      // missingUids ONCE (tracked here) so a single interrupted pass can't strand a
++      // message. Bounded: anything still missing after its retry waits for the next
++      // full backfill rather than looping forever.
++      const requeuedUids = new Set();
+ 
+       while (i < missingUids.length) {
+         // Stop immediately if the account was deleted while backfilling
+@@ -3034,6 +3112,9 @@ export class ImapManager {
+         const batch = missingUids.slice(i, i + cfg.batchSize);
+         // Comma-separated UID list — e.g. "1234,5678,9012"
+         const uidSet = batch.join(',');
++        // Track which of this batch's UIDs the FETCH actually returned, so we can
++        // re-queue any the server silently dropped (Gmail truncates under load).
++        const fetchedUids = new Set();
+ 
+         try {
+           const lock = await bfClient.getMailboxLock(folder);
+@@ -3062,6 +3143,7 @@ export class ImapManager {
+                   console.warn(`Backfill skipped: IMAP FETCH returned no UID for ${account.email}/${folder}`);
+                   continue;
+                 }
++                fetchedUids.add(String(parsed.uid));
+                 let safeHtml = null, bodyText = null, atts = [];
+ 
+                 if (cfg.fetchBody) {
+@@ -3074,9 +3156,12 @@ export class ImapManager {
+                 const bfMsgId    = sanitizeStr(parsed.messageId);
+                 const bfReplyTo  = sanitizeStr(parsed.inReplyTo);
                  const bfRefs     = sanitizeStr(parsed.references);
-                 const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject));
+-                const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject));
++                const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject), safeDate(parsed.date));
  
 -                if (bfMsgId) {
 +                // Skipped for label-based providers (Gmail) — see the sync processMsg relocate
@@ -609,7 +944,26 @@ index 74a112b..0d35ce1 100644
                    const { sql: relocateSql, params: relocateParams } =
                      relocateMessageQuery(folder, parsed, account.id, bfMsgId, gtdFolderPaths);
                    const relocated = await query(relocateSql, relocateParams);
-@@ -4286,6 +4327,48 @@ export class ImapManager {
+@@ -3182,6 +3267,18 @@ export class ImapManager {
+           batchesOnConn++;
+           consecutiveErrors = 0;
+ 
++          // Re-queue UIDs this FETCH silently skipped (Gmail can return fewer messages
++          // than requested under load). Append each to the end of missingUids exactly
++          // once so the existing insert path retries it; still-missing UIDs are left for
++          // the next full backfill rather than looping.
++          for (const u of batch) {
++            const key = String(u);
++            if (!fetchedUids.has(key) && !requeuedUids.has(key)) {
++              requeuedUids.add(key);
++              missingUids.push(u);
++            }
++          }
++
+           // Log progress every 10 batches to avoid log spam
+           if (batchesOnConn % 10 === 1 || i >= missingUids.length) {
+             console.log(`Backfill ${logAccount(account)}: ${i}/${missingUids.length} missing fetched`);
+@@ -4286,6 +4383,48 @@ export class ImapManager {
      return newUid;
    }
  
@@ -658,7 +1012,32 @@ index 74a112b..0d35ce1 100644
    async permanentDeleteMessage(account, uid, folder) {
      await withFreshClient(account, async (client) => {
        const lock = await client.getMailboxLock(folder);
-@@ -4837,9 +4920,13 @@ export class ImapManager {
+@@ -4816,7 +4955,24 @@ export class ImapManager {
+   // client). Phase 1: collect all server UID sets via one pool connection (IMAP-only, no
+   // DB writes). Phase 2: diff and delete outside the IMAP connection so a DB error never
+   // evicts a healthy pool client.
++  // Wall-clock gate for reconcileDeletes: runs at most once per interval per account,
++  // independent of the reconnect-resettable tick counter. Fire-and-forget.
++  _maybeReconcile(account, reason) {
++    const RECONCILE_INTERVAL_MS = 10 * 60 * 1000;
++    const last = this.lastReconcileAt.get(account.id) || 0;
++    if (Date.now() - last < RECONCILE_INTERVAL_MS) return;
++    this.lastReconcileAt.set(account.id, Date.now());
++    setImmediate(() => {
++      this.reconcileDeletes(account).catch(err =>
++        console.error(`Reconcile error for ${logAccount(account)} (${reason}):`, err.message)
++      );
++    });
++  }
++
+   async reconcileDeletes(account) {
++    // Stamp the run time so the wall-clock gate (_maybeReconcile) and the event-driven
++    // expunge trigger share one cadence and don't pile up back-to-back runs.
++    this.lastReconcileAt.set(account.id, Date.now());
+     // Captured before the Phase 1 snapshot. Any row inserted or re-synced after this
+     // instant (new IDLE mail, a bulk-move reinsert) is NOT in the snapshot yet, so it
+     // would look like an orphan. Excluding rows synced at/after the cutoff closes that
+@@ -4837,9 +4993,13 @@ export class ImapManager {
        await withFreshClient(account, async (client) => {
          for (const folder of folders) {
            let serverUids;
@@ -672,7 +1051,7 @@ index 74a112b..0d35ce1 100644
                serverUids = await client.search({ all: true }, { uid: true });
              } finally {
                lock.release();
-@@ -4849,7 +4936,7 @@ export class ImapManager {
+@@ -4849,7 +5009,7 @@ export class ImapManager {
              console.warn(`Reconcile: could not open ${logAccount(account)}/${folder}: ${extractImapError(err)}`);
              continue;
            }
@@ -681,7 +1060,7 @@ index 74a112b..0d35ce1 100644
          }
        });
      } catch (err) {
-@@ -4860,7 +4947,7 @@ export class ImapManager {
+@@ -4860,7 +5020,7 @@ export class ImapManager {
      // Phase 2 — diff each folder's server UIDs against the DB and delete orphans.
      // Runs outside withFreshClient so DB errors never cause unnecessary pool eviction.
      let deletedCount = 0;
@@ -690,7 +1069,7 @@ index 74a112b..0d35ce1 100644
        const dbResult = await query(
          'SELECT uid FROM messages WHERE account_id = $1 AND folder = $2 AND (synced_at IS NULL OR synced_at < $3)',
          [account.id, folder, reconcileStartedAt]
-@@ -4871,6 +4958,23 @@ export class ImapManager {
+@@ -4871,6 +5031,28 @@ export class ImapManager {
  
        if (orphanUids.length === 0) continue;
  
@@ -706,8 +1085,13 @@ index 74a112b..0d35ce1 100644
 +        console.warn(`Reconcile: SEARCH returned ${serverUidSet.size} UIDs but EXISTS=${serverExists} for ${logAccount(account)}/${folder} — incomplete search, skipping delete of ${orphanUids.length}.`);
 +        continue;
 +      }
-+      if (serverUidSet.size === 0 && dbResult.rows.length > 0) {
-+        console.warn(`Reconcile: server returned 0 UIDs for ${logAccount(account)}/${folder} but ${dbResult.rows.length} stored — skipping delete (stale/partial search).`);
++      // A zero-UID search is only suspect when we CAN'T confirm the mailbox is empty.
++      // When EXISTS is known to be 0 the folder genuinely holds nothing (e.g. every
++      // message was archived out of INBOX), so the stored rows are real orphans and must
++      // be removed — otherwise archived/unlabelled mail lingers forever. Only skip when
++      // EXISTS is unavailable (null) and a 0 result would just be a guess.
++      if (serverExists == null && serverUidSet.size === 0 && dbResult.rows.length > 0) {
++        console.warn(`Reconcile: server returned 0 UIDs and no EXISTS for ${logAccount(account)}/${folder} but ${dbResult.rows.length} stored — skipping delete (unverifiable).`);
 +        continue;
 +      }
 +
@@ -3692,7 +4076,7 @@ index 8e2df0e..7a308be 100644
      // App-icon badge always reflects total unread across all accounts so that
      // selecting a zero-unread account never clears the home screen badge.
 diff --git a/frontend/src/components/MessageList.jsx b/frontend/src/components/MessageList.jsx
-index efb16df..56a29a0 100644
+index efb16df..2484829 100644
 --- a/frontend/src/components/MessageList.jsx
 +++ b/frontend/src/components/MessageList.jsx
 @@ -9,6 +9,7 @@ import { useSwipeRow } from '../hooks/useSwipeRow.js';
@@ -3712,7 +4096,17 @@ index efb16df..56a29a0 100644
    const [activeCategory, setActiveCategory] = useState('primary');
    const [currentPage, setCurrentPage] = useState(1);
    const currentPageRef = useRef(1);
-@@ -197,6 +200,9 @@ export default function MessageList() {
+@@ -178,6 +181,9 @@ export default function MessageList() {
+   const pendingDeleteTimers = useRef(new Map()); // id/thread key -> pending delete metadata
+   const recentMessageOpenUntilRef = useRef(0);
+   const deferredRefreshTimerRef = useRef(null);
++  // Last time we kicked an on-open IMAP sync per "accountId:folder", so opening a
++  // non-INBOX folder refreshes it (the 60s tick only syncs INBOX) without hammering.
++  const folderSyncedAtRef = useRef(new Map());
+ 
+   // Bulk selection state
+   const [selectedIds, setSelectedIds] = useState(new Set());
+@@ -197,6 +203,9 @@ export default function MessageList() {
  
    useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
    useEffect(() => { setActiveCategory('primary'); setActiveGtdTab(null); }, [selectedAccountId, selectedFolder, setActiveGtdTab]);
@@ -3722,7 +4116,52 @@ index efb16df..56a29a0 100644
    useEffect(() => {
      const markOpening = () => {
        recentMessageOpenUntilRef.current = Date.now() + 1500;
-@@ -1937,6 +1943,44 @@ export default function MessageList() {
+@@ -337,13 +346,24 @@ export default function MessageList() {
+             setMessagesOffset(data.messages.length);
+             setHasMoreMessages(data.messages.length < data.total);
+ 
+-            // If a specific non-INBOX folder opened empty, trigger an on-demand IMAP sync.
+-            // The backend will broadcast sync_complete → mailflow:refresh once done.
+-            if (data.messages.length === 0 && selectedAccountId && selectedFolder !== 'INBOX') {
+-              setFolderSyncing(true);
+-              api.syncFolder(selectedAccountId, selectedFolder)
+-                .catch(err => console.error('syncFolder failed:', err.message))
+-                .finally(() => { if (!cancelled) setFolderSyncing(false); });
++            // Refresh a specific non-INBOX folder on open via an on-demand IMAP sync, so
++            // newly-labelled/moved mail appears (the 60s tick only syncs INBOX — a Gmail
++            // label folder would otherwise never pull new arrivals here). Empty folders
++            // sync immediately; non-empty ones are throttled so flicking between folders
++            // doesn't hammer IMAP. The backend broadcasts sync_complete → mailflow:refresh.
++            if (selectedAccountId && selectedFolder !== 'INBOX') {
++              const key = `${selectedAccountId}:${selectedFolder}`;
++              const now = Date.now();
++              const last = folderSyncedAtRef.current.get(key) || 0;
++              if (data.messages.length === 0 || now - last > 20000) {
++                folderSyncedAtRef.current.set(key, now);
++                setFolderSyncing(true);
++                api.syncFolder(selectedAccountId, selectedFolder)
++                  .catch(err => console.error('syncFolder failed:', err.message))
++                  .finally(() => { if (!cancelled) setFolderSyncing(false); });
++              } else {
++                setFolderSyncing(false);
++              }
+             } else {
+               setFolderSyncing(false);
+             }
+@@ -587,6 +607,12 @@ export default function MessageList() {
+     setSyncing(true);
+     try {
+       await api.syncNow(selectedAccountId || undefined);
++      // syncNow only covers INBOX; if the user is looking at a specific non-INBOX
++      // folder, also pull that folder so "Sync now" refreshes what they're viewing.
++      if (selectedAccountId && selectedFolder && selectedFolder !== 'INBOX') {
++        folderSyncedAtRef.current.set(`${selectedAccountId}:${selectedFolder}`, Date.now());
++        api.syncFolder(selectedAccountId, selectedFolder).catch(err => console.error('syncFolder failed:', err.message));
++      }
+       // The server will send sync_complete via WebSocket when done, which triggers
+       // mailflow:refresh (list reload) and mailflow:sync_done (spinner off).
+       // Safety fallback: stop spinner after 15s in case WS event never arrives.
+@@ -1937,6 +1963,44 @@ export default function MessageList() {
          });
          break;
        }
@@ -3767,7 +4206,7 @@ index efb16df..56a29a0 100644
        case 'snooze': {
          const snoozedMsg = message;
          const untilIso = data;
-@@ -2318,6 +2362,25 @@ export default function MessageList() {
+@@ -2318,6 +2382,25 @@ export default function MessageList() {
              </svg>
            </button>
  
@@ -3793,7 +4232,7 @@ index efb16df..56a29a0 100644
            {/* Select / Cancel — replaces compose button; FAB is the primary compose affordance */}
            {selectionMode ? (
              <button
-@@ -2524,6 +2587,28 @@ export default function MessageList() {
+@@ -2524,6 +2607,28 @@ export default function MessageList() {
                  </select>
                </>
              )}
@@ -3822,7 +4261,7 @@ index efb16df..56a29a0 100644
              {/* Select / cancel selection */}
              <button
                onClick={() => selectionMode ? clearSelection() : setSelectionModeActive(true)}
-@@ -3449,6 +3534,16 @@ export default function MessageList() {
+@@ -3449,6 +3554,16 @@ export default function MessageList() {
            />
          )}
  
@@ -3872,10 +4311,10 @@ index a155ef3..e63e756 100644
          <button
 diff --git a/frontend/src/components/TaskListModal.jsx b/frontend/src/components/TaskListModal.jsx
 new file mode 100644
-index 0000000..eead6f3
+index 0000000..4551729
 --- /dev/null
 +++ b/frontend/src/components/TaskListModal.jsx
-@@ -0,0 +1,367 @@
+@@ -0,0 +1,385 @@
 +// AI task list — reads a folder (e.g. a "to respond" folder) via /ai/tasks and
 +// shows a prioritized to-do digest, grouped by client/project, each task carrying
 +// a one-line context detail and a link back to the source email. A "Copy" button
@@ -3920,6 +4359,14 @@ index 0000000..eead6f3
 +  return out;
 +}
 +
++// Deep link that opens the source email/thread in October Mail. Keyed on the stable
++// Message-ID (survives the email being moved) with the row id as a fallback; both
++// resolve via /?m= → /resolve-message, the same scheme the Todoist integration uses.
++function taskLink(t) {
++  const ref = t.messageId || t.emailId;
++  return ref ? `${window.location.origin}/?m=${encodeURIComponent(ref)}` : '';
++}
++
 +function toMarkdown(grouped, folderLabel) {
 +  const lines = [`# Task list${folderLabel ? ` — ${folderLabel}` : ''}`, ''];
 +  grouped.forEach(g => {
@@ -3927,7 +4374,9 @@ index 0000000..eead6f3
 +    g.items.forEach(t => {
 +      const p = PRIORITY[t.priority] || PRIORITY.medium;
 +      const detail = t.detail ? ` — ${t.detail}` : '';
-+      lines.push(`- ${p.md} **${t.title}**${detail}`);
++      const url = taskLink(t);
++      const link = url ? ` — [✉ open email](${url})` : '';
++      lines.push(`- ${p.md} **${t.title}**${detail}${link}`);
 +    });
 +    lines.push('');
 +  });
@@ -4149,7 +4598,7 @@ index 0000000..eead6f3
 +                  style={{ animation: 'spin 0.8s linear infinite' }}>
 +                  <path d="M21 12a9 9 0 11-6.219-8.56"/>
 +                </svg>
-+                {t('tasks.loading', { defaultValue: 'Claude is reading your emails…' })}
++                {t('tasks.loading', { defaultValue: 'Claude is reading the full emails — the first run can take a minute…' })}
 +              </div>
 +            )}
 +
@@ -4209,10 +4658,18 @@ index 0000000..eead6f3
 +                        )}
 +                      </div>
 +                      {clickable && (
-+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2"
-+                          style={{ flexShrink: 0, alignSelf: 'center' }} strokeLinecap="round" strokeLinejoin="round">
-+                          <polyline points="9 18 15 12 9 6"/>
-+                        </svg>
++                        <span
++                          title={t('tasks.openThread', { defaultValue: 'Open the email thread' })}
++                          style={{ flexShrink: 0, alignSelf: 'center', display: 'flex', color: 'var(--text-tertiary)' }}
++                          onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; }}
++                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-tertiary)'; }}
++                        >
++                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
++                            strokeLinecap="round" strokeLinejoin="round">
++                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
++                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
++                          </svg>
++                        </span>
 +                      )}
 +                    </div>
 +                  );
