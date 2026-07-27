@@ -618,7 +618,7 @@ index eabed8e..f0c89dc 100644
      mockQuery({ rows: [
        { thread_key: 't1', uid: 70, folder: 'INBOX', from_email: 'me@example.com', date: '2026-07-09T10:00:00Z', id: 'r1' },
 diff --git a/backend/src/services/imapManager.js b/backend/src/services/imapManager.js
-index 74a112b..b4abf3c 100644
+index 74a112b..5e49245 100644
 --- a/backend/src/services/imapManager.js
 +++ b/backend/src/services/imapManager.js
 @@ -447,6 +447,17 @@ const PROVIDERS = {
@@ -639,7 +639,15 @@ index 74a112b..b4abf3c 100644
      skipFolderPatterns: ['all mail', '[gmail]/starred', '[gmail]/important'],
      // [Gmail] is a namespace container — not a selectable mailbox. It must be
      // matched exactly so that real subfolders like [Gmail]/Drafts are not skipped.
-@@ -1680,6 +1691,15 @@ export class ImapManager {
+@@ -1215,6 +1226,7 @@ export class ImapManager {
+     this.snippetBackoff = new Map();        // accountId -> { failures, until } circuit breaker
+     this.lastUserActivity = new Map();      // accountId -> ms timestamp of last live body fetch
+     this.syncTickCount = new Map(); // accountId -> successful sync ticks (for reconcile scheduling)
++    this.lastReconcileAt = new Map(); // accountId -> ms timestamp of last reconcileDeletes run (wall-clock cadence, survives reconnects)
+     this.lastSyncOkAt = new Map(); // accountId -> ms timestamp of last successful sync tick (staleness detection)
+     this._flagDebounceTimers   = new Map(); // accountId -> debounce timer for flag-change syncs
+     this._expungeDebounceTimers = new Map(); // accountId -> debounce timer for expunge reconciles
+@@ -1680,6 +1692,15 @@ export class ImapManager {
      let client;
      try {
        client = new ImapFlow(makeClientCfg(account, resolved, { enableIdle: providerProfile(account).usesIdle !== false, policy }));
@@ -655,7 +663,7 @@ index 74a112b..b4abf3c 100644
        // Race the connect against a 30-second timeout.
        // client.connect() has no built-in connection timeout — on slow or unresponsive
        // IMAP servers (e.g. purelymail.com during cold starts) it can hang indefinitely,
-@@ -1700,12 +1720,8 @@ export class ImapManager {
+@@ -1700,12 +1721,8 @@ export class ImapManager {
            console.log(`IMAP connection closed for ${logAccount(account)}`);
          }
        });
@@ -670,7 +678,20 @@ index 74a112b..b4abf3c 100644
        this._attachIdleListeners(client, account);
        this.connections.set(account.id, client);
        await query('UPDATE email_accounts SET sync_error = NULL WHERE id = $1', [account.id]);
-@@ -1769,6 +1785,9 @@ export class ImapManager {
+@@ -1755,6 +1772,12 @@ export class ImapManager {
+         logger.debug(`Backfill deferred on connect for ${logAccount(account)} — account already has cached mail`);
+       }
+ 
++      // Reconcile server-side deletes shortly after connecting so archived/unlabelled mail
++      // is swept promptly — the connect path never reconciled before, which (with the
++      // reconnect-resetting tick counter) let stale rows linger indefinitely. Gated by
++      // _maybeReconcile so a reconnect storm doesn't repeat it.
++      this._maybeReconcile(account, 'connect');
++
+       const intervalMs = this.userSyncIntervalMs.get(account.user_id) || 60000;
+       this._startSyncInterval(account, intervalMs);
+       // Only gtd_enabled accounts arm a GTD tick — a non-GTD account starts no extra
+@@ -1769,6 +1792,9 @@ export class ImapManager {
      } catch (err) {
        const detail = extractImapError(err);
        console.error(`Failed to connect ${logAccount(account)}:`, detail);
@@ -680,7 +701,7 @@ index 74a112b..b4abf3c 100644
        // On a connection-refusal/throttle, back this account off with growing delay so we
        // stop hammering a provider that's at its limit. Other errors don't set a cooldown —
        // the health check retries them normally.
-@@ -1908,6 +1927,11 @@ export class ImapManager {
+@@ -1908,6 +1934,11 @@ export class ImapManager {
                const freshAccount = await ensureFreshToken(accountResult.rows[0]);
                const { resolved, policy } = await resolveAccountHost(freshAccount);
                pendingClient = new ImapFlow(makeClientCfg(freshAccount, resolved, { enableIdle: providerProfile(freshAccount).usesIdle !== false, policy }));
@@ -692,7 +713,7 @@ index 74a112b..b4abf3c 100644
                await pendingClient.connect();
                return { client: pendingClient, account: freshAccount };
              })(),
-@@ -1923,9 +1947,7 @@ export class ImapManager {
+@@ -1923,9 +1954,7 @@ export class ImapManager {
                this.connections.delete(account.id);
              }
            });
@@ -703,7 +724,29 @@ index 74a112b..b4abf3c 100644
            this._attachIdleListeners(activeClient, syncAccount);
            this.connections.set(account.id, activeClient);
            // Mirror connectAccount's success cleanup: clear the refusal backoff so the next
-@@ -2260,6 +2282,27 @@ export class ImapManager {
+@@ -2016,15 +2045,12 @@ export class ImapManager {
+         });
+       }
+ 
+-      // Reconcile remote deletes every 10 successful ticks (~10 min at 60 s interval).
+-      // Uses a pooled connection so it never blocks the sync client.
+-      if (ticks % 10 === 0) {
+-        setImmediate(() => {
+-          this.reconcileDeletes(syncAccount).catch(err =>
+-            console.error(`Reconcile error for ${logAccount(syncAccount)}:`, err.message)
+-          );
+-        });
+-      }
++      // Reconcile remote deletes on a wall-clock cadence (~10 min). NOT tied to the
++      // tick counter: that counter resets on every reconnect, and on a busy multi-account
++      // box the account reconnects (health check / staleness probe) often enough that it
++      // rarely reached 10 uninterrupted ticks — so reconcile was starved and archived /
++      // unlabelled mail never got swept. The wall-clock gate survives reconnects.
++      this._maybeReconcile(syncAccount, 'tick');
+     } catch (err) {
+       const detail = extractImapError(err);
+       console.error(`Sync error for ${logAccount(account)}:`, detail);
+@@ -2260,6 +2286,27 @@ export class ImapManager {
            ON CONFLICT (account_id, path) DO NOTHING
          `, [account.id, delimiter]);
        }
@@ -731,7 +774,7 @@ index 74a112b..b4abf3c 100644
      } catch (err) {
        console.error(`Folder sync error for ${logAccount(account)}:`, err.message);
      }
-@@ -2425,7 +2468,13 @@ export class ImapManager {
+@@ -2425,7 +2472,13 @@ export class ImapManager {
              // than inserting a duplicate. The COUNT=1 guard prevents incorrectly
              // merging Gmail's virtual-folder copies (same message_id in INBOX and
              // [Gmail]/All Mail simultaneously).
@@ -746,7 +789,7 @@ index 74a112b..b4abf3c 100644
                const { sql: relocateSql, params: relocateParams } =
                  relocateMessageQuery(folder, parsed, account.id, msgId, gtdFolderPaths);
                const relocated = await query(relocateSql, relocateParams);
-@@ -3012,6 +3061,11 @@ export class ImapManager {
+@@ -3012,6 +3065,11 @@ export class ImapManager {
        // refreshed once at completion when the account is gtd_enabled — the tick's fingerprint
        // can't see rows backfill already wrote (before==after). See emitGtdSectionsRefreshIfEnabled.
        let backfilledRows = 0;
@@ -758,7 +801,7 @@ index 74a112b..b4abf3c 100644
  
        while (i < missingUids.length) {
          // Stop immediately if the account was deleted while backfilling
-@@ -3034,6 +3088,9 @@ export class ImapManager {
+@@ -3034,6 +3092,9 @@ export class ImapManager {
          const batch = missingUids.slice(i, i + cfg.batchSize);
          // Comma-separated UID list — e.g. "1234,5678,9012"
          const uidSet = batch.join(',');
@@ -768,7 +811,7 @@ index 74a112b..b4abf3c 100644
  
          try {
            const lock = await bfClient.getMailboxLock(folder);
-@@ -3062,6 +3119,7 @@ export class ImapManager {
+@@ -3062,6 +3123,7 @@ export class ImapManager {
                    console.warn(`Backfill skipped: IMAP FETCH returned no UID for ${account.email}/${folder}`);
                    continue;
                  }
@@ -776,7 +819,7 @@ index 74a112b..b4abf3c 100644
                  let safeHtml = null, bodyText = null, atts = [];
  
                  if (cfg.fetchBody) {
-@@ -3076,7 +3134,10 @@ export class ImapManager {
+@@ -3076,7 +3138,10 @@ export class ImapManager {
                  const bfRefs     = sanitizeStr(parsed.references);
                  const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject));
  
@@ -788,7 +831,7 @@ index 74a112b..b4abf3c 100644
                    const { sql: relocateSql, params: relocateParams } =
                      relocateMessageQuery(folder, parsed, account.id, bfMsgId, gtdFolderPaths);
                    const relocated = await query(relocateSql, relocateParams);
-@@ -3182,6 +3243,18 @@ export class ImapManager {
+@@ -3182,6 +3247,18 @@ export class ImapManager {
            batchesOnConn++;
            consecutiveErrors = 0;
  
@@ -807,7 +850,7 @@ index 74a112b..b4abf3c 100644
            // Log progress every 10 batches to avoid log spam
            if (batchesOnConn % 10 === 1 || i >= missingUids.length) {
              console.log(`Backfill ${logAccount(account)}: ${i}/${missingUids.length} missing fetched`);
-@@ -4286,6 +4359,48 @@ export class ImapManager {
+@@ -4286,6 +4363,48 @@ export class ImapManager {
      return newUid;
    }
  
@@ -856,7 +899,32 @@ index 74a112b..b4abf3c 100644
    async permanentDeleteMessage(account, uid, folder) {
      await withFreshClient(account, async (client) => {
        const lock = await client.getMailboxLock(folder);
-@@ -4837,9 +4952,13 @@ export class ImapManager {
+@@ -4816,7 +4935,24 @@ export class ImapManager {
+   // client). Phase 1: collect all server UID sets via one pool connection (IMAP-only, no
+   // DB writes). Phase 2: diff and delete outside the IMAP connection so a DB error never
+   // evicts a healthy pool client.
++  // Wall-clock gate for reconcileDeletes: runs at most once per interval per account,
++  // independent of the reconnect-resettable tick counter. Fire-and-forget.
++  _maybeReconcile(account, reason) {
++    const RECONCILE_INTERVAL_MS = 10 * 60 * 1000;
++    const last = this.lastReconcileAt.get(account.id) || 0;
++    if (Date.now() - last < RECONCILE_INTERVAL_MS) return;
++    this.lastReconcileAt.set(account.id, Date.now());
++    setImmediate(() => {
++      this.reconcileDeletes(account).catch(err =>
++        console.error(`Reconcile error for ${logAccount(account)} (${reason}):`, err.message)
++      );
++    });
++  }
++
+   async reconcileDeletes(account) {
++    // Stamp the run time so the wall-clock gate (_maybeReconcile) and the event-driven
++    // expunge trigger share one cadence and don't pile up back-to-back runs.
++    this.lastReconcileAt.set(account.id, Date.now());
+     // Captured before the Phase 1 snapshot. Any row inserted or re-synced after this
+     // instant (new IDLE mail, a bulk-move reinsert) is NOT in the snapshot yet, so it
+     // would look like an orphan. Excluding rows synced at/after the cutoff closes that
+@@ -4837,9 +4973,13 @@ export class ImapManager {
        await withFreshClient(account, async (client) => {
          for (const folder of folders) {
            let serverUids;
@@ -870,7 +938,7 @@ index 74a112b..b4abf3c 100644
                serverUids = await client.search({ all: true }, { uid: true });
              } finally {
                lock.release();
-@@ -4849,7 +4968,7 @@ export class ImapManager {
+@@ -4849,7 +4989,7 @@ export class ImapManager {
              console.warn(`Reconcile: could not open ${logAccount(account)}/${folder}: ${extractImapError(err)}`);
              continue;
            }
@@ -879,7 +947,7 @@ index 74a112b..b4abf3c 100644
          }
        });
      } catch (err) {
-@@ -4860,7 +4979,7 @@ export class ImapManager {
+@@ -4860,7 +5000,7 @@ export class ImapManager {
      // Phase 2 — diff each folder's server UIDs against the DB and delete orphans.
      // Runs outside withFreshClient so DB errors never cause unnecessary pool eviction.
      let deletedCount = 0;
@@ -888,7 +956,7 @@ index 74a112b..b4abf3c 100644
        const dbResult = await query(
          'SELECT uid FROM messages WHERE account_id = $1 AND folder = $2 AND (synced_at IS NULL OR synced_at < $3)',
          [account.id, folder, reconcileStartedAt]
-@@ -4871,6 +4990,28 @@ export class ImapManager {
+@@ -4871,6 +5011,28 @@ export class ImapManager {
  
        if (orphanUids.length === 0) continue;
  
