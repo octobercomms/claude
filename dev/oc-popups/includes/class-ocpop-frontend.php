@@ -180,7 +180,9 @@ class OCPOP_Frontend {
 		);
 
 		foreach ( self::$queued as $id => $s ) {
-			$body = OCPOP_Builders::render_content( $id );
+			$body = ( 'template' === $s['content_mode'] )
+				? OCPOP_Template::render( $id, $s )
+				: OCPOP_Builders::render_content( $id );
 
 			$classes = 'ocpop ocpop--' . esc_attr( $s['position'] ) . ' ocpop--anim-' . esc_attr( $s['animation'] );
 			printf(
@@ -192,9 +194,11 @@ class OCPOP_Frontend {
 				echo '<div class="ocpop-overlay"></div>';
 			}
 			printf(
-				'<div class="%1$s" role="dialog" aria-modal="true" style="max-width:%2$dpx">',
+				'<div class="%1$s" role="dialog" aria-modal="true" style="--ocpop-w:%2$dpx;--ocpop-w-mobile:%3$dpx;--ocpop-radius:%4$dpx">',
 				esc_attr( $classes ),
-				(int) $s['width']
+				(int) $s['width'],
+				(int) $s['width_mobile'],
+				(int) $s['radius']
 			);
 			if ( ! empty( $s['show_close'] ) ) {
 				echo '<button type="button" class="ocpop-close" aria-label="' . esc_attr__( 'Close', 'october-popups' ) . '">&times;</button>';

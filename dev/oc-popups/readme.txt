@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,10 +12,15 @@ Lightweight, occasional-use popups — competitions, announcements, offers — w
 == Description ==
 
 October Popups is a deliberately small popup plugin for sites that only need a
-popup now and then (a competition, a seasonal offer, an announcement). It gets
-out of the way of your page builder: each popup is a normal post whose body you
-design with the **same builder you already use** — WP Bakery or Elementor — so
-you can drop in images, text, buttons and forms exactly as you would on a page.
+popup now and then (a competition, a seasonal offer, an announcement).
+
+Each popup has two content modes, chosen per popup:
+
+* **Simple template** (recommended for competitions) — fill in an image,
+  heading, body text and a button, and the plugin lays it out responsively
+  (image left / right / top, or text only). No builder wrestling.
+* **Page builder** — design the body with the same builder you use for pages,
+  WP Bakery or Elementor, for full creative control.
 
 Everything else — when it appears, how often, on which pages, and how it looks —
 lives in a simple "Popup Settings" panel next to the editor.
@@ -63,8 +68,10 @@ WordPress Updates screen for one-click install.
 == Installation ==
 
 1. Upload the plugin and activate it.
-2. Go to **Popups → Add New**.
-3. Give it a title, then build the body with WP Bakery / Elementor as usual.
+2. Go to **Popups → Add New** and give it a title.
+3. In the **Content** section choose "Simple template" and fill in the image,
+   heading, text and button — or choose "Page builder" and design the body with
+   WP Bakery / Elementor.
 4. Set the trigger and targeting in the **Popup Settings** panel.
 5. Tick "Popup is enabled" and Publish.
 
@@ -91,6 +98,36 @@ Yes. Targeting by page is decided server-side; frequency caps and device rules
 are enforced in the browser, so a cached page still behaves correctly.
 
 == Changelog ==
+
+= 1.0.5 =
+* New style controls: popup corner radius (default 0); and for the Simple
+  template — heading size, body-text size, text-area padding, button corner
+  radius and button font family.
+
+= 1.0.4 =
+* New: "Simple template" content mode — image + heading + body text + button,
+  laid out responsively (image left/right/top or text only) with per-popup
+  colours and a "show image on mobile" toggle. Chosen per popup alongside the
+  existing WP Bakery / Elementor builder mode. The CTA button is tracked
+  automatically. Existing builder-built popups are unaffected.
+
+= 1.0.3 =
+* New: separate max-width settings for desktop and mobile (the popup never
+  exceeds the screen width on phones). Widen the desktop value to stop a large
+  image being cropped.
+* Docs: help box now explains how to run a separate mobile design via device
+  targeting (duplicate the popup; set one Desktop-only, one Mobile-only).
+
+= 1.0.2 =
+* Fix: builder content (WP Bakery / Elementor) could overflow or clip inside
+  the popup, and the theme's global button styles stretched the close button.
+  Media is now constrained to the popup width, WP Bakery row overflow is
+  neutralised, and the close button is reset to a fixed circle.
+
+= 1.0.1 =
+* Fix: popups never appeared on the frontend because the trigger script ran
+  before the popup markup/config were printed in the footer. The script now
+  waits for the DOM to finish loading.
 
 = 1.0.0 =
 * Initial release: WP Bakery / Elementor popup bodies, seven trigger types,

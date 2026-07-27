@@ -21,6 +21,122 @@ $trigger_labels = OCPOP_CPT_Registrar::trigger_labels();
 		<span class="description"><?php esc_html_e( 'Uncheck to switch the popup off site-wide without deleting it.', 'october-popups' ); ?></span>
 	</p>
 
+	<h3><?php esc_html_e( 'Content', 'october-popups' ); ?></h3>
+	<table class="form-table" role="presentation">
+		<tr>
+			<th scope="row"><?php esc_html_e( 'Build the popup with', 'october-popups' ); ?></th>
+			<td>
+				<label style="margin-right:16px;">
+					<input type="radio" name="ocpop[content_mode]" value="template" class="ocpop-mode" <?php checked( $s['content_mode'], 'template' ); ?>>
+					<?php esc_html_e( 'Simple template', 'october-popups' ); ?>
+				</label>
+				<label>
+					<input type="radio" name="ocpop[content_mode]" value="builder" class="ocpop-mode" <?php checked( $s['content_mode'], 'builder' ); ?>>
+					<?php esc_html_e( 'Page builder (WP Bakery / Elementor)', 'october-popups' ); ?>
+				</label>
+				<p class="description"><?php esc_html_e( 'Simple template = fill in the fields below (recommended for competitions). Page builder = design the body with the editor above.', 'october-popups' ); ?></p>
+			</td>
+		</tr>
+	</table>
+
+	<div class="ocpop-mode-builder-note" style="display:none;">
+		<p class="description" style="padding:10px 12px;background:#fff8e5;border:1px solid #f0d78a;border-radius:6px;">
+			<?php esc_html_e( 'Page builder mode: design the popup body with the editor above (WP Bakery / Elementor). The template fields below are ignored.', 'october-popups' ); ?>
+		</p>
+	</div>
+
+	<div class="ocpop-tpl-fields">
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><label for="ocpop_tpl_layout"><?php esc_html_e( 'Layout', 'october-popups' ); ?></label></th>
+				<td>
+					<select name="ocpop[tpl_layout]" id="ocpop_tpl_layout">
+						<option value="image-left"  <?php selected( $s['tpl_layout'], 'image-left' ); ?>><?php esc_html_e( 'Image left, text right', 'october-popups' ); ?></option>
+						<option value="image-right" <?php selected( $s['tpl_layout'], 'image-right' ); ?>><?php esc_html_e( 'Image right, text left', 'october-popups' ); ?></option>
+						<option value="image-top"   <?php selected( $s['tpl_layout'], 'image-top' ); ?>><?php esc_html_e( 'Image on top, text below', 'october-popups' ); ?></option>
+						<option value="text-only"   <?php selected( $s['tpl_layout'], 'text-only' ); ?>><?php esc_html_e( 'Text only (no image)', 'october-popups' ); ?></option>
+					</select>
+				</td>
+			</tr>
+			<tr class="ocpop-tpl-image-row">
+				<th scope="row"><?php esc_html_e( 'Image', 'october-popups' ); ?></th>
+				<td>
+					<input type="hidden" name="ocpop[tpl_image_id]" id="ocpop_tpl_image_id" value="<?php echo esc_attr( $s['tpl_image_id'] ); ?>">
+					<div id="ocpop_tpl_image_preview" class="ocpop-img-preview">
+						<?php
+						if ( ! empty( $s['tpl_image_id'] ) ) {
+							echo wp_get_attachment_image( (int) $s['tpl_image_id'], 'medium' );
+						}
+						?>
+					</div>
+					<button type="button" class="button ocpop-img-select"><?php esc_html_e( 'Choose image', 'october-popups' ); ?></button>
+					<button type="button" class="button-link ocpop-img-remove" <?php echo empty( $s['tpl_image_id'] ) ? 'style="display:none;"' : ''; ?>><?php esc_html_e( 'Remove', 'october-popups' ); ?></button>
+					<label style="display:block;margin-top:8px;">
+						<input type="checkbox" name="ocpop[tpl_show_image_mobile]" value="1" <?php checked( $s['tpl_show_image_mobile'], 1 ); ?>>
+						<?php esc_html_e( 'Show image on mobile (off = text only on phones)', 'october-popups' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="ocpop_tpl_heading"><?php esc_html_e( 'Heading', 'october-popups' ); ?></label></th>
+				<td>
+					<input type="text" class="large-text" name="ocpop[tpl_heading]" id="ocpop_tpl_heading" value="<?php echo esc_attr( $s['tpl_heading'] ); ?>" placeholder="<?php esc_attr_e( 'A West Country Giveaway', 'october-popups' ); ?>">
+					<label style="display:inline-block;margin-top:6px;margin-right:14px;"><?php esc_html_e( 'Heading colour:', 'october-popups' ); ?>
+						<input type="text" name="ocpop[tpl_heading_color]" value="<?php echo esc_attr( $s['tpl_heading_color'] ); ?>" placeholder="#1a3b2a" style="width:120px;">
+					</label>
+					<label style="display:inline-block;margin-top:6px;"><?php esc_html_e( 'Size (px):', 'october-popups' ); ?>
+						<input type="number" min="10" max="100" name="ocpop[tpl_heading_size]" value="<?php echo esc_attr( $s['tpl_heading_size'] ); ?>" style="width:80px;">
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="ocpop_tpl_text"><?php esc_html_e( 'Body text', 'october-popups' ); ?></label></th>
+				<td>
+					<textarea class="large-text" rows="6" name="ocpop[tpl_text]" id="ocpop_tpl_text"><?php echo esc_textarea( $s['tpl_text'] ); ?></textarea>
+					<p class="description"><?php esc_html_e( 'Basic HTML allowed (links, bold, line breaks). Paragraphs are added automatically.', 'october-popups' ); ?></p>
+					<label style="display:inline-block;margin-right:14px;"><?php esc_html_e( 'Text colour:', 'october-popups' ); ?>
+						<input type="text" name="ocpop[tpl_text_color]" value="<?php echo esc_attr( $s['tpl_text_color'] ); ?>" placeholder="#333333" style="width:120px;">
+					</label>
+					<label style="display:inline-block;"><?php esc_html_e( 'Size (px):', 'october-popups' ); ?>
+						<input type="number" min="8" max="60" name="ocpop[tpl_text_size]" value="<?php echo esc_attr( $s['tpl_text_size'] ); ?>" style="width:80px;">
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="ocpop_tpl_button_text"><?php esc_html_e( 'Button', 'october-popups' ); ?></label></th>
+				<td>
+					<input type="text" name="ocpop[tpl_button_text]" id="ocpop_tpl_button_text" value="<?php echo esc_attr( $s['tpl_button_text'] ); ?>" placeholder="<?php esc_attr_e( 'Enter Now', 'october-popups' ); ?>">
+					<input type="url" class="regular-text" name="ocpop[tpl_button_url]" value="<?php echo esc_attr( $s['tpl_button_url'] ); ?>" placeholder="https://…">
+					<p class="description"><?php esc_html_e( 'Button label and the link it points to (your competition entry page). Leave the label blank for no button.', 'october-popups' ); ?></p>
+					<label style="margin-right:14px;"><?php esc_html_e( 'Button colour:', 'october-popups' ); ?>
+						<input type="text" name="ocpop[tpl_button_bg]" value="<?php echo esc_attr( $s['tpl_button_bg'] ); ?>" placeholder="#1a3b2a" style="width:120px;">
+					</label>
+					<label style="margin-right:14px;"><?php esc_html_e( 'Button text colour:', 'october-popups' ); ?>
+						<input type="text" name="ocpop[tpl_button_color]" value="<?php echo esc_attr( $s['tpl_button_color'] ); ?>" placeholder="#ffffff" style="width:120px;">
+					</label>
+					<label style="display:inline-block;margin-top:8px;margin-right:14px;"><?php esc_html_e( 'Corner radius (px):', 'october-popups' ); ?>
+						<input type="number" min="0" max="100" name="ocpop[tpl_button_radius]" value="<?php echo esc_attr( $s['tpl_button_radius'] ); ?>" style="width:80px;">
+					</label>
+					<label style="display:inline-block;margin-top:8px;"><?php esc_html_e( 'Font family:', 'october-popups' ); ?>
+						<input type="text" name="ocpop[tpl_button_font]" value="<?php echo esc_attr( $s['tpl_button_font'] ); ?>" placeholder="<?php esc_attr_e( 'inherit (theme font)', 'october-popups' ); ?>" style="width:200px;">
+					</label>
+					<p class="description"><?php esc_html_e( 'Font family: leave blank to use the theme font, or type a CSS font stack, e.g. Georgia, serif.', 'october-popups' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="ocpop_tpl_bg"><?php esc_html_e( 'Background colour', 'october-popups' ); ?></label></th>
+				<td><input type="text" name="ocpop[tpl_bg]" id="ocpop_tpl_bg" value="<?php echo esc_attr( $s['tpl_bg'] ); ?>" placeholder="#ffffff" style="width:120px;"></td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="ocpop_tpl_padding"><?php esc_html_e( 'Text area padding (px)', 'october-popups' ); ?></label></th>
+				<td>
+					<input type="number" min="0" max="120" name="ocpop[tpl_padding]" id="ocpop_tpl_padding" value="<?php echo esc_attr( $s['tpl_padding'] ); ?>" style="width:80px;">
+					<p class="description"><?php esc_html_e( 'Space around the heading, text and button.', 'october-popups' ); ?></p>
+				</td>
+			</tr>
+		</table>
+	</div>
+
 	<h3><?php esc_html_e( 'Trigger', 'october-popups' ); ?></h3>
 	<table class="form-table" role="presentation">
 		<tr>
@@ -149,8 +265,25 @@ $trigger_labels = OCPOP_CPT_Registrar::trigger_labels();
 			</td>
 		</tr>
 		<tr>
-			<th scope="row"><label for="ocpop_width"><?php esc_html_e( 'Max width (px)', 'october-popups' ); ?></label></th>
-			<td><input type="number" min="200" max="2000" name="ocpop[width]" id="ocpop_width" value="<?php echo esc_attr( $s['width'] ); ?>"></td>
+			<th scope="row"><label for="ocpop_width"><?php esc_html_e( 'Max width — desktop (px)', 'october-popups' ); ?></label></th>
+			<td>
+				<input type="number" min="200" max="2000" name="ocpop[width]" id="ocpop_width" value="<?php echo esc_attr( $s['width'] ); ?>">
+				<p class="description"><?php esc_html_e( 'How wide the popup can grow on larger screens. Increase this if a wide image is being cut off.', 'october-popups' ); ?></p>
+			</td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="ocpop_width_mobile"><?php esc_html_e( 'Max width — mobile (px)', 'october-popups' ); ?></label></th>
+			<td>
+				<input type="number" min="150" max="2000" name="ocpop[width_mobile]" id="ocpop_width_mobile" value="<?php echo esc_attr( $s['width_mobile'] ); ?>">
+				<p class="description"><?php esc_html_e( 'Used on phones (screens up to 600px). The popup never exceeds the screen width regardless of this value.', 'october-popups' ); ?></p>
+			</td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="ocpop_radius"><?php esc_html_e( 'Corner radius (px)', 'october-popups' ); ?></label></th>
+			<td>
+				<input type="number" min="0" max="100" name="ocpop[radius]" id="ocpop_radius" value="<?php echo esc_attr( $s['radius'] ); ?>">
+				<p class="description"><?php esc_html_e( 'Rounds the popup corners. 0 = square. Applies to both content modes.', 'october-popups' ); ?></p>
+			</td>
 		</tr>
 		<tr>
 			<th scope="row"><label for="ocpop_animation"><?php esc_html_e( 'Animation', 'october-popups' ); ?></label></th>
