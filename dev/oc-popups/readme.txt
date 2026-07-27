@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,11 @@ Yes. Targeting by page is decided server-side; frequency caps and device rules
 are enforced in the browser, so a cached page still behaves correctly.
 
 == Changelog ==
+
+= 1.0.1 =
+* Fix: popups never appeared on the frontend because the trigger script ran
+  before the popup markup/config were printed in the footer. The script now
+  waits for the DOM to finish loading.
 
 = 1.0.0 =
 * Initial release: WP Bakery / Elementor popup bodies, seven trigger types,

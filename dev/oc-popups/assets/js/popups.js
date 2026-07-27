@@ -8,14 +8,30 @@
 ( function () {
 	'use strict';
 
-	var cfg = readConfig();
-	if ( ! cfg || ! cfg.popups || ! cfg.popups.length ) {
-		return;
+	// The popup markup and the #ocpop-config block are printed late in the
+	// footer (after this script tag), so defer all work until the DOM is
+	// fully parsed — otherwise readConfig() and the popup wrappers aren't
+	// there yet and nothing happens.
+	if ( document.readyState === 'loading' ) {
+		document.addEventListener( 'DOMContentLoaded', boot );
+	} else {
+		boot();
 	}
 
-	var trackUrl = cfg.trackUrl;
-	var nonce = cfg.nonce;
-	var isMobile = window.matchMedia( '(max-width: 768px)' ).matches;
+	var trackUrl, nonce, isMobile;
+
+	function boot() {
+		var cfg = readConfig();
+		if ( ! cfg || ! cfg.popups || ! cfg.popups.length ) {
+			return;
+		}
+
+		trackUrl = cfg.trackUrl;
+		nonce = cfg.nonce;
+		isMobile = window.matchMedia( '(max-width: 768px)' ).matches;
+
+		cfg.popups.forEach( setupPopup );
+	}
 
 	function readConfig() {
 		var el = document.getElementById( 'ocpop-config' );
@@ -220,7 +236,7 @@
 
 	/* --- Per-popup setup ------------------------------------------------- */
 
-	cfg.popups.forEach( function ( p ) {
+	function setupPopup( p ) {
 		var wrap = document.getElementById( 'ocpop-wrap-' + p.id );
 		if ( ! wrap ) {
 			return;
@@ -278,5 +294,5 @@
 		if ( p.trigger !== 'manual' && deviceOk && ! alreadyShown( p ) ) {
 			wireTrigger( p, wrap );
 		}
-	} );
+	}
 } )();
