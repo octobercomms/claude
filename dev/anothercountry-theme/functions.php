@@ -2729,21 +2729,17 @@ function ac_lt_inline_assets() {
 			content:none !important;
 			display:none !important;
 		}
-		/* Seasonal note — its own line directly under the price, in the SAME green,
-		   size and font as the "Made to Order" badge above it. The badge already reads
-		   "Made to Order", so this line is just the caveat. Rendered as a standalone
-		   block OUTSIDE the price flex (sale strikethrough untouched) and only once a
-		   variation is selected. See placeSeason(). */
+		/* Seasonal note — its own line under the price. Layout only here; the exact
+		   typography (font-family, size, weight, colour, spacing) is copied from the
+		   live "Made to Order" badge at runtime in placeSeason(), so it always matches
+		   whatever fonts the theme uses — no guessing a font stack. Rendered OUTSIDE
+		   the price flex so the sale strikethrough is untouched, and only once a
+		   variation is selected. */
 		.single-product .ac-seasonal-note{
 			display:block;
 			clear:both;
-			margin:.3em 0 0 0;
-			color:#77a464;
-			font-size:16px;
-			line-height:1.4;
-			font-weight:400;
-			font-style:normal;
-			opacity:1;
+			margin:.35em 0 0 0;
+			color:#77a464; /* fallback until the badge's style is copied on */
 		}
 		/* The badge is not a real link — neutralise the old tooltip trigger. */
 		.single-product p.available-on-backorder{ cursor:default !important; }
@@ -2829,7 +2825,27 @@ function ac_lt_inline_assets() {
 				$host = $scope.find('.product_price').first();
 			}
 			if (!$host.length) { return; }
-			$host.append($('<p class="ac-seasonal-note"></p>').text(data.season));
+			var $note = $('<p class="ac-seasonal-note"></p>').text(data.season);
+			$host.append($note);
+			// Match the "Made to Order" badge's exact rendered typography so the caveat
+			// reads as the same style whatever fonts the theme uses. Copy the computed
+			// values off the visible badge (skip the hidden copy inside the <del> price).
+			var badgeEl = $scope.find('p.available-on-backorder').filter(function(){
+				return $(this).is(':visible') && 0 === $(this).closest('del').length;
+			}).first()[0];
+			if (badgeEl && window.getComputedStyle) {
+				var cs = window.getComputedStyle(badgeEl);
+				$note.css({
+					fontFamily:    cs.fontFamily,
+					fontSize:      cs.fontSize,
+					fontWeight:    cs.fontWeight,
+					fontStyle:     cs.fontStyle,
+					letterSpacing: cs.letterSpacing,
+					lineHeight:    cs.lineHeight,
+					textTransform: cs.textTransform,
+					color:         cs.color
+				});
+			}
 		}
 
 		function refresh(lead, label){ applyInline(lead, label); placeSeason(); }
