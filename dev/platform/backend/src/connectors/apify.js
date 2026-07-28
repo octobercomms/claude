@@ -13,6 +13,9 @@ const BASE_URL = 'https://api.apify.com/v2';
 const TRENDING_SOUNDS_ACTOR = 'clockworks~tiktok-scraper';
 const IG_SCRAPER_ACTOR = 'apify~instagram-scraper';
 const TIKTOK_SCRAPER_ACTOR = 'clockworks~tiktok-scraper';
+// Reddit scraper — the actor id is a Setting (REDDIT_ACTOR) so it can be swapped
+// without a deploy if Apify renames/retires it; this is the current default.
+const REDDIT_ACTOR_DEFAULT = 'trudax~reddit-scraper-lite';
 
 async function getToken() {
   const t = await getSetting('APIFY_API_TOKEN');
@@ -144,4 +147,44 @@ async function testCredentials() {
   }
 }
 
-module.exports = { runActorSync, fetchTrendingSounds, fetchInstagramUserPosts, fetchTikTokUserPosts, testCredentials };
+// Top posts (+ a few top comments each) from a subreddit, for pain-point
+// research. Output shapes vary by actor, so we normalise defensively and skip
+// non-post items (some actors also emit community/comment objects).
+async function fetchSubredditPosts({ subreddit, sort = 'top', time = 'month', limit = 40 } = {}) {
+  const sub = String(subreddit || '').trim().replace(/^\/?r\//i, '').replace(/[^a-z0-9_]/gi, '');
+  if (!sub) throw new Error('A subreddit name is required.');
+  const actor = (await getSetting('REDDIT_ACTOR')) || REDDIT_ACTOR_DEFAULT;
+  const url = `https://www.reddit.com/r/${sub}/${sort}/?t=${time}`;
+  const input = {
+    startUrls: [{ url }],
+    type: 'posts',
+    sort, time,
+    maxItems: limit,
+    maxPostCount: limit,
+    maxComments: 8,
+    skipComments: false,
+    proxy: { useApifyProxy: true },
+  };
+  const items = await runActorSync(actor, input, { timeoutSec: 180 });
+  const posts = [];
+  for (const it of (Array.isArray(items) ? items : [])) {
+    const title = it.title || it.postTitle;
+    if (!title) continue;                                   // skip comment/community rows
+    const body = it.body || it.text || it.selftext || it.postText || '';
+    const comments = Array.isArray(it.comments)
+      ? it.comments.map(c => (typeof c === 'string' ? c : (c.body || c.text || ''))).filter(Boolean).slice(0, 8)
+      : [];
+    posts.push({
+      title: String(title).slice(0, 300),
+      body: String(body).slice(0, 1500),
+      score: it.upVotes ?? it.score ?? it.ups ?? null,
+      num_comments: it.numberOfComments ?? it.numComments ?? it.commentsCount ?? null,
+      url: it.url || it.link || null,
+      comments,
+    });
+    if (posts.length >= limit) break;
+  }
+  return posts;
+}
+
+module.exports = { runActorSync, fetchTrendingSounds, fetchInstagramUserPosts, fetchTikTokUserPosts, fetchSubredditPosts, testCredentials };

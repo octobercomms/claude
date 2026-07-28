@@ -646,6 +646,36 @@ router.put('/clients/:clientId/dm-bot/live', async (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Subreddit research — suggest subreddits, run a deep-research pass, and the
+// saved history. The run scrapes Reddit (Apify) + analyses with Claude, so it
+// can take a couple of minutes; the frontend shows a spinner.
+const subredditResearch = require('../services/subredditResearch');
+router.get('/clients/:clientId/subreddit-research', async (req, res) => {
+  try { res.json({ runs: await subredditResearch.list(req.params.clientId) }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/clients/:clientId/subreddit-research/suggest', async (req, res) => {
+  try { res.json({ subreddits: await subredditResearch.suggest(req.params.clientId) }); }
+  catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+router.post('/clients/:clientId/subreddit-research', async (req, res) => {
+  try {
+    const { subreddit, focus, sort, time } = req.body || {};
+    res.status(201).json({ run: await subredditResearch.run(req.params.clientId, { subreddit, focus, sort, time }) });
+  } catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+router.get('/clients/:clientId/subreddit-research/:id', async (req, res) => {
+  try {
+    const run = await subredditResearch.get(req.params.clientId, req.params.id);
+    if (!run) return res.status(404).json({ error: 'Not found' });
+    res.json({ run });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.delete('/clients/:clientId/subreddit-research/:id', async (req, res) => {
+  try { await subredditResearch.remove(req.params.clientId, req.params.id); res.status(204).end(); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // DM inbox — conversations (one per counterparty), a thread, and a manual reply.
 router.get('/clients/:clientId/dm-bot/inbox', async (req, res) => {
   try { res.json({ conversations: await metaMessaging.listConversations(req.params.clientId) }); }
