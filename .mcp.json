@@ -6,6 +6,10 @@
       "env": {
         "API_KEY": "2d632cd0a94b6ac14d9c05a5be76bdaf9486f7c6582e2618fb835800306e9242"
       }
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "shadcn@latest", "mcp"]
     }
   }
 }
