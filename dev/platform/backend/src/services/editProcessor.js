@@ -13,6 +13,7 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const editJobs = require('./editJobs');
+const stillsReel = require('./stillsReel');
 const { recordApiCost } = require('./costLog');
 const { getSetting } = require('../utils/settings');
 
@@ -138,6 +139,49 @@ async function cutSegments(srcPath, segments, work) {
   return out;
 }
 
+// Download a remote clip (fal CDN) to disk.
+async function downloadTo(url, dest) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Clip download failed (${res.status}).`);
+  fs.writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
+}
+
+// Stills → Reel: animate each still (fal image-to-video), download the clip,
+// trim it to a beat and reframe to the target aspect (crop-to-fill), then stitch
+// the beats into one reel with the existing combineClips path. Returns the
+// combined reel path + total fal spend.
+async function buildStillsReel(job, work) {
+  const spec = job.ops?.stills_reel || {};
+  const aspect = ASPECTS[spec.aspect] ? spec.aspect : '9:16';
+  const [W, H] = ASPECTS[aspect];
+  const perClip = Math.min(4, Math.max(0.6, Number(spec.per_clip_seconds) || 1.2));
+  const stills = (Array.isArray(job.clips) && job.clips.length) ? job.clips : [];
+
+  const beats = [];
+  let cost = 0;
+  for (let i = 0; i < stills.length; i++) {
+    const st = stills[i];
+    const disk = st.url && editJobs.diskPathForUrl(st.url);
+    if (!disk || !fs.existsSync(disk)) continue;
+    const { url, cost: c } = await stillsReel.animate({
+      diskPath: disk, motion: st.motion || spec.motion, model: spec.model, clientId: job.client_id,
+    });
+    cost += c || 0;
+    const raw = path.join(work, `anim${i}.mp4`);
+    await downloadTo(url, raw);
+    // Trim to the beat length and reframe to a uniform 9:16 (or chosen) fill so
+    // every beat is the same shape before the concat.
+    const beat = path.join(work, `beat${i}.mp4`);
+    await run(FFMPEG, ['-y', '-i', raw, '-t', String(perClip),
+      '-vf', `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=30`,
+      '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', beat]);
+    beats.push(beat);
+  }
+  if (!beats.length) throw new Error('None of the stills could be animated into clips.');
+  const reel = beats.length > 1 ? await combineClips(beats, work) : beats[0];
+  return { reel, cost: +cost.toFixed(4), clipCount: beats.length };
+}
+
 async function whisperSrt(audioPath, apiKey) {
   const buf = fs.readFileSync(audioPath);
   const form = new FormData();
@@ -215,6 +259,17 @@ async function processOne(job) {
   if (!paths.length) { await editJobs.fail(job.id, 'Source video is missing on disk.'); return; }
   const work = fs.mkdtempSync(path.join(os.tmpdir(), `edit-${job.id}-`));
   try {
+    // Stills → Reel jobs carry still images (not video) in clips and an
+    // ops.stills_reel spec. Animate + stitch them, then finish — the normal
+    // trim/clean/caption path doesn't apply.
+    if (job.ops?.stills_reel) {
+      const { reel, cost, clipCount } = await buildStillsReel(job, work);
+      const outputUrl = editJobs.adoptFile(job.client_id, reel, '.mp4');
+      await editJobs.complete(job.id, { outputUrl, srtUrl: null, costUsd: cost });
+      console.log(`[edit] ✓ stills reel ${job.id} done (${clipCount} clips, $${cost})`);
+      return;
+    }
+
     const apiKey = (await getSetting('OPENAI_API_KEY')) || process.env.OPENAI_API_KEY;
     // Combine several clips first; else, on a single clip, apply multi-cut.
     let srcPath = paths.length > 1 ? await combineClips(paths, work) : paths[0];
@@ -245,7 +300,11 @@ async function processOne(job) {
 }
 
 function friendlyError(raw) {
-  const m = String(raw || '').toLowerCase();
+  const s = String(raw || '');
+  const m = s.toLowerCase();
+  // fal errors already carry a specific, user-facing reason + hint — pass them
+  // through rather than wrapping them as a generic video failure.
+  if (/^fal |could not be animated|clip download failed|returned no video/.test(m)) return s.slice(0, 300);
   if (/enoent|ffmpeg exited 127|spawn ffmpeg/.test(m)) return 'The video tools (ffmpeg) aren’t available on the server. Contact the admin.';
   if (/openai key|whisper 401|whisper 4/.test(m)) return 'Auto-captions failed — check the OpenAI key in Settings → AI.';
   if (/invalid data|does not contain|moov atom|could not find codec/.test(m)) return 'Couldn’t read this video file — try a standard MP4/MOV export.';

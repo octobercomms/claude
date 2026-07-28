@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import StillsReelPanel from '../components/edit/StillsReelPanel';
 
 // Edit — a guided video editor. Upload one clip (trim / clean audio / captions)
 // or several (combined into one video first), rendered server-side with ffmpeg +
@@ -47,6 +48,7 @@ export default function ClientEditPage() {
   const frameRef = useRef(null);
   const pollRef = useRef(null);
   const [client, setClient] = useState(null);
+  const [mode, setMode] = useState('video');       // 'video' | 'stills' (Stills → Reel)
 
   const [clips, setClips] = useState([]);          // [{ id, file|null, url, name, duration, remote }]
   const [reopenJobId, setReopenJobId] = useState(null);
@@ -229,6 +231,10 @@ export default function ClientEditPage() {
   }
 
   function opsSummary(ops = {}, clipCount = 1) {
+    if (ops.stills_reel) {
+      const s = ops.stills_reel;
+      return `stills reel · ${clipCount} clip${clipCount === 1 ? '' : 's'} · ${s.aspect || '9:16'}`;
+    }
     const bits = [];
     if (clipCount > 1) bits.push(`combined ${clipCount} clips`);
     if (Array.isArray(ops.segments) && ops.segments.length) bits.push(ops.segments.length > 1 ? `${ops.segments.length} cuts` : `trim ${fmt(ops.segments[0].start)}–${fmt(ops.segments[0].end)}`);
@@ -251,14 +257,25 @@ export default function ClientEditPage() {
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Edit</span></div>
       <header className="hero"><div><h1 className="display mt-2">Edit</h1></div></header>
       <p style={{ color: 'var(--text-muted)', fontSize: 14, maxWidth: 660, marginTop: -8 }}>
-        Trim a clip, clean up the audio, add auto-captions — or drop in several clips to combine them
-        into one video. Rendered on our own servers; nothing uploaded to a third party.
+        {mode === 'video'
+          ? 'Trim a clip, clean up the audio, add auto-captions — or drop in several clips to combine them into one video. Rendered on our own servers; nothing uploaded to a third party.'
+          : 'Turn a set of still images into a moving reel — each still is animated into a short cinematic clip, then stitched together into one vertical video.'}
       </p>
+
+      {/* Mode switch */}
+      <div style={{ display: 'inline-flex', gap: 6 }}>
+        <button className={`btn btn-sm ${mode === 'video' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('video')}>Video edit</button>
+        <button className={`btn btn-sm ${mode === 'stills' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('stills')}>Stills → Reel</button>
+      </div>
+
+      {mode === 'stills' && (
+        <StillsReelPanel clientId={clientId} onSubmitted={() => { loadJobs(); if (!pollRef.current) startPoll(); }} />
+      )}
 
       <input ref={fileRef} type="file" accept="video/*" multiple style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
 
       {/* Empty state */}
-      {clips.length === 0 && (
+      {mode === 'video' && clips.length === 0 && (
         <div
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
@@ -272,7 +289,7 @@ export default function ClientEditPage() {
       )}
 
       {/* Editor */}
-      {clips.length > 0 && (
+      {mode === 'video' && clips.length > 0 && (
         <div className="edit-split"
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
@@ -462,7 +479,7 @@ export default function ClientEditPage() {
                       {j.status === 'draft' && <button className="btn btn-secondary btn-sm" onClick={() => editAgain(j)}>Resume</button>}
                       {j.status === 'done' && j.output_url && <a className="btn btn-primary btn-sm" href={j.output_url} download={`${stem}-edited.mp4`}>Download MP4</a>}
                       {j.status === 'done' && j.srt_url && <a className="btn btn-secondary btn-sm" href={j.srt_url} download={`${stem}.srt`}>Download .srt</a>}
-                      {(j.status === 'done' || j.status === 'failed') && <button className="btn btn-secondary btn-sm" onClick={() => editAgain(j)}>Edit again</button>}
+                      {(j.status === 'done' || j.status === 'failed') && !j.ops?.stills_reel && <button className="btn btn-secondary btn-sm" onClick={() => editAgain(j)}>Edit again</button>}
                       {j.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(j.id)}>Retry</button>}
                       <button className="btn btn-secondary btn-sm" onClick={() => renameJob(j)}>Rename</button>
                       <button className="btn btn-secondary btn-sm" onClick={() => remove(j.id)} style={{ color: 'var(--negative)' }}>Delete</button>
