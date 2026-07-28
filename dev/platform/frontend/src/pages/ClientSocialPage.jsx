@@ -75,8 +75,10 @@ export default function ClientSocialPage() {
   // links resolve.
   const [socialTab, setSocialTab] = useTabParam('overview', [
     'overview',
+    // Capture
+    'swipe', 'subreddit',
     // Create
-    'swipe', 'brainstorm', 'review', 'reels', 'video',
+    'brainstorm', 'review', 'reels', 'video',
     // Produce
     'produce',
     // Schedule
