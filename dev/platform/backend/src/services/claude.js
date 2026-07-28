@@ -348,7 +348,16 @@ Write an executive summary for this report. 300-400 words. Use the client's "Abo
     }],
   });
   recordClaudeCost({ model: MODEL, response: message, feature: 'executive_summary' });
-  return message.content[0].text;
+  const draft = message.content[0].text;
+  // Independent editor pass before this reaches the client — catches
+  // unsupported claims, numbers that fight the data, and house-style slips.
+  // Non-destructive: returns the original on any failure.
+  const reviewed = await require('./contentReviewer').review({
+    draft, kind: 'client report executive summary',
+    data: { marketing: data, seo: seoContext || null },
+    feature: 'executive_summary_review',
+  });
+  return reviewed.text;
 }
 
 async function generateWeeklySummary({ clientName, clientBriefing, week, monthlyFocus, metrics, rankMovers = [], sections = [], chatHistory = [] }) {
@@ -384,7 +393,13 @@ Write 2-3 sentences summarising this week's performance for the enabled sections
     }],
   });
   recordClaudeCost({ model: MODEL, response: message, feature: 'weekly_summary' });
-  return message.content[0].text;
+  const draft = message.content[0].text;
+  const reviewed = await require('./contentReviewer').review({
+    draft, kind: 'client weekly performance summary (2–3 sentences)',
+    data: { sections, metrics, rankMovers },
+    feature: 'weekly_summary_review',
+  });
+  return reviewed.text;
 }
 
 function buildSEOContext(seoData) {
