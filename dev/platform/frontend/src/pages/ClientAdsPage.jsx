@@ -3,6 +3,7 @@ import AdCreativePanel from '../components/AdCreativePanel';
 import AdResizePanel from '../components/AdResizePanel';
 import StrategistPanel from '../components/StrategistPanel';
 import AudiencesPanel from '../components/AudiencesPanel';
+import ICPIntelligencePanel from '../components/ICPIntelligencePanel';
 import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
 import SuiteOverview from '../components/SuiteOverview';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
@@ -304,7 +305,10 @@ export default function ClientAdsPage() {
       {isPipelineGroup && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />}
       {normalisedTab === 'resize' && <AdResizePanel clientId={id} clientName={client?.name || ''} />}
       {normalisedTab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
-      {normalisedTab === 'audiences' && <AudiencesPanel clientId={id} />}
+      {normalisedTab === 'audiences' && <div className="stack stack-lg">
+        <ICPIntelligencePanel clientId={id} />
+        <AudiencesPanel clientId={id} />
+      </div>}
       {normalisedTab === 'competitor_ads' && <CompetitorAdsPanel clientId={id} />}
       {normalisedTab === 'performance' && <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>

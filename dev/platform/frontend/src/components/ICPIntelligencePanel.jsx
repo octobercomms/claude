@@ -95,9 +95,9 @@ export default function ICPIntelligencePanel({ clientId }) {
   return (
     <div className="stack" style={{ gap: 18 }}>
       <div>
-        <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 4px' }}>ICP Intelligence Pack</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 4px' }}>ICP — Ideal Customer Profile</h2>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 640, margin: 0, lineHeight: 1.5 }}>
-          The customer-research layer that seeds resonant creative. Paste real call transcripts and win-loss notes —
+          The customer-research layer that seeds resonant creative and sharper audience targeting. Paste real call transcripts and win-loss notes —
           Claude extracts the awareness stage, market sophistication and Voice-of-Customer in the prospect’s own words.
           It only uses what you give it: thin inputs get an honest “insufficient” rather than an invented customer.
         </p>
