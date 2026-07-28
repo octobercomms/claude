@@ -43,6 +43,12 @@ export default function SocialDmBotPanel({ clientId }) {
   const [linkDest, setLinkDest] = useState('');
   const [linkLabel, setLinkLabel] = useState('');
   const [addingLink, setAddingLink] = useState(false);
+  const [inbox, setInbox] = useState([]);
+  const [activeCp, setActiveCp] = useState(null);
+  const [thread, setThread] = useState([]);
+  const [loadingThread, setLoadingThread] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
 
   async function load() {
     try {
@@ -53,6 +59,7 @@ export default function SocialDmBotPanel({ clientId }) {
         api.get(`/social/clients/${clientId}/dm-bot/links`).catch(() => ({ links: [] })),
       ]);
       setLinks(lk?.links || []);
+      api.get(`/social/clients/${clientId}/dm-bot/inbox`).then(r => setInbox(r.conversations || [])).catch(() => {});
       if (p.persona && Object.keys(p.persona).length) setPersona(prev => ({ ...prev, ...p.persona }));
       setSavedAt(p.updated_at || null);
       setTemplates(t.templates || []);
@@ -118,6 +125,27 @@ export default function SocialDmBotPanel({ clientId }) {
   async function removeLink(id) {
     try { await api.delete(`/social/clients/${clientId}/dm-bot/links/${id}`); setLinks(prev => prev.filter(l => l.id !== id)); }
     catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function openThread(cp) {
+    setActiveCp(cp); setThread([]); setReplyText(''); setLoadingThread(true);
+    try { const r = await api.get(`/social/clients/${clientId}/dm-bot/inbox/${encodeURIComponent(cp)}`); setThread(r.messages || []); }
+    catch (e) { toast(e.message, 'error'); }
+    finally { setLoadingThread(false); }
+  }
+  async function refreshInbox() {
+    try { const r = await api.get(`/social/clients/${clientId}/dm-bot/inbox`); setInbox(r.conversations || []); } catch { /* ignore */ }
+  }
+  async function sendReply() {
+    if (!replyText.trim() || !activeCp) return;
+    setSendingReply(true);
+    try {
+      const r = await api.post(`/social/clients/${clientId}/dm-bot/inbox/${encodeURIComponent(activeCp)}/reply`, { text: replyText.trim() });
+      setThread(prev => [...prev, { id: `tmp${Date.now()}`, direction: 'out', channel: 'dm', text: r.text, status: 'replied', created_at: new Date().toISOString() }]);
+      setReplyText('');
+      refreshInbox();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSendingReply(false); }
   }
 
   async function runDraft() {
@@ -291,6 +319,69 @@ export default function SocialDmBotPanel({ clientId }) {
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.text}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* DM inbox */}
+      <div className="card">
+        <div className="caption">Inbox</div>
+        <p className="body-sm text-muted" style={{ margin: '6px 0 10px' }}>
+          Every conversation the bot has touched, newest first. Open one to read the thread and jump in with a manual reply.
+        </p>
+        {inbox.length === 0 ? (
+          <div className="body-sm text-subtle">No conversations yet — they appear here once the bot receives or sends a DM.</div>
+        ) : (
+          <div className="row" style={{ gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {/* Conversation list */}
+            <div className="stack stack-sm" style={{ flex: '1 1 220px', maxHeight: 320, overflowY: 'auto', minWidth: 200 }}>
+              {inbox.map(c => (
+                <button key={c.counterparty} onClick={() => openThread(c.counterparty)}
+                  className="card" style={{
+                    padding: '8px 10px', textAlign: 'left', cursor: 'pointer', border: 'var(--border-w) solid ' + (activeCp === c.counterparty ? 'var(--accent)' : 'var(--card-border)'),
+                    background: activeCp === c.counterparty ? 'var(--accent-soft)' : 'var(--surface)',
+                  }}>
+                  <div className="row between center" style={{ gap: 6 }}>
+                    <span className="body-sm" style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.counterparty}</span>
+                    <span className="body-xs text-subtle">{c.msg_count}</span>
+                  </div>
+                  <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {c.last_direction === 'out' ? '↩ ' : '→ '}{c.last_text || `(${c.last_channel})`}
+                  </div>
+                  {c.opted_out && <span className="chip chip-neutral" style={{ marginTop: 4 }}>opted out</span>}
+                </button>
+              ))}
+            </div>
+            {/* Thread + reply */}
+            <div style={{ flex: '2 1 300px', minWidth: 240 }}>
+              {!activeCp ? (
+                <div className="body-sm text-subtle" style={{ padding: 12 }}>Pick a conversation to read it.</div>
+              ) : (
+                <>
+                  <div className="stack stack-sm" style={{ maxHeight: 260, overflowY: 'auto', padding: 4 }}>
+                    {loadingThread ? <div className="body-sm text-subtle">Loading…</div>
+                      : thread.map(m => (
+                        <div key={m.id} style={{ display: 'flex', justifyContent: m.direction === 'out' ? 'flex-end' : 'flex-start' }}>
+                          <div className="body-sm" style={{
+                            maxWidth: '80%', padding: '6px 10px', borderRadius: 'var(--r-md)', whiteSpace: 'pre-wrap',
+                            background: m.direction === 'out' ? 'var(--accent-soft)' : 'var(--surface-raised)',
+                          }}>{m.text || <span className="text-subtle">({m.channel}{m.status ? ` · ${m.status}` : ''})</span>}</div>
+                        </div>
+                      ))}
+                  </div>
+                  {(() => { const conv = inbox.find(c => c.counterparty === activeCp); return conv?.opted_out; })() ? (
+                    <div className="body-xs text-subtle" style={{ marginTop: 8 }}>This person opted out — you can’t message them.</div>
+                  ) : (
+                    <div className="row" style={{ gap: 8, marginTop: 8, alignItems: 'flex-end' }}>
+                      <textarea className="input" style={{ flex: 1, minHeight: 44 }} value={replyText} onChange={e => setReplyText(e.target.value)}
+                        placeholder="Type a reply…" onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendReply(); }} />
+                      <button className="btn btn-primary" {...roWrite(readOnly, { onClick: sendReply, disabled: sendingReply || !replyText.trim() })}>{sendingReply ? 'Sending…' : 'Send'}</button>
+                    </div>
+                  )}
+                  <div className="body-xs text-subtle" style={{ marginTop: 6 }}>Instagram only allows a DM within 24h of the person’s last message; older ones will be rejected.</div>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -646,6 +646,20 @@ router.put('/clients/:clientId/dm-bot/live', async (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// DM inbox — conversations (one per counterparty), a thread, and a manual reply.
+router.get('/clients/:clientId/dm-bot/inbox', async (req, res) => {
+  try { res.json({ conversations: await metaMessaging.listConversations(req.params.clientId) }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.get('/clients/:clientId/dm-bot/inbox/:counterparty', async (req, res) => {
+  try { res.json({ messages: await metaMessaging.listThread(req.params.clientId, req.params.counterparty) }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/clients/:clientId/dm-bot/inbox/:counterparty/reply', async (req, res) => {
+  try { res.json(await metaMessaging.sendManual(req.params.clientId, req.params.counterparty, req.body?.text)); }
+  catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+
 // Daily reach + interactions sparkline for the Analytics summary chips.
 router.get('/clients/:clientId/sparkline', async (req, res) => {
   try {
