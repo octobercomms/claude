@@ -247,7 +247,71 @@ async function handleComment(igId, value) {
   }
 }
 
+// ── Inbox ────────────────────────────────────────────────────────────────────
+// A read/reply view over social_dm_events: one thread per counterparty, and a
+// manual send so the AM can jump in where the bot shouldn't auto-reply.
+
+async function listConversations(clientId, limit = 100) {
+  const { rows } = await pool.query(
+    `WITH convos AS (
+       SELECT DISTINCT ON (counterparty)
+              counterparty, text AS last_text, direction AS last_direction,
+              channel AS last_channel, created_at AS last_at
+         FROM social_dm_events
+        WHERE client_id = $1 AND counterparty IS NOT NULL
+        ORDER BY counterparty, created_at DESC
+     )
+     SELECT c.*,
+            (SELECT COUNT(*)::int FROM social_dm_events e
+              WHERE e.client_id = $1 AND e.counterparty = c.counterparty) AS msg_count,
+            EXISTS (SELECT 1 FROM social_dm_optouts o
+                     WHERE o.client_id = $1 AND o.counterparty = c.counterparty) AS opted_out
+       FROM convos c
+      ORDER BY c.last_at DESC
+      LIMIT $2`,
+    [clientId, limit]
+  );
+  return rows;
+}
+
+async function listThread(clientId, counterparty, limit = 200) {
+  const { rows } = await pool.query(
+    `SELECT id, direction, channel, text, status, created_at
+       FROM social_dm_events
+      WHERE client_id = $1 AND counterparty = $2
+      ORDER BY created_at ASC
+      LIMIT $3`,
+    [clientId, counterparty, limit]
+  );
+  return rows;
+}
+
+// Manual DM from the inbox — uses the client's own IG account + Page token.
+async function sendManual(clientId, counterparty, text) {
+  const body = String(text || '').trim();
+  if (!counterparty) { const e = new Error('Recipient required.'); e.status = 400; throw e; }
+  if (!body) { const e = new Error('Message required.'); e.status = 400; throw e; }
+  if (await isOptedOut(clientId, counterparty)) { const e = new Error('This person has opted out — they can’t be messaged.'); e.status = 400; throw e; }
+  const { rows } = await pool.query('SELECT ig_user_id, page_token_encrypted FROM social_dm_bot WHERE client_id = $1', [clientId]);
+  const cfg = rows[0];
+  if (!cfg?.ig_user_id || !cfg?.page_token_encrypted) {
+    const e = new Error('Connect the Instagram account + Page token first (under Live auto-send).'); e.status = 400; throw e;
+  }
+  const token = decrypt(cfg.page_token_encrypted);
+  const sent = await dmLinks.trackify(clientId, body);
+  try {
+    await sendDM(cfg.ig_user_id, counterparty, sent, token);
+  } catch (err) {
+    // Surface Meta's real reason — most often the 24h messaging window has closed.
+    const detail = err.response?.data?.error?.message || err.message;
+    const e = new Error(`Instagram rejected the send: ${detail}`); e.status = 502; throw e;
+  }
+  await logEvent({ clientId, direction: 'out', channel: 'dm', counterparty, text: sent, status: 'replied' });
+  return { ok: true, text: sent };
+}
+
 module.exports = {
   verifyToken, verifySignature, handleWebhook,
   getLiveConfig, setLiveConfig, listEvents,
+  listConversations, listThread, sendManual,
 };
