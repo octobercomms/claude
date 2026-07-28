@@ -108,6 +108,27 @@ router.post('/clients/:clientId/generate', async (req, res) => {
   }
 });
 
+// Variant Matrix — one brief fans out into a large, deliberately diverse set of
+// on-brand ad concepts (up to 100), looped in chunks so the model doesn't just
+// reword one idea. Lands in a single batch so render + resize work unchanged.
+router.post('/clients/:clientId/matrix', async (req, res) => {
+  const { brief, platform, count, asset_ids, campaign_context } = req.body || {};
+  try {
+    const result = await adCreative.generateMatrix({
+      clientId: req.params.clientId,
+      brief,
+      platform: platform || 'meta',
+      count: Math.min(Math.max(parseInt(count) || 50, 12), 100),
+      assetIds: Array.isArray(asset_ids) ? asset_ids : [],
+      campaignContext: campaign_context || null,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('[ad-creative] matrix failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // The client's persisted "worked example" batch — generated once from the
 // client profile, then reused. Flows through every Build step so an AM (or a
 // client being shown the tool) can see what each stage produces.

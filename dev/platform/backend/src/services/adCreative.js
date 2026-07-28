@@ -154,6 +154,156 @@ Produce exactly ${count} ad creative concepts. Vary the framework — don't retu
   }
 }
 
+// ── Variant Matrix ──────────────────────────────────────────────────────────
+// "100 ad variants from one brief." Instead of one Claude call (capped at ~16
+// concepts before the model starts repeating itself), we loop the generation
+// in chunks, feeding each round the angles + headlines already used as an
+// explicit avoid-list. That forces genuine spread — different frameworks,
+// funnel stages and hooks — across a much larger set. Everything lands in ONE
+// batch + ad_creatives rows, so the existing render + resize fan-out works on a
+// matrix exactly as it does on a normal batch.
+
+const MATRIX_MAX = 100;
+const MATRIX_CHUNK = 14; // concepts per Claude call — big enough to be varied, small enough to stay sharp
+
+// Shared grounding (client profile + selected brand assets) so the matrix loop
+// and a normal batch describe the brand identically.
+async function loadGrounding({ clientId, assetIds = [] }) {
+  const { rows: clientRows } = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+  const client = clientRows[0];
+  if (!client) throw new Error('Client not found');
+  let assetSummary = '(no brand assets selected)';
+  if (assetIds.length) {
+    const { rows: assets } = await pool.query(
+      'SELECT id, kind, name, metadata FROM brand_assets WHERE id = ANY($1) AND client_id = $2',
+      [assetIds, clientId]
+    );
+    if (assets.length) {
+      assetSummary = assets.map(a => {
+        const meta = a.metadata && Object.keys(a.metadata).length ? ` — ${JSON.stringify(a.metadata)}` : '';
+        return `[${a.kind}] ${a.name}${meta}`;
+      }).join('\n');
+    }
+  }
+  return { client, assetSummary };
+}
+
+async function generateMatrix({ clientId, brief, platform = 'meta', count = 50, assetIds = [], campaignContext, onProgress }) {
+  count = Math.min(Math.max(parseInt(count) || 50, 12), MATRIX_MAX);
+  const { client, assetSummary } = await loadGrounding({ clientId, assetIds });
+
+  const collected = [];
+  const seen = new Set(); // headline (lowercased) → dedupe across rounds
+  let guard = 0;
+  const maxRounds = Math.ceil(count / MATRIX_CHUNK) + 4; // headroom for dedupe attrition
+
+  while (collected.length < count && guard < maxRounds) {
+    guard++;
+    const remaining = count - collected.length;
+    const ask = Math.min(MATRIX_CHUNK, remaining) + 2; // over-ask slightly to survive dedupe
+
+    // Feed back what's already been used so the next round steers clear.
+    const usedAngles = collected.map(c => c.angle).filter(Boolean);
+    const usedHeadlines = collected.map(c => c.headline).filter(Boolean);
+    const frameworkCounts = collected.reduce((m, c) => { if (c.framework) m[c.framework] = (m[c.framework] || 0) + 1; return m; }, {});
+
+    const avoidBlock = usedHeadlines.length
+      ? `You have ALREADY produced these headlines — do NOT repeat or lightly reword any of them:\n${usedHeadlines.map(h => `• ${h}`).join('\n')}\n\nAngles already covered (reach for fresh ones):\n${[...new Set(usedAngles)].map(a => `• ${a}`).join('\n')}\n\nFramework usage so far: ${JSON.stringify(frameworkCounts)} — lean into the under-used frameworks to keep the set balanced.`
+      : 'This is the first round — open with your strongest, most distinct angles.';
+
+    const userPrompt = `Client: ${client.name}
+About: ${client.briefing_field || '(no briefing set)'}
+This month's focus: ${client.monthly_focus || '(none)'}
+
+Brief from the account manager:
+${brief || '(no extra brief — build a broad, diverse matrix covering every credible angle for this brand)'}
+
+Platform target: ${platform}
+
+Brand assets selected as visual reference (ground each visual_concept in real brand elements — refer to specific palette hex codes, product images, etc.):
+${assetSummary}
+
+${campaignContext ? `Recent paid performance (use to inform which angles are working / not):\n${JSON.stringify(campaignContext, null, 2)}` : '(no recent campaign data supplied — design on brand + brief alone)'}
+
+You are building a LARGE variant matrix for this brand — many genuinely different ads, not variations of one idea. This round, produce exactly ${ask} concepts that are distinct from each other AND from everything already produced.
+
+${avoidBlock}
+
+Spread across: funnel stage (awareness hooks → consideration → bottom-funnel offers), emotional register (curiosity, urgency, reassurance, aspiration, humour where on-brand), and format cue in the visual_concept (UGC selfie, studio product, lifestyle, testimonial card, comparison, bold-type statement). Vary the framework. Every concept must stand on its own as a shippable ad.`;
+
+    let creatives = [];
+    try {
+      const response = await getClient().messages.create({
+        model: MODEL,
+        max_tokens: 8000,
+        system: require('./claude').cacheableSystem(SYSTEM + require('./playbooks').systemSuffix(['copywriting', 'ad-copy', 'visual-treatments'])),
+        tools: [TOOL],
+        tool_choice: { type: 'tool', name: 'propose_ad_creatives' },
+        messages: [{ role: 'user', content: userPrompt }],
+      });
+      require('./costLog').recordClaudeCost({ model: MODEL, response, feature: 'ad_creative_matrix', clientId: client.id });
+      const toolUse = response.content.find(b => b.type === 'tool_use' && b.name === 'propose_ad_creatives');
+      creatives = toolUse?.input?.creatives || [];
+    } catch (err) {
+      // A single round failing (rate limit, transient) shouldn't sink the whole
+      // matrix — stop looping and persist whatever we have if it's a real batch.
+      console.error(`[ad-creative] matrix round ${guard} failed:`, err.message);
+      if (!collected.length) throw err;
+      break;
+    }
+
+    let added = 0;
+    for (const c of creatives) {
+      const key = (c.headline || '').trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      collected.push(c);
+      added++;
+      if (collected.length >= count) break;
+    }
+    if (typeof onProgress === 'function') { try { onProgress({ produced: collected.length, target: count }); } catch { /* ignore */ } }
+    if (!added) break; // round produced nothing new — model is out of fresh angles
+  }
+
+  if (!collected.length) throw new Error('Claude did not return any creatives');
+
+  // Persist as one batch + N creative rows (same shape as generateBatch).
+  const dbClient = await pool.connect();
+  try {
+    await dbClient.query('BEGIN');
+    const { rows: batchRows } = await dbClient.query(
+      `INSERT INTO ad_creative_batches (client_id, brief, platform, asset_ids, campaign_context, is_example)
+       VALUES ($1, $2, $3, $4, $5, false) RETURNING *`,
+      [clientId, brief || null, platform, assetIds, JSON.stringify(campaignContext || null)]
+    );
+    const batch = batchRows[0];
+    const inserted = [];
+    for (let i = 0; i < collected.length; i++) {
+      const c = collected[i];
+      const { rows: row } = await dbClient.query(
+        `INSERT INTO ad_creatives
+          (batch_id, client_id, position, angle, framework, headline, body, cta, visual_concept, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        [
+          batch.id, clientId, i,
+          c.angle || null, c.framework || null,
+          c.headline || null, c.body || null, c.cta || null,
+          c.visual_concept || null,
+          c.framework_rationale || null,
+        ]
+      );
+      inserted.push(row[0]);
+    }
+    await dbClient.query('COMMIT');
+    return { batch, creatives: inserted, requested: count, produced: inserted.length };
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    throw err;
+  } finally {
+    dbClient.release();
+  }
+}
+
 // Single-concept preview — a throwaway "sample ad" from the brief text so the
 // AM sees the direction before committing to (and paying for) a full batch.
 // Same grounding as generateBatch, but one concept and NOT persisted.
@@ -230,4 +380,4 @@ async function ensureExampleBatch({ clientId }) {
   return { batch, creatives, created: true };
 }
 
-module.exports = { generateBatch, sampleAd, ensureExampleBatch };
+module.exports = { generateBatch, generateMatrix, sampleAd, ensureExampleBatch };
