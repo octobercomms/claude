@@ -2729,16 +2729,17 @@ function ac_lt_inline_assets() {
 			content:none !important;
 			display:none !important;
 		}
-		/* Seasonal note — rendered as its own element (NOT inside the stock badge)
-		   so the theme's badge-hiding rules and WooCommerce's variation JS (which
-		   rebuilds the availability node) can't swallow it. See ac_lt_inline_assets. */
+		/* Seasonal note — its own line under the price. Layout only here; the exact
+		   typography (font-family, size, weight, colour, spacing) is copied from the
+		   live "Made to Order" badge at runtime in placeSeason(), so it always matches
+		   whatever fonts the theme uses — no guessing a font stack. Rendered OUTSIDE
+		   the price flex so the sale strikethrough is untouched, and only once a
+		   variation is selected. */
 		.single-product .ac-seasonal-note{
 			display:block;
-			margin:.4em 0 0 0;
-			font-size:14px;
-			line-height:1.4;
-			font-style:italic;
-			opacity:.85;
+			clear:both;
+			margin:.35em 0 0 0;
+			color:#77a464; /* fallback until the badge's style is copied on */
 		}
 		/* The badge is not a real link — neutralise the old tooltip trigger. */
 		.single-product p.available-on-backorder{ cursor:default !important; }
@@ -2812,11 +2813,39 @@ function ac_lt_inline_assets() {
 		function placeSeason(){
 			if (!data.season) { return; }
 			$scope.find('.ac-seasonal-note').remove();
-			var $host = $scope.find('.woocommerce-variation-price:visible').first();
-			if (!$host.length) { $host = $scope.find('.product_price').first(); }
-			if (!$host.length) { $host = $scope.find('p.available-on-backorder:visible').first().closest('.price, .product_price'); }
+			// Leave WooCommerce's inline "Made to Order" badge completely untouched.
+			// This adds ONLY the caveat, as its own line under the price — never inside
+			// the price amount, so the sale strikethrough / price layout is undisturbed.
+			// Gate: on a variable product only once a variation is chosen (its price
+			// block is shown); on a simple product, straightaway.
+			var $host;
+			if ($scope.find('.variations_form, .single_variation_wrap').length) {
+				$host = $scope.find('.woocommerce-variation-price').filter(':visible').first();
+			} else {
+				$host = $scope.find('.product_price').first();
+			}
 			if (!$host.length) { return; }
-			$host.append($('<p class="ac-seasonal-note"></p>').text(data.season));
+			var $note = $('<p class="ac-seasonal-note"></p>').text(data.season);
+			$host.append($note);
+			// Match the "Made to Order" badge's exact rendered typography so the caveat
+			// reads as the same style whatever fonts the theme uses. Copy the computed
+			// values off the visible badge (skip the hidden copy inside the <del> price).
+			var badgeEl = $scope.find('p.available-on-backorder').filter(function(){
+				return $(this).is(':visible') && 0 === $(this).closest('del').length;
+			}).first()[0];
+			if (badgeEl && window.getComputedStyle) {
+				var cs = window.getComputedStyle(badgeEl);
+				$note.css({
+					fontFamily:    cs.fontFamily,
+					fontSize:      cs.fontSize,
+					fontWeight:    cs.fontWeight,
+					fontStyle:     cs.fontStyle,
+					letterSpacing: cs.letterSpacing,
+					lineHeight:    cs.lineHeight,
+					textTransform: cs.textTransform,
+					color:         cs.color
+				});
+			}
 		}
 
 		function refresh(lead, label){ applyInline(lead, label); placeSeason(); }
