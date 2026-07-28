@@ -39,14 +39,20 @@ export default function SocialDmBotPanel({ clientId }) {
   const [publicReply, setPublicReply] = useState(false);
   const [publicReplyText, setPublicReplyText] = useState('');
   const [savingLive, setSavingLive] = useState(false);
+  const [links, setLinks] = useState([]);
+  const [linkDest, setLinkDest] = useState('');
+  const [linkLabel, setLinkLabel] = useState('');
+  const [addingLink, setAddingLink] = useState(false);
 
   async function load() {
     try {
-      const [p, t, l] = await Promise.all([
+      const [p, t, l, lk] = await Promise.all([
         api.get(`/social/clients/${clientId}/dm-bot/persona`),
         api.get(`/social/clients/${clientId}/dm-bot/templates`),
         api.get(`/social/clients/${clientId}/dm-bot/live`).catch(() => null),
+        api.get(`/social/clients/${clientId}/dm-bot/links`).catch(() => ({ links: [] })),
       ]);
+      setLinks(lk?.links || []);
       if (p.persona && Object.keys(p.persona).length) setPersona(prev => ({ ...prev, ...p.persona }));
       setSavedAt(p.updated_at || null);
       setTemplates(t.templates || []);
@@ -96,6 +102,21 @@ export default function SocialDmBotPanel({ clientId }) {
 
   async function removeTemplate(id) {
     try { await api.delete(`/social/clients/${clientId}/dm-bot/templates/${id}`); setTemplates(prev => prev.filter(t => t.id !== id)); }
+    catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function addLink() {
+    if (!linkDest.trim()) return;
+    setAddingLink(true);
+    try {
+      const { link } = await api.post(`/social/clients/${clientId}/dm-bot/links`, { destination: linkDest.trim(), label: linkLabel.trim() || null });
+      setLinks(prev => [link, ...prev.filter(l => l.id !== link.id)]);
+      setLinkDest(''); setLinkLabel('');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setAddingLink(false); }
+  }
+  async function removeLink(id) {
+    try { await api.delete(`/social/clients/${clientId}/dm-bot/links/${id}`); setLinks(prev => prev.filter(l => l.id !== id)); }
     catch (e) { toast(e.message, 'error'); }
   }
 
@@ -271,6 +292,44 @@ export default function SocialDmBotPanel({ clientId }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tracked links */}
+      <div className="card">
+        <div className="caption">Tracked links</div>
+        <p className="body-sm text-muted" style={{ margin: '6px 0 10px' }}>
+          Any link the bot sends in a DM is auto-shortened to a click-tracked redirect — so you see which offers get tapped, not just how many DMs went out. Add one here to paste into a template.
+        </p>
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ flex: '2 1 220px' }}>
+            <label className="field-label">Destination URL</label>
+            <input className="input" value={linkDest} onChange={e => setLinkDest(e.target.value)} placeholder="https://example.com/offer" onKeyDown={e => { if (e.key === 'Enter') addLink(); }} />
+          </div>
+          <div style={{ flex: '1 1 140px' }}>
+            <label className="field-label">Label <span className="text-subtle">(optional)</span></label>
+            <input className="input" value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Spring offer" onKeyDown={e => { if (e.key === 'Enter') addLink(); }} />
+          </div>
+          <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: addLink, disabled: addingLink || !linkDest.trim() })}>{addingLink ? 'Adding…' : 'Add'}</button>
+        </div>
+        {links.length > 0 && (
+          <div className="stack stack-sm" style={{ marginTop: 12 }}>
+            {links.map(l => (
+              <div key={l.id} className="card" style={{ padding: '8px 12px' }}>
+                <div className="row between center" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="body-sm" style={{ fontWeight: 700 }}>{l.label || l.destination}</div>
+                    <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.short_url} → {l.destination}</div>
+                  </div>
+                  <div className="row center" style={{ gap: 8 }}>
+                    <span className="chip chip-neutral" title="Clicks"><strong>{l.clicks}</strong>&nbsp;click{l.clicks === 1 ? '' : 's'}</span>
+                    <CopyBtn text={l.short_url} />
+                    <button className="btn btn-secondary btn-sm" onClick={() => removeLink(l.id)}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

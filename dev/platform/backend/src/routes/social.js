@@ -97,6 +97,17 @@ router.get('/brief/:id.html', async (req, res) => {
   } catch (err) { res.status(500).send(err.message); }
 });
 
+// Public tracked-link redirect for DM links — recipients click these from
+// their Instagram inbox, so it must run above authenticate (no Bearer header).
+// The code is an unguessable short id; resolve() counts the click and 302s.
+router.get('/r/:code', async (req, res) => {
+  try {
+    const dest = await require('../services/dmLinks').resolve(req.params.code);
+    if (!dest) return res.status(404).send('Link not found');
+    res.redirect(302, dest);
+  } catch (err) { res.status(500).send('Error'); }
+});
+
 router.use(authenticate);
 router.use(loadVisibleClientIds);
 router.use(requireClientAccess({ paramNames: ['clientId'] }));
@@ -601,6 +612,22 @@ router.delete('/clients/:clientId/dm-bot/templates/:id', async (req, res) => {
 router.post('/clients/:clientId/dm-bot/draft', async (req, res) => {
   try { res.json(await dmBot.draftReply(req.params.clientId, req.body?.incoming)); }
   catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+
+// Tracked links — the bot auto-shortens URLs it sends, and the AM can pre-make
+// one to paste into a template. Click totals come back with each link.
+const dmLinks = require('../services/dmLinks');
+router.get('/clients/:clientId/dm-bot/links', async (req, res) => {
+  try { res.json({ links: await dmLinks.list(req.params.clientId) }); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.post('/clients/:clientId/dm-bot/links', async (req, res) => {
+  try { res.status(201).json({ link: await dmLinks.shorten(req.params.clientId, req.body?.destination, req.body?.label || null) }); }
+  catch (err) { res.status(err.status || 400).json({ error: err.message }); }
+});
+router.delete('/clients/:clientId/dm-bot/links/:id', async (req, res) => {
+  try { await dmLinks.remove(req.params.clientId, req.params.id); res.status(204).end(); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // DM bot — phase 2 live config (Meta auto-send) + the activity log.

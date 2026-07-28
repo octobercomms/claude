@@ -15,6 +15,7 @@ const pool = require('../db');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { getSetting } = require('../utils/settings');
 const dmBot = require('./dmBot');
+const dmLinks = require('./dmLinks');
 
 const API_VERSION = 'v22.0';
 const BASE_URL = `https://graph.facebook.com/${API_VERSION}`;
@@ -199,8 +200,9 @@ async function handleDm(igId, m) {
 
   try {
     const { reply } = await dmBot.draftReply(target.clientId, text);
-    await sendDM(igId, sender, reply, target.pageToken);
-    await logEvent({ clientId: target.clientId, direction: 'out', channel: 'dm', counterparty: sender, text: reply, status: 'replied' });
+    const sent = await dmLinks.trackify(target.clientId, reply);   // swap URLs for click-tracked short links
+    await sendDM(igId, sender, sent, target.pageToken);
+    await logEvent({ clientId: target.clientId, direction: 'out', channel: 'dm', counterparty: sender, text: sent, status: 'replied' });
   } catch (err) {
     await logEvent({ clientId: target.clientId, direction: 'out', channel: 'dm', counterparty: sender, status: 'error', text: err.message });
   }
@@ -232,13 +234,14 @@ async function handleComment(igId, value) {
     // Comment-to-DM: a private reply lands in the commenter's inbox — the
     // highest-converting trigger from the ManyChat playbook.
     const { reply } = await dmBot.draftReply(target.clientId, `They commented on our post: "${text}". Reply to start a DM conversation.`);
-    await sendPrivateReply(commentId, reply, target.pageToken);
+    const sent = await dmLinks.trackify(target.clientId, reply);   // click-tracked short links
+    await sendPrivateReply(commentId, sent, target.pageToken);
     // Optional public nudge under the comment so others see we replied.
     if (target.publicReply) {
       try { await sendPublicReply(commentId, target.publicReplyText, target.pageToken); }
       catch (e) { console.error('[dm] public reply:', e.message); }
     }
-    await logEvent({ clientId: target.clientId, direction: 'out', channel: 'comment', counterparty: from, text: reply, status: 'replied' });
+    await logEvent({ clientId: target.clientId, direction: 'out', channel: 'comment', counterparty: from, text: sent, status: 'replied' });
   } catch (err) {
     await logEvent({ clientId: target.clientId, direction: 'out', channel: 'comment', counterparty: from, status: 'error', text: err.message });
   }
