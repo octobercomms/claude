@@ -19,6 +19,7 @@ import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
 import SwipeFilePanel from '../components/SwipeFilePanel';
+import SubredditResearchPanel from '../components/SubredditResearchPanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import AutoEditPanel from '../components/AutoEditPanel';
 import SocialFactoryMap from '../components/SocialFactoryMap';
@@ -418,6 +419,10 @@ export default function ClientSocialPage() {
       {(() => {
         // Workflow order, left → right: Create → Engage → Measure.
         const SUB_TABS = {
+          capture: [
+            { key: 'swipe',     label: 'Swipe file' },
+            { key: 'subreddit', label: 'Subreddit research' },
+          ],
           engage: [
             { key: 'dm_bot',   label: 'DM bot' },
             { key: 'discover', label: 'Discover' },
@@ -431,7 +436,7 @@ export default function ClientSocialPage() {
         };
         const GROUP_OF = {
           overview: 'overview',
-          swipe: 'capture',
+          swipe: 'capture', subreddit: 'capture',
           brainstorm: 'create', review: 'create', reels: 'create', video: 'create', produce: 'create',
           plans: 'create', publish: 'create',
           dm_bot: 'engage', discover: 'engage',
@@ -441,6 +446,8 @@ export default function ClientSocialPage() {
         // Sub-step descriptions for the Engage / Measure rails, so each tab
         // reads as a step in a "work through these" order rather than a bare tab.
         const RAIL_SUB = {
+          swipe: 'Save posts to model',
+          subreddit: 'Mine Reddit for angles',
           dm_bot: 'Auto-reply brain & drafts',
           discover: 'Find & engage accounts',
           perf_insights: 'Your headline numbers',
@@ -522,6 +529,11 @@ export default function ClientSocialPage() {
           on producing posts. */}
       {socialTab === 'swipe' && (
         <SwipeFilePanel clientId={id}
+          onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} />
+      )}
+
+      {socialTab === 'subreddit' && (
+        <SubredditResearchPanel clientId={id}
           onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} />
       )}
 
