@@ -10,8 +10,26 @@ const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const editJobs = require('../services/editJobs');
 const editProcessor = require('../services/editProcessor');
+const stillsReel = require('../services/stillsReel');
 
 const router = express.Router();
+
+// Stills → Reel image uploads. Small (photos), so buffer to disk in the client's
+// edit dir like clips; image filter only.
+const uploadImages = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => { try { cb(null, editJobs.clientDir(req.params.clientId)); } catch (e) { cb(e); } },
+    filename: (req, file, cb) => {
+      let ext = (path.extname(file.originalname || '').toLowerCase().replace(/[^a-z0-9.]/g, '')) || '.jpg';
+      if (!ext.startsWith('.')) ext = '.' + ext;
+      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 40 * 1024 * 1024 },   // 40MB per still
+  fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
+});
+
+const REEL_ASPECTS = ['9:16', '1:1', '4:5'];
 
 // Stream uploads straight to the client's edit dir (never buffer a multi-GB
 // clip in RAM). Files land pre-named; the route reads req.files[].filename.
@@ -65,6 +83,42 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
     res.status(201).json(job);
   } catch (err) {
     console.error('[edit] create failed:', err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// Motion vibes + a per-clip price estimate for the Stills → Reel panel.
+router.get('/stills-reel/options', (req, res) => {
+  res.json({ motions: stillsReel.motionOptions(), aspects: REEL_ASPECTS, price_per_clip: stillsReel.priceFor(stillsReel.DEFAULT_MODEL) });
+});
+
+// Stills → Reel — animate 2–12 still images into short cinematic clips and
+// stitch them into one vertical reel. Runs on the edit queue like any job;
+// the frontend polls status and shows the finished reel in history.
+router.post('/clients/:clientId/stills-reel', requireClientAccess({ paramNames: ['clientId'] }),
+  uploadImages.array('images', 12), async (req, res) => {
+  try {
+    const files = req.files || [];
+    if (files.length < 2) return res.status(400).json({ error: 'Add at least 2 images to build a reel.' });
+    const motion = stillsReel.motionOptions().includes(req.body?.motion) ? req.body.motion : 'push-in';
+    const aspect = REEL_ASPECTS.includes(req.body?.aspect) ? req.body.aspect : '9:16';
+    const perClip = Math.min(4, Math.max(0.6, Number(req.body?.per_clip_seconds) || 1.2));
+
+    const stills = files.map(f => ({ url: editJobs.servedUrl(req.params.clientId, f.filename), name: f.originalname, motion }));
+    const job = await editJobs.create(req.params.clientId, {
+      sourceName: `Stills reel · ${files.length} images`,
+      sourceUrl: stills[0].url,
+      sourceMeta: { kind: 'stills_reel', still_count: files.length },
+      ops: { stills_reel: { motion, aspect, per_clip_seconds: perClip } },
+      clips: stills,
+      name: req.body?.name || null,
+      status: 'queued',
+      createdBy: req.user.id,
+    });
+    editProcessor.kick();
+    res.status(201).json(job);
+  } catch (err) {
+    console.error('[edit] stills-reel failed:', err.message);
     res.status(err.status || 500).json({ error: err.message });
   }
 });

@@ -90,6 +90,32 @@ queued and rendered inline; the UI polls until it's **Ready**, then offers
   128M global cap no longer 413s big clips. Auto-deploys via update.sh's nginx
   sync. MOV needs no pre-conversion — ffmpeg reads it; output is always mp4.
 
+## Stills → Reel (shipped 2026-07-28)
+
+Turn a set of still images into a moving vertical reel — each still is animated
+into a short cinematic clip (fal image-to-video), then the clips are stitched
+into one reel on the existing `combineClips()` path. No new tables — it rides on
+`edit_jobs`.
+
+- **UI** — a "Video edit / Stills → Reel" mode switch on the Edit page
+  (`components/edit/StillsReelPanel.jsx`): drop 2–12 stills, reorder, pick a
+  camera motion (push-in / drift / reveal / orbit / rise / subtle), a shape
+  (9:16 / 1:1 / 4:5) and a per-clip beat length (0.6–4s). Shows a fal spend
+  estimate. Runs in the background; the finished reel lands in the shared
+  history list.
+- **Route** — `POST /edit/clients/:clientId/stills-reel` (multipart `images`,
+  image-only multer) creates a queued `edit_jobs` row with `clips` = the stills
+  and `ops.stills_reel = { motion, aspect, per_clip_seconds }`.
+  `GET /edit/stills-reel/options` returns the motion list + per-clip price.
+- **Worker** — `services/stillsReel.js` animates one still (data-URI → fal, slug
+  from `FAL_I2V_MODEL` setting, default Kling i2v). `editProcessor` branches on
+  `ops.stills_reel`: animate each still → download → trim to the beat + reframe
+  crop-to-fill → `combineClips` → done. fal spend is logged
+  (`feature: edit_stills_reel`) and stored on the job. fal errors (e.g. 403 no
+  billing) pass through `friendlyError` unwrapped.
+- **Not yet** — captioning / music on the reel output (download + re-upload into
+  video mode for now); reopening a reel to tweak ops.
+
 ## Later (not built)
 
 - Full timeline editor via an embedded OpenCut (see `opencut-evaluation.md`).
