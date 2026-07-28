@@ -145,6 +145,10 @@ export default function AIVisibilityPanel({ clientId }) {
         <Button variant="secondary" {...roWrite(readOnly, { onClick: generatePrompts, disabled: generating })}>
           {generating ? 'Generating…' : '✨ Generate prompts with Claude'}
         </Button>
+        {summary?.total_runs > 0 && (
+          <a className="btn btn-secondary" href={`/api/ai-visibility/clients/${clientId}/report.pdf`} download
+            title="Download a branded PDF of AI visibility to send to the client">⬇ Export PDF</a>
+        )}
       </div>
 
       {/* How to actually move these numbers — the panel measures, this tells
