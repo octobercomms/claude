@@ -448,12 +448,6 @@ export default function ClientPRPage() {
             description="Every pitch, placement and journalist relationship in one log. Coverage records itself from a link, your best targets come ranked, and the client gets a live page of their wins."
             ctaLabel="Find who to pitch"
             onCta={() => setTab('journalists')}
-            interstitial={<SuiteReadiness clientId={id} suite="earned_setup" title="PR pipeline" steps={[
-              { key: 'contacts',  title: 'Contacts',  sub: 'Journalists on file', onClick: () => setTab('journalists') },
-              { key: 'pitched',   title: 'Pitched',   sub: 'Stories out the door', onClick: () => setTab('journalists') },
-              { key: 'published', title: 'Published', sub: 'Coverage logged',      onClick: () => setTab('coverage') },
-              { key: 'thanked',   title: 'Thanked',   sub: 'Relationships kept',   onClick: () => setTab('journalists') },
-            ]} />}
             status={[
               { label: 'Published', value: stats ? String(stats.published) : '—', ok: !!(stats && stats.published) },
               { label: 'Tracked', value: stats ? String(stats.tracked) : '—', ok: !!(stats && stats.tracked) },
@@ -463,7 +457,13 @@ export default function ClientPRPage() {
               <button className="btn btn-primary" onClick={() => { setTab('coverage'); startEdit(null); }}>+ Log coverage</button>
               <button className="btn btn-secondary" onClick={() => { setTab('press'); newRelease(); }}>+ Press release</button>
             </>}
-            interstitial={
+            interstitial={<>
+              <SuiteReadiness clientId={id} suite="earned_setup" title="PR pipeline" steps={[
+                { key: 'contacts',  title: 'Contacts',  sub: 'Journalists on file', onClick: () => setTab('journalists') },
+                { key: 'pitched',   title: 'Pitched',   sub: 'Stories out the door', onClick: () => setTab('journalists') },
+                { key: 'published', title: 'Published', sub: 'Coverage logged',      onClick: () => setTab('coverage') },
+                { key: 'thanked',   title: 'Thanked',   sub: 'Relationships kept',   onClick: () => setTab('journalists') },
+              ]} />
               <div className="card">
                 <h3 className="h3 mb-2">Needs attention</h3>
                 {(queue.length || thanks.length || awaitingSignoff || quietCount) ? (
@@ -475,7 +475,7 @@ export default function ClientPRPage() {
                   </div>
                 ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
               </div>
-            }
+            </>}
             mapLayout="grid"
             map={[
               { title: 'Track', subtitle: 'Editorial log, pitch to published', nodes: [
