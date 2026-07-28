@@ -19,7 +19,7 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
   const {
     batches, realBatches, exampleBatch, ensuringExample, exampleError, ensureExample,
     activeBatchId, selectBatch, deleteBatch,
-    assets, showBrief, setShowBrief, generate, generating, loaded,
+    assets, showBrief, setShowBrief, generate, generateMatrix, generating, loaded,
   } = pipeline;
   const { readOnly } = useAuth();
 
@@ -51,6 +51,7 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
           submitting={generating}
           onClose={() => setShowBrief(false)}
           onSubmit={generate}
+          onSubmitMatrix={generateMatrix}
         />
       )}
       {generating && <GeneratingModal clientName={clientName} />}

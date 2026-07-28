@@ -298,11 +298,14 @@ export function ExampleConcept({ clientName, onDismiss }) {
   );
 }
 
-export function BriefModal({ assets, submitting, onClose, onSubmit, clientId }) {
+export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatrix, clientId }) {
   const { readOnly } = useAuth();
   const [brief, setBrief] = useState('');
   const [platform, setPlatform] = useState('meta');
+  const [mode, setMode] = useState('batch'); // 'batch' (4–16) | 'matrix' (12–100)
   const [count, setCount] = useState(8);
+  const [matrixCount, setMatrixCount] = useState(50);
+  const matrix = mode === 'matrix' && !!onSubmitMatrix;
   const [selectedAssets, setSelectedAssets] = useState(() => new Set(assets.map(a => a.id)));
   const [sample, setSample] = useState(null);
   const [sampling, setSampling] = useState(false);
@@ -330,6 +333,25 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, clientId }) 
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
         <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 700 }}>Generate ad concepts</h2>
+
+        {onSubmitMatrix && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            <button type="button" onClick={() => setMode('batch')}
+              className={`btn btn-sm ${mode === 'batch' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }}>
+              Batch
+            </button>
+            <button type="button" onClick={() => setMode('matrix')}
+              className={`btn btn-sm ${mode === 'matrix' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }}>
+              Variant Matrix
+            </button>
+          </div>
+        )}
+        {matrix && (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12, background: 'var(--accent-soft)', padding: 10, borderRadius: 'var(--r-sm)' }}>
+            One brief, up to <strong>100</strong> deliberately different on-brand ads — spread across funnel stage, framework and format. Built in rounds so each variant is distinct, not a reworded copy. Render and resize the ones you like exactly as a normal batch.
+          </div>
+        )}
+
         <label style={modalStyles.label}>Brief</label>
         <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={4} style={modalStyles.textarea}
           placeholder="e.g. We're launching a new mug colour next week — UK + US targets, emphasise the studio kitchens crowd. Avoid heavy discount language." />
@@ -344,9 +366,18 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, clientId }) 
               <option value="linkedin">LinkedIn</option>
             </select>
           </div>
-          <div style={{ width: 110 }}>
-            <label style={modalStyles.label}>Concepts</label>
-            <input type="number" min="4" max="16" value={count} onChange={e => setCount(parseInt(e.target.value) || 8)} style={modalStyles.input} />
+          <div style={{ width: matrix ? 150 : 110 }}>
+            <label style={modalStyles.label}>{matrix ? 'Variants' : 'Concepts'}</label>
+            {matrix ? (
+              <select value={matrixCount} onChange={e => setMatrixCount(parseInt(e.target.value) || 50)} style={modalStyles.input}>
+                <option value={25}>25 variants</option>
+                <option value={50}>50 variants</option>
+                <option value={75}>75 variants</option>
+                <option value={100}>100 variants</option>
+              </select>
+            ) : (
+              <input type="number" min="4" max="16" value={count} onChange={e => setCount(parseInt(e.target.value) || 8)} style={modalStyles.input} />
+            )}
           </div>
         </div>
 
@@ -373,7 +404,7 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, clientId }) 
             {sample.body && <div className="body-sm" style={{ marginTop: 4, lineHeight: 1.5 }}>{sample.body}</div>}
             {sample.cta && <div style={{ marginTop: 6 }}><span className="chip" style={{ background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700 }}>{sample.cta}</span></div>}
             {sample.visual_concept && <div className="body-xs text-muted" style={{ marginTop: 8, lineHeight: 1.5 }}><strong>Visual:</strong> {sample.visual_concept}</div>}
-            <div className="body-xs text-subtle" style={{ marginTop: 8 }}>This is a throwaway preview. Hit Generate for the full batch of {count} concepts.</div>
+            <div className="body-xs text-subtle" style={{ marginTop: 8 }}>This is a throwaway preview. Hit {matrix ? `Build matrix for ${matrixCount} distinct variants` : `Generate for the full batch of ${count} concepts`}.</div>
           </div>
         )}
 
@@ -384,8 +415,13 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, clientId }) 
               {sampling ? 'Drafting…' : '✨ Preview a sample'}
             </button>
           )}
-          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => onSubmit({ brief, platform, count, asset_ids: Array.from(selectedAssets) }), disabled: submitting })}>
-            {submitting ? 'Generating…' : 'Generate'}
+          <button className="btn btn-primary" {...roWrite(readOnly, {
+            onClick: () => matrix
+              ? onSubmitMatrix({ brief, platform, count: matrixCount, asset_ids: Array.from(selectedAssets) })
+              : onSubmit({ brief, platform, count, asset_ids: Array.from(selectedAssets) }),
+            disabled: submitting,
+          })}>
+            {submitting ? (matrix ? 'Building matrix…' : 'Generating…') : (matrix ? `Build ${matrixCount} variants` : 'Generate')}
           </button>
         </div>
       </div>

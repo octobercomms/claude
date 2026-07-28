@@ -103,6 +103,27 @@ export function usePaidPipeline({ clientId, clientName }) {
     }
   }
 
+  // Variant Matrix — one brief → a large, deliberately diverse set (up to 100).
+  // Same landing spot as generate() (one batch), so the rest of the pipeline
+  // treats it identically; only the endpoint and the toast copy differ.
+  async function generateMatrix(payload) {
+    setGenerating(true);
+    try {
+      const { batch, creatives: newCreatives, requested, produced } = await api.post(`/ad-creatives/clients/${clientId}/matrix`, payload);
+      setBatches(prev => [batch, ...prev]);
+      setActiveBatchId(batch.id);
+      const cs = await api.get(`/ad-creatives/clients/${clientId}/creatives?batch_id=${batch.id}`);
+      setCreatives(cs);
+      setShowBrief(false);
+      const short = produced < requested ? ` (asked for ${requested}, model ran out of distinct angles)` : '';
+      toast(`Built a matrix of ${produced} ad variants.${short}`, 'success');
+    } catch (e) {
+      toast(`Matrix failed: ${e.message}`, 'error');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function deleteCreative(creativeId) {
     if (!confirm('Delete this concept?')) return;
     try {
@@ -201,7 +222,7 @@ export function usePaidPipeline({ clientId, clientName }) {
     ensuringExample, exampleError, ensureExample,
     showBrief, setShowBrief,
     generating, shareUrl, setShareUrl,
-    selectBatch, generate, deleteCreative, updateCreative, deleteBatch,
+    selectBatch, generate, generateMatrix, deleteCreative, updateCreative, deleteBatch,
     renderImages, deleteImage, shareBatchForApproval, fanOutImage, uploadMedia,
   };
 }
