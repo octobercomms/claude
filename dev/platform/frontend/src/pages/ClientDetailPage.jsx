@@ -12,6 +12,7 @@ import ClarityConnectorCard from '../components/ClarityConnectorCard';
 import { getCountryFlag, getLabelStyle } from '../utils/connectorLabels';
 import SetupReadinessPanel from '../components/SetupReadinessPanel';
 import ClientStrategyPanel from '../components/ClientStrategyPanel';
+import ICPIntelligencePanel from '../components/ICPIntelligencePanel';
 import SuiteTabs from '../components/SuiteTabs';
 import ReportPreviewModal from '../components/ReportPreviewModal';
 import ClientBrandPage from './ClientBrandPage';
@@ -350,9 +351,9 @@ export default function ClientDetailPage() {
         </div>
       </header>
 
-      {['details', 'brand', 'connectors', 'setup_overview', 'strategy', 'reports'].includes(tab) && (
+      {['details', 'brand', 'connectors', 'setup_overview', 'strategy', 'icp', 'reports'].includes(tab) && (
         <div className="tabs">
-          {[['setup_overview', 'Overview'], ['details', 'Setup'], ['connectors', 'Connectors'], ['strategy', 'Strategy'], ['reports', 'Reports']].map(([key, label]) => (
+          {[['setup_overview', 'Overview'], ['details', 'Setup'], ['connectors', 'Connectors'], ['strategy', 'Strategy'], ['icp', 'ICP'], ['reports', 'Reports']].map(([key, label]) => (
             <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
               className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>
           ))}
@@ -360,6 +361,7 @@ export default function ClientDetailPage() {
       )}
 
       {tab === 'strategy' && <ClientStrategyPanel clientId={id} />}
+      {tab === 'icp' && <ICPIntelligencePanel clientId={id} />}
 
       {tab === 'setup_overview' && (
         <>
