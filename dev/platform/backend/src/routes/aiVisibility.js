@@ -7,6 +7,9 @@ const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const users = require('../services/users');
 const aiVisibility = require('../services/aiVisibility');
+const aiVisibilityReport = require('../services/aiVisibilityReport');
+const pdfService = require('../services/pdfService');
+const claudeService = require('../services/claude');
 
 const router = express.Router();
 router.use(authenticate);
@@ -141,6 +144,36 @@ router.get('/clients/:clientId/trend', async (req, res) => {
     const trend = await aiVisibility.getTrend(req.params.clientId, { weeks });
     res.json(trend);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Branded, client-facing PDF of the visibility picture. Cookie-authed like every
+// route here, so the frontend can link to it with a plain <a download>.
+router.get('/clients/:clientId/report.pdf', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, name, domain FROM clients WHERE id = $1', [req.params.clientId]);
+    const client = rows[0];
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const data = await aiVisibility.reportData(req.params.clientId, { days });
+    if (!data.summary.total_runs) return res.status(400).json({ error: 'No visibility runs yet — run the check first, then export.' });
+
+    // Best-effort consultant summary; the report renders fine without it.
+    let aiSummary = null;
+    try {
+      const p = aiVisibilityReport.buildSummaryPrompt({ client, data });
+      aiSummary = await claudeService.callClaude({ max_tokens: 400, system: p.system, user: p.user, feature: 'ai_visibility_summary', clientId: client.id });
+    } catch (e) { console.error('[ai-visibility] summary failed:', e.message); }
+
+    const html = aiVisibilityReport.buildHtml({ client, data, aiSummary });
+    const pdf = await pdfService.generatePDFBuffer(html);
+    const slug = String(client.name || 'client').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'client';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="ai-visibility-${slug}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    console.error('[ai-visibility] report failed:', err);
+    res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

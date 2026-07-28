@@ -338,8 +338,45 @@ async function getTrend(clientId, { weeks = 12 } = {}) {
   return rows.map(r => ({ week: r.week, sov: Number(r.sov), total: r.total }));
 }
 
+// Everything a client-facing report needs: the summary, the weekly trend, and a
+// per-prompt breakdown (did the brand appear, best rank, on which engines, and
+// which competitors showed up for that question).
+async function reportData(clientId, { days = 30 } = {}) {
+  const summary = await summarise(clientId, { days });
+  const trend = await getTrend(clientId, { weeks: 12 });
+  const { rows: latest } = await pool.query(
+    `WITH latest AS (
+       SELECT DISTINCT ON (prompt_id, engine)
+         prompt_id, engine, brand_mentioned, brand_position, competitor_mentions, fetched_at
+       FROM ai_visibility_runs
+       WHERE client_id = $1 AND fetched_at >= NOW() - ($2::int || ' days')::interval
+       ORDER BY prompt_id, engine, fetched_at DESC
+     )
+     SELECT l.*, p.prompt FROM latest l
+     JOIN ai_visibility_prompts p ON p.id = l.prompt_id
+     ORDER BY p.created_at ASC`,
+    [clientId, days]
+  );
+  const byPrompt = new Map();
+  for (const r of latest) {
+    const e = byPrompt.get(r.prompt_id) || { prompt: r.prompt, mentioned: false, best_position: null, engines: [], competitors: new Set() };
+    if (r.brand_mentioned) {
+      e.mentioned = true;
+      if (!e.engines.includes(r.engine)) e.engines.push(r.engine);
+      if (r.brand_position && (e.best_position == null || r.brand_position < e.best_position)) e.best_position = r.brand_position;
+    }
+    for (const c of (r.competitor_mentions || [])) e.competitors.add(c);
+    byPrompt.set(r.prompt_id, e);
+  }
+  const prompts = [...byPrompt.values()].map(e => ({
+    prompt: e.prompt, mentioned: e.mentioned, best_position: e.best_position,
+    engines: e.engines, competitors: [...e.competitors].slice(0, 6),
+  }));
+  return { summary, trend, prompts, days };
+}
+
 module.exports = {
   runPromptForClient, runAllForClient, runAllClients,
-  generatePromptsForClient, summarise, getTrend,
+  generatePromptsForClient, summarise, getTrend, reportData,
   analyseMentions, SUPPORTED_ENGINES,
 };
