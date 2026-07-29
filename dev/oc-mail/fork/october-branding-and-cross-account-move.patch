@@ -32,6 +32,26 @@ index 0000000..2ea2347
 +  AND m.message_id IS NOT NULL
 +  AND COALESCE(m.in_reply_to, '') = ''
 +  AND COALESCE(m.thread_references, '') = '';
+diff --git a/backend/src/index.js b/backend/src/index.js
+index 483dcfa..8f4162a 100644
+--- a/backend/src/index.js
++++ b/backend/src/index.js
+@@ -25,6 +25,7 @@ import blockListRoutes from './routes/blockList.js';
+ import contactsRoutes from './routes/contacts.js';
+ import todoistRoutes from './routes/todoist.js';
+ import aiRoutes from './routes/ai.js';
++import omiRoutes from './routes/omi.js';
+ import categoriesRoutes from './routes/categories.js';
+ import gtdRoutes from './routes/gtd.js';
+ import carddavRouter from './routes/carddav.js';
+@@ -174,6 +175,7 @@ app.use('/api/contacts', contactsRoutes);
+ app.use('/api/todoist', todoistRoutes);
+ app.use('/api/carddav', carddavAccountRouter);
+ app.use('/api', aiRoutes);
++app.use('/api', omiRoutes);
+ app.use('/api', categoriesRoutes);
+ // Mounted at the /api/gtd subtree (not bare /api) so gtd.js's router-level
+ // requireAuth cannot intercept the unauthenticated /api/health and /api/version
 diff --git a/backend/src/routes/ai.js b/backend/src/routes/ai.js
 index 088fc38..ee15336 100644
 --- a/backend/src/routes/ai.js
@@ -474,6 +494,147 @@ index e35d815..e61e359 100644
  // Bulk archive — moves messages to the archive folder for each account
  router.post('/messages/bulk-archive', async (req, res) => {
    const { ids } = req.body;
+diff --git a/backend/src/routes/omi.js b/backend/src/routes/omi.js
+new file mode 100644
+index 0000000..8784271
+--- /dev/null
++++ b/backend/src/routes/omi.js
+@@ -0,0 +1,135 @@
++import { Router } from 'express';
++import { query } from '../services/db.js';
++import { requireAuth, requireAdmin } from '../middleware/auth.js';
++import { encrypt, decrypt } from '../services/encryption.js';
++import { validateHost } from '../services/hostValidation.js';
++import { getConnectionPolicy } from '../services/connectionPolicy.js';
++
++// ── October Marketing Intelligence (OMI) PR integration ───────────────────────
++// October Mail's reading pane surfaces the OMI "PR Gmail add-on" workflow for any
++// staff member: look up the sender's journalist/contact profile, capture an unknown
++// sender as a contact, and log a thread to a client's editorial log. We proxy to
++// OMI's /api/pr-addon endpoints server-side so the shared X-OMI-Key never reaches
++// the browser. Config (base URL + key) is admin-set, stored like the AI config.
++
++const router = Router();
++const CFG_KEY = 'omi_config';
++
++async function loadConfig() {
++  const r = await query('SELECT value FROM system_settings WHERE key = $1', [CFG_KEY]);
++  if (!r.rows.length) return null;
++  try { return JSON.parse(r.rows[0].value); } catch { return null; }
++}
++
++function isReady(cfg) {
++  return !!(cfg && cfg.enabled && cfg.baseUrl && cfg.apiKey);
++}
++
++// Forward a request to OMI's PR add-on API with the stored key. Returns the parsed
++// JSON body and upstream status so the caller can relay both.
++async function omiFetch(cfg, method, path, { search, body } = {}) {
++  const base = cfg.baseUrl.replace(/\/+$/, '');
++  const url = `${base}/api/pr-addon${path}${search ? `?${search}` : ''}`;
++  const key = decrypt(cfg.apiKey);
++  const res = await fetch(url, {
++    method,
++    headers: {
++      'X-OMI-Key': key,
++      ...(body ? { 'Content-Type': 'application/json' } : {}),
++    },
++    body: body ? JSON.stringify(body) : undefined,
++    signal: AbortSignal.timeout(30000),
++  });
++  let data = null;
++  try { data = await res.json(); } catch { /* non-JSON upstream */ }
++  return { status: res.status, data };
++}
++
++// ── Authenticated: is OMI configured? Gates the reading-pane PR panel. ─────────
++router.get('/omi/status', requireAuth, async (_req, res) => {
++  res.json({ enabled: isReady(await loadConfig()) });
++});
++
++// ── Authenticated proxies (any logged-in staff) ───────────────────────────────
++router.get('/omi/pr/lookup', requireAuth, async (req, res) => {
++  const cfg = await loadConfig();
++  if (!isReady(cfg)) return res.status(503).json({ error: 'OMI is not configured' });
++  const email = String(req.query.email || '').trim();
++  try {
++    const { status, data } = await omiFetch(cfg, 'GET', '/lookup', { search: `email=${encodeURIComponent(email)}` });
++    res.status(status).json(data ?? {});
++  } catch (err) {
++    res.status(502).json({ error: `OMI request failed: ${err.message}` });
++  }
++});
++
++router.post('/omi/pr/contacts', requireAuth, async (req, res) => {
++  const cfg = await loadConfig();
++  if (!isReady(cfg)) return res.status(503).json({ error: 'OMI is not configured' });
++  try {
++    const { status, data } = await omiFetch(cfg, 'POST', '/contacts', { body: req.body || {} });
++    res.status(status).json(data ?? {});
++  } catch (err) {
++    res.status(502).json({ error: `OMI request failed: ${err.message}` });
++  }
++});
++
++router.post('/omi/pr/editorial-log', requireAuth, async (req, res) => {
++  const cfg = await loadConfig();
++  if (!isReady(cfg)) return res.status(503).json({ error: 'OMI is not configured' });
++  try {
++    const { status, data } = await omiFetch(cfg, 'POST', '/editorial-log', { body: req.body || {} });
++    res.status(status).json(data ?? {});
++  } catch (err) {
++    res.status(502).json({ error: `OMI request failed: ${err.message}` });
++  }
++});
++
++// ── Admin: configure the OMI connection ───────────────────────────────────────
++router.get('/admin/omi', requireAdmin, async (_req, res) => {
++  const cfg = await loadConfig();
++  if (!cfg) return res.json({ config: null });
++  res.json({ config: { enabled: cfg.enabled !== false, baseUrl: cfg.baseUrl || '', apiKey: cfg.apiKey ? '••••••••' : '' } });
++});
++
++router.patch('/admin/omi', requireAdmin, async (req, res) => {
++  const { enabled, baseUrl, apiKey } = req.body || {};
++
++  let existingKey = null;
++  const existing = await loadConfig();
++  if (existing) existingKey = existing.apiKey;
++
++  const encryptedKey = apiKey && apiKey !== '••••••••' ? encrypt(apiKey) : (existingKey || null);
++
++  const trimmedBaseUrl = (baseUrl || '').trim().replace(/\/+$/, '');
++  if (trimmedBaseUrl) {
++    let host;
++    try { host = new URL(trimmedBaseUrl).hostname; } catch {
++      return res.status(400).json({ error: 'Invalid base URL' });
++    }
++    const policy = await getConnectionPolicy();
++    const hostErr = await validateHost(host, { allowPrivate: policy.allowPrivateHosts });
++    if (hostErr) {
++      const hint = hostErr.includes('private or reserved')
++        ? ' To use a local network address, enable "Allow private hosts" in Settings → Security.'
++        : '';
++      return res.status(400).json({ error: `Base URL: ${hostErr}.${hint}` });
++    }
++  }
++
++  const cfg = { enabled: enabled !== false, baseUrl: trimmedBaseUrl, apiKey: encryptedKey };
++  await query(
++    `INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW())
++     ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
++    [CFG_KEY, JSON.stringify(cfg)]
++  );
++  console.log(`[admin] ${req.session.username} updated OMI config`);
++  res.json({ ok: true });
++});
++
++router.delete('/admin/omi', requireAdmin, async (_req, res) => {
++  await query('DELETE FROM system_settings WHERE key = $1', [CFG_KEY]);
++  res.json({ ok: true });
++});
++
++export default router;
 diff --git a/backend/src/services/gtdTransitions.js b/backend/src/services/gtdTransitions.js
 index e16f745..d2f104c 100644
 --- a/backend/src/services/gtdTransitions.js
@@ -3854,6 +4015,102 @@ index 3d9d110..526deae 100644
    "orientation": "portrait-primary",
    "protocol_handlers": [
      { "protocol": "mailto", "url": "/?mailto=%s" }
+diff --git a/frontend/src/components/AdminPanel.jsx b/frontend/src/components/AdminPanel.jsx
+index b4c1422..3328800 100644
+--- a/frontend/src/components/AdminPanel.jsx
++++ b/frontend/src/components/AdminPanel.jsx
+@@ -2117,6 +2117,83 @@ function CardDavCard() {
+   );
+ }
+ 
++// October Marketing Intelligence (OMI) PR connection — lets the reading-pane PR panel
++// look up senders and log coverage against OMI. Base URL + the OMI "PR add-on key"
++// (Settings → in OMI). Key is stored encrypted server-side and never returned in full.
++function OmiCard() {
++  const { t } = useTranslation();
++  const [form, setForm] = useState({ enabled: true, baseUrl: '', apiKey: '' });
++  const [loading, setLoading] = useState(true);
++  const [saving, setSaving] = useState(false);
++  const [saved, setSaved] = useState(false);
++  const [error, setError] = useState('');
++
++  useEffect(() => {
++    api.omiAdminGet()
++      .then(r => { if (r.config) setForm({ enabled: r.config.enabled !== false, baseUrl: r.config.baseUrl || '', apiKey: r.config.apiKey || '' }); })
++      .catch(() => {})
++      .finally(() => setLoading(false));
++  }, []);
++
++  async function save() {
++    setSaving(true); setError(''); setSaved(false);
++    try {
++      // Don't resend the masked placeholder as a new key.
++      const payload = { enabled: form.enabled, baseUrl: form.baseUrl.trim() };
++      if (form.apiKey && form.apiKey !== '••••••••') payload.apiKey = form.apiKey;
++      await api.omiAdminSave(payload);
++      setSaved(true);
++      setForm(f => ({ ...f, apiKey: f.apiKey ? '••••••••' : '' }));
++      setTimeout(() => setSaved(false), 2500);
++    } catch (e) { setError(e.message || 'Save failed'); }
++    finally { setSaving(false); }
++  }
++
++  const inp = { width: '100%', boxSizing: 'border-box', padding: '7px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: 13 };
++  const lbl = { fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 };
++
++  return (
++    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginTop: 14 }}>
++      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
++        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
++          {t('admin.integrations.omi.title', { defaultValue: 'OMI — Marketing Intelligence' })}
++        </span>
++      </div>
++      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 12, lineHeight: 1.5 }}>
++        {t('admin.integrations.omi.description', { defaultValue: 'Surface OMI sender profiles and log coverage from the reading pane. Uses the PR add-on key from OMI → Settings.' })}
++      </div>
++      {loading ? (
++        <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>…</div>
++      ) : (
++        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 460 }}>
++          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer' }}>
++            <input type="checkbox" checked={form.enabled} onChange={e => setForm(f => ({ ...f, enabled: e.target.checked }))} />
++            {t('admin.integrations.omi.enabled', { defaultValue: 'Enabled' })}
++          </label>
++          <div>
++            <label style={lbl}>{t('admin.integrations.omi.baseUrl', { defaultValue: 'OMI base URL' })}</label>
++            <input style={inp} value={form.baseUrl} placeholder="https://omi.octobercomms.com"
++              onChange={e => setForm(f => ({ ...f, baseUrl: e.target.value }))} />
++          </div>
++          <div>
++            <label style={lbl}>{t('admin.integrations.omi.apiKey', { defaultValue: 'PR add-on key' })}</label>
++            <input style={inp} type="password" value={form.apiKey} placeholder="X-OMI-Key"
++              onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))} />
++          </div>
++          {error && <div style={{ color: 'var(--red, #f87171)', fontSize: 12 }}>{error}</div>}
++          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
++            <button onClick={save} disabled={saving}
++              style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', fontSize: 13, fontWeight: 500, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
++              {saving ? t('common.saving', { defaultValue: 'Saving…' }) : t('common.save', { defaultValue: 'Save' })}
++            </button>
++            {saved && <span style={{ color: 'var(--accent)', fontSize: 12 }}>✓ {t('common.saved', { defaultValue: 'Saved' })}</span>}
++          </div>
++        </div>
++      )}
++    </div>
++  );
++}
++
+ function IntegrationsTab() {
+   const { t } = useTranslation();
+   const { setAccounts, setTodoistConnected } = useStore();
+@@ -2746,6 +2823,7 @@ function IntegrationsTab() {
+           </div>
+ 
+           <CardDavCard />
++          <OmiCard />
+         </div>
+       )}
+     </div>
 diff --git a/frontend/src/components/ContextMenu.jsx b/frontend/src/components/ContextMenu.jsx
 index 82835b5..ab8b95b 100644
 --- a/frontend/src/components/ContextMenu.jsx
@@ -4278,6 +4535,259 @@ index efb16df..2484829 100644
          {/* Infinite scroll footer */}
          {scrollMode === 'infinite' && (<>
            {/* Search mode: load more search results */}
+diff --git a/frontend/src/components/MessagePane.jsx b/frontend/src/components/MessagePane.jsx
+index 969b7d4..cf6f7bd 100644
+--- a/frontend/src/components/MessagePane.jsx
++++ b/frontend/src/components/MessagePane.jsx
+@@ -35,6 +35,7 @@ import { senderColor } from '../themes.js';
+ import MessageHeaderModal from './MessageHeaderModal.jsx';
+ import FolderIcon from './FolderIcon.jsx';
+ import TodoistTaskModal from './TodoistTaskModal.jsx';
++import OmiPrPanel from './OmiPrPanel.jsx';
+ 
+ function parseAddressField(raw) {
+   try {
+@@ -2361,6 +2362,17 @@ ${bodyContent}
+         )}
+       </div>
+ 
++      {/* OMI PR panel — sender lookup + log coverage. Self-gates to null when OMI is
++          not configured, so it's invisible unless staff have it set up. */}
++      {message && (
++        <div style={{ padding: isMobile ? '0 12px' : '0 28px' }}>
++          <OmiPrPanel
++            message={message}
++            bodyText={body?.text || (body?.html ? body.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '')}
++          />
++        </div>
++      )}
++
+       {/* HTML email — iframe sized to full content height; outer container scrolls */}
+       {!loadingBody && !bodyError && body?.html && (
+         <div style={{ padding: isMobile ? '0 0 16px' : '0 28px 24px' }}>
+diff --git a/frontend/src/components/OmiPrPanel.jsx b/frontend/src/components/OmiPrPanel.jsx
+new file mode 100644
+index 0000000..b8fbb1d
+--- /dev/null
++++ b/frontend/src/components/OmiPrPanel.jsx
+@@ -0,0 +1,217 @@
++// OMI (October Marketing Intelligence) PR panel — shown in the reading pane for any
++// staff member. On opening an email it looks the sender up in OMI (journalist/contact
++// profile + recent coverage), lets you capture an unknown sender as a contact, and log
++// the thread to a client's editorial log (OMI's Claude extraction fills in publication /
++// issue date / story from the body). All calls are proxied server-side; self-gates to
++// nothing when OMI isn't configured.
++import { useState, useEffect } from 'react';
++import { useTranslation } from 'react-i18next';
++import { api } from '../utils/api.js';
++
++const STATUS_OPTS = ['pitched', 'confirmed', 'published', 'declined'];
++
++export default function OmiPrPanel({ message, bodyText }) {
++  const { t } = useTranslation();
++  const email = (message?.from_email || '').trim();
++  const senderName = message?.from_name || '';
++  const subject = message?.subject || '';
++
++  const [enabled, setEnabled] = useState(false);
++  const [loading, setLoading] = useState(false);
++  const [data, setData] = useState(null);       // lookup result
++  const [error, setError] = useState('');
++  const [collapsed, setCollapsed] = useState(false);
++  // Add-contact + log-coverage local state.
++  const [savingContact, setSavingContact] = useState(false);
++  const [logOpen, setLogOpen] = useState(false);
++  const [clientId, setClientId] = useState('');
++  const [status, setStatus] = useState('pitched');
++  const [storyUrl, setStoryUrl] = useState('');
++  const [logging, setLogging] = useState(false);
++  const [done, setDone] = useState(null);       // { kind: 'contact'|'log', text }
++
++  // Is OMI configured at all? Checked once.
++  useEffect(() => {
++    let alive = true;
++    api.omiStatus().then(s => { if (alive) setEnabled(!!s.enabled); }).catch(() => {});
++    return () => { alive = false; };
++  }, []);
++
++  // Look the sender up whenever the open email changes.
++  useEffect(() => {
++    if (!enabled || !email) { setData(null); return; }
++    let alive = true;
++    setLoading(true); setError(''); setData(null); setLogOpen(false); setDone(null);
++    api.omiLookup(email)
++      .then(d => { if (alive) setData(d); })
++      .catch(err => { if (alive) setError(err.message || 'Lookup failed'); })
++      .finally(() => { if (alive) setLoading(false); });
++    return () => { alive = false; };
++  }, [enabled, email]);
++
++  if (!enabled || !email) return null;
++
++  const clients = Array.isArray(data?.clients) ? data.clients : [];
++  const matched = !!data?.matched;
++
++  const addContact = async (segment) => {
++    setSavingContact(true); setError('');
++    try {
++      await api.omiAddContact({ segment, email, name: senderName });
++      setDone({ kind: 'contact', text: t('omi.contactAdded', { defaultValue: 'Contact added to OMI' }) });
++      const d = await api.omiLookup(email).catch(() => null);
++      if (d) setData(d);
++    } catch (err) { setError(err.message || 'Failed to add contact'); }
++    finally { setSavingContact(false); }
++  };
++
++  const submitLog = async () => {
++    if (!clientId) return;
++    setLogging(true); setError('');
++    try {
++      const r = await api.omiLogCoverage({
++        client_id: clientId,
++        email,
++        press_contact: senderName,
++        email_subject: subject,
++        email_body: bodyText || '',
++        status,
++        story_url: storyUrl.trim() || undefined,
++      });
++      const ex = r?.extracted;
++      const bits = ex ? [ex.publication, ex.story_title, ex.issue_date].filter(Boolean).join(' · ') : '';
++      setDone({ kind: 'log', text: t('omi.logged', { defaultValue: 'Logged to editorial log' }) + (bits ? ` — ${bits}` : '') });
++      setLogOpen(false);
++    } catch (err) { setError(err.message || 'Failed to log'); }
++    finally { setLogging(false); }
++  };
++
++  const card = {
++    border: '1px solid var(--border)', borderRadius: 12, background: 'var(--bg-secondary)',
++    margin: '10px 0', overflow: 'hidden', fontSize: 13,
++  };
++  const btn = (primary) => ({
++    padding: '5px 11px', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer',
++    border: primary ? 'none' : '1px solid var(--border)',
++    background: primary ? 'var(--accent)' : 'transparent',
++    color: primary ? 'var(--accent-text)' : 'var(--text-primary)',
++  });
++
++  return (
++    <div style={card}>
++      {/* Header */}
++      <div
++        onClick={() => setCollapsed(c => !c)}
++        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', cursor: 'pointer', borderBottom: collapsed ? 'none' : '1px solid var(--border-subtle)' }}
++      >
++        <span style={{
++          fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
++          color: 'var(--accent)', background: 'var(--accent-dim)', padding: '2px 6px', borderRadius: 5,
++        }}>OMI</span>
++        <span style={{ fontWeight: 600, color: 'var(--text-primary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
++          {loading ? t('omi.looking', { defaultValue: 'Looking up sender…' })
++            : matched ? (data.name || email)
++            : t('omi.unknownSender', { defaultValue: 'Unknown sender' })}
++        </span>
++        {matched && data.strength_label && (
++          <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{data.strength_label}</span>
++        )}
++        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
++          style={{ transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.15s' }}>
++          <polyline points="6 9 12 15 18 9"/>
++        </svg>
++      </div>
++
++      {!collapsed && (
++        <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 9 }}>
++          {error && <div style={{ color: 'var(--red, #e03131)', fontSize: 12 }}>{error}</div>}
++
++          {matched && (
++            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, color: 'var(--text-secondary)' }}>
++              <div>
++                {data.outlet && <strong style={{ color: 'var(--text-primary)' }}>{data.outlet}</strong>}
++                {data.segment && <span style={{ marginLeft: data.outlet ? 6 : 0, fontSize: 11, textTransform: 'capitalize' }}>· {data.segment}</span>}
++              </div>
++              {Array.isArray(data.beats) && data.beats.length > 0 && (
++                <div style={{ fontSize: 12 }}>{data.beats.slice(0, 6).join(', ')}</div>
++              )}
++              <div style={{ fontSize: 12 }}>
++                {t('omi.published', { defaultValue: '{{n}} published', n: data.published || 0 })}
++                {data.last_featured && ` · ${t('omi.lastFeatured', { defaultValue: 'last' })} ${new Date(data.last_featured).toISOString().slice(0, 10)}`}
++              </div>
++              {Array.isArray(data.recent) && data.recent.length > 0 && (
++                <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
++                  {data.recent.slice(0, 3).map((r, i) => (
++                    <div key={i} style={{ fontSize: 11.5, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
++                      {[r.client, r.title, r.status].filter(Boolean).join(' · ')}
++                    </div>
++                  ))}
++                </div>
++              )}
++            </div>
++          )}
++
++          {!matched && !loading && (
++            <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
++              <span style={{ color: 'var(--text-tertiary)', fontSize: 12, marginRight: 'auto' }}>
++                {t('omi.notInOmi', { defaultValue: 'Not in OMI yet' })}
++              </span>
++              <button disabled={savingContact} style={btn(false)} onClick={() => addContact('media')}>
++                {t('omi.addMedia', { defaultValue: 'Add as press' })}
++              </button>
++              <button disabled={savingContact} style={btn(false)} onClick={() => addContact('commercial')}>
++                {t('omi.addCommercial', { defaultValue: 'Add as commercial' })}
++              </button>
++            </div>
++          )}
++
++          {done && (
++            <div style={{ fontSize: 12, color: 'var(--accent)', background: 'var(--accent-dim)', padding: '6px 9px', borderRadius: 7 }}>
++              ✓ {done.text}
++            </div>
++          )}
++
++          {/* Log coverage */}
++          {!logOpen ? (
++            <div>
++              <button style={btn(true)} onClick={() => setLogOpen(true)} disabled={!clients.length}>
++                {t('omi.logCoverage', { defaultValue: 'Log coverage →' })}
++              </button>
++              {!clients.length && (
++                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginLeft: 8 }}>
++                  {t('omi.noClients', { defaultValue: 'no active clients' })}
++                </span>
++              )}
++            </div>
++          ) : (
++            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, borderTop: '1px solid var(--border-subtle)', paddingTop: 9 }}>
++              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
++                <select value={clientId} onChange={e => setClientId(e.target.value)}
++                  style={{ flex: '1 1 140px', padding: '5px 8px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: 12 }}>
++                  <option value="">{t('omi.pickClient', { defaultValue: 'Client…' })}</option>
++                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
++                </select>
++                <select value={status} onChange={e => setStatus(e.target.value)}
++                  style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: 12, textTransform: 'capitalize' }}>
++                  {STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
++                </select>
++              </div>
++              <input value={storyUrl} onChange={e => setStoryUrl(e.target.value)}
++                placeholder={t('omi.storyUrl', { defaultValue: 'Story URL (optional)' })}
++                style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: 12 }} />
++              <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
++                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginRight: 'auto' }}>
++                  {t('omi.willExtract', { defaultValue: 'Claude fills in publication/date/story from the email' })}
++                </span>
++                <button style={btn(false)} onClick={() => setLogOpen(false)}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
++                <button style={btn(true)} disabled={!clientId || logging} onClick={submitLog}>
++                  {logging ? t('omi.logging', { defaultValue: 'Logging…' }) : t('omi.log', { defaultValue: 'Log' })}
++                </button>
++              </div>
++            </div>
++          )}
++        </div>
++      )}
++    </div>
++  );
++}
 diff --git a/frontend/src/components/Sidebar.jsx b/frontend/src/components/Sidebar.jsx
 index a155ef3..e63e756 100644
 --- a/frontend/src/components/Sidebar.jsx
@@ -4809,7 +5319,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..62e9198 100644
+index c62ac69..3c9e880 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -4823,7 +5333,7 @@ index c62ac69..62e9198 100644
    getUnreadCounts: () => request('GET', '/mail/unread-counts'),
  
    // Antispam (v0.1) — manual user feedback.
-@@ -312,6 +316,12 @@ export const api = {
+@@ -312,6 +316,19 @@ export const api = {
    },
    gtdClassify: (messageId, state) => request('POST', '/gtd/classify', { messageId, state }),
    gtdUnclassify: (messageId, state) => request('DELETE', '/gtd/classify', { messageId, state }),
@@ -4833,6 +5343,13 @@ index c62ac69..62e9198 100644
 +  // Client legend — the "Client Name: term, term" map used to group the task list.
 +  aiTaskLegend: () => request('GET', '/ai/tasks/legend'),
 +  aiSetTaskLegend: (legend) => request('PUT', '/ai/tasks/legend', { legend }),
++  // OMI (October Marketing Intelligence) PR add-on, proxied server-side.
++  omiStatus: () => request('GET', '/omi/status'),
++  omiLookup: (email) => request('GET', `/omi/pr/lookup?email=${encodeURIComponent(email || '')}`),
++  omiAddContact: (payload) => request('POST', '/omi/pr/contacts', payload),
++  omiLogCoverage: (payload) => request('POST', '/omi/pr/editorial-log', payload),
++  omiAdminGet: () => request('GET', '/admin/omi'),
++  omiAdminSave: (config) => request('PATCH', '/admin/omi', config),
    // GTD "done": strip the row's label(s) for these states, mark read, archive the INBOX
    // copy. id is the rail head's row id (its label-folder copy); the server resolves the
    // INBOX copy from the shared Message-ID.
