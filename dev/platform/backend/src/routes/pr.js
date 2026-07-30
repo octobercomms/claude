@@ -18,6 +18,8 @@ const prArchive = require('../services/prArchive');
 const { getSetting } = require('../utils/settings');
 const prEngage = require('../services/prEngage');
 const prLinkCheck = require('../services/prLinkCheck');
+const overviewReport = require('../services/overviewReport');
+const earnedOverviewReport = require('../services/earnedOverviewReport');
 const prCoverageExtract = require('../services/prCoverageExtract');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
@@ -919,6 +921,21 @@ router.post('/press-releases/:prId/create-campaign', async (req, res) => {
     await db.query('UPDATE pr_press_releases SET campaign_id = $1 WHERE id = $2', [created.campaign_id, p.id]);
     res.status(201).json({ campaign_id: created.campaign_id });
   } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Branded, client-facing PDF of the whole Earned (PR) Overview.
+router.get('/clients/:clientId/overview-report.pdf', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 90, 365);
+    await overviewReport.sendReport(res, {
+      clientId: req.params.clientId, report: earnedOverviewReport, days,
+      slugPrefix: 'earned-overview', feature: 'earned_overview_report',
+      emptyMsg: 'No coverage tracked yet — log some editorial coverage first, then export.',
+    });
+  } catch (err) {
+    console.error('[earned-overview] report failed:', err);
+    res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

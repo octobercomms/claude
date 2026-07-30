@@ -276,6 +276,7 @@ export default function ClientAdsPage() {
             { label: 'Meta Ads',   value: hasMeta ? `${metaEntries.filter(m => !m.error).length} account${metaEntries.filter(m => !m.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasMeta },
             { label: 'Spend · 30d', value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), ok: (googleTotal?.spend || 0) + (metaTotal?.spend || 0) > 0 },
           ]}
+          actions={<a className="btn btn-secondary" href={`/api/paid/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
           mapLayout="funnel"
           map={[
             { title: 'Advise', subtitle: 'Briefing, audiences, competitor watch', nodes: [
