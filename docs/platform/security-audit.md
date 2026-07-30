@@ -49,24 +49,17 @@ Audited against the four canonical "vibe-coded app" failure modes (see the
 - Built-in self-audit: `services/securityAudit.js`, `POST
   /api/security/audit/run` — run it from Settings for a live pass/fail.
 
-## 5. Dependencies — ⚠️ accepted risk (4 moderate)
+## 5. Dependencies — ✅
+- `npm audit` is **clean: 0 vulnerabilities** (critical/high/moderate/low all 0).
 - Highs/lows are kept clear with `npm audit fix` (semver-compatible only).
-- **Remaining: 4 moderate**, all the same transitive advisory — a DoS
-  (infinite loop) in `file-type`'s ASF parser, pulled in via
-  `jimp@0.22 → @jimp/core → file-type@16.5.4`.
-- **Not patched, deliberately:** `file-type@16.5.4` is the last CommonJS
-  release; the fix is only in `file-type@17+`, which is **ESM-only**, so an
-  `overrides` pin would break `jimp`'s `require()`. npm's only offered fix is
-  `jimp@1.6.1` — a **breaking major** (ESM-only, rewritten API) that would force
-  an ESM + API migration of `adResize.js` and `visualise.js`. Out of scope for a
-  minimal security fix.
-- **Why the residual risk is low:** `file-type` only sniffs the *image* buffers
-  jimp reads; the vulnerable path is an ASF (Windows Media) parser. Reaching it
-  needs an **authenticated, agency-only** user uploading a crafted file to the
-  ad-resize tool, and the worst case is a bounded CPU spike on a single
-  request — no data exposure, no RCE. Rated **low** by the audit.
-- **Revisit when:** we next take on a `jimp@1.x` (or `sharp`) migration, or if a
-  patched CommonJS `file-type` ships. Track the moderates on the audit until then.
+- The 4 moderate `file-type` ASF-parser advisories (transitive via the old
+  `jimp@0.22 → @jimp/core → file-type@16.5.4`) were cleared by **upgrading to
+  `jimp@1.6.1`**, which drops that dependency chain entirely. jimp v1 is
+  ESM-only, so the two CommonJS consumers (`adResize.js`, `visualise.js`) load it
+  lazily via `await import('jimp')` and use the v1 API (`new Jimp({width,height,
+  color})`, `resize({w,h})`, `cover({w,h})`, `greyscale()`, `getBuffer('image/png')`);
+  `Jimp.read`, `composite`, `mask`, `blur` are unchanged. The expand/stitch and
+  masked-composite image paths were re-verified end-to-end against jimp 1.6.1.
 
 ## Recommendations
 1. **(Optional, do at the edge) Cloudflare IP Access Rule + a login rate-limit
