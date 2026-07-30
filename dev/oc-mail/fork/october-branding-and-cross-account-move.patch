@@ -728,14 +728,14 @@ index 0000000..c22c0d8
 +export default router;
 diff --git a/backend/src/routes/tasks.js b/backend/src/routes/tasks.js
 new file mode 100644
-index 0000000..721c78b
+index 0000000..0c7a421
 --- /dev/null
 +++ b/backend/src/routes/tasks.js
 @@ -0,0 +1,194 @@
 +import { Router } from 'express';
 +import { query } from '../services/db.js';
 +import { requireAuth } from '../middleware/auth.js';
-+import { refreshUserTasks, positionAfter } from '../services/taskRefresh.js';
++import { startUserRefresh, getRefreshStatus, positionAfter } from '../services/taskRefresh.js';
 +import { generateDailyBrief, getCachedBrief, generateTaskAssist } from '../services/dailyBrief.js';
 +
 +// Native task list — an ordered sequence of blocks (headings + checkbox tasks) per
@@ -887,17 +887,17 @@ index 0000000..721c78b
 +
 +// ── AI refresh into the hub ───────────────────────────────────────────────────
 +// Sweep every configured task folder, generate tasks, and merge into this user's
-+// list (see services/taskRefresh.js). The daily scheduler calls the same function.
-+router.post('/tasks/refresh', requireAuth, async (req, res) => {
-+  try {
-+    const result = await refreshUserTasks(uid(req));
-+    res.json({ ok: true, ...result });
-+  } catch (err) {
-+    if (err.code === 'NO_SOURCES') {
-+      return res.status(400).json({ error: 'No task folders configured. Choose which accounts and folders to read in Task settings.' });
-+    }
-+    res.status(err.status || 502).json({ error: err.message || 'Refresh failed' });
-+  }
++// list (see services/taskRefresh.js). A full sweep can run for minutes — past the
++// 60s API gateway timeout — so it runs in the background: POST starts it, the client
++// polls GET /tasks/refresh/status. The daily scheduler calls refreshUserTasks directly.
++router.post('/tasks/refresh', requireAuth, (req, res) => {
++  const { alreadyRunning } = startUserRefresh(uid(req));
++  res.status(202).json({ ok: true, running: true, alreadyRunning });
++});
++
++router.get('/tasks/refresh/status', requireAuth, (req, res) => {
++  const s = getRefreshStatus(uid(req));
++  res.json({ running: !!s.running, result: s.result || null, error: s.error || null, finishedAt: s.finishedAt || null });
 +});
 +
 +// ── Daily brief ───────────────────────────────────────────────────────────────
@@ -2485,10 +2485,10 @@ index 0000000..d07fd55
 +}
 diff --git a/backend/src/services/taskRefresh.js b/backend/src/services/taskRefresh.js
 new file mode 100644
-index 0000000..b4a0fd0
+index 0000000..8c0e883
 --- /dev/null
 +++ b/backend/src/services/taskRefresh.js
-@@ -0,0 +1,132 @@
+@@ -0,0 +1,167 @@
 +import { query } from './db.js';
 +import { imapManager } from '../index.js';
 +import { generateFolderTasks, loadAiConfig, loadLegendText, parseLegend } from './taskGenerator.js';
@@ -2519,11 +2519,46 @@ index 0000000..b4a0fd0
 +  return Number(max.m) + 1;
 +}
 +
++// Per-user serialization: a manual refresh and the 8am scheduled run (or two quick
++// clicks) must not overlap and double-insert. Callers await the same in-flight run.
++const locks = new Map();
++export async function refreshUserTasks(userId) {
++  while (locks.get(userId)) { try { await locks.get(userId); } catch { /* prior run's error is its caller's */ } }
++  let release;
++  const gate = new Promise(r => { release = r; });
++  locks.set(userId, gate);
++  try { return await runRefresh(userId); }
++  finally { locks.delete(userId); release(); }
++}
++
++// ── Async job registry ────────────────────────────────────────────────────────
++// The refresh can take minutes across several folders — far past the 60s API
++// gateway timeout — so the route starts it in the background and the client polls
++// getRefreshStatus(). In-memory (single backend instance); lost state on restart
++// simply reads as "not running".
++const runs = new Map();   // userId -> { running, startedAt, result, error, finishedAt }
++
++export function getRefreshStatus(userId) {
++  return runs.get(userId) || { running: false, result: null, error: null };
++}
++
++export function startUserRefresh(userId) {
++  const cur = runs.get(userId);
++  if (cur && cur.running) return { alreadyRunning: true };
++  const job = { running: true, startedAt: Date.now(), result: null, error: null, finishedAt: null };
++  runs.set(userId, job);
++  refreshUserTasks(userId)
++    .then(result => { job.result = result; })
++    .catch(err => { job.error = err.code === 'NO_SOURCES' ? 'NO_SOURCES' : (err.message || 'Refresh failed'); })
++    .finally(() => { job.running = false; job.finishedAt = Date.now(); });
++  return { alreadyRunning: false };
++}
++
 +// Runs one refresh for a user. Throws an Error tagged with .code:
 +//   'NO_AI'      — provider not configured/enabled (err.status carries the HTTP code)
 +//   'NO_SOURCES' — the user has no task folders configured
 +// Returns { added, completed, groups, folders, errors }.
-+export async function refreshUserTasks(userId) {
++async function runRefresh(userId) {
 +  const cfg = await loadAiConfig();   // throws with .status if unavailable
 +
 +  const prefRow = await query('SELECT preferences FROM users WHERE id = $1', [userId]);
@@ -2771,6 +2806,31 @@ index dc7460d..314846e 100644
  
    <!--
      Self-hosted fonts — no external font requests. Generated into public/fonts/ by
+diff --git a/frontend/nginx.conf b/frontend/nginx.conf
+index c4ca0c8..5ebd0d6 100644
+--- a/frontend/nginx.conf
++++ b/frontend/nginx.conf
+@@ -76,7 +76,10 @@ server {
+         proxy_cache            off;
+     }
+ 
+-    # API proxy
++    # API proxy. 180s covers the synchronous AI-backed calls (research, client-brief
++    # rebuild, on-demand draft, task assist) whose upstream fetch is capped at 120s.
++    # The multi-folder task refresh runs in the background (POST returns instantly,
++    # client polls /api/tasks/refresh/status), so it never depends on this timeout.
+     location /api/ {
+         proxy_pass         http://backend:3000;
+         proxy_http_version 1.1;
+@@ -84,7 +87,7 @@ server {
+         proxy_set_header   X-Real-IP $remote_addr;
+         proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+         proxy_set_header   X-Forwarded-Proto https;
+-        proxy_read_timeout 60s;
++        proxy_read_timeout 180s;
+     }
+ 
+     # WebSocket proxy
 diff --git a/frontend/public/apple-touch-icon.png b/frontend/public/apple-touch-icon.png
 new file mode 100644
 index 0000000000000000000000000000000000000000..f06a3ba85c0a0e66bfd5cbc65a97e273ef329270
@@ -7235,10 +7295,10 @@ index 0000000..4551729
 +}
 diff --git a/frontend/src/components/TasksView.jsx b/frontend/src/components/TasksView.jsx
 new file mode 100644
-index 0000000..33a9210
+index 0000000..615f694
 --- /dev/null
 +++ b/frontend/src/components/TasksView.jsx
-@@ -0,0 +1,542 @@
+@@ -0,0 +1,564 @@
 +// Native task list — a restricted Notion-style outline: two block kinds, "heading"
 +// (a client/section) and "task" (a checkbox item). Type straight into it: Enter makes
 +// a new task, Backspace on an empty block removes it, the checkbox ticks a task off.
@@ -7398,14 +7458,36 @@ index 0000000..33a9210
 +  const refresh = async () => {
 +    setRefreshing(true); setRefreshMsg(''); setError('');
 +    try {
-+      const r = await api.tasksRefresh();
++      await api.tasksRefresh();                          // starts the background sweep
++      // Poll until it finishes — a full sweep across folders can take minutes.
++      const startedAt = Date.now();
++      const MAX_MS = 12 * 60 * 1000;
++      let status;
++      // eslint-disable-next-line no-constant-condition
++      while (true) {
++        await new Promise(r => setTimeout(r, 3000));
++        status = await api.tasksRefreshStatus();
++        if (!status.running) break;
++        if (Date.now() - startedAt > MAX_MS) {
++          setRefreshMsg(t('tasksView.stillRunning', { defaultValue: 'Still working — check back in a moment.' }));
++          setRefreshing(false);
++          return;
++        }
++      }
 +      await load();
-+      const bits = [];
-+      if (r.added) bits.push(t('tasksView.added', { count: r.added, defaultValue: `${r.added} new` }));
-+      if (r.completed) bits.push(t('tasksView.autoDone', { count: r.completed, defaultValue: `${r.completed} auto-completed` }));
-+      let msg = bits.length ? bits.join(' · ') : t('tasksView.upToDate', { defaultValue: 'Already up to date' });
-+      if (r.errors && r.errors.length) msg += ` · ${r.errors.length} folder(s) failed`;
-+      setRefreshMsg(msg);
++      if (status.error === 'NO_SOURCES') {
++        setError(t('tasksView.noSources', { defaultValue: 'No task folders configured. Choose which accounts and folders to read in settings.' }));
++      } else if (status.error) {
++        setError(status.error);
++      } else {
++        const r = status.result || {};
++        const bits = [];
++        if (r.added) bits.push(t('tasksView.added', { count: r.added, defaultValue: `${r.added} new` }));
++        if (r.completed) bits.push(t('tasksView.autoDone', { count: r.completed, defaultValue: `${r.completed} auto-completed` }));
++        let msg = bits.length ? bits.join(' · ') : t('tasksView.upToDate', { defaultValue: 'Already up to date' });
++        if (r.errors && r.errors.length) msg += ` · ${r.errors.length} folder(s) failed`;
++        setRefreshMsg(msg);
++      }
 +    } catch (e) {
 +      setError(e.message || 'Refresh failed');
 +    } finally {
@@ -7890,7 +7972,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..32662b2 100644
+index c62ac69..66d1e86 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -7904,7 +7986,7 @@ index c62ac69..32662b2 100644
    getUnreadCounts: () => request('GET', '/mail/unread-counts'),
  
    // Antispam (v0.1) — manual user feedback.
-@@ -312,6 +316,45 @@ export const api = {
+@@ -312,6 +316,46 @@ export const api = {
    },
    gtdClassify: (messageId, state) => request('POST', '/gtd/classify', { messageId, state }),
    gtdUnclassify: (messageId, state) => request('DELETE', '/gtd/classify', { messageId, state }),
@@ -7931,6 +8013,7 @@ index c62ac69..32662b2 100644
 +  tasksSources: () => request('GET', '/tasks/sources'),
 +  tasksSaveSources: (sources, autoRefresh, autoDrafts) => request('PUT', '/tasks/sources', { sources, autoRefresh, autoDrafts }),
 +  tasksRefresh: () => request('POST', '/tasks/refresh'),
++  tasksRefreshStatus: () => request('GET', '/tasks/refresh/status'),
 +  clientsList: () => request('GET', '/clients'),
 +  clientAdd: (client, terms) => request('POST', '/clients', { client, terms }),
 +  clientRemove: (client) => request('DELETE', `/clients/${encodeURIComponent(client)}`),
