@@ -225,9 +225,10 @@ async function analyze(clientId) {
   try { page = await fetchRenderedHtml(url, { userAgent: USER_AGENT }); }
   catch (err) { const e = new Error(`Couldn't reach ${url}: ${err.message}`); e.status = 502; throw e; }
   if (!page.html || (page.status >= 400 && page.via !== 'flaresolverr')) {
-    const e = new Error(
-      `Couldn't read ${url} (HTTP ${page.status || 'no response'}). If the site is behind Cloudflare or similar bot protection, it may be blocking automated checks.`
-    );
+    const msg = page.status === 429
+      ? `${url} rate-limited the check (HTTP 429) even after retries. Wait a minute and run it again; if it persists the site's bot protection is throttling automated requests.`
+      : `Couldn't read ${url} (HTTP ${page.status || 'no response'}). If the site is behind Cloudflare or similar bot protection, it may be blocking automated checks.`;
+    const e = new Error(msg);
     e.status = 502; throw e;
   }
 
