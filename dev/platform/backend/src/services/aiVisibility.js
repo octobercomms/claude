@@ -412,12 +412,71 @@ async function reportData(clientId, { days = 30 } = {}) {
       ? { prompt: p.prompt, tested: true, mentioned: e.mentioned, best_position: e.best_position, engines: e.engines, competitors: [...e.competitors].slice(0, 6) }
       : { prompt: p.prompt, tested: false, mentioned: false, best_position: null, engines: [], competitors: [] };
   });
-  return { summary, trend, prompts, days };
+  const src = await sources(clientId, { days: 90 }).catch(() => null);
+  return { summary, trend, prompts, sources: src, days };
+}
+
+// ── Sources / citations ──────────────────────────────────────────────────────
+// The AI answers we log already carry the URLs they cite. This turns that raw
+// data into the "who gets cited" view the market's tools lead with: which
+// domains AI pulls answers from in this category, our share of those citations,
+// and which of our own pages earn them.
+function hostOf(u) {
+  const s = String(u || '').trim();
+  if (!s) return null;
+  try { return new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s).hostname.replace(/^www\./, '').toLowerCase(); }
+  catch { return s.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split(/[\/?#]/)[0].toLowerCase() || null; }
+}
+
+async function sources(clientId, { days = 90 } = {}) {
+  const { rows: cr } = await pool.query('SELECT domain FROM clients WHERE id = $1', [clientId]);
+  const ownHost = hostOf(cr[0]?.domain || '');
+  const { rows } = await pool.query(
+    `SELECT citations FROM ai_visibility_runs
+       WHERE client_id = $1 AND citations IS NOT NULL
+         AND fetched_at >= NOW() - ($2::int || ' days')::interval`,
+    [clientId, days]
+  );
+  const domainCount = new Map();
+  const urlCount = new Map();
+  let total = 0;
+  for (const r of rows) {
+    let cites = r.citations;
+    if (typeof cites === 'string') { try { cites = JSON.parse(cites); } catch { cites = []; } }
+    if (!Array.isArray(cites)) continue;
+    for (const c of cites) {
+      const url = typeof c === 'string' ? c : (c?.url || c?.link || c?.source || c?.domain || '');
+      const host = hostOf(url);
+      if (!host) continue;
+      total++;
+      domainCount.set(host, (domainCount.get(host) || 0) + 1);
+      if (ownHost && host === ownHost) {
+        const clean = String(url).split('#')[0];
+        // Dedup by a normalised key (drop protocol / www / trailing slash) so the
+        // same page cited as www + non-www counts once; keep a usable display URL.
+        const key = clean.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '').toLowerCase();
+        const cur = urlCount.get(key) || { url: /^https?:\/\//i.test(clean) ? clean : 'https://' + clean, count: 0 };
+        cur.count++;
+        urlCount.set(key, cur);
+      }
+    }
+  }
+  const domains = [...domainCount.entries()]
+    .map(([host, count]) => ({ host, count, is_own: !!ownHost && host === ownHost }))
+    .sort((a, b) => b.count - a.count).slice(0, 25);
+  const own_pages = [...urlCount.values()]
+    .map(o => ({ url: o.url, count: o.count })).sort((a, b) => b.count - a.count).slice(0, 15);
+  const own_citations = ownHost ? (domainCount.get(ownHost) || 0) : 0;
+  return {
+    own_host: ownHost, total_citations: total, own_citations,
+    own_share: total ? Math.round((own_citations / total) * 100) : 0,
+    domains, own_pages, days,
+  };
 }
 
 module.exports = {
   runPromptForClient, runAllForClient, runAllClients,
   startRunInBackground, isRunning, getProgress,
-  generatePromptsForClient, summarise, getTrend, reportData,
+  generatePromptsForClient, summarise, getTrend, reportData, sources,
   analyseMentions, SUPPORTED_ENGINES,
 };

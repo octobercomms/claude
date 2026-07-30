@@ -29,6 +29,7 @@ export default function AIVisibilityPanel({ clientId }) {
   const [tipsOpen, setTipsOpen] = useState(false);
   const [runs, setRuns] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [sources, setSources] = useState(null);
   const [trend, setTrend] = useState([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -38,13 +39,14 @@ export default function AIVisibilityPanel({ clientId }) {
   const [runProgress, setRunProgress] = useState(null); // { done, total } while a background run is in flight
 
   async function loadAll() {
-    const [p, s, t, r] = await Promise.all([
+    const [p, s, t, r, src] = await Promise.all([
       api.get(`/ai-visibility/clients/${clientId}/prompts`).catch(() => []),
       api.get(`/ai-visibility/clients/${clientId}/summary`).catch(() => null),
       api.get(`/ai-visibility/clients/${clientId}/trend?weeks=12`).catch(() => []),
       api.get(`/ai-visibility/clients/${clientId}/runs?limit=30`).catch(() => []),
+      api.get(`/ai-visibility/clients/${clientId}/sources`).catch(() => null),
     ]);
-    setPrompts(p || []); setSummary(s); setTrend(t || []); setRuns(r || []);
+    setPrompts(p || []); setSummary(s); setTrend(t || []); setRuns(r || []); setSources(src);
     setLoading(false);
   }
   useEffect(() => { loadAll(); /* eslint-disable-line */ }, [clientId]);
@@ -250,6 +252,43 @@ export default function AIVisibilityPanel({ clientId }) {
                 <Chip>{c.mentions} mention{c.mentions === 1 ? '' : 's'}</Chip>
               </div>
             ))}
+          </Card>
+        </Section>
+      )}
+
+      {sources?.total_citations > 0 && (
+        <Section caption="Where AI pulls its answers from" title="Sources & citations">
+          <Card>
+            <div className="row" style={{ gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
+              <div><div className="caption caption-muted">Your citation share</div><div className="metric mt-2" style={{ color: sources.own_share >= 20 ? 'var(--positive)' : sources.own_share >= 5 ? 'var(--warning)' : 'var(--negative)' }}>{sources.own_share}%</div></div>
+              <div><div className="caption caption-muted">Your citations</div><div className="metric mt-2">{sources.own_citations} / {sources.total_citations}</div></div>
+              <div><div className="caption caption-muted">Sources cited</div><div className="metric mt-2">{sources.domains.length}</div></div>
+            </div>
+            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>The domains AI assistants pull answers from in your category. Getting your own pages cited is how you climb — aim content at the gaps below.</p>
+            <div className="grid grid-2" style={{ gap: 14 }}>
+              <div>
+                <div className="caption mb-2">Most-cited domains</div>
+                {sources.domains.slice(0, 12).map((d, i, arr) => (
+                  <div key={d.host} className="row between center" style={{ padding: '7px 10px', borderBottom: i < arr.length - 1 ? '2px solid var(--oc-surface-raised)' : 'none', background: d.is_own ? 'var(--accent-soft)' : 'transparent' }}>
+                    <div className="row center" style={{ gap: 8, minWidth: 0 }}>
+                      <span className="body-xs text-subtle" style={{ width: 20 }}>#{i + 1}</span>
+                      <span className="body-sm" style={{ fontWeight: d.is_own ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.host}</span>
+                      {d.is_own && <Chip>you</Chip>}
+                    </div>
+                    <span className="body-xs text-subtle">{d.count}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="caption mb-2">Your cited pages</div>
+                {sources.own_pages.length ? sources.own_pages.slice(0, 8).map((p, i, arr) => (
+                  <div key={p.url} className="row between center" style={{ padding: '7px 10px', borderBottom: i < arr.length - 1 ? '2px solid var(--oc-surface-raised)' : 'none', gap: 8 }}>
+                    <a href={p.url} target="_blank" rel="noreferrer" className="body-sm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--accent-strong, #1a4fb4)' }}>{p.url.replace(/^https?:\/\//, '')}</a>
+                    <span className="body-xs text-subtle">{p.count}</span>
+                  </div>
+                )) : <p className="body-sm text-subtle" style={{ padding: '8px 0' }}>None of your pages have been cited yet — that's the opportunity.</p>}
+              </div>
+            </div>
           </Card>
         </Section>
       )}
