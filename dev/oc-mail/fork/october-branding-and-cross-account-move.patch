@@ -64,10 +64,10 @@ index 0000000..e4e4598
 +-- Fast "does an AI task already exist for this email?" lookups during refresh.
 +CREATE INDEX IF NOT EXISTS idx_tasks_user_source_ref ON tasks(user_id, source_ref) WHERE source_ref IS NOT NULL;
 diff --git a/backend/src/index.js b/backend/src/index.js
-index 483dcfa..816dfd4 100644
+index 483dcfa..f1d8ba3 100644
 --- a/backend/src/index.js
 +++ b/backend/src/index.js
-@@ -25,6 +25,8 @@ import blockListRoutes from './routes/blockList.js';
+@@ -25,11 +25,14 @@ import blockListRoutes from './routes/blockList.js';
  import contactsRoutes from './routes/contacts.js';
  import todoistRoutes from './routes/todoist.js';
  import aiRoutes from './routes/ai.js';
@@ -76,7 +76,13 @@ index 483dcfa..816dfd4 100644
  import categoriesRoutes from './routes/categories.js';
  import gtdRoutes from './routes/gtd.js';
  import carddavRouter from './routes/carddav.js';
-@@ -174,6 +176,8 @@ app.use('/api/contacts', contactsRoutes);
+ import carddavAccountRouter from './routes/carddavAccount.js';
+ import { startCardavScheduler } from './services/carddavSync.js';
++import { startTaskScheduler } from './services/taskScheduler.js';
+ import { encryptExistingCredentials, query } from './services/db.js';
+ import { runMigrations } from './services/migrations.js';
+ import { parseVCard } from './utils/vcard.js';
+@@ -174,6 +177,8 @@ app.use('/api/contacts', contactsRoutes);
  app.use('/api/todoist', todoistRoutes);
  app.use('/api/carddav', carddavAccountRouter);
  app.use('/api', aiRoutes);
@@ -85,6 +91,16 @@ index 483dcfa..816dfd4 100644
  app.use('/api', categoriesRoutes);
  // Mounted at the /api/gtd subtree (not bare /api) so gtd.js's router-level
  // requireAuth cannot intercept the unauthenticated /api/health and /api/version
+@@ -244,6 +249,9 @@ imapManager.startSnoozeWatcher();
+ // Schedule periodic CardDAV contact sync for any connected accounts.
+ startCardavScheduler();
+ 
++// Daily auto-refresh of the Tasks hub (opt-in per user, timezone aware).
++startTaskScheduler();
++
+ // Re-connect all enabled IMAP accounts on startup with bounded concurrency so a
+ // large user base doesn't hammer IMAP servers and the DB connection pool at once.
+ try {
 diff --git a/backend/src/routes/ai.js b/backend/src/routes/ai.js
 index 088fc38..ee45d7b 100644
 --- a/backend/src/routes/ai.js
@@ -434,15 +450,14 @@ index 0000000..a85cc80
 +export default router;
 diff --git a/backend/src/routes/tasks.js b/backend/src/routes/tasks.js
 new file mode 100644
-index 0000000..407db12
+index 0000000..c610579
 --- /dev/null
 +++ b/backend/src/routes/tasks.js
-@@ -0,0 +1,252 @@
+@@ -0,0 +1,158 @@
 +import { Router } from 'express';
 +import { query } from '../services/db.js';
 +import { requireAuth } from '../middleware/auth.js';
-+import { imapManager } from '../index.js';
-+import { generateFolderTasks, loadAiConfig, loadLegendText, parseLegend } from '../services/taskGenerator.js';
++import { refreshUserTasks, positionAfter } from '../services/taskRefresh.js';
 +
 +// Native task list — an ordered sequence of blocks (headings + checkbox tasks) per
 +// user. Edited like a restricted Notion outline; the AI "refresh from folder" and the
@@ -451,23 +466,6 @@ index 0000000..407db12
 +const router = Router();
 +
 +const uid = (req) => req.session.userId;
-+
-+// Position to place a new block right after `afterId` (fractional insert), or at the
-+// end when afterId is null/unknown. Shared by manual create and the AI refresh.
-+async function positionAfter(userId, afterId) {
-+  if (afterId) {
-+    const cur = (await query('SELECT position FROM tasks WHERE id = $1 AND user_id = $2', [afterId, userId])).rows[0];
-+    if (cur) {
-+      const next = (await query(
-+        'SELECT position FROM tasks WHERE user_id = $1 AND position > $2 ORDER BY position ASC LIMIT 1',
-+        [userId, cur.position]
-+      )).rows[0];
-+      return next ? (Number(cur.position) + Number(next.position)) / 2 : Number(cur.position) + 1;
-+    }
-+  }
-+  const max = (await query('SELECT COALESCE(MAX(position), -1) AS m FROM tasks WHERE user_id = $1', [userId])).rows[0];
-+  return Number(max.m) + 1;
-+}
 +
 +// Whole list, in order.
 +router.get('/tasks', requireAuth, async (req, res) => {
@@ -545,7 +543,10 @@ index 0000000..407db12
 +    query('SELECT preferences FROM users WHERE id = $1', [userId]),
 +    query("SELECT id, email_address, protocol FROM email_accounts WHERE user_id = $1 AND enabled = true ORDER BY sort_order, email_address", [userId]),
 +  ]);
-+  const sources = prefRow.rows[0]?.preferences?.taskSources || {};
++  const prefs = prefRow.rows[0]?.preferences || {};
++  const sources = prefs.taskSources || {};
++  const auto = prefs.taskAutoRefresh || {};
++  const autoRefresh = { enabled: auto.enabled === true, hour: Number.isInteger(auto.hour) ? auto.hour : 8, tz: auto.tz || null };
 +  const accounts = [];
 +  for (const a of accts.rows) {
 +    const folders = (await query(
@@ -553,7 +554,7 @@ index 0000000..407db12
 +    )).rows;
 +    accounts.push({ id: a.id, email: a.email_address, folders });
 +  }
-+  res.json({ sources, accounts });
++  res.json({ sources, accounts, autoRefresh });
 +});
 +
 +router.put('/tasks/sources', requireAuth, async (req, res) => {
@@ -573,120 +574,41 @@ index 0000000..407db12
 +    `UPDATE users SET preferences = jsonb_set(COALESCE(preferences,'{}'::jsonb), '{taskSources}', $2::jsonb, true) WHERE id = $1`,
 +    [userId, JSON.stringify(clean)]
 +  );
++
++  // Optional daily-refresh config. Merge onto the existing object so lastRun (managed
++  // by the scheduler) survives a settings save.
++  if (req.body && typeof req.body.autoRefresh === 'object' && req.body.autoRefresh) {
++    const a = req.body.autoRefresh;
++    const hour = Number(a.hour);
++    const auto = {
++      enabled: a.enabled === true,
++      hour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 8,
++      tz: typeof a.tz === 'string' && a.tz.length <= 64 ? a.tz : null,
++    };
++    await query(
++      `UPDATE users SET preferences =
++         jsonb_set(COALESCE(preferences,'{}'::jsonb), '{taskAutoRefresh}',
++           COALESCE(preferences->'taskAutoRefresh','{}'::jsonb) || $2::jsonb, true)
++       WHERE id = $1`,
++      [userId, JSON.stringify(auto)]
++    );
++  }
 +  res.json({ ok: true, sources: clean });
 +});
 +
 +// ── AI refresh into the hub ───────────────────────────────────────────────────
 +// Sweep every configured task folder, generate tasks, and merge into this user's
-+// list: new emails become tasks filed under their client heading; AI tasks whose
-+// source email has left the watched folders auto-complete; hand-typed blocks are
-+// never touched.
-+const RANK = { high: 0, medium: 1, low: 2 };
-+
++// list (see services/taskRefresh.js). The daily scheduler calls the same function.
 +router.post('/tasks/refresh', requireAuth, async (req, res) => {
-+  const userId = uid(req);
-+
-+  let cfg;
-+  try { cfg = await loadAiConfig(); }
-+  catch (err) { return res.status(err.status || 500).json({ error: err.message }); }
-+
-+  const prefRow = await query('SELECT preferences FROM users WHERE id = $1', [userId]);
-+  const sources = prefRow.rows[0]?.preferences?.taskSources || {};
-+  const accts = await query('SELECT * FROM email_accounts WHERE user_id = $1 AND enabled = true', [userId]);
-+
-+  const jobs = [];
-+  for (const a of accts.rows) {
-+    const c = sources[a.id];
-+    if (!c || c.enabled === false) continue;
-+    for (const f of (Array.isArray(c.folders) ? c.folders : []).filter(Boolean)) {
-+      jobs.push({ account: a, folder: f });
++  try {
++    const result = await refreshUserTasks(uid(req));
++    res.json({ ok: true, ...result });
++  } catch (err) {
++    if (err.code === 'NO_SOURCES') {
++      return res.status(400).json({ error: 'No task folders configured. Choose which accounts and folders to read in Task settings.' });
 +    }
++    res.status(err.status || 502).json({ error: err.message || 'Refresh failed' });
 +  }
-+  if (!jobs.length) {
-+    return res.status(400).json({ error: 'No task folders configured. Choose which accounts and folders to read in Task settings.' });
-+  }
-+
-+  const legend = parseLegend(await loadLegendText());
-+  const generated = [];
-+  const liveRefs = new Set();
-+  const errors = [];
-+  for (const job of jobs) {
-+    try {
-+      const { tasks, refs } = await generateFolderTasks({ account: job.account, folder: job.folder, cfg, legend, imapManager });
-+      generated.push(...tasks);
-+      for (const r of refs) liveRefs.add(r);
-+    } catch (err) {
-+      errors.push(`${job.account.email_address} / ${job.folder}: ${err.message}`);
-+    }
-+  }
-+
-+  // Everything currently in the list.
-+  const existing = (await query(
-+    `SELECT id, kind, text, done, position, source, source_ref
-+       FROM tasks WHERE user_id = $1 ORDER BY position ASC, created_at ASC`,
-+    [userId]
-+  )).rows;
-+  const trackedRefs = new Set(existing.filter(t => t.source === 'ai' && t.source_ref).map(t => t.source_ref));
-+
-+  // Auto-complete AI tasks whose source email is no longer in any watched folder —
-+  // i.e. the user filed it away, so the to-do is dealt with. Skipped when any folder
-+  // failed to scan this run, so a transient IMAP hiccup can't mass-complete tasks.
-+  let completed = 0;
-+  if (errors.length === 0) {
-+    for (const t of existing) {
-+      if (t.source === 'ai' && !t.done && t.source_ref && !liveRefs.has(t.source_ref)) {
-+        await query('UPDATE tasks SET done = true, updated_at = NOW() WHERE id = $1', [t.id]);
-+        completed++;
-+      }
-+    }
-+  }
-+
-+  // New tasks (not already tracked), grouped by client, high→low within each group.
-+  generated.sort((a, b) => RANK[a.priority] - RANK[b.priority]);
-+  const newByGroup = new Map();
-+  for (const g of generated) {
-+    if (!g.messageId || trackedRefs.has(g.messageId)) continue;  // no ref → can't dedupe; already tracked → skip
-+    trackedRefs.add(g.messageId);                                 // guard dupes within this run
-+    const key = g.group || 'General';
-+    if (!newByGroup.has(key)) newByGroup.set(key, []);
-+    newByGroup.get(key).push(g);
-+  }
-+
-+  // File each new task under its client heading (reuse an existing heading of the
-+  // same name, else create one), stacking tasks right beneath the heading.
-+  const norm = s => String(s || '').trim().toLowerCase();
-+  const headingByText = new Map();
-+  for (const t of existing) if (t.kind === 'heading') headingByText.set(norm(t.text), t.id);
-+
-+  let added = 0;
-+  const groups = [];
-+  for (const [group, tasks] of newByGroup) {
-+    let headingId = headingByText.get(norm(group));
-+    if (!headingId) {
-+      const pos = await positionAfter(userId, null);
-+      const h = await query(
-+        `INSERT INTO tasks (user_id, kind, text, position, source) VALUES ($1,'heading',$2,$3,'ai') RETURNING id`,
-+        [userId, group.slice(0, 200), pos]
-+      );
-+      headingId = h.rows[0].id;
-+      headingByText.set(norm(group), headingId);
-+    }
-+    groups.push(group);
-+    let afterId = headingId;
-+    for (const g of tasks) {
-+      const text = g.detail ? `${g.title} — ${g.detail}` : g.title;
-+      const pos = await positionAfter(userId, afterId);
-+      const r = await query(
-+        `INSERT INTO tasks (user_id, kind, text, priority, position, source, source_ref)
-+         VALUES ($1,'task',$2,$3,$4,'ai',$5) RETURNING id`,
-+        [userId, text.slice(0, 2000), g.priority, pos, g.messageId]
-+      );
-+      afterId = r.rows[0].id;
-+      added++;
-+    }
-+  }
-+
-+  res.json({ ok: true, added, completed, groups, folders: jobs.length, errors });
 +});
 +
 +export default router;
@@ -1602,6 +1524,227 @@ index 0000000..898c8cb
 +    .sort((a, b) => rank[a.priority] - rank[b.priority]);
 +
 +  return { tasks, scanned: emails.length, capped, refs };
++}
+diff --git a/backend/src/services/taskRefresh.js b/backend/src/services/taskRefresh.js
+new file mode 100644
+index 0000000..eeb7e00
+--- /dev/null
++++ b/backend/src/services/taskRefresh.js
+@@ -0,0 +1,130 @@
++import { query } from './db.js';
++import { imapManager } from '../index.js';
++import { generateFolderTasks, loadAiConfig, loadLegendText, parseLegend } from './taskGenerator.js';
++
++// The Tasks-hub refresh, factored out of the route so the daily scheduler and the
++// POST /tasks/refresh handler run identical logic. Sweeps each of a user's
++// configured task folders, files new emails as tasks under their client heading,
++// and auto-completes AI tasks whose source email has left the watched folders.
++// Hand-typed blocks are never touched.
++
++const RANK = { high: 0, medium: 1, low: 2 };
++
++// Position to place a new block right after `afterId` (fractional insert), or at the
++// end when afterId is null/unknown. Shared with the manual create route.
++export async function positionAfter(userId, afterId) {
++  if (afterId) {
++    const cur = (await query('SELECT position FROM tasks WHERE id = $1 AND user_id = $2', [afterId, userId])).rows[0];
++    if (cur) {
++      const next = (await query(
++        'SELECT position FROM tasks WHERE user_id = $1 AND position > $2 ORDER BY position ASC LIMIT 1',
++        [userId, cur.position]
++      )).rows[0];
++      return next ? (Number(cur.position) + Number(next.position)) / 2 : Number(cur.position) + 1;
++    }
++  }
++  const max = (await query('SELECT COALESCE(MAX(position), -1) AS m FROM tasks WHERE user_id = $1', [userId])).rows[0];
++  return Number(max.m) + 1;
++}
++
++// Runs one refresh for a user. Throws an Error tagged with .code:
++//   'NO_AI'      — provider not configured/enabled (err.status carries the HTTP code)
++//   'NO_SOURCES' — the user has no task folders configured
++// Returns { added, completed, groups, folders, errors }.
++export async function refreshUserTasks(userId) {
++  const cfg = await loadAiConfig();   // throws with .status if unavailable
++
++  const prefRow = await query('SELECT preferences FROM users WHERE id = $1', [userId]);
++  const sources = prefRow.rows[0]?.preferences?.taskSources || {};
++  const accts = await query('SELECT * FROM email_accounts WHERE user_id = $1 AND enabled = true', [userId]);
++
++  const jobs = [];
++  for (const a of accts.rows) {
++    const c = sources[a.id];
++    if (!c || c.enabled === false) continue;
++    for (const f of (Array.isArray(c.folders) ? c.folders : []).filter(Boolean)) {
++      jobs.push({ account: a, folder: f });
++    }
++  }
++  if (!jobs.length) { const e = new Error('No task folders configured'); e.code = 'NO_SOURCES'; throw e; }
++
++  const legend = parseLegend(await loadLegendText());
++  const generated = [];
++  const liveRefs = new Set();
++  const errors = [];
++  for (const job of jobs) {
++    try {
++      const { tasks, refs } = await generateFolderTasks({
++        account: job.account, folder: job.folder, cfg, legend, imapManager,
++      });
++      generated.push(...tasks);
++      for (const r of refs) liveRefs.add(r);
++    } catch (err) {
++      errors.push(`${job.account.email_address} / ${job.folder}: ${err.message}`);
++    }
++  }
++
++  const existing = (await query(
++    `SELECT id, kind, text, done, position, source, source_ref
++       FROM tasks WHERE user_id = $1 ORDER BY position ASC, created_at ASC`,
++    [userId]
++  )).rows;
++  const trackedRefs = new Set(existing.filter(t => t.source === 'ai' && t.source_ref).map(t => t.source_ref));
++
++  // Auto-complete AI tasks whose source email is no longer in any watched folder —
++  // skipped when any folder failed to scan, so a transient IMAP hiccup can't
++  // mass-complete tasks.
++  let completed = 0;
++  if (errors.length === 0) {
++    for (const t of existing) {
++      if (t.source === 'ai' && !t.done && t.source_ref && !liveRefs.has(t.source_ref)) {
++        await query('UPDATE tasks SET done = true, updated_at = NOW() WHERE id = $1', [t.id]);
++        completed++;
++      }
++    }
++  }
++
++  generated.sort((a, b) => RANK[a.priority] - RANK[b.priority]);
++  const newByGroup = new Map();
++  for (const g of generated) {
++    if (!g.messageId || trackedRefs.has(g.messageId)) continue;
++    trackedRefs.add(g.messageId);
++    const key = g.group || 'General';
++    if (!newByGroup.has(key)) newByGroup.set(key, []);
++    newByGroup.get(key).push(g);
++  }
++
++  const norm = s => String(s || '').trim().toLowerCase();
++  const headingByText = new Map();
++  for (const t of existing) if (t.kind === 'heading') headingByText.set(norm(t.text), t.id);
++
++  let added = 0;
++  const groups = [];
++  for (const [group, tasks] of newByGroup) {
++    let headingId = headingByText.get(norm(group));
++    if (!headingId) {
++      const pos = await positionAfter(userId, null);
++      const h = await query(
++        `INSERT INTO tasks (user_id, kind, text, position, source) VALUES ($1,'heading',$2,$3,'ai') RETURNING id`,
++        [userId, group.slice(0, 200), pos]
++      );
++      headingId = h.rows[0].id;
++      headingByText.set(norm(group), headingId);
++    }
++    groups.push(group);
++    let afterId = headingId;
++    for (const g of tasks) {
++      const text = g.detail ? `${g.title} — ${g.detail}` : g.title;
++      const pos = await positionAfter(userId, afterId);
++      const r = await query(
++        `INSERT INTO tasks (user_id, kind, text, priority, position, source, source_ref)
++         VALUES ($1,'task',$2,$3,$4,'ai',$5) RETURNING id`,
++        [userId, text.slice(0, 2000), g.priority, pos, g.messageId]
++      );
++      afterId = r.rows[0].id;
++      added++;
++    }
++  }
++
++  return { added, completed, groups, folders: jobs.length, errors };
++}
+diff --git a/backend/src/services/taskScheduler.js b/backend/src/services/taskScheduler.js
+new file mode 100644
+index 0000000..7419ab6
+--- /dev/null
++++ b/backend/src/services/taskScheduler.js
+@@ -0,0 +1,79 @@
++import { query } from './db.js';
++import { refreshUserTasks } from './taskRefresh.js';
++
++// Daily auto-refresh of the Tasks hub. Polls every few minutes; for each user who
++// has opted in (preferences.taskAutoRefresh.enabled) and has task folders set, runs
++// one refresh once per local day at or after their target hour. Opt-in, timezone
++// aware, and idempotent per day via a stored lastRun date.
++
++const POLL_MS = 5 * 60 * 1000;   // 5 minutes
++const DEFAULT_TZ = process.env.TASK_TZ || 'Europe/London';
++let timer = null;
++
++// { hour: 0-23, date: 'YYYY-MM-DD' } in the given IANA timezone.
++function localParts(tz) {
++  const parts = new Intl.DateTimeFormat('en-CA', {
++    timeZone: tz || DEFAULT_TZ,
++    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false,
++  }).formatToParts(new Date());
++  const get = (t) => parts.find(p => p.type === t)?.value;
++  let hour = Number(get('hour'));
++  if (!Number.isFinite(hour) || hour === 24) hour = 0;   // some engines emit '24' at midnight
++  return { hour, date: `${get('year')}-${get('month')}-${get('day')}` };
++}
++
++function hasSources(prefs) {
++  const sources = prefs?.taskSources || {};
++  return Object.values(sources).some(s => s && s.enabled !== false && Array.isArray(s.folders) && s.folders.length);
++}
++
++async function stampLastRun(userId, date) {
++  await query(
++    `UPDATE users SET preferences =
++       jsonb_set(COALESCE(preferences,'{}'::jsonb), '{taskAutoRefresh,lastRun}', to_jsonb($2::text), true)
++     WHERE id = $1`,
++    [userId, date]
++  );
++}
++
++async function tick() {
++  let users;
++  try { users = await query('SELECT id, preferences FROM users'); }
++  catch (e) { console.warn('[task-scheduler] user query failed:', e.message); return; }
++
++  for (const u of users.rows) {
++    const prefs = u.preferences || {};
++    const cfg = prefs.taskAutoRefresh;
++    if (!cfg || cfg.enabled === false) continue;      // opt-in only
++    if (!hasSources(prefs)) continue;
++
++    const tz = cfg.tz || DEFAULT_TZ;
++    const targetHour = Number.isInteger(cfg.hour) ? cfg.hour : 8;
++    const { hour, date } = localParts(tz);
++    if (hour < targetHour || cfg.lastRun === date) continue;
++
++    // Stamp first so a crash mid-run doesn't cause a retry storm; a failed provider
++    // then simply waits until tomorrow rather than every 5 minutes all day.
++    await stampLastRun(u.id, date).catch(() => {});
++    try {
++      const r = await refreshUserTasks(u.id);
++      console.log(`[task-scheduler] ${u.id}: +${r.added} tasks, ${r.completed} auto-done (${r.folders} folders)`);
++    } catch (e) {
++      if (e.code !== 'NO_SOURCES') console.warn(`[task-scheduler] ${u.id}: ${e.message}`);
++    }
++  }
++}
++
++export function startTaskScheduler() {
++  if (timer) return;
++  // A first tick shortly after boot catches a user whose target hour already passed
++  // today (e.g. a restart at 10am), then steady polling.
++  timer = setInterval(() => { tick().catch(e => console.warn('[task-scheduler] tick error:', e.message)); }, POLL_MS);
++  if (timer.unref) timer.unref();
++  setTimeout(() => { tick().catch(() => {}); }, 30000).unref?.();
++  console.log(`[task-scheduler] started (poll ${POLL_MS / 60000}m, default tz ${DEFAULT_TZ})`);
++}
++
++export function stopTaskScheduler() {
++  if (timer) { clearInterval(timer); timer = null; }
 +}
 diff --git a/frontend/index.html b/frontend/index.html
 index dc7460d..314846e 100644
@@ -5637,10 +5780,10 @@ index 0000000..4551729
 +}
 diff --git a/frontend/src/components/TasksView.jsx b/frontend/src/components/TasksView.jsx
 new file mode 100644
-index 0000000..39b40f2
+index 0000000..c7b4426
 --- /dev/null
 +++ b/frontend/src/components/TasksView.jsx
-@@ -0,0 +1,383 @@
+@@ -0,0 +1,410 @@
 +// Native task list — a restricted Notion-style outline: two block kinds, "heading"
 +// (a client/section) and "task" (a checkbox item). Type straight into it: Enter makes
 +// a new task, Backspace on an empty block removes it, the checkbox ticks a task off.
@@ -5896,10 +6039,13 @@ index 0000000..39b40f2
 +  const [accounts, setAccounts] = useState([]);
 +  const [sources, setSources] = useState({});     // { accountId: { enabled, folders: [] } }
 +  const [legend, setLegend] = useState('');
++  const [auto, setAuto] = useState({ enabled: false, hour: 8, tz: null });
 +  const [loading, setLoading] = useState(true);
 +  const [saving, setSaving] = useState(false);
 +  const [saved, setSaved] = useState(false);
 +  const [err, setErr] = useState('');
++
++  const browserTz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return null; } })();
 +
 +  useEffect(() => {
 +    (async () => {
@@ -5907,6 +6053,7 @@ index 0000000..39b40f2
 +        const [s, l] = await Promise.all([api.tasksSources(), api.aiTaskLegend()]);
 +        setAccounts(Array.isArray(s.accounts) ? s.accounts : []);
 +        setSources(s.sources || {});
++        setAuto({ enabled: !!s.autoRefresh?.enabled, hour: Number.isInteger(s.autoRefresh?.hour) ? s.autoRefresh.hour : 8, tz: s.autoRefresh?.tz || null });
 +        setLegend(l.legend || '');
 +      } catch (e) { setErr(e.message || 'Failed to load settings'); }
 +      finally { setLoading(false); }
@@ -5925,7 +6072,8 @@ index 0000000..39b40f2
 +  const save = async () => {
 +    setSaving(true); setErr(''); setSaved(false);
 +    try {
-+      await Promise.all([api.tasksSaveSources(sources), api.aiSetTaskLegend(legend)]);
++      const autoPayload = { ...auto, tz: auto.tz || browserTz || null };
++      await Promise.all([api.tasksSaveSources(sources, autoPayload), api.aiSetTaskLegend(legend)]);
 +      setSaved(true);
 +      setTimeout(() => setSaved(false), 2000);
 +    } catch (e) { setErr(e.message || 'Save failed'); }
@@ -5999,6 +6147,28 @@ index 0000000..39b40f2
 +                color: 'var(--text-primary)', resize: 'vertical', fontFamily: 'inherit',
 +              }}
 +            />
++          </div>
++
++          {/* Daily auto-refresh */}
++          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
++            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
++              <input type="checkbox" checked={auto.enabled} onChange={e => setAuto(a => ({ ...a, enabled: e.target.checked }))} />
++              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
++                {t('tasksView.autoTitle', { defaultValue: 'Refresh automatically every morning' })}
++              </span>
++            </label>
++            {auto.enabled && (
++              <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 8, paddingLeft: 24, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
++                <span>{t('tasksView.autoAt', { defaultValue: 'Each day at' })}</span>
++                <select value={auto.hour} onChange={e => setAuto(a => ({ ...a, hour: Number(e.target.value) }))}
++                  style={{ fontSize: 12.5, padding: '3px 6px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
++                  {Array.from({ length: 24 }, (_, h) => (
++                    <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
++                  ))}
++                </select>
++                <span style={{ color: 'var(--text-tertiary)' }}>{auto.tz || browserTz}</span>
++              </div>
++            )}
 +          </div>
 +
 +          {err && <div style={{ color: 'var(--red, #e03131)', fontSize: 12.5, marginTop: 8 }}>{err}</div>}
@@ -6133,7 +6303,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..f3d846b 100644
+index c62ac69..31a47b2 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -6172,7 +6342,7 @@ index c62ac69..f3d846b 100644
 +  tasksReorder: (ids) => request('POST', '/tasks/reorder', { ids }),
 +  tasksClearDone: () => request('POST', '/tasks/clear-done'),
 +  tasksSources: () => request('GET', '/tasks/sources'),
-+  tasksSaveSources: (sources) => request('PUT', '/tasks/sources', { sources }),
++  tasksSaveSources: (sources, autoRefresh) => request('PUT', '/tasks/sources', { sources, autoRefresh }),
 +  tasksRefresh: () => request('POST', '/tasks/refresh'),
    // GTD "done": strip the row's label(s) for these states, mark read, archive the INBOX
    // copy. id is the rail head's row id (its label-folder copy); the server resolves the
