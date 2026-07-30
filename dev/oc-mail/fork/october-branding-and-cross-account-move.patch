@@ -728,10 +728,10 @@ index 0000000..c22c0d8
 +export default router;
 diff --git a/backend/src/routes/tasks.js b/backend/src/routes/tasks.js
 new file mode 100644
-index 0000000..0c7a421
+index 0000000..b47d6ef
 --- /dev/null
 +++ b/backend/src/routes/tasks.js
-@@ -0,0 +1,194 @@
+@@ -0,0 +1,195 @@
 +import { Router } from 'express';
 +import { query } from '../services/db.js';
 +import { requireAuth } from '../middleware/auth.js';
@@ -891,7 +891,8 @@ index 0000000..0c7a421
 +// 60s API gateway timeout — so it runs in the background: POST starts it, the client
 +// polls GET /tasks/refresh/status. The daily scheduler calls refreshUserTasks directly.
 +router.post('/tasks/refresh', requireAuth, (req, res) => {
-+  const { alreadyRunning } = startUserRefresh(uid(req));
++  const rebuild = req.body?.rebuild === true;
++  const { alreadyRunning } = startUserRefresh(uid(req), { rebuild });
 +  res.status(202).json({ ok: true, running: true, alreadyRunning });
 +});
 +
@@ -2485,10 +2486,10 @@ index 0000000..d07fd55
 +}
 diff --git a/backend/src/services/taskRefresh.js b/backend/src/services/taskRefresh.js
 new file mode 100644
-index 0000000..8c0e883
+index 0000000..09e788a
 --- /dev/null
 +++ b/backend/src/services/taskRefresh.js
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,181 @@
 +import { query } from './db.js';
 +import { imapManager } from '../index.js';
 +import { generateFolderTasks, loadAiConfig, loadLegendText, parseLegend } from './taskGenerator.js';
@@ -2522,12 +2523,12 @@ index 0000000..8c0e883
 +// Per-user serialization: a manual refresh and the 8am scheduled run (or two quick
 +// clicks) must not overlap and double-insert. Callers await the same in-flight run.
 +const locks = new Map();
-+export async function refreshUserTasks(userId) {
++export async function refreshUserTasks(userId, opts = {}) {
 +  while (locks.get(userId)) { try { await locks.get(userId); } catch { /* prior run's error is its caller's */ } }
 +  let release;
 +  const gate = new Promise(r => { release = r; });
 +  locks.set(userId, gate);
-+  try { return await runRefresh(userId); }
++  try { return await runRefresh(userId, opts); }
 +  finally { locks.delete(userId); release(); }
 +}
 +
@@ -2542,12 +2543,12 @@ index 0000000..8c0e883
 +  return runs.get(userId) || { running: false, result: null, error: null };
 +}
 +
-+export function startUserRefresh(userId) {
++export function startUserRefresh(userId, opts = {}) {
 +  const cur = runs.get(userId);
 +  if (cur && cur.running) return { alreadyRunning: true };
 +  const job = { running: true, startedAt: Date.now(), result: null, error: null, finishedAt: null };
 +  runs.set(userId, job);
-+  refreshUserTasks(userId)
++  refreshUserTasks(userId, opts)
 +    .then(result => { job.result = result; })
 +    .catch(err => { job.error = err.code === 'NO_SOURCES' ? 'NO_SOURCES' : (err.message || 'Refresh failed'); })
 +    .finally(() => { job.running = false; job.finishedAt = Date.now(); });
@@ -2557,8 +2558,11 @@ index 0000000..8c0e883
 +// Runs one refresh for a user. Throws an Error tagged with .code:
 +//   'NO_AI'      — provider not configured/enabled (err.status carries the HTTP code)
 +//   'NO_SOURCES' — the user has no task folders configured
-+// Returns { added, completed, groups, folders, errors }.
-+async function runRefresh(userId) {
++// opts.rebuild deletes existing AI-generated tasks first, so the list is regenerated
++// from scratch (used to clear stale wording from an earlier run). Hand-typed tasks and
++// headings are never touched.
++// Returns { added, completed, groups, folders, errors, rebuilt }.
++async function runRefresh(userId, opts = {}) {
 +  const cfg = await loadAiConfig();   // throws with .status if unavailable
 +
 +  const prefRow = await query('SELECT preferences FROM users WHERE id = $1', [userId]);
@@ -2590,6 +2594,17 @@ index 0000000..8c0e883
 +    } catch (err) {
 +      errors.push(`${job.account.email_address} / ${job.folder}: ${err.message}`);
 +    }
++  }
++
++  // Rebuild: clear previously-generated tasks so they regenerate cleanly (e.g. to drop
++  // stale wording from an older run). Only done once generation SUCCEEDED for at least
++  // one folder, so a total AI failure can't wipe the list and leave nothing. Hand-typed
++  // tasks (source='manual') and all headings are preserved.
++  let rebuilt = false;
++  if (opts.rebuild && (generated.length > 0 || errors.length < jobs.length)) {
++    const del = await query("DELETE FROM tasks WHERE user_id = $1 AND source = 'ai' AND kind = 'task'", [userId]);
++    rebuilt = true;
++    void del;
 +  }
 +
 +  const existing = (await query(
@@ -2654,7 +2669,7 @@ index 0000000..8c0e883
 +    }
 +  }
 +
-+  return { added, completed, groups, folders: jobs.length, errors };
++  return { added, completed, groups, folders: jobs.length, errors, rebuilt };
 +}
 diff --git a/backend/src/services/taskScheduler.js b/backend/src/services/taskScheduler.js
 new file mode 100644
@@ -7295,10 +7310,10 @@ index 0000000..4551729
 +}
 diff --git a/frontend/src/components/TasksView.jsx b/frontend/src/components/TasksView.jsx
 new file mode 100644
-index 0000000..615f694
+index 0000000..386061d
 --- /dev/null
 +++ b/frontend/src/components/TasksView.jsx
-@@ -0,0 +1,564 @@
+@@ -0,0 +1,571 @@
 +// Native task list — a restricted Notion-style outline: two block kinds, "heading"
 +// (a client/section) and "task" (a checkbox item). Type straight into it: Enter makes
 +// a new task, Backspace on an empty block removes it, the checkbox ticks a task off.
@@ -7455,10 +7470,11 @@ index 0000000..615f694
 +    load();
 +  };
 +
-+  const refresh = async () => {
++  const refresh = async (rebuild = false) => {
++    if (rebuild && !window.confirm(t('tasksView.rebuildConfirm', { defaultValue: 'Rebuild the list from your mail? This clears AI-generated tasks and regenerates them (your typed tasks and headings stay).' }))) return;
 +    setRefreshing(true); setRefreshMsg(''); setError('');
 +    try {
-+      await api.tasksRefresh();                          // starts the background sweep
++      await api.tasksRefresh(rebuild);                   // starts the background sweep
 +      // Poll until it finishes — a full sweep across folders can take minutes.
 +      const startedAt = Date.now();
 +      const MAX_MS = 12 * 60 * 1000;
@@ -7487,6 +7503,9 @@ index 0000000..615f694
 +        let msg = bits.length ? bits.join(' · ') : t('tasksView.upToDate', { defaultValue: 'Already up to date' });
 +        if (r.errors && r.errors.length) msg += ` · ${r.errors.length} folder(s) failed`;
 +        setRefreshMsg(msg);
++        // Freshen the brief so the card reflects the just-refreshed list, not a cached
++        // (possibly earlier-day) version. Best-effort — never block the refresh on it.
++        api.tasksBriefGenerate().then(br => setBrief({ text: br.brief, date: null, stale: false })).catch(() => {});
 +      }
 +    } catch (e) {
 +      setError(e.message || 'Refresh failed');
@@ -7515,11 +7534,14 @@ index 0000000..615f694
 +          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>
 +            {t('tasksView.title', { defaultValue: 'Tasks' })}
 +          </h1>
-+          <button onClick={refresh} disabled={refreshing} style={{ ...btnStyle(true), display: 'inline-flex', alignItems: 'center', gap: 6 }} title={t('tasksView.refreshHint', { defaultValue: 'Read your mail folders and add tasks' })}>
++          <button onClick={() => refresh(false)} disabled={refreshing} style={{ ...btnStyle(true), display: 'inline-flex', alignItems: 'center', gap: 6 }} title={t('tasksView.refreshHint', { defaultValue: 'Read your mail folders and add new tasks' })}>
 +            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
 +              <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/>
 +            </svg>
 +            {refreshing ? t('tasksView.refreshing', { defaultValue: 'Reading mail…' }) : t('tasksView.refresh', { defaultValue: 'Refresh from mail' })}
++          </button>
++          <button onClick={() => refresh(true)} disabled={refreshing} style={btnStyle(false)} title={t('tasksView.rebuildHint', { defaultValue: 'Clear AI tasks and regenerate the list from scratch' })}>
++            {t('tasksView.rebuild', { defaultValue: 'Rebuild' })}
 +          </button>
 +          <button onClick={briefMe} disabled={briefBusy} style={btnStyle(false)} title={t('tasksView.briefHint', { defaultValue: 'Get your morning brief' })}>
 +            {briefBusy ? t('tasksView.briefing', { defaultValue: 'Briefing…' }) : t('tasksView.briefMe', { defaultValue: 'Brief me' })}
@@ -7972,7 +7994,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..66d1e86 100644
+index c62ac69..54689c5 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -8012,7 +8034,7 @@ index c62ac69..66d1e86 100644
 +  tasksClearDone: () => request('POST', '/tasks/clear-done'),
 +  tasksSources: () => request('GET', '/tasks/sources'),
 +  tasksSaveSources: (sources, autoRefresh, autoDrafts) => request('PUT', '/tasks/sources', { sources, autoRefresh, autoDrafts }),
-+  tasksRefresh: () => request('POST', '/tasks/refresh'),
++  tasksRefresh: (rebuild) => request('POST', '/tasks/refresh', { rebuild: !!rebuild }),
 +  tasksRefreshStatus: () => request('GET', '/tasks/refresh/status'),
 +  clientsList: () => request('GET', '/clients'),
 +  clientAdd: (client, terms) => request('POST', '/clients', { client, terms }),
