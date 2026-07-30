@@ -306,13 +306,14 @@ index 0000000..e5a23da
 +export default router;
 diff --git a/backend/src/routes/clients.js b/backend/src/routes/clients.js
 new file mode 100644
-index 0000000..e896e21
+index 0000000..9161fe5
 --- /dev/null
 +++ b/backend/src/routes/clients.js
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,92 @@
 +import { Router } from 'express';
 +import { requireAuth } from '../middleware/auth.js';
-+import { loadLegendText, parseLegend, loadAiConfig } from '../services/taskGenerator.js';
++import { query } from '../services/db.js';
++import { loadLegendText, parseLegend, saveLegendText, loadAiConfig } from '../services/taskGenerator.js';
 +import { loadClientBriefs, getBrief, upsertBrief, generateClientBrief } from '../services/clientBriefs.js';
 +
 +// Client knowledge layer API. The client roster comes from the shared legend; each
@@ -341,6 +342,36 @@ index 0000000..e896e21
 +    clients.push({ client: b.client, hasBrief: !!b.brief, auto: b.auto, updatedAt: b.updated_at, refreshedAt: b.refreshed_at, orphan: true });
 +  }
 +  res.json({ clients });
++});
++
++// Add a client to the roster (appends a line to the shared client legend). Optional
++// `terms` are the matching hints (domains, people, project names).
++router.post('/clients', requireAuth, async (req, res) => {
++  const name = String(req.body?.client || '').trim().replace(/[\r\n:]/g, ' ').slice(0, 120);
++  const terms = String(req.body?.terms || '').trim().replace(/[\r\n]/g, ' ').slice(0, 400);
++  if (!name) return res.status(400).json({ error: 'Client name is required' });
++  const legend = parseLegend(await loadLegendText());
++  if (legend.some(e => e.client.toLowerCase() === name.toLowerCase())) {
++    return res.status(409).json({ error: 'That client is already on the list' });
++  }
++  const text = (await loadLegendText()).trim();
++  const line = terms ? `${name}: ${terms}` : name;
++  await saveLegendText(text ? `${text}\n${line}` : line);
++  res.json({ ok: true, client: name });
++});
++
++// Remove a client: strip its line from the legend and delete any stored brief.
++router.delete('/clients/:client', requireAuth, async (req, res) => {
++  const target = req.params.client.trim().toLowerCase();
++  const kept = (await loadLegendText()).split('\n').filter(line => {
++    if (!line.trim()) return false;
++    const idx = line.indexOf(':');
++    const name = (idx === -1 ? line : line.slice(0, idx)).trim().toLowerCase();
++    return name !== target;
++  });
++  await saveLegendText(kept.join('\n'));
++  await query('DELETE FROM client_briefs WHERE user_id = $1 AND client = $2', [uid(req), req.params.client]);
++  res.json({ ok: true });
 +});
 +
 +router.get('/clients/:client', requireAuth, async (req, res) => {
@@ -5708,10 +5739,10 @@ index 0000000..a786fd0
 +};
 diff --git a/frontend/src/components/ClientsView.jsx b/frontend/src/components/ClientsView.jsx
 new file mode 100644
-index 0000000..6dabce8
+index 0000000..dcb0fb2
 --- /dev/null
 +++ b/frontend/src/components/ClientsView.jsx
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,218 @@
 +// Clients — the knowledge layer. A living one-page brief per client that the AI keeps
 +// up to date from your mail, and that you can hand-edit. These briefs feed back into
 +// the task list and (later) reply drafting, so the assistant understands each client
@@ -5731,6 +5762,8 @@ index 0000000..6dabce8
 +  const [busy, setBusy] = useState('');             // 'save' | 'regen' | ''
 +  const [note, setNote] = useState('');
 +  const [error, setError] = useState('');
++  const [newName, setNewName] = useState('');
++  const [adding, setAdding] = useState(false);
 +  const dirty = useRef(false);
 +
 +  const loadList = useCallback(async () => {
@@ -5791,12 +5824,38 @@ index 0000000..6dabce8
 +
 +  const onBriefChange = (v) => { setBrief(v); dirty.current = true; };
 +
++  const addClient = async () => {
++    const name = newName.trim();
++    if (!name) { setAdding(false); return; }
++    setError('');
++    try {
++      await api.clientAdd(name, '');
++      setNewName(''); setAdding(false);
++      await loadList();
++      openClient(name);
++    } catch (e) { setError(e.message || 'Could not add client'); }
++  };
++
++  const removeClient = async (name, e) => {
++    e.stopPropagation();
++    if (!window.confirm(t('clients.removeConfirm', { name, defaultValue: `Remove “${name}” from your client list? This also deletes its brief.` }))) return;
++    setError('');
++    try {
++      await api.clientRemove(name);
++      if (selected === name) { setSelected(null); setBrief(''); }
++      await loadList();
++    } catch (err) { setError(err.message || 'Could not remove client'); }
++  };
++
 +  return (
 +    <div style={{ flex: 1, height: '100%', display: 'flex', overflow: 'hidden', background: 'var(--bg-primary)' }}>
 +      {/* Roster */}
 +      <div style={{ width: 240, flexShrink: 0, borderRight: '1px solid var(--border-subtle)', overflow: 'auto', padding: '18px 10px' }}>
-+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', padding: '0 8px 8px' }}>
++        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', padding: '0 8px 4px' }}>
 +          {t('rail.clients', { defaultValue: 'Clients' })}
++        </div>
++        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', padding: '0 8px 10px', lineHeight: 1.45, opacity: 0.8 }}>
++          {t('clients.rosterHint', { defaultValue: 'Add matching terms (domains, people) in Tasks → ⚙ legend to sharpen grouping.' })}
 +        </div>
 +        {loadingList ? (
 +          <div style={{ color: 'var(--text-tertiary)', fontSize: 13, padding: 8 }}>…</div>
@@ -5807,10 +5866,10 @@ index 0000000..6dabce8
 +        ) : clients.map(c => {
 +          const active = c.client === selected;
 +          return (
-+            <button key={c.client} onClick={() => openClient(c.client)}
++            <div key={c.client} className="client-row" onClick={() => openClient(c.client)}
 +              style={{
-+                display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
-+                padding: '7px 8px', borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 2,
++                display: 'flex', alignItems: 'center', gap: 8, width: '100%', boxSizing: 'border-box',
++                padding: '7px 8px', borderRadius: 8, cursor: 'pointer', marginBottom: 2,
 +                background: active ? 'var(--accent-dim)' : 'transparent',
 +                color: active ? 'var(--accent)' : 'var(--text-primary)',
 +              }}>
@@ -5819,9 +5878,28 @@ index 0000000..6dabce8
 +                width: 7, height: 7, borderRadius: 999, flexShrink: 0,
 +                background: c.hasBrief ? 'var(--accent)' : 'var(--border)',
 +              }} />
-+            </button>
++              <span onClick={(e) => removeClient(c.client, e)} title={t('clients.remove', { defaultValue: 'Remove client' })}
++                role="button" style={{ flexShrink: 0, cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 15, lineHeight: 1, padding: '0 2px', opacity: 0.55 }}>×</span>
++            </div>
 +          );
 +        })}
++
++        {!loadingList && (
++          adding ? (
++            <div style={{ display: 'flex', gap: 6, padding: '6px 8px' }}>
++              <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
++                onKeyDown={e => { if (e.key === 'Enter') addClient(); if (e.key === 'Escape') { setAdding(false); setNewName(''); } }}
++                placeholder={t('clients.newName', { defaultValue: 'Client name' })}
++                style={{ flex: 1, minWidth: 0, fontSize: 13, padding: '5px 8px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
++              <button onClick={addClient} style={{ ...btn(true), padding: '5px 10px' }}>{t('common.add', { defaultValue: 'Add' })}</button>
++            </div>
++          ) : (
++            <button onClick={() => setAdding(true)}
++              style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left', padding: '7px 8px', marginTop: 4, borderRadius: 8, border: 'none', cursor: 'pointer', background: 'transparent', color: 'var(--text-tertiary)', fontSize: 13 }}>
++              + {t('clients.addClient', { defaultValue: 'Add client' })}
++            </button>
++          )
++        )}
 +      </div>
 +
 +      {/* Brief editor */}
@@ -5834,8 +5912,8 @@ index 0000000..6dabce8
 +          <div style={{ maxWidth: 720, margin: '0 auto' }}>
 +            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
 +              <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>{selected}</h1>
-+              <button onClick={() => regenerate(false)} disabled={!!busy} style={btn(true)}>
-+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-2px', marginRight: 5 }}>
++              <button onClick={() => regenerate(false)} disabled={!!busy} style={{ ...btn(true), display: 'inline-flex', alignItems: 'center', gap: 6 }}>
++                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
 +                  <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/>
 +                </svg>
 +                {busy === 'regen' ? t('clients.rebuilding', { defaultValue: 'Reading mail…' }) : t('clients.regenerate', { defaultValue: 'Rebuild from mail' })}
@@ -7129,7 +7207,7 @@ index 0000000..4551729
 +}
 diff --git a/frontend/src/components/TasksView.jsx b/frontend/src/components/TasksView.jsx
 new file mode 100644
-index 0000000..d32a56d
+index 0000000..33a9210
 --- /dev/null
 +++ b/frontend/src/components/TasksView.jsx
 @@ -0,0 +1,542 @@
@@ -7327,8 +7405,8 @@ index 0000000..d32a56d
 +          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>
 +            {t('tasksView.title', { defaultValue: 'Tasks' })}
 +          </h1>
-+          <button onClick={refresh} disabled={refreshing} style={btnStyle(true)} title={t('tasksView.refreshHint', { defaultValue: 'Read your mail folders and add tasks' })}>
-+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-2px', marginRight: 5 }}>
++          <button onClick={refresh} disabled={refreshing} style={{ ...btnStyle(true), display: 'inline-flex', alignItems: 'center', gap: 6 }} title={t('tasksView.refreshHint', { defaultValue: 'Read your mail folders and add tasks' })}>
++            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
 +              <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/>
 +            </svg>
 +            {refreshing ? t('tasksView.refreshing', { defaultValue: 'Reading mail…' }) : t('tasksView.refresh', { defaultValue: 'Refresh from mail' })}
@@ -7784,7 +7862,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..8d6a42f 100644
+index c62ac69..32662b2 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -7798,7 +7876,7 @@ index c62ac69..8d6a42f 100644
    getUnreadCounts: () => request('GET', '/mail/unread-counts'),
  
    // Antispam (v0.1) — manual user feedback.
-@@ -312,6 +316,43 @@ export const api = {
+@@ -312,6 +316,45 @@ export const api = {
    },
    gtdClassify: (messageId, state) => request('POST', '/gtd/classify', { messageId, state }),
    gtdUnclassify: (messageId, state) => request('DELETE', '/gtd/classify', { messageId, state }),
@@ -7826,6 +7904,8 @@ index c62ac69..8d6a42f 100644
 +  tasksSaveSources: (sources, autoRefresh, autoDrafts) => request('PUT', '/tasks/sources', { sources, autoRefresh, autoDrafts }),
 +  tasksRefresh: () => request('POST', '/tasks/refresh'),
 +  clientsList: () => request('GET', '/clients'),
++  clientAdd: (client, terms) => request('POST', '/clients', { client, terms }),
++  clientRemove: (client) => request('DELETE', `/clients/${encodeURIComponent(client)}`),
 +  clientBriefGet: (client) => request('GET', `/clients/${encodeURIComponent(client)}`),
 +  clientBriefSave: (client, brief) => request('PUT', `/clients/${encodeURIComponent(client)}`, { brief }),
 +  clientBriefRegenerate: (client, force) => request('POST', `/clients/${encodeURIComponent(client)}/regenerate`, { force: !!force }),
