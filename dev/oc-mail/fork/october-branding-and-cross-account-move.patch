@@ -116,10 +116,10 @@ index 0000000..2c4193b
 +
 +CREATE INDEX IF NOT EXISTS idx_ai_drafts_user_status ON ai_drafts(user_id, status);
 diff --git a/backend/src/index.js b/backend/src/index.js
-index 483dcfa..f2179f8 100644
+index 483dcfa..53e2162 100644
 --- a/backend/src/index.js
 +++ b/backend/src/index.js
-@@ -25,11 +25,16 @@ import blockListRoutes from './routes/blockList.js';
+@@ -25,11 +25,17 @@ import blockListRoutes from './routes/blockList.js';
  import contactsRoutes from './routes/contacts.js';
  import todoistRoutes from './routes/todoist.js';
  import aiRoutes from './routes/ai.js';
@@ -127,6 +127,7 @@ index 483dcfa..f2179f8 100644
 +import tasksRoutes from './routes/tasks.js';
 +import clientsRoutes from './routes/clients.js';
 +import aiDraftsRoutes from './routes/aiDrafts.js';
++import researchRoutes from './routes/research.js';
  import categoriesRoutes from './routes/categories.js';
  import gtdRoutes from './routes/gtd.js';
  import carddavRouter from './routes/carddav.js';
@@ -136,7 +137,7 @@ index 483dcfa..f2179f8 100644
  import { encryptExistingCredentials, query } from './services/db.js';
  import { runMigrations } from './services/migrations.js';
  import { parseVCard } from './utils/vcard.js';
-@@ -174,6 +179,10 @@ app.use('/api/contacts', contactsRoutes);
+@@ -174,6 +180,11 @@ app.use('/api/contacts', contactsRoutes);
  app.use('/api/todoist', todoistRoutes);
  app.use('/api/carddav', carddavAccountRouter);
  app.use('/api', aiRoutes);
@@ -144,10 +145,11 @@ index 483dcfa..f2179f8 100644
 +app.use('/api', tasksRoutes);
 +app.use('/api', clientsRoutes);
 +app.use('/api', aiDraftsRoutes);
++app.use('/api', researchRoutes);
  app.use('/api', categoriesRoutes);
  // Mounted at the /api/gtd subtree (not bare /api) so gtd.js's router-level
  // requireAuth cannot intercept the unauthenticated /api/health and /api/version
-@@ -244,6 +253,9 @@ imapManager.startSnoozeWatcher();
+@@ -244,6 +255,9 @@ imapManager.startSnoozeWatcher();
  // Schedule periodic CardDAV contact sync for any connected accounts.
  startCardavScheduler();
  
@@ -646,6 +648,50 @@ index 0000000..a85cc80
 +router.delete('/admin/omi', requireAdmin, async (_req, res) => {
 +  await query('DELETE FROM system_settings WHERE key = $1', [CFG_KEY]);
 +  res.json({ ok: true });
++});
++
++export default router;
+diff --git a/backend/src/routes/research.js b/backend/src/routes/research.js
+new file mode 100644
+index 0000000..c22c0d8
+--- /dev/null
++++ b/backend/src/routes/research.js
+@@ -0,0 +1,38 @@
++import { Router } from 'express';
++import { requireAuth, requireAdmin } from '../middleware/auth.js';
++import { loadResearchConfig, saveResearchConfig, runResearch } from '../services/research.js';
++
++// Approval-gated research. POST /research only runs on an explicit user action (a click),
++// never on a schedule. Admin configures an optional web-search provider; without one,
++// results are model-only and flagged as not web-verified.
++const router = Router();
++
++router.get('/research/status', requireAuth, async (_req, res) => {
++  const cfg = await loadResearchConfig();
++  res.json({ provider: cfg.provider || 'none', webSearch: cfg.provider !== 'none' && !!cfg.apiKey });
++});
++
++router.post('/research', requireAuth, async (req, res) => {
++  const { question, context } = req.body || {};
++  if (!question || typeof question !== 'string') return res.status(400).json({ error: 'question is required' });
++  try {
++    const result = await runResearch(req.session.userId, { question, context: typeof context === 'string' ? context : '' });
++    res.json({ ok: true, ...result });
++  } catch (err) {
++    res.status(err.status || 502).json({ error: err.message || 'Research failed' });
++  }
++});
++
++// ── Admin config ──────────────────────────────────────────────────────────────
++router.get('/admin/research', requireAdmin, async (_req, res) => {
++  const cfg = await loadResearchConfig();
++  res.json({ config: { provider: cfg.provider || 'none', apiKey: cfg.apiKey ? '••••••••' : '' } });
++});
++
++router.patch('/admin/research', requireAdmin, async (req, res) => {
++  const { provider, apiKey } = req.body || {};
++  const cfg = await saveResearchConfig({ provider, apiKey });
++  res.json({ ok: true, provider: cfg.provider });
 +});
 +
 +export default router;
@@ -1995,6 +2041,113 @@ index 5d1a8fa..074c945 100644
    });
  
    it.each([
+diff --git a/backend/src/services/research.js b/backend/src/services/research.js
+new file mode 100644
+index 0000000..704a499
+--- /dev/null
++++ b/backend/src/services/research.js
+@@ -0,0 +1,101 @@
++import { query } from './db.js';
++import { encrypt, decrypt } from './encryption.js';
++import { aiComplete, loadAiConfig } from './taskGenerator.js';
++
++// Phase 7 — the agentic layer, kept deliberately narrow and approval-gated. The only
++// autonomous-feeling action is research: when a task/email is "look into X", the user
++// explicitly asks Claude to research it, and this runs a web search (if a provider is
++// configured) then synthesises a cited note. Nothing here runs on a schedule or without
++// a direct user click. If no search provider is set, it answers from the model's own
++// knowledge, clearly flagged as not web-verified.
++
++const clip = (s, n) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
++
++export async function loadResearchConfig() {
++  const r = await query("SELECT value FROM system_settings WHERE key = 'research_config'");
++  if (!r.rows.length) return { provider: 'none', apiKey: null };
++  try { return JSON.parse(r.rows[0].value); } catch { return { provider: 'none', apiKey: null }; }
++}
++
++export async function saveResearchConfig({ provider, apiKey }) {
++  const existing = await loadResearchConfig();
++  const key = apiKey && apiKey !== '••••••••' ? encrypt(apiKey) : (existing.apiKey || null);
++  const cfg = { provider: ['tavily', 'brave', 'none'].includes(provider) ? provider : 'none', apiKey: key };
++  await query(
++    `INSERT INTO system_settings (key, value, updated_at) VALUES ('research_config', $1, NOW())
++     ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
++    [JSON.stringify(cfg)]
++  );
++  return cfg;
++}
++
++// Provider calls hit fixed, public search-API hosts (not user-supplied URLs), so plain
++// fetch is fine — no SSRF surface. Returns { results: [{title,url,content}], answer? }.
++async function webSearch(cfg, question) {
++  const key = cfg.apiKey ? decrypt(cfg.apiKey) : null;
++  if (cfg.provider === 'tavily' && key) {
++    const r = await fetch('https://api.tavily.com/search', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ api_key: key, query: question, search_depth: 'basic', max_results: 6, include_answer: true }),
++      signal: AbortSignal.timeout(30000),
++    });
++    if (!r.ok) throw Object.assign(new Error(`Search provider error (${r.status})`), { status: 502 });
++    const d = await r.json();
++    return { results: (d.results || []).map(x => ({ title: x.title, url: x.url, content: x.content })), answer: d.answer || null };
++  }
++  if (cfg.provider === 'brave' && key) {
++    const r = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(question)}&count=6`, {
++      headers: { 'Accept': 'application/json', 'X-Subscription-Token': key },
++      signal: AbortSignal.timeout(30000),
++    });
++    if (!r.ok) throw Object.assign(new Error(`Search provider error (${r.status})`), { status: 502 });
++    const d = await r.json();
++    const web = d.web?.results || [];
++    return { results: web.map(x => ({ title: x.title, url: x.url, content: x.description })), answer: null };
++  }
++  return null;   // no provider → model-only
++}
++
++// Run a research request. `context` is optional background (e.g. the email/task text).
++export async function runResearch(userId, { question, context = '' }) {
++  const q = clip(question, 500);
++  if (!q) { const e = new Error('A research question is required'); e.status = 400; throw e; }
++  const aiCfg = await loadAiConfig();
++  const rcfg = await loadResearchConfig();
++
++  let search = null;
++  let searchError = null;
++  try { search = await webSearch(rcfg, q); }
++  catch (err) { searchError = err.message; }
++
++  const webVerified = !!(search && search.results && search.results.length);
++  const sources = webVerified ? search.results.slice(0, 6) : [];
++
++  const sourceBlock = webVerified
++    ? 'WEB RESULTS (cite these by number where you use them):\n' +
++      sources.map((s, i) => `[${i + 1}] ${clip(s.title, 140)} — ${s.url}\n${clip(s.content, 600)}`).join('\n\n')
++    : '';
++
++  const system =
++    'You are a research assistant for a busy agency owner. Answer the research question clearly and usefully: ' +
++    'a short summary first, then the key findings as bullets, then any recommended next step. ' +
++    (webVerified
++      ? 'Base your answer on the web results provided and cite sources inline as [1], [2]. Do not invent facts beyond them.'
++      : 'No live web results are available, so answer from your general knowledge and BEGIN with a one-line note that ' +
++        'this is not web-verified and may be out of date. Do not fabricate specific figures, prices, or current events.') +
++    ' Keep it tight and skimmable.';
++  const user =
++    `RESEARCH QUESTION: ${q}\n` +
++    `${context ? `\nBACKGROUND (from the email/task):\n${clip(context, 1500)}\n` : ''}` +
++    `${sourceBlock ? `\n${sourceBlock}\n` : ''}` +
++    (search?.answer ? `\nA search engine's own summary (verify against the sources): ${clip(search.answer, 600)}\n` : '') +
++    '\nWrite the research note.';
++
++  const answer = (await aiComplete(aiCfg, [
++    { role: 'system', content: system },
++    { role: 'user', content: user },
++  ])).trim();
++
++  return { answer, sources, webVerified, provider: rcfg.provider, searchError };
++}
 diff --git a/backend/src/services/taskGenerator.js b/backend/src/services/taskGenerator.js
 new file mode 100644
 index 0000000..44ed994
@@ -5261,10 +5414,10 @@ index 3d9d110..526deae 100644
    "protocol_handlers": [
      { "protocol": "mailto", "url": "/?mailto=%s" }
 diff --git a/frontend/src/components/AdminPanel.jsx b/frontend/src/components/AdminPanel.jsx
-index b4c1422..3328800 100644
+index b4c1422..624dfbc 100644
 --- a/frontend/src/components/AdminPanel.jsx
 +++ b/frontend/src/components/AdminPanel.jsx
-@@ -2117,6 +2117,83 @@ function CardDavCard() {
+@@ -2117,6 +2117,156 @@ function CardDavCard() {
    );
  }
  
@@ -5345,14 +5498,88 @@ index b4c1422..3328800 100644
 +  );
 +}
 +
++function ResearchCard() {
++  const { t } = useTranslation();
++  const [form, setForm] = useState({ provider: 'none', apiKey: '' });
++  const [loading, setLoading] = useState(true);
++  const [saving, setSaving] = useState(false);
++  const [saved, setSaved] = useState(false);
++  const [error, setError] = useState('');
++
++  useEffect(() => {
++    api.researchAdminGet()
++      .then(r => { if (r.config) setForm({ provider: r.config.provider || 'none', apiKey: r.config.apiKey || '' }); })
++      .catch(() => {})
++      .finally(() => setLoading(false));
++  }, []);
++
++  async function save() {
++    setSaving(true); setError(''); setSaved(false);
++    try {
++      const apiKey = form.apiKey && form.apiKey !== '••••••••' ? form.apiKey : undefined;
++      await api.researchAdminSave(form.provider, apiKey);
++      setSaved(true);
++      setForm(f => ({ ...f, apiKey: f.apiKey ? '••••••••' : '' }));
++      setTimeout(() => setSaved(false), 2500);
++    } catch (e) { setError(e.message || 'Save failed'); }
++    finally { setSaving(false); }
++  }
++
++  const inp = { width: '100%', boxSizing: 'border-box', padding: '7px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: 13 };
++  const lbl = { fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 };
++
++  return (
++    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginTop: 14 }}>
++      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
++        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
++          {t('admin.integrations.research.title', { defaultValue: 'Research — web search' })}
++        </span>
++      </div>
++      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 12, lineHeight: 1.5 }}>
++        {t('admin.integrations.research.description', { defaultValue: 'Powers the approval-gated "Research this for me" action in Tasks. Add a Tavily or Brave Search key for web-verified answers with sources; without one, research answers from the model\'s own knowledge.' })}
++      </div>
++      {loading ? (
++        <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>…</div>
++      ) : (
++        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 460 }}>
++          <div>
++            <label style={lbl}>{t('admin.integrations.research.provider', { defaultValue: 'Search provider' })}</label>
++            <select style={inp} value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))}>
++              <option value="none">None (model knowledge only)</option>
++              <option value="tavily">Tavily</option>
++              <option value="brave">Brave Search</option>
++            </select>
++          </div>
++          {form.provider !== 'none' && (
++            <div>
++              <label style={lbl}>{t('admin.integrations.research.apiKey', { defaultValue: 'API key' })}</label>
++              <input style={inp} type="password" value={form.apiKey} placeholder="API key"
++                onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))} />
++            </div>
++          )}
++          {error && <div style={{ color: 'var(--red, #f87171)', fontSize: 12 }}>{error}</div>}
++          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
++            <button onClick={save} disabled={saving}
++              style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', fontSize: 13, fontWeight: 500, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
++              {saving ? t('common.saving', { defaultValue: 'Saving…' }) : t('common.save', { defaultValue: 'Save' })}
++            </button>
++            {saved && <span style={{ color: 'var(--accent)', fontSize: 12 }}>✓ {t('common.saved', { defaultValue: 'Saved' })}</span>}
++          </div>
++        </div>
++      )}
++    </div>
++  );
++}
++
  function IntegrationsTab() {
    const { t } = useTranslation();
    const { setAccounts, setTodoistConnected } = useStore();
-@@ -2746,6 +2823,7 @@ function IntegrationsTab() {
+@@ -2746,6 +2896,8 @@ function IntegrationsTab() {
            </div>
  
            <CardDavCard />
 +          <OmiCard />
++          <ResearchCard />
          </div>
        )}
      </div>
@@ -6902,10 +7129,10 @@ index 0000000..4551729
 +}
 diff --git a/frontend/src/components/TasksView.jsx b/frontend/src/components/TasksView.jsx
 new file mode 100644
-index 0000000..e392d92
+index 0000000..d32a56d
 --- /dev/null
 +++ b/frontend/src/components/TasksView.jsx
-@@ -0,0 +1,499 @@
+@@ -0,0 +1,542 @@
 +// Native task list — a restricted Notion-style outline: two block kinds, "heading"
 +// (a client/section) and "task" (a checkbox item). Type straight into it: Enter makes
 +// a new task, Backspace on an empty block removes it, the checkbox ticks a task off.
@@ -6931,6 +7158,8 @@ index 0000000..e392d92
 +  const [briefBusy, setBriefBusy] = useState(false);
 +  const [briefOpen, setBriefOpen] = useState(true);
 +  const [assist, setAssist] = useState({});   // taskId -> { loading, text, error }
++  const [research, setResearch] = useState({}); // taskId -> { loading, answer, sources, webVerified, error }
++  const [canResearch, setCanResearch] = useState(false);
 +  const inputRefs = useRef(new Map());        // id -> textarea element
 +  const focusRef = useRef(null);              // { id, atEnd } to focus after render
 +  const saveTimers = useRef(new Map());       // id -> debounce timer
@@ -6948,7 +7177,19 @@ index 0000000..e392d92
 +
 +  useEffect(() => {
 +    api.tasksBriefGet().then(r => setBrief(r.brief || null)).catch(() => {});
++    api.researchStatus().then(() => setCanResearch(true)).catch(() => {});
 +  }, []);
++
++  // Approval-gated: only runs on this explicit click.
++  const runResearch = async (b) => {
++    setResearch(r => ({ ...r, [b.id]: { loading: true } }));
++    try {
++      const res = await api.research(b.text, '');
++      setResearch(r => ({ ...r, [b.id]: { answer: res.answer, sources: res.sources || [], webVerified: res.webVerified } }));
++    } catch (e) {
++      setResearch(r => ({ ...r, [b.id]: { error: e.message || 'Research failed' } }));
++    }
++  };
 +
 +  const briefMe = async () => {
 +    setBriefBusy(true);
@@ -7206,11 +7447,40 @@ index 0000000..e392d92
 +                      : assist[b.id].error ? <span style={{ color: 'var(--red, #e03131)' }}>{assist[b.id].error}</span>
 +                      : (<>
 +                          {assist[b.id].text}
-+                          {assist[b.id].canDraft && assist[b.id].sourceRef && (
-+                            <div style={{ marginTop: 8 }}>
++                          <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
++                            {assist[b.id].canDraft && assist[b.id].sourceRef && (
 +                              <button onClick={() => window.open(`/?m=${encodeURIComponent(assist[b.id].sourceRef)}`, '_blank', 'noopener')} style={btnStyle(true)}>
 +                                {t('tasksView.openToDraft', { defaultValue: 'Open email to draft a reply' })}
 +                              </button>
++                            )}
++                            {canResearch && !research[b.id] && (
++                              <button onClick={() => runResearch(b)} style={btnStyle(false)}>
++                                {t('tasksView.researchThis', { defaultValue: 'Research this for me' })}
++                              </button>
++                            )}
++                          </div>
++                          {research[b.id] && (
++                            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
++                              {research[b.id].loading ? t('tasksView.researching', { defaultValue: 'Researching…' })
++                                : research[b.id].error ? <span style={{ color: 'var(--red, #e03131)' }}>{research[b.id].error}</span>
++                                : (<>
++                                    {!research[b.id].webVerified && (
++                                      <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginBottom: 6 }}>
++                                        {t('tasksView.notWebVerified', { defaultValue: 'Not web-verified (no search provider configured) — from Claude\'s own knowledge.' })}
++                                      </div>
++                                    )}
++                                    <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text-primary)' }}>{research[b.id].answer}</div>
++                                    {research[b.id].sources?.length > 0 && (
++                                      <div style={{ marginTop: 8 }}>
++                                        <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 3 }}>{t('tasksView.sources', { defaultValue: 'Sources' })}</div>
++                                        {research[b.id].sources.map((s, i) => (
++                                          <div key={i} style={{ fontSize: 12, marginBottom: 2 }}>
++                                            [{i + 1}] <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{s.title || s.url}</a>
++                                          </div>
++                                        ))}
++                                      </div>
++                                    )}
++                                  </>)}
 +                            </div>
 +                          )}
 +                        </>)}
@@ -7514,7 +7784,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..8c2af29 100644
+index c62ac69..8d6a42f 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -7528,7 +7798,7 @@ index c62ac69..8c2af29 100644
    getUnreadCounts: () => request('GET', '/mail/unread-counts'),
  
    // Antispam (v0.1) — manual user feedback.
-@@ -312,6 +316,39 @@ export const api = {
+@@ -312,6 +316,43 @@ export const api = {
    },
    gtdClassify: (messageId, state) => request('POST', '/gtd/classify', { messageId, state }),
    gtdUnclassify: (messageId, state) => request('DELETE', '/gtd/classify', { messageId, state }),
@@ -7565,6 +7835,10 @@ index c62ac69..8c2af29 100644
 +  tasksBriefGet: () => request('GET', '/tasks/brief'),
 +  tasksBriefGenerate: () => request('POST', '/tasks/brief'),
 +  taskAssist: (id) => request('POST', `/tasks/${id}/assist`),
++  researchStatus: () => request('GET', '/research/status'),
++  research: (question, context) => request('POST', '/research', { question, context }),
++  researchAdminGet: () => request('GET', '/admin/research'),
++  researchAdminSave: (provider, apiKey) => request('PATCH', '/admin/research', { provider, apiKey }),
    // GTD "done": strip the row's label(s) for these states, mark read, archive the INBOX
    // copy. id is the rail head's row id (its label-folder copy); the server resolves the
    // INBOX copy from the shared Message-ID.
