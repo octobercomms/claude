@@ -63,16 +63,43 @@ index 0000000..e4e4598
 +CREATE INDEX IF NOT EXISTS idx_tasks_user_position ON tasks(user_id, position);
 +-- Fast "does an AI task already exist for this email?" lookups during refresh.
 +CREATE INDEX IF NOT EXISTS idx_tasks_user_source_ref ON tasks(user_id, source_ref) WHERE source_ref IS NOT NULL;
+diff --git a/backend/migrations/0037_client_briefs.sql b/backend/migrations/0037_client_briefs.sql
+new file mode 100644
+index 0000000..80471f3
+--- /dev/null
++++ b/backend/migrations/0037_client_briefs.sql
+@@ -0,0 +1,20 @@
++-- Client knowledge layer. A living, one-page brief per client that the AI maintains
++-- from the mail traffic (who they are, key people, current projects, open threads,
++-- important dates). Fed back into task generation and reply drafting as context so
++-- the assistant understands the business the way a colleague would. Keyed by the
++-- client name from the shared client legend; the brief text is markdown the user can
++-- also hand-edit.
++
++CREATE TABLE IF NOT EXISTS client_briefs (
++  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
++  client      TEXT NOT NULL,                             -- matches a client name in the legend
++  brief       TEXT NOT NULL DEFAULT '',                  -- maintained markdown brief
++  facts       JSONB NOT NULL DEFAULT '{}'::jsonb,        -- optional structured facts (reserved)
++  auto        BOOLEAN NOT NULL DEFAULT true,             -- false once hand-edited: skip AI overwrite
++  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++  refreshed_at TIMESTAMPTZ,                              -- last AI regeneration
++  UNIQUE (user_id, client)
++);
++
++CREATE INDEX IF NOT EXISTS idx_client_briefs_user ON client_briefs(user_id);
 diff --git a/backend/src/index.js b/backend/src/index.js
-index 483dcfa..f1d8ba3 100644
+index 483dcfa..333ce37 100644
 --- a/backend/src/index.js
 +++ b/backend/src/index.js
-@@ -25,11 +25,14 @@ import blockListRoutes from './routes/blockList.js';
+@@ -25,11 +25,15 @@ import blockListRoutes from './routes/blockList.js';
  import contactsRoutes from './routes/contacts.js';
  import todoistRoutes from './routes/todoist.js';
  import aiRoutes from './routes/ai.js';
 +import omiRoutes from './routes/omi.js';
 +import tasksRoutes from './routes/tasks.js';
++import clientsRoutes from './routes/clients.js';
  import categoriesRoutes from './routes/categories.js';
  import gtdRoutes from './routes/gtd.js';
  import carddavRouter from './routes/carddav.js';
@@ -82,16 +109,17 @@ index 483dcfa..f1d8ba3 100644
  import { encryptExistingCredentials, query } from './services/db.js';
  import { runMigrations } from './services/migrations.js';
  import { parseVCard } from './utils/vcard.js';
-@@ -174,6 +177,8 @@ app.use('/api/contacts', contactsRoutes);
+@@ -174,6 +178,9 @@ app.use('/api/contacts', contactsRoutes);
  app.use('/api/todoist', todoistRoutes);
  app.use('/api/carddav', carddavAccountRouter);
  app.use('/api', aiRoutes);
 +app.use('/api', omiRoutes);
 +app.use('/api', tasksRoutes);
++app.use('/api', clientsRoutes);
  app.use('/api', categoriesRoutes);
  // Mounted at the /api/gtd subtree (not bare /api) so gtd.js's router-level
  // requireAuth cannot intercept the unauthenticated /api/health and /api/version
-@@ -244,6 +249,9 @@ imapManager.startSnoozeWatcher();
+@@ -244,6 +251,9 @@ imapManager.startSnoozeWatcher();
  // Schedule periodic CardDAV contact sync for any connected accounts.
  startCardavScheduler();
  
@@ -168,6 +196,73 @@ index 088fc38..ee45d7b 100644
 +});
 +
  export default router;
+diff --git a/backend/src/routes/clients.js b/backend/src/routes/clients.js
+new file mode 100644
+index 0000000..e896e21
+--- /dev/null
++++ b/backend/src/routes/clients.js
+@@ -0,0 +1,61 @@
++import { Router } from 'express';
++import { requireAuth } from '../middleware/auth.js';
++import { loadLegendText, parseLegend, loadAiConfig } from '../services/taskGenerator.js';
++import { loadClientBriefs, getBrief, upsertBrief, generateClientBrief } from '../services/clientBriefs.js';
++
++// Client knowledge layer API. The client roster comes from the shared legend; each
++// client can carry a living brief the AI maintains from recent mail (and the user can
++// hand-edit). Briefs feed back into task generation and reply drafting.
++const router = Router();
++const uid = (req) => req.session.userId;
++
++// Roster: every legend client, merged with any stored brief.
++router.get('/clients', requireAuth, async (req, res) => {
++  const [legendText, briefs] = await Promise.all([loadLegendText(), loadClientBriefs(uid(req))]);
++  const byClient = new Map(briefs.map(b => [b.client.toLowerCase(), b]));
++  const legendClients = parseLegend(legendText).map(e => e.client);
++  const seen = new Set();
++  const clients = [];
++  for (const name of legendClients) {
++    const key = name.toLowerCase();
++    if (seen.has(key)) continue;
++    seen.add(key);
++    const b = byClient.get(key);
++    clients.push({ client: name, hasBrief: !!(b && b.brief), auto: b ? b.auto : true, updatedAt: b?.updated_at || null, refreshedAt: b?.refreshed_at || null });
++  }
++  // Include briefs whose client is no longer in the legend, so nothing is orphaned.
++  for (const b of briefs) {
++    if (seen.has(b.client.toLowerCase())) continue;
++    clients.push({ client: b.client, hasBrief: !!b.brief, auto: b.auto, updatedAt: b.updated_at, refreshedAt: b.refreshed_at, orphan: true });
++  }
++  res.json({ clients });
++});
++
++router.get('/clients/:client', requireAuth, async (req, res) => {
++  const b = await getBrief(uid(req), req.params.client);
++  res.json({ client: req.params.client, brief: b?.brief || '', auto: b ? b.auto : true, updatedAt: b?.updated_at || null, refreshedAt: b?.refreshed_at || null });
++});
++
++// Hand-edit a brief. Marks auto=false so a later regenerate won't silently overwrite it.
++router.put('/clients/:client', requireAuth, async (req, res) => {
++  const { brief } = req.body || {};
++  if (typeof brief !== 'string') return res.status(400).json({ error: 'brief must be a string' });
++  const saved = await upsertBrief(uid(req), req.params.client, { brief, auto: false });
++  res.json({ ok: true, ...saved });
++});
++
++// Regenerate one client's brief from recent mail. force overrides the hand-edited guard.
++router.post('/clients/:client/regenerate', requireAuth, async (req, res) => {
++  let cfg;
++  try { cfg = await loadAiConfig(); }
++  catch (err) { return res.status(err.status || 500).json({ error: err.message }); }
++  try {
++    const result = await generateClientBrief(uid(req), req.params.client, cfg, { force: req.body?.force === true });
++    res.json({ ok: true, ...result });
++  } catch (err) {
++    if (err.code === 'HAND_EDITED') return res.status(409).json({ error: err.message, code: 'HAND_EDITED' });
++    res.status(err.status || 502).json({ error: err.message || 'Regenerate failed' });
++  }
++});
++
++export default router;
 diff --git a/backend/src/routes/mail.js b/backend/src/routes/mail.js
 index e35d815..e61e359 100644
 --- a/backend/src/routes/mail.js
@@ -612,6 +707,155 @@ index 0000000..c610579
 +});
 +
 +export default router;
+diff --git a/backend/src/services/clientBriefs.js b/backend/src/services/clientBriefs.js
+new file mode 100644
+index 0000000..5a22106
+--- /dev/null
++++ b/backend/src/services/clientBriefs.js
+@@ -0,0 +1,143 @@
++import { query } from './db.js';
++import { aiComplete, loadLegendText, parseLegend } from './taskGenerator.js';
++
++// Client knowledge layer. A living one-page brief per client, maintained by the AI
++// from recent mail and hand-editable. Fed back into task generation and reply
++// drafting as background context. Keyed by the client name in the shared legend.
++
++const BRIEF_MAX = 6000;              // stored brief cap
++const CONTEXT_TOTAL_MAX = 4500;      // total brief text injected into a prompt
++const CONTEXT_PER_CLIENT_MAX = 900;  // per-client slice within that budget
++const MAIL_LOOKBACK_DAYS = 365;
++const MAIL_MAX = 40;
++
++export async function loadClientBriefs(userId) {
++  const r = await query('SELECT client, brief, auto, updated_at, refreshed_at FROM client_briefs WHERE user_id = $1 ORDER BY client', [userId]);
++  return r.rows;
++}
++
++export async function getBrief(userId, client) {
++  const r = await query('SELECT client, brief, auto, updated_at, refreshed_at FROM client_briefs WHERE user_id = $1 AND client = $2', [userId, client]);
++  return r.rows[0] || null;
++}
++
++// Insert or patch a brief. A null brief/auto leaves that column unchanged on
++// conflict (defaults on insert); `refreshed` stamps refreshed_at when true.
++export async function upsertBrief(userId, client, { brief, auto, refreshed }) {
++  const r = await query(
++    `INSERT INTO client_briefs (user_id, client, brief, auto, refreshed_at, updated_at)
++       VALUES ($1, $2, COALESCE($3, ''), COALESCE($4, true),
++               CASE WHEN $5 THEN NOW() ELSE NULL END, NOW())
++     ON CONFLICT (user_id, client) DO UPDATE SET
++       brief        = COALESCE($3, client_briefs.brief),
++       auto         = COALESCE($4, client_briefs.auto),
++       refreshed_at = CASE WHEN $5 THEN NOW() ELSE client_briefs.refreshed_at END,
++       updated_at   = NOW()
++     RETURNING client, brief, auto, updated_at, refreshed_at`,
++    [userId, client,
++     brief === undefined ? null : String(brief).slice(0, BRIEF_MAX),
++     auto === undefined ? null : !!auto,
++     !!refreshed]
++  );
++  return r.rows[0];
++}
++
++// Compact background block for task/draft prompts: each brief trimmed and the whole
++// thing capped so it can't dominate the prompt. Not an instruction to create tasks —
++// purely context to interpret asks correctly.
++export function briefContextBlock(briefs) {
++  if (!briefs || !briefs.length) return '';
++  let budget = CONTEXT_TOTAL_MAX;
++  const parts = [];
++  for (const b of briefs) {
++    const text = (b.brief || '').trim();
++    if (!text) continue;
++    const slice = text.slice(0, CONTEXT_PER_CLIENT_MAX);
++    if (slice.length > budget) break;
++    budget -= slice.length;
++    parts.push(`## ${b.client}\n${slice}`);
++  }
++  if (!parts.length) return '';
++  return 'CLIENT CONTEXT — background on the clients, to help you understand who and what each email is about. ' +
++    'Do NOT create tasks or claims from this section alone; it is reference only.\n\n' + parts.join('\n\n');
++}
++
++// Recent mail that mentions a client, matched by the legend terms (plus the client
++// name itself) across the sender, subject, and stored body/snippet.
++async function gatherClientMail(userId, clientName, terms) {
++  const accts = await query('SELECT id FROM email_accounts WHERE user_id = $1 AND enabled = true', [userId]);
++  if (!accts.rows.length) return [];
++  const accountIds = accts.rows.map(r => r.id);
++
++  const needles = [...new Set([clientName.toLowerCase(), ...terms])].filter(t => t && t.length >= 2).slice(0, 12);
++  if (!needles.length) return [];
++
++  // Build an OR of ILIKE conditions over the searchable columns for each needle.
++  const cols = ['from_email', 'from_name', 'subject', "COALESCE(body_text, snippet)"];
++  const conds = [];
++  const params = [accountIds];
++  let p = 2;
++  for (const n of needles) {
++    params.push(`%${n}%`);
++    const like = `$${p++}`;
++    conds.push('(' + cols.map(c => `${c} ILIKE ${like}`).join(' OR ') + ')');
++  }
++  const sql =
++    `SELECT DISTINCT ON (message_id) message_id, subject, from_name, from_email, snippet, body_text, date
++       FROM messages
++      WHERE account_id = ANY($1)
++        AND date > NOW() - INTERVAL '${MAIL_LOOKBACK_DAYS} days'
++        AND (${conds.join(' OR ')})
++      ORDER BY message_id, date DESC`;
++  const rows = (await query(sql, params)).rows;
++  rows.sort((a, b) => new Date(b.date) - new Date(a.date));
++  return rows.slice(0, MAIL_MAX);
++}
++
++// (Re)generate a client's brief from recent mail, folding in the existing brief so it
++// evolves rather than resets. Persists and returns the row. Never overwrites a brief
++// the user has hand-edited (auto=false) unless force is set.
++export async function generateClientBrief(userId, clientName, cfg, { force = false } = {}) {
++  const legend = parseLegend(await loadLegendText());
++  const entry = legend.find(e => e.client.toLowerCase() === clientName.toLowerCase());
++  const terms = entry?.terms || [];
++
++  const existing = await getBrief(userId, clientName);
++  if (existing && existing.auto === false && !force) {
++    const e = new Error('This brief was hand-edited; regenerate is disabled unless forced.');
++    e.code = 'HAND_EDITED'; throw e;
++  }
++
++  const mail = await gatherClientMail(userId, clientName, terms);
++  const clip = (s, n) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
++  const lines = mail.map((m, i) => {
++    const when = m.date ? new Date(m.date).toISOString().slice(0, 10) : '';
++    const from = clip(m.from_name || m.from_email || 'unknown', 80);
++    const body = clip(m.body_text || m.snippet, 700);
++    return `[${i + 1}] ${when} — ${from} — ${clip(m.subject, 140) || '(no subject)'}\n${body}`;
++  }).join('\n\n');
++
++  const system =
++    'You maintain a concise, factual one-page brief on a client for a busy agency owner. ' +
++    'Given the current brief (may be empty) and recent emails involving the client, produce an UPDATED brief. ' +
++    'Fold new information into what is already there; correct anything now outdated; keep it tight. ' +
++    'Use short markdown sections with these headings when there is content for them: ' +
++    '**Who** (company + what they do, in a line), **Key people** (names + roles + emails), ' +
++    '**Current projects** (each with a one-line status), **Open threads / awaiting** (what is outstanding, and on whom), ' +
++    '**Preferences & notes** (how they like to work, tone, quirks), **Key dates**. ' +
++    'Only state what the emails or the existing brief support — never invent. Omit a heading entirely if empty. ' +
++    'No preamble, no sign-off — just the brief in markdown.';
++  const user =
++    `CLIENT: ${clientName}\n\n` +
++    `CURRENT BRIEF (may be empty):\n${existing?.brief?.trim() || '(none yet)'}\n\n` +
++    `RECENT EMAILS (newest first):\n${lines || '(no matching mail found)'}\n\n` +
++    'Return the updated brief as markdown.';
++
++  const content = (await aiComplete(cfg, [
++    { role: 'system', content: system },
++    { role: 'user', content: user },
++  ])).trim();
++
++  const saved = await upsertBrief(userId, clientName, { brief: content, auto: true, refreshed: true });
++  return { ...saved, mailScanned: mail.length };
++}
 diff --git a/backend/src/services/gtdTransitions.js b/backend/src/services/gtdTransitions.js
 index e16f745..d2f104c 100644
 --- a/backend/src/services/gtdTransitions.js
@@ -1261,10 +1505,10 @@ index 5d1a8fa..074c945 100644
    it.each([
 diff --git a/backend/src/services/taskGenerator.js b/backend/src/services/taskGenerator.js
 new file mode 100644
-index 0000000..898c8cb
+index 0000000..44ed994
 --- /dev/null
 +++ b/backend/src/services/taskGenerator.js
-@@ -0,0 +1,260 @@
+@@ -0,0 +1,270 @@
 +import { query } from './db.js';
 +import { decrypt } from './encryption.js';
 +import { sanitizeEmail } from './emailSanitizer.js';
@@ -1334,12 +1578,40 @@ index 0000000..898c8cb
 +  return cfg;
 +}
 +
++// ── Generic non-streaming completion ──────────────────────────────────────────
++// One place for the OpenAI-compatible /chat/completions call the assistant features
++// (tasks, client briefs, drafts, daily brief, research) all share. Note: this model
++// rejects a `temperature` field, so we never send one. Throws Error tagged .status.
++export async function aiComplete(cfg, messages, { timeoutMs = 120000 } = {}) {
++  const apiKey = cfg.apiKey ? decrypt(cfg.apiKey) : null;
++  const headers = { 'Content-Type': 'application/json' };
++  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
++
++  // Trust boundary: intentionally plain fetch (see ai.js) — the admin-configured base
++  // URL legitimately points at an internal/self-hosted provider.
++  const aiRes = await fetch(`${cfg.baseUrl}/chat/completions`, {
++    method: 'POST',
++    headers,
++    body: JSON.stringify({ model: cfg.model, messages, stream: false }),
++    signal: AbortSignal.timeout(timeoutMs),
++  });
++  if (!aiRes.ok) {
++    const errText = await aiRes.text();
++    const e = new Error(`AI provider error (${aiRes.status}): ${errText.slice(0, 300)}`);
++    e.status = 502; throw e;
++  }
++  const data = await aiRes.json();
++  const content = data?.choices?.[0]?.message?.content;
++  if (typeof content !== 'string') { const e = new Error('AI provider returned an unexpected response'); e.status = 502; throw e; }
++  return content;
++}
++
 +// ── The generator ─────────────────────────────────────────────────────────────
 +// Reads one account's folder, fetches missing bodies on demand, asks the model for
 +// a grouped/prioritized task list, and returns normalized tasks. `refs` is the set
 +// of message-ids currently present in the folder — the hub uses it to auto-complete
 +// tasks whose source email has since been filed elsewhere.
-+export async function generateFolderTasks({ account, folder, cfg, legend, imapManager }) {
++export async function generateFolderTasks({ account, folder, cfg, legend, imapManager, extraContext = '' }) {
 +  const msgResult = await query(
 +    `SELECT id, uid, message_id, subject, from_name, from_email, snippet, body_text, date, is_read
 +       FROM messages
@@ -1443,6 +1715,7 @@ index 0000000..898c8cb
 +    'Do not invent anything not supported by an email.';
 +  const user = `Here are the emails in the "${folder}" folder for ${account.email_address} (newest first). ` +
 +    `Full message bodies are included — read them, don't just skim the subject.\n\n` +
++    `${extraContext ? extraContext + '\n\n' : ''}` +
 +    `${legendBlock}` +
 +    `${lines}\n\n` +
 +    'Return ONLY valid JSON, no prose, in this exact shape:\n' +
@@ -1452,29 +1725,10 @@ index 0000000..898c8cb
 +    'emailIndex is the [n] of the email the task comes from. Order tasks high → low priority within the whole list. ' +
 +    'Aim to reflect every genuinely outstanding action across the folder. If truly nothing needs action, return {"tasks":[]}.';
 +
-+  const apiKey = cfg.apiKey ? decrypt(cfg.apiKey) : null;
-+  const headers = { 'Content-Type': 'application/json' };
-+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-+
-+  let content;
-+  const aiRes = await fetch(`${cfg.baseUrl}/chat/completions`, {
-+    method: 'POST',
-+    headers,
-+    body: JSON.stringify({
-+      model: cfg.model,
-+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-+      stream: false,
-+    }),
-+    signal: AbortSignal.timeout(120000),
-+  });
-+  if (!aiRes.ok) {
-+    const errText = await aiRes.text();
-+    const e = new Error(`AI provider error (${aiRes.status}): ${errText.slice(0, 300)}`);
-+    e.status = 502; throw e;
-+  }
-+  const data = await aiRes.json();
-+  content = data?.choices?.[0]?.message?.content;
-+  if (typeof content !== 'string') { const e = new Error('AI provider returned an unexpected response'); e.status = 502; throw e; }
++  const content = await aiComplete(cfg, [
++    { role: 'system', content: system },
++    { role: 'user', content: user },
++  ]);
 +
 +  // Parse the JSON, tolerating ```json fences or surrounding prose, and salvaging a
 +  // list truncated mid-array by the provider's output cap.
@@ -1527,13 +1781,14 @@ index 0000000..898c8cb
 +}
 diff --git a/backend/src/services/taskRefresh.js b/backend/src/services/taskRefresh.js
 new file mode 100644
-index 0000000..eeb7e00
+index 0000000..b4a0fd0
 --- /dev/null
 +++ b/backend/src/services/taskRefresh.js
-@@ -0,0 +1,130 @@
+@@ -0,0 +1,132 @@
 +import { query } from './db.js';
 +import { imapManager } from '../index.js';
 +import { generateFolderTasks, loadAiConfig, loadLegendText, parseLegend } from './taskGenerator.js';
++import { loadClientBriefs, briefContextBlock } from './clientBriefs.js';
 +
 +// The Tasks-hub refresh, factored out of the route so the daily scheduler and the
 +// POST /tasks/refresh handler run identical logic. Sweeps each of a user's
@@ -1582,13 +1837,14 @@ index 0000000..eeb7e00
 +  if (!jobs.length) { const e = new Error('No task folders configured'); e.code = 'NO_SOURCES'; throw e; }
 +
 +  const legend = parseLegend(await loadLegendText());
++  const briefBlock = briefContextBlock(await loadClientBriefs(userId));
 +  const generated = [];
 +  const liveRefs = new Set();
 +  const errors = [];
 +  for (const job of jobs) {
 +    try {
 +      const { tasks, refs } = await generateFolderTasks({
-+        account: job.account, folder: job.folder, cfg, legend, imapManager,
++        account: job.account, folder: job.folder, cfg, legend, imapManager, extraContext: briefBlock,
 +      });
 +      generated.push(...tasks);
 +      for (const r of refs) liveRefs.add(r);
@@ -4575,6 +4831,183 @@ index b4c1422..3328800 100644
          </div>
        )}
      </div>
+diff --git a/frontend/src/components/ClientsView.jsx b/frontend/src/components/ClientsView.jsx
+new file mode 100644
+index 0000000..6dabce8
+--- /dev/null
++++ b/frontend/src/components/ClientsView.jsx
+@@ -0,0 +1,171 @@
++// Clients — the knowledge layer. A living one-page brief per client that the AI keeps
++// up to date from your mail, and that you can hand-edit. These briefs feed back into
++// the task list and (later) reply drafting, so the assistant understands each client
++// the way a colleague would. The client roster comes from the Tasks → client legend.
++import { useState, useEffect, useCallback, useRef } from 'react';
++import { useTranslation } from 'react-i18next';
++import { api } from '../utils/api.js';
++
++export default function ClientsView() {
++  const { t } = useTranslation();
++  const [clients, setClients] = useState([]);
++  const [selected, setSelected] = useState(null);   // client name
++  const [brief, setBrief] = useState('');
++  const [meta, setMeta] = useState({ auto: true, updatedAt: null, refreshedAt: null });
++  const [loadingList, setLoadingList] = useState(true);
++  const [loadingBrief, setLoadingBrief] = useState(false);
++  const [busy, setBusy] = useState('');             // 'save' | 'regen' | ''
++  const [note, setNote] = useState('');
++  const [error, setError] = useState('');
++  const dirty = useRef(false);
++
++  const loadList = useCallback(async () => {
++    setLoadingList(true);
++    try {
++      const r = await api.clientsList();
++      setClients(Array.isArray(r.clients) ? r.clients : []);
++      if (!selected && r.clients?.length) openClient(r.clients[0].client);
++    } catch (e) { setError(e.message || 'Failed to load clients'); }
++    finally { setLoadingList(false); }
++  }, [selected]);
++
++  useEffect(() => { loadList(); /* eslint-disable-next-line */ }, []);
++
++  const openClient = async (name) => {
++    setSelected(name); setLoadingBrief(true); setError(''); setNote(''); dirty.current = false;
++    try {
++      const r = await api.clientBriefGet(name);
++      setBrief(r.brief || '');
++      setMeta({ auto: r.auto, updatedAt: r.updatedAt, refreshedAt: r.refreshedAt });
++    } catch (e) { setError(e.message || 'Failed to load brief'); }
++    finally { setLoadingBrief(false); }
++  };
++
++  const save = async () => {
++    if (!selected) return;
++    setBusy('save'); setError(''); setNote('');
++    try {
++      const r = await api.clientBriefSave(selected, brief);
++      setMeta({ auto: r.auto, updatedAt: r.updatedAt, refreshedAt: r.refreshedAt });
++      dirty.current = false;
++      setNote(t('clients.saved', { defaultValue: 'Saved' }));
++      setTimeout(() => setNote(''), 2000);
++      loadList();
++    } catch (e) { setError(e.message || 'Save failed'); }
++    finally { setBusy(''); }
++  };
++
++  const regenerate = async (force = false) => {
++    if (!selected) return;
++    setBusy('regen'); setError(''); setNote('');
++    try {
++      const r = await api.clientBriefRegenerate(selected, force);
++      setBrief(r.brief || '');
++      setMeta({ auto: r.auto, updatedAt: r.updatedAt, refreshedAt: r.refreshedAt });
++      dirty.current = false;
++      setNote(t('clients.regenerated', { count: r.mailScanned || 0, defaultValue: `Rebuilt from ${r.mailScanned || 0} emails` }));
++      setTimeout(() => setNote(''), 3000);
++      loadList();
++    } catch (e) {
++      if (e.status === 409 || /hand-edited/i.test(e.message || '')) {
++        if (window.confirm(t('clients.overwriteConfirm', { defaultValue: 'You hand-edited this brief. Overwrite it with a fresh AI version from your mail?' }))) {
++          return regenerate(true);
++        }
++      } else setError(e.message || 'Regenerate failed');
++    } finally { setBusy(''); }
++  };
++
++  const onBriefChange = (v) => { setBrief(v); dirty.current = true; };
++
++  return (
++    <div style={{ flex: 1, height: '100%', display: 'flex', overflow: 'hidden', background: 'var(--bg-primary)' }}>
++      {/* Roster */}
++      <div style={{ width: 240, flexShrink: 0, borderRight: '1px solid var(--border-subtle)', overflow: 'auto', padding: '18px 10px' }}>
++        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', padding: '0 8px 8px' }}>
++          {t('rail.clients', { defaultValue: 'Clients' })}
++        </div>
++        {loadingList ? (
++          <div style={{ color: 'var(--text-tertiary)', fontSize: 13, padding: 8 }}>…</div>
++        ) : clients.length === 0 ? (
++          <div style={{ color: 'var(--text-tertiary)', fontSize: 12.5, padding: 8, lineHeight: 1.5 }}>
++            {t('clients.emptyList', { defaultValue: 'No clients yet. Add them to the client legend in Tasks → settings.' })}
++          </div>
++        ) : clients.map(c => {
++          const active = c.client === selected;
++          return (
++            <button key={c.client} onClick={() => openClient(c.client)}
++              style={{
++                display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
++                padding: '7px 8px', borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 2,
++                background: active ? 'var(--accent-dim)' : 'transparent',
++                color: active ? 'var(--accent)' : 'var(--text-primary)',
++              }}>
++              <span style={{ flex: 1, fontSize: 13.5, fontWeight: active ? 600 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.client}</span>
++              <span title={c.hasBrief ? 'Brief ready' : 'No brief yet'} style={{
++                width: 7, height: 7, borderRadius: 999, flexShrink: 0,
++                background: c.hasBrief ? 'var(--accent)' : 'var(--border)',
++              }} />
++            </button>
++          );
++        })}
++      </div>
++
++      {/* Brief editor */}
++      <div style={{ flex: 1, overflow: 'auto', padding: '24px 28px 80px' }}>
++        {!selected ? (
++          <div style={{ color: 'var(--text-tertiary)', fontSize: 14 }}>
++            {t('clients.pick', { defaultValue: 'Pick a client to see their brief.' })}
++          </div>
++        ) : (
++          <div style={{ maxWidth: 720, margin: '0 auto' }}>
++            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
++              <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>{selected}</h1>
++              <button onClick={() => regenerate(false)} disabled={!!busy} style={btn(true)}>
++                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-2px', marginRight: 5 }}>
++                  <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/>
++                </svg>
++                {busy === 'regen' ? t('clients.rebuilding', { defaultValue: 'Reading mail…' }) : t('clients.regenerate', { defaultValue: 'Rebuild from mail' })}
++              </button>
++              <button onClick={save} disabled={!!busy} style={btn(false)}>
++                {busy === 'save' ? t('common.saving', { defaultValue: 'Saving…' }) : t('common.save', { defaultValue: 'Save' })}
++              </button>
++            </div>
++            <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginBottom: 14 }}>
++              {meta.auto === false
++                ? t('clients.handEdited', { defaultValue: 'Hand-edited — Rebuild will ask before overwriting.' })
++                : meta.refreshedAt
++                  ? t('clients.autoMaintained', { defaultValue: 'AI-maintained from your mail.' })
++                  : t('clients.notYet', { defaultValue: 'No brief yet — Rebuild from mail to create one, or type your own.' })}
++              {note && <span style={{ color: 'var(--accent)', marginLeft: 8 }}>· {note}</span>}
++            </div>
++
++            {error && <div style={{ color: 'var(--red, #e03131)', fontSize: 13, marginBottom: 10 }}>{error}</div>}
++
++            {loadingBrief ? (
++              <div style={{ color: 'var(--text-tertiary)', fontSize: 14 }}>…</div>
++            ) : (
++              <textarea
++                value={brief}
++                onChange={e => onBriefChange(e.target.value)}
++                placeholder={t('clients.briefPh', { defaultValue: 'This client\'s brief — who they are, key people, current projects, open threads, preferences, key dates. Rebuild from mail to have Claude draft it for you.' })}
++                style={{
++                  width: '100%', boxSizing: 'border-box', minHeight: 420, resize: 'vertical',
++                  fontSize: 14, lineHeight: 1.6, padding: 16, borderRadius: 12,
++                  border: '1px solid var(--border)', background: 'var(--bg-secondary)',
++                  color: 'var(--text-primary)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
++                }}
++              />
++            )}
++          </div>
++        )}
++      </div>
++    </div>
++  );
++}
++
++const btn = (primary) => ({
++  padding: '6px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: 'pointer',
++  border: primary ? 'none' : '1px solid var(--border)',
++  background: primary ? 'var(--accent)' : 'transparent',
++  color: primary ? 'var(--accent-text)' : 'var(--text-secondary)',
++});
 diff --git a/frontend/src/components/ContextMenu.jsx b/frontend/src/components/ContextMenu.jsx
 index 82835b5..ab8b95b 100644
 --- a/frontend/src/components/ContextMenu.jsx
@@ -4667,10 +5100,10 @@ index 82835b5..ab8b95b 100644
            <>
 diff --git a/frontend/src/components/FunctionRail.jsx b/frontend/src/components/FunctionRail.jsx
 new file mode 100644
-index 0000000..21dc817
+index 0000000..86d3aaa
 --- /dev/null
 +++ b/frontend/src/components/FunctionRail.jsx
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,79 @@
 +// Gmail-style far-left rail to switch top-level functions (Mail / Tasks). Keeps each
 +// function in its own clean space instead of cramming tasks into the mail view.
 +import { useTranslation } from 'react-i18next';
@@ -4693,6 +5126,18 @@ index 0000000..21dc817
 +      <>
 +        <path d="M9 11l3 3L22 4"/>
 +        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
++      </>
++    ),
++  },
++  {
++    key: 'clients',
++    labelKey: 'rail.clients', label: 'Clients',
++    icon: (
++      <>
++        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
++        <circle cx="9" cy="7" r="4"/>
++        <path d="M23 21v-2a4 4 0 00-3-3.87"/>
++        <path d="M16 3.13a4 4 0 010 7.75"/>
 +      </>
 +    ),
 +  },
@@ -4857,19 +5302,20 @@ index 802c11f..06488ae 100644
 \ No newline at end of file
 +}
 diff --git a/frontend/src/components/MailApp.jsx b/frontend/src/components/MailApp.jsx
-index 8e2df0e..cacfde0 100644
+index 8e2df0e..10c0e01 100644
 --- a/frontend/src/components/MailApp.jsx
 +++ b/frontend/src/components/MailApp.jsx
-@@ -12,6 +12,8 @@ import { buildKeyMap, buildModKeyMap, getEffectiveShortcuts, getGroupedActions,
+@@ -12,6 +12,9 @@ import { buildKeyMap, buildModKeyMap, getEffectiveShortcuts, getGroupedActions,
  import Sidebar from './Sidebar.jsx';
  import MessageList from './MessageList.jsx';
  import MessagePane from './MessagePane.jsx';
 +import TasksView from './TasksView.jsx';
++import ClientsView from './ClientsView.jsx';
 +import FunctionRail from './FunctionRail.jsx';
  import GtdSidebarContent from './GtdSidebarContent.jsx';
  import NotificationToasts from './NotificationToasts.jsx';
  import CommandPalette from './CommandPalette.jsx';
-@@ -131,6 +133,8 @@ export default function MailApp() {
+@@ -131,6 +134,8 @@ export default function MailApp() {
  
    const [showShortcutHelp, setShowShortcutHelp] = useState(false);
    const [paletteOpen, setPaletteOpen] = useState(false);
@@ -4878,7 +5324,7 @@ index 8e2df0e..cacfde0 100644
    const isMobile = useMobile();
    const sidebarDragRef = useRef(null);
    const sidebarResizeRef = useRef(null);
-@@ -477,7 +481,7 @@ export default function MailApp() {
+@@ -477,7 +482,7 @@ export default function MailApp() {
      const tabCount = selectedAccountId
        ? (unreadCounts.byAccount[selectedAccountId] ?? 0)
        : total;
@@ -4887,15 +5333,17 @@ index 8e2df0e..cacfde0 100644
      updateFaviconBadge(showFaviconBadge ? tabCount : 0);
      // App-icon badge always reflects total unread across all accounts so that
      // selecting a zero-unread account never clears the home screen badge.
-@@ -718,7 +722,11 @@ export default function MailApp() {
+@@ -718,7 +723,13 @@ export default function MailApp() {
        overflow: 'hidden',
        background: 'var(--bg-primary)',
      }}>
 -      {isMobile ? (
-+      {/* Gmail-style function rail: switch between Mail and Tasks. */}
++      {/* Gmail-style function rail: switch between Mail, Tasks and Clients. */}
 +      <FunctionRail view={topView} onChange={setTopView} isMobile={isMobile} />
 +      {topView === 'tasks' ? (
 +        <TasksView />
++      ) : topView === 'clients' ? (
++        <ClientsView />
 +      ) : isMobile ? (
          <>
            {/* Backdrop — covers full screen including status bar area */}
@@ -6303,7 +6751,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..31a47b2 100644
+index c62ac69..32f5516 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -6317,7 +6765,7 @@ index c62ac69..31a47b2 100644
    getUnreadCounts: () => request('GET', '/mail/unread-counts'),
  
    // Antispam (v0.1) — manual user feedback.
-@@ -312,6 +316,29 @@ export const api = {
+@@ -312,6 +316,33 @@ export const api = {
    },
    gtdClassify: (messageId, state) => request('POST', '/gtd/classify', { messageId, state }),
    gtdUnclassify: (messageId, state) => request('DELETE', '/gtd/classify', { messageId, state }),
@@ -6344,6 +6792,10 @@ index c62ac69..31a47b2 100644
 +  tasksSources: () => request('GET', '/tasks/sources'),
 +  tasksSaveSources: (sources, autoRefresh) => request('PUT', '/tasks/sources', { sources, autoRefresh }),
 +  tasksRefresh: () => request('POST', '/tasks/refresh'),
++  clientsList: () => request('GET', '/clients'),
++  clientBriefGet: (client) => request('GET', `/clients/${encodeURIComponent(client)}`),
++  clientBriefSave: (client, brief) => request('PUT', `/clients/${encodeURIComponent(client)}`, { brief }),
++  clientBriefRegenerate: (client, force) => request('POST', `/clients/${encodeURIComponent(client)}/regenerate`, { force: !!force }),
    // GTD "done": strip the row's label(s) for these states, mark read, archive the INBOX
    // copy. id is the rail head's row id (its label-folder copy); the server resolves the
    // INBOX copy from the shared Message-ID.
