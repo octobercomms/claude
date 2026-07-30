@@ -117,6 +117,14 @@ router.post('/clients/:clientId/run', async (req, res) => {
   }
 });
 
+// Where AI gets its answers — the cited-domains view (our share + our pages).
+router.get('/clients/:clientId/sources', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 90, 365);
+    res.json(await aiVisibility.sources(req.params.clientId, { days }));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Poll: is a background check running, and how far through is it?
 router.get('/clients/:clientId/run-status', async (req, res) => {
   const p = aiVisibility.getProgress(req.params.clientId);

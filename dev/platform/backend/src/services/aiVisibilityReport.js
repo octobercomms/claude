@@ -89,6 +89,27 @@ function buildHtml({ client, data, aiSummary = null }) {
 
   const spark = sparkline(data.trend);
 
+  // Sources / citations — "where AI gets its answers".
+  const src = data.sources || null;
+  const srcDomainRows = src && src.domains && src.domains.length ? src.domains.slice(0, 12).map((d, i) => `<tr>
+    <td class="rank">${i + 1}</td>
+    <td${d.is_own ? ' style="font-weight:700"' : ''}>${esc(d.host)}${d.is_own ? ' <span style="color:#1e8449;font-weight:700">— you</span>' : ''}</td>
+    <td class="num">${d.count}</td></tr>`).join('') : '';
+  const srcPageRows = src && src.own_pages && src.own_pages.length ? src.own_pages.slice(0, 8).map(p => `<tr>
+    <td class="q" style="color:#1a4fb4;word-break:break-all">${esc(p.url)}</td><td class="num">${p.count}</td></tr>`).join('') : '';
+  const srcBlock = src && src.total_citations ? `
+    <h2 class="sec">Where AI gets its answers <span class="src">${src.total_citations} citations · last ${src.days} days</span></h2>
+    <div class="metrics" style="margin-bottom:10px">
+      ${metric('Your citation share', `${src.own_share}%`, src.own_share >= 20 ? '#1e8449' : src.own_share >= 5 ? '#c77f0a' : '#c0392b')}
+      ${metric('Your citations', src.own_citations)}
+      ${metric('Sources cited', (src.domains || []).length)}
+    </div>
+    <div class="note">The domains AI assistants pull answers from in this category. Getting your own pages cited here is how you move share of voice — the pages on the right already earn citations; the domains on the left are where to aim next.</div>
+    <div class="two">
+      <div class="group"><h2 class="sec">Most-cited domains</h2>${srcDomainRows ? `<table><thead><tr><th>#</th><th>Domain</th><th class="num">Cited</th></tr></thead><tbody>${srcDomainRows}</tbody></table>` : '<div class="note">No citations recorded yet.</div>'}</div>
+      <div class="group"><h2 class="sec">Your cited pages</h2>${srcPageRows ? `<table><thead><tr><th>Page</th><th class="num">Cited</th></tr></thead><tbody>${srcPageRows}</tbody></table>` : '<div class="note">None of your pages have been cited yet — an opportunity.</div>'}</div>
+    </div>` : '';
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     ${buildFontCSS()}
     * { box-sizing: border-box; }
@@ -154,6 +175,8 @@ function buildHtml({ client, data, aiSummary = null }) {
         ${compRows ? `<table><thead><tr><th>#</th><th>Competitor</th><th class="num">Mentions</th></tr></thead><tbody>${compRows}</tbody></table>` : '<div class="note">No competitors recorded.</div>'}
       </div>
     </div>
+
+    ${srcBlock}
 
     <h2 class="sec">Every buyer question <span class="src">${(data.prompts || []).length} in the set${(data.prompts || []).some(p => p.tested === false) ? ' · “Not yet tested” ones are available on request' : ''}</span></h2>
     ${promptRows ? `<table><thead><tr><th>Question asked</th><th>Result</th><th>Named on</th><th>Competitors named</th></tr></thead><tbody>${promptRows}</tbody></table>` : '<div class="empty">No questions set up yet.</div>'}
