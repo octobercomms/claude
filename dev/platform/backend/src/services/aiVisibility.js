@@ -201,6 +201,33 @@ async function runAllForClient(clientId) {
   return out;
 }
 
+// Running every active prompt across every engine is ~prompts × engines external
+// API calls — far too long for one HTTP request (it blew past nginx's timeout, so
+// only the first few prompts completed). Kick it off in the background instead and
+// let the panel poll. In-memory lock stops a double-click starting two runs.
+const _running = new Set();
+function isRunning(clientId) { return _running.has(clientId); }
+async function startRunInBackground(clientId) {
+  if (_running.has(clientId)) return { started: false, already: true };
+  _running.add(clientId);   // claim synchronously (atomic with the check above) so a double-click can't start two
+  try {
+    const { rows } = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM ai_visibility_prompts WHERE client_id = $1 AND active = true', [clientId]
+    );
+    const total = rows[0]?.n || 0;
+    if (!total) { _running.delete(clientId); return { started: false, total: 0 }; }
+    (async () => {
+      try { await runAllForClient(clientId); }
+      catch (e) { console.error('[aeo] background run failed:', e.message); }
+      finally { _running.delete(clientId); }
+    })();
+    return { started: true, total };
+  } catch (err) {
+    _running.delete(clientId);
+    throw err;
+  }
+}
+
 // Cron entry point — every active client with at least one prompt.
 async function runAllClients() {
   const { rows } = await pool.query(
@@ -386,6 +413,7 @@ async function reportData(clientId, { days = 30 } = {}) {
 
 module.exports = {
   runPromptForClient, runAllForClient, runAllClients,
+  startRunInBackground, isRunning,
   generatePromptsForClient, summarise, getTrend, reportData,
   analyseMentions, SUPPORTED_ENGINES,
 };
