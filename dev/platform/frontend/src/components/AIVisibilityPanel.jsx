@@ -49,15 +49,35 @@ export default function AIVisibilityPanel({ clientId }) {
   useEffect(() => { loadAll(); /* eslint-disable-line */ }, [clientId]);
 
   async function runNow() {
-    if (!prompts.some(p => p.active)) { toast('Add at least one prompt first.', 'error'); return; }
-    if (!confirm('Run every active prompt across every supported engine now? This will use API credit.')) return;
+    const activeCount = prompts.filter(p => p.active).length;
+    if (!activeCount) { toast('Add at least one prompt first.', 'error'); return; }
+    if (!confirm(`Run all ${activeCount} active prompts across every supported engine now? This runs in the background (a few minutes) and uses API credit.`)) return;
     setRunning(true);
     try {
-      await api.post(`/ai-visibility/clients/${clientId}/run`, {});
-      await loadAll();
-      toast('Visibility check complete.', 'success');
-    } catch (e) { toast(`Run failed: ${e.message}`, 'error'); }
-    finally { setRunning(false); }
+      const r = await api.post(`/ai-visibility/clients/${clientId}/run`, {});
+      toast(r?.started ? `Running ${r.total} prompts in the background — results will fill in over the next few minutes.` : 'A check is already running.', 'info');
+      pollRun();
+    } catch (e) { toast(`Run failed: ${e.message}`, 'error'); setRunning(false); }
+  }
+
+  // Poll while a background run is in progress: refresh the numbers periodically
+  // and stop once the server reports the run has finished.
+  function pollRun() {
+    let elapsed = 0;
+    const tick = async () => {
+      elapsed += 15;
+      await loadAll().catch(() => {});
+      let running = true;
+      try { const s = await api.get(`/ai-visibility/clients/${clientId}/run-status`); running = !!s.running; } catch { /* keep polling */ }
+      if (!running || elapsed > 1200) {   // stop when done, or after 20 min as a backstop
+        setRunning(false);
+        await loadAll().catch(() => {});
+        toast(running ? 'Still running — check back shortly.' : 'Visibility check complete.', running ? 'info' : 'success');
+        return;
+      }
+      setTimeout(tick, 15000);
+    };
+    setTimeout(tick, 15000);
   }
 
   async function generatePrompts() {

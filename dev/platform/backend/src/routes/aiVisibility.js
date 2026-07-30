@@ -102,15 +102,24 @@ router.post('/clients/:clientId/prompts/bulk', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Manual trigger — runs every active prompt across every engine.
+// Manual trigger — runs every active prompt across every engine. This is a long
+// job (prompts × engines API calls), so it runs in the BACKGROUND and returns
+// immediately; the panel polls /run-status + reloads to show progress.
 router.post('/clients/:clientId/run', async (req, res) => {
   try {
-    const results = await aiVisibility.runAllForClient(req.params.clientId);
-    res.json({ results });
+    const r = await aiVisibility.startRunInBackground(req.params.clientId);
+    if (r.already) return res.status(202).json({ started: false, running: true, message: 'A check is already running.' });
+    if (!r.started) return res.status(400).json({ error: 'No active prompts to run yet — add or generate some first.' });
+    res.status(202).json({ started: true, total: r.total });
   } catch (err) {
     console.error('[aeo] run failed:', err.message);
     res.status(502).json({ error: err.message });
   }
+});
+
+// Poll: is a background check currently running for this client?
+router.get('/clients/:clientId/run-status', async (req, res) => {
+  res.json({ running: aiVisibility.isRunning(req.params.clientId) });
 });
 
 // Latest runs — used by the AM-facing list view.
