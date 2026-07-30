@@ -456,6 +456,7 @@ export default function ClientPRPage() {
             actions={<>
               <button className="btn btn-primary" onClick={() => { setTab('coverage'); startEdit(null); }}>+ Log coverage</button>
               <button className="btn btn-secondary" onClick={() => { setTab('press'); newRelease(); }}>+ Press release</button>
+              <a className="btn btn-secondary" href={`/api/pr/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>
             </>}
             interstitial={<>
               <SuiteReadiness clientId={id} suite="earned_setup" title="PR pipeline" steps={[

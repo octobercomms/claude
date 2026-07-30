@@ -208,6 +208,7 @@ app.use('/api/strategist', require('./routes/strategist'));
 app.use('/api/october-forms', require('./routes/octoberForms'));
 app.use('/api/waitlist', require('./routes/waitlist'));
 app.use('/api/audiences', require('./routes/audiences'));
+app.use('/api/paid', require('./routes/paid'));
 app.use('/api/leads', require('./routes/leads'));
 app.use('/api/video', require('./routes/video'));
 app.use('/api/ai-visibility', require('./routes/aiVisibility'));

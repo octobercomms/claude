@@ -750,6 +750,7 @@ export default function ClientSEOPage() {
             { label: 'Keywords', value: keywords.length ? `${keywords.length} tracked` : 'None yet', ok: keywords.length > 0 },
             { label: 'Ranking', value: `${keywords.filter(k => k.current_position).length}`, ok: keywords.filter(k => k.current_position).length > 0 },
           ]}
+          actions={<a className="btn btn-secondary" href={`/api/seo/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
           mapLayout="snake"
           map={[
             { title: 'Search', subtitle: 'Where you rank and where you get cited', nodes: [

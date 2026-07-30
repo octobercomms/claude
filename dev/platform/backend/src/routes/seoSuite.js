@@ -13,6 +13,8 @@ const google = require('../connectors/google');
 const pageSpeed = require('../services/pageSpeed');
 const seoDrift = require('../services/seoDrift');
 const seoSxo = require('../services/seoSxo');
+const overviewReport = require('../services/overviewReport');
+const ownedOverviewReport = require('../services/ownedOverviewReport');
 const { decrypt } = require('../utils/encryption');
 
 const router = express.Router();
@@ -1488,6 +1490,22 @@ router.get('/clients/:clientId/agent-readiness', async (req, res) => {
     const agentReadiness = require('../services/agentReadiness');
     res.json(await agentReadiness.getLatest(req.params.clientId));
   } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// Branded, client-facing PDF of the whole Owned (SEO) Overview. Cookie-authed
+// like every route here, so the frontend links to it with a plain <a download>.
+router.get('/clients/:clientId/overview-report.pdf', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    await overviewReport.sendReport(res, {
+      clientId: req.params.clientId, report: ownedOverviewReport, days,
+      slugPrefix: 'owned-overview', feature: 'owned_overview_report',
+      emptyMsg: 'No SEO data yet — add keywords or run a site audit first, then export.',
+    });
+  } catch (err) {
+    console.error('[owned-overview] report failed:', err);
     res.status(err.status || 500).json({ error: err.message });
   }
 });
