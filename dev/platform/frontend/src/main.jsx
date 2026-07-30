@@ -17,6 +17,12 @@ import './styles/tailwind.css';
 // errors get checked by stack / filename to make sure the trigger came
 // from our own bundle.
 function isOurError(e) {
+  // Routine auth expiry: api.js throws "Session expired" on a 401 and redirects
+  // to /login. That's expected once a 24h session lapses — not an application
+  // error, so don't page it into the error digest.
+  const msg = String(e?.message || e?.reason?.message || e?.reason || '');
+  if (/^Session expired$/.test(msg)) return false;
+
   const filename = e?.filename || e?.error?.fileName || '';
   if (filename) {
     if (/^(chrome|moz|safari-web|safari|webkit)-extension:/i.test(filename)) return false;
