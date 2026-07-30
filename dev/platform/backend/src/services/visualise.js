@@ -396,14 +396,14 @@ async function fetchRemoteBuffer(url) {
 // soft (feathered) edge so there's no seam — guaranteeing every pixel outside the
 // circled area is identical to the source, whatever the inpaint model did globally.
 async function compositeMaskedEdit(originalPath, editedBuf, maskBuf) {
-  const Jimp = require('jimp');
+  const Jimp = (await import('jimp')).Jimp;   // jimp v1 is ESM-only
   const [orig, edited, mask] = await Promise.all([Jimp.read(originalPath), Jimp.read(editedBuf), Jimp.read(maskBuf)]);
   const w = orig.bitmap.width, h = orig.bitmap.height;
-  edited.resize(w, h);
-  mask.resize(w, h).grayscale().blur(3);       // feather the mask edge
+  edited.resize({ w, h });
+  mask.resize({ w, h }).greyscale().blur(3);   // feather the mask edge
   edited.mask(mask, 0, 0);                      // alpha from mask brightness: white→edited, black→transparent
   const composed = orig.clone().composite(edited, 0, 0);
-  return composed.getBufferAsync(Jimp.MIME_PNG);
+  return composed.getBuffer('image/png');
 }
 
 // Circle-and-fix: regenerate ONLY the masked region of a base step, store the

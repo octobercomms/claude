@@ -16,11 +16,15 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-const Jimp = require('jimp');
 const pool = require('../db');
 const fal = require('../connectors/fal');
 
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
+
+// jimp v1 is ESM-only; load it lazily from this CommonJS module (cached).
+let _Jimp = null;
+async function getJimp() { if (!_Jimp) _Jimp = (await import('jimp')).Jimp; return _Jimp; }
+const PNG = 'image/png';
 
 // fal model routing (mirrors the Visualise preset; §11 bake-off finalises these).
 const EXPAND_MODEL = 'fal-ai/flux-pro/v1/fill';   // outpaint the padded area
@@ -101,6 +105,7 @@ function saveOutput(clientId, buffer, sizeKey) {
 // padded area white (= generate) and the source black (= keep). Returns null
 // when the source already matches the target shape (no outpaint needed).
 async function buildExpand(srcImg, targetW, targetH) {
+  const Jimp = await getJimp();
   const W = srcImg.bitmap.width, H = srcImg.bitmap.height;
   const r = targetW / targetH, sr = W / H;
   if (Math.abs(r - sr) / r < 0.012) return null;   // same shape → plain fit
@@ -119,11 +124,11 @@ async function buildExpand(srcImg, targetW, targetH) {
   const sw = Math.max(1, Math.round(W * fit)), sh = Math.max(1, Math.round(H * fit));
   const ox = Math.round((cw - sw) / 2), oy = Math.round((ch - sh) / 2);
 
-  const scaled = srcImg.clone().resize(sw, sh);
-  const canvas = new Jimp(cw, ch, 0xffffffff);
+  const scaled = srcImg.clone().resize({ w: sw, h: sh });
+  const canvas = new Jimp({ width: cw, height: ch, color: 0xffffffff });
   canvas.composite(scaled, ox, oy);
-  const mask = new Jimp(cw, ch, 0xffffffff);         // white everywhere = generate
-  const hole = new Jimp(sw, sh, 0x000000ff);         // black over the source = keep
+  const mask = new Jimp({ width: cw, height: ch, color: 0xffffffff });   // white everywhere = generate
+  const hole = new Jimp({ width: sw, height: sh, color: 0x000000ff });   // black over the source = keep
   mask.composite(hole, ox, oy);
 
   return { canvas, mask, cw, ch };
@@ -133,10 +138,11 @@ async function buildExpand(srcImg, targetW, targetH) {
 // pixel exact and feathering the mask edge so the join is seamless (same D12
 // region-lock trick as Visualise).
 async function stitch(canvasImg, editedBuf, maskImg) {
+  const Jimp = await getJimp();
   const w = canvasImg.bitmap.width, h = canvasImg.bitmap.height;
   const edited = await Jimp.read(editedBuf);
-  edited.resize(w, h);
-  const m = maskImg.clone().grayscale().blur(2);
+  edited.resize({ w, h });
+  const m = maskImg.clone().greyscale().blur(2);
   edited.mask(m, 0, 0);                               // keep model pixels only where mask is white
   return canvasImg.clone().composite(edited, 0, 0);
 }
@@ -148,10 +154,11 @@ async function resizeImage({ clientId, buffer, sizeKeys, userId = null, saveSour
   const requested = AD_SIZES.filter(s => sizeKeys.includes(s.key));
   if (!requested.length) { const e = new Error('Pick at least one ad size.'); e.status = 400; throw e; }
 
+  const Jimp = await getJimp();
   const original = await Jimp.read(buffer);
   const srcW0 = original.bitmap.width, srcH0 = original.bitmap.height;
   let src = original;
-  let srcBuf = await original.getBufferAsync(Jimp.MIME_PNG);   // normalise to PNG for fal
+  let srcBuf = await original.getBuffer(PNG);   // normalise to PNG for fal
   // Keep the original on disk so a later "retry failed" can re-run without a
   // re-upload. Saved before any upscale, so retries start from the true source.
   let sourceUrl = null;
@@ -181,20 +188,20 @@ async function resizeImage({ clientId, buffer, sizeKeys, userId = null, saveSour
       const expand = await buildExpand(src, size.w, size.h);
       let outImg;
       if (!expand) {
-        outImg = src.clone().cover(size.w, size.h);   // same shape → scale (+ hair-crop)
+        outImg = src.clone().cover({ w: size.w, h: size.h });   // same shape → scale (+ hair-crop)
       } else {
-        const canvasBuf = await expand.canvas.getBufferAsync(Jimp.MIME_PNG);
-        const maskBuf = await expand.mask.getBufferAsync(Jimp.MIME_PNG);
+        const canvasBuf = await expand.canvas.getBuffer(PNG);
+        const maskBuf = await expand.mask.getBuffer(PNG);
         const res = await fal.run(EXPAND_MODEL,
           { image_url: toDataUri(canvasBuf), mask_url: toDataUri(maskBuf), prompt: EXPAND_PROMPT },
           { feature: 'ad_resize_expand', clientId, costUsd: priceFor(EXPAND_MODEL) });
         if (!res.url) throw new Error('The expand model returned no image.');
         const editedBuf = await fetchBuffer(res.url);
         const stitched = await stitch(expand.canvas, editedBuf, expand.mask);
-        outImg = stitched.resize(size.w, size.h);
+        outImg = stitched.resize({ w: size.w, h: size.h });
         spend += priceFor(EXPAND_MODEL);
       }
-      const outBuf = await outImg.getBufferAsync(Jimp.MIME_PNG);
+      const outBuf = await outImg.getBuffer(PNG);
       const url = saveOutput(clientId, outBuf, size.key);
       outputs.push({ ...publicSize(size), url, method: expand ? 'expanded' : 'fit' });
     } catch (err) {
