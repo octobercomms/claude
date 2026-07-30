@@ -117,9 +117,10 @@ router.post('/clients/:clientId/run', async (req, res) => {
   }
 });
 
-// Poll: is a background check currently running for this client?
+// Poll: is a background check running, and how far through is it?
 router.get('/clients/:clientId/run-status', async (req, res) => {
-  res.json({ running: aiVisibility.isRunning(req.params.clientId) });
+  const p = aiVisibility.getProgress(req.params.clientId);
+  res.json({ running: aiVisibility.isRunning(req.params.clientId), done: p?.done || 0, total: p?.total || 0 });
 });
 
 // Latest runs — used by the AM-facing list view.

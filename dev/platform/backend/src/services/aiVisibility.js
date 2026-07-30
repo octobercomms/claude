@@ -187,16 +187,17 @@ async function runPromptForClient(clientId, prompt) {
 
 // Walk every active prompt for a client. Used by the weekly cron and
 // the manual-trigger endpoint.
-async function runAllForClient(clientId) {
+async function runAllForClient(clientId, onProgress) {
   const { rows: prompts } = await pool.query(
     `SELECT id, prompt FROM ai_visibility_prompts
       WHERE client_id = $1 AND active = true ORDER BY created_at ASC`,
     [clientId]
   );
   const out = [];
-  for (const p of prompts) {
-    const r = await runPromptForClient(clientId, p);
-    out.push({ prompt_id: p.id, prompt: p.prompt, runs: r });
+  for (let i = 0; i < prompts.length; i++) {
+    const r = await runPromptForClient(clientId, prompts[i]);
+    out.push({ prompt_id: prompts[i].id, prompt: prompts[i].prompt, runs: r });
+    if (typeof onProgress === 'function') { try { onProgress(i + 1, prompts.length); } catch { /* ignore */ } }
   }
   return out;
 }
@@ -206,7 +207,9 @@ async function runAllForClient(clientId) {
 // only the first few prompts completed). Kick it off in the background instead and
 // let the panel poll. In-memory lock stops a double-click starting two runs.
 const _running = new Set();
+const _progress = new Map();   // clientId → { done, total }
 function isRunning(clientId) { return _running.has(clientId); }
+function getProgress(clientId) { return _progress.get(clientId) || null; }
 async function startRunInBackground(clientId) {
   if (_running.has(clientId)) return { started: false, already: true };
   _running.add(clientId);   // claim synchronously (atomic with the check above) so a double-click can't start two
@@ -216,14 +219,15 @@ async function startRunInBackground(clientId) {
     );
     const total = rows[0]?.n || 0;
     if (!total) { _running.delete(clientId); return { started: false, total: 0 }; }
+    _progress.set(clientId, { done: 0, total });
     (async () => {
-      try { await runAllForClient(clientId); }
+      try { await runAllForClient(clientId, (done, tot) => _progress.set(clientId, { done, total: tot })); }
       catch (e) { console.error('[aeo] background run failed:', e.message); }
-      finally { _running.delete(clientId); }
+      finally { _running.delete(clientId); _progress.delete(clientId); }
     })();
     return { started: true, total };
   } catch (err) {
-    _running.delete(clientId);
+    _running.delete(clientId); _progress.delete(clientId);
     throw err;
   }
 }
@@ -413,7 +417,7 @@ async function reportData(clientId, { days = 30 } = {}) {
 
 module.exports = {
   runPromptForClient, runAllForClient, runAllClients,
-  startRunInBackground, isRunning,
+  startRunInBackground, isRunning, getProgress,
   generatePromptsForClient, summarise, getTrend, reportData,
   analyseMentions, SUPPORTED_ENGINES,
 };

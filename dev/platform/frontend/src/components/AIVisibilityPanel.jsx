@@ -35,6 +35,7 @@ export default function AIVisibilityPanel({ clientId }) {
   const [generating, setGenerating] = useState(false);
   const [suggested, setSuggested] = useState(null);
   const [newPrompt, setNewPrompt] = useState('');
+  const [runProgress, setRunProgress] = useState(null); // { done, total } while a background run is in flight
 
   async function loadAll() {
     const [p, s, t, r] = await Promise.all([
@@ -68,11 +69,11 @@ export default function AIVisibilityPanel({ clientId }) {
       elapsed += 15;
       await loadAll().catch(() => {});
       let running = true;
-      try { const s = await api.get(`/ai-visibility/clients/${clientId}/run-status`); running = !!s.running; } catch { /* keep polling */ }
+      try { const s = await api.get(`/ai-visibility/clients/${clientId}/run-status`); running = !!s.running; setRunProgress(s.total ? { done: s.done, total: s.total } : null); } catch { /* keep polling */ }
       if (!running || elapsed > 1200) {   // stop when done, or after 20 min as a backstop
-        setRunning(false);
+        setRunning(false); setRunProgress(null);
         await loadAll().catch(() => {});
-        toast(running ? 'Still running — check back shortly.' : 'Visibility check complete.', running ? 'info' : 'success');
+        toast(running ? 'Still running — check back shortly.' : 'Visibility check complete — all questions run.', running ? 'info' : 'success');
         return;
       }
       setTimeout(tick, 15000);
@@ -160,7 +161,7 @@ export default function AIVisibilityPanel({ clientId }) {
 
       <div className="row wrap mb-6">
         <Button {...roWrite(readOnly, { onClick: runNow, disabled: running })}>
-          {running ? 'Running…' : '↻ Run visibility check now'}
+          {running ? (runProgress?.total ? `Running… ${runProgress.done}/${runProgress.total}` : 'Running…') : '↻ Run visibility check now'}
         </Button>
         <Button variant="secondary" {...roWrite(readOnly, { onClick: generatePrompts, disabled: generating })}>
           {generating ? 'Generating…' : '✨ Generate prompts with Claude'}
