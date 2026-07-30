@@ -344,34 +344,43 @@ async function getTrend(clientId, { weeks = 12 } = {}) {
 async function reportData(clientId, { days = 30 } = {}) {
   const summary = await summarise(clientId, { days });
   const trend = await getTrend(clientId, { weeks: 12 });
+  // Show EVERY question in the client's set — not only the ones with a run in
+  // the window — so the report is the full battery and untested questions stand
+  // out (the client can then ask us to run them). Each tested question shows its
+  // latest result (any time), which is more useful than dropping it off once it
+  // ages out of the window.
+  const { rows: allPrompts } = await pool.query(
+    'SELECT id, prompt FROM ai_visibility_prompts WHERE client_id = $1 ORDER BY created_at ASC',
+    [clientId]
+  );
   const { rows: latest } = await pool.query(
     `WITH latest AS (
        SELECT DISTINCT ON (prompt_id, engine)
-         prompt_id, engine, brand_mentioned, brand_position, competitor_mentions, fetched_at
+         prompt_id, engine, brand_mentioned, brand_position, competitor_mentions
        FROM ai_visibility_runs
-       WHERE client_id = $1 AND fetched_at >= NOW() - ($2::int || ' days')::interval
+       WHERE client_id = $1 AND prompt_id IS NOT NULL
        ORDER BY prompt_id, engine, fetched_at DESC
      )
-     SELECT l.*, p.prompt FROM latest l
-     JOIN ai_visibility_prompts p ON p.id = l.prompt_id
-     ORDER BY p.created_at ASC`,
-    [clientId, days]
+     SELECT * FROM latest`,
+    [clientId]
   );
-  const byPrompt = new Map();
+  const agg = new Map();
   for (const r of latest) {
-    const e = byPrompt.get(r.prompt_id) || { prompt: r.prompt, mentioned: false, best_position: null, engines: [], competitors: new Set() };
+    const e = agg.get(r.prompt_id) || { mentioned: false, best_position: null, engines: [], competitors: new Set() };
     if (r.brand_mentioned) {
       e.mentioned = true;
       if (!e.engines.includes(r.engine)) e.engines.push(r.engine);
       if (r.brand_position && (e.best_position == null || r.brand_position < e.best_position)) e.best_position = r.brand_position;
     }
     for (const c of (r.competitor_mentions || [])) e.competitors.add(c);
-    byPrompt.set(r.prompt_id, e);
+    agg.set(r.prompt_id, e);
   }
-  const prompts = [...byPrompt.values()].map(e => ({
-    prompt: e.prompt, mentioned: e.mentioned, best_position: e.best_position,
-    engines: e.engines, competitors: [...e.competitors].slice(0, 6),
-  }));
+  const prompts = allPrompts.map(p => {
+    const e = agg.get(p.id);
+    return e
+      ? { prompt: p.prompt, tested: true, mentioned: e.mentioned, best_position: e.best_position, engines: e.engines, competitors: [...e.competitors].slice(0, 6) }
+      : { prompt: p.prompt, tested: false, mentioned: false, best_position: null, engines: [], competitors: [] };
+  });
   return { summary, trend, prompts, days };
 }
 
