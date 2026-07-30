@@ -651,14 +651,15 @@ index 0000000..a85cc80
 +export default router;
 diff --git a/backend/src/routes/tasks.js b/backend/src/routes/tasks.js
 new file mode 100644
-index 0000000..2295bbd
+index 0000000..721c78b
 --- /dev/null
 +++ b/backend/src/routes/tasks.js
-@@ -0,0 +1,168 @@
+@@ -0,0 +1,194 @@
 +import { Router } from 'express';
 +import { query } from '../services/db.js';
 +import { requireAuth } from '../middleware/auth.js';
 +import { refreshUserTasks, positionAfter } from '../services/taskRefresh.js';
++import { generateDailyBrief, getCachedBrief, generateTaskAssist } from '../services/dailyBrief.js';
 +
 +// Native task list — an ordered sequence of blocks (headings + checkbox tasks) per
 +// user. Edited like a restricted Notion outline; the AI "refresh from folder" and the
@@ -822,6 +823,31 @@ index 0000000..2295bbd
 +  }
 +});
 +
++// ── Daily brief ───────────────────────────────────────────────────────────────
++router.get('/tasks/brief', requireAuth, async (req, res) => {
++  const cached = await getCachedBrief(uid(req));
++  res.json({ brief: cached });
++});
++
++router.post('/tasks/brief', requireAuth, async (req, res) => {
++  try {
++    const { brief, open, drafts } = await generateDailyBrief(uid(req));
++    res.json({ ok: true, brief, open, drafts });
++  } catch (err) {
++    res.status(err.status || 502).json({ error: err.message || 'Brief failed' });
++  }
++});
++
++// ── Per-task "how to tackle this" assist ──────────────────────────────────────
++router.post('/tasks/:id/assist', requireAuth, async (req, res) => {
++  try {
++    const result = await generateTaskAssist(uid(req), req.params.id);
++    res.json({ ok: true, ...result });
++  } catch (err) {
++    res.status(err.status || 502).json({ error: err.message || 'Assist failed' });
++  }
++});
++
 +export default router;
 diff --git a/backend/src/services/clientBriefs.js b/backend/src/services/clientBriefs.js
 new file mode 100644
@@ -971,6 +997,129 @@ index 0000000..5a22106
 +
 +  const saved = await upsertBrief(userId, clientName, { brief: content, auto: true, refreshed: true });
 +  return { ...saved, mailScanned: mail.length };
++}
+diff --git a/backend/src/services/dailyBrief.js b/backend/src/services/dailyBrief.js
+new file mode 100644
+index 0000000..9bbadf3
+--- /dev/null
++++ b/backend/src/services/dailyBrief.js
+@@ -0,0 +1,117 @@
++import { query } from './db.js';
++import { aiComplete, loadAiConfig } from './taskGenerator.js';
++
++// Phase 6 — the assistant's daily brief and per-task "how to tackle this" help.
++// Both read what's already in the hub (tasks, waiting drafts) and ask the model for
++// something short and useful. The brief is cached per day in preferences.dailyBrief so
++// it's waiting in the morning; task assist is generated on demand.
++
++const clip = (s, n) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
++
++// Walk the ordered blocks into "CLIENT → [tasks]" text for the prompt.
++async function openTaskOutline(userId) {
++  const rows = (await query(
++    `SELECT kind, text, done, priority FROM tasks WHERE user_id = $1 ORDER BY position ASC, created_at ASC`,
++    [userId]
++  )).rows;
++  const lines = [];
++  let heading = 'General';
++  let open = 0;
++  for (const b of rows) {
++    if (b.kind === 'heading') { heading = b.text || 'General'; lines.push(`\n## ${heading}`); continue; }
++    if (b.done) continue;
++    open++;
++    const pri = b.priority && b.priority !== 'medium' ? ` [${b.priority}]` : '';
++    lines.push(`- ${clip(b.text, 240)}${pri}`);
++  }
++  return { outline: lines.join('\n').trim(), open };
++}
++
++export async function generateDailyBrief(userId, cfg, { save = true } = {}) {
++  cfg = cfg || await loadAiConfig();
++  const { outline, open } = await openTaskOutline(userId);
++  const drafts = (await query("SELECT COUNT(*)::int AS n FROM ai_drafts WHERE user_id = $1 AND status = 'suggested'", [userId])).rows[0].n;
++
++  if (!open && !drafts) {
++    const text = 'Nothing outstanding on your list right now — inbox and tasks are clear. Enjoy it.';
++    if (save) await cacheBrief(userId, text);
++    return { brief: text, open, drafts };
++  }
++
++  const system =
++    'You are a sharp executive assistant writing the morning brief for a busy agency owner. ' +
++    'From their open task list (grouped by client) and the count of reply drafts waiting for them, write a short, ' +
++    'skimmable brief: a one-line hello + read of the day, then the 3–5 things that most deserve attention today ' +
++    '(name the client and why it matters), then a one-line nudge on the waiting drafts if any. ' +
++    'Be concrete and prioritise ruthlessly — do not just restate the whole list. Warm but efficient. ' +
++    'Plain text or light markdown, no headings-heavy formatting. Under ~180 words.';
++  const user =
++    `OPEN TASKS (${open}), grouped by client:\n${outline || '(none)'}\n\n` +
++    `REPLY DRAFTS WAITING FOR REVIEW: ${drafts}\n\n` +
++    'Write the brief.';
++
++  const brief = (await aiComplete(cfg, [
++    { role: 'system', content: system },
++    { role: 'user', content: user },
++  ])).trim();
++
++  if (save) await cacheBrief(userId, brief);
++  return { brief, open, drafts };
++}
++
++function todayStr() {
++  // UTC day key — good enough for a "today's brief" cache.
++  return new Date().toISOString().slice(0, 10);
++}
++
++async function cacheBrief(userId, brief) {
++  await query(
++    `UPDATE users SET preferences =
++       jsonb_set(COALESCE(preferences,'{}'::jsonb), '{dailyBrief}', $2::jsonb, true) WHERE id = $1`,
++    [userId, JSON.stringify({ date: todayStr(), text: brief.slice(0, 4000) })]
++  );
++}
++
++export async function getCachedBrief(userId) {
++  const prefs = (await query('SELECT preferences FROM users WHERE id = $1', [userId])).rows[0]?.preferences || {};
++  const b = prefs.dailyBrief;
++  if (!b) return null;
++  return { text: b.text || '', date: b.date || null, stale: b.date !== todayStr() };
++}
++
++// Per-task "how would I tackle this?" help. Pulls in the source email (if the task
++// came from one) for context. Returns short, actionable guidance.
++export async function generateTaskAssist(userId, taskId, cfg) {
++  cfg = cfg || await loadAiConfig();
++  const task = (await query('SELECT id, text, source, source_ref FROM tasks WHERE user_id = $1 AND id = $2', [userId, taskId])).rows[0];
++  if (!task) { const e = new Error('Task not found'); e.status = 404; throw e; }
++
++  let emailContext = '';
++  let canDraft = false;
++  if (task.source_ref) {
++    const m = (await query(
++      `SELECT m.subject, m.from_name, m.from_email, m.body_text, m.snippet
++         FROM messages m JOIN email_accounts a ON a.id = m.account_id
++        WHERE a.user_id = $1 AND m.message_id = $2 ORDER BY m.date DESC LIMIT 1`,
++      [userId, task.source_ref]
++    )).rows[0];
++    if (m) {
++      canDraft = true;
++      emailContext = `\n\nIT CAME FROM THIS EMAIL — from ${clip(m.from_name || m.from_email, 80)}, subject "${clip(m.subject, 140)}":\n${clip(m.body_text || m.snippet, 2000)}`;
++    }
++  }
++
++  const system =
++    'You help a busy agency owner get a task done. Given the task (and the email it came from, if any), give ' +
++    'brief, concrete guidance: 2–4 short bullets on how to tackle it — the actual steps, what to decide, what to say. ' +
++    'If it is essentially a reply, say so and note that a drafted reply can be opened from the email. ' +
++    'No preamble. Be specific to this task, not generic advice.';
++  const user = `TASK: ${clip(task.text, 500)}${emailContext}\n\nHow should I tackle this?`;
++
++  const suggestion = (await aiComplete(cfg, [
++    { role: 'system', content: system },
++    { role: 'user', content: user },
++  ])).trim();
++
++  return { suggestion, canDraft, sourceRef: task.source_ref || null };
 +}
 diff --git a/backend/src/services/draftWriter.js b/backend/src/services/draftWriter.js
 new file mode 100644
@@ -2262,13 +2411,14 @@ index 0000000..b4a0fd0
 +}
 diff --git a/backend/src/services/taskScheduler.js b/backend/src/services/taskScheduler.js
 new file mode 100644
-index 0000000..bf32def
+index 0000000..de08840
 --- /dev/null
 +++ b/backend/src/services/taskScheduler.js
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,112 @@
 +import { query } from './db.js';
 +import { refreshUserTasks } from './taskRefresh.js';
 +import { runDraftSweep } from './draftWriter.js';
++import { generateDailyBrief } from './dailyBrief.js';
 +
 +// Daily auto-refresh of the Tasks hub. Polls every few minutes; for each user who
 +// has opted in (preferences.taskAutoRefresh.enabled) and has task folders set, runs
@@ -2332,6 +2482,9 @@ index 0000000..bf32def
 +    } catch (e) {
 +      if (e.code !== 'NO_SOURCES') console.warn(`[task-scheduler] ${u.id}: ${e.message}`);
 +    }
++    // Freshen the morning brief off the just-refreshed list, so it's waiting.
++    try { await generateDailyBrief(u.id); }
++    catch (e) { console.warn(`[task-scheduler] brief ${u.id}: ${e.message}`); }
 +  }
 +}
 +
@@ -6749,10 +6902,10 @@ index 0000000..4551729
 +}
 diff --git a/frontend/src/components/TasksView.jsx b/frontend/src/components/TasksView.jsx
 new file mode 100644
-index 0000000..6681407
+index 0000000..e392d92
 --- /dev/null
 +++ b/frontend/src/components/TasksView.jsx
-@@ -0,0 +1,425 @@
+@@ -0,0 +1,499 @@
 +// Native task list — a restricted Notion-style outline: two block kinds, "heading"
 +// (a client/section) and "task" (a checkbox item). Type straight into it: Enter makes
 +// a new task, Backspace on an empty block removes it, the checkbox ticks a task off.
@@ -6774,6 +6927,10 @@ index 0000000..6681407
 +  const [refreshing, setRefreshing] = useState(false);
 +  const [refreshMsg, setRefreshMsg] = useState('');
 +  const [showSettings, setShowSettings] = useState(false);
++  const [brief, setBrief] = useState(null);   // { text, date, stale } | null
++  const [briefBusy, setBriefBusy] = useState(false);
++  const [briefOpen, setBriefOpen] = useState(true);
++  const [assist, setAssist] = useState({});   // taskId -> { loading, text, error }
 +  const inputRefs = useRef(new Map());        // id -> textarea element
 +  const focusRef = useRef(null);              // { id, atEnd } to focus after render
 +  const saveTimers = useRef(new Map());       // id -> debounce timer
@@ -6788,6 +6945,32 @@ index 0000000..6681407
 +  }, []);
 +
 +  useEffect(() => { load(); }, [load]);
++
++  useEffect(() => {
++    api.tasksBriefGet().then(r => setBrief(r.brief || null)).catch(() => {});
++  }, []);
++
++  const briefMe = async () => {
++    setBriefBusy(true);
++    try {
++      const r = await api.tasksBriefGenerate();
++      setBrief({ text: r.brief, date: null, stale: false });
++      setBriefOpen(true);
++    } catch (e) { setError(e.message || 'Brief failed'); }
++    finally { setBriefBusy(false); }
++  };
++
++  const toggleAssist = async (b) => {
++    const cur = assist[b.id];
++    if (cur && (cur.text || cur.loading)) { setAssist(a => ({ ...a, [b.id]: null })); return; }
++    setAssist(a => ({ ...a, [b.id]: { loading: true } }));
++    try {
++      const r = await api.taskAssist(b.id);
++      setAssist(a => ({ ...a, [b.id]: { text: r.suggestion, canDraft: r.canDraft, sourceRef: r.sourceRef } }));
++    } catch (e) {
++      setAssist(a => ({ ...a, [b.id]: { error: e.message || 'Failed' } }));
++    }
++  };
 +
 +  // Focus a freshly-created / navigated-to block after render.
 +  useEffect(() => {
@@ -6909,6 +7092,9 @@ index 0000000..6681407
 +            </svg>
 +            {refreshing ? t('tasksView.refreshing', { defaultValue: 'Reading mail…' }) : t('tasksView.refresh', { defaultValue: 'Refresh from mail' })}
 +          </button>
++          <button onClick={briefMe} disabled={briefBusy} style={btnStyle(false)} title={t('tasksView.briefHint', { defaultValue: 'Get your morning brief' })}>
++            {briefBusy ? t('tasksView.briefing', { defaultValue: 'Briefing…' }) : t('tasksView.briefMe', { defaultValue: 'Brief me' })}
++          </button>
 +          <button onClick={() => setShowSettings(s => !s)} style={btnStyle(false)} title={t('tasksView.settings', { defaultValue: 'Task settings' })}>
 +            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-3px' }}>
 +              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
@@ -6924,6 +7110,25 @@ index 0000000..6681407
 +
 +        {refreshMsg && <div style={{ color: 'var(--accent)', fontSize: 12.5, marginBottom: 12 }}>{refreshMsg}</div>}
 +        {error && <div style={{ color: 'var(--red, #e03131)', fontSize: 13, marginBottom: 12 }}>{error}</div>}
++
++        {brief && brief.text && briefOpen && (
++          <div style={{
++            marginBottom: 18, padding: '14px 16px', borderRadius: 12,
++            background: 'var(--accent-dim, rgba(0,0,0,0.03))', border: '1px solid var(--border-subtle)',
++          }}>
++            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
++              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
++                <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
++              </svg>
++              <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', flex: 1 }}>
++                {t('tasksView.today', { defaultValue: 'Your brief' })}
++                {brief.stale && <span style={{ color: 'var(--text-tertiary)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}> · {t('tasksView.briefStale', { defaultValue: 'from an earlier day — “Brief me” to refresh' })}</span>}
++              </span>
++              <button onClick={() => setBriefOpen(false)} style={rowDel} title="Hide">×</button>
++            </div>
++            <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)' }}>{brief.text}</div>
++          </div>
++        )}
 +
 +        {showSettings && <TaskSettings onClose={() => setShowSettings(false)} />}
 +
@@ -6959,36 +7164,58 @@ index 0000000..6681407
 +                <button onClick={() => removeBlock(b, blocks[idx - 1]?.id)} style={rowDel} title="Remove">×</button>
 +              </div>
 +            ) : (
-+              <div key={b.id} className="task-row"
-+                style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '5px 0', borderRadius: 6 }}>
-+                <button onClick={() => toggleDone(b)} aria-label="toggle"
-+                  style={{
-+                    marginTop: 3, width: 17, height: 17, flexShrink: 0, borderRadius: 5, cursor: 'pointer',
-+                    border: `1.5px solid ${b.done ? 'var(--accent)' : 'var(--border)'}`,
-+                    background: b.done ? 'var(--accent)' : 'transparent',
-+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-+                  }}>
-+                  {b.done && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-+                </button>
-+                <textarea
-+                  ref={setRef(b.id)}
-+                  rows={1}
-+                  value={b.text}
-+                  onChange={e => onText(b.id, e.target.value, e.target)}
-+                  onKeyDown={e => onKeyDown(e, b, idx)}
-+                  placeholder={t('tasksView.taskPh', { defaultValue: 'Task…' })}
-+                  style={{
-+                    flex: 1, border: 'none', outline: 'none', background: 'transparent', resize: 'none',
-+                    fontSize: 14.5, lineHeight: 1.45, padding: '1px 0', fontFamily: 'inherit', overflow: 'hidden',
-+                    color: b.done ? 'var(--text-tertiary)' : 'var(--text-primary)',
-+                    textDecoration: b.done ? 'line-through' : 'none',
-+                  }}
-+                />
-+                {b.source === 'ai' && b.source_ref && (
-+                  <button onClick={() => openSource(b)} title={t('tasksView.openEmail', { defaultValue: 'Open source email' })}
-+                    style={{ marginTop: 2, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', flexShrink: 0, padding: '0 2px', fontSize: 12 }}>✉</button>
++              <div key={b.id}>
++                <div className="task-row"
++                  style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '5px 0', borderRadius: 6 }}>
++                  <button onClick={() => toggleDone(b)} aria-label="toggle"
++                    style={{
++                      marginTop: 3, width: 17, height: 17, flexShrink: 0, borderRadius: 5, cursor: 'pointer',
++                      border: `1.5px solid ${b.done ? 'var(--accent)' : 'var(--border)'}`,
++                      background: b.done ? 'var(--accent)' : 'transparent',
++                      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
++                    }}>
++                    {b.done && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
++                  </button>
++                  <textarea
++                    ref={setRef(b.id)}
++                    rows={1}
++                    value={b.text}
++                    onChange={e => onText(b.id, e.target.value, e.target)}
++                    onKeyDown={e => onKeyDown(e, b, idx)}
++                    placeholder={t('tasksView.taskPh', { defaultValue: 'Task…' })}
++                    style={{
++                      flex: 1, border: 'none', outline: 'none', background: 'transparent', resize: 'none',
++                      fontSize: 14.5, lineHeight: 1.45, padding: '1px 0', fontFamily: 'inherit', overflow: 'hidden',
++                      color: b.done ? 'var(--text-tertiary)' : 'var(--text-primary)',
++                      textDecoration: b.done ? 'line-through' : 'none',
++                    }}
++                  />
++                  <button onClick={() => toggleAssist(b)} title={t('tasksView.assist', { defaultValue: 'How should I tackle this?' })}
++                    style={{ marginTop: 1, background: 'none', border: 'none', cursor: 'pointer', color: assist[b.id] ? 'var(--accent)' : 'var(--text-tertiary)', flexShrink: 0, padding: '0 2px', opacity: 0.75 }}>
++                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0012 2z"/></svg>
++                  </button>
++                  {b.source === 'ai' && b.source_ref && (
++                    <button onClick={() => openSource(b)} title={t('tasksView.openEmail', { defaultValue: 'Open source email' })}
++                      style={{ marginTop: 2, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', flexShrink: 0, padding: '0 2px', fontSize: 12 }}>✉</button>
++                  )}
++                  <button onClick={() => removeBlock(b, blocks[idx - 1]?.id)} style={rowDel} title="Remove">×</button>
++                </div>
++                {assist[b.id] && (
++                  <div style={{ margin: '2px 0 8px 27px', padding: '9px 12px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
++                    {assist[b.id].loading ? t('tasksView.thinking', { defaultValue: 'Thinking…' })
++                      : assist[b.id].error ? <span style={{ color: 'var(--red, #e03131)' }}>{assist[b.id].error}</span>
++                      : (<>
++                          {assist[b.id].text}
++                          {assist[b.id].canDraft && assist[b.id].sourceRef && (
++                            <div style={{ marginTop: 8 }}>
++                              <button onClick={() => window.open(`/?m=${encodeURIComponent(assist[b.id].sourceRef)}`, '_blank', 'noopener')} style={btnStyle(true)}>
++                                {t('tasksView.openToDraft', { defaultValue: 'Open email to draft a reply' })}
++                              </button>
++                            </div>
++                          )}
++                        </>)}
++                  </div>
 +                )}
-+                <button onClick={() => removeBlock(b, blocks[idx - 1]?.id)} style={rowDel} title="Remove">×</button>
 +              </div>
 +            ))}
 +            <button onClick={() => addBlock('task', blocks[blocks.length - 1]?.id)}
@@ -7287,7 +7514,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..0b72cc2 100644
+index c62ac69..8c2af29 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -7301,7 +7528,7 @@ index c62ac69..0b72cc2 100644
    getUnreadCounts: () => request('GET', '/mail/unread-counts'),
  
    // Antispam (v0.1) — manual user feedback.
-@@ -312,6 +316,36 @@ export const api = {
+@@ -312,6 +316,39 @@ export const api = {
    },
    gtdClassify: (messageId, state) => request('POST', '/gtd/classify', { messageId, state }),
    gtdUnclassify: (messageId, state) => request('DELETE', '/gtd/classify', { messageId, state }),
@@ -7335,6 +7562,9 @@ index c62ac69..0b72cc2 100644
 +  aiDraftFor: (messageId) => request('GET', `/ai-drafts/for/${encodeURIComponent(messageId)}`),
 +  aiDraftGenerate: (messageId) => request('POST', `/ai-drafts/for/${encodeURIComponent(messageId)}`),
 +  aiDraftSetStatus: (id, status) => request('PATCH', `/ai-drafts/${id}`, { status }),
++  tasksBriefGet: () => request('GET', '/tasks/brief'),
++  tasksBriefGenerate: () => request('POST', '/tasks/brief'),
++  taskAssist: (id) => request('POST', `/tasks/${id}/assist`),
    // GTD "done": strip the row's label(s) for these states, mark read, archive the INBOX
    // copy. id is the rail head's row id (its label-folder copy); the server resolves the
    // INBOX copy from the shared Message-ID.
