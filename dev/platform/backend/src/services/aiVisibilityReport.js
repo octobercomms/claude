@@ -72,9 +72,11 @@ function buildHtml({ client, data, aiSummary = null }) {
   </tr>`).join('');
 
   const promptRows = (data.prompts || []).map(p => {
-    const badge = p.mentioned
-      ? `<span class="chip" style="background:#1e8449">Named${p.best_position ? ` · #${p.best_position}` : ''}</span>`
-      : `<span class="chip" style="background:#c0392b">Absent</span>`;
+    const badge = p.tested === false
+      ? `<span class="chip" style="background:#9a958a">Not yet tested</span>`
+      : p.mentioned
+        ? `<span class="chip" style="background:#1e8449">Named${p.best_position ? ` · #${p.best_position}` : ''}</span>`
+        : `<span class="chip" style="background:#c0392b">Absent</span>`;
     const eng = p.engines && p.engines.length ? p.engines.map(e => ENGINE_LABEL[e] || e).join(', ') : '—';
     const comp = p.competitors && p.competitors.length ? esc(p.competitors.join(', ')) : '—';
     return `<tr>
@@ -104,6 +106,7 @@ function buildHtml({ client, data, aiSummary = null }) {
     .summary { background: #faf6df; border-left: 4px solid ${ACCENT}; border-radius: 8px; padding: 14px 16px; margin: 16px 0 6px; font-size: 11pt; line-height: 1.5; }
     .summary .lbl { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.6px; color: #9a8a2a; font-weight: 700; display: block; margin-bottom: 5px; }
     h2.sec { font-size: 13pt; font-weight: 700; margin: 26px 0 10px; }
+    h2.sec .src { font-size: 8.5pt; font-weight: 400; color: #999; text-transform: none; letter-spacing: 0; margin-left: 6px; }
     .trendbox { border: 1.5px solid #e5e5e5; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; }
     .trendbox .cap { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.6px; color: #777; margin-bottom: 6px; }
     table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
@@ -152,8 +155,8 @@ function buildHtml({ client, data, aiSummary = null }) {
       </div>
     </div>
 
-    <h2 class="sec">Every buyer question</h2>
-    ${promptRows ? `<table><thead><tr><th>Question asked</th><th>Result</th><th>Named on</th><th>Competitors named</th></tr></thead><tbody>${promptRows}</tbody></table>` : '<div class="empty">No prompts have been run yet.</div>'}
+    <h2 class="sec">Every buyer question <span class="src">${(data.prompts || []).length} in the set${(data.prompts || []).some(p => p.tested === false) ? ' · “Not yet tested” ones are available on request' : ''}</span></h2>
+    ${promptRows ? `<table><thead><tr><th>Question asked</th><th>Result</th><th>Named on</th><th>Competitors named</th></tr></thead><tbody>${promptRows}</tbody></table>` : '<div class="empty">No questions set up yet.</div>'}
 
     <div class="footer">
       <span>Prepared by October Communications</span>
