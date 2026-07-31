@@ -284,3 +284,15 @@
 .ocf-chat-opt.is-selected { border-color: var(--ocf-primary); background: #f4f4f5; background: color-mix(in srgb, var(--ocf-primary) 8%, #fff); }
 .ocf-chat-opt.is-selected .ocf-chat-opt-tick { background: var(--ocf-primary); border-color: var(--ocf-primary); }
 .ocf-chat-opt.is-selected .ocf-chat-opt-tick::after { content: ""; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
+/* ---- v1.2.4: full-width chat contents + larger image chips shaped to the pill ---- */
+/* Contents span the full container width (no centred 880px column). */
+.ocf-chat .ocf-chat-messages { max-width: none; }
+.ocf-chat .ocf-chat-msg { max-width: 100%; }
+.ocf-chat .ocf-chat-bubble { max-width: none; }
+.ocf-chat-tray,
+.ocf-chat-footer .ocf-chat-composer { max-width: none; }
+
+/* Image chips: thumbnail ~2x, flush to the left and clipped to the pill's shape. */
+.ocf-chat-opt.has-img { padding: 0 18px 0 0; gap: 12px; overflow: hidden; }
+.ocf-chat-opt.has-img .ocf-chat-opt-thumb { width: 80px; height: 60px; border-radius: 0; }
