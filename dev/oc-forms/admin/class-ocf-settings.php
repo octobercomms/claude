@@ -53,6 +53,12 @@ class OCF_Settings {
 				self::redirect( admin_url( 'admin.php?page=oc-forms-settings&regenerated=1' ) );
 				break;
 
+			case 'flush_cache':
+				check_admin_referer( 'ocf_flush_cache' );
+				OCF_Activator::clear_opcache();
+				self::redirect( admin_url( 'admin.php?page=oc-forms-settings&cache_flushed=1' ) );
+				break;
+
 			case 'send_test_email':
 				check_admin_referer( 'ocf_send_test_email' );
 				OCF_Mail::handle_test_email_inline();
@@ -160,8 +166,16 @@ class OCF_Settings {
 		<?php elseif ( $test_status === 'fail' ) : ?>
 			<div class="notice notice-error is-dismissible"><p>Test email failed.<?php echo $test_err ? ' Reason: <code>' . esc_html( $test_err ) . '</code>' : ''; ?> Check your SES credentials, region, and that the From address is a verified SES identity.</p></div>
 		<?php endif; ?>
+		<?php if ( ! empty( $_GET['cache_flushed'] ) ) : ?>
+			<div class="notice notice-success is-dismissible"><p>PHP cache cleared. If you just updated the plugin, reload your form to see the latest version.</p></div>
+		<?php endif; ?>
 		<div class="wrap">
 			<h1>October Forms — Settings <span style="font-size: 13px; color: #6c7781; font-weight: normal;">v<?php echo esc_html( OCF_VERSION ); ?></span></h1>
+			<?php $flush_url = wp_nonce_url( admin_url( 'admin.php?page=oc-forms-settings&ocf_action=flush_cache' ), 'ocf_flush_cache' ); ?>
+			<p style="margin-top: 4px;">
+				<a class="button" href="<?php echo esc_url( $flush_url ); ?>">Clear PHP cache</a>
+				<span class="description" style="margin-left: 8px;">Click after updating the plugin if changes aren't showing (clears OPcache on hosts that cache compiled PHP).</span>
+			</p>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'ocf_settings' ); ?>
 				<table class="form-table" role="presentation">
