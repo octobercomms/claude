@@ -544,7 +544,7 @@ export default function ClientSEOPage() {
     // Health + Optimise — the consolidated dashboards (absorb the old Search
     // and Optimise rails). The individual keys below stay whitelisted as
     // deep-link aliases.
-    'health', 'optimise',
+    'health', 'optimise', 'convert',
     'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'ai_seo', 'gaps', 'authority', 'backlinks', 'drift', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint', 'agent_ready',
     // Pipeline sub-tabs
     'topic_map', 'find', 'planning', 'draft', 'publish', 'promote',
@@ -598,6 +598,13 @@ export default function ClientSEOPage() {
   });
   const openOptimise = (id) => setOptimiseOpen(prev => new Set(prev).add(id));
   const goOptimise = (section) => { if (section) openOptimise(section); setActiveTab('optimise'); };
+  // Convert dashboard — turn visits into leads (CRO · Forms).
+  const [convertOpen, setConvertOpen] = useState(() => new Set(['cro']));
+  const toggleConvert = (id) => setConvertOpen(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+  const openConvert = (id) => setConvertOpen(prev => new Set(prev).add(id));
+  const goConvert = (section) => { if (section) openConvert(section); setActiveTab('convert'); };
   useEffect(() => {
     if (!railSuite) return;
     api.get(`/clients/${id}/suite-progress/${railSuite}`).then(r => setRailStatus(r.steps || {})).catch(() => {});
@@ -1078,7 +1085,7 @@ export default function ClientSEOPage() {
           ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
           topic_map: 'content', find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
           local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_outliers: 'local', local_gbp: 'local',
-          cro: 'convert', forms: 'convert',
+          convert: 'convert', cro: 'convert', forms: 'convert',
           email: 'email',
         };
         const currentGroup = GROUP_OF[activeTab] || 'overview';
@@ -1088,7 +1095,7 @@ export default function ClientSEOPage() {
           { key: 'optimise', label: 'Optimise', active: currentGroup === 'optimise', onClick: () => setActiveTab('optimise') },
           { key: 'content',  label: 'Build',    active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
           { key: 'local',    label: 'Localise', active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
-          { key: 'convert',  label: 'Convert',  active: currentGroup === 'convert',  onClick: () => setActiveTab('cro') },
+          { key: 'convert',  label: 'Convert',  active: currentGroup === 'convert',  onClick: () => setActiveTab('convert') },
           { key: 'email',    label: 'Email',    active: currentGroup === 'email',    onClick: () => setActiveTab('email') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
@@ -1108,7 +1115,7 @@ export default function ClientSEOPage() {
           cro: 'Fix the funnel', forms: 'Lead capture',
         };
         const INFO_TABS = new Set(['perf_insights']); // read-outs, not "do" steps
-        const RAIL_GROUPS = new Set(['local', 'convert']);
+        const RAIL_GROUPS = new Set(['local']);
         const railSteps = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel
           ? { groupLabel: t.groupLabel }
           : { key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: INFO_TABS.has(t.key) ? 'info' : (railStatus[t.key] || 'todo') });
@@ -1194,8 +1201,8 @@ export default function ClientSEOPage() {
               { label: 'Buyer intent', onClick: () => setActiveTab('local_keywords') },
             ] },
             { title: 'Convert', subtitle: 'Turn visits into leads', nodes: [
-              { label: 'CRO',   onClick: () => setActiveTab('cro') },
-              { label: 'Forms', onClick: () => setActiveTab('forms') },
+              { label: 'CRO',   onClick: () => goConvert('cro') },
+              { label: 'Forms', onClick: () => goConvert('forms') },
             ] },
             { title: 'Email', subtitle: 'Nurture leads to close', nodes: [
               { label: 'Campaigns',    onClick: () => setActiveTab('email') },
@@ -1269,6 +1276,18 @@ export default function ClientSEOPage() {
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
 
       {/* Convert — turn visitors into leads. */}
+      {/* Convert — CRO + Forms as one accordion dashboard. */}
+      {activeTab === 'convert' && (
+        <Accordion open={convertOpen} onToggle={toggleConvert}>
+          <AccordionItem id="cro" title="CRO" subtitle="Conversion-rate optimisation">
+            {() => <ClarityCroPanel clientId={id} />}
+          </AccordionItem>
+          <AccordionItem id="forms" title="Forms" subtitle="Lead-capture forms">
+            {() => <FormsTab clientId={id} connectors={connectors} />}
+          </AccordionItem>
+        </Accordion>
+      )}
+
       {activeTab === 'cro' && <ClarityCroPanel clientId={id} />}
       {activeTab === 'forms' && <FormsTab clientId={id} connectors={connectors} />}
 
