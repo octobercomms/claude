@@ -22,11 +22,11 @@
 <div class="ob-shell">
 
 	<div class="ob-top">
-		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="brand" aria-label="<?php esc_attr_e( 'Archlie home', 'archlie' ); ?>">
+		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="brand" aria-label="<?php esc_attr_e( 'Your Architect home', 'archlie' ); ?>">
 			<span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25 L16 7 L26 25" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-			Arch<span>lie</span>
+			Your <span>Architect</span>
 		</a>
-		<span class="ob-title"><?php esc_html_e( 'Project builder', 'archlie' ); ?></span>
+		<span class="ob-title"><?php esc_html_e( 'Chat with Archie', 'archlie' ); ?></span>
 		<div class="ob-actions">
 			<div class="reg-chips">
 				<span class="reg-chip"><span class="dot"></span> <?php esc_html_e( 'ARB registered', 'archlie' ); ?></span>

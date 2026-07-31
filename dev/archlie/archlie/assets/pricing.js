@@ -17,7 +17,7 @@ window.ARCHLIE = (function () {
     concept:         { label: 'Concept design + 3D visual',    A: 400,  B: 600,  C: 900,  kind: 'addon' }
   };
 
-  // Measured-survey banded rates (added on top when Archlie arranges the survey).
+  // Measured-survey banded rates (added on top when Your Architect arranges the survey).
   // London rates apply where the address is confirmed in London.
   var SURVEY = {
     A: { std: 320, london: 420 },

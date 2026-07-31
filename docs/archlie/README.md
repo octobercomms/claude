@@ -1,9 +1,16 @@
-# Archlie — v3 site + design comparison
+# Your Architect — v3 site + design comparison
 
-**Archlie** is the v3 evolution of the product previously called *Architects Direct*
-(brief v3, July 2026). Same core idea — fixed-price residential architectural drawings
-that redirect larger jobs to Tiam — but rebranded, repriced, and built around a
-conversational **AI onboarding** flow instead of a form.
+> **Naming:** the product is **Your Architect** (domain **yourarchitect.uk**), and the
+> AI assistant that runs the onboarding conversation is **Archie**. This was briefly
+> named "Archlie" during development — the visible brand is now Your Architect, but the
+> internal code identifiers (the `dev/archlie/` folder, the theme slug `archlie`, the
+> `archlie_` PHP prefixes, `window.ARCHLIE`) intentionally keep the `archlie` name so
+> nothing breaks. Renaming those too is a separate, larger change if ever wanted.
+
+**Your Architect** is the v3 evolution of the product previously called *Architects
+Direct* (brief v3, July 2026). Same core idea — fixed-price residential architectural
+drawings that redirect larger jobs to Tiam — but rebranded, repriced, and built around a
+conversational **AI onboarding** flow (the assistant is **Archie**) instead of a form.
 
 - **Code:** [`dev/archlie/`](../../dev/archlie/)
 - **Full brief:** [`brief-v3.md`](./brief-v3.md)
@@ -14,12 +21,12 @@ conversational **AI onboarding** flow instead of a form.
 ```
 dev/archlie/
 ├── index.html              ← comparison shell (tabs: new vs original)
-├── archlie/                ← the NEW Archlie site (v3)
+├── archlie/                ← the NEW Your Architect site (v3)
 │   ├── index.html          ← marketing homepage
 │   ├── start.html          ← two-panel AI onboarding (the headline feature)
 │   └── assets/
 │       ├── pricing.js      ← single source of truth for prices
-│       ├── styles.css      ← Archlie house style
+│       ├── styles.css      ← Your Architect house style
 │       ├── app.js          ← homepage (builds price table from pricing.js)
 │       ├── onboarding.css  ← two-panel builder styles
 │       └── onboarding.js   ← the scripted conversation + live package engine
@@ -30,21 +37,21 @@ dev/archlie/
 
 Open [`dev/archlie/index.html`](../../dev/archlie/index.html). A top bar has two tabs:
 
-- **Archlie — new · v3** (default) → the new site
+- **Your Architect — new · v3** (default) → the new site
 - **Architects Direct — original · v1** → the frozen original, kept for reference
 
 Each loads in an isolated iframe (no style bleed), your last choice is remembered, and
 there's an **Open full screen** link. Both designs are live and fully clickable.
 
 **Removing the old version once approved:** delete the `reference/` folder and the
-`#tab-original` button in `index.html` — or, to promote Archlie to the top level, move
+`#tab-original` button in `index.html` — or, to promote Your Architect to the top level, move
 the contents of `archlie/` up and drop the shell. Nothing else references the old design.
 
 ## What changed from v1 → v3
 
-| | Architects Direct (v1) | Archlie (v3) |
+| | Architects Direct (v1) | Your Architect (v3) |
 |---|---|---|
-| **Name / domain** | Architects Direct | Archlie (archlie.com) |
+| **Name / domain** | Architects Direct | Your Architect (yourarchitect.uk) |
 | **Legal** | Separate company (proposed) | Trading name of Tiam Architects Ltd |
 | **Primary trust signal** | Fixed price | **ARB / RIBA registration** (vs unregistered CAD shops) |
 | **Look** | Chunky, Screwfix-like, yellow/black | Calm, Resi/Arkiplan-like, indigo + green, soft cards |
@@ -96,7 +103,7 @@ it). Final figures set by Tiam before launch.
 
 ## The real build (Brief v3 §11) — not this pass
 
-Production Archlie is a standalone **React app on Hetzner** (Node/PostgreSQL/Stripe/Clerk,
+Production Your Architect is a standalone **React app on Hetzner** (Node/PostgreSQL/Stripe/Clerk,
 Claude API server-side, Historic England API, R2 file storage). This static site is the
 **design + interaction reference** for that build and for the Tuesday review — it proves the
 brand and the onboarding UX without standing up the backend. The scripted flow and the

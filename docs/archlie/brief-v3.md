@@ -1,5 +1,10 @@
 # Archlie — Project Brief, Version 3
 
+> **Since this brief:** the product has been renamed **Your Architect** (domain
+> **yourarchitect.uk**), and the AI onboarding assistant is named **Archie**. This
+> document is kept as the original transcription; references to "Archlie" below are the
+> working name at the time of writing.
+
 *Prepared by October Communications | July 2026. Transcribed from
 `Archlie_Brief_v3.docx`. Working document — pricing figures are indicative and must be
 confirmed by Tiam before launch. The "Site Up" platform concept is noted but out of scope.*

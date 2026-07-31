@@ -114,7 +114,7 @@
   // ---- The conversation script (10 questions, Brief v3 §6) ----
   var STEPS = [
     { // Q1 — address
-      ask: "Hi — I'm Archlie's project assistant. I'll ask a few short questions and build your fixed price as we go. First, what's the address of the property?",
+      ask: "Hi — I'm Archie, Your Architect's project assistant. I'll ask a few short questions and build your fixed price as we go. First, what's the address of the property?",
       input: 'address',
       examples: ['24 Roupell St, London SE1 8TB', '8 Chatsworth Rd, London E5', '14 Elm Grove, Manchester M20'],
       onAnswer: function (val, next) {

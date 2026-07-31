@@ -28,7 +28,7 @@ $start = esc_url( archlie_start_url() );
 						<span class="reg-chip"><span class="dot"></span> <?php esc_html_e( 'RIBA chartered practice', 'archlie' ); ?></span>
 						<span class="reg-chip"><span class="dot"></span> <?php esc_html_e( 'Survey included in your quote', 'archlie' ); ?></span>
 					</div>
-					<p class="reg-line"><?php esc_html_e( 'Real, registered architects — not unregistered CAD operators.', 'archlie' ); ?> <strong><?php esc_html_e( 'Archlie is a trading name of Tiam Architects Ltd.', 'archlie' ); ?></strong></p>
+					<p class="reg-line"><?php esc_html_e( 'Real, registered architects — not unregistered CAD operators.', 'archlie' ); ?> <strong><?php esc_html_e( 'Your Architect is a trading name of Tiam Architects Ltd.', 'archlie' ); ?></strong></p>
 				</div>
 			</div>
 			<a href="<?php echo $start; ?>" class="teaser" aria-label="<?php esc_attr_e( 'Try the project builder', 'archlie' ); ?>">
@@ -78,7 +78,7 @@ $start = esc_url( archlie_start_url() );
 				<div class="ai-copy">
 					<span class="kicker"><?php esc_html_e( 'No forms. Just a conversation.', 'archlie' ); ?></span>
 					<h2><?php esc_html_e( 'Tell us about your project, watch your price build.', 'archlie' ); ?></h2>
-					<p><?php esc_html_e( "Answer a few plain-English questions — by text or voice — and your package and price take shape on the right as you go. Nothing requires architectural knowledge, and you'll never fill in a form.", 'archlie' ); ?></p>
+					<p><?php esc_html_e( "Answer a few plain-English questions — by text or voice — and Archie, our project assistant, builds your package and price on the right as you go. Nothing requires architectural knowledge, and you'll never fill in a form.", 'archlie' ); ?></p>
 					<ul class="ai-list">
 						<?php
 						$ai = array(
@@ -112,7 +112,7 @@ $start = esc_url( archlie_start_url() );
 				<p><?php esc_html_e( 'Priced by service and floor area across three size bands. Survey costs are added at agreed banded rates — everything is confirmed in your quote.', 'archlie' ); ?></p>
 			</div>
 			<div class="price-wrap">
-				<table class="pricing" id="priceTable" aria-label="<?php esc_attr_e( 'Archlie fixed prices by service and band', 'archlie' ); ?>">
+				<table class="pricing" id="priceTable" aria-label="<?php esc_attr_e( 'Your Architect fixed prices by service and band', 'archlie' ); ?>">
 					<thead>
 						<tr>
 							<th><?php esc_html_e( 'Service', 'archlie' ); ?></th>
@@ -160,7 +160,7 @@ $start = esc_url( archlie_start_url() );
 				<div>
 					<span class="kicker"><?php esc_html_e( 'For larger commissions', 'archlie' ); ?></span>
 					<h2><?php esc_html_e( 'Some projects deserve the full studio', 'archlie' ); ?></h2>
-					<p><?php esc_html_e( 'Archlie handles standard residential drawings brilliantly. When a project is bigger or more involved, we hand you to our parent practice, Tiam Architects, for a full commission and a proper conversation — same registered team, tailored service.', 'archlie' ); ?></p>
+					<p><?php esc_html_e( 'Your Architect handles standard residential drawings brilliantly. When a project is bigger or more involved, we hand you to our parent practice, Tiam Architects, for a full commission and a proper conversation — same registered team, tailored service.', 'archlie' ); ?></p>
 				</div>
 				<ul class="redirect-list">
 					<li><?php esc_html_e( 'Floor area over 150m²', 'archlie' ); ?></li>
@@ -179,13 +179,13 @@ $start = esc_url( archlie_start_url() );
 				<div>
 					<span class="kicker"><?php esc_html_e( 'Why registration matters', 'archlie' ); ?></span>
 					<h2 style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:800;margin:10px 0 14px"><?php esc_html_e( "The trust the CAD shops can't offer", 'archlie' ); ?></h2>
-					<p style="color:var(--ink-soft);margin-bottom:14px"><?php esc_html_e( 'Anyone can draw a plan. Only architects on the ARB register may call themselves an architect — it means accountability, professional indemnity cover, and a formal route if anything goes wrong. At Archlie you get that as standard, at a fixed price.', 'archlie' ); ?></p>
+					<p style="color:var(--ink-soft);margin-bottom:14px"><?php esc_html_e( 'Anyone can draw a plan. Only architects on the ARB register may call themselves an architect — it means accountability, professional indemnity cover, and a formal route if anything goes wrong. At Your Architect you get that as standard, at a fixed price.', 'archlie' ); ?></p>
 					<p style="color:var(--ink-soft)"><?php esc_html_e( 'Every project is delivered by Tiam Architects Ltd, a RIBA chartered practice, and covered by its professional indemnity insurance.', 'archlie' ); ?></p>
 				</div>
 				<ul class="fact-list">
 					<li><strong><?php esc_html_e( 'ARB registered', 'archlie' ); ?></strong> — <?php printf( /* translators: %s: ARB no. */ esc_html__( 'architects on the Architects Registration Board register. Reg. no. %s.', 'archlie' ), '<em>' . esc_html( archlie_get( 'archlie_arb_no' ) ) . '</em>' ); ?></li>
 					<li><strong><?php esc_html_e( 'RIBA chartered practice', 'archlie' ); ?></strong> — <?php esc_html_e( 'delivered by Tiam Architects Ltd, a chartered practice.', 'archlie' ); ?></li>
-					<li><strong><?php esc_html_e( 'Covered by PI insurance', 'archlie' ); ?></strong> — <?php esc_html_e( "all Archlie work sits under Tiam's existing professional indemnity policy.", 'archlie' ); ?></li>
+					<li><strong><?php esc_html_e( 'Covered by PI insurance', 'archlie' ); ?></strong> — <?php esc_html_e( "all Your Architect work sits under Tiam's existing professional indemnity policy.", 'archlie' ); ?></li>
 					<li><strong><?php esc_html_e( 'A formal route for queries', 'archlie' ); ?></strong> — <?php printf( /* translators: %s: company no. */ esc_html__( 'Company no. %s. Registered details shown on every invoice and quote.', 'archlie' ), '<em>' . esc_html( archlie_get( 'archlie_company_no' ) ) . '</em>' ); ?></li>
 				</ul>
 			</div>
@@ -197,7 +197,7 @@ $start = esc_url( archlie_start_url() );
 		<div class="wrap wrap-narrow">
 			<div class="section-head"><span class="kicker"><?php esc_html_e( 'Questions', 'archlie' ); ?></span><h2><?php esc_html_e( 'Good to know', 'archlie' ); ?></h2></div>
 			<div class="faq">
-				<details class="faq-item" open><summary><?php esc_html_e( 'Are you actually architects?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'Yes. Archlie is a trading name of Tiam Architects Ltd, an ARB-registered, RIBA-chartered practice. Your drawings are produced by registered architects — not unregistered CAD operators — and covered by our professional indemnity insurance.', 'archlie' ); ?></div></details>
+				<details class="faq-item" open><summary><?php esc_html_e( 'Are you actually architects?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'Yes. Your Architect is a trading name of Tiam Architects Ltd, an ARB-registered, RIBA-chartered practice. Your drawings are produced by registered architects — not unregistered CAD operators — and covered by our professional indemnity insurance.', 'archlie' ); ?></div></details>
 				<details class="faq-item"><summary><?php esc_html_e( 'Do I have to book a call?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'No. You build your project in a short online conversation and see your fixed price as you go. We only get in touch if we need something to complete your drawings.', 'archlie' ); ?></div></details>
 				<details class="faq-item"><summary><?php esc_html_e( 'Is the survey really included?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'If you need a measured survey, its cost is bundled into your quote at agreed banded rates, and our panel surveyor works to a one-week turnaround. If you already have adequate drawings, that cost is simply left out.', 'archlie' ); ?></div></details>
 				<details class="faq-item"><summary><?php esc_html_e( 'How many revisions do I get?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'Two design revisions are included in every package. From the third onward, you pay via the portal before the revision is processed. Additional revisions are time-charged.', 'archlie' ); ?></div></details>

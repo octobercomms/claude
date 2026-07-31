@@ -29,7 +29,7 @@ function archlie_register_project_cpt() {
 			'labels' => array(
 				'name'          => __( 'Projects', 'archlie' ),
 				'singular_name' => __( 'Project', 'archlie' ),
-				'menu_name'     => __( 'Archlie Projects', 'archlie' ),
+				'menu_name'     => __( 'Your Architect Projects', 'archlie' ),
 				'edit_item'     => __( 'Project record', 'archlie' ),
 				'search_items'  => __( 'Search projects', 'archlie' ),
 			),
