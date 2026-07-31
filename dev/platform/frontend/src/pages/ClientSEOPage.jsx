@@ -542,7 +542,7 @@ export default function ClientSEOPage() {
     // aliases — they redirect to their new homes (keywords / find).
     'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'ai_seo', 'gaps', 'authority', 'backlinks', 'drift', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint', 'agent_ready',
     // Pipeline sub-tabs
-    'find', 'planning', 'draft', 'publish', 'promote',
+    'topic_map', 'find', 'planning', 'draft', 'publish', 'promote',
     // Local SEO toolkit sub-tabs
     'local_gap', 'local_schema', 'local_keywords', 'local_xray', 'local_playbook', 'local_outliers', 'local_gbp',
     // Convert — turn visitors into leads (CRO + Forms)
