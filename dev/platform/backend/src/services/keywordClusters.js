@@ -18,28 +18,39 @@ const pool = require('../db');
 const claudeService = require('./claude');
 const dataForSEO = require('../connectors/dataforseo');
 const brandVoice = require('./brandVoice');
+const playbooks = require('./playbooks');
 
 const MODEL = 'claude-sonnet-4-6';
 
+// Question-led clustering. Every cluster is ONE publishable piece of content
+// defined by the single question it answers — and the series of keywords it must
+// hit to answer that question well. This is the model that wins both classic
+// search (topical depth) and AI answers (a page that answers one question
+// thoroughly is what engines lift and cite).
 const CLUSTER_SYSTEM = `You group keywords into topic clusters for a content strategy. British English. Return JSON only — no prose, no markdown fences.
 
-For each cluster:
-- Pick the keyword that best represents the cluster as the PRIMARY (highest commercial intent or volume, typically).
-- Group 3–10 related keywords under it as SECONDARY (variations, sub-topics, long-tail).
-- Name the cluster with a tight 2–5 word label.
-- Give each cluster a short rationale: why these keywords belong together and what one piece of content could target them all.
+The governing principle: ONE cluster = ONE piece of content = ONE question it answers, by hitting a series of keywords. A cluster is only valid if a single, focused page could genuinely answer its core question and naturally cover all its keywords. If keywords span two different questions, split them into two clusters — don't force breadth that would make a thin, unfocused page.
 
-Aim for 3–8 clusters. If keywords don't cluster naturally, return fewer clusters with an "unclustered" bucket at the end.
+For each cluster:
+- core_question: the single question a searcher is really asking — phrased as a natural question ("what is …", "how do I …", "which … is best for …"). This becomes the page's reason to exist and the answer it leads with.
+- primary: the keyword that best represents the cluster (highest commercial intent or search volume).
+- secondary: 3–10 related keywords the piece must also hit (variations, sub-topics, long-tail, the sub-questions of the core question).
+- label: a tight 2–5 word cluster name.
+- intent: informational | navigational | commercial | transactional.
+- rationale: one tight sentence on why these belong together as a single answer.
+
+Aim for 3–8 clusters. If some keywords don't cluster naturally, return fewer clusters and put the rest in "unclustered".
 
 Schema:
 {
   "clusters": [
     {
       "label": "short cluster name",
+      "core_question": "the single question this one piece answers",
       "primary": "the primary keyword",
       "secondary": ["keyword 2", "keyword 3", "..."],
       "intent": "informational" | "navigational" | "commercial" | "transactional",
-      "rationale": "one tight sentence on why these go together and what content covers them all"
+      "rationale": "one tight sentence on why these go together as one answer"
     }
   ],
   "unclustered": ["keyword that didn't fit anywhere"]
@@ -83,6 +94,7 @@ Group these into topic clusters. Return the JSON only.`;
   return {
     clusters: clusters.map(c => ({
       label: String(c.label || '').trim() || 'Untitled cluster',
+      core_question: String(c.core_question || '').trim(),
       primary: String(c.primary || '').trim(),
       secondary: Array.isArray(c.secondary) ? c.secondary.map(s => String(s).trim()).filter(Boolean) : [],
       intent: ['informational','navigational','commercial','transactional'].includes(c.intent) ? c.intent : 'informational',
@@ -92,7 +104,8 @@ Group these into topic clusters. Return the JSON only.`;
   };
 }
 
-const BRIEF_SYSTEM = `You are an SEO content strategist. British English. Tight, commercial, no filler. Output JSON only — no prose, no markdown fences.`;
+const BRIEF_SYSTEM = `You are an SEO content strategist at October Communications who briefs for BOTH classic search ranking and AI-answer citation (GEO). British English. Tight, commercial, no filler. Output JSON only — no prose, no markdown fences.` +
+  playbooks.systemSuffix(['eeat', 'content-strategy']);
 
 // Fetch a page and extract its top-level H2 / H3 headings + meta title.
 // Used by the SERP-grounded outline path so Claude can see what's
@@ -157,27 +170,36 @@ async function briefForCluster({ clientId, cluster }) {
   const voiceProfile = await brandVoice.loadActiveProfile(clientId);
   const voiceContext = brandVoice.renderForPrompt(voiceProfile);
 
+  const coreQuestion = cluster.core_question || `What should someone know about ${cluster.primary}?`;
   const userPrompt = `Client: ${client.name}
 About: ${client.briefing_field || '(no briefing)'}
 Domain: ${client.domain || '(no domain)'}${voiceContext}
 
 Target cluster: "${cluster.label}"
+Core question this piece answers: "${coreQuestion}"
 Primary keyword: "${cluster.primary}"
-Secondary keywords (cover these in the piece): ${(cluster.secondary || []).join(', ') || '(none — primary only)'}
+Secondary keywords (the series the piece must hit): ${(cluster.secondary || []).join(', ') || '(none — primary only)'}
 Cluster rationale: ${cluster.rationale || '(none)'}${serpContext}
 
-Generate ONE content brief that targets this whole cluster — the primary keyword as the H1 / focus, the secondaries woven in as sub-topics, sub-headings, or natural references.${serpHeadings?.length ? ' Where the SERP context shows a common sub-topic (e.g. several results cover \'pricing\'), include it in the outline so the piece can compete; pick at least one angle the ranking results DON\'T cover, to differentiate.' : ''}
+Brief ONE piece of content that answers the core question thoroughly, with the primary keyword as the H1/focus and the secondary keywords woven in as sub-topics and sub-headings. Brief it for BOTH classic ranking AND AI-answer citation (GEO): the page must open by answering the core question directly, use question-shaped headings, cite statistics to sources, and carry the E-E-A-T trust signals (named author, first-hand experience, dates).${serpHeadings?.length ? ' Where the SERP context shows a common sub-topic (e.g. several results cover \'pricing\'), include it so the piece can compete; pick at least one angle the ranking results DON\'T cover, to differentiate.' : ''}
 
 Return a JSON object with the keys:
 - title: working title (≤ 70 chars, includes primary keyword)
 - target_intent: ${cluster.intent || 'Informational'}
+- core_question: the single question the piece answers (echo/refine the one above)
+- answer_block: a ready-to-lift 40–60 word direct answer to the core question, written to be quoted verbatim by an AI answer engine (this goes near the top of the piece)
 - summary: 1-2 sentence pitch
-- outline: 5-8 section objects { heading, points: [3-5 bullet strings] } — sections should naturally cover the secondary keywords
+- outline: 5-8 section objects { heading, points: [3-5 bullet strings] } — headings should be question-shaped where natural, and the sections must cover the secondary keywords
+- faqs: array of 4-6 { question, answer } — natural buyer questions with concise (~40-60 word) answers, for an on-page FAQ section (and FAQPage schema)
+- key_stats: array of 2-5 { stat, source } the writer must include — real, specific, attributed to a named source (never invent numbers; if unsure, describe the stat to find and leave source as the type of source to cite)
+- comparison_table: ${['commercial','transactional'].includes(cluster.intent) ? '{ columns: [..], rows: [{...}] } — a comparison the buyer needs to decide (options vs criteria). Include it; this intent warrants one.' : 'null unless the topic genuinely calls for an at-a-glance comparison, in which case { columns, rows }'}
+- eeat: { author_persona: "who should be bylined (role/expertise)", first_hand_angle: "the lived/tested detail that proves experience", credibility_signals: ["what to cite or link for trust"] }
 - questions_to_answer: array of 4-6 specific questions
 - suggested_word_count: integer
 - internal_link_targets: array of 3-5 page URL slug suggestions
-- meta_title: < 60 chars, includes primary keyword
-- meta_description: < 155 chars
+- meta_title: < 60 chars, includes primary keyword, click-worthy
+- meta_description: < 155 chars, benefit-led, includes primary keyword
+- slug: url slug, lowercase-hyphenated, ≤ 6 words, no stop-word padding
 - secondary_keyword_coverage: object mapping each secondary keyword to which section heading covers it
 ${serpHeadings?.length ? '- serp_grounding: { sources_used: integer (the count of SERP results that fed this outline), differentiating_angle: "one sentence on what makes this piece stand out vs the current page 1" }' : ''}
 
