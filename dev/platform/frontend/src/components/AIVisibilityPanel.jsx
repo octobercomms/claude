@@ -31,6 +31,7 @@ export default function AIVisibilityPanel({ clientId }) {
   const [summary, setSummary] = useState(null);
   const [sources, setSources] = useState(null);
   const [trend, setTrend] = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -39,15 +40,22 @@ export default function AIVisibilityPanel({ clientId }) {
   const [runProgress, setRunProgress] = useState(null); // { done, total } while a background run is in flight
 
   async function loadAll() {
-    const [p, s, t, r, src] = await Promise.all([
+    const [p, s, t, r, src, al] = await Promise.all([
       api.get(`/ai-visibility/clients/${clientId}/prompts`).catch(() => []),
       api.get(`/ai-visibility/clients/${clientId}/summary`).catch(() => null),
       api.get(`/ai-visibility/clients/${clientId}/trend?weeks=12`).catch(() => []),
       api.get(`/ai-visibility/clients/${clientId}/runs?limit=30`).catch(() => []),
       api.get(`/ai-visibility/clients/${clientId}/sources`).catch(() => null),
+      api.get(`/ai-visibility/clients/${clientId}/alerts`).catch(() => []),
     ]);
-    setPrompts(p || []); setSummary(s); setTrend(t || []); setRuns(r || []); setSources(src);
+    setPrompts(p || []); setSummary(s); setTrend(t || []); setRuns(r || []); setSources(src); setAlerts(al || []);
     setLoading(false);
+  }
+
+  async function dismissAlert(id) {
+    setAlerts(a => a.filter(x => x.id !== id));   // optimistic
+    try { await api.post(`/ai-visibility/alerts/${id}/ack`, {}); }
+    catch (e) { toast(`Couldn't dismiss: ${e.message}`, 'error'); await loadAll().catch(() => {}); }
   }
   useEffect(() => { loadAll(); /* eslint-disable-line */ }, [clientId]);
 
@@ -135,6 +143,26 @@ export default function AIVisibilityPanel({ clientId }) {
       <p className="body mt-4 mb-6">
         Where this brand shows up when real users ask Claude, ChatGPT, Gemini, Perplexity, and Google AI Overviews questions in your category. The new SEO — answer engine optimisation.
       </p>
+
+      {alerts.length > 0 && (
+        <div className="stack mb-6" style={{ gap: 8 }}>
+          {alerts.map(a => (
+            <div key={a.id} className="card" style={{
+              borderLeft: `4px solid ${a.severity === 'high' ? 'var(--danger, #c62828)' : 'var(--warning, #9a6b00)'}`,
+              display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
+            }}>
+              <div>
+                <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                  <span aria-hidden="true">{a.severity === 'high' ? '🔴' : '🟠'}</span>
+                  <strong>{a.title}</strong>
+                </div>
+                {a.detail && <div className="body-sm text-subtle mt-1">{a.detail}</div>}
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={() => dismissAlert(a.id)} title="Dismiss">Dismiss</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="metric-grid">
         <div className="metric-card accent">

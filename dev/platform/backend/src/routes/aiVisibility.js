@@ -7,6 +7,7 @@ const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const users = require('../services/users');
 const aiVisibility = require('../services/aiVisibility');
+const aiVisibilityAlerts = require('../services/aiVisibilityAlerts');
 const aiVisibilityReport = require('../services/aiVisibilityReport');
 const pdfService = require('../services/pdfService');
 const claudeService = require('../services/claude');
@@ -21,6 +22,16 @@ router.param('promptId', async (req, res, next, id) => {
     const { rows } = await pool.query('SELECT client_id FROM ai_visibility_prompts WHERE id = $1', [id]);
     if (rows.length && !users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
       return res.status(403).json({ error: 'Not authorised for this prompt' });
+    }
+    next();
+  } catch (err) { next(err); }
+});
+
+router.param('alertId', async (req, res, next, id) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM ai_visibility_alerts WHERE id = $1', [id]);
+    if (rows.length && !users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this alert' });
     }
     next();
   } catch (err) { next(err); }
@@ -122,6 +133,22 @@ router.get('/clients/:clientId/sources', async (req, res) => {
   try {
     const days = Math.min(parseInt(req.query.days) || 90, 365);
     res.json(await aiVisibility.sources(req.params.clientId, { days }));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Open (unacknowledged) alerts for this client — the panel banner.
+router.get('/clients/:clientId/alerts', async (req, res) => {
+  try {
+    res.json(await aiVisibilityAlerts.listOpen(req.params.clientId));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Dismiss an alert once the AM has actioned it.
+router.post('/alerts/:alertId/ack', async (req, res) => {
+  try {
+    const r = await aiVisibilityAlerts.acknowledge(req.params.alertId);
+    if (!r) return res.status(404).json({ error: 'Alert not found' });
+    res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
