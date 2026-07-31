@@ -3,7 +3,7 @@
  * Plugin Name: October Forms
  * Plugin URI: https://octobercomms.com
  * Description: Multi-step lead generation forms — image-card pickers, conditional logic, file uploads, partial submission capture, per-client theming, Brevo integration. Self-hosted replacement for Fillout and Gravity Forms.
- * Version: 1.1.19
+ * Version: 1.2.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCF_VERSION', '1.1.19' );
+define( 'OCF_VERSION', '1.2.0' );
 define( 'OCF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCF_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCF_CPT', 'ocf_form' );
@@ -27,6 +27,7 @@ require_once OCF_PATH . 'includes/class-ocf-cpt.php';
 require_once OCF_PATH . 'includes/class-ocf-logic.php';
 require_once OCF_PATH . 'includes/class-ocf-submission.php';
 require_once OCF_PATH . 'includes/class-ocf-brevo.php';
+require_once OCF_PATH . 'includes/class-ocf-ai.php';
 require_once OCF_PATH . 'includes/class-ocf-spam.php';
 require_once OCF_PATH . 'includes/class-ocf-analytics.php';
 require_once OCF_PATH . 'includes/class-ocf-renderer.php';

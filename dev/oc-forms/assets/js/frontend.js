@@ -85,6 +85,11 @@
 		var cfg     = JSON.parse(root.getAttribute('data-ocf-config'));
 		var schema  = cfg.schema;
 		var session = getOrCreateSession();
+
+		// AI forms render a chat instead of the multi-step form.
+		if (schema && schema.mode === 'ai') {
+			return AIChat(root, cfg, schema, session);
+		}
 		var answers = {};
 		var uploads = {};      // questionId -> [ { id, url, name, size } ]
 		var token   = null;
@@ -620,6 +625,130 @@
 					row.querySelector('.ocf-file-progress').textContent = err.message || 'Upload failed';
 				});
 		}
+	}
+
+	// ---- AI chat form ----
+	function AIChat(root, cfg, schema, session) {
+		var ai      = schema.ai || {};
+		var name    = ai.assistant_name || 'Assistant';
+		var token   = null;
+		var busy    = false;
+		var done    = false;
+		var startedAt = Date.now();
+		function secondsActive() { return Math.round((Date.now() - startedAt) / 1000); }
+
+		var BOT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 20 12 5l6 15" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+		root.innerHTML = '';
+		var card     = el('div', { class: 'ocf-card ocf-chat' });
+		if (schema.theme && schema.theme.logo) {
+			card.appendChild(el('div', { class: 'ocf-logo' }, [el('img', { src: schema.theme.logo, alt: '' })]));
+		}
+		var header   = el('div', { class: 'ocf-chat-header' }, [
+			el('span', { class: 'ocf-chat-avatar', html: BOT_SVG }),
+			el('span', { class: 'ocf-chat-name' }, [name])
+		]);
+		var msgList  = el('div', { class: 'ocf-chat-messages' });
+		var scroller = el('div', { class: 'ocf-chat-scroll' }, [msgList]);
+		var input    = el('textarea', { class: 'ocf-chat-input', rows: 1, placeholder: 'Type your message…', 'aria-label': 'Message' });
+		var sendBtn  = el('button', { type: 'button', class: 'ocf-btn ocf-btn-primary ocf-chat-send' }, ['Send']);
+		var composer = el('div', { class: 'ocf-chat-composer' }, [input, sendBtn]);
+
+		card.appendChild(header);
+		card.appendChild(scroller);
+		card.appendChild(composer);
+		root.appendChild(card);
+
+		function scrollDown() {
+			requestAnimationFrame(function () { scroller.scrollTop = scroller.scrollHeight; });
+		}
+		function addMessage(who, text) {
+			var avatar = who === 'bot' ? el('div', { class: 'ocf-chat-msg-avatar', html: BOT_SVG }) : null;
+			var bubble = el('div', { class: 'ocf-chat-bubble' }, [text]);
+			msgList.appendChild(el('div', { class: 'ocf-chat-msg ocf-chat-' + who }, [avatar, bubble]));
+			scrollDown();
+		}
+		var typingEl = null;
+		function showTyping() {
+			hideTyping();
+			typingEl = el('div', { class: 'ocf-chat-msg ocf-chat-bot' }, [
+				el('div', { class: 'ocf-chat-msg-avatar', html: BOT_SVG }),
+				el('div', { class: 'ocf-chat-bubble ocf-chat-typing' }, [el('span'), el('span'), el('span')])
+			]);
+			msgList.appendChild(typingEl);
+			scrollDown();
+		}
+		function hideTyping() { if (typingEl) { typingEl.remove(); typingEl = null; } }
+
+		function setBusy(state) {
+			busy = state;
+			sendBtn.disabled = state || done;
+			input.disabled = done;
+		}
+
+		function renderEnding(ending) {
+			done = true;
+			composer.style.display = 'none';
+			ending = ending || {};
+			if (ending.redirect_url) { window.location.href = ending.redirect_url; return; }
+			if (ending.heading || ending.body) {
+				msgList.appendChild(el('div', { class: 'ocf-chat-ending' }, [
+					ending.heading ? el('h3', null, [ending.heading]) : null,
+					ending.body ? el('p', null, [ending.body]) : null,
+					(ending.cta_label && ending.cta_url) ? el('a', { class: 'ocf-btn ocf-btn-primary', href: ending.cta_url }, [ending.cta_label]) : null
+				]));
+				scrollDown();
+			}
+		}
+
+		function send() {
+			if (busy || done || !token) return;
+			var text = input.value.trim();
+			if (!text) return;
+			addMessage('user', text);
+			input.value = '';
+			autosize();
+			setBusy(true);
+			showTyping();
+			api(cfg, 'chat', { body: { token: token, message: text, seconds_active: secondsActive() } })
+				.then(function (res) {
+					hideTyping();
+					if (res.reply) addMessage('bot', res.reply);
+					if (res.complete) { renderEnding(res.ending); return; }
+					if (res.limit) { done = true; input.disabled = true; sendBtn.disabled = true; return; }
+					setBusy(false);
+					input.focus();
+				})
+				.catch(function (err) {
+					hideTyping();
+					addMessage('bot', (err && err.message) || 'Sorry, something went wrong. Please try again.');
+					setBusy(false);
+				});
+		}
+
+		function autosize() {
+			input.style.height = 'auto';
+			input.style.height = Math.min(120, input.scrollHeight) + 'px';
+		}
+		input.addEventListener('input', autosize);
+		input.addEventListener('keydown', function (e) {
+			if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+		});
+		sendBtn.addEventListener('click', send);
+
+		// Analytics view (deduped server-side) + start a submission for the token.
+		api(cfg, 'view', { body: { form_id: cfg.formId, session: session } }).catch(function () {});
+		setBusy(true);
+		api(cfg, 'start', { body: { form_id: cfg.formId, session: session } })
+			.then(function (res) {
+				token = res.token;
+				if (ai.greeting) addMessage('bot', ai.greeting);
+				setBusy(false);
+				input.focus();
+			})
+			.catch(function () {
+				addMessage('bot', 'Could not start the assistant. Please refresh to try again.');
+			});
 	}
 
 	function boot() {

@@ -57,7 +57,7 @@ class OCF_Renderer {
 			'formId'       => $form_id,
 			'restUrl'      => esc_url_raw( rest_url( OCF_REST_API::NAMESPACE . '/' ) ),
 			'nonce'        => wp_create_nonce( 'wp_rest' ),
-			'schema'       => $schema,
+			'schema'       => self::client_schema( $schema ),
 			'turnstileKey' => ( ! empty( $schema['spam']['turnstile'] ) && OCF_Spam::turnstile_enabled() ) ? OCF_Spam::turnstile_site_key() : '',
 		);
 
@@ -72,6 +72,31 @@ class OCF_Renderer {
 		</div>
 		<?php
 		return ob_get_clean();
+	}
+
+	/**
+	 * Trim the schema to what the browser actually needs, stripping anything
+	 * sensitive. The assistant persona, model override, and Brevo maps must
+	 * never reach the client; in AI mode the raw question list isn't needed
+	 * either (the server drives the conversation).
+	 */
+	private static function client_schema( $schema ) {
+		$client = $schema;
+
+		// Never expose the AI persona or model override to the browser.
+		if ( isset( $client['ai'] ) && is_array( $client['ai'] ) ) {
+			unset( $client['ai']['persona'], $client['ai']['model'] );
+		}
+		// Integration internals are server-only.
+		unset( $client['brevo'], $client['notifications'] );
+
+		// In AI mode the front-end only renders a chat — it doesn't need the
+		// steps/questions (the server holds them).
+		if ( ( $client['mode'] ?? 'standard' ) === 'ai' ) {
+			unset( $client['steps'] );
+		}
+
+		return $client;
 	}
 
 	public static function theme_vars( $theme ) {

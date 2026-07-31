@@ -26,6 +26,8 @@ class OCF_Settings {
 		register_setting( 'ocf_settings', 'ocf_ses_smtp_password',    array( 'sanitize_callback' => 'sanitize_text_field' ) );
 		register_setting( 'ocf_settings', 'ocf_ses_smtp_port',        array( 'sanitize_callback' => 'absint' ) );
 		register_setting( 'ocf_settings', 'ocf_api_key',              array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting( 'ocf_settings', 'ocf_claude_api_key',       array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting( 'ocf_settings', 'ocf_claude_model',         array( 'sanitize_callback' => 'sanitize_text_field' ) );
 	}
 
 	public static function sanitize_bool( $v ) {
@@ -141,6 +143,8 @@ class OCF_Settings {
 		$ses_port    = (int) get_option( 'ocf_ses_smtp_port', 587 );
 		$api_key     = get_option( 'ocf_api_key', '' );
 		$api_base    = rest_url( OCF_Public_API::NAMESPACE_API . '/api/' );
+		$claude_key   = get_option( 'ocf_claude_api_key', '' );
+		$claude_model = get_option( 'ocf_claude_model', OCF_AI::DEFAULT_MODEL );
 
 		$test_status = isset( $_GET['test'] ) ? sanitize_text_field( $_GET['test'] ) : '';
 		$test_err    = get_transient( 'ocf_test_mail_error' );
@@ -186,6 +190,24 @@ class OCF_Settings {
 						<th scope="row"><label for="ocf_turnstile_secret_key">Cloudflare Turnstile secret key</label></th>
 						<td>
 							<input type="password" autocomplete="off" id="ocf_turnstile_secret_key" name="ocf_turnstile_secret_key" value="<?php echo esc_attr( $ts_secret ); ?>" class="regular-text">
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="ocf_claude_api_key">Claude (Anthropic) API key</label></th>
+						<td>
+							<input type="password" autocomplete="off" id="ocf_claude_api_key" name="ocf_claude_api_key" value="<?php echo esc_attr( $claude_key ); ?>" class="regular-text">
+							<p class="description">Powers <strong>AI forms</strong> (chat assistants). Get one from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. The key stays server-side and is never sent to the browser. Leave blank if you only use standard forms.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="ocf_claude_model">Claude model</label></th>
+						<td>
+							<select id="ocf_claude_model" name="ocf_claude_model">
+								<?php foreach ( OCF_AI::models() as $mid => $label ) : ?>
+									<option value="<?php echo esc_attr( $mid ); ?>" <?php selected( $claude_model, $mid ); ?>><?php echo esc_html( $label ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<p class="description">Default model for AI forms. Sonnet balances quality and cost for a lead-capture chatbot; Opus is the smartest but pricier; Haiku is cheapest. Individual forms can override this in the form's <em>AI Assistant</em> tab.</p>
 						</td>
 					</tr>
 					<tr>
