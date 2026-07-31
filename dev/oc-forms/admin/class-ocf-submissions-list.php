@@ -232,6 +232,7 @@ class OCF_Submissions_List {
 			echo '<h3 style="margin-top:24px;">Conversation</h3>';
 			echo '<div class="ocf-transcript" style="max-width:720px;">';
 			foreach ( $transcript as $m ) {
+				if ( ! empty( $m['hidden'] ) ) { continue; }
 				$is_bot = ( $m['role'] ?? '' ) === 'assistant';
 				$who    = $is_bot ? esc_html( $assistant ) : 'Visitor';
 				$align  = $is_bot ? 'left' : 'right';
