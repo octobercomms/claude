@@ -431,13 +431,13 @@ export default function ClientPRPage() {
           <h3 className="h3 mb-2">Automated reports &amp; alerts</h3>
           <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Email the client a coverage digest on a schedule, and a "you've been featured" alert when a piece is marked published.</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label className="field" style={{ flex: 1, minWidth: 220 }}><span className="field-label">Report / alert email</span><input className="input" value={reports.alert_email || ''} onChange={(e) => setReports((r) => ({ ...r, alert_email: e.target.value }))} placeholder="client@example.com" /></label>
-            <label className="field"><span className="field-label">Cadence</span><select className="input" value={reports.report_cadence || 'off'} onChange={(e) => setReports((r) => ({ ...r, report_cadence: e.target.value }))}><option value="off">Off</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
+            <label className="field" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}><span className="field-label">Report / alert email</span><input className="input" value={reports.alert_email || ''} onChange={(e) => setReports((r) => ({ ...r, alert_email: e.target.value }))} placeholder="client@example.com" /></label>
+            <label className="field" style={{ marginBottom: 0 }}><span className="field-label">Cadence</span><select className="input" value={reports.report_cadence || 'off'} onChange={(e) => setReports((r) => ({ ...r, report_cadence: e.target.value }))}><option value="off">Off</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
             <button className="btn btn-primary" disabled={savingReports} onClick={saveReports}>{savingReports ? 'Saving…' : 'Save'}</button>
             <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: sendReportNow })}>Send report now</button>
           </div>
           <div style={{ marginTop: 16, borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 16 }}>
-            <button className="btn btn-secondary" onClick={copyPortalLink}>🔗 Copy client coverage link</button>
+            <button className="btn-link" onClick={copyPortalLink}>🔗 Copy client coverage link</button>
             <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 8, marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
           </div>
         </div>
