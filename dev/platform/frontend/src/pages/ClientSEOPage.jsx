@@ -630,6 +630,24 @@ export default function ClientSEOPage() {
 
   if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
+  // Which top-level group the active tab belongs to. Defined in the component
+  // body (not inside the tab-strip IIFE) so the whole render — including the
+  // Optimise / Convert accordions below — can read it.
+  const GROUP_OF = {
+    overview: 'overview',
+    health: 'health', perf_insights: 'health', keywords: 'health', gsc: 'health',
+    authority: 'health', backlinks: 'health', ai_visibility: 'health', drift: 'health',
+    optimise: 'optimise', site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise',
+    keyword_footprint: 'optimise', ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
+    topic_map: 'content', find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
+    // Local tools absorbed into Health (read-outs) and Optimise (tools).
+    local_gap: 'health', local_xray: 'health', local_outliers: 'health',
+    local_schema: 'optimise', local_keywords: 'optimise', local_playbook: 'optimise', local_gbp: 'optimise',
+    convert: 'convert', cro: 'convert', forms: 'convert',
+    email: 'email',
+  };
+  const currentGroup = GROUP_OF[activeTab] || 'overview';
+
   // Health-dashboard section bodies. Extracted verbatim from the former
   // Keywords / Authority tabs so the Health page can compose them as
   // accordion panels without changing their behaviour. Closures capture
@@ -1061,25 +1079,6 @@ export default function ClientSEOPage() {
             { key: 'promote',  label: '5 · Promote' },
           ],
         };
-        const GROUP_OF = {
-          overview: 'overview',
-          // Health — the consolidated dashboard. The old Search-rail tab keys
-          // still map here so any surviving deep link highlights Health.
-          health: 'health',
-          perf_insights: 'health',
-          keywords: 'health', gsc: 'health', authority: 'health', backlinks: 'health',
-          ai_visibility: 'health', drift: 'health',
-          optimise: 'optimise',
-          site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
-          ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
-          topic_map: 'content', find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
-          // Local tools absorbed into Health (read-outs) and Optimise (tools).
-          local_gap: 'health', local_xray: 'health', local_outliers: 'health',
-          local_schema: 'optimise', local_keywords: 'optimise', local_playbook: 'optimise', local_gbp: 'optimise',
-          convert: 'convert', cro: 'convert', forms: 'convert',
-          email: 'email',
-        };
-        const currentGroup = GROUP_OF[activeTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setActiveTab('overview') },
           { key: 'health',   label: 'Health',   fn: 'measure',    active: currentGroup === 'health',   onClick: () => setActiveTab('health') },
