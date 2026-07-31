@@ -1,0 +1,275 @@
+<title>OMI information architecture — before / after</title>
+<style>
+:root{
+  --page-bg:#faf9f5; --surface:#fff; --surface-raised:#fafafa; --surface-sunken:#f3f3f3;
+  --text:#1a1a1a; --text-muted:#555; --text-subtle:#888; --border-neutral:#1a1a1a; --card-border:#e3e2db;
+  --accent:#E7CD41; --accent-soft:rgba(231,205,65,.12); --accent-on:#1a1a1a;
+  --positive:#2e7d32; --negative:#c62828; --warning:#b86e00;
+  --font:'Brockmann',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --r-sm:8px;--r-md:14px;--r-lg:20px;--r-pill:999px;--border-w:2px;
+  --shadow-xs:0 1px 3px rgba(20,20,20,.07);
+  --shadow-sm:0 1px 2px rgba(20,20,20,.06),0 5px 14px rgba(20,20,20,.09);
+  --shadow-md:0 4px 10px rgba(20,20,20,.09),0 20px 46px rgba(20,20,20,.14);
+  /* container-type coding — the sitemap's primary visual language */
+  --c-dash:#475569;   /* dashboard / read-outs */
+  --c-step:#7c3aed;   /* stepper / process */
+  --c-acc:#0d9488;    /* accordion / tools */
+  --c-live:#0284c7;   /* ongoing / engage */
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:var(--font);color:var(--text);
+  background:radial-gradient(1100px 640px at 6% -10%,rgba(231,205,65,.11),transparent 58%),radial-gradient(1000px 720px at 100% 0%,rgba(231,205,65,.07),transparent 55%),var(--page-bg);
+  background-attachment:fixed;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1180px;margin:0 auto;padding:44px 24px 80px;}
+h1,h2,h3,p{margin:0;}
+.display{font-size:42px;font-weight:800;line-height:1.03;letter-spacing:-1.4px;}
+.h1{font-size:28px;font-weight:700;letter-spacing:-.5px;}
+.h2{font-size:19px;font-weight:700;letter-spacing:-.3px;}
+.body{font-size:15px;line-height:1.55;color:var(--text-muted);}
+.body-sm{font-size:13px;line-height:1.5;color:var(--text-muted);}
+.caption{font-size:11px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;}
+.subtle{color:var(--text-subtle);}
+.card{background:var(--surface);border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);padding:22px;box-shadow:var(--shadow-sm);}
+.section-kicker{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.section-kicker .n{width:26px;height:26px;border-radius:var(--r-pill);background:var(--text);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+section{margin-top:72px;}
+
+/* container-type badge */
+.tbadge{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:3px 9px;border-radius:var(--r-pill);color:#fff;}
+.tbadge.dash{background:var(--c-dash);} .tbadge.step{background:var(--c-step);}
+.tbadge.acc{background:var(--c-acc);} .tbadge.live{background:var(--c-live);}
+.tbadge.ghost{background:transparent;color:var(--text-subtle);border:1.5px solid var(--card-border);}
+
+/* method row */
+.method{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.method .m{border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);background:var(--surface);padding:18px;box-shadow:var(--shadow-xs);}
+.method .q{font-size:15px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.method .dot{width:11px;height:11px;border-radius:var(--r-pill);flex:none;}
+
+/* before/after two-column */
+.ba{display:grid;grid-template-columns:1fr 44px 1fr;gap:0;align-items:stretch;}
+@media(max-width:820px){.ba{grid-template-columns:1fr;}.ba .mid{display:none;}.method{grid-template-columns:1fr;}}
+.col-h{font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:var(--text-subtle);margin-bottom:12px;}
+.before{background:var(--surface-sunken);border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);padding:18px;}
+.after{background:var(--surface);border:var(--border-w) solid var(--border-neutral);border-radius:var(--r-md);padding:18px;box-shadow:var(--shadow-sm);}
+.mid{display:flex;align-items:center;justify-content:center;color:var(--text-subtle);font-size:22px;font-weight:800;}
+
+.rail-blk{margin-bottom:14px;}
+.rail-blk:last-child{margin-bottom:0;}
+.rail-name{font-size:12px;font-weight:800;color:var(--text-muted);margin-bottom:7px;}
+.tabs-flat{display:flex;flex-wrap:wrap;gap:5px;}
+.t{font-size:11px;padding:3px 9px;border-radius:var(--r-pill);background:var(--surface);border:1.5px solid var(--card-border);color:var(--text-subtle);}
+
+/* after page block */
+.page{border:var(--border-w) solid var(--card-border);border-radius:var(--r-sm);padding:13px 15px;margin-bottom:11px;background:var(--surface);}
+.page:last-child{margin-bottom:0;}
+.page-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;}
+.page-name{font-size:15px;font-weight:800;}
+.page-abs{font-size:11.5px;color:var(--text-muted);line-height:1.5;}
+.page.dissolve{border-style:dashed;background:var(--surface-raised);}
+
+.count{display:inline-flex;align-items:baseline;gap:6px;}
+.count .big{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1;}
+.count .lbl{font-size:11px;font-weight:700;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.6px;}
+.arrow-lg{color:var(--text-subtle);font-size:20px;font-weight:800;margin:0 10px;}
+
+.callout{padding:14px 16px;border-radius:var(--r-sm);border:var(--border-w) solid var(--accent);background:var(--accent-soft);font-size:13.5px;line-height:1.55;}
+.prov{padding:11px 14px;border-radius:var(--r-sm);border:var(--border-w) dashed var(--warning);background:rgba(255,187,6,.10);font-size:12.5px;line-height:1.5;color:var(--warning);}
+.note{font-size:12px;line-height:1.5;color:var(--text-subtle);}
+
+/* cohesion strip */
+.spine{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:820px){.spine{grid-template-columns:1fr 1fr;}}
+.suite{border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);background:var(--surface);padding:15px;box-shadow:var(--shadow-xs);}
+.suite .sh{font-size:13px;font-weight:800;margin-bottom:11px;text-transform:uppercase;letter-spacing:.5px;}
+.slot{font-size:12px;font-weight:700;padding:6px 10px;border-radius:var(--r-sm);margin-bottom:6px;display:flex;align-items:center;gap:7px;}
+.slot.const{background:var(--text);color:#fff;}
+.slot.extra{background:var(--surface-sunken);color:var(--text-muted);}
+.slot .d{width:8px;height:8px;border-radius:var(--r-pill);flex:none;}
+.small-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;}
+ul.tight{margin:6px 0 0;padding-left:18px;line-height:1.85;font-size:13px;color:var(--text-muted);}
+code{background:var(--surface-sunken);padding:1px 5px;border-radius:4px;font-size:12px;}
+</style>
+
+<div class="wrap">
+
+  <div class="caption subtle" style="margin-bottom:12px;">OMI · information architecture · design reference</div>
+  <h1 class="display" style="max-width:20ch;">From ~30 tabs a page to one readable path.</h1>
+  <p class="body" style="max-width:64ch;margin-top:16px;">
+    Before we touch the visual language, this fixes the structure underneath it. One rule does the work:
+    <strong>stop using tabs for everything.</strong> Sort every tab into one of three kinds and give each the
+    container it actually wants. The result — every suite collapses onto the same short spine.
+  </p>
+
+  <!-- METHOD -->
+  <section style="margin-top:44px;">
+    <div class="section-kicker"><span class="n">1</span><h2 class="h1">The method — three questions</h2></div>
+    <p class="body" style="max-width:62ch;margin-bottom:20px;">Ask this of every current tab. The answer decides where it lands and what shape it takes.</p>
+    <div class="method">
+      <div class="m">
+        <div class="q"><span class="dot" style="background:var(--c-dash);"></span>Do I <em>look</em> at it?</div>
+        <p class="body-sm">A read-out — ranks, coverage, ROAS. These get scanned <em>together</em>, so they belong on <strong>one dashboard</strong>, not N tabs.</p>
+        <div style="margin-top:11px;"><span class="tbadge dash">▦ Dashboard</span></div>
+      </div>
+      <div class="m">
+        <div class="q"><span class="dot" style="background:var(--c-step);"></span>Do I <em>work through</em> it?</div>
+        <p class="body-sm">A process done in order — brief → draft → ship. That's <strong>one stepper</strong> guiding you, not 5 sibling tabs.</p>
+        <div style="margin-top:11px;"><span class="tbadge step">→ Stepper</span></div>
+      </div>
+      <div class="m">
+        <div class="q"><span class="dot" style="background:var(--c-acc);"></span>Do I <em>dip into</em> it?</div>
+        <p class="body-sm">Independent tools you reach for occasionally. <strong>One accordion / launcher</strong> — pick one, run it, move on.</p>
+        <div style="margin-top:11px;"><span class="tbadge acc">▾ Accordion</span></div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:18px;">
+      <strong>Merge test —</strong> combine things you'd consult in the same sitting; keep apart things that are different sessions. A single 30-accordion mega-page just trades click-overwhelm for scroll-overwhelm.
+    </div>
+  </section>
+
+  <!-- OWNED -->
+  <section>
+    <div class="section-kicker"><span class="n">2</span><h2 class="h1">Owned — the worked example</h2></div>
+    <div style="display:flex;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">
+      <span class="count"><span class="big">7</span><span class="lbl">rails ·</span><span class="big">32</span><span class="lbl">tab-stops</span></span>
+      <span class="arrow-lg">→</span>
+      <span class="count"><span class="big" style="color:var(--positive);">5</span><span class="lbl">pages</span></span>
+      <span style="margin-left:auto;"><span class="tbadge ghost" style="border-color:var(--positive);color:var(--positive);">✓ agreed</span></span>
+    </div>
+
+    <div class="ba">
+      <!-- BEFORE -->
+      <div class="before">
+        <div class="col-h">Today</div>
+        <div class="rail-blk"><div class="rail-name">Overview</div></div>
+        <div class="rail-blk"><div class="rail-name">Search</div><div class="tabs-flat"><span class="t">Review</span><span class="t">Keywords</span><span class="t">Search Console</span><span class="t">AI Visibility</span><span class="t">Authority</span><span class="t">Backlinks</span><span class="t">Watch</span></div></div>
+        <div class="rail-blk"><div class="rail-name">Optimise</div><div class="tabs-flat"><span class="t">Scan</span><span class="t">Grade</span><span class="t">Map</span><span class="t">Win</span><span class="t">Sharpen</span><span class="t">Target</span><span class="t">Prep</span></div></div>
+        <div class="rail-blk"><div class="rail-name">Build</div><div class="tabs-flat"><span class="t">Find</span><span class="t">Brief</span><span class="t">Draft</span><span class="t">Publish</span><span class="t">Promote</span></div></div>
+        <div class="rail-blk"><div class="rail-name">Localise</div><div class="tabs-flat"><span class="t">Compare</span><span class="t">Validate</span><span class="t">Find</span><span class="t">X-ray</span><span class="t">Plan</span><span class="t">Flag</span><span class="t">GBP posts</span></div></div>
+        <div class="rail-blk"><div class="rail-name">Convert</div><div class="tabs-flat"><span class="t">CRO</span><span class="t">Forms</span></div></div>
+        <div class="rail-blk"><div class="rail-name">Email</div><div class="tabs-flat"><span class="t">Find</span><span class="t">Write</span><span class="t">Send</span><span class="t">Chase</span></div></div>
+      </div>
+
+      <div class="mid">→</div>
+
+      <!-- AFTER -->
+      <div class="after">
+        <div class="col-h">Proposed</div>
+        <div class="page">
+          <div class="page-head"><span class="page-name">Health</span><span class="tbadge dash">▦ Dashboard</span></div>
+          <div class="page-abs">Review · Keywords · Search Console · AI Visibility · Authority · Backlinks · Watch — one scrollable read-out.</div>
+        </div>
+        <div class="page">
+          <div class="page-head"><span class="page-name">Build</span><span class="tbadge step">→ Stepper</span></div>
+          <div class="page-abs">Find → Brief → Draft → Publish → Promote — the production wizard.</div>
+        </div>
+        <div class="page">
+          <div class="page-head"><span class="page-name">Optimise</span><span class="tbadge acc">▾ Accordion</span></div>
+          <div class="page-abs">Scan → Grade → Map → Win → Sharpen → Target → Prep — worked top-to-bottom.</div>
+        </div>
+        <div class="page">
+          <div class="page-head"><span class="page-name">Convert</span><span class="tbadge acc">▾ Accordion</span></div>
+          <div class="page-abs">CRO · Forms.</div>
+        </div>
+        <div class="page">
+          <div class="page-head"><span class="page-name">Email</span><span class="tbadge step">→ Stepper</span></div>
+          <div class="page-abs">Find → Write → Send → Chase — cold outreach.</div>
+        </div>
+        <div class="page dissolve">
+          <div class="page-head"><span class="page-name subtle">Local — dissolved</span><span class="tbadge ghost">lens, not a page</span></div>
+          <div class="page-abs">Read-outs (Compare · Flag · X-ray) → <strong>Health</strong> · Schema (Validate) → <strong>Optimise</strong> · GBP posts → <strong>Build</strong>. Shown only when the client is a local business — vanishes entirely for national / ecom.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OTHER SUITES -->
+  <section>
+    <div class="section-kicker"><span class="n">3</span><h2 class="h1">The same three questions, every suite</h2></div>
+    <div class="prov" style="margin-bottom:20px;">⚠ First-pass — same method as Owned, <strong>to confirm per-suite</strong> the way we just did. Structure is drawn from the real tabs in each page today.</div>
+
+    <div class="small-grid">
+      <!-- PAID -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h3 class="h2">Paid</h3><span class="count"><span class="big" style="font-size:22px;">5</span><span class="lbl">→</span><span class="big" style="font-size:22px;color:var(--positive);">2</span></span></div>
+        <div class="body-sm subtle" style="margin-bottom:12px;">Today: Overview · Advise · Build · Resize · Measure</div>
+        <div class="page"><div class="page-head"><span class="page-name">Health</span><span class="tbadge dash">▦</span></div><div class="page-abs">Measure (Google · Meta · ROAS · spend) + Briefing + Competitors.</div></div>
+        <div class="page"><div class="page-head"><span class="page-name">Build</span><span class="tbadge step">→</span></div><div class="page-abs">Brief → Draft → Render → Approve → Launch. Resize + Audiences become tools inside it.</div></div>
+      </div>
+
+      <!-- EARNED -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h3 class="h2">Earned</h3><span class="count"><span class="big" style="font-size:22px;">5</span><span class="lbl">→</span><span class="big" style="font-size:22px;color:var(--positive);">2</span></span></div>
+        <div class="body-sm subtle" style="margin-bottom:12px;">Today: Overview · Track · Pitch · Build · Share</div>
+        <div class="page"><div class="page-head"><span class="page-name">Health</span><span class="tbadge dash">▦</span></div><div class="page-abs">Track (coverage log · monitor · link checks) + Share (digests · live coverage).</div></div>
+        <div class="page"><div class="page-head"><span class="page-name">Build</span><span class="tbadge step">→</span></div><div class="page-abs">Find journalists → Draft release → Sign-off → Pitch.</div></div>
+      </div>
+
+      <!-- SHARED -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h3 class="h2">Shared</h3><span class="count"><span class="big" style="font-size:22px;">5</span><span class="lbl">→</span><span class="big" style="font-size:22px;color:var(--positive);">3</span></span></div>
+        <div class="body-sm subtle" style="margin-bottom:12px;">Today: Overview · Capture · Build · Engage · Measure</div>
+        <div class="page"><div class="page-head"><span class="page-name">Health</span><span class="tbadge dash">▦</span></div><div class="page-abs">Review · Learn · Compare · Improve.</div></div>
+        <div class="page"><div class="page-head"><span class="page-name">Build</span><span class="tbadge step">→</span></div><div class="page-abs">Capture (swipe · subreddit) feeds → Ideas → Brief → Workbench → Plan → Publish.</div></div>
+        <div class="page"><div class="page-head"><span class="page-name">Engage</span><span class="tbadge live">◈ Ongoing</span></div><div class="page-abs">DM bot · Discover — always-on, not a one-off flow.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COHESION PAYOFF -->
+  <section>
+    <div class="section-kicker"><span class="n">4</span><h2 class="h1">The payoff — one spine, everywhere</h2></div>
+    <p class="body" style="max-width:64ch;margin-bottom:22px;">Every suite lands on the same two constants — <strong>Health</strong> (look) and <strong>Build</strong> (make &amp; ship) — plus a short tail of channel-specific verbs. Learn the shape once; it holds in every channel. <em>That sameness is the cohesion you were missing between Owned, Shared and Paid.</em></p>
+    <div class="spine">
+      <div class="suite"><div class="sh">Paid</div>
+        <div class="slot const"><span class="d" style="background:var(--c-dash);"></span>Health</div>
+        <div class="slot const"><span class="d" style="background:var(--c-step);"></span>Build</div>
+      </div>
+      <div class="suite"><div class="sh">Earned</div>
+        <div class="slot const"><span class="d" style="background:var(--c-dash);"></span>Health</div>
+        <div class="slot const"><span class="d" style="background:var(--c-step);"></span>Build</div>
+      </div>
+      <div class="suite"><div class="sh">Shared</div>
+        <div class="slot const"><span class="d" style="background:var(--c-dash);"></span>Health</div>
+        <div class="slot const"><span class="d" style="background:var(--c-step);"></span>Build</div>
+        <div class="slot extra"><span class="d" style="background:var(--c-live);"></span>Engage</div>
+      </div>
+      <div class="suite"><div class="sh">Owned</div>
+        <div class="slot const"><span class="d" style="background:var(--c-dash);"></span>Health</div>
+        <div class="slot const"><span class="d" style="background:var(--c-step);"></span>Build</div>
+        <div class="slot extra"><span class="d" style="background:var(--c-acc);"></span>Optimise</div>
+        <div class="slot extra"><span class="d" style="background:var(--c-acc);"></span>Convert</div>
+        <div class="slot extra"><span class="d" style="background:var(--c-distribute,#0284c7);"></span>Email</div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:16px;">Each suite still opens on its <strong>Overview</strong>. <strong>Health</strong> is a noun (read); every other page is a verb (do) — the naming carries the read-vs-do line. Once this lands, the action-grammar mockup applies on top: on any page there's far less to rank, because there are only a handful of things on it.</p>
+  </section>
+
+  <!-- BUILD NOTES -->
+  <section>
+    <div class="section-kicker"><span class="n">›</span><h2 class="h1">Notes for the build</h2></div>
+    <div class="card" style="border-color:var(--border-neutral);">
+      <div class="small-grid">
+        <div>
+          <div class="caption subtle" style="margin-bottom:8px;">Sequence</div>
+          <ul class="tight">
+            <li>Land the <strong>IA</strong> first (this doc), then the <strong>action grammar</strong> on top.</li>
+            <li>Do <strong>Owned</strong> end-to-end as the pattern; confirm Paid / Earned / Shared, then repeat.</li>
+            <li>Ship page-by-page — Owned <strong>Health</strong> first (pure consolidation, low risk).</li>
+          </ul>
+        </div>
+        <div>
+          <div class="caption subtle" style="margin-bottom:8px;">Reuse / borrow</div>
+          <ul class="tight">
+            <li>Containers already exist: <code>ProcessRail</code> / <code>Stepper</code> (steppers), <code>SuiteTabs</code> (the ≤6 top nav).</li>
+            <li>Accordion is the one new primitive — build it in OMI's own CSS tokens.</li>
+            <li>Borrow <strong>only</strong> the a11y patterns from <code>@astryxdesign/core</code> (focus mgmt, ARIA) — no dependency, no StyleX, no React 19.</li>
+            <li>Gate <strong>Local</strong> on the client's local-business flag.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:16px;">House style unchanged — OMI tokens throughout; real app uses Brockmann. Badges (<span class="tbadge dash" style="font-size:9px;">▦</span> <span class="tbadge step" style="font-size:9px;">→</span> <span class="tbadge acc" style="font-size:9px;">▾</span>) mark container type, the one new idea this doc adds.</p>
+  </section>
+
+</div>
