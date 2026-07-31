@@ -835,10 +835,9 @@ export default function ClientPRPage() {
 
       {!loading && suiteGroup === 'health' && (
         <Accordion open={healthOpen} onToggle={(sid) => setHealthOpen(prev => {
-          const next = new Set(prev);
-          if (next.has(sid)) next.delete(sid);
-          else { next.add(sid); const s = HEALTH_SECTIONS.find(x => x.id === sid); if (s) setTab(s.tab); }
-          return next;
+          if (prev.has(sid)) return new Set();
+          const s = HEALTH_SECTIONS.find(x => x.id === sid); if (s) setTab(s.tab);
+          return new Set([sid]);
         })}>
           {HEALTH_SECTIONS.map(s => (
             <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
@@ -848,10 +847,9 @@ export default function ClientPRPage() {
 
       {!loading && suiteGroup === 'build' && (
         <Accordion open={buildOpen} onToggle={(sid) => setBuildOpen(prev => {
-          const next = new Set(prev);
-          if (next.has(sid)) next.delete(sid);
-          else { next.add(sid); const s = BUILD_SECTIONS.find(x => x.id === sid); if (s) setTab(s.tab); }
-          return next;
+          if (prev.has(sid)) return new Set();
+          const s = BUILD_SECTIONS.find(x => x.id === sid); if (s) setTab(s.tab);
+          return new Set([sid]);
         })}>
           {BUILD_SECTIONS.map(s => (
             <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>

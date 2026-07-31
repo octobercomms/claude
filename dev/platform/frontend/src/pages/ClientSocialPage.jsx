@@ -451,7 +451,7 @@ export default function ClientSocialPage() {
   const subGroup = { swipe: 'capture', subreddit: 'capture', dm_bot: 'engage', discover: 'engage', perf_insights: 'measure', performance: 'measure', competitors: 'measure', audit: 'measure' }[socialTab];
   const [subOpen, setSubOpen] = useState(() => new Set());
   useEffect(() => {
-    if (subGroup) setSubOpen(prev => (prev.has(socialTab) ? prev : new Set(prev).add(socialTab)));
+    if (subGroup) setSubOpen(prev => (prev.has(socialTab) ? prev : new Set([socialTab])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socialTab]);
 
@@ -515,9 +515,7 @@ export default function ClientSocialPage() {
           <>
             <SuiteTabs tabs={topTabs} />
             {SUB_ACCORDION[currentGroup] && (
-              <Accordion open={subOpen} onToggle={(sid) => setSubOpen(prev => {
-                const next = new Set(prev); next.has(sid) ? next.delete(sid) : next.add(sid); return next;
-              })}>
+              <Accordion open={subOpen} onToggle={(sid) => setSubOpen(prev => (prev.has(sid) ? new Set() : new Set([sid])))}>
                 {SUB_ACCORDION[currentGroup].map(s => (
                   <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
                 ))}
