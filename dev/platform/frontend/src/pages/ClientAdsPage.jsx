@@ -74,6 +74,14 @@ export default function ClientAdsPage() {
   });
   const openHealth = (idv) => setHealthOpen(prev => new Set(prev).add(idv));
   const goHealth = (section) => { if (section) openHealth(section); setTab(section === 'measure' ? 'performance' : section === 'briefing' ? 'strategist' : section === 'competitors' ? 'competitor_ads' : 'playbook'); };
+  // Build tools (Audiences · Resize) — an accordion under the pipeline, so the
+  // stepper stays the clear focus and the tools are discoverable, not a tiny
+  // link row. Opening a tool via deep link expands its section.
+  const [toolsOpen, setToolsOpen] = useState(() => new Set());
+  useEffect(() => {
+    if (BUILD_TOOLS.includes(tab)) setToolsOpen(prev => (prev.has(tab) ? prev : new Set(prev).add(tab)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
   // A deep link or nav to an absorbed Health tab opens its accordion section.
   useEffect(() => {
     const hs = { performance: 'measure', strategist: 'briefing', competitor_ads: 'competitors', playbook: 'playbook' };
@@ -500,22 +508,25 @@ export default function ClientAdsPage() {
         </div>
       )}
 
-      {isPipelineGroup && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />}
-      {/* Build tools — Audiences + Resize as quiet links, not steps or an
-          accordion (design direction: tools are links). The selected tool
-          renders below in place of the pipeline panel. */}
+      {/* Build — the pipeline stepper is the clear focus, always visible; the
+          Audiences + Resize tools sit below in an accordion (discoverable, but
+          quieter than the primary path). */}
       {currentGroup === 'build' && (
         <>
-          <div className="row wrap" style={{ gap: 16, alignItems: 'center', marginTop: 'var(--s5)', paddingTop: 'var(--s4)', borderTop: '1px solid var(--card-border)' }}>
-            <span className="caption" style={{ marginRight: 4 }}>Tools</span>
-            <button type="button" className="btn-link" aria-pressed={tab === 'audiences'} onClick={() => setTab('audiences')}>Audiences</button>
-            <button type="button" className="btn-link" aria-pressed={tab === 'resize'} onClick={() => setTab('resize')}>Resize</button>
-            {(tab === 'audiences' || tab === 'resize') && (
-              <button type="button" className="btn-link" onClick={() => setTab('brief')}>← Back to pipeline</button>
-            )}
+          <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />
+          <div style={{ marginTop: 'var(--s6)' }}>
+            <div className="oview-grplabel">Tools</div>
+            <Accordion open={toolsOpen} onToggle={(sid) => setToolsOpen(prev => {
+              const next = new Set(prev); next.has(sid) ? next.delete(sid) : next.add(sid); return next;
+            })}>
+              <AccordionItem id="audiences" fn="research" title="Audiences" subtitle="ICP & saved audiences">
+                {() => <div className="stack stack-lg"><ICPIntelligencePanel clientId={id} /><AudiencesPanel clientId={id} /></div>}
+              </AccordionItem>
+              <AccordionItem id="resize" fn="create" title="Resize" subtitle="Reformat creative for every placement">
+                {() => <AdResizePanel clientId={id} clientName={client?.name || ''} />}
+              </AccordionItem>
+            </Accordion>
           </div>
-          {tab === 'audiences' && <div className="stack stack-lg" style={{ marginTop: 'var(--s4)' }}><ICPIntelligencePanel clientId={id} /><AudiencesPanel clientId={id} /></div>}
-          {tab === 'resize' && <div style={{ marginTop: 'var(--s4)' }}><AdResizePanel clientId={id} clientName={client?.name || ''} /></div>}
         </>
       )}
     </div>
