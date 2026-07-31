@@ -400,6 +400,19 @@ class OCF_REST_API {
 		$email   = self::extract_email( $answers );
 		OCF_Submission::update_payload( (int) $row['id'], $answers, $email );
 
+		// Track progress each turn so partial AI conversations show a step
+		// count (fields answered) and engagement time, like standard forms.
+		$answered = 0;
+		foreach ( $answers as $v ) {
+			if ( $v !== '' && $v !== null && ! ( is_array( $v ) && count( $v ) === 0 ) ) { $answered++; }
+		}
+		$secs = max( 0, min( 86400, (int) $req->get_param( 'seconds_active' ) ) );
+		try {
+			OCF_Analytics::update_progress( (int) $row['id'], $answered, $secs );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: chat update_progress threw: ' . $e->getMessage() );
+		}
+
 		$response = array(
 			'ok'       => true,
 			'reply'    => $reply,
@@ -411,8 +424,7 @@ class OCF_REST_API {
 		// Only finalize when the model says it's done AND every required,
 		// visible question is actually filled in — the server is authoritative.
 		if ( ! empty( $result['complete'] ) && self::required_satisfied( $schema, $answers ) ) {
-			$seconds = max( 0, min( 86400, (int) $req->get_param( 'seconds_active' ) ) );
-			self::finalize_submission( $row, $form_id, $schema, $answers, 0, $seconds );
+			self::finalize_submission( $row, $form_id, $schema, $answers, $answered, $secs );
 			$response['complete'] = true;
 			$response['ending']   = self::shape_ending( $schema['endings']['default'] ?? array() );
 		}
@@ -604,6 +616,20 @@ class OCF_REST_API {
 			}
 		}
 
-		return wp_mail( $to, $email['subject'], $email['html'], $headers );
+		// Attach the uploaded files themselves, up to a safe total size; the
+		// email body also links to them, so anything skipped is still reachable.
+		$attachments = array();
+		$total_bytes = 0;
+		$limit_bytes = 9 * 1024 * 1024; // ~9MB — stay under typical mail size caps
+		foreach ( OCF_Submission::uploads_for( (int) $row['id'] ) as $u ) {
+			$path = (string) ( $u['path'] ?? '' );
+			if ( $path === '' || ! file_exists( $path ) ) { continue; }
+			$size = (int) ( $u['size_bytes'] ?? @filesize( $path ) );
+			if ( $total_bytes + $size > $limit_bytes ) { continue; }
+			$attachments[] = $path;
+			$total_bytes  += $size;
+		}
+
+		return wp_mail( $to, $email['subject'], $email['html'], $headers, $attachments );
 	}
 }

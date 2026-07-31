@@ -638,6 +638,7 @@
 		function secondsActive() { return Math.round((Date.now() - startedAt) / 1000); }
 
 		var BOT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 20 12 5l6 15" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+		var PAPERCLIP_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.49" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 		root.innerHTML = '';
 		var card     = el('div', { class: 'ocf-card ocf-chat' });
@@ -653,7 +654,21 @@
 		var input    = el('textarea', { class: 'ocf-chat-input', rows: 1, placeholder: 'Type your message…', 'aria-label': 'Message' });
 		var sendBtn  = el('button', { type: 'button', class: 'ocf-btn ocf-btn-primary ocf-chat-send' }, ['Send']);
 		var tray     = el('div', { class: 'ocf-chat-tray' });
-		var composer = el('div', { class: 'ocf-chat-composer' }, [input, sendBtn]);
+
+		// Persistent Attach control when the form has a file-upload question,
+		// so a visitor can share a file at any point in the conversation.
+		var attachBtn = null, composerFile = null;
+		if (cfg.fileField) {
+			composerFile = el('input', { type: 'file', class: 'ocf-chat-fileinput',
+				accept: cfg.fileField.accept || null, multiple: cfg.fileField.multiple ? 'multiple' : null });
+			composerFile.addEventListener('change', function (e) {
+				attachFiles(Array.prototype.slice.call(e.target.files || []));
+				e.target.value = '';
+			});
+			attachBtn = el('button', { type: 'button', class: 'ocf-chat-attach', title: 'Attach a file', 'aria-label': 'Attach a file', html: PAPERCLIP_SVG });
+			attachBtn.addEventListener('click', function () { if (busy || done) return; composerFile.click(); });
+		}
+		var composer = el('div', { class: 'ocf-chat-composer' }, [attachBtn, input, sendBtn, composerFile]);
 		var footer   = el('div', { class: 'ocf-chat-footer' }, [tray, composer]);
 
 		card.appendChild(header);
@@ -669,6 +684,7 @@
 			var bubble = el('div', { class: 'ocf-chat-bubble' }, [text]);
 			msgList.appendChild(el('div', { class: 'ocf-chat-msg ocf-chat-' + who }, [avatar, bubble]));
 			scrollDown();
+			return bubble;
 		}
 		var typingEl = null;
 		function showTyping() {
@@ -686,6 +702,7 @@
 			busy = state;
 			sendBtn.disabled = state || done;
 			input.disabled = done;
+			if (attachBtn) attachBtn.disabled = state || done;
 		}
 
 		function renderEnding(ending) {
@@ -812,12 +829,12 @@
 				});
 		}
 
-		function sendText(text) {
+		function postMessage(text, showBubble) {
 			if (busy || done || !token) return;
 			text = (text || '').trim();
 			if (!text) return;
 			clearOptions();
-			addMessage('user', text);
+			if (showBubble !== false) addMessage('user', text);
 			input.value = '';
 			autosize();
 			setBusy(true);
@@ -829,6 +846,28 @@
 					addMessage('bot', (err && err.message) || 'Sorry, something went wrong. Please try again.');
 					setBusy(false);
 				});
+		}
+		function sendText(text) { postMessage(text, true); }
+
+		// Upload files chosen via the composer paperclip, then tell the assistant.
+		function attachFiles(files) {
+			if (!files.length || busy || done || !token || !cfg.fileField) return;
+			clearOptions();
+			var names = [], pending = files.length;
+			files.forEach(function (f) {
+				var bubble = addMessage('user', '📎 ' + f.name + ' — uploading…');
+				var fd = new FormData();
+				fd.append('token', token);
+				fd.append('question_id', cfg.fileField.field_id);
+				fd.append('file', f);
+				api(cfg, 'upload', { body: fd })
+					.then(function (res) { bubble.textContent = '📎 ' + (res.name || f.name); names.push(res.name || f.name); })
+					.catch(function (err) { bubble.textContent = '📎 ' + f.name + ' — ' + ((err && err.message) || 'upload failed'); })
+					.then(function () {
+						pending -= 1;
+						if (pending === 0 && names.length) { postMessage("I've uploaded: " + names.join(', '), false); }
+					});
+			});
 		}
 
 		// Send submits typed text, or the current multi-selection when the box is empty.

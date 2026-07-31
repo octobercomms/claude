@@ -33,7 +33,20 @@ class OCF_Lead_Email {
 			'{email}' => $lead_email !== '' ? $lead_email : '(no email)',
 		) );
 
-		$fields = self::collect_fields( $schema, $answers );
+		// Resolve any uploaded files for this submission so file questions can
+		// render as download links (the stored answer is just upload ids).
+		$uploads_by_q = array();
+		$sid = (int) ( $row['id'] ?? 0 );
+		if ( $sid ) {
+			foreach ( OCF_Submission::uploads_for( $sid ) as $u ) {
+				$uploads_by_q[ $u['question_id'] ][] = array(
+					'name' => (string) ( $u['original_name'] ?? $u['filename'] ?? 'file' ),
+					'url'  => (string) ( $u['url'] ?? '' ),
+				);
+			}
+		}
+
+		$fields = self::collect_fields( $schema, $answers, $uploads_by_q );
 		$html   = self::render_html( $schema, $title, $site, $fields );
 
 		return array(
@@ -50,15 +63,43 @@ class OCF_Lead_Email {
 		return isset( $row['email'] ) ? (string) $row['email'] : '';
 	}
 
-	private static function collect_fields( $schema, $answers ) {
+	private static function collect_fields( $schema, $answers, $uploads_by_q = array() ) {
+		$link_color = self::safe_color( $schema['theme']['primary'] ?? '#111111', '#111111' );
 		$fields = array();
 		foreach ( (array) ( $schema['steps'] ?? array() ) as $step ) {
 			foreach ( (array) ( $step['questions'] ?? array() ) as $q ) {
 				if ( ! OCF_Schema::type_is_storable( $q['type'] ) ) { continue; }
-				$v = $answers[ $q['id'] ?? '' ] ?? null;
+				$qid   = $q['id'] ?? '';
+				$v     = $answers[ $qid ] ?? null;
+				$label = wp_strip_all_tags( $q['label'] ?? '' ) !== '' ? wp_strip_all_tags( $q['label'] ) : $qid;
+
+				// File uploads render as download links resolved from the uploads table.
+				if ( ( $q['type'] ?? '' ) === 'file_upload' ) {
+					$files = $uploads_by_q[ $qid ] ?? array();
+					// Fallback for the sample email, which passes file objects inline.
+					if ( ! $files && is_array( $v ) ) {
+						foreach ( $v as $f ) {
+							if ( is_array( $f ) && ( isset( $f['name'] ) || isset( $f['url'] ) ) ) {
+								$files[] = array( 'name' => (string) ( $f['name'] ?? basename( (string) ( $f['url'] ?? '' ) ) ), 'url' => (string) ( $f['url'] ?? '' ) );
+							}
+						}
+					}
+					if ( ! $files ) { continue; }
+					$links = array();
+					foreach ( $files as $f ) {
+						$name = (string) ( $f['name'] ?? 'file' );
+						$url  = (string) ( $f['url'] ?? '' );
+						$links[] = $url !== ''
+							? '<a href="' . esc_url( $url ) . '" style="color:' . esc_attr( $link_color ) . ';font-weight:600;">' . esc_html( $name ) . '</a>'
+							: esc_html( $name );
+					}
+					$fields[] = array( 'label' => $label, 'html' => implode( '<br>', $links ) );
+					continue;
+				}
+
 				if ( $v === null || $v === '' || $v === array() ) { continue; }
 				$fields[] = array(
-					'label' => wp_strip_all_tags( $q['label'] ?? '' ) !== '' ? wp_strip_all_tags( $q['label'] ) : $q['id'],
+					'label' => $label,
 					'value' => self::format_value( $q, $v ),
 				);
 			}
@@ -152,7 +193,7 @@ class OCF_Lead_Email {
 					<tr>
 						<td style="padding:16px 0;<?php echo $i > 0 ? 'border-top:1px solid #eef0f3;' : ''; ?>">
 							<div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:6px;"><?php echo esc_html( $f['label'] ); ?></div>
-							<div style="font-size:17px;color:#111;font-weight:500;line-height:1.45;"><?php echo nl2br( esc_html( $f['value'] ) ); ?></div>
+							<div style="font-size:17px;color:#111;font-weight:500;line-height:1.45;"><?php echo isset( $f['html'] ) ? $f['html'] : nl2br( esc_html( $f['value'] ?? '' ) ); ?></div>
 						</td>
 					</tr>
 					<?php endforeach; ?>
