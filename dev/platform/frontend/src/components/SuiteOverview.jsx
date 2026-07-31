@@ -31,20 +31,19 @@ export default function SuiteOverview({
   // classic hero + map layout above is untouched for suites not yet migrated.
   primary = null,    // { fn, kicker, title, description, ctaLabel, onCta }
   readouts = null,   // [{ fn, name, value, sub }] — consult-first, never button-shaped
-  tools = null,      // [{ fn, label, onClick, sub }] — fix-it tools as quiet links
-  toolsLabel = 'Fix-it tools', // heading for the tools row
-  otherJobs = null,  // { label, items: [{ fn, label, onClick }] } — the calm row
+  benefits = [],     // [string] — what's possible / what it brings (the sell)
+  tools = null,      // (legacy, ignored in the new layout)
+  toolsLabel = 'Fix-it tools',
+  otherJobs = null,  // (legacy, ignored in the new layout)
 }) {
   if (primary) {
     return (
       <GrammarOverview
         tagline={tagline}
         description={description}
+        benefits={benefits}
         primary={primary}
         readouts={readouts || []}
-        tools={tools || []}
-        toolsLabel={toolsLabel}
-        otherJobs={otherJobs}
         actions={actions}
         map={map}
         mapLayout={mapLayout}
@@ -96,35 +95,45 @@ export default function SuiteOverview({
 // action — then the workflow map as the main content (it doubles as the
 // navigation to every section, so no separate tool/other-job link rows).
 // No repeated heading: the page masthead already names the suite.
-function GrammarOverview({ description, primary, readouts, actions, map = [], mapLayout = 'ring', diagram = null }) {
+function GrammarOverview({ tagline, description, benefits = [], primary, readouts, actions, map = [], mapLayout = 'ring', diagram = null }) {
   return (
     <div className="oview">
-      <div className="oview-band">
-        {description && <p className="oview-lede">{description}</p>}
-        <div className="oview-bar">
-          {readouts.length > 0 && (
-            <div className="oview-stats">
-              {readouts.map((r, i) => (
-                <div className="oview-stat" key={i}>
-                  <span className="oview-stat-val">{r.value}</span>
-                  <span className="oview-stat-name">{r.fn && <Pip fn={r.fn} />}{r.name}</span>
-                </div>
-              ))}
-            </div>
+      {/* Hero that sells the section: the value headline, what's possible /
+          the benefits, the one primary action — with the live numbers beside
+          it. One headline (not three); the page masthead names the suite. */}
+      <div className="oview-hero">
+        <div className="oview-hero-body">
+          {tagline && <h2 className="oview-hero-title">{tagline}</h2>}
+          {description && <p className="oview-hero-desc">{description}</p>}
+          {benefits.length > 0 && (
+            <ul className="oview-benefits">
+              {benefits.map((b, i) => <li key={i}>{b}</li>)}
+            </ul>
           )}
-          {primary && primary.onCta && (
-            <button type="button" className="btn btn-primary oview-cta" onClick={primary.onCta}>
-              {primary.title || primary.ctaLabel} →
-            </button>
-          )}
+          <div className="oview-cta-row">
+            {primary && primary.onCta && (
+              <button type="button" className="btn btn-primary" onClick={primary.onCta}>
+                {primary.ctaLabel || primary.title} →
+              </button>
+            )}
+            {actions}
+          </div>
         </div>
+        {readouts.length > 0 && (
+          <div className="oview-hero-stats">
+            {readouts.map((r, i) => (
+              <div className="oview-stat" key={i}>
+                <span className="oview-stat-val">{r.value}</span>
+                <span className="oview-stat-name">{r.fn && <Pip fn={r.fn} />}{r.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* The workflow — the main content and the way into every section. */}
+      {/* The workflow — how the section flows, and the way into every part. */}
       {map.length > 0 && <SectionMap stages={map} layout={mapLayout} />}
       {diagram && <div className="smap-bento">{diagram}</div>}
-
-      {actions && <div className="oview-actions">{actions}</div>}
     </div>
   );
 }

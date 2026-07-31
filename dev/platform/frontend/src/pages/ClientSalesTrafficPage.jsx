@@ -139,8 +139,9 @@ export default function ClientSalesTrafficPage() {
 
       {tab === 'overview' && (
         <SuiteOverview
-          tagline="Data, around one clear path."
-          description="Live revenue, orders and traffic the second the page loads — then ask any question in plain English and get the numbers to back it up. Everything else is a read-out or a quiet link."
+          tagline="Stop building reports. Just ask."
+          description="Live revenue, orders and traffic the second the page loads — and any question answered in plain English, with the numbers to back it up. The analyst who already knows the account."
+          benefits={['Live revenue, orders & traffic', 'Answers in plain English', 'No report-building']}
           readouts={[
             { fn: 'measure', name: 'Revenue · 30d', value: fmtMoney(k.revenue || 0), sub: k.revenue ? 'live' : 'no data' },
             { fn: 'data',    name: 'Shopify', value: k.revenue ? 'Live' : '—', sub: k.revenue ? 'connected' : 'no data' },

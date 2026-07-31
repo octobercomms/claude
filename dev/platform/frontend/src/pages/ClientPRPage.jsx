@@ -860,8 +860,9 @@ export default function ClientPRPage() {
       {!loading && tab === 'overview' && (
         <div className="stack stack-lg">
           <SuiteOverview
-            tagline="Earned, around one clear path."
-            description="Consult what's landed and who's on file, then land the next story — find the journalists, draft the release, get sign-off and pitch. Everything else is a read-out or a quiet link."
+            tagline="Never pitch from memory — or lose a hit — again."
+            description="Every pitch, placement and journalist relationship in one log. Coverage records itself from a link, your best targets come ranked, and the client gets a live page of their wins."
+            benefits={['Coverage logs itself from a link', 'Targets come ranked', 'Client sees a live wins page']}
             readouts={[
               { fn: 'measure', name: 'Published', value: stats ? String(stats.published) : '—', sub: 'placements' },
               { fn: 'measure', name: 'Tracked', value: stats ? String(stats.tracked) : '—', sub: 'in the log' },

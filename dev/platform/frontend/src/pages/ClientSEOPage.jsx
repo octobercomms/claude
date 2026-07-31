@@ -1138,8 +1138,9 @@ export default function ClientSEOPage() {
 
       {activeTab === 'overview' && (
         <SuiteOverview
-          tagline="Owned, around one clear path."
-          description="Consult what the site is doing, make the next piece of content, then fix and reach from your own domain. One primary move; everything else is a read-out or a quiet link."
+          tagline="Get found where buyers look — and turn the traffic into leads."
+          description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach them from your own domain."
+          benefits={['Rank on Google & in AI answers', 'Fix what holds the site back', 'Turn visitors into leads']}
           readouts={[
             { fn: 'measure', name: 'Keywords', value: keywords.length || '—', sub: keywords.length ? 'tracked' : 'none yet' },
             { fn: 'measure', name: 'Ranking', value: keywords.filter(k => k.current_position).length, sub: 'in Google' },

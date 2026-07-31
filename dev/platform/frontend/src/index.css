@@ -457,24 +457,44 @@ button { font-family: inherit; }
 .oview-section + .oview-section { margin-top: var(--s7); }
 .oview-eyebrow { margin-bottom: var(--s3); }
 
-/* Compact Overview header — a lede line, then one bar with the read-out
-   stats and the single primary action. Keeps the page short; the workflow
-   below is the main content. */
+/* Overview = a hero that sells the section (value headline, what's possible,
+   the benefits, the one action + live numbers), then the workflow below.
+   One headline only — the page masthead already names the suite. */
 .oview { display: flex; flex-direction: column; gap: var(--s6); }
-.oview-band { display: flex; flex-direction: column; gap: var(--s4); }
-.oview-lede { font-size: 15px; color: var(--text-muted); max-width: 70ch; margin: 0; }
-.oview-bar {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: var(--s5) var(--s7);
+.oview-hero {
+  display: flex; flex-wrap: wrap; gap: var(--s6) var(--s8);
+  align-items: flex-start; justify-content: space-between;
+  border: var(--border-w) solid var(--border-neutral);
+  border-radius: var(--r-lg); background: var(--surface);
+  padding: var(--s7);
 }
-.oview-stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s3) var(--s6); }
-.oview-stat { display: flex; align-items: baseline; gap: 8px; }
-.oview-stat-val { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
+.oview-hero-body { flex: 1 1 460px; min-width: 0; }
+.oview-hero-title { font-size: 30px; font-weight: 800; letter-spacing: -0.6px; line-height: 1.08; margin: 0; max-width: 22ch; }
+.oview-hero-desc { font-size: 15px; color: var(--text-muted); margin: var(--s3) 0 0; max-width: 62ch; }
+.oview-benefits {
+  list-style: none; margin: var(--s4) 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5);
+}
+.oview-benefits li {
+  position: relative; padding-left: 20px;
+  font-size: 13.5px; font-weight: 600; color: var(--text);
+}
+.oview-benefits li::before {
+  content: "✓"; position: absolute; left: 0; top: 0;
+  color: var(--accent-ink, var(--text)); font-weight: 800;
+}
+.oview-cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); margin-top: var(--s5); }
+/* Live numbers beside the pitch. */
+.oview-hero-stats {
+  flex: 0 0 auto; display: grid; gap: var(--s4);
+  grid-template-columns: repeat(2, auto);
+}
+.oview-stat { display: flex; flex-direction: column; gap: 3px; }
+.oview-stat-val { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
 .oview-stat-name {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
 }
-.oview-cta { flex: 0 0 auto; }
 .oview-actions { margin-top: var(--s2); }
 
 /* Consult-first read-out cards */
