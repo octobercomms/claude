@@ -1,0 +1,355 @@
+<title>Owned suite — redesign mockup</title>
+<style>
+/* ==========================================================================
+   OMI house style — tokens + primitives copied verbatim from the October
+   design system (october-ui.css). The build agent already has these in
+   dev/platform/frontend/src/index.css; they're inlined here only so this
+   static mockup renders on its own.
+   ========================================================================== */
+:root{
+  --page-bg:#faf9f5; --surface:#fff; --surface-raised:#fafafa; --surface-sunken:#f3f3f3;
+  --text:#1a1a1a; --text-muted:#555; --text-subtle:#888;
+  --border-neutral:#1a1a1a; --card-border:#e3e2db;
+  --sidebar-bg:#0b0b0c; --sidebar-fg:#fafafa; --sidebar-muted:#a0a0a8; --sidebar-border:#26262b;
+  --accent:#E7CD41; --accent-soft:rgba(231,205,65,.12); --accent-on:#1a1a1a;
+  --positive:#2e7d32; --positive-soft:rgba(56,142,60,.10);
+  --negative:#c62828; --negative-soft:rgba(198,40,40,.10);
+  --warning:#b86e00; --warning-soft:rgba(255,187,6,.16);
+  --font:'Brockmann',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s7:32px;--s8:40px;--s9:56px;--s10:72px;
+  --r-sm:8px;--r-md:14px;--r-lg:20px;--r-pill:999px; --border-w:2px;
+  --shadow-xs:0 1px 3px rgba(20,20,20,.07);
+  --shadow-sm:0 1px 2px rgba(20,20,20,.06),0 5px 14px rgba(20,20,20,.09);
+  --shadow-md:0 4px 10px rgba(20,20,20,.09),0 20px 46px rgba(20,20,20,.14);
+  --shadow-lg:0 24px 64px rgba(20,20,20,.20);
+  --shadow-accent:0 3px 14px rgba(231,205,65,.42);
+
+  /* NEW — the 7 function wayfinding hues. Muted on purpose: they appear ONLY
+     as the small pip token, never as a button fill or a surface. This is the
+     one considered extension beyond OMI's two-tone + 3-semantic palette. */
+  --fn-research:#6366f1;  --fn-strategy:#0d9488; --fn-create:#7c3aed;
+  --fn-distribute:#0284c7; --fn-measure:#475569; --fn-data:#78716c; --fn-approve:#db2777;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; font-family:var(--font); color:var(--text);
+  background:
+    radial-gradient(1100px 640px at 6% -10%,rgba(231,205,65,.11),transparent 58%),
+    radial-gradient(1000px 720px at 100% 0%,rgba(231,205,65,.07),transparent 55%),
+    var(--page-bg);
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:var(--s8) var(--s6) var(--s10);}
+h1,h2,h3,h4,p{margin:0;}
+.display{font-size:44px;font-weight:800;line-height:1.02;letter-spacing:-1.4px;}
+.h1{font-size:30px;font-weight:700;letter-spacing:-.6px;}
+.h2{font-size:21px;font-weight:700;letter-spacing:-.3px;}
+.h3{font-size:15px;font-weight:600;}
+.body{font-size:15px;line-height:1.55;color:var(--text-muted);}
+.body-sm{font-size:13.5px;line-height:1.5;color:var(--text-muted);}
+.caption{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;}
+.muted{color:var(--text-muted);} .subtle{color:var(--text-subtle);}
+
+.card{background:var(--surface);border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);padding:var(--s5);box-shadow:var(--shadow-sm);}
+.card.ink{background:var(--text);border-color:var(--text);color:#fff;}
+.card.ink .body,.card.ink .muted{color:rgba(255,255,255,.72);}
+.card.soft{box-shadow:none;background:var(--surface-raised);}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-family:var(--font);font-size:13px;font-weight:700;border-radius:var(--r-pill);cursor:pointer;border:var(--border-w) solid transparent;white-space:nowrap;text-decoration:none;color:var(--text);transition:filter .15s,transform .05s,box-shadow .18s,background .15s;}
+.btn-primary{background:linear-gradient(180deg,#efda6a 0%,var(--accent) 100%);color:var(--accent-on);border-color:var(--accent);box-shadow:var(--shadow-accent);}
+.btn-primary:hover{filter:brightness(.97);transform:translateY(-1px);}
+.btn-secondary{background:var(--surface);color:var(--text);border-color:var(--border-neutral);}
+.btn-secondary:hover{background:var(--surface-sunken);}
+.btn-lg{padding:13px 24px;font-size:15px;}
+
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;font-size:11.5px;font-weight:600;border-radius:var(--r-pill);border:var(--border-w) solid var(--border-neutral);background:var(--surface);color:var(--text);}
+.chip.equal{border-color:var(--card-border);color:var(--text-muted);font-weight:500;}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-on);font-weight:700;}
+
+/* function pip token */
+.pip{width:9px;height:9px;border-radius:var(--r-pill);flex:none;display:inline-block;}
+.fn-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-muted);}
+
+/* text link — the "secondary path" treatment: never a button */
+.tlink{font-size:13.5px;font-weight:600;color:var(--text);text-decoration:none;border-bottom:2px solid var(--accent-soft);padding-bottom:1px;cursor:pointer;}
+.tlink:hover{border-bottom-color:var(--accent);color:var(--text);}
+
+.callout{padding:var(--s3) var(--s4);border-radius:var(--r-sm);border:var(--border-w) solid var(--accent);background:var(--accent-soft);font-size:13px;line-height:1.5;}
+.note{font-size:12px;line-height:1.5;color:var(--text-subtle);}
+
+.section-kicker{display:flex;align-items:center;gap:10px;margin-bottom:var(--s3);}
+.section-kicker .n{width:26px;height:26px;border-radius:var(--r-pill);background:var(--text);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+section{margin-top:var(--s10);}
+.rule{height:var(--border-w);background:var(--card-border);border:none;margin:0;}
+.grid{display:grid;gap:var(--s4);}
+
+/* stepped rail (matches OMI's suite rails) */
+.rail{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;}
+.step{flex:1;min-width:120px;border:var(--border-w) solid var(--card-border);background:var(--surface);border-radius:var(--r-sm);padding:12px 14px;position:relative;margin-right:22px;margin-bottom:10px;}
+.step:last-child{margin-right:0;}
+.step .k{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-subtle);}
+.step .t{font-size:15px;font-weight:700;margin-top:3px;}
+.step .s{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+.step .arrow{position:absolute;right:-19px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text-subtle);font-weight:800;}
+.step.first{border-color:var(--text);}
+
+/* read-out intelligence card — deliberately NOT button-shaped */
+.readout{border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow-xs);}
+.readout .rhead{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.readout .rname{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px;}
+.readout .rval{font-size:24px;font-weight:800;letter-spacing:-.5px;line-height:1;}
+.readout .rsub{font-size:11.5px;color:var(--text-subtle);}
+.info-i{width:16px;height:16px;border-radius:var(--r-pill);border:1.5px solid var(--text-subtle);color:var(--text-subtle);font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;font-style:italic;flex:none;}
+
+.delta-up{color:var(--positive);font-weight:700;} .delta-down{color:var(--negative);font-weight:700;}
+
+.toolrow{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;}
+.grp-label{font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-subtle);margin-bottom:8px;}
+
+/* before-panel: everything equal weight */
+.equal-tabs{display:flex;flex-wrap:wrap;gap:8px;}
+.topbar{display:flex;gap:22px;border-bottom:var(--border-w) solid var(--text);padding-bottom:10px;margin-bottom:16px;flex-wrap:wrap;}
+.topbar span{font-size:15px;font-weight:600;color:var(--text-muted);}
+.topbar span.on{color:var(--accent);}
+
+.anno{border-left:var(--border-w) solid var(--accent);padding:2px 0 2px 14px;margin-top:14px;font-size:13px;line-height:1.5;color:var(--text-muted);}
+.anno strong{color:var(--text);}
+
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+.legend .li{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;}
+
+.cohesion{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s4);}
+.mini{border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);background:var(--surface);padding:14px;box-shadow:var(--shadow-xs);}
+.mini .mh{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-subtle);margin-bottom:9px;}
+.mini .ministep{font-size:11.5px;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--card-border);}
+.mini .ministep:last-child{border-bottom:none;}
+.mini .ministep.p{font-weight:800;color:var(--text);}
+
+@media(max-width:720px){
+  .cohesion{grid-template-columns:1fr;}
+  .display{font-size:34px;}
+}
+</style>
+
+<div class="wrap">
+
+  <!-- ===== Masthead ===== -->
+  <div class="fn-tag" style="margin-bottom:14px;"><span class="pip" style="background:var(--accent);"></span>OMI · design reference · not built yet</div>
+  <h1 class="display" style="max-width:16ch;">Owned, redesigned around one clear path.</h1>
+  <p class="body" style="max-width:60ch;margin-top:16px;">
+    Same features, same house style — reorganised so a page answers <em>“what do I do first?”</em>
+    on its own. Three moves: <strong>one primary path</strong> per surface, everything else demoted
+    to <strong>read-outs</strong> and <strong>secondary links</strong>, and a quiet
+    <strong>function pip</strong> so you always know what kind of work you’re looking at.
+    Built for the agent to replicate in <code>dev/platform/frontend</code>.
+  </p>
+
+  <!-- ===== 1 · The action grammar (the spec) ===== -->
+  <section>
+    <div class="section-kicker"><span class="n">1</span><h2 class="h1">The action grammar</h2></div>
+    <p class="body" style="max-width:64ch;margin-bottom:22px;">Four visual jobs, applied the same way on every page. The rule that fixes the overwhelm: <strong>if everything is a button, nothing is primary.</strong></p>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+      <div class="card">
+        <div class="caption subtle">Do — one per surface</div>
+        <div style="margin:14px 0;"><a class="btn btn-primary">Start a piece ›</a></div>
+        <p class="body-sm">The single recommended next action. Filled accent button, loudest thing on the page. <strong>Exactly one.</strong></p>
+      </div>
+      <div class="card">
+        <div class="caption subtle">Optional — do sometimes</div>
+        <div style="margin:14px 0;display:flex;gap:16px;flex-wrap:wrap;"><span class="tlink">Scan site</span><span class="tlink">Grade a page</span></div>
+        <p class="body-sm">Legitimate but not the main move. Plain links or ghost buttons — visibly quieter than primary.</p>
+      </div>
+      <div class="card">
+        <div class="caption subtle">Read-out — look, don’t do</div>
+        <div style="margin:14px 0;" class="readout" >
+          <div class="rhead"><span class="rname"><span class="pip" style="background:var(--fn-measure);"></span>Keywords</span><span class="info-i">i</span></div>
+          <div class="rval">142 <span class="rsub" style="font-size:12px;">tracked</span></div>
+        </div>
+        <p class="body-sm">Intelligence you consult. A card with a number and an <em>ⓘ</em> — never button-shaped, so you don’t mistake it for a step.</p>
+      </div>
+      <div class="card">
+        <div class="caption subtle">Function pip — wayfinding</div>
+        <div style="margin:14px 0;display:flex;flex-direction:column;gap:8px;">
+          <span class="fn-tag"><span class="pip" style="background:var(--fn-create);"></span>Create</span>
+          <span class="fn-tag"><span class="pip" style="background:var(--fn-research);"></span>Research</span>
+        </div>
+        <p class="body-sm">A muted dot that tags what <em>kind</em> of work a thing is. Same colour for that function in every channel. Touches the label only.</p>
+      </div>
+    </div>
+
+    <div class="card soft" style="margin-top:18px;">
+      <div class="grp-label">The 7 functions &amp; their pips</div>
+      <div class="legend">
+        <span class="li"><span class="pip" style="background:var(--fn-research);"></span>Research</span>
+        <span class="li"><span class="pip" style="background:var(--fn-strategy);"></span>Strategy</span>
+        <span class="li"><span class="pip" style="background:var(--fn-create);"></span>Create</span>
+        <span class="li"><span class="pip" style="background:var(--fn-distribute);"></span>Distribute</span>
+        <span class="li"><span class="pip" style="background:var(--fn-measure);"></span>Measure</span>
+        <span class="li"><span class="pip" style="background:var(--fn-data);"></span>Data &amp; setup</span>
+        <span class="li"><span class="pip" style="background:var(--fn-approve);"></span>Approve</span>
+      </div>
+      <p class="note" style="margin-top:14px;">These 7 hues are the <strong>only</strong> place function colour appears. Buttons stay accent-yellow; surfaces stay white; deltas keep the sanctioned green/red. The pip is a wayfinding token, not a theme — it’s the one considered step beyond the two-tone palette, kept muted so it never competes with the accent.</p>
+    </div>
+  </section>
+
+  <!-- ===== 2 · Before ===== -->
+  <section>
+    <div class="section-kicker"><span class="n">2</span><h2 class="h1">Before — everything at equal weight</h2></div>
+    <p class="body" style="max-width:64ch;margin-bottom:22px;">Today’s Owned page. Seven rails across the top; inside each, a flat field of ~25 sub-tabs that all look identical — research, tools, and the content pipeline are indistinguishable. Nothing says where to begin.</p>
+
+    <div class="card" style="border-color:var(--border-neutral);">
+      <div class="topbar">
+        <span>Overview</span><span class="on">Search</span><span>Optimise</span><span>Build</span><span>Localise</span><span>Convert</span><span>Email</span>
+      </div>
+      <div class="equal-tabs">
+        <span class="chip equal">Review</span><span class="chip equal">Keywords</span><span class="chip equal">Search Console</span>
+        <span class="chip equal">AI Visibility</span><span class="chip equal">Authority</span><span class="chip equal">Backlinks</span>
+        <span class="chip equal">Watch</span><span class="chip equal">Scan</span><span class="chip equal">Grade</span><span class="chip equal">Map</span>
+        <span class="chip equal">Win</span><span class="chip equal">Sharpen</span><span class="chip equal">Target</span><span class="chip equal">Prep</span>
+        <span class="chip equal">Find</span><span class="chip equal">Brief</span><span class="chip equal">Draft</span><span class="chip equal">Publish</span>
+        <span class="chip equal">Promote</span><span class="chip equal">Compare</span><span class="chip equal">Validate</span><span class="chip equal">GBP posts</span>
+        <span class="chip equal">CRO</span><span class="chip equal">Forms</span><span class="chip equal">Email</span>
+      </div>
+    </div>
+    <div class="anno">
+      <strong>The problem you named:</strong> to make content, do you start in Keywords? AI Visibility? Find? Every chip is the same shape and weight, so the page can’t tell you. The content pipeline (Find → Brief → Draft → Publish) is buried in the pile as four equal chips.
+    </div>
+  </section>
+
+  <!-- ===== 3 · After ===== -->
+  <section>
+    <div class="section-kicker"><span class="n">3</span><h2 class="h1">After — one path, framed by intelligence</h2></div>
+    <p class="body" style="max-width:64ch;margin-bottom:22px;">The same Owned page. The primary job (make a piece of content) is the hero. Research sits <em>above</em> it as read-outs you consult first. Fix-it tools sit <em>below</em> as quiet links. Other jobs are one calm row.</p>
+
+    <!-- header with pips: this surface is Create, fed by Research + Measure -->
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px;">
+      <div class="fn-tag" style="font-size:12px;"><span class="pip" style="background:var(--fn-create);"></span>Owned → Create</div>
+      <span class="subtle" style="font-size:12px;">fed by</span>
+      <div class="fn-tag" style="font-size:12px;"><span class="pip" style="background:var(--fn-research);"></span>Research</div>
+      <div class="fn-tag" style="font-size:12px;"><span class="pip" style="background:var(--fn-measure);"></span>Measure</div>
+    </div>
+
+    <!-- CONSULT FIRST -->
+    <div class="grp-label" style="display:flex;align-items:center;gap:7px;"><span class="info-i">i</span>Consult first — what the data says to write about</div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:26px;">
+      <div class="readout">
+        <div class="rhead"><span class="rname"><span class="pip" style="background:var(--fn-measure);"></span>Keywords</span><span class="info-i">i</span></div>
+        <div class="rval">142 <span class="rsub" style="font-size:12px;">tracked</span></div>
+        <div class="rsub"><span class="delta-up">▲ 9</span> on page 1 this month</div>
+      </div>
+      <div class="readout">
+        <div class="rhead"><span class="rname"><span class="pip" style="background:var(--fn-measure);"></span>AI Visibility</span><span class="info-i">i</span></div>
+        <div class="rval">31%<span class="rsub" style="font-size:12px;"> SOV</span></div>
+        <div class="rsub">cited by Perplexity, Claude</div>
+      </div>
+      <div class="readout">
+        <div class="rhead"><span class="rname"><span class="pip" style="background:var(--fn-measure);"></span>Search Console</span><span class="info-i">i</span></div>
+        <div class="rval">8.4k<span class="rsub" style="font-size:12px;"> clicks</span></div>
+        <div class="rsub"><span class="delta-down">▼ 4%</span> vs prior 28d</div>
+      </div>
+      <div class="readout">
+        <div class="rhead"><span class="rname"><span class="pip" style="background:var(--fn-research);"></span>Content gaps</span><span class="info-i">i</span></div>
+        <div class="rval">17<span class="rsub" style="font-size:12px;"> found</span></div>
+        <div class="rsub">competitors rank, you don’t</div>
+      </div>
+    </div>
+
+    <!-- THE PRIMARY PATH -->
+    <div class="card ink" style="padding:26px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:20px;">
+        <div>
+          <div class="fn-tag" style="color:rgba(255,255,255,.6);margin-bottom:10px;"><span class="pip" style="background:var(--fn-create);"></span>The main job here</div>
+          <h3 class="h1" style="color:#fff;">Make a piece of content</h3>
+          <p class="body" style="color:rgba(255,255,255,.7);margin-top:6px;max-width:48ch;">One pipeline, grounded in the brief, brand kit and the gaps above. Pick up where you left off, or start fresh.</p>
+        </div>
+        <a class="btn btn-primary btn-lg">Start a piece ›</a>
+      </div>
+      <div class="rail">
+        <div class="step first"><div class="k">Step 1</div><div class="t">Find</div><div class="s">Pick a keyword / gap</div><span class="arrow">›</span></div>
+        <div class="step"><div class="k">Step 2</div><div class="t">Brief</div><div class="s">Claude drafts the brief</div><span class="arrow">›</span></div>
+        <div class="step"><div class="k">Step 3</div><div class="t">Draft</div><div class="s">Full post, on-brand</div><span class="arrow">›</span></div>
+        <div class="step"><div class="k">Step 4</div><div class="t">Publish</div><div class="s">To WordPress / Shopify</div><span class="arrow">›</span></div>
+        <div class="step"><div class="k">Step 5</div><div class="t">Promote</div><div class="s">Earn links</div></div>
+      </div>
+    </div>
+
+    <!-- SECONDARY TOOLS -->
+    <div style="margin-top:26px;">
+      <div class="grp-label">Refine &amp; fix — optional, when a page needs work</div>
+      <div class="toolrow">
+        <span class="tlink">Scan site audit</span>
+        <span class="tlink">Grade a page</span>
+        <span class="tlink">Win quick wins</span>
+        <span class="tlink">Sharpen titles / CTR</span>
+        <span class="tlink">Target AI keywords</span>
+        <span class="tlink">Prep for AI agents</span>
+      </div>
+    </div>
+
+    <hr class="rule" style="margin:26px 0;">
+
+    <!-- OTHER JOBS -->
+    <div class="grp-label">Other jobs in Owned</div>
+    <div class="toolrow">
+      <span class="tlink"><span class="pip" style="background:var(--fn-create);margin-right:5px;"></span>Localise — local SEO toolkit</span>
+      <span class="tlink"><span class="pip" style="background:var(--fn-measure);margin-right:5px;"></span>Convert — CRO &amp; Forms</span>
+      <span class="tlink"><span class="pip" style="background:var(--fn-distribute);margin-right:5px;"></span>Email — cold outreach</span>
+    </div>
+
+    <div class="callout" style="margin-top:24px;">
+      <strong>Why this works:</strong> the eye lands on the black card and the yellow button — the one thing to do. Research is framed as “here’s what to write about,” not another set of doors. The 25 equal chips become a hierarchy you can read in one glance.
+    </div>
+  </section>
+
+  <!-- ===== 4 · Cohesion ===== -->
+  <section>
+    <div class="section-kicker"><span class="n">4</span><h2 class="h1">Cohesion = the same act, everywhere</h2></div>
+    <p class="body" style="max-width:64ch;margin-bottom:22px;">Your instinct that Owned overlaps Shared and Paid is right — <strong>Create</strong> lives in all three. The fix isn’t to merge the channels; it’s to make Create <em>look and work the same</em> in each. Then moving between them is muscle memory, not relearning. Same primary card, same 5-step rail, same pip.</p>
+    <div class="cohesion">
+      <div class="mini">
+        <div class="mh"><span class="pip" style="background:var(--fn-create);display:inline-block;margin-right:6px;"></span>Paid → Create</div>
+        <div class="ministep p">▸ Brief</div><div class="ministep">Draft concepts</div><div class="ministep">Render</div><div class="ministep">Approve</div><div class="ministep">Launch</div>
+      </div>
+      <div class="mini">
+        <div class="mh"><span class="pip" style="background:var(--fn-create);display:inline-block;margin-right:6px;"></span>Shared → Create</div>
+        <div class="ministep p">▸ Ideas</div><div class="ministep">Brief</div><div class="ministep">Workbench</div><div class="ministep">Plan</div><div class="ministep">Publish</div>
+      </div>
+      <div class="mini">
+        <div class="mh"><span class="pip" style="background:var(--fn-create);display:inline-block;margin-right:6px;"></span>Owned → Create</div>
+        <div class="ministep p">▸ Find</div><div class="ministep">Brief</div><div class="ministep">Draft</div><div class="ministep">Publish</div><div class="ministep">Promote</div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:14px;">Three channels, three keyword sets — but one identical <strong>brief → make → ship</strong> shape and one primary card. That sameness <em>is</em> the cohesion. (Phase two: explicit hand-offs — “turn this blog into a reel”, “this winning ad angle → 9 posts”.)</p>
+  </section>
+
+  <!-- ===== Build notes ===== -->
+  <section>
+    <div class="section-kicker"><span class="n">›</span><h2 class="h1">Notes for the build</h2></div>
+    <div class="card" style="border-color:var(--border-neutral);">
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+        <div>
+          <div class="caption subtle" style="margin-bottom:8px;">Rules to enforce everywhere</div>
+          <ul class="body-sm" style="padding-left:18px;line-height:1.9;margin:0;">
+            <li><strong>One</strong> <code>.btn-primary</code> per surface — the primary path.</li>
+            <li>Optional actions → <code>.tlink</code> / ghost, never filled.</li>
+            <li>Read-outs → the <code>.readout</code> card w/ <em>ⓘ</em>, never clickable-as-a-step.</li>
+            <li>Reuse OMI’s existing <code>INFO_TABS</code> flag to decide read-out vs step.</li>
+          </ul>
+        </div>
+        <div>
+          <div class="caption subtle" style="margin-bottom:8px;">Reuse, don’t reinvent</div>
+          <ul class="body-sm" style="padding-left:18px;line-height:1.9;margin:0;">
+            <li>All tokens/primitives already exist in <code>src/index.css</code>.</li>
+            <li>Add only: <code>--fn-*</code> pip hues + <code>.readout</code> + <code>.tlink</code>.</li>
+            <li>The 5-step rail is the existing <code>ProcessRail</code>/<code>Stepper</code>.</li>
+            <li>Ship as the Owned <em>Overview</em> first; then apply to Paid &amp; Shared.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:16px;">Mockup renders with a system-font fallback — the real app uses <strong>Brockmann</strong>. Colours, borders, radii and shadows are OMI’s own tokens, unchanged.</p>
+  </section>
+
+</div>
