@@ -92,86 +92,39 @@ export default function SuiteOverview({
   );
 }
 
-// Action-grammar layout (redesign brief, Part 2). One primary path, framed
-// by intelligence: read-outs you consult first sit above the hero; fix-it
-// tools and other jobs sit below as quiet links. Exactly one .btn-primary.
-function GrammarOverview({ tagline, description, primary, readouts, tools, toolsLabel = 'Fix-it tools', otherJobs, actions, map = [], mapLayout = 'ring', diagram = null }) {
+// Overview layout. A tight command band — the state you consult and the ONE
+// action — then the workflow map as the main content (it doubles as the
+// navigation to every section, so no separate tool/other-job link rows).
+// No repeated heading: the page masthead already names the suite.
+function GrammarOverview({ description, primary, readouts, actions, map = [], mapLayout = 'ring', diagram = null }) {
   return (
-    <div className="stack stack-lg">
-      {(tagline || description) && (
-        <div>
-          {tagline && <h2 className="display" style={{ maxWidth: '20ch' }}>{tagline}</h2>}
-          {description && <p className="body mt-3" style={{ maxWidth: 640, color: 'var(--text-muted)' }}>{description}</p>}
-        </div>
-      )}
-
-      {/* Consult first — research / measure read-outs. Not button-shaped. */}
-      {readouts.length > 0 && (
-        <div className="oview-section">
-          <div className="oview-eyebrow"><Pip fn={readouts[0].fn || 'measure'} label="Consult first" /></div>
-          <div className="oview-readouts">
-            {readouts.map((r, i) => (
-              <div className="readout" key={i}>
-                <span className="readout-name">{r.fn && <Pip fn={r.fn} />}{r.name}</span>
-                <span className="readout-val">{r.value}</span>
-                {r.sub && <span className="readout-sub">{r.sub}</span>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* The one primary path. */}
-      <div className="oview-section">
-        <div className="card filled oview-primary">
-          <div className="oview-primary-kicker"><Pip fn={primary.fn || 'create'} label={primary.kicker || 'The main job here'} /></div>
-          <h3 className="display">{primary.title}</h3>
-          {primary.description && <p className="body mt-3" style={{ color: 'inherit', opacity: 0.9, maxWidth: 620 }}>{primary.description}</p>}
-          {primary.ctaLabel && primary.onCta && (
-            <button type="button" className="btn btn-primary mt-5" onClick={primary.onCta}>{primary.ctaLabel} →</button>
+    <div className="oview">
+      <div className="oview-band">
+        {description && <p className="oview-lede">{description}</p>}
+        <div className="oview-bar">
+          {readouts.length > 0 && (
+            <div className="oview-stats">
+              {readouts.map((r, i) => (
+                <div className="oview-stat" key={i}>
+                  <span className="oview-stat-val">{r.value}</span>
+                  <span className="oview-stat-name">{r.fn && <Pip fn={r.fn} />}{r.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {primary && primary.onCta && (
+            <button type="button" className="btn btn-primary oview-cta" onClick={primary.onCta}>
+              {primary.title || primary.ctaLabel} →
+            </button>
           )}
         </div>
       </div>
 
-      {/* Secondary tools — quiet links, visibly quieter than the primary. */}
-      {tools.length > 0 && (
-        <div className="oview-section">
-          <div className="oview-grplabel">{toolsLabel}</div>
-          <div className="oview-tools">
-            {tools.map((t, i) => (
-              <button type="button" className="btn-link" key={i} onClick={t.onClick} title={t.sub || undefined}>
-                {t.fn && <Pip fn={t.fn} />}{t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* The workflow — the main content and the way into every section. */}
+      {map.length > 0 && <SectionMap stages={map} layout={mapLayout} />}
+      {diagram && <div className="smap-bento">{diagram}</div>}
 
-      {/* Other jobs — one calm row. */}
-      {otherJobs && otherJobs.items && otherJobs.items.length > 0 && (
-        <div className="oview-section">
-          <div className="oview-grplabel">{otherJobs.label || 'Other jobs'}</div>
-          <div className="oview-tools">
-            {otherJobs.items.map((t, i) => (
-              <button type="button" className="btn-link" key={i} onClick={t.onClick}>
-                {t.fn && <Pip fn={t.fn} />}{t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* How it flows — the section-map / factory diagram, kept below the
-          primary path as orientation (the workflow at a glance). */}
-      {(map.length > 0 || diagram) && (
-        <div className="oview-section">
-          <div className="oview-grplabel">How it flows</div>
-          {map.length > 0 && <SectionMap stages={map} layout={mapLayout} />}
-          {diagram && <div className="smap-bento">{diagram}</div>}
-        </div>
-      )}
-
-      {actions && <div className="oview-section"><div className="oview-tools">{actions}</div></div>}
+      {actions && <div className="oview-actions">{actions}</div>}
     </div>
   );
 }
@@ -338,7 +291,7 @@ function SnakeMap({ stages }) {
 function SmapStage({ stage, area, style }) {
   return (
     <div className="smap-stage" style={{ ...(area ? { gridArea: area } : null), ...style }}>
-      <div className="smap-title">{stage.title}</div>
+      <div className="smap-title">{stage.fn && <Pip fn={stage.fn} />}{stage.title}</div>
       {stage.subtitle && <div className="smap-sub">{stage.subtitle}</div>}
       <div className="smap-nodes">
         {stage.nodes.map((n, j) => {

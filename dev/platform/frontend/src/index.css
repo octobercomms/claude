@@ -457,6 +457,26 @@ button { font-family: inherit; }
 .oview-section + .oview-section { margin-top: var(--s7); }
 .oview-eyebrow { margin-bottom: var(--s3); }
 
+/* Compact Overview header — a lede line, then one bar with the read-out
+   stats and the single primary action. Keeps the page short; the workflow
+   below is the main content. */
+.oview { display: flex; flex-direction: column; gap: var(--s6); }
+.oview-band { display: flex; flex-direction: column; gap: var(--s4); }
+.oview-lede { font-size: 15px; color: var(--text-muted); max-width: 70ch; margin: 0; }
+.oview-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--s5) var(--s7);
+}
+.oview-stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s3) var(--s6); }
+.oview-stat { display: flex; align-items: baseline; gap: 8px; }
+.oview-stat-val { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
+.oview-stat-name {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+}
+.oview-cta { flex: 0 0 auto; }
+.oview-actions { margin-top: var(--s2); }
+
 /* Consult-first read-out cards */
 .oview-readouts {
   display: grid; gap: var(--s3);
@@ -646,17 +666,19 @@ button { font-family: inherit; }
   padding: var(--s5);
   box-shadow: 0 2px 0 rgba(26, 26, 26, 0.12);
 }
-.smap-title { font-size: 18px; font-weight: 800; color: var(--text); line-height: 1.15; }
+.smap-title { font-size: 18px; font-weight: 800; color: var(--text); line-height: 1.15; display: inline-flex; align-items: center; gap: 8px; }
 .smap-sub { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
-.smap-nodes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: var(--s3); }
+.smap-nodes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: var(--s3); }
+/* Nodes are quiet chips, not buttons — the workflow is orientation, the one
+   primary CTA above stays the only accent action on the page. */
 .smap-node {
-  font-family: inherit; font-size: 14px; font-weight: 700;
-  color: var(--accent-on); background: var(--accent);
-  border: var(--border-w) solid var(--accent);
-  border-radius: var(--r-pill); padding: 9px 18px; line-height: 1.2;
+  font-family: inherit; font-size: 13.5px; font-weight: 600;
+  color: var(--text); background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-pill); padding: 7px 14px; line-height: 1.2;
 }
-button.smap-node { cursor: pointer; transition: filter 120ms ease; }
-button.smap-node:hover { filter: brightness(0.9); }
+button.smap-node { cursor: pointer; transition: background 120ms ease, border-color 120ms ease; }
+button.smap-node:hover { background: var(--surface-sunken); border-color: var(--text-subtle); }
 button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); outline-offset: 2px; }
 .smap-node-sep { color: var(--text-subtle); font-weight: 800; }
 /* Numbered pipeline steps — a black circle ahead of the label. */

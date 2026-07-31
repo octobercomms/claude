@@ -503,13 +503,13 @@ export default function ClientAdsPage() {
           ] }}
           mapLayout="funnel"
           map={[
-            { title: 'Health', subtitle: 'Spend, return, briefing & rival watch', nodes: [
+            { title: 'Health', fn: 'measure', subtitle: 'Spend, return, briefing & rival watch', nodes: [
               { label: 'Measure',     onClick: () => goHealth('measure') },
               { label: 'Briefing',    onClick: () => goHealth('briefing') },
               { label: 'Competitors', onClick: () => goHealth('competitors') },
               { label: 'Playbook',    onClick: () => goHealth('playbook') },
             ] },
-            { title: 'Build', subtitle: 'Ad creative pipeline', numbered: true, nodes: [
+            { title: 'Build', fn: 'create', subtitle: 'Ad creative pipeline', numbered: true, nodes: [
               { label: 'Brief',   onClick: () => setTab('brief') },
               { label: 'Draft',   onClick: () => setTab('concepts') },
               { label: 'Render',  onClick: () => setTab('render') },
