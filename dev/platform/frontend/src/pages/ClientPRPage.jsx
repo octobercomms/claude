@@ -795,12 +795,12 @@ export default function ClientPRPage() {
   // Accordions are tab-driven — opening a section sets the underlying tab so the
   // existing lazy-load effects (coverage monitor, releases) still fire.
   const HEALTH_SECTIONS = [
-    { id: 'track', tab: 'coverage', title: 'Track', sub: 'Coverage log & auto-monitor', render: renderTrack },
-    { id: 'share', tab: 'reports',  title: 'Share', sub: 'Client digests & live coverage', render: renderShare },
+    { id: 'track', tab: 'coverage', fn: 'measure',    title: 'Track', sub: 'Coverage log & auto-monitor', render: renderTrack },
+    { id: 'share', tab: 'reports',  fn: 'distribute', title: 'Share', sub: 'Client digests & live coverage', render: renderShare },
   ];
   const BUILD_SECTIONS = [
-    { id: 'pitch',    tab: 'journalists', title: 'Pitch',    sub: 'Media database & targeting', render: renderPitch },
-    { id: 'releases', tab: 'press',       title: 'Releases', sub: 'Draft, sign-off & pitch', render: renderReleases },
+    { id: 'pitch',    tab: 'journalists', fn: 'research', title: 'Pitch',    sub: 'Media database & targeting', render: renderPitch },
+    { id: 'releases', tab: 'press',       fn: 'create',   title: 'Releases', sub: 'Draft, sign-off & pitch', render: renderReleases },
   ];
   const TAB_SECTION = { coverage: 'track', reports: 'share', journalists: 'pitch', press: 'releases' };
   const suiteGroup = tab === 'overview' ? 'overview'
@@ -824,8 +824,8 @@ export default function ClientPRPage() {
           page's "needs attention" rail instead. */}
       <SuiteTabs tabs={[
         { key: 'overview', label: 'Overview', active: suiteGroup === 'overview', onClick: () => setTab('overview') },
-        { key: 'health',   label: 'Health',   active: suiteGroup === 'health',   onClick: () => setTab('coverage') },
-        { key: 'build',    label: 'Build',    active: suiteGroup === 'build',    onClick: () => setTab('journalists') },
+        { key: 'health',   label: 'Health',   fn: 'measure', active: suiteGroup === 'health',   onClick: () => setTab('coverage') },
+        { key: 'build',    label: 'Build',    fn: 'create',  active: suiteGroup === 'build',    onClick: () => setTab('journalists') },
       ]} />
 
       {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p></div>}
@@ -833,7 +833,7 @@ export default function ClientPRPage() {
       {!loading && suiteGroup === 'health' && (
         <Accordion open={new Set([TAB_SECTION[tab] || 'track'])} onToggle={(sid) => setTab(HEALTH_SECTIONS.find(s => s.id === sid).tab)}>
           {HEALTH_SECTIONS.map(s => (
-            <AccordionItem key={s.id} id={s.id} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
+            <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
           ))}
         </Accordion>
       )}
@@ -841,7 +841,7 @@ export default function ClientPRPage() {
       {!loading && suiteGroup === 'build' && (
         <Accordion open={new Set([TAB_SECTION[tab] || 'pitch'])} onToggle={(sid) => setTab(BUILD_SECTIONS.find(s => s.id === sid).tab)}>
           {BUILD_SECTIONS.map(s => (
-            <AccordionItem key={s.id} id={s.id} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
+            <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
           ))}
         </Accordion>
       )}
