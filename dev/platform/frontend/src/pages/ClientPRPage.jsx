@@ -884,6 +884,22 @@ export default function ClientPRPage() {
               { fn: 'measure',    label: 'Health — coverage & monitoring', onClick: () => setTab('coverage') },
               { fn: 'distribute', label: 'Share — client digests',         onClick: () => setTab('reports') },
             ] }}
+            mapLayout="grid"
+            map={[
+              { title: 'Health', subtitle: 'Coverage, monitoring & what the client sees', nodes: [
+                { label: 'Coverage log',   onClick: () => setTab('coverage') },
+                { label: 'Auto monitor',   onClick: () => setTab('coverage') },
+                { label: 'Client digests', onClick: () => setTab('reports') },
+                { label: 'Live coverage',  onClick: () => setTab('reports') },
+              ] },
+              { title: 'Build', subtitle: 'Media targeting → release → pitch', nodes: [
+                { label: 'Media DB',        onClick: () => setTab('journalists') },
+                { label: 'Pitch targeting', onClick: () => setTab('journalists') },
+                { label: 'Draft release',   onClick: () => setTab('press') },
+                { label: 'Sign-off',        onClick: () => setTab('press') },
+                { label: 'Pitch',           onClick: () => setTab('press') },
+              ] },
+            ]}
             actions={<a className="btn btn-secondary" href={`/api/pr/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
           />
           <div className="card">

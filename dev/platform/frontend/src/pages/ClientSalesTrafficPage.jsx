@@ -4,6 +4,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Responsi
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
+import DataFlowMap from '../components/DataFlowMap';
 import ClientChatPage from './ClientChatPage';
 import { useCssVar } from '../hooks/useCssVar';
 import { useTabParam } from '../hooks/useTabParam';
@@ -163,6 +164,7 @@ export default function ClientSalesTrafficPage() {
           otherJobs={{ label: 'Other jobs in Data', items: readOnly ? [] : [
             { fn: 'measure', label: 'Dashboard — live KPIs', onClick: () => setTab('dashboard') },
           ] }}
+          diagram={<DataFlowMap onPerformance={() => setTab('dashboard')} onAnalyst={readOnly ? undefined : () => setTab('analyst')} />}
         />
       )}
 
