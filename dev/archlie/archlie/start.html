@@ -36,6 +36,20 @@
 
     <!-- LEFT: conversation -->
     <section class="ob-chat" aria-label="Conversation">
+      <div class="ob-savebar" id="saveBar" hidden>
+        <div class="sb-inner">
+          <div class="sb-text">
+            <strong>Save your progress</strong>
+            <span>Enter your email and we'll send a link so you can pick this up later.</span>
+          </div>
+          <form class="sb-form" id="saveForm">
+            <input type="email" id="saveEmail" placeholder="you@email.com" autocomplete="email" aria-label="Email to save your progress">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          </form>
+          <button class="sb-close" id="saveClose" type="button" aria-label="Dismiss">✕</button>
+        </div>
+        <div class="sb-saved" id="saveSaved" hidden>Saved ✓ — we'll email you a link to pick up where you left off.</div>
+      </div>
       <div class="ob-messages" id="messages">
         <div class="wrapmsg" id="msgList"></div>
       </div>

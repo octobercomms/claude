@@ -77,6 +77,7 @@ updates the running total as you answer. In this static pass:
 - **Tiam redirect** when over 150m² or fee > £3,500
 - Delivery estimate, 2-revisions note, and a live **30-day quote-validity date**
 - **Session persistence** to `localStorage` (mirrors the brief's cookie + Postgres record): reload and you're offered a resume
+- **"Save your progress" bar** — after the first few questions a static prompt pins to the top of the conversation asking for an email so the client can come back later (early partial-lead capture, brief §4); it confirms, then tucks away, and is dismissible
 - **Voice input** via the Web Speech API where the browser supports it
 - **Photo upload** that returns an example vision design-prompt (mock of the Claude-vision step)
 

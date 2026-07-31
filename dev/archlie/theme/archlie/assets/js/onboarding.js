@@ -41,6 +41,12 @@
   var elRestart = document.getElementById('restartBtn');
   var elPanel = document.getElementById('packagePanel');
   var elPanelToggle = document.getElementById('panelToggle');
+  var elSaveBar = document.getElementById('saveBar');
+  var elSaveForm = document.getElementById('saveForm');
+  var elSaveEmail = document.getElementById('saveEmail');
+  var elSaveClose = document.getElementById('saveClose');
+  var elSaveInner = elSaveBar ? elSaveBar.querySelector('.sb-inner') : null;
+  var elSaveDone = document.getElementById('saveSaved');
 
   // ---- State ----
   function freshState() {
@@ -49,7 +55,7 @@
       service: null, band: 'B',
       survey: false, structural: false, partyWall: false, concept: false,
       timeframe: '', name: '', email: '', photoDesc: '',
-      messages: [], stepIndex: 0, done: false, submitted: false
+      messages: [], stepIndex: 0, done: false, submitted: false, savePromptDismissed: false
     };
   }
   var state = freshState();
@@ -333,7 +339,42 @@
     elSubmit.textContent = isRedirect(pkg.total) ? 'Request a Tiam consultation' : 'Save & submit project';
     // enable submit once there's a service and the flow has reached the end
     elSubmit.disabled = !(state.service && state.done);
+    maybeShowSaveBar();
     save();
+  }
+
+  // ---- Save-progress bar (early, optional email capture; Brief v3 §4) ----
+  var SAVE_BAR_AFTER = 3; // appears after the first few answered questions
+  function maybeShowSaveBar() {
+    if (!elSaveBar) return;
+    var show = !state.done && !state.submitted && !state.email &&
+               !state.savePromptDismissed && state.stepIndex >= SAVE_BAR_AFTER;
+    elSaveBar.hidden = !show;
+  }
+  function resetSaveBarUI() {
+    if (!elSaveBar) return;
+    if (elSaveInner) elSaveInner.hidden = false;
+    if (elSaveDone) elSaveDone.hidden = true;
+    if (elSaveEmail) { elSaveEmail.value = ''; elSaveEmail.style.borderColor = ''; }
+    elSaveBar.classList.remove('saved');
+  }
+  if (elSaveForm) {
+    elSaveForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = (elSaveEmail.value || '').trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { elSaveEmail.style.borderColor = '#e5484d'; elSaveEmail.focus(); return; }
+      state.email = v; save();
+      if (elSaveInner) elSaveInner.hidden = true;
+      if (elSaveDone) elSaveDone.hidden = false;
+      elSaveBar.classList.add('saved');
+      setTimeout(function () { if (elSaveBar) elSaveBar.hidden = true; }, 2800);
+    });
+  }
+  if (elSaveClose) {
+    elSaveClose.addEventListener('click', function () {
+      state.savePromptDismissed = true; save();
+      if (elSaveBar) elSaveBar.hidden = true;
+    });
   }
 
   // Node remove handler (user edits their package directly)
@@ -388,6 +429,8 @@
         '<button class="btn btn-primary" id="cSave" type="button">Save</button>' +
         '<button class="btn btn-ghost" id="cSkip" type="button">Skip</button>';
       elComposerRow.appendChild(wrap);
+      wrap.querySelector('#cName').value = state.name || '';
+      wrap.querySelector('#cEmail').value = state.email || '';
       wrap.querySelector('#cSave').addEventListener('click', function () {
         var nm = wrap.querySelector('#cName').value.trim();
         var em = wrap.querySelector('#cEmail').value.trim();
@@ -413,6 +456,7 @@
     if (!step) return finish();
     state.stepIndex = i;
     save();
+    maybeShowSaveBar();
     botSay(step.ask, { then: function () { showInput(step); } });
   }
 
@@ -583,6 +627,7 @@
     state = freshState();
     elMsgList.innerHTML = '';
     elQuoteMeta.hidden = true;
+    resetSaveBarUI();
     rebuild();
     start(true);
   });
@@ -603,7 +648,7 @@
     });
     banner.querySelector('#rNew').addEventListener('click', function () {
       banner.remove();
-      clearStore(); state = freshState(); elMsgList.innerHTML = ''; rebuild(); start(true);
+      clearStore(); state = freshState(); elMsgList.innerHTML = ''; resetSaveBarUI(); rebuild(); start(true);
     });
   }
 
@@ -633,6 +678,7 @@
 
   function boot() {
     var saved = load();   // read the stored session BEFORE any save() can run
+    resetSaveBarUI();
     rebuild();            // initial render (ready === false, so this does not persist)
     ready = true;
     if (saved && saved.messages && saved.messages.length && !saved.submitted) {

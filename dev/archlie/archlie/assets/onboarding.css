@@ -135,3 +135,24 @@
   .ob-panel-head { padding-top: 4px; }
   .ob-chat { border-right: 0; padding-bottom: 70px; }
 }
+
+/* ---- Save-progress bar (pinned at top of the conversation) ---- */
+.ob-savebar { flex-shrink: 0; border-bottom: 1px solid var(--line); background: var(--indigo-t); }
+.sb-inner { display: flex; align-items: center; gap: 14px; max-width: 680px; margin: 0 auto; padding: 11px 22px; }
+.sb-text { display: flex; flex-direction: column; line-height: 1.25; }
+.sb-text strong { font-size: .92rem; }
+.sb-text span { font-size: .82rem; color: var(--ink-soft); }
+.sb-form { display: flex; gap: 8px; margin-left: auto; }
+.sb-form input { border: 1px solid var(--line-2); background: #fff; border-radius: 10px; padding: 9px 12px; font-family: inherit; font-size: .92rem; width: 210px; }
+.sb-form input:focus { outline: none; border-color: var(--indigo); }
+.sb-close { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: .95rem; padding: 5px 7px; border-radius: 6px; line-height: 1; flex-shrink: 0; }
+.sb-close:hover { color: var(--ink); background: rgba(0,0,0,.06); }
+.sb-saved { max-width: 680px; margin: 0 auto; padding: 12px 22px; font-size: .9rem; font-weight: 600; color: var(--green); }
+@media (max-width: 560px) {
+  .sb-inner { flex-wrap: wrap; gap: 8px 12px; padding: 10px 16px; }
+  .sb-form { margin-left: 0; width: 100%; }
+  .sb-form input { flex: 1; width: auto; }
+  .sb-text span { display: none; }
+  .sb-close { position: absolute; top: 8px; right: 12px; }
+  .ob-savebar { position: relative; }
+}

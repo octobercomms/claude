@@ -38,6 +38,20 @@
 
 	<div class="ob-body">
 		<section class="ob-chat" aria-label="<?php esc_attr_e( 'Conversation', 'archlie' ); ?>">
+			<div class="ob-savebar" id="saveBar" hidden>
+				<div class="sb-inner">
+					<div class="sb-text">
+						<strong><?php esc_html_e( 'Save your progress', 'archlie' ); ?></strong>
+						<span><?php esc_html_e( "Enter your email and we'll send a link so you can pick this up later.", 'archlie' ); ?></span>
+					</div>
+					<form class="sb-form" id="saveForm">
+						<input type="email" id="saveEmail" placeholder="you@email.com" autocomplete="email" aria-label="<?php esc_attr_e( 'Email to save your progress', 'archlie' ); ?>">
+						<button type="submit" class="btn btn-primary btn-sm"><?php esc_html_e( 'Save', 'archlie' ); ?></button>
+					</form>
+					<button class="sb-close" id="saveClose" type="button" aria-label="<?php esc_attr_e( 'Dismiss', 'archlie' ); ?>">✕</button>
+				</div>
+				<div class="sb-saved" id="saveSaved" hidden><?php esc_html_e( "Saved ✓ — we'll email you a link to pick up where you left off.", 'archlie' ); ?></div>
+			</div>
 			<div class="ob-messages" id="messages"><div class="wrapmsg" id="msgList"></div></div>
 			<div class="ob-composer">
 				<div class="ob-composer-inner">
