@@ -7,6 +7,7 @@ conversational **AI onboarding** flow instead of a form.
 
 - **Code:** [`dev/archlie/`](../../dev/archlie/)
 - **Full brief:** [`brief-v3.md`](./brief-v3.md)
+- **WordPress theme:** [`dev/archlie/theme/archlie/`](../../dev/archlie/theme/archlie/) — a WP interpretation of this design (marketing site + the two-panel builder + project records), documented in [`wordpress-theme.md`](./wordpress-theme.md). Note brief §11 specs the production build as React; the theme is for a quick launch/review.
 
 ## What's in the folder
 
