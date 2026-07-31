@@ -9,7 +9,6 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import Pip from './ui/Pip';
 
 // A tab entry can be either a button (key + label, optionally to/onClick)
 // or a non-interactive group label (groupLabel — renders as a small
@@ -38,7 +37,7 @@ export default function SuiteTabs({ tabs, variant }) {
             className={`tab ${t.active ? 'active' : ''}`}
             onClick={handle}
           >
-            {t.fn && <Pip fn={t.fn} />}{t.label}
+            {t.label}
           </button>
         );
       })}
