@@ -91,6 +91,14 @@ export default function ClientPRPage() {
   const [coverageSort, setCoverageSort] = useState('date_desc');
   const [coverageQuery, setCoverageQuery] = useState('');
   const [checkingLinks, setCheckingLinks] = useState(false);
+  const [importOpen, setImportOpen] = useState(false); // Import ▾ dropdown
+  const importMenuRef = useRef(null);
+  useEffect(() => {
+    if (!importOpen) return;
+    const away = (e) => { if (importMenuRef.current && !importMenuRef.current.contains(e.target)) setImportOpen(false); };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [importOpen]);
   const [showReports, setShowReports] = useState(false);
   const [reports, setReports] = useState({ alert_email: '', report_cadence: 'off' });
   const [savingReports, setSavingReports] = useState(false);
@@ -508,25 +516,53 @@ export default function ClientPRPage() {
 
       {!loading && tab === 'coverage' && (
         <div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
-            <button className="btn btn-primary" onClick={() => startEdit(null)}>+ Add entry</button>
-            <button className="btn btn-secondary" onClick={() => setUrlModal(true)} title="Paste a coverage URL — AI pulls the publication, journalist, headline and date, then asks to merge with a pending pitch or log as new">🔗 From a link</button>
-            <input ref={fileRef} type="file" accept=".csv" onChange={(e) => doImport(e, false)} style={{ display: 'none' }} />
-            <button className="btn btn-secondary" disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}>{importing ? 'Importing…' : '↑ Import (this client)'}</button>
-            <input ref={combinedRef} type="file" accept=".csv" onChange={(e) => doImport(e, true)} style={{ display: 'none' }} />
-            <button className="btn btn-secondary" disabled={importing} onClick={() => combinedRef.current && combinedRef.current.click()} title="Routes each row to the matching client by the CSV's Client column">↑ Import combined (all clients)</button>
-            <button className="btn btn-secondary" onClick={copyPortalLink} title="Copy the read-only public coverage URL for sharing with the client">🔗 Copy client coverage link</button>
-            <button className="btn btn-secondary" disabled={checkingLinks} onClick={checkLinks} title="HEAD every story URL — flags 404s and DNS failures so you can hunt for the new link">{checkingLinks ? 'Checking…' : '🔍 Check links'}</button>
+          {/* One primary action, one secondary; the CSV imports fold into a
+              single menu and the utilities become quiet links, so the row
+              reads as a clear hierarchy rather than six equal pills. */}
+          <input ref={fileRef} type="file" accept=".csv" onChange={(e) => doImport(e, false)} style={{ display: 'none' }} />
+          <input ref={combinedRef} type="file" accept=".csv" onChange={(e) => doImport(e, true)} style={{ display: 'none' }} />
+          <div className="row between center wrap" style={{ gap: 12, marginBottom: 'var(--s4)' }}>
+            <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
+              <button className="btn btn-primary" onClick={() => startEdit(null)}>+ Add entry</button>
+              <button className="btn btn-secondary" onClick={() => setUrlModal(true)} title="Paste a coverage URL — AI pulls the publication, journalist, headline and date, then asks to merge with a pending pitch or log as new">🔗 From a link</button>
+              <div className="menu-anchor" ref={importMenuRef}>
+                <button className="btn btn-secondary" disabled={importing} aria-haspopup="menu" aria-expanded={importOpen}
+                  onClick={() => setImportOpen(o => !o)}>{importing ? 'Importing…' : '↑ Import ▾'}</button>
+                {importOpen && (
+                  <div className="menu-panel" role="menu">
+                    <button role="menuitem" className="menu-item" disabled={importing}
+                      onClick={() => { setImportOpen(false); fileRef.current && fileRef.current.click(); }}>
+                      This client
+                      <span className="menu-item-sub">Import a CSV editorial log for {client?.name || 'this client'}</span>
+                    </button>
+                    <button role="menuitem" className="menu-item" disabled={importing}
+                      onClick={() => { setImportOpen(false); combinedRef.current && combinedRef.current.click(); }}>
+                      Combined — all clients
+                      <span className="menu-item-sub">Routes each row to the matching client by the CSV's Client column</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="row" style={{ gap: 16, alignItems: 'center' }}>
+              <button className="btn-link" onClick={copyPortalLink} title="Copy the read-only public coverage URL for sharing with the client">🔗 Copy coverage link</button>
+              <button className="btn-link" disabled={checkingLinks} onClick={checkLinks} title="HEAD every story URL — flags 404s and DNS failures so you can hunt for the new link">{checkingLinks ? 'Checking…' : '🔍 Check links'}</button>
+            </div>
           </div>
 
-          <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
             <span className="caption" style={{ marginRight: 4 }}>Status</span>
-            {[['all', 'All'], ...STATUSES].map(([v, l]) => (
-              <button key={v} type="button" onClick={() => setCoverageFilter(v)}
-                className={`btn btn-sm ${coverageFilter === v ? 'btn-primary' : 'btn-secondary'}`}>
-                {l}{v !== 'all' ? ` (${log.filter(r => r.status === v).length})` : ''}
-              </button>
-            ))}
+            <div className="filter-bar">
+              {[['all', 'All'], ...STATUSES].map(([v, l]) => {
+                const count = v === 'all' ? log.length : log.filter(r => r.status === v).length;
+                return (
+                  <button key={v} type="button" onClick={() => setCoverageFilter(v)}
+                    className={`filter-tab ${coverageFilter === v ? 'active' : ''}`}>
+                    {l}<span className="tab-count">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
             <div style={{ flex: 1 }} />
             <input
               className="input"
