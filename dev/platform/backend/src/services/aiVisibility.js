@@ -301,6 +301,59 @@ Return ONE prompt per line, plain text, no numbering, no quotes, no commentary.`
   return prompts.slice(0, 20);
 }
 
+// Keyword → fan-out prompts. Google's AI features answer one query by silently
+// generating a set of concurrent, related queries ("fan-out") and synthesising
+// across all of them. This takes a seed keyword and expands it into the buyer
+// questions a prospect would actually ask an AI assistant across the fan-out
+// sub-intents — so the visibility set covers the whole topic, not one phrasing.
+async function fanoutPrompts(clientId, { keyword } = {}) {
+  const seed = String(keyword || '').trim();
+  if (!seed) throw new Error('keyword required');
+  const { rows } = await pool.query(
+    `SELECT name, domain, briefing_field, social_competitors FROM clients WHERE id = $1`,
+    [clientId]
+  );
+  if (!rows.length) throw new Error('Client not found');
+  const c = rows[0];
+  const competitors = (c.social_competitors || [])
+    .map(s => String(s).replace(/^(instagram|tiktok)\s*:\s*/i, '').replace(/^@/, ''))
+    .filter(Boolean).join(', ') || '(none configured)';
+
+  const r = await claude().messages.create({
+    model: MODEL,
+    max_tokens: 1600,
+    system: 'You model Google\'s AI query fan-out for answer-engine visibility tracking. Given a seed keyword, you output the concurrent, related questions a real buyer would ask an AI assistant (ChatGPT / Claude / Gemini / Perplexity) around that topic — the questions where this brand should be a top answer. British English. One question per line, no numbering, no quotes, no commentary.',
+    messages: [{
+      role: 'user',
+      content: `Seed keyword: "${seed}"
+
+Brand: ${c.name}
+Website: ${c.domain || '(none)'}
+Brief: ${c.briefing_field || '(no brief)'}
+Known competitors: ${competitors}
+
+Fan the seed keyword out into 10–12 buyer questions that together cover the sub-intents Google's AI fans out to. Include at least one of each where it makes sense for this topic:
+- definition ("what is …")
+- how-to ("how do I …")
+- comparison ("[brand/category] vs …", "alternatives to …")
+- buying / recommendation ("best … for …", "top … in …")
+- pricing / cost ("how much does … cost")
+- prevention / troubleshooting
+- examples / use cases
+- reviews / is-it-worth-it
+
+Keep each a natural question a person would type or say to an AI assistant, grounded in the seed keyword's topic. Return ONE question per line, plain text.`,
+    }],
+  });
+  require('./costLog').recordClaudeCost({ model: MODEL, response: r, feature: 'ai_visibility_keyword_fanout', clientId: c?.id || null });
+  const text = (r.content.find(b => b.type === 'text')?.text || '');
+  return text.split(/\n+/)
+    .map(s => s.trim().replace(/^[-*\d.\s]+/, '').replace(/^["']|["']$/g, '').trim())
+    .filter(s => s.length > 8 && s.length < 240)
+    .filter(s => !s.startsWith('#'))
+    .slice(0, 12);
+}
+
 // ─── Summary ─────────────────────────────────────────────────────
 
 // Aggregate the most recent runs per (engine, prompt) to compute share
@@ -477,6 +530,6 @@ async function sources(clientId, { days = 90 } = {}) {
 module.exports = {
   runPromptForClient, runAllForClient, runAllClients,
   startRunInBackground, isRunning, getProgress,
-  generatePromptsForClient, summarise, getTrend, reportData, sources,
+  generatePromptsForClient, fanoutPrompts, summarise, getTrend, reportData, sources,
   analyseMentions, SUPPORTED_ENGINES,
 };

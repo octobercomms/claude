@@ -94,6 +94,20 @@ router.post('/clients/:clientId/prompts/generate', async (req, res) => {
   }
 });
 
+// Keyword → fan-out prompts. Seed a keyword, get back the buyer questions the
+// topic fans out to across sub-intents. AM reviews, then bulk-creates.
+router.post('/clients/:clientId/prompts/fanout', async (req, res) => {
+  const { keyword } = req.body || {};
+  if (!keyword || !String(keyword).trim()) return res.status(400).json({ error: 'keyword required' });
+  try {
+    const prompts = await aiVisibility.fanoutPrompts(req.params.clientId, { keyword });
+    res.json({ prompts });
+  } catch (err) {
+    console.error('[aeo] fanout failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // Bulk-create prompts. Used after the generate step.
 router.post('/clients/:clientId/prompts/bulk', async (req, res) => {
   const { prompts } = req.body || {};

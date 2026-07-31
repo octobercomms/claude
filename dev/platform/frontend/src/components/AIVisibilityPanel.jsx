@@ -37,6 +37,8 @@ export default function AIVisibilityPanel({ clientId }) {
   const [generating, setGenerating] = useState(false);
   const [suggested, setSuggested] = useState(null);
   const [newPrompt, setNewPrompt] = useState('');
+  const [fanoutKw, setFanoutKw] = useState('');
+  const [fanningOut, setFanningOut] = useState(false);
   const [runProgress, setRunProgress] = useState(null); // { done, total } while a background run is in flight
 
   async function loadAll() {
@@ -98,6 +100,19 @@ export default function AIVisibilityPanel({ clientId }) {
       setSuggested(r.prompts || []);
     } catch (e) { toast(`Generate failed: ${e.message}`, 'error'); }
     finally { setGenerating(false); }
+  }
+
+  async function fanoutKeyword() {
+    const kw = fanoutKw.trim();
+    if (!kw) { toast('Enter a keyword to fan out.', 'error'); return; }
+    setFanningOut(true);
+    try {
+      const r = await api.post(`/ai-visibility/clients/${clientId}/prompts/fanout`, { keyword: kw });
+      if (!r.prompts?.length) { toast('No questions came back — try a broader keyword.', 'info'); return; }
+      setSuggested(r.prompts);
+      setFanoutKw('');
+    } catch (e) { toast(`Fan-out failed: ${e.message}`, 'error'); }
+    finally { setFanningOut(false); }
   }
 
   async function saveSuggested(selected) {
@@ -201,6 +216,24 @@ export default function AIVisibilityPanel({ clientId }) {
             title="Download a branded PDF of AI visibility to send to the client">⬇ Export PDF</a>
         )}
       </div>
+
+      {!readOnly && (
+        <div className="row wrap mb-6" style={{ gap: 8, alignItems: 'center' }}>
+          <input
+            className="input"
+            style={{ maxWidth: 280 }}
+            placeholder="Fan out a keyword into buyer questions…"
+            value={fanoutKw}
+            onChange={e => setFanoutKw(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') fanoutKeyword(); }}
+            disabled={fanningOut}
+          />
+          <Button variant="secondary" onClick={fanoutKeyword} disabled={fanningOut || !fanoutKw.trim()}>
+            {fanningOut ? 'Fanning out…' : '🌱 Fan out keyword'}
+          </Button>
+          <span className="body-xs text-subtle">Turns one keyword into the questions AI fans out to — track them all.</span>
+        </div>
+      )}
 
       {/* How to actually move these numbers — the panel measures, this tells
           the AM what to do about it. Grounded in answer-engine best practice. */}
