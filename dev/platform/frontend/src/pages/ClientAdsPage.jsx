@@ -74,16 +74,10 @@ export default function ClientAdsPage() {
   });
   const openHealth = (idv) => setHealthOpen(prev => new Set(prev).add(idv));
   const goHealth = (section) => { if (section) openHealth(section); setTab(section === 'measure' ? 'performance' : section === 'briefing' ? 'strategist' : section === 'competitors' ? 'competitor_ads' : 'playbook'); };
-  // Build tools accordion (Audiences · Resize), shown beneath the pipeline.
-  const [toolsOpen, setToolsOpen] = useState(() => new Set());
-  const toggleTools = (idv) => setToolsOpen(prev => {
-    const next = new Set(prev); next.has(idv) ? next.delete(idv) : next.add(idv); return next;
-  });
-  // A deep link or nav to an absorbed tab opens its accordion section.
+  // A deep link or nav to an absorbed Health tab opens its accordion section.
   useEffect(() => {
     const hs = { performance: 'measure', strategist: 'briefing', competitor_ads: 'competitors', playbook: 'playbook' };
     if (hs[tab]) openHealth(hs[tab]);
-    if (BUILD_TOOLS.includes(tab)) setToolsOpen(prev => new Set(prev).add(tab));
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect legacy 'creative' / 'pipeline' top-level URLs to the first step.
@@ -507,17 +501,22 @@ export default function ClientAdsPage() {
       )}
 
       {isPipelineGroup && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />}
-      {/* Build tools — Audiences + Resize live inside Build (per the brief's
-          confirmed decision: Audiences is a tool in Build, not its own job). */}
+      {/* Build tools — Audiences + Resize as quiet links, not steps or an
+          accordion (design direction: tools are links). The selected tool
+          renders below in place of the pipeline panel. */}
       {currentGroup === 'build' && (
-        <Accordion open={toolsOpen} onToggle={toggleTools}>
-          <AccordionItem id="audiences" title="Audiences" subtitle="Build a target list from your customers">
-            {() => <div className="stack stack-lg"><ICPIntelligencePanel clientId={id} /><AudiencesPanel clientId={id} /></div>}
-          </AccordionItem>
-          <AccordionItem id="resize" title="Resize" subtitle="Re-cut creative to every placement">
-            {() => <AdResizePanel clientId={id} clientName={client?.name || ''} />}
-          </AccordionItem>
-        </Accordion>
+        <>
+          <div className="row wrap" style={{ gap: 16, alignItems: 'center', marginTop: 'var(--s5)', paddingTop: 'var(--s4)', borderTop: '1px solid var(--card-border)' }}>
+            <span className="caption" style={{ marginRight: 4 }}>Tools</span>
+            <button type="button" className="btn-link" aria-pressed={tab === 'audiences'} onClick={() => setTab('audiences')}>Audiences</button>
+            <button type="button" className="btn-link" aria-pressed={tab === 'resize'} onClick={() => setTab('resize')}>Resize</button>
+            {(tab === 'audiences' || tab === 'resize') && (
+              <button type="button" className="btn-link" onClick={() => setTab('brief')}>← Back to pipeline</button>
+            )}
+          </div>
+          {tab === 'audiences' && <div className="stack stack-lg" style={{ marginTop: 'var(--s4)' }}><ICPIntelligencePanel clientId={id} /><AudiencesPanel clientId={id} /></div>}
+          {tab === 'resize' && <div style={{ marginTop: 'var(--s4)' }}><AdResizePanel clientId={id} clientName={client?.name || ''} /></div>}
+        </>
       )}
     </div>
   );
