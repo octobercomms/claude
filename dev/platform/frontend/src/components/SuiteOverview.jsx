@@ -32,6 +32,7 @@ export default function SuiteOverview({
   primary = null,    // { fn, kicker, title, description, ctaLabel, onCta }
   readouts = null,   // [{ fn, name, value, sub }] — consult-first, never button-shaped
   tools = null,      // [{ fn, label, onClick, sub }] — fix-it tools as quiet links
+  toolsLabel = 'Fix-it tools', // heading for the tools row
   otherJobs = null,  // { label, items: [{ fn, label, onClick }] } — the calm row
 }) {
   if (primary) {
@@ -42,6 +43,7 @@ export default function SuiteOverview({
         primary={primary}
         readouts={readouts || []}
         tools={tools || []}
+        toolsLabel={toolsLabel}
         otherJobs={otherJobs}
         actions={actions}
       />
@@ -90,7 +92,7 @@ export default function SuiteOverview({
 // Action-grammar layout (redesign brief, Part 2). One primary path, framed
 // by intelligence: read-outs you consult first sit above the hero; fix-it
 // tools and other jobs sit below as quiet links. Exactly one .btn-primary.
-function GrammarOverview({ tagline, description, primary, readouts, tools, otherJobs, actions }) {
+function GrammarOverview({ tagline, description, primary, readouts, tools, toolsLabel = 'Fix-it tools', otherJobs, actions }) {
   return (
     <div className="stack stack-lg">
       {(tagline || description) && (
@@ -131,7 +133,7 @@ function GrammarOverview({ tagline, description, primary, readouts, tools, other
       {/* Secondary tools — quiet links, visibly quieter than the primary. */}
       {tools.length > 0 && (
         <div className="oview-section">
-          <div className="oview-grplabel">Fix-it tools</div>
+          <div className="oview-grplabel">{toolsLabel}</div>
           <div className="oview-tools">
             {tools.map((t, i) => (
               <button type="button" className="btn-link" key={i} onClick={t.onClick} title={t.sub || undefined}>
