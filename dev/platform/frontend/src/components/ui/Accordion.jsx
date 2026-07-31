@@ -13,6 +13,7 @@
 // new colour, two-tone + accent-as-action preserved.
 
 import React, { createContext, useContext, useRef } from 'react';
+import Pip from './Pip';
 
 const AccordionCtx = createContext(null);
 
@@ -45,7 +46,7 @@ export function Accordion({ open, onToggle, children }) {
   );
 }
 
-export function AccordionItem({ id, title, subtitle, badge, children }) {
+export function AccordionItem({ id, title, subtitle, badge, fn, children }) {
   const ctx = useContext(AccordionCtx);
   if (!ctx) throw new Error('AccordionItem must be used inside an Accordion');
   const isOpen = ctx.open.has(id);
@@ -64,6 +65,7 @@ export function AccordionItem({ id, title, subtitle, badge, children }) {
           onKeyDown={(e) => ctx.onHeaderKeyDown(e, id)}
         >
           <span className="accordion-caret" aria-hidden="true">▸</span>
+          {fn && <Pip fn={fn} />}
           <span className="accordion-title">{title}</span>
           {subtitle && <span className="accordion-sub">{subtitle}</span>}
           {badge != null && <span className="accordion-badge">{badge}</span>}

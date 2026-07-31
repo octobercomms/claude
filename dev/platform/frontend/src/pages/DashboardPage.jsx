@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import ClientHomeDashboard from '../components/ClientHomeDashboard';
+import Pip from '../components/ui/Pip';
 
 export default function DashboardPage() {
   const { readOnly } = useAuth();
@@ -101,6 +102,7 @@ export default function DashboardPage() {
 
       {recent_reports.length > 0 && (
         <div style={{ marginTop: 'var(--s8)' }}>
+          <div className="mb-1"><Pip fn="distribute" label /></div>
           <h2 className="h2 mb-4">Recent Reports</h2>
           {/* Reports styling left untouched — uses the existing card/table/chip classes. */}
           <div className="card" style={{ padding: 0 }}>
@@ -149,6 +151,7 @@ function PrBacklinkLeaderboard() {
   if (!rows || !rows.some(r => Number(r.new_rds) > 0)) return null;
   return (
     <div style={{ marginTop: 'var(--s8)' }}>
+      <div className="mb-1"><Pip fn="measure" label="Measure" /></div>
       <h2 className="h2 mb-4">PR → backlinks leaderboard</h2>
       <div className="card" style={{ padding: 0 }}>
         <table className="table">
@@ -181,6 +184,7 @@ function StrategyOverview() {
   if (!rows || !rows.length) return null;
   return (
     <div style={{ marginTop: 'var(--s8)' }}>
+      <div className="mb-1"><Pip fn="strategy" label /></div>
       <h2 className="h2 mb-4">Client strategies</h2>
       <div className="card" style={{ padding: 0 }}>
         <table className="table">
@@ -209,10 +213,10 @@ function StrategyOverview() {
 }
 
 // KPI block. `feature` inverts it (ink bg, accent number) to anchor the row.
-function Stat({ label, value, sub, subTone, feature = false }) {
+function Stat({ label, value, sub, subTone, feature = false, fn }) {
   return (
     <div className={`border rounded-md p-s5 flex flex-col gap-s3 min-h-[140px] ${feature ? 'bg-ink border-ink' : 'bg-surface border-cardborder'}`}>
-      <div className={`text-[11px] font-bold tracking-[0.12em] uppercase ${feature ? 'text-white/60' : 'text-muted'}`}>{label}</div>
+      <div className={`text-[11px] font-bold tracking-[0.12em] uppercase ${feature ? 'text-white/60' : 'text-muted'}`}>{fn && <Pip fn={fn} />}{label}</div>
       <div className={`text-[46px] font-extrabold leading-[0.9] tracking-[-2px] mt-auto ${feature ? 'text-accent' : 'text-ink'}`}>{value}</div>
       <div className={`text-[12px] flex items-center gap-1.5 ${feature ? 'text-white/60' : subTone === 'warn' ? 'text-warning font-semibold' : 'text-subtle'}`}>{sub}</div>
     </div>
