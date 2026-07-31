@@ -652,11 +652,13 @@
 		var scroller = el('div', { class: 'ocf-chat-scroll' }, [msgList]);
 		var input    = el('textarea', { class: 'ocf-chat-input', rows: 1, placeholder: 'Type your message…', 'aria-label': 'Message' });
 		var sendBtn  = el('button', { type: 'button', class: 'ocf-btn ocf-btn-primary ocf-chat-send' }, ['Send']);
+		var tray     = el('div', { class: 'ocf-chat-tray' });
 		var composer = el('div', { class: 'ocf-chat-composer' }, [input, sendBtn]);
+		var footer   = el('div', { class: 'ocf-chat-footer' }, [tray, composer]);
 
 		card.appendChild(header);
 		card.appendChild(scroller);
-		card.appendChild(composer);
+		card.appendChild(footer);
 		root.appendChild(card);
 
 		function scrollDown() {
@@ -688,7 +690,7 @@
 
 		function renderEnding(ending) {
 			done = true;
-			composer.style.display = 'none';
+			footer.style.display = 'none';
 			ending = ending || {};
 			if (ending.redirect_url) { window.location.href = ending.redirect_url; return; }
 			if (ending.heading || ending.body) {
@@ -701,49 +703,47 @@
 			}
 		}
 
-		var optionsEl = null;
-		function clearOptions() { if (optionsEl) { optionsEl.remove(); optionsEl = null; } }
+		// Current pick-list state. For multi-select the chosen values are
+		// submitted together via Send; single-select sends on click.
+		var selection = null; // { multi: bool, values: [] }
+		function clearOptions() { tray.innerHTML = ''; tray.classList.remove('is-active'); selection = null; }
 
-		// Render the current question's options as clickable cards / chips.
+		// Render the current question's options as compact chips docked just
+		// above the input, so picking and typing feel like one control.
 		function renderOptions(node) {
 			clearOptions();
 			if (!node || !node.options || !node.options.length) return;
 			var multi = !!node.multiple;
 			var isCards = node.type === 'image_cards' || node.type === 'image_cards_multi';
-			var wrap = el('div', { class: 'ocf-chat-options' + (isCards ? ' ocf-chat-options-cards' : '') });
-			var selected = [];
+			selection = { multi: multi, values: [] };
+
+			if (multi) {
+				tray.appendChild(el('div', { class: 'ocf-chat-tray-hint' }, ['Pick any that apply, then press Send — or just type your answer.']));
+			}
+			var row = el('div', { class: 'ocf-chat-chips' + (multi ? ' is-multi' : '') });
 			node.options.forEach(function (opt) {
-				var btn;
+				var kids = [];
 				if (isCards && opt.image) {
-					btn = el('button', { type: 'button', class: 'ocf-chat-optcard' }, [
-						el('span', { class: 'ocf-chat-optcard-img', style: { backgroundImage: 'url("' + String(opt.image).replace(/["\\]/g, '') + '")' } }),
-						el('span', { class: 'ocf-chat-optcard-label' }, [opt.label])
-					]);
-				} else {
-					btn = el('button', { type: 'button', class: 'ocf-chat-chip' }, [opt.label]);
+					kids.push(el('span', { class: 'ocf-chat-opt-thumb', style: { backgroundImage: 'url("' + String(opt.image).replace(/["\\]/g, '') + '")' } }));
 				}
+				kids.push(el('span', { class: 'ocf-chat-opt-label' }, [opt.label]));
+				kids.push(el('span', { class: 'ocf-chat-opt-tick', 'aria-hidden': 'true' }));
+				var btn = el('button', { type: 'button', class: 'ocf-chat-opt' + (isCards && opt.image ? ' has-img' : '') }, kids);
 				btn.addEventListener('click', function () {
 					if (busy || done) return;
 					if (multi) {
-						var i = selected.indexOf(opt.label);
-						if (i > -1) { selected.splice(i, 1); btn.classList.remove('is-selected'); }
-						else { selected.push(opt.label); btn.classList.add('is-selected'); }
+						var i = selection.values.indexOf(opt.label);
+						if (i > -1) { selection.values.splice(i, 1); btn.classList.remove('is-selected'); }
+						else { selection.values.push(opt.label); btn.classList.add('is-selected'); }
+						sendBtn.disabled = false;
 					} else {
 						sendText(opt.label);
 					}
 				});
-				wrap.appendChild(btn);
+				row.appendChild(btn);
 			});
-			if (multi) {
-				var cont = el('button', { type: 'button', class: 'ocf-btn ocf-btn-primary ocf-chat-continue' }, ['Continue']);
-				cont.addEventListener('click', function () {
-					if (!selected.length || busy || done) return;
-					sendText(selected.join(', '));
-				});
-				wrap.appendChild(cont);
-			}
-			optionsEl = wrap;
-			msgList.appendChild(wrap);
+			tray.appendChild(row);
+			tray.classList.add('is-active');
 			scrollDown();
 		}
 
@@ -775,7 +775,13 @@
 					setBusy(false);
 				});
 		}
-		function send() { sendText(input.value); }
+
+		// Send submits typed text, or the current multi-selection when the box is empty.
+		function send() {
+			var text = input.value.trim();
+			if (text) { sendText(text); return; }
+			if (selection && selection.multi && selection.values.length) { sendText(selection.values.join(', ')); }
+		}
 
 		function autosize() {
 			input.style.height = 'auto';

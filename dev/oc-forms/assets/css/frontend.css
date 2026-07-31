@@ -256,3 +256,31 @@
 	.ocf-chat .ocf-chat-options-cards { margin-left: 0; }
 	.ocf-chat .ocf-chat-options-cards { grid-template-columns: 1fr; }
 }
+
+/* ---- v1.2.3: options docked above the input (Archie-style), compact chips ---- */
+.ocf-chat-footer { border-top: 1px solid var(--ocf-border); background: var(--ocf-background); }
+.ocf-chat-footer .ocf-chat-composer { border-top: none; }
+.ocf-chat-tray,
+.ocf-chat-footer .ocf-chat-composer { max-width: 880px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+.ocf-chat-tray:not(.is-active) { display: none; }
+.ocf-chat-tray { padding: 12px clamp(16px, 4vw, 40px) 0; }
+.ocf-chat-tray-hint { font-size: 12.5px; color: var(--ocf-muted); margin: 0 0 8px; }
+
+.ocf-chat-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ocf-chat-opt {
+	display: inline-flex; align-items: center; gap: 8px;
+	padding: 7px 14px; border: 1px solid var(--ocf-border); background: #fff;
+	border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px;
+	color: var(--ocf-primary); line-height: 1.2;
+	transition: border-color .12s ease, background .12s ease;
+}
+.ocf-chat-opt.has-img { padding: 5px 14px 5px 5px; }
+.ocf-chat-opt:hover { border-color: var(--ocf-primary); }
+.ocf-chat-opt-thumb { width: 40px; height: 30px; border-radius: 6px; background-size: cover; background-position: center; background-color: var(--ocf-surface); flex: 0 0 auto; }
+.ocf-chat-opt-label { white-space: nowrap; }
+
+.ocf-chat-opt-tick { width: 16px; height: 16px; border-radius: 999px; border: 1.5px solid var(--ocf-border); flex: 0 0 auto; position: relative; }
+.ocf-chat-chips:not(.is-multi) .ocf-chat-opt-tick { display: none; }
+.ocf-chat-opt.is-selected { border-color: var(--ocf-primary); background: #f4f4f5; background: color-mix(in srgb, var(--ocf-primary) 8%, #fff); }
+.ocf-chat-opt.is-selected .ocf-chat-opt-tick { background: var(--ocf-primary); border-color: var(--ocf-primary); }
+.ocf-chat-opt.is-selected .ocf-chat-opt-tick::after { content: ""; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
