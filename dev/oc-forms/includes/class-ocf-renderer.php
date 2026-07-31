@@ -61,9 +61,14 @@ class OCF_Renderer {
 			'turnstileKey' => ( ! empty( $schema['spam']['turnstile'] ) && OCF_Spam::turnstile_enabled() ) ? OCF_Spam::turnstile_site_key() : '',
 		);
 
+		$root_class = 'ocf-form-root';
+		if ( ( $schema['mode'] ?? 'standard' ) === 'ai' ) {
+			$root_class .= ' ocf-ai';
+		}
+
 		ob_start();
 		?>
-		<div class="ocf-form-root"
+		<div class="<?php echo esc_attr( $root_class ); ?>"
 			 id="ocf-<?php echo (int) $form_id; ?>"
 			 data-ocf-config="<?php echo esc_attr( wp_json_encode( $config ) ); ?>"
 			 style="<?php echo esc_attr( self::theme_vars( $schema['theme'] ) ); ?>">

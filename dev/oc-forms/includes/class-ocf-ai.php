@@ -68,10 +68,6 @@ class OCF_AI {
 				if ( empty( $q['type'] ) || ! OCF_Schema::type_is_storable( $q['type'] ) ) {
 					continue;
 				}
-				// Files can't be captured in a chat — skip them.
-				if ( $q['type'] === 'file_upload' ) {
-					continue;
-				}
 				$out[] = $q;
 			}
 		}
@@ -123,7 +119,11 @@ class OCF_AI {
 		$have = false;
 		foreach ( $questions as $q ) {
 			if ( isset( $collected[ $q['id'] ] ) && $collected[ $q['id'] ] !== '' && $collected[ $q['id'] ] !== array() ) {
-				$val     = is_array( $collected[ $q['id'] ] ) ? implode( ', ', $collected[ $q['id'] ] ) : $collected[ $q['id'] ];
+				if ( $q['type'] === 'file_upload' ) {
+					$val = 'file(s) uploaded';
+				} else {
+					$val = is_array( $collected[ $q['id'] ] ) ? implode( ', ', $collected[ $q['id'] ] ) : $collected[ $q['id'] ];
+				}
 				$lines[] = "- {$q['id']}: {$val}";
 				$have    = true;
 			}
@@ -135,6 +135,7 @@ class OCF_AI {
 
 		$lines[] = 'HOW TO BEHAVE:';
 		$lines[] = '- Ask about one thing at a time; keep replies short and conversational. Do not dump the whole list on the visitor.';
+		$lines[] = '- For file_upload questions the visitor gets an "Attach file" button (they may also paste a link or say they have none). Ask for the file naturally, set "field_id" to that question when you ask it, and never put a file value in "captured" — once they have uploaded something or declined, treat it as answered and move on. File uploads are optional; do not insist.';
 		$lines[] = '- Set "field_id" to the id of the question you are asking THIS turn whenever it is one of the listed questions. The interface shows that question\'s allowed options to the visitor as clickable buttons, so DO NOT list the options as text in your message — just ask the question naturally (e.g. "What kind of project are you planning?"). Set "field_id" to an empty string when you are not asking a listed question.';
 		$lines[] = '- Adapt to what the visitor says. If they volunteer several answers at once, capture them all. If they go off-topic or ask a question, respond helpfully, then gently steer back.';
 		$lines[] = '- Only report a value in "captured" once the visitor has actually given it. Never invent, assume, or guess values. For choice-type questions, map the visitor\'s wording to one of the allowed values.';
@@ -348,6 +349,27 @@ class OCF_AI {
 
 	private static function fail( $message ) {
 		return array( 'ok' => false, 'message' => $message, 'field_id' => '', 'captured' => array(), 'complete' => false, 'error' => $message );
+	}
+
+	/**
+	 * Upload descriptor for a file-type question, so the front-end can show an
+	 * Attach control. Returns null when the field isn't a file upload.
+	 */
+	public static function upload_field( $schema, $field_id ) {
+		$field_id = OCF_Schema::clean_id( $field_id );
+		if ( $field_id === '' ) {
+			return null;
+		}
+		$q = OCF_Schema::find_question( $schema, $field_id );
+		if ( ! $q || ( $q['type'] ?? '' ) !== 'file_upload' ) {
+			return null;
+		}
+		return array(
+			'field_id'    => $field_id,
+			'accept'      => (string) ( $q['accept'] ?? '' ),
+			'multiple'    => ! empty( $q['multiple'] ),
+			'max_size_mb' => ! empty( $q['max_size_mb'] ) ? (int) $q['max_size_mb'] : 20,
+		);
 	}
 
 	/**

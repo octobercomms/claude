@@ -98,6 +98,20 @@
 
 	function uid(prefix) { return (prefix || 'id_') + Math.random().toString(36).slice(2, 10); }
 
+	// Deep-clone a question / step with fresh ids so the copy is independent.
+	function cloneQuestion(q) {
+		var copy = JSON.parse(JSON.stringify(q));
+		copy.id = uid('q_');
+		return copy;
+	}
+	function cloneStep(step) {
+		var copy = JSON.parse(JSON.stringify(step));
+		copy.id = uid('s_');
+		copy.title = (copy.title || 'Step') + ' (copy)';
+		(copy.questions || []).forEach(function (q) { q.id = uid('q_'); });
+		return copy;
+	}
+
 	function syncHiddenInput() {
 		var input = document.getElementById('ocf_schema_json');
 		if (input) input.value = JSON.stringify(schema);
@@ -151,6 +165,14 @@
 				el('span', { class: 'ocf-b-step-actions' }, [
 					i > 0 ? el('button', { type: 'button', title: 'Move up', onClick: function (e) { e.stopPropagation(); move(schema.steps, i, i - 1); if (state.selectedStep === i) state.selectedStep -= 1; render(); } }, ['↑']) : null,
 					i < schema.steps.length - 1 ? el('button', { type: 'button', title: 'Move down', onClick: function (e) { e.stopPropagation(); move(schema.steps, i, i + 1); if (state.selectedStep === i) state.selectedStep += 1; render(); } }, ['↓']) : null,
+					el('button', { type: 'button', title: 'Duplicate step', onClick: function (e) {
+						e.stopPropagation();
+						schema.steps.splice(i + 1, 0, cloneStep(schema.steps[i]));
+						state.selectedStep = i + 1;
+						state.selectedQuestion = null;
+						syncHiddenInput();
+						render();
+					} }, ['⧉']),
 					el('button', { type: 'button', title: 'Delete', class: 'ocf-b-del', onClick: function (e) {
 						e.stopPropagation();
 						if (!confirm('Delete this step and its questions?')) return;
@@ -232,6 +254,13 @@
 				el('div', { class: 'ocf-b-q-card-actions' }, [
 					i > 0 ? el('button', { type: 'button', onClick: function (e) { e.stopPropagation(); move(step.questions, i, i - 1); if (state.selectedQuestion === i) state.selectedQuestion -= 1; render(); } }, ['↑']) : null,
 					i < step.questions.length - 1 ? el('button', { type: 'button', onClick: function (e) { e.stopPropagation(); move(step.questions, i, i + 1); if (state.selectedQuestion === i) state.selectedQuestion += 1; render(); } }, ['↓']) : null,
+					el('button', { type: 'button', title: 'Duplicate question', onClick: function (e) {
+						e.stopPropagation();
+						step.questions.splice(i + 1, 0, cloneQuestion(step.questions[i]));
+						state.selectedQuestion = i + 1;
+						syncHiddenInput();
+						render();
+					} }, ['⧉']),
 					el('button', { type: 'button', class: 'ocf-b-del', onClick: function (e) {
 						e.stopPropagation();
 						if (!confirm('Delete this question?')) return;

@@ -228,3 +228,79 @@
 .ocf-chat-optcard-label { padding: 10px 12px; font-size: 14px; font-weight: 500; }
 .ocf-chat-continue { flex: 0 0 100%; margin-top: 2px; }
 @media (max-width: 520px) { .ocf-chat-options-cards { grid-template-columns: 1fr; } }
+
+/* ---- v1.2.2: full-width AI chat + roomier, Archie-style layout ---- */
+/* Fill the container the shortcode/block is placed in (standard forms keep their 800px cap). */
+.ocf-form-root.ocf-ai { max-width: 100%; }
+
+/* Taller, full-width chat surface. */
+.ocf-form-root.ocf-ai .ocf-card.ocf-chat { height: min(80vh, 860px); }
+
+/* Keep the conversation in a comfortable, centred reading column inside the full-width card. */
+.ocf-chat .ocf-chat-messages { max-width: 880px; margin: 0 auto; width: 100%; }
+.ocf-chat .ocf-chat-scroll   { padding: 24px clamp(16px, 4vw, 40px); }
+.ocf-chat .ocf-chat-header   { padding: 16px clamp(16px, 4vw, 40px); }
+.ocf-chat .ocf-chat-composer { padding: 16px clamp(16px, 4vw, 40px); }
+
+/* Cap bubble width so lines stay readable on wide screens. */
+.ocf-chat .ocf-chat-bubble { max-width: 660px; font-size: 15.5px; }
+
+/* Option chips / image cards: sensible size, aligned under the message, not stretched. */
+.ocf-chat .ocf-chat-options { max-width: 560px; margin-left: 34px; }
+.ocf-chat .ocf-chat-options-cards { grid-template-columns: repeat(2, 1fr); max-width: 560px; margin-left: 34px; }
+.ocf-chat .ocf-chat-optcard-img { aspect-ratio: 4 / 3; }
+
+@media (max-width: 600px) {
+	.ocf-form-root.ocf-ai .ocf-card.ocf-chat { height: min(82vh, 720px); }
+	.ocf-chat .ocf-chat-options,
+	.ocf-chat .ocf-chat-options-cards { margin-left: 0; }
+	.ocf-chat .ocf-chat-options-cards { grid-template-columns: 1fr; }
+}
+
+/* ---- v1.2.3: options docked above the input (Archie-style), compact chips ---- */
+.ocf-chat-footer { border-top: 1px solid var(--ocf-border); background: var(--ocf-background); }
+.ocf-chat-footer .ocf-chat-composer { border-top: none; }
+.ocf-chat-tray,
+.ocf-chat-footer .ocf-chat-composer { max-width: 880px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+.ocf-chat-tray:not(.is-active) { display: none; }
+.ocf-chat-tray { padding: 12px clamp(16px, 4vw, 40px) 0; }
+.ocf-chat-tray-hint { font-size: 12.5px; color: var(--ocf-muted); margin: 0 0 8px; }
+
+.ocf-chat-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ocf-chat-opt {
+	display: inline-flex; align-items: center; gap: 8px;
+	padding: 7px 14px; border: 1px solid var(--ocf-border); background: #fff;
+	border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px;
+	color: var(--ocf-primary); line-height: 1.2;
+	transition: border-color .12s ease, background .12s ease;
+}
+.ocf-chat-opt.has-img { padding: 5px 14px 5px 5px; }
+.ocf-chat-opt:hover { border-color: var(--ocf-primary); }
+.ocf-chat-opt-thumb { width: 40px; height: 30px; border-radius: 6px; background-size: cover; background-position: center; background-color: var(--ocf-surface); flex: 0 0 auto; }
+.ocf-chat-opt-label { white-space: nowrap; }
+
+.ocf-chat-opt-tick { width: 16px; height: 16px; border-radius: 999px; border: 1.5px solid var(--ocf-border); flex: 0 0 auto; position: relative; }
+.ocf-chat-chips:not(.is-multi) .ocf-chat-opt-tick { display: none; }
+.ocf-chat-opt.is-selected { border-color: var(--ocf-primary); background: #f4f4f5; background: color-mix(in srgb, var(--ocf-primary) 8%, #fff); }
+.ocf-chat-opt.is-selected .ocf-chat-opt-tick { background: var(--ocf-primary); border-color: var(--ocf-primary); }
+.ocf-chat-opt.is-selected .ocf-chat-opt-tick::after { content: ""; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
+/* ---- v1.2.4: full-width chat contents + larger image chips shaped to the pill ---- */
+/* Contents span the full container width (no centred 880px column). */
+.ocf-chat .ocf-chat-messages { max-width: none; }
+.ocf-chat .ocf-chat-msg { max-width: 100%; }
+.ocf-chat .ocf-chat-bubble { max-width: none; }
+.ocf-chat-tray,
+.ocf-chat-footer .ocf-chat-composer { max-width: none; }
+
+/* Image chips: thumbnail ~2x, flush to the left and clipped to the pill's shape. */
+.ocf-chat-opt.has-img { padding: 0 18px 0 0; gap: 12px; overflow: hidden; }
+.ocf-chat-opt.has-img .ocf-chat-opt-thumb { width: 80px; height: 60px; border-radius: 0; }
+
+/* ---- v1.2.5: file upload in chat ---- */
+.ocf-chat-fileinput { display: none; }
+.ocf-chat-uploads { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.ocf-chat-upload-item { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ocf-muted); }
+.ocf-chat-upload-name { color: var(--ocf-primary); }
+.ocf-chat-upload-item.is-done .ocf-chat-upload-status { color: #16a34a; font-weight: 700; }
+.ocf-chat-upload-item.has-error .ocf-chat-upload-status { color: var(--ocf-error); }

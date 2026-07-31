@@ -95,6 +95,29 @@ class OCF_Activator {
 		if ( ! wp_next_scheduled( 'ocf_retry_events' ) ) {
 			wp_schedule_event( time() + 60, 'hourly', 'ocf_retry_events' );
 		}
+
+		// Activation runs on every "Replace current with uploaded" update, so
+		// clear stale compiled bytecode — some hosts run OPcache with timestamp
+		// validation off and would otherwise keep serving the previous version.
+		self::clear_opcache();
+	}
+
+	/**
+	 * Invalidate this plugin's files in PHP OPcache (and reset the whole cache
+	 * as a fallback), so updated code takes effect without a manual flush.
+	 */
+	public static function clear_opcache() {
+		if ( function_exists( 'opcache_invalidate' ) ) {
+			$dirs = array( OCF_PATH, OCF_PATH . 'includes/', OCF_PATH . 'admin/' );
+			foreach ( $dirs as $dir ) {
+				foreach ( (array) glob( $dir . '*.php' ) as $file ) {
+					@opcache_invalidate( $file, true );
+				}
+			}
+		}
+		if ( function_exists( 'opcache_reset' ) ) {
+			@opcache_reset();
+		}
 	}
 
 	public static function deactivate() {
