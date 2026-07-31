@@ -10,6 +10,7 @@
 //   3. Grid  — capability cards (one bento per feature)
 
 import React from 'react';
+import Pip from './ui/Pip';
 
 export default function SuiteOverview({
   tagline,
@@ -24,7 +25,28 @@ export default function SuiteOverview({
   status = null,     // optional [{ label, value, ok }] live status strip
   actions = null,    // optional node rendered next to the status pills (toolbar)
   interstitial = null, // optional node between the toolbar and the map
+  // Action-grammar mode (redesign brief, Part 2). When `primary` is given,
+  // the page renders as: read-outs to consult → the ONE primary path →
+  // quiet secondary tools → a calm row of other jobs. Opt-in per suite; the
+  // classic hero + map layout above is untouched for suites not yet migrated.
+  primary = null,    // { fn, kicker, title, description, ctaLabel, onCta }
+  readouts = null,   // [{ fn, name, value, sub }] — consult-first, never button-shaped
+  tools = null,      // [{ fn, label, onClick, sub }] — fix-it tools as quiet links
+  otherJobs = null,  // { label, items: [{ fn, label, onClick }] } — the calm row
 }) {
+  if (primary) {
+    return (
+      <GrammarOverview
+        tagline={tagline}
+        description={description}
+        primary={primary}
+        readouts={readouts || []}
+        tools={tools || []}
+        otherJobs={otherJobs}
+        actions={actions}
+      />
+    );
+  }
   const hasCustom = map.length > 0 || !!diagram;
   return (
     <div className="stack stack-lg">
@@ -61,6 +83,80 @@ export default function SuiteOverview({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// Action-grammar layout (redesign brief, Part 2). One primary path, framed
+// by intelligence: read-outs you consult first sit above the hero; fix-it
+// tools and other jobs sit below as quiet links. Exactly one .btn-primary.
+function GrammarOverview({ tagline, description, primary, readouts, tools, otherJobs, actions }) {
+  return (
+    <div className="stack stack-lg">
+      {(tagline || description) && (
+        <div>
+          {tagline && <h2 className="display" style={{ maxWidth: '20ch' }}>{tagline}</h2>}
+          {description && <p className="body mt-3" style={{ maxWidth: 640, color: 'var(--text-muted)' }}>{description}</p>}
+        </div>
+      )}
+
+      {/* Consult first — research / measure read-outs. Not button-shaped. */}
+      {readouts.length > 0 && (
+        <div className="oview-section">
+          <div className="oview-eyebrow"><Pip fn={readouts[0].fn || 'measure'} label="Consult first" /></div>
+          <div className="oview-readouts">
+            {readouts.map((r, i) => (
+              <div className="readout" key={i}>
+                <span className="readout-name">{r.fn && <Pip fn={r.fn} />}{r.name}</span>
+                <span className="readout-val">{r.value}</span>
+                {r.sub && <span className="readout-sub">{r.sub}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* The one primary path. */}
+      <div className="oview-section">
+        <div className="card filled oview-primary">
+          <div className="oview-primary-kicker"><Pip fn={primary.fn || 'create'} label={primary.kicker || 'The main job here'} /></div>
+          <h3 className="display">{primary.title}</h3>
+          {primary.description && <p className="body mt-3" style={{ color: 'inherit', opacity: 0.9, maxWidth: 620 }}>{primary.description}</p>}
+          {primary.ctaLabel && primary.onCta && (
+            <button type="button" className="btn btn-primary mt-5" onClick={primary.onCta}>{primary.ctaLabel} →</button>
+          )}
+        </div>
+      </div>
+
+      {/* Secondary tools — quiet links, visibly quieter than the primary. */}
+      {tools.length > 0 && (
+        <div className="oview-section">
+          <div className="oview-grplabel">Fix-it tools</div>
+          <div className="oview-tools">
+            {tools.map((t, i) => (
+              <button type="button" className="btn-link" key={i} onClick={t.onClick} title={t.sub || undefined}>
+                {t.fn && <Pip fn={t.fn} />}{t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Other jobs — one calm row. */}
+      {otherJobs && otherJobs.items && otherJobs.items.length > 0 && (
+        <div className="oview-section">
+          <div className="oview-grplabel">{otherJobs.label || 'Other jobs'}</div>
+          <div className="oview-tools">
+            {otherJobs.items.map((t, i) => (
+              <button type="button" className="btn-link" key={i} onClick={t.onClick}>
+                {t.fn && <Pip fn={t.fn} />}{t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {actions && <div className="oview-section"><div className="oview-tools">{actions}</div></div>}
     </div>
   );
 }
