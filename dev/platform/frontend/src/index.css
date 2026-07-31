@@ -435,9 +435,18 @@ button { font-family: inherit; }
 .pip-measure    { background: var(--fn-measure); }
 .pip-data       { background: var(--fn-data); }
 .pip-approve    { background: var(--fn-approve); }
-/* Section kicker — a small uppercase label led by a pip. The house pattern for
-   naming a read-out / section by its function. */
-.fn-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle); display: inline-flex; align-items: center; }
+/* Section kicker — a small uppercase label led by a pip, the function word set
+   in its own colour so the colour is legible and teaches the code (teal =
+   Strategy, violet = Create…). Label-only: no fills, no surfaces. */
+.fn-kicker { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
+.fn-kicker .pip-fn { margin-right: 0; }
+.fn-kicker.fn-research   { color: var(--fn-research); }
+.fn-kicker.fn-strategy   { color: var(--fn-strategy); }
+.fn-kicker.fn-create     { color: var(--fn-create); }
+.fn-kicker.fn-distribute { color: var(--fn-distribute); }
+.fn-kicker.fn-measure    { color: var(--fn-measure); }
+.fn-kicker.fn-data       { color: var(--fn-data); }
+.fn-kicker.fn-approve    { color: var(--fn-approve); }
 
 /* ─── Chips ──────────────────────────────────────────────────────── */
 

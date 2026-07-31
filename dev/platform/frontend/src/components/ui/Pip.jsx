@@ -22,5 +22,6 @@ export default function Pip({ fn = 'measure', label = false, title }) {
   const name = FUNCTIONS[fn] || fn;
   const dot = <span className={`pip-fn pip-${fn}`} title={title || (label ? undefined : name)} aria-hidden="true" />;
   if (!label) return dot;
-  return <span className="fn-kicker">{dot}{typeof label === 'string' ? label : name}</span>;
+  // Kicker: dot + function word set in the function's own colour.
+  return <span className={`fn-kicker fn-${fn}`}>{dot}{typeof label === 'string' ? label : name}</span>;
 }
