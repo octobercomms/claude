@@ -59,6 +59,7 @@ class OCF_Renderer {
 			'nonce'        => wp_create_nonce( 'wp_rest' ),
 			'schema'       => self::client_schema( $schema ),
 			'turnstileKey' => ( ! empty( $schema['spam']['turnstile'] ) && OCF_Spam::turnstile_enabled() ) ? OCF_Spam::turnstile_site_key() : '',
+			'fileField'    => self::first_file_field( $schema ),
 		);
 
 		$root_class = 'ocf-form-root';
@@ -102,6 +103,29 @@ class OCF_Renderer {
 		}
 
 		return $client;
+	}
+
+	/**
+	 * The first file-upload question in the form (AI mode only), so the chat
+	 * composer can always offer a persistent Attach control. Null if none.
+	 */
+	private static function first_file_field( $schema ) {
+		if ( ( $schema['mode'] ?? 'standard' ) !== 'ai' ) {
+			return null;
+		}
+		foreach ( (array) ( $schema['steps'] ?? array() ) as $step ) {
+			foreach ( (array) ( $step['questions'] ?? array() ) as $q ) {
+				if ( ( $q['type'] ?? '' ) === 'file_upload' ) {
+					return array(
+						'field_id'    => $q['id'],
+						'accept'      => (string) ( $q['accept'] ?? '' ),
+						'multiple'    => ! empty( $q['multiple'] ),
+						'max_size_mb' => ! empty( $q['max_size_mb'] ) ? (int) $q['max_size_mb'] : 20,
+					);
+				}
+			}
+		}
+		return null;
 	}
 
 	public static function theme_vars( $theme ) {

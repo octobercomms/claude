@@ -304,3 +304,9 @@
 .ocf-chat-upload-name { color: var(--ocf-primary); }
 .ocf-chat-upload-item.is-done .ocf-chat-upload-status { color: #16a34a; font-weight: 700; }
 .ocf-chat-upload-item.has-error .ocf-chat-upload-status { color: var(--ocf-error); }
+
+/* ---- v1.2.8: persistent Attach (paperclip) in the composer ---- */
+.ocf-chat-attach { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--ocf-border); background: #fff; border-radius: var(--ocf-radius); cursor: pointer; color: var(--ocf-muted); transition: color .12s ease, border-color .12s ease; }
+.ocf-chat-attach:hover { color: var(--ocf-primary); border-color: var(--ocf-primary); }
+.ocf-chat-attach:disabled { opacity: .5; cursor: default; }
+.ocf-chat-attach svg { width: 20px; height: 20px; }
