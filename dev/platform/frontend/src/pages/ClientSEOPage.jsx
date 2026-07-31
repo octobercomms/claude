@@ -541,9 +541,10 @@ export default function ClientSEOPage() {
     // Performance sub-tabs (perf_insights is the summary landing).
     // aio / fanout / gaps stay in the whitelist as backwards-compat
     // aliases — they redirect to their new homes (keywords / find).
-    // Health — the consolidated read-out dashboard (absorbs the old Search rail).
-    // The individual keys below stay whitelisted as deep-link aliases.
-    'health',
+    // Health + Optimise — the consolidated dashboards (absorb the old Search
+    // and Optimise rails). The individual keys below stay whitelisted as
+    // deep-link aliases.
+    'health', 'optimise',
     'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'ai_seo', 'gaps', 'authority', 'backlinks', 'drift', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint', 'agent_ready',
     // Pipeline sub-tabs
     'topic_map', 'find', 'planning', 'draft', 'publish', 'promote',
@@ -589,6 +590,14 @@ export default function ClientSEOPage() {
   const openHealth = (id) => setHealthOpen(prev => new Set(prev).add(id));
   // Jump to the Health dashboard with a given section opened.
   const goHealth = (section) => { if (section) openHealth(section); setActiveTab('health'); };
+  // Optimise dashboard — the fix-it tools, worked top-to-bottom. Scan (the
+  // audit you run first) is open by default.
+  const [optimiseOpen, setOptimiseOpen] = useState(() => new Set(['scan']));
+  const toggleOptimise = (id) => setOptimiseOpen(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+  const openOptimise = (id) => setOptimiseOpen(prev => new Set(prev).add(id));
+  const goOptimise = (section) => { if (section) openOptimise(section); setActiveTab('optimise'); };
   useEffect(() => {
     if (!railSuite) return;
     api.get(`/clients/${id}/suite-progress/${railSuite}`).then(r => setRailStatus(r.steps || {})).catch(() => {});
@@ -1064,6 +1073,7 @@ export default function ClientSEOPage() {
           perf_insights: 'health',
           keywords: 'health', gsc: 'health', authority: 'health', backlinks: 'health',
           ai_visibility: 'health', drift: 'health',
+          optimise: 'optimise',
           site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
           ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
           topic_map: 'content', find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
@@ -1075,7 +1085,7 @@ export default function ClientSEOPage() {
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setActiveTab('overview') },
           { key: 'health',   label: 'Health',   active: currentGroup === 'health',   onClick: () => setActiveTab('health') },
-          { key: 'optimise', label: 'Optimise', active: currentGroup === 'optimise', onClick: () => setActiveTab('site_audit') },
+          { key: 'optimise', label: 'Optimise', active: currentGroup === 'optimise', onClick: () => setActiveTab('optimise') },
           { key: 'content',  label: 'Build',    active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
           { key: 'local',    label: 'Localise', active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
           { key: 'convert',  label: 'Convert',  active: currentGroup === 'convert',  onClick: () => setActiveTab('cro') },
@@ -1098,7 +1108,7 @@ export default function ClientSEOPage() {
           cro: 'Fix the funnel', forms: 'Lead capture',
         };
         const INFO_TABS = new Set(['perf_insights']); // read-outs, not "do" steps
-        const RAIL_GROUPS = new Set(['optimise', 'local', 'convert']);
+        const RAIL_GROUPS = new Set(['local', 'convert']);
         const railSteps = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel
           ? { groupLabel: t.groupLabel }
           : { key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: INFO_TABS.has(t.key) ? 'info' : (railStatus[t.key] || 'todo') });
@@ -1161,13 +1171,13 @@ export default function ClientSEOPage() {
               { label: 'Drift',          onClick: () => goHealth('watch') },
             ] },
             { title: 'Optimise', subtitle: 'Site and content fixes that move the needle', nodes: [
-              { label: 'Site audit',        onClick: () => setActiveTab('site_audit') },
-              { label: 'Content audit',     onClick: () => setActiveTab('content_audit') },
-              { label: 'Quick wins',        onClick: () => setActiveTab('quick_wins') },
-              { label: 'CTR boosters',      onClick: () => setActiveTab('ctr_boost') },
-              { label: 'Keyword footprint', onClick: () => setActiveTab('keyword_footprint') },
-              { label: 'AI keywords',       onClick: () => setActiveTab('ai_seo') },
-              { label: 'Agent readiness',   onClick: () => setActiveTab('agent_ready') },
+              { label: 'Site audit',        onClick: () => goOptimise('scan') },
+              { label: 'Content audit',     onClick: () => goOptimise('grade') },
+              { label: 'Quick wins',        onClick: () => goOptimise('win') },
+              { label: 'CTR boosters',      onClick: () => goOptimise('sharpen') },
+              { label: 'Keyword footprint', onClick: () => goOptimise('map') },
+              { label: 'AI keywords',       onClick: () => goOptimise('target') },
+              { label: 'Agent readiness',   onClick: () => goOptimise('prep') },
             ] },
             { title: 'Build', subtitle: 'Editorial pipeline', numbered: true, nodes: [
               { label: 'Topic map', onClick: () => setActiveTab('topic_map') },
@@ -1269,6 +1279,36 @@ export default function ClientSEOPage() {
       {activeTab === 'drift' && <SeoDriftPanel clientId={id} />}
       {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}
       {activeTab === 'agent_ready' && <AgentReadinessPanel clientId={id} />}
+      {/* Optimise — the fix-it tools as one worked-top-to-bottom accordion,
+          absorbing the old Optimise rail (Scan · Grade · Map · Win · Sharpen ·
+          Target · Prep). Same primitive as Health; each panel is its former
+          tab's content unchanged. Lazy bodies mount only when opened. */}
+      {activeTab === 'optimise' && (
+        <Accordion open={optimiseOpen} onToggle={toggleOptimise}>
+          <AccordionItem id="scan" title="Scan" subtitle="Site audit · technical fixes">
+            {() => <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
+          </AccordionItem>
+          <AccordionItem id="grade" title="Grade" subtitle="Content audit · one page">
+            {() => <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
+          </AccordionItem>
+          <AccordionItem id="map" title="Map" subtitle="Keyword footprint">
+            {() => <KeywordFootprintPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
+          </AccordionItem>
+          <AccordionItem id="win" title="Win" subtitle="Quick wins · page-2 keywords">
+            {() => <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
+          </AccordionItem>
+          <AccordionItem id="sharpen" title="Sharpen" subtitle="CTR boosters · titles & meta">
+            {() => <CtrBoostPanel clientId={id} />}
+          </AccordionItem>
+          <AccordionItem id="target" title="Target" subtitle="AI keywords · answer-engine terms">
+            {() => <AiSeoPanel clientId={id} />}
+          </AccordionItem>
+          <AccordionItem id="prep" title="Prep" subtitle="Agent readiness · llms.txt & structure">
+            {() => <AgentReadinessPanel clientId={id} />}
+          </AccordionItem>
+        </Accordion>
+      )}
+
       {activeTab === 'site_audit' && <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
       {activeTab === 'quick_wins' && <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
       {activeTab === 'content_audit' && <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
