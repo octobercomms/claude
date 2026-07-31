@@ -130,9 +130,9 @@ export default function ClientSalesTrafficPage() {
 
       <SuiteTabs tabs={[
         { key: 'overview',  label: 'Overview',     active: tab === 'overview',  onClick: () => setTab('overview') },
-        { key: 'dashboard', label: 'Measure',      active: tab === 'dashboard', onClick: () => setTab('dashboard') },
+        { key: 'dashboard', label: 'Measure', fn: 'measure', active: tab === 'dashboard', onClick: () => setTab('dashboard') },
         // Analyse (the agency's private AI chat history) is agency-only.
-        ...(readOnly ? [] : [{ key: 'analyst', label: 'Analyse', active: tab === 'analyst', onClick: () => setTab('analyst') }]),
+        ...(readOnly ? [] : [{ key: 'analyst', label: 'Analyse', fn: 'research', active: tab === 'analyst', onClick: () => setTab('analyst') }]),
       ]} />
 
       {tab === 'analyst' && !readOnly && <ClientChatPage embedded clientId={id} />}
