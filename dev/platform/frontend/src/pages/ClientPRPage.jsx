@@ -5,7 +5,6 @@ import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import SuiteOverview from '../components/SuiteOverview';
-import SuiteReadiness from '../components/SuiteReadiness';
 import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
@@ -849,58 +848,43 @@ export default function ClientPRPage() {
       {!loading && tab === 'overview' && (
         <div className="stack stack-lg">
           <SuiteOverview
-            tagline="Never pitch from memory — or lose a hit — again."
-            description="Every pitch, placement and journalist relationship in one log. Coverage records itself from a link, your best targets come ranked, and the client gets a live page of their wins."
-            ctaLabel="Find who to pitch"
-            onCta={() => setTab('journalists')}
-            status={[
-              { label: 'Published', value: stats ? String(stats.published) : '—', ok: !!(stats && stats.published) },
-              { label: 'Tracked', value: stats ? String(stats.tracked) : '—', ok: !!(stats && stats.tracked) },
-              { label: 'Journalists', value: stats ? String(stats.journalists) : '—', ok: !!(stats && stats.journalists) },
+            tagline="Earned, around one clear path."
+            description="Consult what's landed and who's on file, then land the next story — find the journalists, draft the release, get sign-off and pitch. Everything else is a read-out or a quiet link."
+            readouts={[
+              { fn: 'measure', name: 'Published', value: stats ? String(stats.published) : '—', sub: 'placements' },
+              { fn: 'measure', name: 'Tracked', value: stats ? String(stats.tracked) : '—', sub: 'in the log' },
+              { fn: 'measure', name: 'Journalists', value: stats ? String(stats.journalists) : '—', sub: 'on file' },
             ]}
-            actions={<>
-              <button className="btn btn-primary" onClick={() => { setTab('coverage'); startEdit(null); }}>+ Log coverage</button>
-              <button className="btn btn-secondary" onClick={() => { setTab('press'); newRelease(); }}>+ Press release</button>
-              <a className="btn btn-secondary" href={`/api/pr/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>
-            </>}
-            interstitial={<>
-              <SuiteReadiness clientId={id} suite="earned_setup" title="PR pipeline" steps={[
-                { key: 'contacts',  title: 'Contacts',  sub: 'Journalists on file', onClick: () => setTab('journalists') },
-                { key: 'pitched',   title: 'Pitched',   sub: 'Stories out the door', onClick: () => setTab('journalists') },
-                { key: 'published', title: 'Published', sub: 'Coverage logged',      onClick: () => setTab('coverage') },
-                { key: 'thanked',   title: 'Thanked',   sub: 'Relationships kept',   onClick: () => setTab('journalists') },
-              ]} />
-              <div className="card">
-                <h3 className="h3 mb-2">Needs attention</h3>
-                {(queue.length || thanks.length || awaitingSignoff || quietCount) ? (
-                  <div className="task-row">
-                    {queue.length ? <button className="task-chip" onClick={() => setTab('coverage')}>🔎 <span><span className="n">{queue.length}</span> coverage item{queue.length === 1 ? '' : 's'} to confirm</span></button> : null}
-                    {thanks.length ? <button className="task-chip" onClick={() => setTab('journalists')}>🟡 <span><span className="n">{thanks.length}</span> thank-you{thanks.length === 1 ? '' : 's'} waiting</span></button> : null}
-                    {awaitingSignoff ? <button className="task-chip" onClick={() => setTab('press')}>✍️ <span><span className="n">{awaitingSignoff}</span> release{awaitingSignoff === 1 ? '' : 's'} awaiting sign-off</span></button> : null}
-                    {quietCount ? <button className="task-chip" onClick={() => setTab('journalists')}>📉 <span><span className="n">{quietCount}</span> key journalist{quietCount === 1 ? '' : 's'} gone quiet</span></button> : null}
-                  </div>
-                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
-              </div>
-            </>}
-            mapLayout="grid"
-            map={[
-              { title: 'Health', subtitle: 'Coverage, monitoring & what the client sees', nodes: [
-                { label: 'Coverage log',   onClick: () => setTab('coverage') },
-                { label: 'Auto monitor',   onClick: () => setTab('coverage') },
-                { label: 'Link checks',    onClick: () => setTab('coverage') },
-                { label: 'Client digests', onClick: () => setTab('reports') },
-                { label: 'Live coverage',  onClick: () => setTab('reports') },
-              ] },
-              { title: 'Build', subtitle: 'Media targeting → release → pitch', nodes: [
-                { label: 'Media DB',        onClick: () => setTab('journalists') },
-                { label: 'Pitch targeting', onClick: () => setTab('journalists') },
-                { label: 'Thank-yous',      onClick: () => setTab('journalists') },
-                { label: 'Draft release',   onClick: () => setTab('press') },
-                { label: 'Sign-off',        onClick: () => setTab('press') },
-                { label: 'Pitch',           onClick: () => setTab('press') },
-              ] },
+            primary={{
+              fn: 'create',
+              kicker: 'The main job here',
+              title: 'Land the next story',
+              description: 'Find the journalists, draft the release, get sign-off and pitch — one guided flow.',
+              ctaLabel: 'Start a pitch',
+              onCta: () => setTab('journalists'),
+            }}
+            toolsLabel="Quick actions"
+            tools={[
+              { fn: 'measure', label: 'Log coverage', onClick: () => { setTab('coverage'); startEdit(null); } },
+              { fn: 'create',  label: 'New release',  onClick: () => { setTab('press'); newRelease(); } },
             ]}
+            otherJobs={{ label: 'Other jobs in Earned', items: [
+              { fn: 'measure',    label: 'Health — coverage & monitoring', onClick: () => setTab('coverage') },
+              { fn: 'distribute', label: 'Share — client digests',         onClick: () => setTab('reports') },
+            ] }}
+            actions={<a className="btn btn-secondary" href={`/api/pr/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
           />
+          <div className="card">
+            <h3 className="h3 mb-2">Needs attention</h3>
+            {(queue.length || thanks.length || awaitingSignoff || quietCount) ? (
+              <div className="task-row">
+                {queue.length ? <button className="task-chip" onClick={() => setTab('coverage')}>🔎 <span><span className="n">{queue.length}</span> coverage item{queue.length === 1 ? '' : 's'} to confirm</span></button> : null}
+                {thanks.length ? <button className="task-chip" onClick={() => setTab('journalists')}>🟡 <span><span className="n">{thanks.length}</span> thank-you{thanks.length === 1 ? '' : 's'} waiting</span></button> : null}
+                {awaitingSignoff ? <button className="task-chip" onClick={() => setTab('press')}>✍️ <span><span className="n">{awaitingSignoff}</span> release{awaitingSignoff === 1 ? '' : 's'} awaiting sign-off</span></button> : null}
+                {quietCount ? <button className="task-chip" onClick={() => setTab('journalists')}>📉 <span><span className="n">{quietCount}</span> key journalist{quietCount === 1 ? '' : 's'} gone quiet</span></button> : null}
+              </div>
+            ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
+          </div>
         </div>
       )}
 
