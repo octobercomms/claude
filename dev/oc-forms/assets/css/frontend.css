@@ -213,3 +213,18 @@
 .ocf-chat-ending { text-align: center; padding: 24px 12px; }
 .ocf-chat-ending h3 { font-size: 20px; margin: 0 0 10px; }
 .ocf-chat-ending p { color: var(--ocf-muted); margin: 0 0 16px; }
+
+/* Clickable option nodes in the AI chat */
+.ocf-chat-options { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px 34px; }
+.ocf-chat-chip { font: inherit; font-size: 14px; padding: 8px 14px; border: 1px solid var(--ocf-border); background: #fff; border-radius: 999px; cursor: pointer; color: var(--ocf-primary); transition: border-color .12s ease, background .12s ease; }
+.ocf-chat-chip:hover { border-color: var(--ocf-primary); }
+.ocf-chat-chip.is-selected { background: var(--ocf-primary); color: #fff; border-color: var(--ocf-primary); }
+
+.ocf-chat-options-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; margin-left: 34px; }
+.ocf-chat-optcard { display: flex; flex-direction: column; text-align: left; padding: 0; border: 1px solid var(--ocf-border); background: #fff; border-radius: var(--ocf-radius); overflow: hidden; cursor: pointer; font: inherit; transition: border-color .12s ease, box-shadow .12s ease; }
+.ocf-chat-optcard:hover { border-color: var(--ocf-primary); }
+.ocf-chat-optcard.is-selected { border-color: var(--ocf-primary); box-shadow: 0 0 0 1px var(--ocf-primary); }
+.ocf-chat-optcard-img { display: block; width: 100%; aspect-ratio: 4 / 3; background-size: cover; background-position: center; background-color: var(--ocf-surface); }
+.ocf-chat-optcard-label { padding: 10px 12px; font-size: 14px; font-weight: 500; }
+.ocf-chat-continue { flex: 0 0 100%; margin-top: 2px; }
+@media (max-width: 520px) { .ocf-chat-options-cards { grid-template-columns: 1fr; } }

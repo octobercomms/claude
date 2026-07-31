@@ -701,30 +701,81 @@
 			}
 		}
 
-		function send() {
+		var optionsEl = null;
+		function clearOptions() { if (optionsEl) { optionsEl.remove(); optionsEl = null; } }
+
+		// Render the current question's options as clickable cards / chips.
+		function renderOptions(node) {
+			clearOptions();
+			if (!node || !node.options || !node.options.length) return;
+			var multi = !!node.multiple;
+			var isCards = node.type === 'image_cards' || node.type === 'image_cards_multi';
+			var wrap = el('div', { class: 'ocf-chat-options' + (isCards ? ' ocf-chat-options-cards' : '') });
+			var selected = [];
+			node.options.forEach(function (opt) {
+				var btn;
+				if (isCards && opt.image) {
+					btn = el('button', { type: 'button', class: 'ocf-chat-optcard' }, [
+						el('span', { class: 'ocf-chat-optcard-img', style: { backgroundImage: 'url("' + String(opt.image).replace(/["\\]/g, '') + '")' } }),
+						el('span', { class: 'ocf-chat-optcard-label' }, [opt.label])
+					]);
+				} else {
+					btn = el('button', { type: 'button', class: 'ocf-chat-chip' }, [opt.label]);
+				}
+				btn.addEventListener('click', function () {
+					if (busy || done) return;
+					if (multi) {
+						var i = selected.indexOf(opt.label);
+						if (i > -1) { selected.splice(i, 1); btn.classList.remove('is-selected'); }
+						else { selected.push(opt.label); btn.classList.add('is-selected'); }
+					} else {
+						sendText(opt.label);
+					}
+				});
+				wrap.appendChild(btn);
+			});
+			if (multi) {
+				var cont = el('button', { type: 'button', class: 'ocf-btn ocf-btn-primary ocf-chat-continue' }, ['Continue']);
+				cont.addEventListener('click', function () {
+					if (!selected.length || busy || done) return;
+					sendText(selected.join(', '));
+				});
+				wrap.appendChild(cont);
+			}
+			optionsEl = wrap;
+			msgList.appendChild(wrap);
+			scrollDown();
+		}
+
+		function handleReply(res) {
+			hideTyping();
+			if (res.reply) addMessage('bot', res.reply);
+			if (res.complete) { renderEnding(res.ending); return; }
+			if (res.limit) { done = true; input.disabled = true; sendBtn.disabled = true; clearOptions(); return; }
+			if (res.options) renderOptions(res.options);
+			setBusy(false);
+			input.focus();
+		}
+
+		function sendText(text) {
 			if (busy || done || !token) return;
-			var text = input.value.trim();
+			text = (text || '').trim();
 			if (!text) return;
+			clearOptions();
 			addMessage('user', text);
 			input.value = '';
 			autosize();
 			setBusy(true);
 			showTyping();
 			api(cfg, 'chat', { body: { token: token, message: text, seconds_active: secondsActive() } })
-				.then(function (res) {
-					hideTyping();
-					if (res.reply) addMessage('bot', res.reply);
-					if (res.complete) { renderEnding(res.ending); return; }
-					if (res.limit) { done = true; input.disabled = true; sendBtn.disabled = true; return; }
-					setBusy(false);
-					input.focus();
-				})
+				.then(handleReply)
 				.catch(function (err) {
 					hideTyping();
 					addMessage('bot', (err && err.message) || 'Sorry, something went wrong. Please try again.');
 					setBusy(false);
 				});
 		}
+		function send() { sendText(input.value); }
 
 		function autosize() {
 			input.style.height = 'auto';
@@ -736,17 +787,20 @@
 		});
 		sendBtn.addEventListener('click', send);
 
-		// Analytics view (deduped server-side) + start a submission for the token.
+		// Analytics view (deduped server-side) + start a submission for the token,
+		// then ask the assistant to open the conversation (greet + first question).
 		api(cfg, 'view', { body: { form_id: cfg.formId, session: session } }).catch(function () {});
 		setBusy(true);
 		api(cfg, 'start', { body: { form_id: cfg.formId, session: session } })
 			.then(function (res) {
 				token = res.token;
 				if (ai.greeting) addMessage('bot', ai.greeting);
-				setBusy(false);
-				input.focus();
+				showTyping();
+				return api(cfg, 'chat', { body: { token: token, start: 1, seconds_active: secondsActive() } });
 			})
+			.then(function (res) { if (res) handleReply(res); })
 			.catch(function () {
+				hideTyping();
 				addMessage('bot', 'Could not start the assistant. Please refresh to try again.');
 			});
 	}

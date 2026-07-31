@@ -135,6 +135,7 @@ class OCF_AI {
 
 		$lines[] = 'HOW TO BEHAVE:';
 		$lines[] = '- Ask about one thing at a time; keep replies short and conversational. Do not dump the whole list on the visitor.';
+		$lines[] = '- Set "field_id" to the id of the question you are asking THIS turn whenever it is one of the listed questions. The interface shows that question\'s allowed options to the visitor as clickable buttons, so DO NOT list the options as text in your message — just ask the question naturally (e.g. "What kind of project are you planning?"). Set "field_id" to an empty string when you are not asking a listed question.';
 		$lines[] = '- Adapt to what the visitor says. If they volunteer several answers at once, capture them all. If they go off-topic or ask a question, respond helpfully, then gently steer back.';
 		$lines[] = '- Only report a value in "captured" once the visitor has actually given it. Never invent, assume, or guess values. For choice-type questions, map the visitor\'s wording to one of the allowed values.';
 		$lines[] = '- Report captured values cumulatively is NOT required — only include what you learned or changed in the visitor\'s latest message; the server remembers the rest.';
@@ -176,6 +177,10 @@ class OCF_AI {
 					'type'        => 'string',
 					'description' => 'Your next message to the visitor.',
 				),
+				'field_id' => array(
+					'type'        => 'string',
+					'description' => 'The id of the question from the list you are asking THIS turn, so the UI can show its options as clickable buttons. Empty string if you are not asking a listed question (e.g. small talk, a follow-up, or confirming).',
+				),
 				'captured' => array(
 					'type'        => 'array',
 					'description' => 'Field values you learned from the visitor\'s latest message. Empty array if none.',
@@ -194,7 +199,43 @@ class OCF_AI {
 					'description' => 'True only when every required item has been collected.',
 				),
 			),
-			'required'             => array( 'message', 'captured', 'complete' ),
+			'required'             => array( 'message', 'field_id', 'captured', 'complete' ),
+		);
+	}
+
+	/**
+	 * Client-facing option list for a question, so the front-end can render
+	 * clickable cards/chips (with images for image-card questions).
+	 * Returns [] when the question has no options.
+	 */
+	public static function options_for( $schema, $field_id ) {
+		$field_id = OCF_Schema::clean_id( $field_id );
+		if ( $field_id === '' ) {
+			return null;
+		}
+		$q = OCF_Schema::find_question( $schema, $field_id );
+		if ( ! $q || empty( $q['options'] ) || ! is_array( $q['options'] ) ) {
+			return null;
+		}
+		$multi = in_array( $q['type'], array( 'multi_choice', 'image_cards_multi' ), true );
+		$opts  = array();
+		foreach ( $q['options'] as $opt ) {
+			$label = (string) ( $opt['label'] ?? $opt['value'] ?? '' );
+			if ( $label === '' ) { continue; }
+			$opts[] = array(
+				'label' => $label,
+				'value' => (string) ( $opt['value'] ?? $label ),
+				'image' => (string) ( $opt['image'] ?? '' ),
+			);
+		}
+		if ( ! $opts ) {
+			return null;
+		}
+		return array(
+			'field_id' => $field_id,
+			'type'     => $q['type'],
+			'multiple' => $multi,
+			'options'  => $opts,
 		);
 	}
 
@@ -298,6 +339,7 @@ class OCF_AI {
 		return array(
 			'ok'       => true,
 			'message'  => (string) $parsed['message'],
+			'field_id' => (string) ( $parsed['field_id'] ?? '' ),
 			'captured' => $captured,
 			'complete' => ! empty( $parsed['complete'] ),
 			'error'    => '',
@@ -305,7 +347,7 @@ class OCF_AI {
 	}
 
 	private static function fail( $message ) {
-		return array( 'ok' => false, 'message' => $message, 'captured' => array(), 'complete' => false, 'error' => $message );
+		return array( 'ok' => false, 'message' => $message, 'field_id' => '', 'captured' => array(), 'complete' => false, 'error' => $message );
 	}
 
 	/**

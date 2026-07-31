@@ -53,6 +53,8 @@ How it works:
 
 - The browser only ever talks to the plugin's own REST endpoint (`ocf/v1/chat`). The Claude API key never leaves the server.
 - The server holds the transcript and the running set of captured answers on the submission (in the `meta` column). Each turn it sends the conversation + checklist to Claude via `wp_remote_post()` and uses [structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) to get back the reply, any newly captured values, and a "complete" flag.
+- The assistant **opens the conversation itself** (greeting + first question) as soon as the chat loads, so it's never an empty box.
+- When it asks a choice-type question, the defined options are shown as **clickable cards/chips** (with images for image-card questions) — the visitor can click one *or* type a free-text answer.
 - Captured values are cast to the same native shapes a standard form produces (arrays for multi-select, numbers, etc.), so partial capture, Brevo dispatch, notification email, and analytics all work unchanged.
 - The submission only finalises when Claude signals completion **and** every required, visible question is actually filled in (the server is authoritative).
 - The full chat transcript is saved and shown in the admin submission view alongside the extracted answers.

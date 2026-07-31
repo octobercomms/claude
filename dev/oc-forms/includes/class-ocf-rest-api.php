@@ -321,7 +321,7 @@ class OCF_REST_API {
 		$max_messages = (int) ( $schema['ai']['max_messages'] ?? 30 );
 		$user_turns   = 0;
 		foreach ( $transcript as $m ) {
-			if ( ( $m['role'] ?? '' ) === 'user' ) { $user_turns++; }
+			if ( ( $m['role'] ?? '' ) === 'user' && empty( $m['hidden'] ) ) { $user_turns++; }
 		}
 		if ( $user_turns >= $max_messages ) {
 			return rest_ensure_response( array(
@@ -337,24 +337,39 @@ class OCF_REST_API {
 			return new WP_Error( 'ocf_rate_limited', 'Please slow down a moment.', array( 'status' => 429 ) );
 		}
 
-		// Seed the greeting as the first assistant turn (for the transcript /
-		// admin view) so the record reads coherently.
-		if ( empty( $transcript ) ) {
+		$model    = OCF_AI::model_for_form( $schema );
+		$is_start = ! empty( $req->get_param( 'start' ) ) && empty( $transcript );
+
+		if ( $is_start ) {
+			// Opening turn: the assistant greets and asks its first question on
+			// its own, so the chat is never an empty box.
 			$greeting = trim( (string) ( $schema['ai']['greeting'] ?? '' ) );
 			if ( $greeting !== '' ) {
 				$transcript[] = array( 'role' => 'assistant', 'content' => $greeting );
 			}
+			$nudge = $greeting !== ''
+				? '(The visitor just opened the chat. You have already greeted them. Ask your first question now — a single, friendly question.)'
+				: '(The visitor just opened the chat. Greet them warmly in one short line, then ask your first question.)';
+			// Hidden so it never shows in the admin transcript, but kept so the
+			// conversation stays valid (user-first, alternating) on later turns.
+			$transcript[] = array( 'role' => 'user', 'content' => $nudge, 'hidden' => true );
+		} else {
+			$message = trim( (string) $req->get_param( 'message' ) );
+			if ( $message === '' ) {
+				return new WP_Error( 'ocf_empty_message', 'Empty message', array( 'status' => 400 ) );
+			}
+			$message      = wp_strip_all_tags( $message );
+			$message      = function_exists( 'mb_substr' ) ? mb_substr( $message, 0, 2000 ) : substr( $message, 0, 2000 );
+			// Safety net: if the browser skipped the opening call, seed the greeting.
+			if ( empty( $transcript ) ) {
+				$greeting = trim( (string) ( $schema['ai']['greeting'] ?? '' ) );
+				if ( $greeting !== '' ) {
+					$transcript[] = array( 'role' => 'assistant', 'content' => $greeting );
+				}
+			}
+			$transcript[] = array( 'role' => 'user', 'content' => $message );
 		}
 
-		$message = trim( (string) $req->get_param( 'message' ) );
-		if ( $message === '' ) {
-			return new WP_Error( 'ocf_empty_message', 'Empty message', array( 'status' => 400 ) );
-		}
-		$message      = wp_strip_all_tags( $message );
-		$message      = function_exists( 'mb_substr' ) ? mb_substr( $message, 0, 2000 ) : substr( $message, 0, 2000 );
-		$transcript[] = array( 'role' => 'user', 'content' => $message );
-
-		$model  = OCF_AI::model_for_form( $schema );
 		$result = OCF_AI::converse( $schema, $model, $transcript, $collected );
 
 		$reply        = (string) $result['message'];
@@ -376,6 +391,7 @@ class OCF_REST_API {
 			'ok'       => true,
 			'reply'    => $reply,
 			'complete' => false,
+			'options'  => OCF_AI::options_for( $schema, $result['field_id'] ?? '' ),
 		);
 
 		// Only finalize when the model says it's done AND every required,
