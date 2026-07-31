@@ -123,9 +123,9 @@ function archlie_logo() {
 		return;
 	}
 	printf(
-		'<a href="%s" class="brand" aria-label="%s"><span class="brand-mark">%s</span>Arch<span>lie</span></a>',
+		'<a href="%s" class="brand" aria-label="%s"><span class="brand-mark">%s</span>Your <span>Architect</span></a>',
 		esc_url( home_url( '/' ) ),
-		esc_attr__( 'Archlie home', 'archlie' ),
+		esc_attr__( 'Your Architect home', 'archlie' ),
 		'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25 L16 7 L26 25" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 	);
 }

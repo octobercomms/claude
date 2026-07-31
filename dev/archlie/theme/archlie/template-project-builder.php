@@ -22,11 +22,11 @@
 <div class="ob-shell">
 
 	<div class="ob-top">
-		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="brand" aria-label="<?php esc_attr_e( 'Archlie home', 'archlie' ); ?>">
+		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="brand" aria-label="<?php esc_attr_e( 'Your Architect home', 'archlie' ); ?>">
 			<span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25 L16 7 L26 25" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-			Arch<span>lie</span>
+			Your <span>Architect</span>
 		</a>
-		<span class="ob-title"><?php esc_html_e( 'Project builder', 'archlie' ); ?></span>
+		<span class="ob-title"><span class="archie-badge"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M8.5 13 L16 7 L23.5 13" stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12.5" cy="18" r="1.7" fill="white"/><circle cx="19.5" cy="18" r="1.7" fill="white"/><path d="M12 21.8 Q16 24.4 20 21.8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></span> <?php esc_html_e( 'Chat with Archie', 'archlie' ); ?></span>
 		<div class="ob-actions">
 			<div class="reg-chips">
 				<span class="reg-chip"><span class="dot"></span> <?php esc_html_e( 'ARB registered', 'archlie' ); ?></span>
@@ -38,6 +38,20 @@
 
 	<div class="ob-body">
 		<section class="ob-chat" aria-label="<?php esc_attr_e( 'Conversation', 'archlie' ); ?>">
+			<div class="ob-savebar" id="saveBar" hidden>
+				<div class="sb-inner">
+					<div class="sb-text">
+						<strong><?php esc_html_e( 'Save your progress', 'archlie' ); ?></strong>
+						<span><?php esc_html_e( "Enter your email and we'll send a link so you can pick this up later.", 'archlie' ); ?></span>
+					</div>
+					<form class="sb-form" id="saveForm">
+						<input type="email" id="saveEmail" placeholder="you@email.com" autocomplete="email" aria-label="<?php esc_attr_e( 'Email to save your progress', 'archlie' ); ?>">
+						<button type="submit" class="btn btn-primary btn-sm"><?php esc_html_e( 'Save', 'archlie' ); ?></button>
+					</form>
+					<button class="sb-close" id="saveClose" type="button" aria-label="<?php esc_attr_e( 'Dismiss', 'archlie' ); ?>">✕</button>
+				</div>
+				<div class="sb-saved" id="saveSaved" hidden><?php esc_html_e( "Saved ✓ — we'll email you a link to pick up where you left off.", 'archlie' ); ?></div>
+			</div>
 			<div class="ob-messages" id="messages"><div class="wrapmsg" id="msgList"></div></div>
 			<div class="ob-composer">
 				<div class="ob-composer-inner">

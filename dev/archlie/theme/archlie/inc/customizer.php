@@ -48,7 +48,7 @@ function archlie_customize_register( $wp_customize ) {
 	$wp_customize->add_section(
 		'archlie_content',
 		array(
-			'title'       => __( 'Archlie', 'archlie' ),
+			'title'       => __( 'Your Architect', 'archlie' ),
 			'priority'    => 30,
 			'description' => __( 'Hero copy, registration numbers (shown on the site per brief §2), and notifications.', 'archlie' ),
 		)

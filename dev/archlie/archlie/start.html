@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Build your project — Archlie</title>
+  <title>Build your project — Your Architect</title>
   <meta name="description" content="Build your architectural drawing project in a short conversation and see your fixed price as you go.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,11 +17,11 @@
 
   <!-- Top bar -->
   <div class="ob-top">
-    <a href="index.html" class="brand" aria-label="Archlie home">
+    <a href="index.html" class="brand" aria-label="Your Architect home">
       <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25 L16 7 L26 25" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      Arch<span>lie</span>
+      Your <span>Architect</span>
     </a>
-    <span class="ob-title">Project builder</span>
+    <span class="ob-title"><span class="archie-badge"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M8.5 13 L16 7 L23.5 13" stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12.5" cy="18" r="1.7" fill="white"/><circle cx="19.5" cy="18" r="1.7" fill="white"/><path d="M12 21.8 Q16 24.4 20 21.8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></span> Chat with Archie</span>
     <div class="ob-actions">
       <div class="reg-chips">
         <span class="reg-chip"><span class="dot"></span> ARB registered</span>
@@ -36,6 +36,20 @@
 
     <!-- LEFT: conversation -->
     <section class="ob-chat" aria-label="Conversation">
+      <div class="ob-savebar" id="saveBar" hidden>
+        <div class="sb-inner">
+          <div class="sb-text">
+            <strong>Save your progress</strong>
+            <span>Enter your email and we'll send a link so you can pick this up later.</span>
+          </div>
+          <form class="sb-form" id="saveForm">
+            <input type="email" id="saveEmail" placeholder="you@email.com" autocomplete="email" aria-label="Email to save your progress">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          </form>
+          <button class="sb-close" id="saveClose" type="button" aria-label="Dismiss">✕</button>
+        </div>
+        <div class="sb-saved" id="saveSaved" hidden>Saved ✓ — we'll email you a link to pick up where you left off.</div>
+      </div>
       <div class="ob-messages" id="messages">
         <div class="wrapmsg" id="msgList"></div>
       </div>

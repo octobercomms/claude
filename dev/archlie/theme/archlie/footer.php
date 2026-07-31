@@ -10,7 +10,7 @@
 		<div class="wrap">
 			<div class="footer-inner">
 				<div class="footer-brand">
-					<span class="brand"><span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25 L16 7 L26 25" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Archlie</span>
+					<span class="brand"><span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25 L16 7 L26 25" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Your Architect</span>
 					<p><?php esc_html_e( 'Fixed-price architectural drawings from ARB-registered, RIBA-chartered architects. Planning, building control, permitted development and listed building consent for standard residential work.', 'archlie' ); ?></p>
 					<div class="reg-chips" style="margin-top:16px">
 						<span class="reg-chip on-dark"><span class="dot"></span> <?php esc_html_e( 'ARB registered', 'archlie' ); ?></span>
@@ -39,7 +39,7 @@
 			</div>
 			<div class="footer-legal">
 				<p>
-					<strong><?php esc_html_e( 'Archlie is a trading name of Tiam Architects Ltd.', 'archlie' ); ?></strong>
+					<strong><?php esc_html_e( 'Your Architect is a trading name of Tiam Architects Ltd.', 'archlie' ); ?></strong>
 					<?php
 					printf(
 						/* translators: 1: ARB number, 2: company number */
@@ -49,7 +49,7 @@
 					);
 					?>
 				</p>
-				<p>&copy; <?php echo esc_html( gmdate( 'Y' ) ); ?> <?php esc_html_e( 'Tiam Architects Ltd trading as Archlie. Invoices are issued in the name of Tiam Architects Ltd.', 'archlie' ); ?></p>
+				<p>&copy; <?php echo esc_html( gmdate( 'Y' ) ); ?> <?php esc_html_e( 'Tiam Architects Ltd trading as Your Architect. Invoices are issued in the name of Tiam Architects Ltd.', 'archlie' ); ?></p>
 			</div>
 		</div>
 	</footer>

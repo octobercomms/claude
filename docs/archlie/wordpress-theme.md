@@ -1,17 +1,19 @@
-# Archlie — WordPress theme
+# Your Architect — WordPress theme
 
-A standalone WordPress theme that wraps the [Archlie v3 site](./README.md) into an
+A standalone WordPress theme that wraps the [Your Architect v3 site](./README.md) into an
 installable theme, including the two-panel conversational **project builder** and a project
 records back end.
+
+> **Naming:** brand is **Your Architect** (yourarchitect.uk); the onboarding assistant is **Archie**. The theme display name is "Your Architect", but the folder/slug and code identifiers keep `archlie` (see the README naming note).
 
 - **Code:** [`dev/archlie/theme/archlie/`](../../dev/archlie/theme/archlie/)
 - **Slug / folder:** `archlie` · **Requires:** WordPress 6.0+, PHP 7.4+
 
-> **Context:** Brief v3 §11 specifies the production Archlie as a **React app on Hetzner**,
+> **Context:** Brief v3 §11 specifies the production Your Architect as a **React app on Hetzner**,
 > not WordPress. This theme is a WordPress interpretation of the same design for a quick
 > launch / review. The marketing site and the conversational builder work in WordPress; the
 > AI onboarding is still the scripted front-end mock (a live Claude call + Postgres/Stripe
-> belong to the React build). Use it to get Archlie in front of people fast, or as the
+> belong to the React build). Use it to get Your Architect in front of people fast, or as the
 > reference the React build follows.
 
 ## Install
@@ -32,7 +34,7 @@ other setup required.
 |---|---|---|
 | **Prices in PHP** | `inc/pricing.php` | One `archlie_pricing_table()` localised to the front-end as `window.ARCHLIE_WP`. The homepage table and the builder both read it — set prices in one place. Filter: `archlie_pricing_table`. |
 | **Two-panel builder** | `template-project-builder.php` + `assets/js/onboarding.js` | The full conversational flow with live package + running total, voice, photo, redirect logic and localStorage resume — rendered as a full-screen WordPress page template. |
-| **Project records** | `inc/intake.php` | The builder's **Save & submit** posts to `admin-ajax` (nonce-protected) and opens an `archlie_project` post storing the full package/state, emails the studio + client, and shows a read-only record in wp-admin (**Archlie Projects**). |
+| **Project records** | `inc/intake.php` | The builder's **Save & submit** posts to `admin-ajax` (nonce-protected) and opens an `archlie_project` post storing the full package/state, emails the studio + client, and shows a read-only record in wp-admin (**Your Architect Projects**). |
 | **Registration shown** | `inc/customizer.php` + templates | ARB registration no. and company no. are Customizer fields, shown on the site and footer per brief §2. |
 | **Editable hero + email** | `inc/customizer.php` | Hero eyebrow/heading/intro and the notification email. Custom logo + nav menus supported. |
 | **Extension hook** | `inc/intake.php` | `do_action( 'archlie_project_created', $post_id, $payload )` — the seam for Stripe, the portal, and follow-ups. |
@@ -87,7 +89,7 @@ Building on the `archlie_project` record this theme creates:
 
 - Ensure WordPress can send email (the builder emails the studio + client on submit) — an
   SMTP plugin is the usual fix on hosts that don't send reliably.
-- Set the real **ARB registration** and **company** numbers in **Customizer → Archlie**
+- Set the real **ARB registration** and **company** numbers in **Customizer → Your Architect**
   (they show as `[to confirm]` until you do).
 
 ## Verification
