@@ -470,32 +470,32 @@ export default function ClientAdsPage() {
       {normalisedTab === 'overview' && (
         <div className="stack stack-lg">
         <SuiteOverview
-          tagline="See what every pound returns — then make the better ad."
-          description="Live ROAS and profit per campaign, a weekly list of exactly what to change, and a one-line brief turned into on-brand ads ready to launch. No designer, no media-buyer spreadsheet."
-          ctaLabel="View live performance"
-          onCta={() => setTab('performance')}
-          status={[
-            { label: 'Google Ads', value: hasGoogle ? `${googleEntries.filter(g => !g.error).length} account${googleEntries.filter(g => !g.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasGoogle },
-            { label: 'Meta Ads',   value: hasMeta ? `${metaEntries.filter(m => !m.error).length} account${metaEntries.filter(m => !m.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasMeta },
-            { label: 'Spend · 30d', value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), ok: (googleTotal?.spend || 0) + (metaTotal?.spend || 0) > 0 },
+          tagline="Paid, around one clear path."
+          description="Consult what every pound is returning, then make the better ad — a one-line brief turned into on-brand ads ready to launch. Everything else is a read-out or a quiet link."
+          readouts={[
+            { fn: 'measure', name: 'Spend · 30d', value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), sub: 'across channels' },
+            { fn: 'data',    name: 'Google Ads', value: hasGoogle ? googleEntries.filter(g => !g.error).length : '—', sub: hasGoogle ? 'connected' : 'not connected' },
+            { fn: 'data',    name: 'Meta Ads',   value: hasMeta ? metaEntries.filter(m => !m.error).length : '—', sub: hasMeta ? 'connected' : 'not connected' },
           ]}
+          primary={{
+            fn: 'create',
+            kicker: 'The main job here',
+            title: 'Make the better ad',
+            description: 'Brief it, draft concepts, render, approve and launch — one guided pipeline, no designer or media-buyer spreadsheet.',
+            ctaLabel: 'Start an ad brief',
+            onCta: () => setTab('brief'),
+          }}
+          toolsLabel="Build tools"
+          tools={[
+            { fn: 'research', label: 'Audiences', onClick: () => setTab('audiences') },
+            { fn: 'create',   label: 'Resize',    onClick: () => setTab('resize') },
+          ]}
+          otherJobs={{ label: 'Other jobs in Paid', items: [
+            { fn: 'measure',  label: 'Health — full dashboard', onClick: () => goHealth('measure') },
+            { fn: 'research',  label: 'Competitors — rival watch', onClick: () => goHealth('competitors') },
+            { fn: 'strategy', label: 'Playbook — how paid works', onClick: () => goHealth('playbook') },
+          ] }}
           actions={<a className="btn btn-secondary" href={`/api/paid/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
-          mapLayout="funnel"
-          map={[
-            { title: 'Health', subtitle: 'Spend, return, briefing & rival watch', nodes: [
-              { label: 'Measure',     onClick: () => goHealth('measure') },
-              { label: 'Briefing',    onClick: () => goHealth('briefing') },
-              { label: 'Competitors', onClick: () => goHealth('competitors') },
-              { label: 'Playbook',    onClick: () => goHealth('playbook') },
-            ] },
-            { title: 'Build', subtitle: 'Ad creative pipeline + tools', numbered: true, nodes: [
-              { label: 'Brief',   onClick: () => setTab('brief') },
-              { label: 'Draft', onClick: () => setTab('concepts') },
-              { label: 'Render',  onClick: () => setTab('render') },
-              { label: 'Approve', onClick: () => setTab('approve') },
-              { label: 'Launch',  onClick: () => setTab('launch') },
-            ] },
-          ]}
         />
         </div>
       )}
