@@ -76,9 +76,12 @@ function slugify(s) {
     .slice(0, 80);
 }
 
-const BRIEF_SYSTEM = `You are an SEO content strategist generating a programmatic landing-page brief. British English. Tight, commercial, no filler. Output JSON only — no prose, no markdown fences.
+const { BRIEF_SYSTEM: GEO_BRIEF_SYSTEM, briefKeySpec } = require('./contentBriefSpec');
 
-The page is one of many in a programmatic set, but each row should still feel like a real page — not a Mad Libs fill-in. Lead with the user intent for this specific combination of inputs.`;
+// Same GEO-complete standard as the other brief generators, with the
+// programmatic caveat appended: each row must still read like a real page.
+const BRIEF_SYSTEM = GEO_BRIEF_SYSTEM +
+  `\n\nThis page is one of many in a programmatic set, but each row must still feel like a real page — not a Mad Libs fill-in. Lead with the user intent for this specific combination of inputs.`;
 
 async function loadClient(clientId) {
   const { rows } = await pool.query(
@@ -101,22 +104,14 @@ ${Object.entries(rowData).map(([k, v]) => `${k}: ${v}`).join('\n')}
 
 Primary keyword for this page: "${primaryKeyword}"
 
-Generate a content brief for this specific combination. Return a JSON object with the keys:
-- title: working title (≤ 70 chars, includes primary keyword)
-- slug: URL slug, lowercase hyphenated, ≤ 60 chars
-- target_intent: "informational" | "commercial" | "transactional"
-- summary: 1-2 sentence pitch
-- outline: 4-7 section objects { heading, points: [3-5 bullet strings] }
-- questions_to_answer: array of 3-5 specific questions
-- suggested_word_count: integer
-- meta_title: < 60 chars, includes primary keyword
-- meta_description: < 155 chars
+Generate a content brief for this specific combination, briefed for BOTH classic ranking AND AI-answer citation (GEO). Return a JSON object with the keys:
+${briefKeySpec({ intent: 'Commercial' })}
 
 Return ONLY the JSON object.`;
 
   const raw = await claudeService.callClaude({
     model: MODEL,
-    max_tokens: 2000,
+    max_tokens: 3000,
     system: BRIEF_SYSTEM,
     user: userPrompt,
   });
@@ -214,9 +209,11 @@ async function promoteToDraft({ briefId }) {
   // stay empty — the AM will run the Draft step next to fill them in.
   const { rows: drafts } = await pool.query(
     `INSERT INTO content_drafts
-     (client_id, target_keyword, brief_json, title, meta_description, body_markdown, body_html, word_count, claude_model)
-     VALUES ($1, $2, $3, $4, $5, '', '', 0, $6) RETURNING *`,
-    [pb.client_id, pb.primary_keyword, pb.brief_json, pb.title || 'Untitled', pb.brief_json?.meta_description || null, MODEL]
+     (client_id, target_keyword, brief_json, title, meta_title, slug, meta_description, body_markdown, body_html, word_count, claude_model)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, '', '', 0, $8) RETURNING *`,
+    [pb.client_id, pb.primary_keyword, pb.brief_json, pb.title || 'Untitled',
+     pb.brief_json?.meta_title || null, pb.slug || pb.brief_json?.slug || null,
+     pb.brief_json?.meta_description || null, MODEL]
   );
   const draft = drafts[0];
   await pool.query('UPDATE programmatic_briefs SET content_draft_id = $1, updated_at = NOW() WHERE id = $2', [draft.id, pb.id]);
