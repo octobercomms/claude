@@ -156,3 +156,10 @@
   .sb-close { position: absolute; top: 8px; right: 12px; }
   .ob-savebar { position: relative; }
 }
+
+/* ---- Archie's face ---- */
+.msg.bot .avatar { border-radius: 50%; }
+.msg.bot .avatar svg { width: 26px; height: 26px; }
+.archie-badge { width: 24px; height: 24px; border-radius: 50%; background: var(--indigo); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.archie-badge svg { width: 20px; height: 20px; }
+.ob-top .ob-title { display: inline-flex; align-items: center; gap: 7px; }

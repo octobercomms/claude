@@ -16,7 +16,8 @@
 
   var A = window.ARCHLIE;
   var STORE_KEY = 'archlie_v3_session';
-  var BOT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M6 20 12 5l6 15" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // Archie's face — the Your Architect roofline worn as a hard hat, plus eyes + a smile.
+  var BOT_SVG = '<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M8.5 13 L16 7 L23.5 13" stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12.5" cy="18" r="1.7" fill="white"/><circle cx="19.5" cy="18" r="1.7" fill="white"/><path d="M12 21.8 Q16 24.4 20 21.8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>';
 
   // ---- DOM ----
   var elMsgList = document.getElementById('msgList');
