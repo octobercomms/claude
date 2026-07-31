@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Archlie — design review (new v3 vs original)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --indigo:#2f39c9; --ink:#14171f; --line:#e2e3ea; --muted:#737a89; }
+    html, body { height: 100%; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #eceef3; color: var(--ink); display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+
+    .review-bar { display: flex; align-items: center; gap: 18px; padding: 0 18px; height: 56px; background: #12141b; color: #fff; flex-shrink: 0; }
+    .review-bar .rb-title { font-weight: 700; font-size: .95rem; letter-spacing: -0.01em; display: flex; align-items: center; gap: 9px; }
+    .review-bar .rb-title .badge { background: var(--indigo); font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 5px; }
+
+    .segmented { display: inline-flex; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); border-radius: 11px; padding: 3px; }
+    .segmented button { font-family: inherit; font-size: .9rem; font-weight: 600; color: #c8ccd6; background: none; border: 0; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all .15s; }
+    .segmented button .tag { font-size: .68rem; font-weight: 600; opacity: .7; }
+    .segmented button[aria-selected="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+    .segmented button[aria-selected="true"] .tag { opacity: .55; }
+
+    .rb-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+    .rb-note { font-size: .8rem; color: #9096a6; max-width: 340px; line-height: 1.35; }
+    .rb-open { font-size: .85rem; font-weight: 600; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,.2); padding: 7px 13px; border-radius: 9px; display: inline-flex; align-items: center; gap: 6px; }
+    .rb-open:hover { background: rgba(255,255,255,.1); }
+    .rb-open svg { width: 14px; height: 14px; }
+
+    .frame-wrap { flex: 1; position: relative; background: #fff; }
+    iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+
+    @media (max-width: 780px) {
+      .rb-note { display: none; }
+      .review-bar { gap: 10px; padding: 0 10px; }
+      .segmented button { padding: 8px 11px; }
+      .segmented button .tag { display: none; }
+      .rb-title span.long { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="review-bar">
+    <div class="rb-title"><span class="badge">Review</span> <span class="long">Archlie&nbsp;— design comparison</span></div>
+    <div class="segmented" role="tablist" aria-label="Choose a design to view">
+      <button role="tab" id="tab-archlie" aria-selected="true" data-src="archlie/index.html">Archlie <span class="tag">new · v3</span></button>
+      <button role="tab" id="tab-original" aria-selected="false" data-src="reference/index.html">Architects Direct <span class="tag">original · v1</span></button>
+    </div>
+    <div class="rb-right">
+      <span class="rb-note">Both designs are live and clickable. The original is kept here for reference — remove this tab once the new direction is approved.</span>
+      <a class="rb-open" id="openTab" href="archlie/index.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Open full screen
+      </a>
+    </div>
+  </div>
+  <div class="frame-wrap">
+    <iframe id="viewer" src="archlie/index.html" title="Design preview" loading="eager"></iframe>
+  </div>
+
+  <script>
+    (function () {
+      var KEY = 'archlie_review_tab';
+      var viewer = document.getElementById('viewer');
+      var openTab = document.getElementById('openTab');
+      var tabs = document.querySelectorAll('.segmented button');
+
+      function select(id, save) {
+        tabs.forEach(function (t) {
+          var on = t.id === id;
+          t.setAttribute('aria-selected', on ? 'true' : 'false');
+          if (on) {
+            var src = t.getAttribute('data-src');
+            if (viewer.getAttribute('src') !== src) viewer.setAttribute('src', src);
+            openTab.setAttribute('href', src);
+          }
+        });
+        if (save) { try { localStorage.setItem(KEY, id); } catch (e) {} }
+      }
+
+      tabs.forEach(function (t) {
+        t.addEventListener('click', function () { select(t.id, true); });
+      });
+
+      var saved;
+      try { saved = localStorage.getItem(KEY); } catch (e) {}
+      if (saved && document.getElementById(saved)) select(saved, false);
+    })();
+  </script>
+</body>
+</html>
