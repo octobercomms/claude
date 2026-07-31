@@ -366,23 +366,26 @@ export default function ClientDetailPage() {
         <SuiteOverview
           tagline="Set it up once. Reap it everywhere."
           description="The brand, strategy and data connections you define here power every other section — so ads stay on-brand, content stays on-message, and the weekly client report writes itself."
-          ctaLabel="Open the brief"
-          onCta={() => setSearchParams({ tab: 'details' })}
+          benefits={['On-brand across every channel', 'Wire up data once', 'The weekly report writes itself']}
+          primary={{ fn: 'data', ctaLabel: 'Open the brief', onCta: () => setSearchParams({ tab: 'details' }) }}
+          readouts={[
+            { fn: 'data', name: 'Connectors', value: connectors.length || '—', sub: connectors.length ? 'connected' : 'none yet' },
+          ]}
           map={[
-            { title: 'Setup', subtitle: 'Client details and the brand kit', nodes: [
+            { title: 'Setup', fn: 'data', subtitle: 'Client details and the brand kit', nodes: [
               { label: 'Client brief', onClick: () => setSearchParams({ tab: 'details' }) },
               { label: 'Brand kit',    onClick: () => setSearchParams({ tab: 'brand' }) },
             ] },
-            { title: 'Connectors', subtitle: 'Wire up every data source once', nodes: [
+            { title: 'Connectors', fn: 'data', subtitle: 'Wire up every data source once', nodes: [
               { label: 'Data connectors', onClick: () => setSearchParams({ tab: 'connectors' }) },
             ] },
-            { title: 'Strategy', subtitle: 'The thinking behind the work', nodes: [
+            { title: 'Strategy', fn: 'strategy', subtitle: 'The thinking behind the work', nodes: [
               { label: 'SOSTAC',    onClick: () => setSearchParams({ tab: 'strategy' }) },
               { label: 'Personas',  onClick: () => setSearchParams({ tab: 'strategy' }) },
               { label: 'SWOT',      onClick: () => setSearchParams({ tab: 'strategy' }) },
               { label: 'Rival map', onClick: () => setSearchParams({ tab: 'strategy' }) },
             ] },
-            { title: 'Reports', subtitle: 'Cross-channel client report builder', chained: true, nodes: [
+            { title: 'Reports', fn: 'distribute', subtitle: 'Cross-channel client report builder', chained: true, nodes: [
               { label: 'Templates', onClick: () => setSearchParams({ tab: 'reports' }) },
               { label: 'Live data', onClick: () => setSearchParams({ tab: 'reports' }) },
               { label: 'Narrative', onClick: () => setSearchParams({ tab: 'reports' }) },
