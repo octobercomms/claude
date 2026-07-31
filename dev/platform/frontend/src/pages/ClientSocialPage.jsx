@@ -14,7 +14,6 @@ import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
 import SuiteOverview from '../components/SuiteOverview';
 import SuiteTabs from '../components/SuiteTabs';
-import ProcessRail from '../components/ProcessRail';
 import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
 import IgOutreachPanel from '../components/IgOutreachPanel';
@@ -23,6 +22,7 @@ import SubredditResearchPanel from '../components/SubredditResearchPanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import AutoEditPanel from '../components/AutoEditPanel';
 import UiButton from '../components/ui/Button';
+import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
 const SUITE_ACCENT_SOCIAL = UiPalette.suite.social;
@@ -396,6 +396,65 @@ export default function ClientSocialPage() {
     }
   }
 
+  // Capture / Engage / Measure are parallel tools & read-outs, not a numbered
+  // sequence — so they're accordions (same primitive as Owned's Health), not a
+  // ProcessRail. Section bodies are the former per-tab panels, rendered lazily.
+  const renderReview = () => (
+    <SocialSuiteOverview
+      clientId={id} client={client} batches={batches} posts={posts} plans={plans}
+      competitors={competitors} winners={winners} competitorPosts={competitorPosts} sparkline={sparkline}
+      onAddCompetitor={() => setSocialTab('competitors')} onGenerate={() => setSocialTab('brainstorm')}
+      onBulkSchedule={() => setBulkOpen(true)} onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
+      onOpenHookVault={() => setHookVaultOpen(true)} />
+  );
+  const renderLearn = () => (
+    <div className="stack-lg">
+      <div><div className="caption">Learn</div><div className="h2 mt-2">What worked — and the hooks to reuse</div></div>
+      <p className="body" style={{ maxWidth: 640 }}>Your best-performing published posts, ranked by reach and engagement, with the framework breakdown showing which hook styles land. Bank the winning hooks in the <strong>Vault</strong> below and reuse them across posts and clients.</p>
+      {(winners?.length || frameworkBreakdown?.length) ? (
+        <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
+      ) : (
+        <ExampleBlock storageKey={`social_winners_example_${id}`} title="this is what a winner looks like once posts start performing"><ExampleWinners /></ExampleBlock>
+      )}
+      <div><div className="caption caption-muted mb-3">✦ Hook Vault — winning hooks, ready to reuse</div>
+        <HookVaultList clientId={id} onUse={(hook) => setPlannerOpen({ planId: null, seedHook: hook })} /></div>
+    </div>
+  );
+  const renderCompare = () => (
+    <div className="stack-lg">
+      <div><div className="caption">Competitors</div><div className="h2 mt-2">Whose hooks to model against</div></div>
+      <p className="body" style={{ maxWidth: 640 }}>Add 3–10 competitor handles. Each week we scrape their top-performing posts and pull regional trending sounds — both feed your next Brainstorm so Claude models against what's working in your niche.</p>
+      <div id="competitor-editor-anchor"><CompetitorEditor competitors={competitors} onSave={saveCompetitors} /></div>
+      {competitors.length > 0 ? (
+        <CompetitorTrackerPanel posts={competitorPosts} refreshing={refreshingCompetitors} onRefresh={refreshCompetitorPosts} hasCompetitors={competitors.length > 0} />
+      ) : (
+        <ExampleBlock storageKey={`social_competitors_example_${id}`} title="this is what competitor tracking looks like once you add handles"><ExampleCompetitors /></ExampleBlock>
+      )}
+      <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
+    </div>
+  );
+  const CAPTURE_SECTIONS = [
+    { id: 'swipe', fn: 'research', title: 'Swipe file', sub: 'Save posts to model', render: () => <SwipeFilePanel clientId={id} onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} /> },
+    { id: 'subreddit', fn: 'research', title: 'Subreddit research', sub: 'Mine Reddit for angles', render: () => <SubredditResearchPanel clientId={id} onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} /> },
+  ];
+  const ENGAGE_SECTIONS = [
+    { id: 'dm_bot', fn: 'distribute', title: 'DM bot', sub: 'Auto-reply brain & drafts', render: () => <SocialDmBotPanel clientId={id} /> },
+    { id: 'discover', fn: 'distribute', title: 'Discover', sub: 'Find & engage accounts', render: () => <IgOutreachPanel clientId={id} /> },
+  ];
+  const MEASURE_SECTIONS = [
+    { id: 'perf_insights', fn: 'measure', title: 'Review', sub: 'Your headline numbers', render: renderReview },
+    { id: 'performance', fn: 'measure', title: 'Learn', sub: 'Top posts & hooks', render: renderLearn },
+    { id: 'competitors', fn: 'research', title: 'Compare', sub: 'Benchmark vs rivals', render: renderCompare },
+    { id: 'audit', fn: 'strategy', title: 'Improve', sub: 'What to change next', render: () => <SocialAuditPanel clientId={id} /> },
+  ];
+  const SUB_ACCORDION = { capture: CAPTURE_SECTIONS, engage: ENGAGE_SECTIONS, measure: MEASURE_SECTIONS };
+  const subGroup = { swipe: 'capture', subreddit: 'capture', dm_bot: 'engage', discover: 'engage', perf_insights: 'measure', performance: 'measure', competitors: 'measure', audit: 'measure' }[socialTab];
+  const [subOpen, setSubOpen] = useState(() => new Set());
+  useEffect(() => {
+    if (subGroup) setSubOpen(prev => (prev.has(socialTab) ? prev : new Set(prev).add(socialTab)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socialTab]);
+
   return (
     <div className="suite-social">
       {/* HERO — always visible across tabs. Tab-specific actions sit
@@ -444,18 +503,6 @@ export default function ClientSocialPage() {
           performance: 'measure', competitors: 'measure', audit: 'measure', perf_insights: 'measure',
           learn: 'measure', loop: 'measure',
         };
-        // Sub-step descriptions for the Engage / Measure rails, so each tab
-        // reads as a step in a "work through these" order rather than a bare tab.
-        const RAIL_SUB = {
-          swipe: 'Save posts to model',
-          subreddit: 'Mine Reddit for angles',
-          dm_bot: 'Auto-reply brain & drafts',
-          discover: 'Find & engage accounts',
-          perf_insights: 'Your headline numbers',
-          performance: 'Top posts & hooks',
-          competitors: 'Benchmark vs rivals',
-          audit: 'What to change next',
-        };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
@@ -464,19 +511,17 @@ export default function ClientSocialPage() {
           { key: 'engage',   label: 'Engage',   fn: 'distribute', active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
           { key: 'measure',  label: 'Measure',  fn: 'measure',    active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
         ];
-        // Engage / Measure show a numbered ProcessRail (a stepped "work through
-        // these tabs" guide, like Paid → Advise and Owned). Create has its own
-        // stepper; Overview / Capture have no sub-steps.
-        const railSteps = (SUB_TABS[currentGroup] || []).map(t => ({
-          key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: 'todo',
-        }));
         return (
           <>
             <SuiteTabs tabs={topTabs} />
-            {railSteps.length > 0 && currentGroup !== 'create' && (
-              <div className="stepper-block">
-                <ProcessRail steps={railSteps} activeKey={socialTab} onStep={setSocialTab} numbered />
-              </div>
+            {SUB_ACCORDION[currentGroup] && (
+              <Accordion open={subOpen} onToggle={(sid) => setSubOpen(prev => {
+                const next = new Set(prev); next.has(sid) ? next.delete(sid) : next.add(sid); return next;
+              })}>
+                {SUB_ACCORDION[currentGroup].map(s => (
+                  <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
+                ))}
+              </Accordion>
             )}
           </>
         );
@@ -512,38 +557,6 @@ export default function ClientSocialPage() {
       )}
 
       {/* PERFORMANCE → INSIGHTS — hero metrics, loop, next-up, recap. */}
-      {socialTab === 'perf_insights' && (
-        <SocialSuiteOverview
-          clientId={id}
-          client={client}
-          batches={batches}
-          posts={posts}
-          plans={plans}
-          competitors={competitors}
-          winners={winners}
-          competitorPosts={competitorPosts}
-          sparkline={sparkline}
-          onAddCompetitor={() => setSocialTab('competitors')}
-          onGenerate={() => setSocialTab('brainstorm')}
-          onBulkSchedule={() => setBulkOpen(true)}
-          onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
-          onOpenHookVault={() => setHookVaultOpen(true)}
-        />
-      )}
-
-      {/* CAPTURE — the swipe file. A research surface upstream of Build: paste a
-          reel, capture it as an idea card, then "Use as brief" jumps into Build
-          with the brief pre-filled. Lives on its own tab so Build stays focused
-          on producing posts. */}
-      {socialTab === 'swipe' && (
-        <SwipeFilePanel clientId={id}
-          onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} />
-      )}
-
-      {socialTab === 'subreddit' && (
-        <SubredditResearchPanel clientId={id}
-          onUseAsBrief={(text) => { setBrief(text); setSocialTab('brainstorm'); }} />
-      )}
 
       {/* CREATE — the social factory: Ideas → Brief → Workbench → Schedule.
           Reels are absorbed as a per-post "Produce" overlay (createView). */}
@@ -617,70 +630,6 @@ export default function ClientSocialPage() {
 
       {/* LEARN — top posts, framework breakdown, and the Hook Vault inline so
           "spot a winner → reuse its hook" reads as one page. */}
-      {socialTab === 'performance' && (
-        <div className="stack-lg">
-          <div>
-            <div className="caption">Learn</div>
-            <div className="h2 mt-2">What worked — and the hooks to reuse</div>
-          </div>
-          <p className="body" style={{ maxWidth: 640 }}>
-            Your best-performing published posts, ranked by reach and engagement, with the framework breakdown
-            showing which hook styles land. Bank the winning hooks in the <strong>Vault</strong> below and reuse
-            them across posts and clients.
-          </p>
-          {(winners?.length || frameworkBreakdown?.length) ? (
-            <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
-          ) : (
-            <ExampleBlock storageKey={`social_winners_example_${id}`} title="this is what a winner looks like once posts start performing">
-              <ExampleWinners />
-            </ExampleBlock>
-          )}
-
-          <div>
-            <div className="caption caption-muted mb-3">✦ Hook Vault — winning hooks, ready to reuse</div>
-            <HookVaultList clientId={id} onUse={(hook) => setPlannerOpen({ planId: null, seedHook: hook })} />
-          </div>
-        </div>
-      )}
-
-      {/* COMPETITORS — editor, social scrape, landing-page diff,
-          trending sounds (sounds are competitor-adjacent grounding). */}
-      {socialTab === 'audit' && <SocialAuditPanel clientId={id} />}
-
-      {socialTab === 'dm_bot' && <SocialDmBotPanel clientId={id} />}
-
-      {socialTab === 'discover' && <IgOutreachPanel clientId={id} />}
-
-      {socialTab === 'competitors' && (
-        <div className="stack-lg">
-          <div>
-            <div className="caption">Competitors</div>
-            <div className="h2 mt-2">Whose hooks to model against</div>
-          </div>
-          <p className="body" style={{ maxWidth: 640 }}>
-            Add 3–10 competitor handles. Each week we scrape their top-performing posts and pull regional
-            trending sounds — both feed your next Brainstorm so Claude models against what's working in your niche.
-          </p>
-          <div id="competitor-editor-anchor">
-            <CompetitorEditor competitors={competitors} onSave={saveCompetitors} />
-          </div>
-          {competitors.length > 0 ? (
-            <CompetitorTrackerPanel
-              posts={competitorPosts}
-              refreshing={refreshingCompetitors}
-              onRefresh={refreshCompetitorPosts}
-              hasCompetitors={competitors.length > 0}
-            />
-          ) : (
-            <ExampleBlock storageKey={`social_competitors_example_${id}`} title="this is what competitor tracking looks like once you add handles">
-              <ExampleCompetitors />
-            </ExampleBlock>
-          )}
-          <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
-        </div>
-      )}
-
-
       {generating && <GeneratingOverlay count={postCount} />}
       {plannerOpen && (
         <SocialPlannerChat
