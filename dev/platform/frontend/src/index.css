@@ -376,6 +376,40 @@ button { font-family: inherit; }
 .filter-tab .tab-count { font-size: 11px; font-weight: 600; color: var(--text-subtle); }
 .filter-tab.active .tab-count { color: var(--accent); }
 
+/* ─── Accordion ──────────────────────────────────────────────────────
+   The Health dashboard primitive — stacked read-out panels on one page.
+   Two-tone only: white surface, black text, accent reserved for the open
+   marker. Thick border + chunky radius per the house style. */
+.accordion { display: flex; flex-direction: column; gap: var(--s3); }
+.accordion-item {
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-md); background: var(--surface);
+  overflow: hidden;
+}
+.accordion-item.open { box-shadow: var(--shadow-sm); }
+.accordion-h { margin: 0; }
+.accordion-trigger {
+  width: 100%; display: flex; align-items: center; gap: var(--s3);
+  background: none; border: none; cursor: pointer; text-align: left;
+  padding: var(--s4) var(--s5); font: inherit; color: var(--text);
+}
+.accordion-trigger:hover { background: var(--surface-sunken); }
+.accordion-caret {
+  color: var(--text-subtle); font-size: 12px; line-height: 1;
+  transition: transform 0.15s ease; flex: 0 0 auto;
+}
+.accordion-item.open .accordion-caret { transform: rotate(90deg); color: var(--accent); }
+.accordion-title { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+.accordion-sub { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.accordion-badge {
+  margin-left: auto; font-size: 11px; font-weight: 600;
+  color: var(--text-subtle); white-space: nowrap;
+}
+.accordion-panel {
+  padding: var(--s5); border-top: var(--border-w) solid var(--card-border);
+}
+@media (prefers-reduced-motion: reduce) { .accordion-caret { transition: none; } }
+
 /* ─── Chips ──────────────────────────────────────────────────────── */
 
 .chip {

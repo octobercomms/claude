@@ -18,6 +18,7 @@ import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import AiSeoPanel from '../components/organic/AiSeoPanel';
 import SuiteOverview from '../components/SuiteOverview';
 import ProcessRail from '../components/ProcessRail';
+import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import FindPanel from '../components/organic/FindPanel';
 import TopicMapPanel from '../components/organic/TopicMapPanel';
 import BriefPanel from '../components/organic/BriefPanel';
@@ -540,6 +541,9 @@ export default function ClientSEOPage() {
     // Performance sub-tabs (perf_insights is the summary landing).
     // aio / fanout / gaps stay in the whitelist as backwards-compat
     // aliases — they redirect to their new homes (keywords / find).
+    // Health — the consolidated read-out dashboard (absorbs the old Search rail).
+    // The individual keys below stay whitelisted as deep-link aliases.
+    'health',
     'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'ai_seo', 'gaps', 'authority', 'backlinks', 'drift', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint', 'agent_ready',
     // Pipeline sub-tabs
     'topic_map', 'find', 'planning', 'draft', 'publish', 'promote',
@@ -574,6 +578,17 @@ export default function ClientSEOPage() {
     : activeTab.startsWith('local_') ? 'owned_localise'
     : null;
   const [railStatus, setRailStatus] = useState({});
+  // Health dashboard — which accordion sections are open. Review (the headline
+  // read-out) is open by default; the rest are one tap away.
+  const [healthOpen, setHealthOpen] = useState(() => new Set(['review']));
+  const toggleHealth = (id) => setHealthOpen(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const openHealth = (id) => setHealthOpen(prev => new Set(prev).add(id));
+  // Jump to the Health dashboard with a given section opened.
+  const goHealth = (section) => { if (section) openHealth(section); setActiveTab('health'); };
   useEffect(() => {
     if (!railSuite) return;
     api.get(`/clients/${id}/suite-progress/${railSuite}`).then(r => setRailStatus(r.steps || {})).catch(() => {});
@@ -585,274 +600,12 @@ export default function ClientSEOPage() {
 
   if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
-  return (
-    <div className="suite-organic">
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Owned</span></div>
-      <header className="hero">
-        <div>
-          <h1 className="display mt-2">Owned</h1>
-        </div>
-      </header>
-
-      {/* Five top-level groups by job-to-be-done, each fanning out into the
-          existing tab content via a sub-strip (no JSX guards below change):
-            Overview     — launchpad
-            Performance  — reporting / measurement (where do we stand today)
-            Optimise     — the tools: audits we run + actions we generate
-            Pipeline     — the production wizard (Find → Brief → Draft →
-                           Publish → Promote); Briefs is step 2
-            Local SEO    — the local toolkit
-          Performance and Optimise were one overloaded "Performance" group;
-          splitting reporting from action keeps each strip scannable. */}
-      {(() => {
-        const SUB_TABS = {
-          // Performance sub-tabs grouped with inline labels (rendered
-          // by SuiteTabs as small uppercase separators) so 10 entries
-          // scan as 3 logical clusters rather than a wall of options.
-          //   Measurement — what's happening today: ranks + GSC + AI visibility
-          //   On-page     — health of pages we control: site/content/footprint/wins
-          //   Off-page    — authority + links
-          // Search = reporting/measurement only ("where do we stand today").
-          // The action-oriented tools moved to Optimise below, so this group
-          // stays a clean read-out rather than a wall of options.
-          search: [
-            { groupLabel: 'Measurement' },
-            { key: 'perf_insights', label: 'Review' },
-            { key: 'keywords',      label: 'Keywords' },
-            { key: 'gsc',           label: 'Search Console' },
-            { key: 'ai_visibility', label: 'AI Visibility' },
-            { groupLabel: 'Off-page' },
-            { key: 'authority',     label: 'Authority' },
-            { key: 'backlinks',     label: 'Backlinks' },
-            { groupLabel: 'Monitoring' },
-            { key: 'drift',         label: 'Watch' },
-          ],
-          // Optimise = the "what do we do about it" tools — audits we run
-          // and actions we generate, split out of Performance so the two
-          // jobs-to-be-done don't share one overloaded strip.
-          optimise: [
-            { groupLabel: 'On-page' },
-            { key: 'site_audit',    label: 'Scan' },
-            { key: 'content_audit', label: 'Grade' },
-            { key: 'keyword_footprint', label: 'Map' },
-            { key: 'quick_wins',    label: 'Win' },
-            { groupLabel: 'Search appearance' },
-            { key: 'ctr_boost',     label: 'Sharpen' },
-            { key: 'ai_seo',        label: 'Target' },
-            { key: 'agent_ready',   label: 'Prep' },
-          ],
-          content: [
-            { key: 'find',     label: '1 · Find' },
-            { key: 'planning', label: '2 · Brief' },
-            { key: 'draft',    label: '3 · Draft' },
-            { key: 'publish',  label: '4 · Publish' },
-            { key: 'promote',  label: '5 · Promote' },
-          ],
-          local: [
-            { key: 'local_gap',      label: 'Compare' },
-            { key: 'local_schema',   label: 'Validate' },
-            { key: 'local_keywords', label: 'Find' },
-            { key: 'local_xray',     label: 'Competitor X-ray' },
-            { key: 'local_playbook', label: 'Plan' },
-            { key: 'local_outliers', label: 'Flag' },
-            { key: 'local_gbp',      label: 'GBP posts' },
-          ],
-          convert: [
-            { key: 'cro',   label: 'CRO' },
-            { key: 'forms', label: 'Forms' },
-          ],
-        };
-        const GROUP_OF = {
-          overview: 'overview',
-          perf_insights: 'search',
-          keywords: 'search', gsc: 'search', authority: 'search', backlinks: 'search',
-          ai_visibility: 'search', drift: 'search',
-          site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
-          ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
-          topic_map: 'content', find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
-          local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_outliers: 'local', local_gbp: 'local',
-          cro: 'convert', forms: 'convert',
-          email: 'email',
-        };
-        const currentGroup = GROUP_OF[activeTab] || 'overview';
-        const topTabs = [
-          { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setActiveTab('overview') },
-          { key: 'search',   label: 'Search',   active: currentGroup === 'search',   onClick: () => setActiveTab('perf_insights') },
-          { key: 'optimise', label: 'Optimise', active: currentGroup === 'optimise', onClick: () => setActiveTab('site_audit') },
-          { key: 'content',  label: 'Build',    active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
-          { key: 'local',    label: 'Localise', active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
-          { key: 'convert',  label: 'Convert',  active: currentGroup === 'convert',  onClick: () => setActiveTab('cro') },
-          { key: 'email',    label: 'Email',    active: currentGroup === 'email',    onClick: () => setActiveTab('email') },
-        ];
-        const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
-          ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
-        }));
-        // Groups that render as a numbered "work through these tabs" rail with
-        // derived ✓, rather than a flat sub-tab strip.
-        // Titles are verbs (hybrid) — where the verb replaces a tool name, the
-        // sub keeps that name so nothing recognisable is lost.
-        const RAIL_SUB = {
-          perf_insights: 'The headline read', keywords: 'What you rank for', gsc: 'Real Google clicks',
-          ai_visibility: 'Where AI cites you', authority: 'Domain strength', backlinks: 'Who links to you', drift: 'Drift · track regressions',
-          site_audit: 'Site audit · technical fixes', content_audit: 'Content audit · one page', keyword_footprint: 'Keyword footprint', quick_wins: 'Quick wins · page-2 keywords',
-          ctr_boost: 'CTR boosters · titles', ai_seo: 'AI keyword targets', agent_ready: 'Agent readiness',
-          local_gap: 'Local competition gap', local_schema: 'Local schema audit', local_keywords: 'Buyer-intent keywords', local_xray: 'Rival teardown',
-          local_playbook: 'GBP ranking playbook', local_outliers: 'Ranking outliers', local_gbp: 'GBP posts',
-          cro: 'Fix the funnel', forms: 'Lead capture',
-        };
-        const INFO_TABS = new Set(['perf_insights']); // read-outs, not "do" steps
-        const RAIL_GROUPS = new Set(['search', 'optimise', 'local', 'convert']);
-        const railSteps = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel
-          ? { groupLabel: t.groupLabel }
-          : { key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: INFO_TABS.has(t.key) ? 'info' : (railStatus[t.key] || 'todo') });
-        // When the group has section labels (Search, Optimise), render each
-        // section as its own titled bento rather than inline separators.
-        const railGrouped = (SUB_TABS[currentGroup] || []).some(t => t.groupLabel);
-
-        // Build (content) is a linear pipeline → render the shared Stepper
-        // instead of a sub-tab strip, matching Shared's and Paid's Build.
-        const CONTENT_KEYS = ['topic_map', 'find', 'planning', 'draft', 'publish', 'promote'];
-        const CONTENT_META = [
-          { title: 'Topic map', sub: 'Plan the cluster' },
-          { title: 'Find', sub: 'Topics & keywords' },
-          { title: 'Brief', sub: 'Outline & angle' },
-          { title: 'Draft', sub: 'Write it' },
-          { title: 'Publish', sub: 'Ship the page' },
-          { title: 'Promote', sub: 'Links & distribution' },
-        ];
-        return (
-          <>
-            <SuiteTabs tabs={topTabs} />
-            {currentGroup === 'content' ? (
-              <div className="stepper-block">
-                <Stepper
-                  steps={CONTENT_META}
-                  current={Math.max(1, CONTENT_KEYS.indexOf(activeTab) + 1)}
-                  onStep={n => setActiveTab(CONTENT_KEYS[n - 1])}
-                />
-              </div>
-            ) : RAIL_GROUPS.has(currentGroup) ? (
-              <div className="stepper-block">
-                <ProcessRail numbered wrap grouped={railGrouped} activeKey={activeTab} onStep={setActiveTab} steps={railSteps} />
-              </div>
-            ) : (
-              subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />
-            )}
-          </>
-        );
-      })()}
-
-      {activeTab === 'overview' && (
-        <SuiteOverview
-          tagline="Get found where buyers look — and turn the traffic into leads."
-          description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach the right people from your own domain."
-          ctaLabel="View keyword ranks"
-          onCta={() => setActiveTab('keywords')}
-          status={[
-            { label: 'Keywords', value: keywords.length ? `${keywords.length} tracked` : 'None yet', ok: keywords.length > 0 },
-            { label: 'Ranking', value: `${keywords.filter(k => k.current_position).length}`, ok: keywords.filter(k => k.current_position).length > 0 },
-          ]}
-          actions={<a className="btn btn-secondary" href={`/api/seo/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
-          mapLayout="snake"
-          map={[
-            { title: 'Search', subtitle: 'Where you rank and where you get cited', nodes: [
-              { label: 'Rankings',       onClick: () => setActiveTab('keywords') },
-              { label: 'Search Console', onClick: () => setActiveTab('gsc') },
-              { label: 'AI visibility',  onClick: () => setActiveTab('ai_visibility') },
-              { label: 'Authority',      onClick: () => setActiveTab('authority') },
-              { label: 'Backlinks',      onClick: () => setActiveTab('backlinks') },
-              { label: 'Drift',          onClick: () => setActiveTab('drift') },
-            ] },
-            { title: 'Optimise', subtitle: 'Site and content fixes that move the needle', nodes: [
-              { label: 'Site audit',        onClick: () => setActiveTab('site_audit') },
-              { label: 'Content audit',     onClick: () => setActiveTab('content_audit') },
-              { label: 'Quick wins',        onClick: () => setActiveTab('quick_wins') },
-              { label: 'CTR boosters',      onClick: () => setActiveTab('ctr_boost') },
-              { label: 'Keyword footprint', onClick: () => setActiveTab('keyword_footprint') },
-              { label: 'AI keywords',       onClick: () => setActiveTab('ai_seo') },
-              { label: 'Agent readiness',   onClick: () => setActiveTab('agent_ready') },
-            ] },
-            { title: 'Build', subtitle: 'Editorial pipeline', numbered: true, nodes: [
-              { label: 'Topic map', onClick: () => setActiveTab('topic_map') },
-              { label: 'Find',    onClick: () => setActiveTab('find') },
-              { label: 'Brief',   onClick: () => setActiveTab('planning') },
-              { label: 'Draft',   onClick: () => setActiveTab('draft') },
-              { label: 'Publish', onClick: () => setActiveTab('publish') },
-              { label: 'Promote', onClick: () => setActiveTab('promote') },
-            ] },
-            { title: 'Localise', subtitle: 'Win the map and the neighbourhood searches', nodes: [
-              { label: 'GBP',          onClick: () => setActiveTab('local_gbp') },
-              { label: 'Rival X-ray',  onClick: () => setActiveTab('local_xray') },
-              { label: 'Schema',       onClick: () => setActiveTab('local_schema') },
-              { label: 'Buyer intent', onClick: () => setActiveTab('local_keywords') },
-            ] },
-            { title: 'Convert', subtitle: 'Turn visits into leads', nodes: [
-              { label: 'CRO',   onClick: () => setActiveTab('cro') },
-              { label: 'Forms', onClick: () => setActiveTab('forms') },
-            ] },
-            { title: 'Email', subtitle: 'Nurture leads to close', nodes: [
-              { label: 'Campaigns',    onClick: () => setActiveTab('email') },
-              { label: 'Contacts',     onClick: () => setActiveTab('email') },
-              { label: 'Sequences',    onClick: () => setActiveTab('email') },
-              { label: 'Mailbox warm', onClick: () => setActiveTab('email') },
-              { label: 'Sending',      onClick: () => setActiveTab('email') },
-              { label: 'Tasks',        onClick: () => setActiveTab('email') },
-            ] },
-          ]}
-        />
-      )}
-
-      {historyKeyword && (
-        <KeywordHistoryModal
-          keywordId={historyKeyword.id}
-          keyword={historyKeyword.keyword}
-          onClose={() => setHistoryKeyword(null)}
-        />
-      )}
-
-      {activeTab === 'perf_insights' && (
-        <OrganicInsightsPanel
-          keywords={keywords}
-          onOpenKeywords={() => setActiveTab('keywords')}
-          onOpenAiVisibility={() => setActiveTab('ai_visibility')}
-          onOpenSiteAudit={() => setActiveTab('site_audit')}
-          onOpenQuickWins={() => setActiveTab('quick_wins')}
-        />
-      )}
-      {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
-
-      {/* Convert — turn visitors into leads. */}
-      {activeTab === 'cro' && <ClarityCroPanel clientId={id} />}
-      {activeTab === 'forms' && <FormsTab clientId={id} connectors={connectors} />}
-
-      {/* Email — the full Outreach suite, embedded (uses its own ?etab=). */}
-      {activeTab === 'email' && <ClientOutreachPage embedded clientId={id} />}
-      {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
-      {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
-      {activeTab === 'drift' && <SeoDriftPanel clientId={id} />}
-      {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}
-      {activeTab === 'agent_ready' && <AgentReadinessPanel clientId={id} />}
-      {activeTab === 'site_audit' && <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
-      {activeTab === 'quick_wins' && <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
-      {activeTab === 'content_audit' && <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
-      {activeTab === 'keyword_footprint' && <KeywordFootprintPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
-      {/* Pipeline steps */}
-      {activeTab === 'topic_map' && <TopicMapPanel clientId={id} />}
-      {activeTab === 'find' && <FindPanel clientId={id} onBuildContent={buildFromKeyword} onNext={() => setActiveTab('planning')} />}
-      {activeTab === 'planning' && <BriefPanel clientId={id} seed={buildSeed} onNext={() => setActiveTab('draft')} />}
-      {activeTab === 'draft' && <DraftPanel clientId={id} onNext={() => setActiveTab('publish')} />}
-      {activeTab === 'publish' && <PublishPanel clientId={id} onNext={() => setActiveTab('promote')} />}
-      {activeTab === 'promote' && <PromotePanel clientId={id} />}
-      {/* Local SEO toolkit */}
-      {activeTab === 'local_gap' && <LocalSeoPanel clientId={id} tool="competition_gap" />}
-      {activeTab === 'local_schema' && <LocalSeoPanel clientId={id} tool="schema_audit" />}
-      {activeTab === 'local_keywords' && <LocalSeoPanel clientId={id} tool="buyer_intent" />}
-      {activeTab === 'local_xray' && <LocalSeoPanel clientId={id} tool="competitor_xray" />}
-      {activeTab === 'local_playbook' && <LocalSeoPanel clientId={id} tool="ranking_playbook" />}
-      {activeTab === 'local_outliers' && <LocalSeoPanel clientId={id} tool="ranking_outliers" />}
-      {activeTab === 'local_gbp' && <LocalSeoPanel clientId={id} tool="gbp_posts" />}
-
-      {activeTab === 'keywords' && <>
+  // Health-dashboard section bodies. Extracted verbatim from the former
+  // Keywords / Authority tabs so the Health page can compose them as
+  // accordion panels without changing their behaviour. Closures capture
+  // the same component state the standalone branches used.
+  const renderKeywordsBody = () => (
+    <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <button onClick={handleExport} className="btn btn-secondary btn-sm">Export CSV</button>
         <button onClick={handleClassifyIntent} className="btn btn-secondary btn-sm" disabled={classifying}>{classifying ? 'Classifying…' : 'Classify Intent'}</button>
@@ -1137,9 +890,9 @@ export default function ClientSEOPage() {
         </p>
       )}
 
-      </>}
-
-      {activeTab === 'authority' && (
+    </>
+  );
+  const renderAuthorityBody = () => (
       <div className="card" style={{ marginTop: 0 }}>
         <div className="caption">Manual SEO Metrics</div>
 
@@ -1224,8 +977,321 @@ export default function ClientSEOPage() {
           </div>
         </form>
       </div>
+  );
 
+  return (
+    <div className="suite-organic">
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Owned</span></div>
+      <header className="hero">
+        <div>
+          <h1 className="display mt-2">Owned</h1>
+        </div>
+      </header>
+
+      {/* Five top-level groups by job-to-be-done, each fanning out into the
+          existing tab content via a sub-strip (no JSX guards below change):
+            Overview     — launchpad
+            Performance  — reporting / measurement (where do we stand today)
+            Optimise     — the tools: audits we run + actions we generate
+            Pipeline     — the production wizard (Find → Brief → Draft →
+                           Publish → Promote); Briefs is step 2
+            Local SEO    — the local toolkit
+          Performance and Optimise were one overloaded "Performance" group;
+          splitting reporting from action keeps each strip scannable. */}
+      {(() => {
+        const SUB_TABS = {
+          // Performance sub-tabs grouped with inline labels (rendered
+          // by SuiteTabs as small uppercase separators) so 10 entries
+          // scan as 3 logical clusters rather than a wall of options.
+          //   Measurement — what's happening today: ranks + GSC + AI visibility
+          //   On-page     — health of pages we control: site/content/footprint/wins
+          //   Off-page    — authority + links
+          // Search = reporting/measurement only ("where do we stand today").
+          // The action-oriented tools moved to Optimise below, so this group
+          // stays a clean read-out rather than a wall of options.
+          search: [
+            { groupLabel: 'Measurement' },
+            { key: 'perf_insights', label: 'Review' },
+            { key: 'keywords',      label: 'Keywords' },
+            { key: 'gsc',           label: 'Search Console' },
+            { key: 'ai_visibility', label: 'AI Visibility' },
+            { groupLabel: 'Off-page' },
+            { key: 'authority',     label: 'Authority' },
+            { key: 'backlinks',     label: 'Backlinks' },
+            { groupLabel: 'Monitoring' },
+            { key: 'drift',         label: 'Watch' },
+          ],
+          // Optimise = the "what do we do about it" tools — audits we run
+          // and actions we generate, split out of Performance so the two
+          // jobs-to-be-done don't share one overloaded strip.
+          optimise: [
+            { groupLabel: 'On-page' },
+            { key: 'site_audit',    label: 'Scan' },
+            { key: 'content_audit', label: 'Grade' },
+            { key: 'keyword_footprint', label: 'Map' },
+            { key: 'quick_wins',    label: 'Win' },
+            { groupLabel: 'Search appearance' },
+            { key: 'ctr_boost',     label: 'Sharpen' },
+            { key: 'ai_seo',        label: 'Target' },
+            { key: 'agent_ready',   label: 'Prep' },
+          ],
+          content: [
+            { key: 'find',     label: '1 · Find' },
+            { key: 'planning', label: '2 · Brief' },
+            { key: 'draft',    label: '3 · Draft' },
+            { key: 'publish',  label: '4 · Publish' },
+            { key: 'promote',  label: '5 · Promote' },
+          ],
+          local: [
+            { key: 'local_gap',      label: 'Compare' },
+            { key: 'local_schema',   label: 'Validate' },
+            { key: 'local_keywords', label: 'Find' },
+            { key: 'local_xray',     label: 'Competitor X-ray' },
+            { key: 'local_playbook', label: 'Plan' },
+            { key: 'local_outliers', label: 'Flag' },
+            { key: 'local_gbp',      label: 'GBP posts' },
+          ],
+          convert: [
+            { key: 'cro',   label: 'CRO' },
+            { key: 'forms', label: 'Forms' },
+          ],
+        };
+        const GROUP_OF = {
+          overview: 'overview',
+          // Health — the consolidated dashboard. The old Search-rail tab keys
+          // still map here so any surviving deep link highlights Health.
+          health: 'health',
+          perf_insights: 'health',
+          keywords: 'health', gsc: 'health', authority: 'health', backlinks: 'health',
+          ai_visibility: 'health', drift: 'health',
+          site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
+          ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
+          topic_map: 'content', find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
+          local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_outliers: 'local', local_gbp: 'local',
+          cro: 'convert', forms: 'convert',
+          email: 'email',
+        };
+        const currentGroup = GROUP_OF[activeTab] || 'overview';
+        const topTabs = [
+          { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setActiveTab('overview') },
+          { key: 'health',   label: 'Health',   active: currentGroup === 'health',   onClick: () => setActiveTab('health') },
+          { key: 'optimise', label: 'Optimise', active: currentGroup === 'optimise', onClick: () => setActiveTab('site_audit') },
+          { key: 'content',  label: 'Build',    active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
+          { key: 'local',    label: 'Localise', active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
+          { key: 'convert',  label: 'Convert',  active: currentGroup === 'convert',  onClick: () => setActiveTab('cro') },
+          { key: 'email',    label: 'Email',    active: currentGroup === 'email',    onClick: () => setActiveTab('email') },
+        ];
+        const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
+          ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
+        }));
+        // Groups that render as a numbered "work through these tabs" rail with
+        // derived ✓, rather than a flat sub-tab strip.
+        // Titles are verbs (hybrid) — where the verb replaces a tool name, the
+        // sub keeps that name so nothing recognisable is lost.
+        const RAIL_SUB = {
+          perf_insights: 'The headline read', keywords: 'What you rank for', gsc: 'Real Google clicks',
+          ai_visibility: 'Where AI cites you', authority: 'Domain strength', backlinks: 'Who links to you', drift: 'Drift · track regressions',
+          site_audit: 'Site audit · technical fixes', content_audit: 'Content audit · one page', keyword_footprint: 'Keyword footprint', quick_wins: 'Quick wins · page-2 keywords',
+          ctr_boost: 'CTR boosters · titles', ai_seo: 'AI keyword targets', agent_ready: 'Agent readiness',
+          local_gap: 'Local competition gap', local_schema: 'Local schema audit', local_keywords: 'Buyer-intent keywords', local_xray: 'Rival teardown',
+          local_playbook: 'GBP ranking playbook', local_outliers: 'Ranking outliers', local_gbp: 'GBP posts',
+          cro: 'Fix the funnel', forms: 'Lead capture',
+        };
+        const INFO_TABS = new Set(['perf_insights']); // read-outs, not "do" steps
+        const RAIL_GROUPS = new Set(['optimise', 'local', 'convert']);
+        const railSteps = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel
+          ? { groupLabel: t.groupLabel }
+          : { key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: INFO_TABS.has(t.key) ? 'info' : (railStatus[t.key] || 'todo') });
+        // When the group has section labels (Search, Optimise), render each
+        // section as its own titled bento rather than inline separators.
+        const railGrouped = (SUB_TABS[currentGroup] || []).some(t => t.groupLabel);
+
+        // Build (content) is a linear pipeline → render the shared Stepper
+        // instead of a sub-tab strip, matching Shared's and Paid's Build.
+        const CONTENT_KEYS = ['topic_map', 'find', 'planning', 'draft', 'publish', 'promote'];
+        const CONTENT_META = [
+          { title: 'Topic map', sub: 'Plan the cluster' },
+          { title: 'Find', sub: 'Topics & keywords' },
+          { title: 'Brief', sub: 'Outline & angle' },
+          { title: 'Draft', sub: 'Write it' },
+          { title: 'Publish', sub: 'Ship the page' },
+          { title: 'Promote', sub: 'Links & distribution' },
+        ];
+        return (
+          <>
+            <SuiteTabs tabs={topTabs} />
+            {currentGroup === 'content' ? (
+              <div className="stepper-block">
+                <Stepper
+                  steps={CONTENT_META}
+                  current={Math.max(1, CONTENT_KEYS.indexOf(activeTab) + 1)}
+                  onStep={n => setActiveTab(CONTENT_KEYS[n - 1])}
+                />
+              </div>
+            ) : RAIL_GROUPS.has(currentGroup) ? (
+              <div className="stepper-block">
+                <ProcessRail numbered wrap grouped={railGrouped} activeKey={activeTab} onStep={setActiveTab} steps={railSteps} />
+              </div>
+            ) : (
+              subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />
+            )}
+          </>
+        );
+      })()}
+
+      {activeTab === 'overview' && (
+        <SuiteOverview
+          tagline="Get found where buyers look — and turn the traffic into leads."
+          description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach the right people from your own domain."
+          ctaLabel="View keyword ranks"
+          onCta={() => setActiveTab('keywords')}
+          status={[
+            { label: 'Keywords', value: keywords.length ? `${keywords.length} tracked` : 'None yet', ok: keywords.length > 0 },
+            { label: 'Ranking', value: `${keywords.filter(k => k.current_position).length}`, ok: keywords.filter(k => k.current_position).length > 0 },
+          ]}
+          actions={<a className="btn btn-secondary" href={`/api/seo/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
+          mapLayout="snake"
+          map={[
+            { title: 'Health', subtitle: 'Where you rank and where you get cited', nodes: [
+              { label: 'Rankings',       onClick: () => goHealth('keywords') },
+              { label: 'Search Console', onClick: () => goHealth('gsc') },
+              { label: 'AI visibility',  onClick: () => goHealth('ai_visibility') },
+              { label: 'Authority',      onClick: () => goHealth('authority') },
+              { label: 'Backlinks',      onClick: () => goHealth('backlinks') },
+              { label: 'Drift',          onClick: () => goHealth('watch') },
+            ] },
+            { title: 'Optimise', subtitle: 'Site and content fixes that move the needle', nodes: [
+              { label: 'Site audit',        onClick: () => setActiveTab('site_audit') },
+              { label: 'Content audit',     onClick: () => setActiveTab('content_audit') },
+              { label: 'Quick wins',        onClick: () => setActiveTab('quick_wins') },
+              { label: 'CTR boosters',      onClick: () => setActiveTab('ctr_boost') },
+              { label: 'Keyword footprint', onClick: () => setActiveTab('keyword_footprint') },
+              { label: 'AI keywords',       onClick: () => setActiveTab('ai_seo') },
+              { label: 'Agent readiness',   onClick: () => setActiveTab('agent_ready') },
+            ] },
+            { title: 'Build', subtitle: 'Editorial pipeline', numbered: true, nodes: [
+              { label: 'Topic map', onClick: () => setActiveTab('topic_map') },
+              { label: 'Find',    onClick: () => setActiveTab('find') },
+              { label: 'Brief',   onClick: () => setActiveTab('planning') },
+              { label: 'Draft',   onClick: () => setActiveTab('draft') },
+              { label: 'Publish', onClick: () => setActiveTab('publish') },
+              { label: 'Promote', onClick: () => setActiveTab('promote') },
+            ] },
+            { title: 'Localise', subtitle: 'Win the map and the neighbourhood searches', nodes: [
+              { label: 'GBP',          onClick: () => setActiveTab('local_gbp') },
+              { label: 'Rival X-ray',  onClick: () => setActiveTab('local_xray') },
+              { label: 'Schema',       onClick: () => setActiveTab('local_schema') },
+              { label: 'Buyer intent', onClick: () => setActiveTab('local_keywords') },
+            ] },
+            { title: 'Convert', subtitle: 'Turn visits into leads', nodes: [
+              { label: 'CRO',   onClick: () => setActiveTab('cro') },
+              { label: 'Forms', onClick: () => setActiveTab('forms') },
+            ] },
+            { title: 'Email', subtitle: 'Nurture leads to close', nodes: [
+              { label: 'Campaigns',    onClick: () => setActiveTab('email') },
+              { label: 'Contacts',     onClick: () => setActiveTab('email') },
+              { label: 'Sequences',    onClick: () => setActiveTab('email') },
+              { label: 'Mailbox warm', onClick: () => setActiveTab('email') },
+              { label: 'Sending',      onClick: () => setActiveTab('email') },
+              { label: 'Tasks',        onClick: () => setActiveTab('email') },
+            ] },
+          ]}
+        />
       )}
+
+      {historyKeyword && (
+        <KeywordHistoryModal
+          keywordId={historyKeyword.id}
+          keyword={historyKeyword.keyword}
+          onClose={() => setHistoryKeyword(null)}
+        />
+      )}
+
+      {/* Health — the consolidated read-out dashboard. One scrollable page that
+          absorbs the old Search rail (Review · Keywords · Search Console · AI
+          Visibility · Authority · Backlinks · Watch) as accordion panels. Pure
+          consolidation: each panel is the exact same content as its former tab.
+          Section bodies are passed as functions so a panel only mounts when
+          opened — matching the one-tab-at-a-time behaviour it replaces. */}
+      {activeTab === 'health' && (
+        <Accordion open={healthOpen} onToggle={toggleHealth}>
+          <AccordionItem id="review" title="Review" subtitle="The headline read">
+            {() => (
+              <OrganicInsightsPanel
+                keywords={keywords}
+                onOpenKeywords={() => openHealth('keywords')}
+                onOpenAiVisibility={() => openHealth('ai_visibility')}
+                onOpenSiteAudit={() => setActiveTab('site_audit')}
+                onOpenQuickWins={() => setActiveTab('quick_wins')}
+              />
+            )}
+          </AccordionItem>
+          <AccordionItem id="keywords" title="Keywords" subtitle="What you rank for">
+            {() => renderKeywordsBody()}
+          </AccordionItem>
+          <AccordionItem id="gsc" title="Search Console" subtitle="Real Google clicks">
+            {() => <SearchConsoleTab clientId={id} />}
+          </AccordionItem>
+          <AccordionItem id="ai_visibility" title="AI Visibility" subtitle="Where AI cites you">
+            {() => <AIVisibilityPanel clientId={id} />}
+          </AccordionItem>
+          <AccordionItem id="authority" title="Authority" subtitle="Domain strength">
+            {() => renderAuthorityBody()}
+          </AccordionItem>
+          <AccordionItem id="backlinks" title="Backlinks" subtitle="Who links to you">
+            {() => <BacklinksPanel clientId={id} clientName={client?.name} domain={client?.domain} />}
+          </AccordionItem>
+          <AccordionItem id="watch" title="Watch" subtitle="Drift · track regressions">
+            {() => <SeoDriftPanel clientId={id} />}
+          </AccordionItem>
+        </Accordion>
+      )}
+
+      {activeTab === 'perf_insights' && (
+        <OrganicInsightsPanel
+          keywords={keywords}
+          onOpenKeywords={() => setActiveTab('keywords')}
+          onOpenAiVisibility={() => setActiveTab('ai_visibility')}
+          onOpenSiteAudit={() => setActiveTab('site_audit')}
+          onOpenQuickWins={() => setActiveTab('quick_wins')}
+        />
+      )}
+      {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
+
+      {/* Convert — turn visitors into leads. */}
+      {activeTab === 'cro' && <ClarityCroPanel clientId={id} />}
+      {activeTab === 'forms' && <FormsTab clientId={id} connectors={connectors} />}
+
+      {/* Email — the full Outreach suite, embedded (uses its own ?etab=). */}
+      {activeTab === 'email' && <ClientOutreachPage embedded clientId={id} />}
+      {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
+      {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
+      {activeTab === 'drift' && <SeoDriftPanel clientId={id} />}
+      {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}
+      {activeTab === 'agent_ready' && <AgentReadinessPanel clientId={id} />}
+      {activeTab === 'site_audit' && <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
+      {activeTab === 'quick_wins' && <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
+      {activeTab === 'content_audit' && <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
+      {activeTab === 'keyword_footprint' && <KeywordFootprintPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
+      {/* Pipeline steps */}
+      {activeTab === 'topic_map' && <TopicMapPanel clientId={id} />}
+      {activeTab === 'find' && <FindPanel clientId={id} onBuildContent={buildFromKeyword} onNext={() => setActiveTab('planning')} />}
+      {activeTab === 'planning' && <BriefPanel clientId={id} seed={buildSeed} onNext={() => setActiveTab('draft')} />}
+      {activeTab === 'draft' && <DraftPanel clientId={id} onNext={() => setActiveTab('publish')} />}
+      {activeTab === 'publish' && <PublishPanel clientId={id} onNext={() => setActiveTab('promote')} />}
+      {activeTab === 'promote' && <PromotePanel clientId={id} />}
+      {/* Local SEO toolkit */}
+      {activeTab === 'local_gap' && <LocalSeoPanel clientId={id} tool="competition_gap" />}
+      {activeTab === 'local_schema' && <LocalSeoPanel clientId={id} tool="schema_audit" />}
+      {activeTab === 'local_keywords' && <LocalSeoPanel clientId={id} tool="buyer_intent" />}
+      {activeTab === 'local_xray' && <LocalSeoPanel clientId={id} tool="competitor_xray" />}
+      {activeTab === 'local_playbook' && <LocalSeoPanel clientId={id} tool="ranking_playbook" />}
+      {activeTab === 'local_outliers' && <LocalSeoPanel clientId={id} tool="ranking_outliers" />}
+      {activeTab === 'local_gbp' && <LocalSeoPanel clientId={id} tool="gbp_posts" />}
+
+      {activeTab === 'keywords' && renderKeywordsBody()}
+
+      {activeTab === 'authority' && renderAuthorityBody()}
 
       {activeTab === 'backlinks' && (
         <BacklinksPanel clientId={id} clientName={client?.name} domain={client?.domain} />
