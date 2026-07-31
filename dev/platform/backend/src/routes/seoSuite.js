@@ -387,29 +387,24 @@ router.post('/clients/:clientId/content-brief', async (req, res) => {
     const brandVoice = require('../services/brandVoice');
     const voiceProfile = await brandVoice.loadActiveProfile(req.params.clientId);
     const voiceContext = brandVoice.renderForPrompt(voiceProfile);
+    const { BRIEF_SYSTEM, briefKeySpec } = require('../services/contentBriefSpec');
 
     const prompt = `Client: ${client?.name}
 About: ${client?.briefing_field || '(no briefing)'}
 Domain: ${client?.domain || '(no domain)'}${voiceContext}
 
-Generate a content brief for the target keyword: "${keyword}"
+Brief ONE piece of content for the target keyword: "${keyword}"
+
+The piece must answer a single core question thoroughly, briefed for BOTH classic ranking AND AI-answer citation (GEO): open by answering the core question directly, use question-shaped headings, cite statistics to sources, and carry E-E-A-T trust signals (named author, first-hand experience, dates).
 
 Return a JSON object with the keys:
-- title: a working title for the piece
-- target_intent: one of Informational / Navigational / Commercial / Transactional
-- summary: 1-2 sentence pitch for what this piece should be
-- outline: an array of 5-8 section objects { heading, points: [3-5 bullet strings] }
-- questions_to_answer: array of 4-6 specific questions the piece should answer
-- suggested_word_count: integer
-- internal_link_targets: array of 3-5 page URL slug suggestions (under ${client?.domain || 'the client domain'}) — guess sensible slugs based on the brief
-- meta_title: <60 char SEO title
-- meta_description: <155 char SEO description
+${briefKeySpec({ intent: 'Informational' })}
 
 Return ONLY the JSON object. No prose.`;
 
     const reply = await claudeService.callClaude({
-      max_tokens: 2048,
-      system: 'You are an SEO content strategist. British English. Output JSON only.',
+      max_tokens: 3000,
+      system: BRIEF_SYSTEM,
       user: prompt,
     });
     const cleaned = reply.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
