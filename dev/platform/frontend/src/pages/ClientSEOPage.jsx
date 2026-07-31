@@ -1091,12 +1091,12 @@ export default function ClientSEOPage() {
         const currentGroup = GROUP_OF[activeTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setActiveTab('overview') },
-          { key: 'health',   label: 'Health',   active: currentGroup === 'health',   onClick: () => setActiveTab('health') },
-          { key: 'optimise', label: 'Optimise', active: currentGroup === 'optimise', onClick: () => setActiveTab('optimise') },
-          { key: 'content',  label: 'Build',    active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
-          { key: 'local',    label: 'Localise', active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
-          { key: 'convert',  label: 'Convert',  active: currentGroup === 'convert',  onClick: () => setActiveTab('convert') },
-          { key: 'email',    label: 'Email',    active: currentGroup === 'email',    onClick: () => setActiveTab('email') },
+          { key: 'health',   label: 'Health',   fn: 'measure',    active: currentGroup === 'health',   onClick: () => setActiveTab('health') },
+          { key: 'optimise', label: 'Optimise', fn: 'strategy',   active: currentGroup === 'optimise', onClick: () => setActiveTab('optimise') },
+          { key: 'content',  label: 'Build',    fn: 'create',     active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
+          { key: 'local',    label: 'Localise', fn: 'research',    active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
+          { key: 'convert',  label: 'Convert',  fn: 'strategy',   active: currentGroup === 'convert',  onClick: () => setActiveTab('convert') },
+          { key: 'email',    label: 'Email',    fn: 'distribute', active: currentGroup === 'email',    onClick: () => setActiveTab('email') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
           ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
