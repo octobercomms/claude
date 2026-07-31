@@ -317,6 +317,19 @@ class OCF_REST_API {
 		$transcript = is_array( $meta['ai_transcript'] ?? null ) ? $meta['ai_transcript'] : array();
 		$collected  = is_array( $meta['ai_collected'] ?? null ) ? $meta['ai_collected'] : array();
 
+		// Fold any files already uploaded for this submission into the collected
+		// answers, keyed by question id, so file questions read as answered.
+		$ups = OCF_Submission::uploads_for( (int) $row['id'] );
+		if ( $ups ) {
+			$by_q = array();
+			foreach ( $ups as $u ) {
+				$by_q[ $u['question_id'] ][] = (int) $u['id'];
+			}
+			foreach ( $by_q as $qid => $ids ) {
+				$collected[ $qid ] = $ids;
+			}
+		}
+
 		// Bound the conversation length to cap cost / abuse.
 		$max_messages = (int) ( $schema['ai']['max_messages'] ?? 30 );
 		$user_turns   = 0;
@@ -392,6 +405,7 @@ class OCF_REST_API {
 			'reply'    => $reply,
 			'complete' => false,
 			'options'  => OCF_AI::options_for( $schema, $result['field_id'] ?? '' ),
+			'upload'   => OCF_AI::upload_field( $schema, $result['field_id'] ?? '' ),
 		);
 
 		// Only finalize when the model says it's done AND every required,

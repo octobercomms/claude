@@ -752,9 +752,64 @@
 			if (res.reply) addMessage('bot', res.reply);
 			if (res.complete) { renderEnding(res.ending); return; }
 			if (res.limit) { done = true; input.disabled = true; sendBtn.disabled = true; clearOptions(); return; }
-			if (res.options) renderOptions(res.options);
+			if (res.upload) renderUpload(res.upload);
+			else if (res.options) renderOptions(res.options);
+			else clearOptions();
 			setBusy(false);
 			input.focus();
+		}
+
+		// Render an "Attach file" control docked above the input when the
+		// assistant asks a file-upload question. Files upload immediately; the
+		// filenames are then sent so the assistant acknowledges and moves on.
+		function renderUpload(node) {
+			clearOptions();
+			selection = { file: true, field_id: node.field_id, uploaded: [] };
+			tray.appendChild(el('div', { class: 'ocf-chat-tray-hint' }, ['Attach a file, paste a link, or type “skip”.']));
+
+			var fileInput = el('input', { type: 'file', class: 'ocf-chat-fileinput',
+				accept: node.accept || null, multiple: node.multiple ? 'multiple' : null });
+			var list = el('div', { class: 'ocf-chat-uploads' });
+
+			var attach = el('button', { type: 'button', class: 'ocf-chat-opt' }, ['📎 Attach file']);
+			attach.addEventListener('click', function () { if (busy || done) return; fileInput.click(); });
+			var skip = el('button', { type: 'button', class: 'ocf-chat-opt' }, ['No files to share']);
+			skip.addEventListener('click', function () { if (busy || done) return; sendText("I don't have any files to share right now."); });
+
+			fileInput.addEventListener('change', function (e) {
+				Array.from(e.target.files || []).forEach(function (f) { uploadOne(node.field_id, f, list); });
+				e.target.value = '';
+			});
+
+			tray.appendChild(el('div', { class: 'ocf-chat-chips' }, [attach, skip]));
+			tray.appendChild(list);
+			tray.appendChild(fileInput);
+			tray.classList.add('is-active');
+			scrollDown();
+		}
+
+		function uploadOne(qid, file, list) {
+			var status = el('span', { class: 'ocf-chat-upload-status' }, ['Uploading…']);
+			var item = el('div', { class: 'ocf-chat-upload-item' }, [
+				el('span', { class: 'ocf-chat-upload-name' }, [file.name]), status
+			]);
+			list.appendChild(item);
+			scrollDown();
+			var fd = new FormData();
+			fd.append('token', token);
+			fd.append('question_id', qid);
+			fd.append('file', file);
+			api(cfg, 'upload', { body: fd })
+				.then(function (res) {
+					status.textContent = '✓';
+					item.classList.add('is-done');
+					if (selection && selection.file) { selection.uploaded.push(res.name || file.name); }
+					sendBtn.disabled = false;
+				})
+				.catch(function (err) {
+					status.textContent = (err && err.message) || 'Upload failed';
+					item.classList.add('has-error');
+				});
 		}
 
 		function sendText(text) {
@@ -780,7 +835,8 @@
 		function send() {
 			var text = input.value.trim();
 			if (text) { sendText(text); return; }
-			if (selection && selection.multi && selection.values.length) { sendText(selection.values.join(', ')); }
+			if (selection && selection.multi && selection.values.length) { sendText(selection.values.join(', ')); return; }
+			if (selection && selection.file && selection.uploaded.length) { sendText("I've uploaded: " + selection.uploaded.join(', ')); }
 		}
 
 		function autosize() {

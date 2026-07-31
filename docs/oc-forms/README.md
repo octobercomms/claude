@@ -59,7 +59,7 @@ How it works:
 - The submission only finalises when Claude signals completion **and** every required, visible question is actually filled in (the server is authoritative).
 - The full chat transcript is saved and shown in the admin submission view alongside the extracted answers.
 
-Files can't be collected in a chat, so `file_upload` questions are skipped in AI mode.
+`file_upload` questions work in AI mode too: when the assistant reaches one it shows an **Attach file** control docked above the input (the visitor can also paste a link or decline). Files upload through the same `/upload` endpoint and are attached to the submission exactly like a standard form.
 
 ## Sample schemas
 

@@ -296,3 +296,11 @@
 /* Image chips: thumbnail ~2x, flush to the left and clipped to the pill's shape. */
 .ocf-chat-opt.has-img { padding: 0 18px 0 0; gap: 12px; overflow: hidden; }
 .ocf-chat-opt.has-img .ocf-chat-opt-thumb { width: 80px; height: 60px; border-radius: 0; }
+
+/* ---- v1.2.5: file upload in chat ---- */
+.ocf-chat-fileinput { display: none; }
+.ocf-chat-uploads { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.ocf-chat-upload-item { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ocf-muted); }
+.ocf-chat-upload-name { color: var(--ocf-primary); }
+.ocf-chat-upload-item.is-done .ocf-chat-upload-status { color: #16a34a; font-weight: 700; }
+.ocf-chat-upload-item.has-error .ocf-chat-upload-status { color: var(--ocf-error); }
