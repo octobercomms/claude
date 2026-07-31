@@ -616,6 +616,20 @@ class OCF_REST_API {
 			}
 		}
 
-		return wp_mail( $to, $email['subject'], $email['html'], $headers );
+		// Attach the uploaded files themselves, up to a safe total size; the
+		// email body also links to them, so anything skipped is still reachable.
+		$attachments = array();
+		$total_bytes = 0;
+		$limit_bytes = 9 * 1024 * 1024; // ~9MB — stay under typical mail size caps
+		foreach ( OCF_Submission::uploads_for( (int) $row['id'] ) as $u ) {
+			$path = (string) ( $u['path'] ?? '' );
+			if ( $path === '' || ! file_exists( $path ) ) { continue; }
+			$size = (int) ( $u['size_bytes'] ?? @filesize( $path ) );
+			if ( $total_bytes + $size > $limit_bytes ) { continue; }
+			$attachments[] = $path;
+			$total_bytes  += $size;
+		}
+
+		return wp_mail( $to, $email['subject'], $email['html'], $headers, $attachments );
 	}
 }
