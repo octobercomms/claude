@@ -64,11 +64,11 @@ export function AccordionItem({ id, title, subtitle, badge, fn, children }) {
           onClick={() => ctx.onToggle(id)}
           onKeyDown={(e) => ctx.onHeaderKeyDown(e, id)}
         >
-          <span className="accordion-caret" aria-hidden="true">▸</span>
           {fn && <Pip fn={fn} />}
           <span className="accordion-title">{title}</span>
           {subtitle && <span className="accordion-sub">{subtitle}</span>}
           {badge != null && <span className="accordion-badge">{badge}</span>}
+          <span className="accordion-plusminus" aria-hidden="true">{isOpen ? '−' : '+'}</span>
         </button>
       </h3>
       {isOpen && (

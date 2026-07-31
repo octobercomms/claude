@@ -69,17 +69,15 @@ export default function ClientAdsPage() {
     : 'overview';
   // Health dashboard accordion — Measure (the headline read) open by default.
   const [healthOpen, setHealthOpen] = useState(() => new Set(['measure']));
-  const toggleHealth = (idv) => setHealthOpen(prev => {
-    const next = new Set(prev); next.has(idv) ? next.delete(idv) : next.add(idv); return next;
-  });
-  const openHealth = (idv) => setHealthOpen(prev => new Set(prev).add(idv));
+  const toggleHealth = (idv) => setHealthOpen(prev => (prev.has(idv) ? new Set() : new Set([idv])));
+  const openHealth = (idv) => setHealthOpen(new Set([idv]));
   const goHealth = (section) => { if (section) openHealth(section); setTab(section === 'measure' ? 'performance' : section === 'briefing' ? 'strategist' : section === 'competitors' ? 'competitor_ads' : 'playbook'); };
   // Build tools (Audiences · Resize) — an accordion under the pipeline, so the
   // stepper stays the clear focus and the tools are discoverable, not a tiny
   // link row. Opening a tool via deep link expands its section.
   const [toolsOpen, setToolsOpen] = useState(() => new Set());
   useEffect(() => {
-    if (BUILD_TOOLS.includes(tab)) setToolsOpen(prev => (prev.has(tab) ? prev : new Set(prev).add(tab)));
+    if (BUILD_TOOLS.includes(tab)) setToolsOpen(prev => (prev.has(tab) ? prev : new Set([tab])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
   // A deep link or nav to an absorbed Health tab opens its accordion section.
@@ -516,9 +514,7 @@ export default function ClientAdsPage() {
           <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />
           <div style={{ marginTop: 'var(--s6)' }}>
             <div className="oview-grplabel">Tools</div>
-            <Accordion open={toolsOpen} onToggle={(sid) => setToolsOpen(prev => {
-              const next = new Set(prev); next.has(sid) ? next.delete(sid) : next.add(sid); return next;
-            })}>
+            <Accordion open={toolsOpen} onToggle={(sid) => setToolsOpen(prev => (prev.has(sid) ? new Set() : new Set([sid])))}>
               <AccordionItem id="audiences" fn="research" title="Audiences" subtitle="ICP & saved audiences">
                 {() => <div className="stack stack-lg"><ICPIntelligencePanel clientId={id} /><AudiencesPanel clientId={id} /></div>}
               </AccordionItem>

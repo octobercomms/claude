@@ -580,29 +580,22 @@ export default function ClientSEOPage() {
   const [railStatus, setRailStatus] = useState({});
   // Health dashboard — which accordion sections are open. Review (the headline
   // read-out) is open by default; the rest are one tap away.
+  // Single-open accordions across the app: opening a section closes the rest.
   const [healthOpen, setHealthOpen] = useState(() => new Set(['review']));
-  const toggleHealth = (id) => setHealthOpen(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
-  const openHealth = (id) => setHealthOpen(prev => new Set(prev).add(id));
+  const toggleHealth = (id) => setHealthOpen(prev => (prev.has(id) ? new Set() : new Set([id])));
+  const openHealth = (id) => setHealthOpen(new Set([id]));
   // Jump to the Health dashboard with a given section opened.
   const goHealth = (section) => { if (section) openHealth(section); setActiveTab('health'); };
   // Optimise dashboard — the fix-it tools, worked top-to-bottom. Scan (the
   // audit you run first) is open by default.
   const [optimiseOpen, setOptimiseOpen] = useState(() => new Set(['scan']));
-  const toggleOptimise = (id) => setOptimiseOpen(prev => {
-    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
-  });
-  const openOptimise = (id) => setOptimiseOpen(prev => new Set(prev).add(id));
+  const toggleOptimise = (id) => setOptimiseOpen(prev => (prev.has(id) ? new Set() : new Set([id])));
+  const openOptimise = (id) => setOptimiseOpen(new Set([id]));
   const goOptimise = (section) => { if (section) openOptimise(section); setActiveTab('optimise'); };
   // Convert dashboard — turn visits into leads (CRO · Forms).
   const [convertOpen, setConvertOpen] = useState(() => new Set(['cro']));
-  const toggleConvert = (id) => setConvertOpen(prev => {
-    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
-  });
-  const openConvert = (id) => setConvertOpen(prev => new Set(prev).add(id));
+  const toggleConvert = (id) => setConvertOpen(prev => (prev.has(id) ? new Set() : new Set([id])));
+  const openConvert = (id) => setConvertOpen(new Set([id]));
   const goConvert = (section) => { if (section) openConvert(section); setActiveTab('convert'); };
 
   // Optimise and Convert are now single accordions, not secondary tab strips.
