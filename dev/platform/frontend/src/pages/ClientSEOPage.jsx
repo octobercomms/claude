@@ -605,6 +605,16 @@ export default function ClientSEOPage() {
   });
   const openConvert = (id) => setConvertOpen(prev => new Set(prev).add(id));
   const goConvert = (section) => { if (section) openConvert(section); setActiveTab('convert'); };
+
+  // Optimise and Convert are now single accordions, not secondary tab strips.
+  // Normalise any legacy / deep-linked tool key onto its group tab with the
+  // matching section opened, so old ?tab=content_audit links still land right.
+  useEffect(() => {
+    const OPT = { site_audit: 'scan', content_audit: 'grade', keyword_footprint: 'map', quick_wins: 'win', ctr_boost: 'sharpen', ai_seo: 'target', agent_ready: 'prep' };
+    if (OPT[activeTab]) { openOptimise(OPT[activeTab]); setActiveTab('optimise'); }
+    else if (activeTab === 'cro' || activeTab === 'forms') { openConvert(activeTab); setActiveTab('convert'); }
+  }, [activeTab]);
+
   useEffect(() => {
     if (!railSuite) return;
     api.get(`/clients/${id}/suite-progress/${railSuite}`).then(r => setRailStatus(r.steps || {})).catch(() => {});
@@ -1037,20 +1047,8 @@ export default function ClientSEOPage() {
             { groupLabel: 'Monitoring' },
             { key: 'drift',         label: 'Watch' },
           ],
-          // Optimise = the "what do we do about it" tools — audits we run
-          // and actions we generate, split out of Performance so the two
-          // jobs-to-be-done don't share one overloaded strip.
-          optimise: [
-            { groupLabel: 'On-page' },
-            { key: 'site_audit',    label: 'Scan' },
-            { key: 'content_audit', label: 'Grade' },
-            { key: 'keyword_footprint', label: 'Map' },
-            { key: 'quick_wins',    label: 'Win' },
-            { groupLabel: 'Search appearance' },
-            { key: 'ctr_boost',     label: 'Sharpen' },
-            { key: 'ai_seo',        label: 'Target' },
-            { key: 'agent_ready',   label: 'Prep' },
-          ],
+          // Optimise and Convert are worked as accordions (below), not a
+          // secondary tab strip — so they intentionally have no SUB_TABS entry.
           content: [
             { key: 'find',     label: '1 · Find' },
             { key: 'planning', label: '2 · Brief' },
@@ -1066,10 +1064,6 @@ export default function ClientSEOPage() {
             { key: 'local_playbook', label: 'Plan' },
             { key: 'local_outliers', label: 'Flag' },
             { key: 'local_gbp',      label: 'GBP posts' },
-          ],
-          convert: [
-            { key: 'cro',   label: 'CRO' },
-            { key: 'forms', label: 'Forms' },
           ],
         };
         const GROUP_OF = {
@@ -1253,7 +1247,7 @@ export default function ClientSEOPage() {
 
       {/* Convert — turn visitors into leads. */}
       {/* Convert — CRO + Forms as one accordion dashboard. */}
-      {activeTab === 'convert' && (
+      {currentGroup === 'convert' && (
         <Accordion open={convertOpen} onToggle={toggleConvert}>
           <AccordionItem id="cro" title="CRO" subtitle="Conversion-rate optimisation">
             {() => <ClarityCroPanel clientId={id} />}
@@ -1264,21 +1258,15 @@ export default function ClientSEOPage() {
         </Accordion>
       )}
 
-      {activeTab === 'cro' && <ClarityCroPanel clientId={id} />}
-      {activeTab === 'forms' && <FormsTab clientId={id} connectors={connectors} />}
-
       {/* Email — the full Outreach suite, embedded (uses its own ?etab=). */}
       {activeTab === 'email' && <ClientOutreachPage embedded clientId={id} />}
-      {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'drift' && <SeoDriftPanel clientId={id} />}
-      {activeTab === 'ai_seo' && <AiSeoPanel clientId={id} />}
-      {activeTab === 'agent_ready' && <AgentReadinessPanel clientId={id} />}
       {/* Optimise — the fix-it tools as one worked-top-to-bottom accordion,
           absorbing the old Optimise rail (Scan · Grade · Map · Win · Sharpen ·
           Target · Prep). Same primitive as Health; each panel is its former
           tab's content unchanged. Lazy bodies mount only when opened. */}
-      {activeTab === 'optimise' && (
+      {currentGroup === 'optimise' && (
         <Accordion open={optimiseOpen} onToggle={toggleOptimise}>
           <AccordionItem id="scan" title="Scan" subtitle="Site audit · technical fixes">
             {() => <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
@@ -1303,11 +1291,6 @@ export default function ClientSEOPage() {
           </AccordionItem>
         </Accordion>
       )}
-
-      {activeTab === 'site_audit' && <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
-      {activeTab === 'quick_wins' && <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
-      {activeTab === 'content_audit' && <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
-      {activeTab === 'keyword_footprint' && <KeywordFootprintPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
       {/* Pipeline steps */}
       {activeTab === 'topic_map' && <TopicMapPanel clientId={id} />}
       {activeTab === 'find' && <FindPanel clientId={id} onBuildContent={buildFromKeyword} onNext={() => setActiveTab('planning')} />}
