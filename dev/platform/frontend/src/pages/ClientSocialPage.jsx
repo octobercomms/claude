@@ -528,8 +528,9 @@ export default function ClientSocialPage() {
 
       {socialTab === 'overview' && (
         <SuiteOverview
-          tagline="Shared, around one clear path."
-          description="Consult what's scheduled and what rivals are doing, then make this month's content — brainstorm nine posts, film a reel in your voice, schedule the lot. Everything else is a read-out or a quiet link."
+          tagline="A month of on-brand content, mostly on autopilot."
+          description="Brainstorm nine posts at once, film a reel in your own voice, schedule the lot across every channel — then learn what landed so the next batch starts ahead."
+          benefits={['Nine on-brand posts at once', 'Reels in your own voice', 'Scheduled across every channel']}
           readouts={[
             { fn: 'data',     name: 'Autopilot', value: client?.social_autopilot_paused ? 'Paused' : 'On', sub: 'batch engine' },
             { fn: 'measure',  name: 'Plans', value: plans.length || '—', sub: plans.length ? 'scheduled' : 'none yet' },

@@ -476,8 +476,9 @@ export default function ClientAdsPage() {
       {normalisedTab === 'overview' && (
         <div className="stack stack-lg">
         <SuiteOverview
-          tagline="Paid, around one clear path."
-          description="Consult what every pound is returning, then make the better ad — a one-line brief turned into on-brand ads ready to launch. Everything else is a read-out or a quiet link."
+          tagline="See what every pound returns — then make the better ad."
+          description="Live ROAS and profit per campaign, a weekly list of exactly what to change, and a one-line brief turned into on-brand ads ready to launch. No designer, no media-buyer spreadsheet."
+          benefits={['ROAS & profit per campaign', 'Exactly what to change', 'Brief → ads, ready to launch']}
           readouts={[
             { fn: 'measure', name: 'Spend · 30d', value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), sub: 'across channels' },
             { fn: 'data',    name: 'Google Ads', value: hasGoogle ? googleEntries.filter(g => !g.error).length : '—', sub: hasGoogle ? 'connected' : 'not connected' },
