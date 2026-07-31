@@ -931,4 +931,43 @@ async function sendClientInvite({ to, clientName, link }) {
   return getTransporter().sendMail({ from: getSenderAddress(), to, subject: `${clientName ? clientName + ' — ' : ''}your marketing dashboard access`, html });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite };
+// AI Visibility alerts digest — one email to the AM when the weekly check finds
+// a share-of-voice drop or a competitor overtaking a client in AI answers.
+// `groups` = [{ clientId, clientName, alerts: [{ kind, severity, title, detail }] }].
+async function sendVisibilityAlerts(groups = []) {
+  if (!process.env.ALERT_EMAIL || !groups.length) return;
+  const platformUrl = process.env.PLATFORM_URL || 'https://platform.octobercomms.com';
+  const sevColour = { high: '#c62828', medium: '#9a6b00' };
+  const total = groups.reduce((n, g) => n + g.alerts.length, 0);
+
+  const blocks = groups.map(g => {
+    const items = g.alerts.map(a => `
+      <li style="margin: 6px 0;">
+        <strong>${a.title}</strong>
+        <span style="color: ${sevColour[a.severity] || '#888'}; font-size: 11px; font-weight: 700; text-transform: uppercase;"> · ${a.severity}</span>
+        ${a.detail ? `<div style="color: #666; font-size: 13px; margin-top: 2px;">${a.detail}</div>` : ''}
+      </li>`).join('');
+    return `
+      <div style="margin-top: 18px;">
+        <a href="${platformUrl}/clients/${g.clientId}/ai-visibility" style="color: #1a1a1a; font-weight: 700; text-decoration: none;">${g.clientName || 'Client'} →</a>
+        <ul style="margin: 6px 0 0; padding-left: 18px;">${items}</ul>
+      </div>`;
+  }).join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #1a1a1a;">AI visibility: ${total} alert${total === 1 ? '' : 's'} this week</h2>
+      <p style="color: #666;">Across ${groups.length} client${groups.length === 1 ? '' : 's'}, the weekly AI-answer check found movement worth a look.</p>
+      ${blocks}
+      <p style="color: #aaa; font-size: 11px; margin-top: 32px;">October Marketing Intelligence — AI visibility watch. You only get this when share of voice drops or a competitor overtakes a client.</p>
+    </div>`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject: `AI visibility: ${total} alert${total === 1 ? '' : 's'} across ${groups.length} client${groups.length === 1 ? '' : 's'}`,
+    html,
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts };

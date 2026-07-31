@@ -236,6 +236,23 @@ cron.schedule('0 5 * * 1', async () => {
   }
 });
 
+// AI Visibility alerts: Monday 06:00, an hour after the weekly run lands.
+// Compares this week's share of voice to last week's and flags drops or a
+// competitor overtaking the brand — stored for the panel banner and emailed
+// to the AM as a single digest.
+cron.schedule('0 6 * * 1', async () => {
+  try {
+    const aiVisibilityAlerts = require('./aiVisibilityAlerts');
+    const emailService = require('./emailService');
+    const groups = await aiVisibilityAlerts.runAll();
+    const total = groups.reduce((n, g) => n + g.alerts.length, 0);
+    console.log(`[AEO-alerts] ${total} alert(s) across ${groups.length} client(s)`);
+    if (groups.length) await emailService.sendVisibilityAlerts(groups).catch(e => console.error('[AEO-alerts] email failed:', e.message));
+  } catch (err) {
+    console.error('[AEO-alerts] weekly check failed:', err.message);
+  }
+});
+
 // Competitor page diff: Sunday 06:30. Sibling to the social
 // competitor scrape — walks every configured competitor_pages URL,
 // fetches the HTML, extracts semantic blocks, stores a diff vs the
