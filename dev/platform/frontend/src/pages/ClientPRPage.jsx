@@ -76,6 +76,11 @@ export default function ClientPRPage() {
   const combinedRef = useRef(null);
   const [client, setClient] = useState(null);
   const [tab, setTab] = useState('overview');
+  // Which Health / Build accordion sections are open. A real toggle Set (like
+  // Owned's) so clicking an open header collapses it — the tab-derived open
+  // state used before could never close the one open section.
+  const [healthOpen, setHealthOpen] = useState(() => new Set(['track']));
+  const [buildOpen, setBuildOpen] = useState(() => new Set(['pitch']));
   const [stats, setStats] = useState(null);
   const [log, setLog] = useState([]);
   const [journalists, setJournalists] = useState([]);
@@ -801,7 +806,6 @@ export default function ClientPRPage() {
     { id: 'pitch',    tab: 'journalists', fn: 'research', title: 'Pitch',    sub: 'Media database & targeting', render: renderPitch },
     { id: 'releases', tab: 'press',       fn: 'create',   title: 'Releases', sub: 'Draft, sign-off & pitch', render: renderReleases },
   ];
-  const TAB_SECTION = { coverage: 'track', reports: 'share', journalists: 'pitch', press: 'releases' };
   const suiteGroup = tab === 'overview' ? 'overview'
     : (tab === 'coverage' || tab === 'reports') ? 'health'
     : (tab === 'journalists' || tab === 'press') ? 'build'
@@ -830,7 +834,12 @@ export default function ClientPRPage() {
       {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p></div>}
 
       {!loading && suiteGroup === 'health' && (
-        <Accordion open={new Set([TAB_SECTION[tab] || 'track'])} onToggle={(sid) => setTab(HEALTH_SECTIONS.find(s => s.id === sid).tab)}>
+        <Accordion open={healthOpen} onToggle={(sid) => setHealthOpen(prev => {
+          const next = new Set(prev);
+          if (next.has(sid)) next.delete(sid);
+          else { next.add(sid); const s = HEALTH_SECTIONS.find(x => x.id === sid); if (s) setTab(s.tab); }
+          return next;
+        })}>
           {HEALTH_SECTIONS.map(s => (
             <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
           ))}
@@ -838,7 +847,12 @@ export default function ClientPRPage() {
       )}
 
       {!loading && suiteGroup === 'build' && (
-        <Accordion open={new Set([TAB_SECTION[tab] || 'pitch'])} onToggle={(sid) => setTab(BUILD_SECTIONS.find(s => s.id === sid).tab)}>
+        <Accordion open={buildOpen} onToggle={(sid) => setBuildOpen(prev => {
+          const next = new Set(prev);
+          if (next.has(sid)) next.delete(sid);
+          else { next.add(sid); const s = BUILD_SECTIONS.find(x => x.id === sid); if (s) setTab(s.tab); }
+          return next;
+        })}>
           {BUILD_SECTIONS.map(s => (
             <AccordionItem key={s.id} id={s.id} fn={s.fn} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
           ))}
