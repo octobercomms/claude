@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
+import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import SuiteOverview from '../components/SuiteOverview';
 import SuiteReadiness from '../components/SuiteReadiness';
 import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
@@ -425,96 +426,183 @@ export default function ClientPRPage() {
   const f = editing || {};
   const setF = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
 
-  return (
-    <div className="suite-client-pr">
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Earned</span></div>
-      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
-        <h1 className="display">Earned</h1>
-      </header>
-
-      {/* Tab labels show natural totals (coverage rows / journalist heads)
-          rather than workflow-queue counts — the previous "(N)" badges on
-          Coverage and Journalists were the number of items in the
-          auto-monitor queue and the unsent-thank-yous list respectively,
-          which read as "Journalists (2)" but meant "2 thank-yous pending"
-          and was confusing. Workflow nudges are surfaced on the Overview
-          page's "needs attention" rail instead. */}
-      <SuiteTabs tabs={[
-        { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
-        { key: 'coverage', label: `Track${log.length ? ` (${log.length})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
-        { key: 'journalists', label: `Pitch${journalists.length ? ` (${journalists.length})` : ''}`, active: tab === 'journalists', onClick: () => setTab('journalists') },
-        { key: 'press', label: `Build${releases.length ? ` (${releases.length})` : ''}`, active: tab === 'press', onClick: () => setTab('press') },
-        { key: 'reports', label: 'Share', active: tab === 'reports', onClick: () => setTab('reports') },
-      ]} />
-
-      {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p></div>}
-
-      {!loading && tab === 'overview' && (
-        <div className="stack stack-lg">
-          <SuiteOverview
-            tagline="Never pitch from memory — or lose a hit — again."
-            description="Every pitch, placement and journalist relationship in one log. Coverage records itself from a link, your best targets come ranked, and the client gets a live page of their wins."
-            ctaLabel="Find who to pitch"
-            onCta={() => setTab('journalists')}
-            status={[
-              { label: 'Published', value: stats ? String(stats.published) : '—', ok: !!(stats && stats.published) },
-              { label: 'Tracked', value: stats ? String(stats.tracked) : '—', ok: !!(stats && stats.tracked) },
-              { label: 'Journalists', value: stats ? String(stats.journalists) : '—', ok: !!(stats && stats.journalists) },
-            ]}
-            actions={<>
-              <button className="btn btn-primary" onClick={() => { setTab('coverage'); startEdit(null); }}>+ Log coverage</button>
-              <button className="btn btn-secondary" onClick={() => { setTab('press'); newRelease(); }}>+ Press release</button>
-              <a className="btn btn-secondary" href={`/api/pr/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>
-            </>}
-            interstitial={<>
-              <SuiteReadiness clientId={id} suite="earned_setup" title="PR pipeline" steps={[
-                { key: 'contacts',  title: 'Contacts',  sub: 'Journalists on file', onClick: () => setTab('journalists') },
-                { key: 'pitched',   title: 'Pitched',   sub: 'Stories out the door', onClick: () => setTab('journalists') },
-                { key: 'published', title: 'Published', sub: 'Coverage logged',      onClick: () => setTab('coverage') },
-                { key: 'thanked',   title: 'Thanked',   sub: 'Relationships kept',   onClick: () => setTab('journalists') },
-              ]} />
-              <div className="card">
-                <h3 className="h3 mb-2">Needs attention</h3>
-                {(queue.length || thanks.length || awaitingSignoff || quietCount) ? (
-                  <div className="task-row">
-                    {queue.length ? <button className="task-chip" onClick={() => setTab('coverage')}>🔎 <span><span className="n">{queue.length}</span> coverage item{queue.length === 1 ? '' : 's'} to confirm</span></button> : null}
-                    {thanks.length ? <button className="task-chip" onClick={() => setTab('journalists')}>🟡 <span><span className="n">{thanks.length}</span> thank-you{thanks.length === 1 ? '' : 's'} waiting</span></button> : null}
-                    {awaitingSignoff ? <button className="task-chip" onClick={() => setTab('press')}>✍️ <span><span className="n">{awaitingSignoff}</span> release{awaitingSignoff === 1 ? '' : 's'} awaiting sign-off</span></button> : null}
-                    {quietCount ? <button className="task-chip" onClick={() => setTab('journalists')}>📉 <span><span className="n">{quietCount}</span> key journalist{quietCount === 1 ? '' : 's'} gone quiet</span></button> : null}
-                  </div>
-                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
-              </div>
-            </>}
-            mapLayout="grid"
-            map={[
-              { title: 'Track', subtitle: 'Editorial log, pitch to published', nodes: [
-                { label: 'Coverage log', onClick: () => setTab('coverage') },
-                { label: 'Auto monitor', onClick: () => setTab('coverage') },
-                { label: 'Paste link',   onClick: () => setTab('coverage') },
-                { label: 'Link checks',  onClick: () => setTab('coverage') },
-              ] },
-              { title: 'Pitch', subtitle: 'Relationship strength, hit-rate, tier', nodes: [
-                { label: 'Media DB',        onClick: () => setTab('journalists') },
-                { label: 'Pitch targeting', onClick: () => setTab('journalists') },
-                { label: 'Thank-yous',      onClick: () => setTab('journalists') },
-              ] },
-              { title: 'Build', subtitle: 'Press release pipeline', nodes: [
-                { label: 'Brief',    onClick: () => setTab('press') },
-                { label: 'Draft',    onClick: () => setTab('press') },
-                { label: 'Sign-off', onClick: () => setTab('press') },
-                { label: 'Pitch',    onClick: () => setTab('press') },
-              ] },
-              { title: 'Share', subtitle: 'What the client sees', nodes: [
-                { label: 'Coverage digests', onClick: () => setTab('reports') },
-                { label: 'Featured alerts',  onClick: () => setTab('reports') },
-                { label: 'Live coverage',    onClick: () => setTab('reports') },
-              ] },
-            ]}
-          />
+  const renderShare = () => (
+        <div className="card">
+          <h3 className="h3 mb-2">Automated reports &amp; alerts</h3>
+          <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Email the client a coverage digest on a schedule, and a "you've been featured" alert when a piece is marked published.</p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <label className="field" style={{ flex: 1, minWidth: 220 }}><span className="field-label">Report / alert email</span><input className="input" value={reports.alert_email || ''} onChange={(e) => setReports((r) => ({ ...r, alert_email: e.target.value }))} placeholder="client@example.com" /></label>
+            <label className="field"><span className="field-label">Cadence</span><select className="input" value={reports.report_cadence || 'off'} onChange={(e) => setReports((r) => ({ ...r, report_cadence: e.target.value }))}><option value="off">Off</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
+            <button className="btn btn-primary" disabled={savingReports} onClick={saveReports}>{savingReports ? 'Saving…' : 'Save'}</button>
+            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: sendReportNow })}>Send report now</button>
+          </div>
+          <div style={{ marginTop: 16, borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 16 }}>
+            <button className="btn btn-secondary" onClick={copyPortalLink}>🔗 Copy client coverage link</button>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 8, marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
+          </div>
         </div>
-      )}
+  );
 
-      {!loading && tab === 'coverage' && (
+  const renderReleases = () => (
+        <div className="card">
+          {pr ? (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <h3 className="h3" style={{ margin: 0 }}>{pr.title || 'New press release'}</h3>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setPr(null); loadReleases(); }}>← All releases</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <label className="field"><span className="field-label">Headline / working title</span><input className="input" value={pr.title || ''} onChange={(e) => setPr((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Forgeworks unveils House of Wood Shingle" /></label>
+                <label className="field"><span className="field-label">Brand</span><input className="input" value={pr.brand || ''} onChange={(e) => setPr((p) => ({ ...p, brand: e.target.value }))} /></label>
+                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Angle / why it's newsworthy</span><textarea className="input" rows={2} value={pr.angle || ''} onChange={(e) => setPr((p) => ({ ...p, angle: e.target.value }))} placeholder="The hook a journalist would care about." /></label>
+                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Key facts</span><textarea className="input" rows={4} value={pr.key_facts || ''} onChange={(e) => setPr((p) => ({ ...p, key_facts: e.target.value }))} placeholder="Who, what, where, when, numbers, quotes…" /></label>
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', margin: '12px 0' }}>
+                <button className="btn btn-primary" {...roWrite(readOnly, { onClick: draftPR, disabled: prDrafting })}>{prDrafting ? 'Writing…' : '✍️ Draft with Claude'}</button>
+                <label className="field"><span className="field-label">Status</span><select className="input" value={pr.status || 'draft'} onChange={(e) => setPr((p) => ({ ...p, status: e.target.value }))}><option value="draft">Draft</option><option value="in_review">In review</option><option value="approved">Approved</option><option value="sent">Sent</option></select></label>
+                <label className="field"><span className="field-label">Embargo until (optional)</span><input className="input" type="datetime-local" value={pr.embargo_at ? new Date(pr.embargo_at).toISOString().slice(0, 16) : ''} onChange={(e) => setPr((p) => ({ ...p, embargo_at: e.target.value }))} /></label>
+                <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Published URL (once live)</span><input className="input" value={pr.url || ''} onChange={(e) => setPr((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+                <button className="btn btn-secondary" onClick={copyReviewLink}>🔗 Client approval link</button>
+                {pr.approved_at && <span className="chip chip-accent">✓ Approved by {pr.approved_by || 'client'}</span>}
+                {['approved', 'sent'].includes(pr.status) && (
+                  <button className="btn btn-primary" {...roWrite(readOnly, { onClick: createPitchCampaign, title: 'Pitch this release to journalists in the Email tab' })}>{pr.campaign_id ? 'Open pitch campaign →' : '📣 Create pitch campaign →'}</button>
+                )}
+              </div>
+              <label className="field"><span className="field-label">Release body <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>— Claude marks assumptions in [brackets] to fill in</span></span><textarea className="input" rows={16} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13 }} value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} /></label>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button className="btn btn-primary" disabled={prSaving} onClick={() => savePR()}>{prSaving ? 'Saving…' : 'Save'}</button>
+                <button className="btn btn-secondary" onClick={() => { setPr(null); loadReleases(); }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>Write a release from a brief, have Claude draft it, then send a client approval link for sign-off.</p>
+                <button className="btn btn-primary" onClick={newRelease}>+ New press release</button>
+              </div>
+              <table className="table">
+                <thead><tr><th>Title</th><th>Brand</th><th>Status</th><th>Created</th><th></th></tr></thead>
+                <tbody>
+                  {releases.map((r) => (
+                    <tr key={r.id}>
+                      <td><button className="link-btn" onClick={() => openRelease(r.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, font: 'inherit' }}>{r.title || '(untitled)'}</button></td>
+                      <td>{r.brand || '—'}</td>
+                      <td><span className="chip">{({ draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' })[r.status] || r.status}</span></td>
+                      <td>{fmtDate(r.created_at)}</td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => openRelease(r.id)}>Edit</button>{' '}
+                        <button className="btn btn-danger btn-sm" onClick={() => deletePR(r)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!releases.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No press releases yet. Start from a brief and let Claude draft the release.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+  );
+
+  const renderPitch = () => (
+        <div>
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+            <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your contacts' beats and your relationship history to build a targeted list.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
+              <label className="field" style={{ flex: 1, minWidth: 240 }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: findTargets, disabled: pitchLoading })}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
+            </div>
+            <label className="field"><span className="field-label">…or paste a brief</span><textarea className="input" rows={2} value={pitch.brief} onChange={(e) => setPitch((p) => ({ ...p, brief: e.target.value }))} placeholder="What's the story?" /></label>
+            {pitchResult && (
+              <div style={{ marginTop: 12 }}>
+                {pitchResult.angle && <p style={{ fontSize: 13, marginBottom: 8 }}><strong>Angle:</strong> {pitchResult.angle}</p>}
+                {pitchResult.targets && pitchResult.targets.length ? (
+                  <table className="table">
+                    <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Why</th></tr></thead>
+                    <tbody>
+                      {pitchResult.targets.map((t) => (
+                        <tr key={t.id}>
+                          <td><Link to={`/media/journalist/${t.id}`}>{t.name}</Link>{t.strength_label ? <span className="chip" style={{ marginLeft: 6 }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 6 }}>no email</span>}</td>
+                          <td>{t.outlet || '—'}</td>
+                          <td>{t.tier ? `T${t.tier}` : '—'}</td>
+                          <td style={{ fontSize: 13 }}>{t.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{pitchResult.note || 'No strong matches found.'}</p>}
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+            <table className="table">
+              <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Published</th><th>Hit rate</th><th>Last featured</th><th>Relationship</th></tr></thead>
+              <tbody>
+                {journalists.map((j) => (
+                  <tr key={j.id}>
+                    <td><Link to={`/media/journalist/${j.id}`}>{j.name}</Link></td>
+                    <td>{j.outlet || '—'}</td>
+                    <td>{j.tier ? <span className="chip">T{j.tier}</span> : '—'}</td>
+                    <td>{j.published}</td>
+                    <td>{j.hit_rate == null ? '—' : Math.round(j.hit_rate * 100) + '%'}</td>
+                    <td>{fmtDate(j.last_featured)}</td>
+                    <td><span className="chip chip-accent">{j.strength} · {j.strength_label}</span>{j.gone_quiet ? <span className="chip" style={{ marginLeft: 6 }}>quiet</span> : null}</td>
+                  </tr>
+                ))}
+                {!journalists.length && <tr><td colSpan={7} style={{ color: 'var(--text-subtle)', padding: 24 }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="card">
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <h3 className="h3 mb-2">Thank-yous</h3>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>
+                  Journalists who featured {client?.name || 'this client'} and have a real email on file but haven't been thanked yet. Claude drafts a fresh, never-repeating note — review and send.
+                </p>
+              </div>
+              {thankSettings && (
+                <label className="field" style={{ minWidth: 280 }}>
+                  <span className="field-label">Auto-send</span>
+                  <select className="input" value={thankSettings.thank_stage || 'assist'} onChange={(e) => setThankStage(e.target.value)}>
+                    {Object.entries(thankSettings.stages || { assist: 'Assisted — I approve every send' }).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+            {thankSettings && thankSettings.record && (thankSettings.record.approved + thankSettings.record.edited + thankSettings.record.rejected + thankSettings.record.auto > 0) && (
+              <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginBottom: 12 }}>
+                Track record: {thankSettings.record.approved} approved · {thankSettings.record.edited} edited · {thankSettings.record.auto} auto-sent · {thankSettings.record.rejected} skipped.
+                {thankSettings.thank_stage === 'assist' ? ' Once the approvals build up, switch on supervised or auto sending above.' : ''}
+              </p>
+            )}
+            <table className="table">
+              <thead><tr><th>Journalist</th><th>Publication</th><th>Story</th><th>Date</th><th></th></tr></thead>
+              <tbody>
+                {thanks.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.journalist || '—'}</td>
+                    <td>{r.outlet || '—'}</td>
+                    <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
+                    <td>{fmtDate(r.issue_date)}</td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => openDraft(r) })}>Draft thank-you</button>{' '}
+                      <button className="btn btn-secondary btn-sm" onClick={() => skipThank(r)}>Skip</button>
+                    </td>
+                  </tr>
+                ))}
+                {!thanks.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No thank-yous waiting. They appear here once a piece is marked Published and the journalist has an email on file.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+  );
+
+  const renderTrack = () => (
         <div>
           {/* One primary action, one secondary; the CSV imports fold into a
               single menu and the utilities become quiet links, so the row
@@ -700,183 +788,125 @@ export default function ClientPRPage() {
             </table>
           </div>
         </div>
+  );
+
+  // Redesign spine (docs/omi/redesign-brief.md §3): Overview + Health + Build.
+  // Health (read-outs) = Track + Share; Build (make & ship) = Pitch + Releases.
+  // Accordions are tab-driven — opening a section sets the underlying tab so the
+  // existing lazy-load effects (coverage monitor, releases) still fire.
+  const HEALTH_SECTIONS = [
+    { id: 'track', tab: 'coverage', title: 'Track', sub: 'Coverage log & auto-monitor', render: renderTrack },
+    { id: 'share', tab: 'reports',  title: 'Share', sub: 'Client digests & live coverage', render: renderShare },
+  ];
+  const BUILD_SECTIONS = [
+    { id: 'pitch',    tab: 'journalists', title: 'Pitch',    sub: 'Media database & targeting', render: renderPitch },
+    { id: 'releases', tab: 'press',       title: 'Releases', sub: 'Draft, sign-off & pitch', render: renderReleases },
+  ];
+  const TAB_SECTION = { coverage: 'track', reports: 'share', journalists: 'pitch', press: 'releases' };
+  const suiteGroup = tab === 'overview' ? 'overview'
+    : (tab === 'coverage' || tab === 'reports') ? 'health'
+    : (tab === 'journalists' || tab === 'press') ? 'build'
+    : 'overview';
+
+  return (
+    <div className="suite-client-pr">
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Earned</span></div>
+      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
+        <h1 className="display">Earned</h1>
+      </header>
+
+      {/* Tab labels show natural totals (coverage rows / journalist heads)
+          rather than workflow-queue counts — the previous "(N)" badges on
+          Coverage and Journalists were the number of items in the
+          auto-monitor queue and the unsent-thank-yous list respectively,
+          which read as "Journalists (2)" but meant "2 thank-yous pending"
+          and was confusing. Workflow nudges are surfaced on the Overview
+          page's "needs attention" rail instead. */}
+      <SuiteTabs tabs={[
+        { key: 'overview', label: 'Overview', active: suiteGroup === 'overview', onClick: () => setTab('overview') },
+        { key: 'health',   label: 'Health',   active: suiteGroup === 'health',   onClick: () => setTab('coverage') },
+        { key: 'build',    label: 'Build',    active: suiteGroup === 'build',    onClick: () => setTab('journalists') },
+      ]} />
+
+      {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p></div>}
+
+      {!loading && suiteGroup === 'health' && (
+        <Accordion open={new Set([TAB_SECTION[tab] || 'track'])} onToggle={(sid) => setTab(HEALTH_SECTIONS.find(s => s.id === sid).tab)}>
+          {HEALTH_SECTIONS.map(s => (
+            <AccordionItem key={s.id} id={s.id} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
+          ))}
+        </Accordion>
       )}
 
-      {!loading && tab === 'journalists' && (
-        <div>
-          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-            <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your contacts' beats and your relationship history to build a targeted list.</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
-              <label className="field" style={{ flex: 1, minWidth: 240 }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
-              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: findTargets, disabled: pitchLoading })}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
-            </div>
-            <label className="field"><span className="field-label">…or paste a brief</span><textarea className="input" rows={2} value={pitch.brief} onChange={(e) => setPitch((p) => ({ ...p, brief: e.target.value }))} placeholder="What's the story?" /></label>
-            {pitchResult && (
-              <div style={{ marginTop: 12 }}>
-                {pitchResult.angle && <p style={{ fontSize: 13, marginBottom: 8 }}><strong>Angle:</strong> {pitchResult.angle}</p>}
-                {pitchResult.targets && pitchResult.targets.length ? (
-                  <table className="table">
-                    <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Why</th></tr></thead>
-                    <tbody>
-                      {pitchResult.targets.map((t) => (
-                        <tr key={t.id}>
-                          <td><Link to={`/media/journalist/${t.id}`}>{t.name}</Link>{t.strength_label ? <span className="chip" style={{ marginLeft: 6 }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 6 }}>no email</span>}</td>
-                          <td>{t.outlet || '—'}</td>
-                          <td>{t.tier ? `T${t.tier}` : '—'}</td>
-                          <td style={{ fontSize: 13 }}>{t.reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{pitchResult.note || 'No strong matches found.'}</p>}
-              </div>
-            )}
-          </div>
+      {!loading && suiteGroup === 'build' && (
+        <Accordion open={new Set([TAB_SECTION[tab] || 'pitch'])} onToggle={(sid) => setTab(BUILD_SECTIONS.find(s => s.id === sid).tab)}>
+          {BUILD_SECTIONS.map(s => (
+            <AccordionItem key={s.id} id={s.id} title={s.title} subtitle={s.sub}>{s.render}</AccordionItem>
+          ))}
+        </Accordion>
+      )}
 
-          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-            <table className="table">
-              <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Published</th><th>Hit rate</th><th>Last featured</th><th>Relationship</th></tr></thead>
-              <tbody>
-                {journalists.map((j) => (
-                  <tr key={j.id}>
-                    <td><Link to={`/media/journalist/${j.id}`}>{j.name}</Link></td>
-                    <td>{j.outlet || '—'}</td>
-                    <td>{j.tier ? <span className="chip">T{j.tier}</span> : '—'}</td>
-                    <td>{j.published}</td>
-                    <td>{j.hit_rate == null ? '—' : Math.round(j.hit_rate * 100) + '%'}</td>
-                    <td>{fmtDate(j.last_featured)}</td>
-                    <td><span className="chip chip-accent">{j.strength} · {j.strength_label}</span>{j.gone_quiet ? <span className="chip" style={{ marginLeft: 6 }}>quiet</span> : null}</td>
-                  </tr>
-                ))}
-                {!journalists.length && <tr><td colSpan={7} style={{ color: 'var(--text-subtle)', padding: 24 }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="card">
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ flex: 1, minWidth: 240 }}>
-                <h3 className="h3 mb-2">Thank-yous</h3>
-                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>
-                  Journalists who featured {client?.name || 'this client'} and have a real email on file but haven't been thanked yet. Claude drafts a fresh, never-repeating note — review and send.
-                </p>
+      {!loading && tab === 'overview' && (
+        <div className="stack stack-lg">
+          <SuiteOverview
+            tagline="Never pitch from memory — or lose a hit — again."
+            description="Every pitch, placement and journalist relationship in one log. Coverage records itself from a link, your best targets come ranked, and the client gets a live page of their wins."
+            ctaLabel="Find who to pitch"
+            onCta={() => setTab('journalists')}
+            status={[
+              { label: 'Published', value: stats ? String(stats.published) : '—', ok: !!(stats && stats.published) },
+              { label: 'Tracked', value: stats ? String(stats.tracked) : '—', ok: !!(stats && stats.tracked) },
+              { label: 'Journalists', value: stats ? String(stats.journalists) : '—', ok: !!(stats && stats.journalists) },
+            ]}
+            actions={<>
+              <button className="btn btn-primary" onClick={() => { setTab('coverage'); startEdit(null); }}>+ Log coverage</button>
+              <button className="btn btn-secondary" onClick={() => { setTab('press'); newRelease(); }}>+ Press release</button>
+              <a className="btn btn-secondary" href={`/api/pr/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>
+            </>}
+            interstitial={<>
+              <SuiteReadiness clientId={id} suite="earned_setup" title="PR pipeline" steps={[
+                { key: 'contacts',  title: 'Contacts',  sub: 'Journalists on file', onClick: () => setTab('journalists') },
+                { key: 'pitched',   title: 'Pitched',   sub: 'Stories out the door', onClick: () => setTab('journalists') },
+                { key: 'published', title: 'Published', sub: 'Coverage logged',      onClick: () => setTab('coverage') },
+                { key: 'thanked',   title: 'Thanked',   sub: 'Relationships kept',   onClick: () => setTab('journalists') },
+              ]} />
+              <div className="card">
+                <h3 className="h3 mb-2">Needs attention</h3>
+                {(queue.length || thanks.length || awaitingSignoff || quietCount) ? (
+                  <div className="task-row">
+                    {queue.length ? <button className="task-chip" onClick={() => setTab('coverage')}>🔎 <span><span className="n">{queue.length}</span> coverage item{queue.length === 1 ? '' : 's'} to confirm</span></button> : null}
+                    {thanks.length ? <button className="task-chip" onClick={() => setTab('journalists')}>🟡 <span><span className="n">{thanks.length}</span> thank-you{thanks.length === 1 ? '' : 's'} waiting</span></button> : null}
+                    {awaitingSignoff ? <button className="task-chip" onClick={() => setTab('press')}>✍️ <span><span className="n">{awaitingSignoff}</span> release{awaitingSignoff === 1 ? '' : 's'} awaiting sign-off</span></button> : null}
+                    {quietCount ? <button className="task-chip" onClick={() => setTab('journalists')}>📉 <span><span className="n">{quietCount}</span> key journalist{quietCount === 1 ? '' : 's'} gone quiet</span></button> : null}
+                  </div>
+                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
               </div>
-              {thankSettings && (
-                <label className="field" style={{ minWidth: 280 }}>
-                  <span className="field-label">Auto-send</span>
-                  <select className="input" value={thankSettings.thank_stage || 'assist'} onChange={(e) => setThankStage(e.target.value)}>
-                    {Object.entries(thankSettings.stages || { assist: 'Assisted — I approve every send' }).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </label>
-              )}
-            </div>
-            {thankSettings && thankSettings.record && (thankSettings.record.approved + thankSettings.record.edited + thankSettings.record.rejected + thankSettings.record.auto > 0) && (
-              <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginBottom: 12 }}>
-                Track record: {thankSettings.record.approved} approved · {thankSettings.record.edited} edited · {thankSettings.record.auto} auto-sent · {thankSettings.record.rejected} skipped.
-                {thankSettings.thank_stage === 'assist' ? ' Once the approvals build up, switch on supervised or auto sending above.' : ''}
-              </p>
-            )}
-            <table className="table">
-              <thead><tr><th>Journalist</th><th>Publication</th><th>Story</th><th>Date</th><th></th></tr></thead>
-              <tbody>
-                {thanks.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.journalist || '—'}</td>
-                    <td>{r.outlet || '—'}</td>
-                    <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
-                    <td>{fmtDate(r.issue_date)}</td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => openDraft(r) })}>Draft thank-you</button>{' '}
-                      <button className="btn btn-secondary btn-sm" onClick={() => skipThank(r)}>Skip</button>
-                    </td>
-                  </tr>
-                ))}
-                {!thanks.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No thank-yous waiting. They appear here once a piece is marked Published and the journalist has an email on file.</td></tr>}
-              </tbody>
-            </table>
-          </div>
+            </>}
+            mapLayout="grid"
+            map={[
+              { title: 'Health', subtitle: 'Coverage, monitoring & what the client sees', nodes: [
+                { label: 'Coverage log',   onClick: () => setTab('coverage') },
+                { label: 'Auto monitor',   onClick: () => setTab('coverage') },
+                { label: 'Link checks',    onClick: () => setTab('coverage') },
+                { label: 'Client digests', onClick: () => setTab('reports') },
+                { label: 'Live coverage',  onClick: () => setTab('reports') },
+              ] },
+              { title: 'Build', subtitle: 'Media targeting → release → pitch', nodes: [
+                { label: 'Media DB',        onClick: () => setTab('journalists') },
+                { label: 'Pitch targeting', onClick: () => setTab('journalists') },
+                { label: 'Thank-yous',      onClick: () => setTab('journalists') },
+                { label: 'Draft release',   onClick: () => setTab('press') },
+                { label: 'Sign-off',        onClick: () => setTab('press') },
+                { label: 'Pitch',           onClick: () => setTab('press') },
+              ] },
+            ]}
+          />
         </div>
       )}
 
-      {!loading && tab === 'press' && (
-        <div className="card">
-          {pr ? (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                <h3 className="h3" style={{ margin: 0 }}>{pr.title || 'New press release'}</h3>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setPr(null); loadReleases(); }}>← All releases</button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <label className="field"><span className="field-label">Headline / working title</span><input className="input" value={pr.title || ''} onChange={(e) => setPr((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Forgeworks unveils House of Wood Shingle" /></label>
-                <label className="field"><span className="field-label">Brand</span><input className="input" value={pr.brand || ''} onChange={(e) => setPr((p) => ({ ...p, brand: e.target.value }))} /></label>
-                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Angle / why it's newsworthy</span><textarea className="input" rows={2} value={pr.angle || ''} onChange={(e) => setPr((p) => ({ ...p, angle: e.target.value }))} placeholder="The hook a journalist would care about." /></label>
-                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Key facts</span><textarea className="input" rows={4} value={pr.key_facts || ''} onChange={(e) => setPr((p) => ({ ...p, key_facts: e.target.value }))} placeholder="Who, what, where, when, numbers, quotes…" /></label>
-              </div>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', margin: '12px 0' }}>
-                <button className="btn btn-primary" {...roWrite(readOnly, { onClick: draftPR, disabled: prDrafting })}>{prDrafting ? 'Writing…' : '✍️ Draft with Claude'}</button>
-                <label className="field"><span className="field-label">Status</span><select className="input" value={pr.status || 'draft'} onChange={(e) => setPr((p) => ({ ...p, status: e.target.value }))}><option value="draft">Draft</option><option value="in_review">In review</option><option value="approved">Approved</option><option value="sent">Sent</option></select></label>
-                <label className="field"><span className="field-label">Embargo until (optional)</span><input className="input" type="datetime-local" value={pr.embargo_at ? new Date(pr.embargo_at).toISOString().slice(0, 16) : ''} onChange={(e) => setPr((p) => ({ ...p, embargo_at: e.target.value }))} /></label>
-                <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Published URL (once live)</span><input className="input" value={pr.url || ''} onChange={(e) => setPr((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
-                <button className="btn btn-secondary" onClick={copyReviewLink}>🔗 Client approval link</button>
-                {pr.approved_at && <span className="chip chip-accent">✓ Approved by {pr.approved_by || 'client'}</span>}
-                {['approved', 'sent'].includes(pr.status) && (
-                  <button className="btn btn-primary" {...roWrite(readOnly, { onClick: createPitchCampaign, title: 'Pitch this release to journalists in the Email tab' })}>{pr.campaign_id ? 'Open pitch campaign →' : '📣 Create pitch campaign →'}</button>
-                )}
-              </div>
-              <label className="field"><span className="field-label">Release body <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>— Claude marks assumptions in [brackets] to fill in</span></span><textarea className="input" rows={16} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13 }} value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} /></label>
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                <button className="btn btn-primary" disabled={prSaving} onClick={() => savePR()}>{prSaving ? 'Saving…' : 'Save'}</button>
-                <button className="btn btn-secondary" onClick={() => { setPr(null); loadReleases(); }}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>Write a release from a brief, have Claude draft it, then send a client approval link for sign-off.</p>
-                <button className="btn btn-primary" onClick={newRelease}>+ New press release</button>
-              </div>
-              <table className="table">
-                <thead><tr><th>Title</th><th>Brand</th><th>Status</th><th>Created</th><th></th></tr></thead>
-                <tbody>
-                  {releases.map((r) => (
-                    <tr key={r.id}>
-                      <td><button className="link-btn" onClick={() => openRelease(r.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, font: 'inherit' }}>{r.title || '(untitled)'}</button></td>
-                      <td>{r.brand || '—'}</td>
-                      <td><span className="chip">{({ draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' })[r.status] || r.status}</span></td>
-                      <td>{fmtDate(r.created_at)}</td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => openRelease(r.id)}>Edit</button>{' '}
-                        <button className="btn btn-danger btn-sm" onClick={() => deletePR(r)}>Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                  {!releases.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No press releases yet. Start from a brief and let Claude draft the release.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
 
-      {!loading && tab === 'reports' && (
-        <div className="card">
-          <h3 className="h3 mb-2">Automated reports &amp; alerts</h3>
-          <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Email the client a coverage digest on a schedule, and a "you've been featured" alert when a piece is marked published.</p>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label className="field" style={{ flex: 1, minWidth: 220 }}><span className="field-label">Report / alert email</span><input className="input" value={reports.alert_email || ''} onChange={(e) => setReports((r) => ({ ...r, alert_email: e.target.value }))} placeholder="client@example.com" /></label>
-            <label className="field"><span className="field-label">Cadence</span><select className="input" value={reports.report_cadence || 'off'} onChange={(e) => setReports((r) => ({ ...r, report_cadence: e.target.value }))}><option value="off">Off</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
-            <button className="btn btn-primary" disabled={savingReports} onClick={saveReports}>{savingReports ? 'Saving…' : 'Save'}</button>
-            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: sendReportNow })}>Send report now</button>
-          </div>
-          <div style={{ marginTop: 16, borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 16 }}>
-            <button className="btn btn-secondary" onClick={copyPortalLink}>🔗 Copy client coverage link</button>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 8, marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
-          </div>
-        </div>
-      )}
+
+
 
       {editing && (
         <div className="modal-backdrop" onClick={() => !saving && setEditing(null)}>
