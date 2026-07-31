@@ -1169,7 +1169,7 @@ export default function ClientSEOPage() {
           ] }}
           mapLayout="snake"
           map={[
-            { title: 'Health', subtitle: 'Where you rank and where you get cited', nodes: [
+            { title: 'Health', fn: 'measure', subtitle: 'Where you rank and where you get cited', nodes: [
               { label: 'Rankings',       onClick: () => goHealth('keywords') },
               { label: 'Search Console', onClick: () => goHealth('gsc') },
               { label: 'AI visibility',  onClick: () => goHealth('ai_visibility') },
@@ -1177,7 +1177,7 @@ export default function ClientSEOPage() {
               { label: 'Backlinks',      onClick: () => goHealth('backlinks') },
               { label: 'Drift',          onClick: () => goHealth('watch') },
             ] },
-            { title: 'Optimise', subtitle: 'Site and content fixes that move the needle', nodes: [
+            { title: 'Optimise', fn: 'strategy', subtitle: 'Site and content fixes that move the needle', nodes: [
               { label: 'Site audit',        onClick: () => goOptimise('scan') },
               { label: 'Content audit',     onClick: () => goOptimise('grade') },
               { label: 'Quick wins',        onClick: () => goOptimise('win') },
@@ -1186,7 +1186,7 @@ export default function ClientSEOPage() {
               { label: 'AI keywords',       onClick: () => goOptimise('target') },
               { label: 'Agent readiness',   onClick: () => goOptimise('prep') },
             ] },
-            { title: 'Build', subtitle: 'Editorial pipeline', numbered: true, nodes: [
+            { title: 'Build', fn: 'create', subtitle: 'Editorial pipeline', numbered: true, nodes: [
               { label: 'Topic map', onClick: () => setActiveTab('topic_map') },
               { label: 'Find',    onClick: () => setActiveTab('find') },
               { label: 'Brief',   onClick: () => setActiveTab('planning') },
@@ -1194,11 +1194,11 @@ export default function ClientSEOPage() {
               { label: 'Publish', onClick: () => setActiveTab('publish') },
               { label: 'Promote', onClick: () => setActiveTab('promote') },
             ] },
-            { title: 'Convert', subtitle: 'Turn visits into leads', nodes: [
+            { title: 'Convert', fn: 'strategy', subtitle: 'Turn visits into leads', nodes: [
               { label: 'CRO',   onClick: () => goConvert('cro') },
               { label: 'Forms', onClick: () => goConvert('forms') },
             ] },
-            { title: 'Email', subtitle: 'Nurture leads to close', nodes: [
+            { title: 'Email', fn: 'distribute', subtitle: 'Nurture leads to close', nodes: [
               { label: 'Campaigns',    onClick: () => setActiveTab('email') },
               { label: 'Sequences',    onClick: () => setActiveTab('email') },
               { label: 'Sending',      onClick: () => setActiveTab('email') },

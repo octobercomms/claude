@@ -886,13 +886,13 @@ export default function ClientPRPage() {
             ] }}
             mapLayout="grid"
             map={[
-              { title: 'Health', subtitle: 'Coverage, monitoring & what the client sees', nodes: [
+              { title: 'Health', fn: 'measure', subtitle: 'Coverage, monitoring & what the client sees', nodes: [
                 { label: 'Coverage log',   onClick: () => setTab('coverage') },
                 { label: 'Auto monitor',   onClick: () => setTab('coverage') },
                 { label: 'Client digests', onClick: () => setTab('reports') },
                 { label: 'Live coverage',  onClick: () => setTab('reports') },
               ] },
-              { title: 'Build', subtitle: 'Media targeting → release → pitch', nodes: [
+              { title: 'Build', fn: 'create', subtitle: 'Media targeting → release → pitch', nodes: [
                 { label: 'Media DB',        onClick: () => setTab('journalists') },
                 { label: 'Pitch targeting', onClick: () => setTab('journalists') },
                 { label: 'Draft release',   onClick: () => setTab('press') },
