@@ -118,6 +118,11 @@ function ClusterMode({ clientId }) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="caption" style={{ color: 'var(--text-subtle)' }}>Cluster · {c.intent}</div>
                       <div className="h3 mt-2">{c.label}</div>
+                      {c.core_question && (
+                        <div className="body-sm mt-2" style={{ fontWeight: 600 }}>
+                          <span aria-hidden="true">❓ </span>{c.core_question}
+                        </div>
+                      )}
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                         Primary: <strong style={{ color: 'var(--text)' }}>{c.primary}</strong>
                       </div>
@@ -198,11 +203,20 @@ function BriefView({ brief }) {
           <div className="body-sm">{brief.suggested_word_count} words · {brief.target_intent}</div>
         </div>
         <div>
-          <div className="caption mb-2">Meta</div>
+          <div className="caption mb-2">Meta &amp; slug</div>
           <div className="body-sm"><strong>{brief.meta_title}</strong></div>
           <div className="body-sm text-muted mt-2">{brief.meta_description}</div>
+          {brief.slug && <div className="body-xs text-subtle mt-2" style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}>/{brief.slug}</div>}
         </div>
       </div>
+
+      {(brief.core_question || brief.answer_block) && (
+        <div className="card mt-4" style={{ background: 'var(--accent-soft, #faf6df)', borderLeft: '4px solid var(--accent, #e7cd41)' }}>
+          {brief.core_question && <div className="body-sm" style={{ fontWeight: 600 }}>❓ {brief.core_question}</div>}
+          {brief.answer_block && <p className="body-sm mt-2" style={{ fontStyle: 'italic' }}>“{brief.answer_block}”</p>}
+          <div className="body-xs text-subtle mt-2">The liftable answer the piece opens with — this is what AI engines quote.</div>
+        </div>
+      )}
 
       <div className="caption mt-4 mb-2">Outline</div>
       <ol style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, lineHeight: 1.6 }}>
@@ -217,6 +231,57 @@ function BriefView({ brief }) {
           </li>
         ))}
       </ol>
+
+      {Array.isArray(brief.key_stats) && brief.key_stats.length > 0 && (
+        <>
+          <div className="caption mt-4 mb-2">Stats to include (with sources)</div>
+          <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 12, lineHeight: 1.6 }}>
+            {brief.key_stats.map((s, i) => (
+              <li key={i}><strong style={{ color: 'var(--text)' }}>{s.stat || String(s)}</strong>{s.source ? <span className="text-muted"> — {s.source}</span> : null}</li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {Array.isArray(brief.faqs) && brief.faqs.length > 0 && (
+        <>
+          <div className="caption mt-4 mb-2">FAQ section ({brief.faqs.length})</div>
+          <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 12, lineHeight: 1.6 }}>
+            {brief.faqs.map((f, i) => (
+              <li key={i} style={{ marginBottom: 4 }}><strong style={{ color: 'var(--text)' }}>{f.question || String(f)}</strong>{f.answer ? <div className="text-muted">{f.answer}</div> : null}</li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {brief.comparison_table && Array.isArray(brief.comparison_table.columns) && brief.comparison_table.columns.length > 0 && (
+        <>
+          <div className="caption mt-4 mb-2">Comparison table</div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table" style={{ fontSize: 12 }}>
+              <thead><tr>{brief.comparison_table.columns.map((c, i) => <th key={i} style={{ padding: '6px 8px', textAlign: 'left' }}>{c}</th>)}</tr></thead>
+              <tbody>
+                {(brief.comparison_table.rows || []).map((r, i) => (
+                  <tr key={i}>{brief.comparison_table.columns.map((c, j) => <td key={j} style={{ padding: '6px 8px' }}>{typeof r === 'object' ? (r[c] ?? '') : String(r)}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {brief.eeat && (brief.eeat.author_persona || brief.eeat.first_hand_angle) && (
+        <>
+          <div className="caption mt-4 mb-2">E-E-A-T signals</div>
+          <div className="body-xs" style={{ lineHeight: 1.6 }}>
+            {brief.eeat.author_persona && <div><strong>Byline:</strong> <span className="text-muted">{brief.eeat.author_persona}</span></div>}
+            {brief.eeat.first_hand_angle && <div><strong>First-hand:</strong> <span className="text-muted">{brief.eeat.first_hand_angle}</span></div>}
+            {Array.isArray(brief.eeat.credibility_signals) && brief.eeat.credibility_signals.length > 0 && (
+              <div><strong>Cite for trust:</strong> <span className="text-muted">{brief.eeat.credibility_signals.join(', ')}</span></div>
+            )}
+          </div>
+        </>
+      )}
 
       {!!brief.secondary_keyword_coverage && Object.keys(brief.secondary_keyword_coverage).length > 0 && (
         <>
