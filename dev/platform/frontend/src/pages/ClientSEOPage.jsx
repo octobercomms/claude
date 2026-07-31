@@ -19,6 +19,7 @@ import AiSeoPanel from '../components/organic/AiSeoPanel';
 import SuiteOverview from '../components/SuiteOverview';
 import ProcessRail from '../components/ProcessRail';
 import FindPanel from '../components/organic/FindPanel';
+import TopicMapPanel from '../components/organic/TopicMapPanel';
 import BriefPanel from '../components/organic/BriefPanel';
 import DraftPanel from '../components/organic/DraftPanel';
 import PublishPanel from '../components/organic/PublishPanel';
@@ -668,7 +669,7 @@ export default function ClientSEOPage() {
           ai_visibility: 'search', drift: 'search',
           site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
           ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
-          find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
+          topic_map: 'content', find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
           local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_outliers: 'local', local_gbp: 'local',
           cro: 'convert', forms: 'convert',
           email: 'email',
@@ -710,8 +711,9 @@ export default function ClientSEOPage() {
 
         // Build (content) is a linear pipeline → render the shared Stepper
         // instead of a sub-tab strip, matching Shared's and Paid's Build.
-        const CONTENT_KEYS = ['find', 'planning', 'draft', 'publish', 'promote'];
+        const CONTENT_KEYS = ['topic_map', 'find', 'planning', 'draft', 'publish', 'promote'];
         const CONTENT_META = [
+          { title: 'Topic map', sub: 'Plan the cluster' },
           { title: 'Find', sub: 'Topics & keywords' },
           { title: 'Brief', sub: 'Outline & angle' },
           { title: 'Draft', sub: 'Write it' },
@@ -771,6 +773,7 @@ export default function ClientSEOPage() {
               { label: 'Agent readiness',   onClick: () => setActiveTab('agent_ready') },
             ] },
             { title: 'Build', subtitle: 'Editorial pipeline', numbered: true, nodes: [
+              { label: 'Topic map', onClick: () => setActiveTab('topic_map') },
               { label: 'Find',    onClick: () => setActiveTab('find') },
               { label: 'Brief',   onClick: () => setActiveTab('planning') },
               { label: 'Draft',   onClick: () => setActiveTab('draft') },
@@ -834,6 +837,7 @@ export default function ClientSEOPage() {
       {activeTab === 'content_audit' && <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
       {activeTab === 'keyword_footprint' && <KeywordFootprintPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
       {/* Pipeline steps */}
+      {activeTab === 'topic_map' && <TopicMapPanel clientId={id} />}
       {activeTab === 'find' && <FindPanel clientId={id} onBuildContent={buildFromKeyword} onNext={() => setActiveTab('planning')} />}
       {activeTab === 'planning' && <BriefPanel clientId={id} seed={buildSeed} onNext={() => setActiveTab('draft')} />}
       {activeTab === 'draft' && <DraftPanel clientId={id} onNext={() => setActiveTab('publish')} />}

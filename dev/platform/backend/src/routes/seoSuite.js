@@ -1119,6 +1119,78 @@ router.post('/clients/:clientId/keyword-clusters/brief', async (req, res) => {
   }
 });
 
+// ─── CONTENT TOPIC MAPS ────────────────────────────────────────────────────
+// Persisted, question-led content plans. Grow a map from a seed (Claude expands
+// it into a keyword universe grounded in the brief + tracked keywords, then
+// clusters it); each cluster is one planned piece with a status. Reuses the
+// same brief generator as the ad-hoc cluster flow.
+const topicMap = require('../services/topicMap');
+
+// Build + persist a topic map from a seed. Longer job (expand + cluster).
+router.post('/clients/:clientId/topic-maps', async (req, res) => {
+  const { seed, name } = req.body || {};
+  if (!seed || !String(seed).trim()) return res.status(400).json({ error: 'seed required' });
+  try {
+    const map = await topicMap.generateMap({
+      clientId: req.params.clientId, seed, name, createdBy: req.user?.id || null,
+    });
+    res.json(map);
+  } catch (err) {
+    console.error('[topic-map] generate failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.get('/clients/:clientId/topic-maps', async (req, res) => {
+  try { res.json(await topicMap.listMaps(req.params.clientId)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/topic-maps/:mapId', async (req, res) => {
+  try {
+    const map = await topicMap.getMap(req.params.mapId);
+    if (!map) return res.status(404).json({ error: 'Topic map not found' });
+    assertClientAccess(req, map.client_id);
+    res.json(map);
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.delete('/topic-maps/:mapId', async (req, res) => {
+  try {
+    const map = await topicMap.getMap(req.params.mapId);
+    if (!map) return res.status(404).json({ error: 'Topic map not found' });
+    assertClientAccess(req, map.client_id);
+    await topicMap.deleteMap(req.params.mapId);
+    res.json({ ok: true });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Generate (and persist) a GEO brief for one planned cluster.
+router.post('/topic-clusters/:clusterId/brief', async (req, res) => {
+  try {
+    const c = await topicMap.loadCluster(req.params.clusterId);
+    if (!c) return res.status(404).json({ error: 'Cluster not found' });
+    assertClientAccess(req, c.client_id);
+    const brief = await topicMap.briefCluster(req.params.clusterId);
+    res.json({ brief });
+  } catch (err) {
+    console.error('[topic-map] cluster brief failed:', err.message);
+    res.status(err.status || 502).json({ error: err.message });
+  }
+});
+
+// Advance a cluster's status on the plan (planned → briefed → drafted → …).
+router.patch('/topic-clusters/:clusterId', async (req, res) => {
+  const { status } = req.body || {};
+  try {
+    const c = await topicMap.loadCluster(req.params.clusterId);
+    if (!c) return res.status(404).json({ error: 'Cluster not found' });
+    assertClientAccess(req, c.client_id);
+    const updated = await topicMap.updateClusterStatus(req.params.clusterId, status);
+    res.json(updated);
+  } catch (err) { res.status(err.status || 400).json({ error: err.message }); }
+});
+
 // ─── PAGE KEYWORD FOOTPRINT ────────────────────────────────────────────────
 // Per-page noun-phrase extraction, populated by the site_audit crawler.
 // Returns the latest audit's footprint grouped by page so the AM can see

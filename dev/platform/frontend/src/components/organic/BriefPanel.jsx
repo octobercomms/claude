@@ -191,7 +191,7 @@ function ClusterMode({ clientId }) {
   );
 }
 
-function BriefView({ brief }) {
+export function BriefView({ brief }) {
   return (
     <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 'var(--s4)' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s4)' }}>
