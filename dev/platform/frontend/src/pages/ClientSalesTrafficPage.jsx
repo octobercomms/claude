@@ -4,7 +4,6 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Responsi
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
-import DataFlowMap from '../components/DataFlowMap';
 import ClientChatPage from './ClientChatPage';
 import { useCssVar } from '../hooks/useCssVar';
 import { useTabParam } from '../hooks/useTabParam';
@@ -139,16 +138,31 @@ export default function ClientSalesTrafficPage() {
 
       {tab === 'overview' && (
         <SuiteOverview
-          tagline="Stop building reports. Just ask."
-          description="Live revenue, orders and traffic the second the page loads — and any question answered in plain English, with the numbers to back it up. The analyst who already knows the account."
-          ctaLabel="View live KPIs"
-          onCta={() => setTab('dashboard')}
-          status={[
-            { label: 'Shopify', value: k.revenue ? 'Live' : 'No data', ok: !!k.revenue },
-            { label: 'GA4', value: k.sessions ? 'Live' : 'No data', ok: !!k.sessions },
-            { label: 'Revenue · 30d', value: fmtMoney(k.revenue || 0), ok: !!k.revenue },
+          tagline="Data, around one clear path."
+          description="Live revenue, orders and traffic the second the page loads — then ask any question in plain English and get the numbers to back it up. Everything else is a read-out or a quiet link."
+          readouts={[
+            { fn: 'measure', name: 'Revenue · 30d', value: fmtMoney(k.revenue || 0), sub: k.revenue ? 'live' : 'no data' },
+            { fn: 'data',    name: 'Shopify', value: k.revenue ? 'Live' : '—', sub: k.revenue ? 'connected' : 'no data' },
+            { fn: 'data',    name: 'GA4',     value: k.sessions ? 'Live' : '—', sub: k.sessions ? 'connected' : 'no data' },
           ]}
-          diagram={<DataFlowMap onPerformance={() => setTab('dashboard')} onAnalyst={readOnly ? undefined : () => setTab('analyst')} />}
+          primary={readOnly ? {
+            fn: 'measure',
+            kicker: 'The main job here',
+            title: 'See the live numbers',
+            description: 'Revenue, orders and traffic the second the page loads — no report-building.',
+            ctaLabel: 'Open the dashboard',
+            onCta: () => setTab('dashboard'),
+          } : {
+            fn: 'research',
+            kicker: 'The main job here',
+            title: 'Ask anything about the account',
+            description: 'The analyst already knows the account. Ask in plain English and get the answer with the numbers to back it up.',
+            ctaLabel: 'Open the analyst',
+            onCta: () => setTab('analyst'),
+          }}
+          otherJobs={{ label: 'Other jobs in Data', items: readOnly ? [] : [
+            { fn: 'measure', label: 'Dashboard — live KPIs', onClick: () => setTab('dashboard') },
+          ] }}
         />
       )}
 
