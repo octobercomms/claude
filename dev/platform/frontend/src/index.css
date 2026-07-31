@@ -484,13 +484,17 @@ button { font-family: inherit; }
   color: var(--accent-ink, var(--text)); font-weight: 800;
 }
 .oview-cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); margin-top: var(--s5); }
-/* Live numbers beside the pitch. */
+/* Live numbers beside the pitch — a tidy bordered grid, not a loose cluster. */
 .oview-hero-stats {
-  flex: 0 0 auto; display: grid; gap: var(--s4);
-  grid-template-columns: repeat(2, auto);
+  flex: 0 0 auto; display: grid; gap: 10px;
+  grid-template-columns: repeat(2, minmax(118px, 1fr));
 }
-.oview-stat { display: flex; flex-direction: column; gap: 3px; }
-.oview-stat-val { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
+.oview-stat {
+  display: flex; flex-direction: column; gap: 5px;
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-md); padding: 11px 14px;
+}
+.oview-stat-val { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
 .oview-stat-name {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 600; color: var(--text-muted);
