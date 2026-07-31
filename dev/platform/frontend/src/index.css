@@ -330,6 +330,52 @@ button { font-family: inherit; }
 }
 .btn-danger:hover:not(:disabled) { filter: brightness(0.92); color: #fff; }
 
+/* Quiet utility link — text only, no fill or border. For utilities that
+   aren't primary actions (copy a link, run a check). Keeps accent = action:
+   muted at rest, inks up on hover. Not a third button style — it's a link. */
+.btn-link {
+  background: none; border: none; padding: 4px 2px;
+  color: var(--text-muted); font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn-link:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
+.btn-link:disabled { opacity: 0.5; cursor: default; }
+
+/* Dropdown menu — a button that reveals a small bordered panel of actions.
+   Used to group related actions (e.g. the two CSV imports) behind one control. */
+.menu-anchor { position: relative; display: inline-block; }
+.menu-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
+  min-width: 220px; background: var(--surface);
+  border: var(--border-w) solid var(--card-border); border-radius: var(--r-md);
+  box-shadow: var(--shadow-md); padding: 6px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.menu-item {
+  text-align: left; background: none; border: none; cursor: pointer;
+  padding: 8px 10px; border-radius: var(--r-sm);
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--text);
+}
+.menu-item:hover:not(:disabled) { background: var(--surface-sunken); }
+.menu-item:disabled { opacity: 0.5; cursor: default; }
+.menu-item .menu-item-sub { display: block; font-size: 11px; font-weight: 500; color: var(--text-subtle); margin-top: 1px; }
+
+/* Compact inline filter — the tab look (muted → accent-underline active)
+   without the page-level tab strip, so a filter reads as one control rather
+   than a row of buttons. Lives happily inside a card. */
+.filter-bar { display: flex; flex-wrap: wrap; gap: var(--s4); align-items: center; }
+.filter-tab {
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
+  padding: 2px 0; border-bottom: 2px solid transparent;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.filter-tab:hover { color: var(--text); }
+.filter-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.filter-tab .tab-count { font-size: 11px; font-weight: 600; color: var(--text-subtle); }
+.filter-tab.active .tab-count { color: var(--accent); }
+
 /* ─── Chips ──────────────────────────────────────────────────────── */
 
 .chip {
