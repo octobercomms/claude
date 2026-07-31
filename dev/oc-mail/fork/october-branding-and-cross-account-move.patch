@@ -160,7 +160,7 @@ index 483dcfa..53e2162 100644
  // large user base doesn't hammer IMAP servers and the DB connection pool at once.
  try {
 diff --git a/backend/src/routes/ai.js b/backend/src/routes/ai.js
-index 088fc38..ee45d7b 100644
+index 088fc38..7f54d0d 100644
 --- a/backend/src/routes/ai.js
 +++ b/backend/src/routes/ai.js
 @@ -4,6 +4,8 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
@@ -172,7 +172,7 @@ index 088fc38..ee45d7b 100644
  
  const router = Router();
  
-@@ -208,4 +210,53 @@ router.post('/ai/chat', requireAuth, async (req, res) => {
+@@ -208,4 +210,55 @@ router.post('/ai/chat', requireAuth, async (req, res) => {
    }
  });
  
@@ -215,9 +215,11 @@ index 088fc38..ee45d7b 100644
 +  if (!acct.rows.length) return res.status(404).json({ error: 'Account not found' });
 +
 +  const legend = parseLegend(await loadLegendText());
++  const prefRow = await query('SELECT preferences FROM users WHERE id = $1', [req.session.userId]);
++  const ownerNames = prefRow.rows[0]?.preferences?.ownerNames || '';
 +  try {
 +    const { tasks, scanned, capped } = await generateFolderTasks({
-+      account: acct.rows[0], folder, cfg, legend, imapManager,
++      account: acct.rows[0], folder, cfg, legend, imapManager, ownerNames,
 +    });
 +    res.json({ tasks, scanned, capped });
 +  } catch (err) {
@@ -728,10 +730,10 @@ index 0000000..c22c0d8
 +export default router;
 diff --git a/backend/src/routes/tasks.js b/backend/src/routes/tasks.js
 new file mode 100644
-index 0000000..b47d6ef
+index 0000000..3ff8f30
 --- /dev/null
 +++ b/backend/src/routes/tasks.js
-@@ -0,0 +1,195 @@
+@@ -0,0 +1,205 @@
 +import { Router } from 'express';
 +import { query } from '../services/db.js';
 +import { requireAuth } from '../middleware/auth.js';
@@ -827,6 +829,7 @@ index 0000000..b47d6ef
 +  const auto = prefs.taskAutoRefresh || {};
 +  const autoRefresh = { enabled: auto.enabled === true, hour: Number.isInteger(auto.hour) ? auto.hour : 8, tz: auto.tz || null };
 +  const autoDrafts = { enabled: prefs.autoDrafts?.enabled === true };
++  const ownerNames = typeof prefs.ownerNames === 'string' ? prefs.ownerNames : '';
 +  const accounts = [];
 +  for (const a of accts.rows) {
 +    const folders = (await query(
@@ -834,7 +837,7 @@ index 0000000..b47d6ef
 +    )).rows;
 +    accounts.push({ id: a.id, email: a.email_address, folders });
 +  }
-+  res.json({ sources, accounts, autoRefresh, autoDrafts });
++  res.json({ sources, accounts, autoRefresh, autoDrafts, ownerNames });
 +});
 +
 +router.put('/tasks/sources', requireAuth, async (req, res) => {
@@ -880,6 +883,15 @@ index 0000000..b47d6ef
 +      `UPDATE users SET preferences =
 +         jsonb_set(COALESCE(preferences,'{}'::jsonb), '{autoDrafts}', $2::jsonb, true) WHERE id = $1`,
 +      [userId, JSON.stringify({ enabled: req.body.autoDrafts.enabled === true })]
++    );
++  }
++
++  // Owner name(s) — helps the digest tell "asked of me" from "just Cc'd".
++  if (typeof req.body?.ownerNames === 'string') {
++    await query(
++      `UPDATE users SET preferences =
++         jsonb_set(COALESCE(preferences,'{}'::jsonb), '{ownerNames}', to_jsonb($2::text), true) WHERE id = $1`,
++      [userId, req.body.ownerNames.slice(0, 300)]
 +    );
 +  }
 +  res.json({ ok: true, sources: clean });
@@ -2187,10 +2199,10 @@ index 0000000..704a499
 +}
 diff --git a/backend/src/services/taskGenerator.js b/backend/src/services/taskGenerator.js
 new file mode 100644
-index 0000000..317b70c
+index 0000000..fbdc812
 --- /dev/null
 +++ b/backend/src/services/taskGenerator.js
-@@ -0,0 +1,296 @@
+@@ -0,0 +1,361 @@
 +import { query } from './db.js';
 +import { decrypt } from './encryption.js';
 +import { sanitizeEmail } from './emailSanitizer.js';
@@ -2293,9 +2305,10 @@ index 0000000..317b70c
 +// a grouped/prioritized task list, and returns normalized tasks. `refs` is the set
 +// of message-ids currently present in the folder — the hub uses it to auto-complete
 +// tasks whose source email has since been filed elsewhere.
-+export async function generateFolderTasks({ account, folder, cfg, legend, imapManager, extraContext = '' }) {
++export async function generateFolderTasks({ account, folder, cfg, legend, imapManager, extraContext = '', ownerNames = '' }) {
 +  const msgResult = await query(
-+    `SELECT id, uid, message_id, subject, from_name, from_email, snippet, body_text, date, is_read
++    `SELECT id, uid, message_id, subject, from_name, from_email, snippet, body_text, date, is_read,
++            to_addresses, cc_addresses, thread_key
 +       FROM messages
 +      WHERE account_id = $1 AND folder = $2
 +      ORDER BY date DESC
@@ -2303,9 +2316,42 @@ index 0000000..317b70c
 +    [account.id, folder, AI_TASKS_MAX_EMAILS + 1]
 +  );
 +  const capped = msgResult.rows.length > AI_TASKS_MAX_EMAILS;
-+  const emails = msgResult.rows.slice(0, AI_TASKS_MAX_EMAILS);
++  let emails = msgResult.rows.slice(0, AI_TASKS_MAX_EMAILS);
++  if (emails.length === 0) return { tasks: [], scanned: 0, capped: false, refs: new Set() };
++
++  // The owner's addresses (account + aliases) — used both for To/Cc weighting and to
++  // detect "already replied".
++  const ownerAddrs = new Set();
++  if (account.email_address) ownerAddrs.add(account.email_address.toLowerCase());
++  { let aliases = account.aliases;
++    if (typeof aliases === 'string') { try { aliases = JSON.parse(aliases); } catch { aliases = []; } }
++    for (const a of aliases || []) if (a?.email) ownerAddrs.add(a.email.toLowerCase()); }
++
++  // Drop emails the owner has ALREADY replied to: if a later message exists in the same
++  // thread from one of the owner's addresses, the ball is no longer in their court, so
++  // there's no task. Excluding these from `refs` also auto-completes any existing task
++  // in the hub whose source email has now been answered (even while it sits in-folder).
++  const threadKeys = [...new Set(emails.map(m => m.thread_key).filter(Boolean))];
++  const ownerLastByThread = new Map();
++  if (threadKeys.length && ownerAddrs.size) {
++    const r = await query(
++      `SELECT thread_key, MAX(date) AS last_owner
++         FROM messages
++        WHERE account_id = $1 AND thread_key = ANY($2) AND lower(from_email) = ANY($3)
++        GROUP BY thread_key`,
++      [account.id, threadKeys, [...ownerAddrs]]
++    );
++    for (const row of r.rows) ownerLastByThread.set(row.thread_key, new Date(row.last_owner).getTime());
++  }
++  const alreadyReplied = (m) => {
++    if (!m.thread_key || !m.date) return false;
++    const last = ownerLastByThread.get(m.thread_key);
++    return last != null && last > new Date(m.date).getTime();
++  };
++  emails = emails.filter(m => !alreadyReplied(m));
++  if (emails.length === 0) return { tasks: [], scanned: 0, capped, refs: new Set() };
++
 +  const refs = new Set(emails.map(m => m.message_id).filter(Boolean));
-+  if (emails.length === 0) return { tasks: [], scanned: 0, capped: false, refs };
 +
 +  // Fetch real bodies on demand. Gmail is indexed with fetchBody:false, so most
 +  // rows only carry a short snippet — feeding that to the model is why an unhydrated
@@ -2361,14 +2407,34 @@ index 0000000..317b70c
 +    if (days < 400) return `${Math.round(days / 30)} months ago`;
 +    return `${(days / 365).toFixed(1)} years ago`;
 +  };
++
++  // Was the owner a direct recipient (To), only copied (Cc), or neither (received via
++  // a group/label)? Lets the model weight "asked of me" vs "just kept in the loop".
++  // ownerAddrs is computed above (also used for reply detection).
++  const parseAddrs = (v) => { if (Array.isArray(v)) return v; try { return JSON.parse(v || '[]'); } catch { return []; } };
++  const recipientRole = (m) => {
++    const to = parseAddrs(m.to_addresses).map(x => (x.email || '').toLowerCase());
++    const cc = parseAddrs(m.cc_addresses).map(x => (x.email || '').toLowerCase());
++    if (to.some(e => ownerAddrs.has(e))) return 'To';
++    if (cc.some(e => ownerAddrs.has(e))) return 'Cc';
++    return '-';
++  };
++
 +  const lines = emails.map((m, i) => {
 +    const from = clip(m.from_name || m.from_email || 'unknown', 80);
 +    const subject = clip(m.subject, 160) || '(no subject)';
 +    const when = m.date ? `${new Date(m.date).toISOString().slice(0, 10)} (${ageLabel(m.date)})` : '';
 +    const bodyText = clip(m.body_text || m.snippet, 2000);
 +    const hint = hintFor(m);
-+    return `[${i + 1}] From: ${from} — Subject: ${subject}${when ? ` — ${when}` : ''}${hint ? ` — CLIENT: ${hint}` : ''}\n${bodyText}`;
++    return `[${i + 1}] From: ${from} — Subject: ${subject}${when ? ` — ${when}` : ''} — [${recipientRole(m)}]${hint ? ` — CLIENT: ${hint}` : ''}\n${bodyText}`;
 +  }).join('\n\n');
++
++  const ownerNamesList = String(ownerNames || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
++  const ownerBlock =
++    `WHO YOU ARE: you are ${account.email_address}` +
++    (ownerNamesList.length ? ` — also referred to as ${ownerNamesList.join(', ')}` : '') +
++    `. Each email is tagged with your role on it: [To] = you were a direct recipient, ` +
++    `[Cc] = you were only copied in, [-] = you were not a named recipient (it reached you via a group/label).\n\n`;
 +
 +  const legendBlock = legend.length
 +    ? 'KNOWN CLIENTS — group every task under ONE of these EXACT names. Match each email to a client using ' +
@@ -2406,6 +2472,16 @@ index 0000000..317b70c
 +    'either omit the item or frame it as a possibly-stale follow-up ("Check whether … is still needed") — do not ' +
 +    'present a lapsed deadline as urgent. Emails more than about a year old are very likely stale leftovers — include ' +
 +    'one only if it clearly describes an action still genuinely open today; otherwise skip it. ' +
++    'WHO IS BEING ASKED. Each email is tagged [To], [Cc], or [-] for the user\'s role on it (see WHO YOU ARE). ' +
++    'Weigh this: when the user is on [To], or is named/addressed in the body ("Daniel, can you…"), treat it as a ' +
++    'normal ask. When the user is only [Cc] or [-] AND the body does not name or ask them specifically, it is most ' +
++    'likely FYI / kept-in-the-loop — do NOT create a task for it UNLESS it is clearly something the user owns ' +
++    'regardless of being asked by name: an automated or system alert (a failed or failing payment, a card/Stripe/' +
++    'billing problem, an expiring or expired certificate/domain/subscription, a webhook or integration breaking, an ' +
++    'error/downtime report, a renewal or account-suspension notice), or an action only the user can take. Those ARE ' +
++    'the user\'s job even though nobody asked by name — include them. So: system/automated alerts → include even on ' +
++    '[Cc]/[-]; ordinary human emails where the user was merely copied and not addressed → skip unless they plainly ' +
++    'need the user\'s action. When genuinely unsure on a Cc-only human email, prefer skipping over adding noise. ' +
 +    'GROUPING: prefer the KNOWN CLIENTS names when an email matches one, but you are NOT limited to that list — when ' +
 +    'an email clearly belongs to another client, company, or project, infer a concise, stable, title-cased group name ' +
 +    'from the sender domain and content and create it. Never split by individual person or city (roll those into the ' +
@@ -2423,6 +2499,7 @@ index 0000000..317b70c
 +  const user = `TODAY'S DATE IS ${today}. Judge every email's recency and deadlines against this date.\n\n` +
 +    `Here are the emails in the "${folder}" folder for ${account.email_address} (newest first). ` +
 +    `Full message bodies are included — read them, don't just skim the subject. Each email's own date is shown after its subject.\n\n` +
++    `${ownerBlock}` +
 +    `${extraContext ? extraContext + '\n\n' : ''}` +
 +    `${legendBlock}` +
 +    `${lines}\n\n` +
@@ -2489,10 +2566,10 @@ index 0000000..317b70c
 +}
 diff --git a/backend/src/services/taskRefresh.js b/backend/src/services/taskRefresh.js
 new file mode 100644
-index 0000000..08aa30d
+index 0000000..0c87b24
 --- /dev/null
 +++ b/backend/src/services/taskRefresh.js
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,218 @@
 +import { query } from './db.js';
 +import { imapManager } from '../index.js';
 +import { generateFolderTasks, loadAiConfig, loadLegendText, parseLegend } from './taskGenerator.js';
@@ -2570,6 +2647,7 @@ index 0000000..08aa30d
 +
 +  const prefRow = await query('SELECT preferences FROM users WHERE id = $1', [userId]);
 +  const sources = prefRow.rows[0]?.preferences?.taskSources || {};
++  const ownerNames = prefRow.rows[0]?.preferences?.ownerNames || '';
 +  const accts = await query('SELECT * FROM email_accounts WHERE user_id = $1 AND enabled = true', [userId]);
 +
 +  const jobs = [];
@@ -2590,7 +2668,7 @@ index 0000000..08aa30d
 +  for (const job of jobs) {
 +    try {
 +      const { tasks, refs } = await generateFolderTasks({
-+        account: job.account, folder: job.folder, cfg, legend, imapManager, extraContext: briefBlock,
++        account: job.account, folder: job.folder, cfg, legend, imapManager, extraContext: briefBlock, ownerNames,
 +      });
 +      const label = job.account.name || job.account.email_address;
 +      for (const tk of tasks) tk.account = label;
@@ -7337,10 +7415,10 @@ index 0000000..4551729
 +}
 diff --git a/frontend/src/components/TasksView.jsx b/frontend/src/components/TasksView.jsx
 new file mode 100644
-index 0000000..15a14ea
+index 0000000..03c4783
 --- /dev/null
 +++ b/frontend/src/components/TasksView.jsx
-@@ -0,0 +1,724 @@
+@@ -0,0 +1,746 @@
 +// Native task list — a restricted Notion-style outline: two block kinds, "heading"
 +// (a client/section) and "task" (a checkbox item). Type straight into it: Enter makes
 +// a new task, Backspace on an empty block removes it, the checkbox ticks a task off.
@@ -7891,6 +7969,7 @@ index 0000000..15a14ea
 +  const [legend, setLegend] = useState('');
 +  const [auto, setAuto] = useState({ enabled: false, hour: 8, tz: null });
 +  const [autoDrafts, setAutoDrafts] = useState({ enabled: false });
++  const [ownerNames, setOwnerNames] = useState('');
 +  const [loading, setLoading] = useState(true);
 +  const [saving, setSaving] = useState(false);
 +  const [saved, setSaved] = useState(false);
@@ -7906,6 +7985,7 @@ index 0000000..15a14ea
 +        setSources(s.sources || {});
 +        setAuto({ enabled: !!s.autoRefresh?.enabled, hour: Number.isInteger(s.autoRefresh?.hour) ? s.autoRefresh.hour : 8, tz: s.autoRefresh?.tz || null });
 +        setAutoDrafts({ enabled: !!s.autoDrafts?.enabled });
++        setOwnerNames(s.ownerNames || '');
 +        setLegend(l.legend || '');
 +      } catch (e) { setErr(e.message || 'Failed to load settings'); }
 +      finally { setLoading(false); }
@@ -7925,7 +8005,7 @@ index 0000000..15a14ea
 +    setSaving(true); setErr(''); setSaved(false);
 +    try {
 +      const autoPayload = { ...auto, tz: auto.tz || browserTz || null };
-+      await Promise.all([api.tasksSaveSources(sources, autoPayload, autoDrafts), api.aiSetTaskLegend(legend)]);
++      await Promise.all([api.tasksSaveSources(sources, autoPayload, autoDrafts, ownerNames), api.aiSetTaskLegend(legend)]);
 +      setSaved(true);
 +      setTimeout(() => setSaved(false), 2000);
 +    } catch (e) { setErr(e.message || 'Save failed'); }
@@ -7951,6 +8031,26 @@ index 0000000..15a14ea
 +        <>
 +          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 12, lineHeight: 1.5 }}>
 +            {t('tasksView.settingsHelp', { defaultValue: 'Tick each account you want read, then choose its to-do folder(s). Refresh turns those emails into tasks; when you file an email out of the folder, its task auto-completes.' })}
++          </div>
++
++          {/* Owner identity — lets the digest tell "asked of me" from "just Cc'd". */}
++          <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: '1px solid var(--border-subtle)' }}>
++            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
++              {t('tasksView.ownerTitle', { defaultValue: 'Your name(s)' })}
++            </div>
++            <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginBottom: 6, lineHeight: 1.5 }}>
++              {t('tasksView.ownerHelp', { defaultValue: 'How you\'re addressed in emails (e.g. "Daniel, Daniel Nelson, Dan"). Used to weigh whether an email actually asks you to do something, or you were only copied in. System alerts (a failed payment, an expiring cert) are still picked up even when nobody asks by name.' })}
++            </div>
++            <input
++              value={ownerNames}
++              onChange={e => setOwnerNames(e.target.value)}
++              placeholder={t('tasksView.ownerPh', { defaultValue: 'Daniel, Daniel Nelson, Dan' })}
++              style={{
++                width: '100%', boxSizing: 'border-box', fontSize: 13, padding: '7px 10px',
++                border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-primary)',
++                color: 'var(--text-primary)', fontFamily: 'inherit',
++              }}
++            />
 +          </div>
 +
 +          {accounts.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No accounts.</div>}
@@ -8174,7 +8274,7 @@ index 8583eff..58bd99c 100644
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
 diff --git a/frontend/src/utils/api.js b/frontend/src/utils/api.js
-index c62ac69..54689c5 100644
+index c62ac69..b68dea5 100644
 --- a/frontend/src/utils/api.js
 +++ b/frontend/src/utils/api.js
 @@ -171,6 +171,10 @@ export const api = {
@@ -8213,7 +8313,7 @@ index c62ac69..54689c5 100644
 +  tasksReorder: (ids) => request('POST', '/tasks/reorder', { ids }),
 +  tasksClearDone: () => request('POST', '/tasks/clear-done'),
 +  tasksSources: () => request('GET', '/tasks/sources'),
-+  tasksSaveSources: (sources, autoRefresh, autoDrafts) => request('PUT', '/tasks/sources', { sources, autoRefresh, autoDrafts }),
++  tasksSaveSources: (sources, autoRefresh, autoDrafts, ownerNames) => request('PUT', '/tasks/sources', { sources, autoRefresh, autoDrafts, ownerNames }),
 +  tasksRefresh: (rebuild) => request('POST', '/tasks/refresh', { rebuild: !!rebuild }),
 +  tasksRefreshStatus: () => request('GET', '/tasks/refresh/status'),
 +  clientsList: () => request('GET', '/clients'),
