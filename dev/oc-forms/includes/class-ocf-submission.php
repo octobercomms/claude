@@ -64,6 +64,30 @@ class OCF_Submission {
 		$wpdb->update( self::table(), $update, array( 'id' => $submission_id ) );
 	}
 
+	/**
+	 * Read the JSON `meta` blob for a submission (AI transcript, collected
+	 * state, etc.). Always returns an array.
+	 */
+	public static function get_meta( $submission_id ) {
+		$row = self::find( $submission_id );
+		if ( ! $row ) {
+			return array();
+		}
+		$meta = json_decode( (string) ( $row['meta'] ?? '' ), true );
+		return is_array( $meta ) ? $meta : array();
+	}
+
+	/**
+	 * Overwrite the JSON `meta` blob for a submission.
+	 */
+	public static function save_meta( $submission_id, $meta ) {
+		global $wpdb;
+		$wpdb->update( self::table(), array(
+			'meta'       => wp_json_encode( is_array( $meta ) ? $meta : array() ),
+			'updated_at' => current_time( 'mysql' ),
+		), array( 'id' => $submission_id ) );
+	}
+
 	public static function mark_complete( $submission_id ) {
 		global $wpdb;
 		$wpdb->update( self::table(), array(

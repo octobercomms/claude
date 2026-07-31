@@ -55,6 +55,14 @@ class OCF_Schema {
 	public static function default_schema() {
 		return array(
 			'version'  => 1,
+			'mode'     => 'standard', // 'standard' (multi-step form) or 'ai' (chat assistant)
+			'ai'       => array(
+				'assistant_name' => 'Assistant',
+				'greeting'       => '',
+				'persona'        => '',
+				'model'          => '', // '' → use the site-wide default in Settings
+				'max_messages'   => 30,
+			),
 			'theme'    => array(
 				'primary'    => '#111111',
 				'accent'     => '#f59e0b',
@@ -121,6 +129,19 @@ class OCF_Schema {
 	public static function sanitize( $schema ) {
 		$schema = is_array( $schema ) ? $schema : array();
 		$schema = wp_parse_args( $schema, self::default_schema() );
+
+		// Form mode.
+		$schema['mode'] = ( ( $schema['mode'] ?? 'standard' ) === 'ai' ) ? 'ai' : 'standard';
+
+		// AI assistant config.
+		$ai = is_array( $schema['ai'] ?? null ) ? $schema['ai'] : array();
+		$schema['ai'] = array(
+			'assistant_name' => sanitize_text_field( $ai['assistant_name'] ?? 'Assistant' ),
+			'greeting'       => sanitize_textarea_field( $ai['greeting'] ?? '' ),
+			'persona'        => sanitize_textarea_field( $ai['persona'] ?? '' ),
+			'model'          => sanitize_text_field( $ai['model'] ?? '' ),
+			'max_messages'   => max( 1, min( 100, absint( $ai['max_messages'] ?? 30 ) ) ),
+		);
 
 		// Theme: hex-ish strings + safe URLs.
 		$schema['theme'] = array_map( 'sanitize_text_field', (array) $schema['theme'] );

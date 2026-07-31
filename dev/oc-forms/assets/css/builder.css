@@ -118,3 +118,12 @@
 .ocf-b-map { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
 .ocf-b-map-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; align-items: center; }
 .ocf-b-map-row select, .ocf-b-map-row input { padding: 4px 6px; }
+
+/* AI form type selector */
+.ocf-b-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #111; color: #fff; font-size: 11px; font-weight: 600; letter-spacing: .02em; margin-right: 12px; }
+.ocf-b-modes { display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
+.ocf-b-mode { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px solid #dcdcde; border-radius: 8px; cursor: pointer; background: #fff; }
+.ocf-b-mode.is-active { border-color: #111; box-shadow: 0 0 0 1px #111; }
+.ocf-b-mode input { margin-top: 3px; }
+.ocf-b-mode strong { display: block; font-size: 14px; }
+.ocf-b-mode .ocf-b-hint { display: block; margin-top: 2px; }

@@ -223,6 +223,29 @@ class OCF_Submissions_List {
 			}
 		}
 		echo '</tbody></table>';
+
+		// AI form: show the chat transcript stored on the submission.
+		$meta       = json_decode( (string) ( $sub['meta'] ?? '' ), true );
+		$transcript = is_array( $meta ) && is_array( $meta['ai_transcript'] ?? null ) ? $meta['ai_transcript'] : array();
+		if ( $transcript ) {
+			$assistant = $schema['ai']['assistant_name'] ?? 'Assistant';
+			echo '<h3 style="margin-top:24px;">Conversation</h3>';
+			echo '<div class="ocf-transcript" style="max-width:720px;">';
+			foreach ( $transcript as $m ) {
+				$is_bot = ( $m['role'] ?? '' ) === 'assistant';
+				$who    = $is_bot ? esc_html( $assistant ) : 'Visitor';
+				$align  = $is_bot ? 'left' : 'right';
+				$bg     = $is_bot ? '#fff' : '#111';
+				$fg     = $is_bot ? '#111' : '#fff';
+				$border = $is_bot ? 'border:1px solid #e5e7eb;' : '';
+				echo '<div style="text-align:' . $align . '; margin:8px 0;">';
+				echo '<div style="font-size:11px; color:#6b7280; margin-bottom:2px;">' . $who . '</div>';
+				echo '<div style="display:inline-block; max-width:80%; text-align:left; padding:8px 12px; border-radius:12px; background:' . $bg . '; color:' . $fg . '; ' . $border . ' white-space:pre-wrap; word-wrap:break-word;">' . esc_html( (string) ( $m['content'] ?? '' ) ) . '</div>';
+				echo '</div>';
+			}
+			echo '</div>';
+		}
+
 		$delete_url = wp_nonce_url(
 			admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . (int) $sub['form_id'] . '&ocf_action=delete_submission&id=' . (int) $sub['id'] ),
 			'ocf_delete_submission_' . (int) $sub['id']

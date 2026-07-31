@@ -31,6 +31,13 @@
 	if (!Array.isArray(schema.notifications.cc)) {
 		schema.notifications.cc = [];
 	}
+	schema.mode = schema.mode === 'ai' ? 'ai' : 'standard';
+	schema.ai   = schema.ai || {};
+	if (typeof schema.ai.assistant_name !== 'string') schema.ai.assistant_name = 'Assistant';
+	if (typeof schema.ai.greeting !== 'string')       schema.ai.greeting = '';
+	if (typeof schema.ai.persona !== 'string')        schema.ai.persona = '';
+	if (typeof schema.ai.model !== 'string')          schema.ai.model = '';
+	if (typeof schema.ai.max_messages !== 'number')   schema.ai.max_messages = 30;
 
 	// Brevo attribute autocomplete — fetched once from the admin API, cached
 	// for the lifetime of this page. When it arrives we re-render the brevo
@@ -115,7 +122,8 @@
 			}, [label]);
 		}
 		return el('div', { class: 'ocf-b-toolbar' }, [
-			tab('steps',         'Steps'),
+			tab('steps',         schema.mode === 'ai' ? 'Questions' : 'Steps'),
+			tab('ai',            'AI Assistant'),
 			tab('theme',         'Theme'),
 			tab('brevo',         'Brevo'),
 			tab('notifications', 'Notifications'),
@@ -123,6 +131,7 @@
 			tab('endings',       'Ending'),
 			tab('json',          'JSON'),
 			el('div', { class: 'ocf-b-spacer' }),
+			el('span', { class: 'ocf-b-badge' }, [schema.mode === 'ai' ? 'AI form' : 'Standard form']),
 			el('span', { class: 'ocf-b-hint' }, ['Save the post to persist changes.'])
 		]);
 	}
@@ -172,6 +181,7 @@
 		var host = el('div', { class: 'ocf-b-main' });
 		switch (state.view) {
 			case 'steps':         renderStepEditor(host); break;
+			case 'ai':            renderAI(host); break;
 			case 'theme':         renderTheme(host); break;
 			case 'brevo':         renderBrevo(host); break;
 			case 'notifications': renderNotifications(host); break;
@@ -595,6 +605,78 @@
 			rebuild();
 			onChange();
 		} }, ['+ Add mapping']));
+	}
+
+	function renderAI(host) {
+		var ai = schema.ai;
+		host.appendChild(el('h3', null, ['Form type']));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Choose how this form is presented. Both types use the same questions (defined in the ' + (schema.mode === 'ai' ? 'Questions' : 'Steps') + ' tab) and feed the same Brevo / notification pipeline.']));
+
+		function modeOption(value, title, desc) {
+			var checked = schema.mode === value;
+			return el('label', { class: 'ocf-b-mode' + (checked ? ' is-active' : '') }, [
+				el('input', { type: 'radio', name: 'ocf_mode', value: value, checked: checked ? 'checked' : null,
+					onChange: function () { schema.mode = value; syncHiddenInput(); render(); } }),
+				el('div', null, [
+					el('strong', null, [title]),
+					el('span', { class: 'ocf-b-hint' }, [desc])
+				])
+			]);
+		}
+		host.appendChild(el('div', { class: 'ocf-b-modes' }, [
+			modeOption('standard', 'Standard form', 'A classic multi-step form with fields, image cards, and a progress bar.'),
+			modeOption('ai', 'AI form (chat assistant)', 'A chat where Claude asks your questions conversationally and adapts to the visitor\'s replies.')
+		]));
+
+		if (schema.mode !== 'ai') {
+			host.appendChild(el('p', { class: 'ocf-b-hint', style: { marginTop: '16px' } }, ['Switch to “AI form” above to configure the assistant.']));
+			return;
+		}
+
+		host.appendChild(el('hr'));
+		host.appendChild(el('h3', null, ['Assistant']));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['The assistant works through the questions in the Questions tab, one at a time, and adapts to what people say. Requires a Claude API key in Settings → October Forms.']));
+
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['Assistant name']),
+			el('input', { type: 'text', class: 'widefat', value: ai.assistant_name || '', placeholder: 'Assistant',
+				onInput: function (e) { ai.assistant_name = e.target.value; syncHiddenInput(); } })
+		]));
+
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['Opening greeting']),
+			el('textarea', { class: 'widefat', rows: 2, placeholder: "Hi! I can help you get a quote. What kind of project are you planning?",
+				onInput: function (e) { ai.greeting = e.target.value; syncHiddenInput(); } }, [ai.greeting || ''])
+		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['The first message the visitor sees. Leave blank to have the assistant open on its own.']));
+
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['Persona & instructions']),
+			el('textarea', { class: 'widefat', rows: 6, placeholder: "You are the assistant for Acme Builders. Be warm and professional. Keep replies short. If someone asks about pricing, explain we give a fixed quote once we understand the project.",
+				onInput: function (e) { ai.persona = e.target.value; syncHiddenInput(); } }, [ai.persona || ''])
+		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Tone, background, and any rules for how the assistant should behave. This stays on the server and is never sent to the browser.']));
+
+		var modelOptions = [
+			['', 'Site default (set in Settings)'],
+			['claude-sonnet-5', 'Claude Sonnet — balanced (recommended)'],
+			['claude-opus-5', 'Claude Opus — smartest'],
+			['claude-haiku-4-5', 'Claude Haiku — cheapest']
+		];
+		var sel = el('select', { onChange: function (e) { ai.model = e.target.value; syncHiddenInput(); } });
+		modelOptions.forEach(function (o) {
+			var opt = el('option', { value: o[0] }, [o[1]]);
+			if ((ai.model || '') === o[0]) opt.setAttribute('selected', 'selected');
+			sel.appendChild(opt);
+		});
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [ el('span', null, ['Model override']), sel ]));
+
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['Max visitor messages']),
+			el('input', { type: 'number', min: 1, max: 100, value: ai.max_messages || 30,
+				onInput: function (e) { ai.max_messages = parseInt(e.target.value, 10) || 30; syncHiddenInput(); } })
+		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Caps how long a single conversation can run, to control cost. The chat wraps up once this is reached.']));
 	}
 
 	function renderSpam(host) {

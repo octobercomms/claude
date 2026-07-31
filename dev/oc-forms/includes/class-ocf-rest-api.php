@@ -37,6 +37,11 @@ class OCF_REST_API {
 			'permission_callback' => '__return_true',
 			'callback'            => array( __CLASS__, 'submit' ),
 		) );
+		register_rest_route( self::NAMESPACE, '/chat', array(
+			'methods'             => 'POST',
+			'permission_callback' => '__return_true',
+			'callback'            => array( __CLASS__, 'chat' ),
+		) );
 		register_rest_route( self::NAMESPACE, '/admin/brevo-attributes', array(
 			'methods'             => 'GET',
 			'permission_callback' => function () { return current_user_can( 'manage_options' ); },
@@ -227,22 +232,37 @@ class OCF_REST_API {
 			}
 		}
 
-		$email = self::extract_email( $answers );
-		OCF_Submission::update_payload( (int) $row['id'], $answers, $email );
-
 		// Final progression update before marking complete.
 		$step_reached   = max( 0, (int) $req->get_param( 'step_reached' ) );
 		$seconds_active = max( 0, min( 86400, (int) $req->get_param( 'seconds_active' ) ) );
+
+		self::finalize_submission( $row, $form_id, $schema, $answers, $step_reached, $seconds_active );
+
+		return rest_ensure_response( array(
+			'ok'     => true,
+			'ending' => self::shape_ending( $schema['endings']['default'] ?? array() ),
+		) );
+	}
+
+	/**
+	 * Persist the final answers, mark the submission complete, and fire every
+	 * downstream side-effect (analytics, ocf_after_submit, Brevo, admin email).
+	 * Shared by the standard-form submit() path and the AI chat() path. Every
+	 * side-effect is guarded so it can never 500 the caller — by the time we
+	 * get here the submission is already saved.
+	 */
+	private static function finalize_submission( $row, $form_id, $schema, $answers, $step_reached = 0, $seconds_active = 0 ) {
+		$email = self::extract_email( $answers );
+		OCF_Submission::update_payload( (int) $row['id'], $answers, $email );
+
 		try {
-			OCF_Analytics::update_progress( (int) $row['id'], $step_reached, $seconds_active );
+			OCF_Analytics::update_progress( (int) $row['id'], (int) $step_reached, (int) $seconds_active );
 		} catch ( \Throwable $e ) {
 			error_log( 'OCF: analytics update_progress threw: ' . $e->getMessage() );
 		}
 
 		OCF_Submission::mark_complete( (int) $row['id'] );
 
-		// Side-effects below MUST NOT 500 the response — the submission is
-		// already saved and the user needs the ending screen / redirect.
 		try {
 			do_action( 'ocf_after_submit', (int) $row['id'], $form_id, $answers );
 		} catch ( \Throwable $e ) {
@@ -258,11 +278,151 @@ class OCF_REST_API {
 		} catch ( \Throwable $e ) {
 			error_log( 'OCF: notify_admin threw: ' . $e->getMessage() );
 		}
+	}
 
-		return rest_ensure_response( array(
-			'ok'     => true,
-			'ending' => self::shape_ending( $schema['endings']['default'] ?? array() ),
-		) );
+	/**
+	 * AI-form conversational turn. The browser sends the visitor's latest
+	 * message; the server holds the transcript + collected answers on the
+	 * submission, calls Claude, persists, and — once every required question
+	 * is captured — completes the submission through the same pipeline as a
+	 * standard form.
+	 */
+	public static function chat( WP_REST_Request $req ) {
+		$token = sanitize_text_field( $req->get_param( 'token' ) );
+		$row   = OCF_Submission::find_by_token( $token );
+		if ( ! $row ) {
+			return new WP_Error( 'ocf_invalid_token', 'Invalid submission token', array( 'status' => 400 ) );
+		}
+		$form_id = (int) $row['form_id'];
+		$schema  = OCF_Schema::get( $form_id );
+
+		if ( ( $schema['mode'] ?? 'standard' ) !== 'ai' ) {
+			return new WP_Error( 'ocf_not_ai', 'This form is not an AI form', array( 'status' => 400 ) );
+		}
+		if ( ! OCF_AI::is_configured() ) {
+			return new WP_Error( 'ocf_ai_unconfigured', 'The assistant is not configured.', array( 'status' => 503 ) );
+		}
+
+		if ( $row['status'] === 'complete' ) {
+			return rest_ensure_response( array(
+				'ok'       => true,
+				'reply'    => '',
+				'complete' => true,
+				'ending'   => self::shape_ending( $schema['endings']['default'] ?? array() ),
+			) );
+		}
+
+		// Load conversation state from submission meta.
+		$meta       = OCF_Submission::get_meta( (int) $row['id'] );
+		$transcript = is_array( $meta['ai_transcript'] ?? null ) ? $meta['ai_transcript'] : array();
+		$collected  = is_array( $meta['ai_collected'] ?? null ) ? $meta['ai_collected'] : array();
+
+		// Bound the conversation length to cap cost / abuse.
+		$max_messages = (int) ( $schema['ai']['max_messages'] ?? 30 );
+		$user_turns   = 0;
+		foreach ( $transcript as $m ) {
+			if ( ( $m['role'] ?? '' ) === 'user' ) { $user_turns++; }
+		}
+		if ( $user_turns >= $max_messages ) {
+			return rest_ensure_response( array(
+				'ok'       => true,
+				'reply'    => 'Thanks — I think we have enough to get started. Someone will be in touch shortly.',
+				'complete' => false,
+				'limit'    => true,
+			) );
+		}
+
+		// Light per-IP rate limit on chat turns.
+		if ( ! self::chat_rate_ok( $form_id ) ) {
+			return new WP_Error( 'ocf_rate_limited', 'Please slow down a moment.', array( 'status' => 429 ) );
+		}
+
+		// Seed the greeting as the first assistant turn (for the transcript /
+		// admin view) so the record reads coherently.
+		if ( empty( $transcript ) ) {
+			$greeting = trim( (string) ( $schema['ai']['greeting'] ?? '' ) );
+			if ( $greeting !== '' ) {
+				$transcript[] = array( 'role' => 'assistant', 'content' => $greeting );
+			}
+		}
+
+		$message = trim( (string) $req->get_param( 'message' ) );
+		if ( $message === '' ) {
+			return new WP_Error( 'ocf_empty_message', 'Empty message', array( 'status' => 400 ) );
+		}
+		$message      = wp_strip_all_tags( $message );
+		$message      = function_exists( 'mb_substr' ) ? mb_substr( $message, 0, 2000 ) : substr( $message, 0, 2000 );
+		$transcript[] = array( 'role' => 'user', 'content' => $message );
+
+		$model  = OCF_AI::model_for_form( $schema );
+		$result = OCF_AI::converse( $schema, $model, $transcript, $collected );
+
+		$reply        = (string) $result['message'];
+		$transcript[] = array( 'role' => 'assistant', 'content' => $reply );
+
+		// Merge any captured values and persist the running state + answers.
+		if ( ! empty( $result['captured'] ) ) {
+			$collected = OCF_AI::merge_captures( $schema, $collected, $result['captured'] );
+		}
+		$meta['ai_transcript'] = array_slice( $transcript, -200 );
+		$meta['ai_collected']  = $collected;
+		OCF_Submission::save_meta( (int) $row['id'], $meta );
+
+		$answers = OCF_Logic::filter_visible( $schema, $collected );
+		$email   = self::extract_email( $answers );
+		OCF_Submission::update_payload( (int) $row['id'], $answers, $email );
+
+		$response = array(
+			'ok'       => true,
+			'reply'    => $reply,
+			'complete' => false,
+		);
+
+		// Only finalize when the model says it's done AND every required,
+		// visible question is actually filled in — the server is authoritative.
+		if ( ! empty( $result['complete'] ) && self::required_satisfied( $schema, $answers ) ) {
+			$seconds = max( 0, min( 86400, (int) $req->get_param( 'seconds_active' ) ) );
+			self::finalize_submission( $row, $form_id, $schema, $answers, 0, $seconds );
+			$response['complete'] = true;
+			$response['ending']   = self::shape_ending( $schema['endings']['default'] ?? array() );
+		}
+
+		return rest_ensure_response( $response );
+	}
+
+	/**
+	 * True when every required, visible, storable question has a non-empty
+	 * answer. Mirrors the required-field check in submit().
+	 */
+	private static function required_satisfied( $schema, $answers ) {
+		foreach ( (array) $schema['steps'] as $step ) {
+			if ( ! OCF_Logic::evaluate( $step['show_if'] ?? array(), $answers ) ) { continue; }
+			foreach ( (array) $step['questions'] as $q ) {
+				if ( ! OCF_Schema::type_is_storable( $q['type'] ) ) { continue; }
+				if ( $q['type'] === 'file_upload' ) { continue; } // not collectable in chat
+				if ( empty( $q['required'] ) ) { continue; }
+				if ( ! OCF_Logic::evaluate( $q['show_if'] ?? array(), $answers ) ) { continue; }
+				$v = $answers[ $q['id'] ] ?? null;
+				if ( $v === null || $v === '' || ( is_array( $v ) && count( $v ) === 0 ) ) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Soft per-IP rate limit for chat turns: at most 20 calls per minute.
+	 */
+	private static function chat_rate_ok( $form_id ) {
+		$ip  = OCF_Submission::client_ip();
+		$key = 'ocf_chat_rl_' . md5( $form_id . '|' . $ip );
+		$n   = (int) get_transient( $key );
+		if ( $n >= 20 ) {
+			return false;
+		}
+		set_transient( $key, $n + 1, MINUTE_IN_SECONDS );
+		return true;
 	}
 
 	private static function shape_ending( $ending ) {
