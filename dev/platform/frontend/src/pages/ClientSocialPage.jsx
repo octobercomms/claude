@@ -22,7 +22,6 @@ import SwipeFilePanel from '../components/SwipeFilePanel';
 import SubredditResearchPanel from '../components/SubredditResearchPanel';
 import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import AutoEditPanel from '../components/AutoEditPanel';
-import SocialFactoryMap from '../components/SocialFactoryMap';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -485,23 +484,30 @@ export default function ClientSocialPage() {
 
       {socialTab === 'overview' && (
         <SuiteOverview
-          tagline="A month of on-brand content, mostly on autopilot."
-          description="Brainstorm nine posts at once, film a reel in your own voice, schedule the lot across every channel — then learn what landed so the next batch starts ahead."
-          ctaLabel="See performance"
-          onCta={() => setSocialTab('loop')}
-          status={[
-            { label: 'Autopilot', value: client?.social_autopilot_paused ? 'Paused' : 'On', ok: !client?.social_autopilot_paused },
-            { label: 'Plans', value: `${plans.length} scheduled`, ok: plans.length > 0 },
-            { label: 'Competitors', value: competitors.length ? `${competitors.length} tracked` : 'None added', ok: competitors.length > 0 },
+          tagline="Shared, around one clear path."
+          description="Consult what's scheduled and what rivals are doing, then make this month's content — brainstorm nine posts, film a reel in your voice, schedule the lot. Everything else is a read-out or a quiet link."
+          readouts={[
+            { fn: 'data',     name: 'Autopilot', value: client?.social_autopilot_paused ? 'Paused' : 'On', sub: 'batch engine' },
+            { fn: 'measure',  name: 'Plans', value: plans.length || '—', sub: plans.length ? 'scheduled' : 'none yet' },
+            { fn: 'research', name: 'Competitors', value: competitors.length || '—', sub: competitors.length ? 'tracked' : 'none added' },
           ]}
-          diagram={(
-            <SocialFactoryMap
-              onWorkbench={() => setSocialTab('brainstorm')}
-              onPublish={() => setSocialTab('plans')}
-              onEngage={() => setSocialTab('dm_bot')}
-              onMeasure={() => setSocialTab('perf_insights')}
-            />
-          )}
+          primary={{
+            fn: 'create',
+            kicker: 'The main job here',
+            title: "Make this month's content",
+            description: 'Brainstorm nine posts at once, film a reel in your own voice, then schedule the lot across every channel — one guided factory.',
+            ctaLabel: 'Start a batch',
+            onCta: () => setSocialTab('brainstorm'),
+          }}
+          toolsLabel="Capture & feeds"
+          tools={[
+            { fn: 'research', label: 'Swipe file',         onClick: () => setSocialTab('swipe') },
+            { fn: 'research', label: 'Subreddit research', onClick: () => setSocialTab('subreddit') },
+          ]}
+          otherJobs={{ label: 'Other jobs in Shared', items: [
+            { fn: 'distribute', label: 'Engage — DMs & discovery',   onClick: () => setSocialTab('dm_bot') },
+            { fn: 'measure',    label: 'Measure — review & learn',   onClick: () => setSocialTab('perf_insights') },
+          ] }}
         />
       )}
 
