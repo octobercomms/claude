@@ -1187,7 +1187,7 @@ export default function ClientSEOPage() {
           opened — matching the one-tab-at-a-time behaviour it replaces. */}
       {activeTab === 'health' && (
         <Accordion open={healthOpen} onToggle={toggleHealth}>
-          <AccordionItem id="review" title="Review" subtitle="The headline read">
+          <AccordionItem id="review" fn="measure" title="Review" subtitle="The headline read">
             {() => (
               <OrganicInsightsPanel
                 keywords={keywords}
@@ -1198,22 +1198,22 @@ export default function ClientSEOPage() {
               />
             )}
           </AccordionItem>
-          <AccordionItem id="keywords" title="Keywords" subtitle="What you rank for">
+          <AccordionItem id="keywords" fn="measure" title="Keywords" subtitle="What you rank for">
             {() => renderKeywordsBody()}
           </AccordionItem>
-          <AccordionItem id="gsc" title="Search Console" subtitle="Real Google clicks">
+          <AccordionItem id="gsc" fn="measure" title="Search Console" subtitle="Real Google clicks">
             {() => <SearchConsoleTab clientId={id} />}
           </AccordionItem>
-          <AccordionItem id="ai_visibility" title="AI Visibility" subtitle="Where AI cites you">
+          <AccordionItem id="ai_visibility" fn="measure" title="AI Visibility" subtitle="Where AI cites you">
             {() => <AIVisibilityPanel clientId={id} />}
           </AccordionItem>
-          <AccordionItem id="authority" title="Authority" subtitle="Domain strength">
+          <AccordionItem id="authority" fn="measure" title="Authority" subtitle="Domain strength">
             {() => renderAuthorityBody()}
           </AccordionItem>
-          <AccordionItem id="backlinks" title="Backlinks" subtitle="Who links to you">
+          <AccordionItem id="backlinks" fn="measure" title="Backlinks" subtitle="Who links to you">
             {() => <BacklinksPanel clientId={id} clientName={client?.name} domain={client?.domain} />}
           </AccordionItem>
-          <AccordionItem id="watch" title="Watch" subtitle="Drift · track regressions">
+          <AccordionItem id="watch" fn="measure" title="Watch" subtitle="Drift · track regressions">
             {() => <SeoDriftPanel clientId={id} />}
           </AccordionItem>
           {/* Local read-outs — absorbed from the old Localise section. */}
@@ -1244,10 +1244,10 @@ export default function ClientSEOPage() {
       {/* Convert — CRO + Forms as one accordion dashboard. */}
       {currentGroup === 'convert' && (
         <Accordion open={convertOpen} onToggle={toggleConvert}>
-          <AccordionItem id="cro" title="CRO" subtitle="Conversion-rate optimisation">
+          <AccordionItem id="cro" fn="strategy" title="CRO" subtitle="Conversion-rate optimisation">
             {() => <ClarityCroPanel clientId={id} />}
           </AccordionItem>
-          <AccordionItem id="forms" title="Forms" subtitle="Lead-capture forms">
+          <AccordionItem id="forms" fn="create" title="Forms" subtitle="Lead-capture forms">
             {() => <FormsTab clientId={id} connectors={connectors} />}
           </AccordionItem>
         </Accordion>
@@ -1263,38 +1263,38 @@ export default function ClientSEOPage() {
           tab's content unchanged. Lazy bodies mount only when opened. */}
       {currentGroup === 'optimise' && (
         <Accordion open={optimiseOpen} onToggle={toggleOptimise}>
-          <AccordionItem id="scan" title="Scan" subtitle="Site audit · technical fixes">
+          <AccordionItem id="scan" fn="strategy" title="Scan" subtitle="Site audit · technical fixes">
             {() => <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
           </AccordionItem>
-          <AccordionItem id="grade" title="Grade" subtitle="Content audit · one page">
+          <AccordionItem id="grade" fn="strategy" title="Grade" subtitle="Content audit · one page">
             {() => <ContentAuditPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
           </AccordionItem>
-          <AccordionItem id="map" title="Map" subtitle="Keyword footprint">
+          <AccordionItem id="map" fn="research" title="Map" subtitle="Keyword footprint">
             {() => <KeywordFootprintPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
           </AccordionItem>
-          <AccordionItem id="win" title="Win" subtitle="Quick wins · page-2 keywords">
+          <AccordionItem id="win" fn="strategy" title="Win" subtitle="Quick wins · page-2 keywords">
             {() => <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
           </AccordionItem>
-          <AccordionItem id="sharpen" title="Sharpen" subtitle="CTR boosters · titles & meta">
+          <AccordionItem id="sharpen" fn="create" title="Sharpen" subtitle="CTR boosters · titles & meta">
             {() => <CtrBoostPanel clientId={id} />}
           </AccordionItem>
-          <AccordionItem id="target" title="Target" subtitle="AI keywords · answer-engine terms">
+          <AccordionItem id="target" fn="research" title="Target" subtitle="AI keywords · answer-engine terms">
             {() => <AiSeoPanel clientId={id} />}
           </AccordionItem>
-          <AccordionItem id="prep" title="Prep" subtitle="Agent readiness · llms.txt & structure">
+          <AccordionItem id="prep" fn="strategy" title="Prep" subtitle="Agent readiness · llms.txt & structure">
             {() => <AgentReadinessPanel clientId={id} />}
           </AccordionItem>
           {/* Local tools — absorbed from the old Localise section. */}
-          <AccordionItem id="loc_schema" title="Local schema" subtitle="Validate local schema">
+          <AccordionItem id="loc_schema" fn="strategy" title="Local schema" subtitle="Validate local schema">
             {() => <LocalSeoPanel clientId={id} tool="schema_audit" />}
           </AccordionItem>
-          <AccordionItem id="loc_keywords" title="Local keywords" subtitle="Buyer-intent · find">
+          <AccordionItem id="loc_keywords" fn="research" title="Local keywords" subtitle="Buyer-intent · find">
             {() => <LocalSeoPanel clientId={id} tool="buyer_intent" />}
           </AccordionItem>
-          <AccordionItem id="loc_playbook" title="Local playbook" subtitle="GBP ranking · plan">
+          <AccordionItem id="loc_playbook" fn="strategy" title="Local playbook" subtitle="GBP ranking · plan">
             {() => <LocalSeoPanel clientId={id} tool="ranking_playbook" />}
           </AccordionItem>
-          <AccordionItem id="loc_gbp" title="GBP posts" subtitle="Google Business Profile posts">
+          <AccordionItem id="loc_gbp" fn="create" title="GBP posts" subtitle="Google Business Profile posts">
             {() => <LocalSeoPanel clientId={id} tool="gbp_posts" />}
           </AccordionItem>
         </Accordion>
