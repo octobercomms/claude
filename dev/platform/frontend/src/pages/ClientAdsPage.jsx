@@ -11,7 +11,7 @@ import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import Stepper from '../components/Stepper';
-import ProcessRail from '../components/ProcessRail';
+import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import { useTabParam } from '../hooks/useTabParam';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -38,7 +38,7 @@ export default function ClientAdsPage() {
   // 'pipeline' are aliases that resolve to the brief step so old deep
   // links still land sensibly.
   const [tab, setTab] = useTabParam('overview', [
-    'overview', 'performance', 'playbook', 'strategist', 'audiences', 'competitor_ads', 'resize',
+    'overview', 'health', 'performance', 'playbook', 'strategist', 'audiences', 'competitor_ads', 'resize',
     // pipeline sub-tabs
     'pipeline', 'creative',
     'brief', 'concepts', 'render', 'approve', 'launch',
@@ -57,29 +57,40 @@ export default function ClientAdsPage() {
   const pipelineStep = isPipelineStep ? tab : 'brief';
   // For the top-tab strip we collapse all pipeline sub-tab states into 'pipeline'.
   const normalisedTab = isPipelineGroup ? 'pipeline' : tab;
-  // Which top group is active. Advisor collects the planning/analysis views.
-  const ADVISOR_TABS = ['playbook', 'strategist', 'audiences', 'competitor_ads'];
+  // Redesign spine (docs/omi/redesign-brief.md §3): Overview + Health + Build.
+  // Health absorbs Measure + Briefing + Competitors + Playbook (read-outs);
+  // Build absorbs the creative pipeline plus Audiences + Resize as tools.
+  const HEALTH_TABS = ['performance', 'strategist', 'competitor_ads', 'playbook'];
+  const BUILD_TOOLS = ['audiences', 'resize'];
+  const isBuildGroup = isPipelineGroup || BUILD_TOOLS.includes(tab);
   const currentGroup = normalisedTab === 'overview' ? 'overview'
-    : normalisedTab === 'performance' ? 'performance'
-    : normalisedTab === 'resize' ? 'resize'
-    : isPipelineGroup ? 'pipeline'
-    : ADVISOR_TABS.includes(tab) ? 'advisor'
+    : (tab === 'health' || HEALTH_TABS.includes(tab)) ? 'health'
+    : isBuildGroup ? 'build'
     : 'overview';
+  // Health dashboard accordion — Measure (the headline read) open by default.
+  const [healthOpen, setHealthOpen] = useState(() => new Set(['measure']));
+  const toggleHealth = (idv) => setHealthOpen(prev => {
+    const next = new Set(prev); next.has(idv) ? next.delete(idv) : next.add(idv); return next;
+  });
+  const openHealth = (idv) => setHealthOpen(prev => new Set(prev).add(idv));
+  const goHealth = (section) => { if (section) openHealth(section); setTab(section === 'measure' ? 'performance' : section === 'briefing' ? 'strategist' : section === 'competitors' ? 'competitor_ads' : 'playbook'); };
+  // Build tools accordion (Audiences · Resize), shown beneath the pipeline.
+  const [toolsOpen, setToolsOpen] = useState(() => new Set());
+  const toggleTools = (idv) => setToolsOpen(prev => {
+    const next = new Set(prev); next.has(idv) ? next.delete(idv) : next.add(idv); return next;
+  });
+  // A deep link or nav to an absorbed tab opens its accordion section.
+  useEffect(() => {
+    const hs = { performance: 'measure', strategist: 'briefing', competitor_ads: 'competitors', playbook: 'playbook' };
+    if (hs[tab]) openHealth(hs[tab]);
+    if (BUILD_TOOLS.includes(tab)) setToolsOpen(prev => new Set(prev).add(tab));
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect legacy 'creative' / 'pipeline' top-level URLs to the first step.
   useEffect(() => {
     if (tab === 'creative' || tab === 'pipeline') setTab('brief');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
-
-  // Process Rails — derived step status for the Advise group.
-  const [adviseSteps, setAdviseSteps] = useState({});
-  useEffect(() => {
-    if (currentGroup !== 'advisor') return;
-    api.get(`/clients/${id}/suite-progress/paid_advise`)
-      .then(r => setAdviseSteps(r.steps || {}))
-      .catch(() => {});
-  }, [currentGroup, id, tab]);
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(c => {
@@ -225,93 +236,10 @@ export default function ClientAdsPage() {
     { spend: 0, revenue: 0, clicks: 0, imps: 0 }
   );
 
-  return (
-    <div className="suite-paid">
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Paid</span></div>
-      <header className="hero">
-        <div>
-          <h1 className="display mt-2">Paid</h1>
-        </div>
-      </header>
-      <SuiteTabs tabs={[
-        { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setTab('overview') },
-        { key: 'advisor',     label: 'Advise',      active: currentGroup === 'advisor',     onClick: () => setTab('playbook') },
-        { key: 'builder',     label: 'Build',       active: currentGroup === 'pipeline',    onClick: () => setTab('brief') },
-        { key: 'resize',      label: 'Resize',      active: currentGroup === 'resize',      onClick: () => setTab('resize') },
-        { key: 'performance', label: 'Measure',     active: currentGroup === 'performance', onClick: () => setTab('performance') },
-      ]} />
-      {currentGroup === 'advisor' && (
-        <div className="stepper-block">
-          <ProcessRail
-            activeKey={tab}
-            onStep={setTab}
-            steps={[
-              { key: 'playbook',       title: 'Playbook',    sub: 'How paid works here', status: 'info' },
-              { key: 'strategist',     title: 'Briefing',    sub: 'Get the strategist read', status: adviseSteps.briefing || 'todo' },
-              { key: 'audiences',      title: 'Audiences',   sub: 'Build a target list', status: adviseSteps.audiences || 'todo' },
-              { key: 'competitor_ads', title: 'Competitors', sub: 'Watch rival ads', status: adviseSteps.competitors || 'todo' },
-            ]}
-          />
-        </div>
-      )}
-      {isPipelineGroup && (
-        <div className="stepper-block">
-          <Stepper
-            steps={PIPELINE_META}
-            current={Math.max(1, PIPELINE_STEPS.indexOf(pipelineStep) + 1)}
-            onStep={n => setTab(PIPELINE_STEPS[n - 1])}
-          />
-        </div>
-      )}
-
-      {normalisedTab === 'overview' && (
-        <div className="stack stack-lg">
-        <SuiteOverview
-          tagline="See what every pound returns — then make the better ad."
-          description="Live ROAS and profit per campaign, a weekly list of exactly what to change, and a one-line brief turned into on-brand ads ready to launch. No designer, no media-buyer spreadsheet."
-          ctaLabel="View live performance"
-          onCta={() => setTab('performance')}
-          status={[
-            { label: 'Google Ads', value: hasGoogle ? `${googleEntries.filter(g => !g.error).length} account${googleEntries.filter(g => !g.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasGoogle },
-            { label: 'Meta Ads',   value: hasMeta ? `${metaEntries.filter(m => !m.error).length} account${metaEntries.filter(m => !m.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasMeta },
-            { label: 'Spend · 30d', value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), ok: (googleTotal?.spend || 0) + (metaTotal?.spend || 0) > 0 },
-          ]}
-          actions={<a className="btn btn-secondary" href={`/api/paid/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
-          mapLayout="funnel"
-          map={[
-            { title: 'Advise', subtitle: 'Briefing, audiences, competitor watch', nodes: [
-              { label: 'Briefing',    onClick: () => setTab('strategist') },
-              { label: 'Audiences',   onClick: () => setTab('audiences') },
-              { label: 'Competitors', onClick: () => setTab('competitor_ads') },
-            ] },
-            { title: 'Build', subtitle: 'Ad creative pipeline', numbered: true, nodes: [
-              { label: 'Brief',   onClick: () => setTab('brief') },
-              { label: 'Draft', onClick: () => setTab('concepts') },
-              { label: 'Render',  onClick: () => setTab('render') },
-              { label: 'Approve', onClick: () => setTab('approve') },
-              { label: 'Launch',  onClick: () => setTab('launch') },
-            ] },
-            { title: 'Measure', subtitle: 'Spend and return, per campaign', nodes: [
-              { label: 'Google ads', sep: '+', onClick: () => setTab('performance') },
-              { label: 'Meta ads',   sep: '→', onClick: () => setTab('performance') },
-              { label: 'ROAS, profit, spend', onClick: () => setTab('performance') },
-            ] },
-          ]}
-        />
-        </div>
-      )}
-
-      {tab === 'playbook' && <GoogleAdsPlaybook />}
-
-      {isPipelineGroup && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />}
-      {normalisedTab === 'resize' && <AdResizePanel clientId={id} clientName={client?.name || ''} />}
-      {normalisedTab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
-      {normalisedTab === 'audiences' && <div className="stack stack-lg">
-        <ICPIntelligencePanel clientId={id} />
-        <AudiencesPanel clientId={id} />
-      </div>}
-      {normalisedTab === 'competitor_ads' && <CompetitorAdsPanel clientId={id} />}
-      {normalisedTab === 'performance' && <>
+  // Measure — the paid performance read-out. Extracted verbatim from the
+  // former Measure tab so the Health dashboard can compose it as a panel.
+  const renderMeasure = () => (
+    <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {[7, 14, 30, 90].map(d => (
           <button key={d} onClick={() => handlePeriodChange(d)}
@@ -503,7 +431,94 @@ export default function ClientAdsPage() {
         </>
         );
       })()}
-      </>}
+    </>
+  );
+
+  return (
+    <div className="suite-paid">
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Paid</span></div>
+      <header className="hero">
+        <div>
+          <h1 className="display mt-2">Paid</h1>
+        </div>
+      </header>
+      <SuiteTabs tabs={[
+        { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setTab('overview') },
+        { key: 'health',   label: 'Health',   active: currentGroup === 'health',   onClick: () => setTab('health') },
+        { key: 'build',    label: 'Build',    active: currentGroup === 'build',    onClick: () => setTab('brief') },
+      ]} />
+      {currentGroup === 'health' && (
+        <Accordion open={healthOpen} onToggle={toggleHealth}>
+          <AccordionItem id="measure" title="Measure" subtitle="Spend, ROAS & profit per campaign">
+            {() => renderMeasure()}
+          </AccordionItem>
+          <AccordionItem id="briefing" title="Briefing" subtitle="The strategist read">
+            {() => <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
+          </AccordionItem>
+          <AccordionItem id="competitors" title="Competitors" subtitle="Watch rival ads">
+            {() => <CompetitorAdsPanel clientId={id} />}
+          </AccordionItem>
+          <AccordionItem id="playbook" title="Playbook" subtitle="How paid works here">
+            {() => <GoogleAdsPlaybook />}
+          </AccordionItem>
+        </Accordion>
+      )}
+      {isPipelineGroup && (
+        <div className="stepper-block">
+          <Stepper
+            steps={PIPELINE_META}
+            current={Math.max(1, PIPELINE_STEPS.indexOf(pipelineStep) + 1)}
+            onStep={n => setTab(PIPELINE_STEPS[n - 1])}
+          />
+        </div>
+      )}
+
+      {normalisedTab === 'overview' && (
+        <div className="stack stack-lg">
+        <SuiteOverview
+          tagline="See what every pound returns — then make the better ad."
+          description="Live ROAS and profit per campaign, a weekly list of exactly what to change, and a one-line brief turned into on-brand ads ready to launch. No designer, no media-buyer spreadsheet."
+          ctaLabel="View live performance"
+          onCta={() => setTab('performance')}
+          status={[
+            { label: 'Google Ads', value: hasGoogle ? `${googleEntries.filter(g => !g.error).length} account${googleEntries.filter(g => !g.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasGoogle },
+            { label: 'Meta Ads',   value: hasMeta ? `${metaEntries.filter(m => !m.error).length} account${metaEntries.filter(m => !m.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasMeta },
+            { label: 'Spend · 30d', value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), ok: (googleTotal?.spend || 0) + (metaTotal?.spend || 0) > 0 },
+          ]}
+          actions={<a className="btn btn-secondary" href={`/api/paid/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
+          mapLayout="funnel"
+          map={[
+            { title: 'Health', subtitle: 'Spend, return, briefing & rival watch', nodes: [
+              { label: 'Measure',     onClick: () => goHealth('measure') },
+              { label: 'Briefing',    onClick: () => goHealth('briefing') },
+              { label: 'Competitors', onClick: () => goHealth('competitors') },
+              { label: 'Playbook',    onClick: () => goHealth('playbook') },
+            ] },
+            { title: 'Build', subtitle: 'Ad creative pipeline + tools', numbered: true, nodes: [
+              { label: 'Brief',   onClick: () => setTab('brief') },
+              { label: 'Draft', onClick: () => setTab('concepts') },
+              { label: 'Render',  onClick: () => setTab('render') },
+              { label: 'Approve', onClick: () => setTab('approve') },
+              { label: 'Launch',  onClick: () => setTab('launch') },
+            ] },
+          ]}
+        />
+        </div>
+      )}
+
+      {isPipelineGroup && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />}
+      {/* Build tools — Audiences + Resize live inside Build (per the brief's
+          confirmed decision: Audiences is a tool in Build, not its own job). */}
+      {currentGroup === 'build' && (
+        <Accordion open={toolsOpen} onToggle={toggleTools}>
+          <AccordionItem id="audiences" title="Audiences" subtitle="Build a target list from your customers">
+            {() => <div className="stack stack-lg"><ICPIntelligencePanel clientId={id} /><AudiencesPanel clientId={id} /></div>}
+          </AccordionItem>
+          <AccordionItem id="resize" title="Resize" subtitle="Re-cut creative to every placement">
+            {() => <AdResizePanel clientId={id} clientName={client?.name || ''} />}
+          </AccordionItem>
+        </Accordion>
+      )}
     </div>
   );
 }
