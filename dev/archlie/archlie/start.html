@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Build your project — Archlie</title>
+  <meta name="description" content="Build your architectural drawing project in a short conversation and see your fixed price as you go.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/onboarding.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f39c9'/%3E%3Cpath d='M8 22 L16 9 L24 22' stroke='white' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<div class="ob-shell">
+
+  <!-- Top bar -->
+  <div class="ob-top">
+    <a href="index.html" class="brand" aria-label="Archlie home">
+      <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25 L16 7 L26 25" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      Arch<span>lie</span>
+    </a>
+    <span class="ob-title">Project builder</span>
+    <div class="ob-actions">
+      <div class="reg-chips">
+        <span class="reg-chip"><span class="dot"></span> ARB registered</span>
+        <span class="reg-chip"><span class="dot"></span> RIBA chartered</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="restartBtn" type="button">Start over</button>
+    </div>
+  </div>
+
+  <!-- Two-panel body -->
+  <div class="ob-body">
+
+    <!-- LEFT: conversation -->
+    <section class="ob-chat" aria-label="Conversation">
+      <div class="ob-messages" id="messages">
+        <div class="wrapmsg" id="msgList"></div>
+      </div>
+
+      <div class="ob-composer">
+        <div class="ob-composer-inner">
+          <div class="quick" id="quickReplies"></div>
+          <div class="composer-row" id="composerRow">
+            <button class="icon-btn" id="photoBtn" type="button" title="Add a photo of your property" aria-label="Add a photo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 0 1 2-2h1.5l1-1.5h5l1 1.5H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.2"/></svg>
+            </button>
+            <input type="file" id="photoInput" accept="image/*" hidden>
+            <div class="composer-input">
+              <textarea id="textInput" rows="1" placeholder="Type your answer…" autocomplete="off"></textarea>
+              <button class="icon-btn" id="micBtn" type="button" title="Voice input" aria-label="Voice input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+            <button class="icon-btn send" id="sendBtn" type="button" title="Send" aria-label="Send">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: live package -->
+    <aside class="ob-panel" id="packagePanel" aria-label="Your project and price">
+      <button class="ob-panel-toggle" id="panelToggle" type="button">
+        <span>Your project</span>
+        <span class="tt-amt" id="toggleTotal">£0</span>
+      </button>
+      <div class="ob-panel-head">
+        <div class="ph-row">
+          <h2>Your project</h2>
+          <span class="ph-chip" id="londonChip">London pricing</span>
+        </div>
+        <p>Prices update as we chat. Nothing is charged now.</p>
+      </div>
+
+      <div class="ob-nodes" id="nodes">
+        <div class="node-empty" id="nodesEmpty">Your package will appear here as you answer.</div>
+      </div>
+
+      <div class="ob-panel-foot">
+        <div class="redirect-banner" id="redirectBanner">
+          <strong>A better fit for a full commission</strong>
+          <p>A project this size or scope is usually best handled by our parent studio, Tiam Architects. You can still submit here, or request a consultation.</p>
+        </div>
+        <div class="total-row">
+          <span class="t-label">Total</span>
+          <span class="t-amt" id="totalAmt">£0</span>
+        </div>
+        <p class="total-sub" id="totalSub">Fixed price · survey included where added</p>
+        <div class="quote-meta" id="quoteMeta" hidden>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Delivery in <strong id="mDelivery">3–7 working days</strong></div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> <span id="mRevisions">2 revisions included</span></div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Quote valid until <strong id="mValidity">—</strong></div>
+        </div>
+        <button class="btn btn-primary btn-block submit-btn" id="submitBtn" type="button" disabled>Save &amp; submit project</button>
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<script src="assets/pricing.js"></script>
+<script src="assets/onboarding.js"></script>
+</body>
+</html>
