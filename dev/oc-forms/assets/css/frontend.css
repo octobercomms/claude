@@ -228,3 +228,31 @@
 .ocf-chat-optcard-label { padding: 10px 12px; font-size: 14px; font-weight: 500; }
 .ocf-chat-continue { flex: 0 0 100%; margin-top: 2px; }
 @media (max-width: 520px) { .ocf-chat-options-cards { grid-template-columns: 1fr; } }
+
+/* ---- v1.2.2: full-width AI chat + roomier, Archie-style layout ---- */
+/* Fill the container the shortcode/block is placed in (standard forms keep their 800px cap). */
+.ocf-form-root.ocf-ai { max-width: 100%; }
+
+/* Taller, full-width chat surface. */
+.ocf-form-root.ocf-ai .ocf-card.ocf-chat { height: min(80vh, 860px); }
+
+/* Keep the conversation in a comfortable, centred reading column inside the full-width card. */
+.ocf-chat .ocf-chat-messages { max-width: 880px; margin: 0 auto; width: 100%; }
+.ocf-chat .ocf-chat-scroll   { padding: 24px clamp(16px, 4vw, 40px); }
+.ocf-chat .ocf-chat-header   { padding: 16px clamp(16px, 4vw, 40px); }
+.ocf-chat .ocf-chat-composer { padding: 16px clamp(16px, 4vw, 40px); }
+
+/* Cap bubble width so lines stay readable on wide screens. */
+.ocf-chat .ocf-chat-bubble { max-width: 660px; font-size: 15.5px; }
+
+/* Option chips / image cards: sensible size, aligned under the message, not stretched. */
+.ocf-chat .ocf-chat-options { max-width: 560px; margin-left: 34px; }
+.ocf-chat .ocf-chat-options-cards { grid-template-columns: repeat(2, 1fr); max-width: 560px; margin-left: 34px; }
+.ocf-chat .ocf-chat-optcard-img { aspect-ratio: 4 / 3; }
+
+@media (max-width: 600px) {
+	.ocf-form-root.ocf-ai .ocf-card.ocf-chat { height: min(82vh, 720px); }
+	.ocf-chat .ocf-chat-options,
+	.ocf-chat .ocf-chat-options-cards { margin-left: 0; }
+	.ocf-chat .ocf-chat-options-cards { grid-template-columns: 1fr; }
+}
