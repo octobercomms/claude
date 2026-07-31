@@ -1158,61 +1158,37 @@ export default function ClientSEOPage() {
 
       {activeTab === 'overview' && (
         <SuiteOverview
-          tagline="Get found where buyers look — and turn the traffic into leads."
-          description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach the right people from your own domain."
-          ctaLabel="View keyword ranks"
-          onCta={() => setActiveTab('keywords')}
-          status={[
-            { label: 'Keywords', value: keywords.length ? `${keywords.length} tracked` : 'None yet', ok: keywords.length > 0 },
-            { label: 'Ranking', value: `${keywords.filter(k => k.current_position).length}`, ok: keywords.filter(k => k.current_position).length > 0 },
+          tagline="Owned, around one clear path."
+          description="Consult what the site is doing, make the next piece of content, then fix and reach from your own domain. One primary move; everything else is a read-out or a quiet link."
+          readouts={[
+            { fn: 'measure', name: 'Keywords', value: keywords.length || '—', sub: keywords.length ? 'tracked' : 'none yet' },
+            { fn: 'measure', name: 'Ranking', value: keywords.filter(k => k.current_position).length, sub: 'in Google' },
+            { fn: 'measure', name: 'In top 3', value: keywords.filter(k => k.current_position && k.current_position <= 3).length, sub: 'page-one wins' },
+            { fn: 'measure', name: 'Not ranking', value: keywords.filter(k => !k.current_position).length, sub: 'room to grow' },
           ]}
+          primary={{
+            fn: 'create',
+            kicker: 'The main job here',
+            title: 'Make a piece of content',
+            description: 'Find the topic, brief it, draft, publish and promote — one guided pipeline.',
+            ctaLabel: 'Start a piece',
+            onCta: () => setActiveTab('find'),
+          }}
+          tools={[
+            { fn: 'strategy', label: 'Site audit',      onClick: () => goOptimise('scan') },
+            { fn: 'strategy', label: 'Content audit',   onClick: () => goOptimise('grade') },
+            { fn: 'strategy', label: 'Quick wins',      onClick: () => goOptimise('win') },
+            { fn: 'strategy', label: 'CTR boosters',    onClick: () => goOptimise('sharpen') },
+            { fn: 'strategy', label: 'AI keywords',     onClick: () => goOptimise('target') },
+            { fn: 'strategy', label: 'Agent readiness', onClick: () => goOptimise('prep') },
+          ]}
+          otherJobs={{ label: 'Other jobs in Owned', items: [
+            { fn: 'measure',    label: 'Health — full dashboard', onClick: () => setActiveTab('health') },
+            { fn: 'research',   label: 'Localise — local SEO',    onClick: () => setActiveTab('local_gap') },
+            { fn: 'strategy',   label: 'Convert — CRO & forms',   onClick: () => goConvert('cro') },
+            { fn: 'distribute', label: 'Email — nurture & send',  onClick: () => setActiveTab('email') },
+          ] }}
           actions={<a className="btn btn-secondary" href={`/api/seo/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
-          mapLayout="snake"
-          map={[
-            { title: 'Health', subtitle: 'Where you rank and where you get cited', nodes: [
-              { label: 'Rankings',       onClick: () => goHealth('keywords') },
-              { label: 'Search Console', onClick: () => goHealth('gsc') },
-              { label: 'AI visibility',  onClick: () => goHealth('ai_visibility') },
-              { label: 'Authority',      onClick: () => goHealth('authority') },
-              { label: 'Backlinks',      onClick: () => goHealth('backlinks') },
-              { label: 'Drift',          onClick: () => goHealth('watch') },
-            ] },
-            { title: 'Optimise', subtitle: 'Site and content fixes that move the needle', nodes: [
-              { label: 'Site audit',        onClick: () => goOptimise('scan') },
-              { label: 'Content audit',     onClick: () => goOptimise('grade') },
-              { label: 'Quick wins',        onClick: () => goOptimise('win') },
-              { label: 'CTR boosters',      onClick: () => goOptimise('sharpen') },
-              { label: 'Keyword footprint', onClick: () => goOptimise('map') },
-              { label: 'AI keywords',       onClick: () => goOptimise('target') },
-              { label: 'Agent readiness',   onClick: () => goOptimise('prep') },
-            ] },
-            { title: 'Build', subtitle: 'Editorial pipeline', numbered: true, nodes: [
-              { label: 'Topic map', onClick: () => setActiveTab('topic_map') },
-              { label: 'Find',    onClick: () => setActiveTab('find') },
-              { label: 'Brief',   onClick: () => setActiveTab('planning') },
-              { label: 'Draft',   onClick: () => setActiveTab('draft') },
-              { label: 'Publish', onClick: () => setActiveTab('publish') },
-              { label: 'Promote', onClick: () => setActiveTab('promote') },
-            ] },
-            { title: 'Localise', subtitle: 'Win the map and the neighbourhood searches', nodes: [
-              { label: 'GBP',          onClick: () => setActiveTab('local_gbp') },
-              { label: 'Rival X-ray',  onClick: () => setActiveTab('local_xray') },
-              { label: 'Schema',       onClick: () => setActiveTab('local_schema') },
-              { label: 'Buyer intent', onClick: () => setActiveTab('local_keywords') },
-            ] },
-            { title: 'Convert', subtitle: 'Turn visits into leads', nodes: [
-              { label: 'CRO',   onClick: () => goConvert('cro') },
-              { label: 'Forms', onClick: () => goConvert('forms') },
-            ] },
-            { title: 'Email', subtitle: 'Nurture leads to close', nodes: [
-              { label: 'Campaigns',    onClick: () => setActiveTab('email') },
-              { label: 'Contacts',     onClick: () => setActiveTab('email') },
-              { label: 'Sequences',    onClick: () => setActiveTab('email') },
-              { label: 'Mailbox warm', onClick: () => setActiveTab('email') },
-              { label: 'Sending',      onClick: () => setActiveTab('email') },
-              { label: 'Tasks',        onClick: () => setActiveTab('email') },
-            ] },
-          ]}
         />
       )}
 

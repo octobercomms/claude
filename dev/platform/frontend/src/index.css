@@ -448,6 +448,43 @@ button { font-family: inherit; }
 .fn-kicker.fn-data       { color: var(--fn-data); }
 .fn-kicker.fn-approve    { color: var(--fn-approve); }
 
+/* ─── Action-grammar Overview ────────────────────────────────────────
+   The redesign brief's per-page vocabulary, built from OMI's own tokens.
+   Read-outs (look, don't do) are cards with a number — never button-
+   shaped. Exactly one primary path (the filled hero + .btn-primary).
+   Secondary tools + other jobs are quiet links in a wrapping row. */
+.oview-section + .oview-section { margin-top: var(--s7); }
+.oview-eyebrow { margin-bottom: var(--s3); }
+
+/* Consult-first read-out cards */
+.oview-readouts {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.readout {
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 6px;
+  box-shadow: var(--shadow-xs);
+}
+.readout-name { font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; }
+.readout-val { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
+.readout-sub { font-size: 11.5px; color: var(--text-subtle); }
+
+/* The one primary path — reuses .card.filled; kicker + title + button */
+.oview-primary { padding: var(--s7); }
+.oview-primary .oview-primary-kicker { margin-bottom: 10px; opacity: 0.72; }
+.oview-primary h3 { margin: 0 0 var(--s5); }
+
+/* Secondary tools + other jobs — quiet links in a wrapping row */
+.oview-tools { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); align-items: center; }
+.oview-grplabel {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-subtle); margin-bottom: var(--s3);
+}
+
 /* ─── Chips ──────────────────────────────────────────────────────── */
 
 .chip {
