@@ -460,10 +460,10 @@ export default function ClientSocialPage() {
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
-          { key: 'capture',  label: 'Capture',  active: currentGroup === 'capture',  onClick: () => setSocialTab('swipe') },
-          { key: 'create',   label: 'Build',    active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
-          { key: 'engage',   label: 'Engage',   active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
-          { key: 'measure',  label: 'Measure',  active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
+          { key: 'capture',  label: 'Capture',  fn: 'research',   active: currentGroup === 'capture',  onClick: () => setSocialTab('swipe') },
+          { key: 'create',   label: 'Build',    fn: 'create',     active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
+          { key: 'engage',   label: 'Engage',   fn: 'distribute', active: currentGroup === 'engage',   onClick: () => setSocialTab('dm_bot') },
+          { key: 'measure',  label: 'Measure',  fn: 'measure',    active: currentGroup === 'measure',  onClick: () => setSocialTab('perf_insights') },
         ];
         // Engage / Measure show a numbered ProcessRail (a stepped "work through
         // these tabs" guide, like Paid → Advise and Owned). Create has its own
