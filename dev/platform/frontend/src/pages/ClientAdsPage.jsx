@@ -438,21 +438,21 @@ export default function ClientAdsPage() {
       </header>
       <SuiteTabs tabs={[
         { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setTab('overview') },
-        { key: 'health',   label: 'Health',   active: currentGroup === 'health',   onClick: () => setTab('health') },
-        { key: 'build',    label: 'Build',    active: currentGroup === 'build',    onClick: () => setTab('brief') },
+        { key: 'health',   label: 'Health', fn: 'measure',   active: currentGroup === 'health',   onClick: () => setTab('health') },
+        { key: 'build',    label: 'Build', fn: 'create',    active: currentGroup === 'build',    onClick: () => setTab('brief') },
       ]} />
       {currentGroup === 'health' && (
         <Accordion open={healthOpen} onToggle={toggleHealth}>
-          <AccordionItem id="measure" title="Measure" subtitle="Spend, ROAS & profit per campaign">
+          <AccordionItem id="measure" fn="measure" title="Measure" subtitle="Spend, ROAS & profit per campaign">
             {() => renderMeasure()}
           </AccordionItem>
-          <AccordionItem id="briefing" title="Briefing" subtitle="The strategist read">
+          <AccordionItem id="briefing" fn="strategy" title="Briefing" subtitle="The strategist read">
             {() => <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
           </AccordionItem>
-          <AccordionItem id="competitors" title="Competitors" subtitle="Watch rival ads">
+          <AccordionItem id="competitors" fn="research" title="Competitors" subtitle="Watch rival ads">
             {() => <CompetitorAdsPanel clientId={id} />}
           </AccordionItem>
-          <AccordionItem id="playbook" title="Playbook" subtitle="How paid works here">
+          <AccordionItem id="playbook" fn="strategy" title="Playbook" subtitle="How paid works here">
             {() => <GoogleAdsPlaybook />}
           </AccordionItem>
         </Accordion>
