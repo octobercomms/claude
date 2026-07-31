@@ -572,11 +572,10 @@ export default function ClientSEOPage() {
   }, [id]);
 
   // Process Rails — derived ✓ status for the current Owned group's "work
-  // through these tabs" rail (Search / Optimise / Localise).
+  // through these tabs" rail (Search / Optimise).
   const railSuite =
     ['perf_insights', 'keywords', 'gsc', 'ai_visibility', 'authority', 'backlinks', 'drift'].includes(activeTab) ? 'owned_search'
     : ['site_audit', 'content_audit', 'keyword_footprint', 'quick_wins', 'ctr_boost', 'ai_seo', 'agent_ready'].includes(activeTab) ? 'owned_optimise'
-    : activeTab.startsWith('local_') ? 'owned_localise'
     : null;
   const [railStatus, setRailStatus] = useState({});
   // Health dashboard — which accordion sections are open. Review (the headline
@@ -610,8 +609,13 @@ export default function ClientSEOPage() {
   // Normalise any legacy / deep-linked tool key onto its group tab with the
   // matching section opened, so old ?tab=content_audit links still land right.
   useEffect(() => {
-    const OPT = { site_audit: 'scan', content_audit: 'grade', keyword_footprint: 'map', quick_wins: 'win', ctr_boost: 'sharpen', ai_seo: 'target', agent_ready: 'prep' };
+    const OPT = { site_audit: 'scan', content_audit: 'grade', keyword_footprint: 'map', quick_wins: 'win', ctr_boost: 'sharpen', ai_seo: 'target', agent_ready: 'prep',
+      // Local tools absorbed into Optimise.
+      local_schema: 'loc_schema', local_keywords: 'loc_keywords', local_playbook: 'loc_playbook', local_gbp: 'loc_gbp' };
+    // Local read-outs absorbed into Health.
+    const HLTH = { local_gap: 'loc_compare', local_xray: 'loc_xray', local_outliers: 'loc_flag' };
     if (OPT[activeTab]) { openOptimise(OPT[activeTab]); setActiveTab('optimise'); }
+    else if (HLTH[activeTab]) { openHealth(HLTH[activeTab]); setActiveTab('health'); }
     else if (activeTab === 'cro' || activeTab === 'forms') { openConvert(activeTab); setActiveTab('convert'); }
   }, [activeTab]);
 
@@ -1056,15 +1060,6 @@ export default function ClientSEOPage() {
             { key: 'publish',  label: '4 · Publish' },
             { key: 'promote',  label: '5 · Promote' },
           ],
-          local: [
-            { key: 'local_gap',      label: 'Compare' },
-            { key: 'local_schema',   label: 'Validate' },
-            { key: 'local_keywords', label: 'Find' },
-            { key: 'local_xray',     label: 'Competitor X-ray' },
-            { key: 'local_playbook', label: 'Plan' },
-            { key: 'local_outliers', label: 'Flag' },
-            { key: 'local_gbp',      label: 'GBP posts' },
-          ],
         };
         const GROUP_OF = {
           overview: 'overview',
@@ -1078,7 +1073,9 @@ export default function ClientSEOPage() {
           site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
           ctr_boost: 'optimise', ai_seo: 'optimise', agent_ready: 'optimise',
           topic_map: 'content', find: 'content', planning: 'content', draft: 'content', publish: 'content', promote: 'content',
-          local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_outliers: 'local', local_gbp: 'local',
+          // Local tools absorbed into Health (read-outs) and Optimise (tools).
+          local_gap: 'health', local_xray: 'health', local_outliers: 'health',
+          local_schema: 'optimise', local_keywords: 'optimise', local_playbook: 'optimise', local_gbp: 'optimise',
           convert: 'convert', cro: 'convert', forms: 'convert',
           email: 'email',
         };
@@ -1088,7 +1085,6 @@ export default function ClientSEOPage() {
           { key: 'health',   label: 'Health',   fn: 'measure',    active: currentGroup === 'health',   onClick: () => setActiveTab('health') },
           { key: 'optimise', label: 'Optimise', fn: 'strategy',   active: currentGroup === 'optimise', onClick: () => setActiveTab('optimise') },
           { key: 'content',  label: 'Build',    fn: 'create',     active: currentGroup === 'content',  onClick: () => setActiveTab('find') },
-          { key: 'local',    label: 'Localise', fn: 'research',    active: currentGroup === 'local',    onClick: () => setActiveTab('local_gap') },
           { key: 'convert',  label: 'Convert',  fn: 'strategy',   active: currentGroup === 'convert',  onClick: () => setActiveTab('convert') },
           { key: 'email',    label: 'Email',    fn: 'distribute', active: currentGroup === 'email',    onClick: () => setActiveTab('email') },
         ];
@@ -1104,12 +1100,10 @@ export default function ClientSEOPage() {
           ai_visibility: 'Where AI cites you', authority: 'Domain strength', backlinks: 'Who links to you', drift: 'Drift · track regressions',
           site_audit: 'Site audit · technical fixes', content_audit: 'Content audit · one page', keyword_footprint: 'Keyword footprint', quick_wins: 'Quick wins · page-2 keywords',
           ctr_boost: 'CTR boosters · titles', ai_seo: 'AI keyword targets', agent_ready: 'Agent readiness',
-          local_gap: 'Local competition gap', local_schema: 'Local schema audit', local_keywords: 'Buyer-intent keywords', local_xray: 'Rival teardown',
-          local_playbook: 'GBP ranking playbook', local_outliers: 'Ranking outliers', local_gbp: 'GBP posts',
           cro: 'Fix the funnel', forms: 'Lead capture',
         };
         const INFO_TABS = new Set(['perf_insights']); // read-outs, not "do" steps
-        const RAIL_GROUPS = new Set(['local']);
+        const RAIL_GROUPS = new Set();
         const railSteps = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel
           ? { groupLabel: t.groupLabel }
           : { key: t.key, title: t.label, sub: RAIL_SUB[t.key], status: INFO_TABS.has(t.key) ? 'info' : (railStatus[t.key] || 'todo') });
@@ -1178,7 +1172,6 @@ export default function ClientSEOPage() {
           ]}
           otherJobs={{ label: 'Other jobs in Owned', items: [
             { fn: 'measure',    label: 'Health — full dashboard', onClick: () => setActiveTab('health') },
-            { fn: 'research',   label: 'Localise — local SEO',    onClick: () => setActiveTab('local_gap') },
             { fn: 'strategy',   label: 'Convert — CRO & forms',   onClick: () => goConvert('cro') },
             { fn: 'distribute', label: 'Email — nurture & send',  onClick: () => setActiveTab('email') },
           ] }}
@@ -1230,6 +1223,16 @@ export default function ClientSEOPage() {
           </AccordionItem>
           <AccordionItem id="watch" title="Watch" subtitle="Drift · track regressions">
             {() => <SeoDriftPanel clientId={id} />}
+          </AccordionItem>
+          {/* Local read-outs — absorbed from the old Localise section. */}
+          <AccordionItem id="loc_compare" fn="research" title="Local compare" subtitle="Local competition gap">
+            {() => <LocalSeoPanel clientId={id} tool="competition_gap" />}
+          </AccordionItem>
+          <AccordionItem id="loc_xray" fn="research" title="Local X-ray" subtitle="Rival teardown">
+            {() => <LocalSeoPanel clientId={id} tool="competitor_xray" />}
+          </AccordionItem>
+          <AccordionItem id="loc_flag" fn="research" title="Local outliers" subtitle="Ranking outliers · flag">
+            {() => <LocalSeoPanel clientId={id} tool="ranking_outliers" />}
           </AccordionItem>
         </Accordion>
       )}
@@ -1289,6 +1292,19 @@ export default function ClientSEOPage() {
           <AccordionItem id="prep" title="Prep" subtitle="Agent readiness · llms.txt & structure">
             {() => <AgentReadinessPanel clientId={id} />}
           </AccordionItem>
+          {/* Local tools — absorbed from the old Localise section. */}
+          <AccordionItem id="loc_schema" title="Local schema" subtitle="Validate local schema">
+            {() => <LocalSeoPanel clientId={id} tool="schema_audit" />}
+          </AccordionItem>
+          <AccordionItem id="loc_keywords" title="Local keywords" subtitle="Buyer-intent · find">
+            {() => <LocalSeoPanel clientId={id} tool="buyer_intent" />}
+          </AccordionItem>
+          <AccordionItem id="loc_playbook" title="Local playbook" subtitle="GBP ranking · plan">
+            {() => <LocalSeoPanel clientId={id} tool="ranking_playbook" />}
+          </AccordionItem>
+          <AccordionItem id="loc_gbp" title="GBP posts" subtitle="Google Business Profile posts">
+            {() => <LocalSeoPanel clientId={id} tool="gbp_posts" />}
+          </AccordionItem>
         </Accordion>
       )}
       {/* Pipeline steps */}
@@ -1298,15 +1314,6 @@ export default function ClientSEOPage() {
       {activeTab === 'draft' && <DraftPanel clientId={id} onNext={() => setActiveTab('publish')} />}
       {activeTab === 'publish' && <PublishPanel clientId={id} onNext={() => setActiveTab('promote')} />}
       {activeTab === 'promote' && <PromotePanel clientId={id} />}
-      {/* Local SEO toolkit */}
-      {activeTab === 'local_gap' && <LocalSeoPanel clientId={id} tool="competition_gap" />}
-      {activeTab === 'local_schema' && <LocalSeoPanel clientId={id} tool="schema_audit" />}
-      {activeTab === 'local_keywords' && <LocalSeoPanel clientId={id} tool="buyer_intent" />}
-      {activeTab === 'local_xray' && <LocalSeoPanel clientId={id} tool="competitor_xray" />}
-      {activeTab === 'local_playbook' && <LocalSeoPanel clientId={id} tool="ranking_playbook" />}
-      {activeTab === 'local_outliers' && <LocalSeoPanel clientId={id} tool="ranking_outliers" />}
-      {activeTab === 'local_gbp' && <LocalSeoPanel clientId={id} tool="gbp_posts" />}
-
       {activeTab === 'keywords' && renderKeywordsBody()}
 
       {activeTab === 'authority' && renderAuthorityBody()}
