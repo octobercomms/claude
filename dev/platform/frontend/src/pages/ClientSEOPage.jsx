@@ -1167,6 +1167,43 @@ export default function ClientSEOPage() {
             { fn: 'strategy',   label: 'Convert — CRO & forms',   onClick: () => goConvert('cro') },
             { fn: 'distribute', label: 'Email — nurture & send',  onClick: () => setActiveTab('email') },
           ] }}
+          mapLayout="snake"
+          map={[
+            { title: 'Health', subtitle: 'Where you rank and where you get cited', nodes: [
+              { label: 'Rankings',       onClick: () => goHealth('keywords') },
+              { label: 'Search Console', onClick: () => goHealth('gsc') },
+              { label: 'AI visibility',  onClick: () => goHealth('ai_visibility') },
+              { label: 'Authority',      onClick: () => goHealth('authority') },
+              { label: 'Backlinks',      onClick: () => goHealth('backlinks') },
+              { label: 'Drift',          onClick: () => goHealth('watch') },
+            ] },
+            { title: 'Optimise', subtitle: 'Site and content fixes that move the needle', nodes: [
+              { label: 'Site audit',        onClick: () => goOptimise('scan') },
+              { label: 'Content audit',     onClick: () => goOptimise('grade') },
+              { label: 'Quick wins',        onClick: () => goOptimise('win') },
+              { label: 'CTR boosters',      onClick: () => goOptimise('sharpen') },
+              { label: 'Keyword footprint', onClick: () => goOptimise('map') },
+              { label: 'AI keywords',       onClick: () => goOptimise('target') },
+              { label: 'Agent readiness',   onClick: () => goOptimise('prep') },
+            ] },
+            { title: 'Build', subtitle: 'Editorial pipeline', numbered: true, nodes: [
+              { label: 'Topic map', onClick: () => setActiveTab('topic_map') },
+              { label: 'Find',    onClick: () => setActiveTab('find') },
+              { label: 'Brief',   onClick: () => setActiveTab('planning') },
+              { label: 'Draft',   onClick: () => setActiveTab('draft') },
+              { label: 'Publish', onClick: () => setActiveTab('publish') },
+              { label: 'Promote', onClick: () => setActiveTab('promote') },
+            ] },
+            { title: 'Convert', subtitle: 'Turn visits into leads', nodes: [
+              { label: 'CRO',   onClick: () => goConvert('cro') },
+              { label: 'Forms', onClick: () => goConvert('forms') },
+            ] },
+            { title: 'Email', subtitle: 'Nurture leads to close', nodes: [
+              { label: 'Campaigns',    onClick: () => setActiveTab('email') },
+              { label: 'Sequences',    onClick: () => setActiveTab('email') },
+              { label: 'Sending',      onClick: () => setActiveTab('email') },
+            ] },
+          ]}
           actions={<a className="btn btn-secondary" href={`/api/seo/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
         />
       )}

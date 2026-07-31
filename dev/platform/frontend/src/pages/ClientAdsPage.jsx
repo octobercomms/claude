@@ -501,6 +501,22 @@ export default function ClientAdsPage() {
             { fn: 'research',  label: 'Competitors — rival watch', onClick: () => goHealth('competitors') },
             { fn: 'strategy', label: 'Playbook — how paid works', onClick: () => goHealth('playbook') },
           ] }}
+          mapLayout="funnel"
+          map={[
+            { title: 'Health', subtitle: 'Spend, return, briefing & rival watch', nodes: [
+              { label: 'Measure',     onClick: () => goHealth('measure') },
+              { label: 'Briefing',    onClick: () => goHealth('briefing') },
+              { label: 'Competitors', onClick: () => goHealth('competitors') },
+              { label: 'Playbook',    onClick: () => goHealth('playbook') },
+            ] },
+            { title: 'Build', subtitle: 'Ad creative pipeline', numbered: true, nodes: [
+              { label: 'Brief',   onClick: () => setTab('brief') },
+              { label: 'Draft',   onClick: () => setTab('concepts') },
+              { label: 'Render',  onClick: () => setTab('render') },
+              { label: 'Approve', onClick: () => setTab('approve') },
+              { label: 'Launch',  onClick: () => setTab('launch') },
+            ] },
+          ]}
           actions={<a className="btn btn-secondary" href={`/api/paid/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
         />
         </div>

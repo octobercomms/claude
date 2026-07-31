@@ -23,6 +23,7 @@ import HeygenReelsPanel from '../components/HeygenReelsPanel';
 import AutoEditPanel from '../components/AutoEditPanel';
 import UiButton from '../components/ui/Button';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
+import SocialFactoryMap from '../components/SocialFactoryMap';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
 const SUITE_ACCENT_SOCIAL = UiPalette.suite.social;
@@ -551,6 +552,14 @@ export default function ClientSocialPage() {
             { fn: 'distribute', label: 'Engage — DMs & discovery',   onClick: () => setSocialTab('dm_bot') },
             { fn: 'measure',    label: 'Measure — review & learn',   onClick: () => setSocialTab('perf_insights') },
           ] }}
+          diagram={(
+            <SocialFactoryMap
+              onWorkbench={() => setSocialTab('brainstorm')}
+              onPublish={() => setSocialTab('plans')}
+              onEngage={() => setSocialTab('dm_bot')}
+              onMeasure={() => setSocialTab('perf_insights')}
+            />
+          )}
         />
       )}
 

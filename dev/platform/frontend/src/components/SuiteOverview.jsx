@@ -46,6 +46,9 @@ export default function SuiteOverview({
         toolsLabel={toolsLabel}
         otherJobs={otherJobs}
         actions={actions}
+        map={map}
+        mapLayout={mapLayout}
+        diagram={diagram}
       />
     );
   }
@@ -92,7 +95,7 @@ export default function SuiteOverview({
 // Action-grammar layout (redesign brief, Part 2). One primary path, framed
 // by intelligence: read-outs you consult first sit above the hero; fix-it
 // tools and other jobs sit below as quiet links. Exactly one .btn-primary.
-function GrammarOverview({ tagline, description, primary, readouts, tools, toolsLabel = 'Fix-it tools', otherJobs, actions }) {
+function GrammarOverview({ tagline, description, primary, readouts, tools, toolsLabel = 'Fix-it tools', otherJobs, actions, map = [], mapLayout = 'ring', diagram = null }) {
   return (
     <div className="stack stack-lg">
       {(tagline || description) && (
@@ -155,6 +158,16 @@ function GrammarOverview({ tagline, description, primary, readouts, tools, tools
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* How it flows — the section-map / factory diagram, kept below the
+          primary path as orientation (the workflow at a glance). */}
+      {(map.length > 0 || diagram) && (
+        <div className="oview-section">
+          <div className="oview-grplabel">How it flows</div>
+          {map.length > 0 && <SectionMap stages={map} layout={mapLayout} />}
+          {diagram && <div className="smap-bento">{diagram}</div>}
         </div>
       )}
 
