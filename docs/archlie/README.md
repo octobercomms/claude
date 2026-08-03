@@ -13,7 +13,16 @@ drawings that redirect larger jobs to Tiam — but rebranded, repriced, and buil
 conversational **AI onboarding** flow (the assistant is **Archie**) instead of a form.
 
 - **Code:** [`dev/archlie/`](../../dev/archlie/)
-- **Full brief:** [`brief-v3.md`](./brief-v3.md)
+- **Current design brief:** [`design-brief.md`](./design-brief.md) (Aug 2026 — the authoritative visual direction)
+- **Earlier product brief:** [`brief-v3.md`](./brief-v3.md)
+
+> **Design (Aug 2026):** the site was redesigned to the current brand — **terracotta**
+> palette, **Plus Jakarta Sans**, the clipped **"t" logo mark**, full-width **colour zones**,
+> and the tagline **"Architecture priced upfront."** Above the fold is radical restraint:
+> logo + tagline + **Archie embedded live** (the conversation is the CTA). Below: a stats
+> zone, an honest comparison table, banded pricing (Band B featured), and how-it-works.
+> Deliberately **not** the earlier indigo SaaS look — Archie is a considered interface with a
+> restrained "t" avatar, not a chatbot with a face.
 - **WordPress theme:** [`dev/archlie/theme/archlie/`](../../dev/archlie/theme/archlie/) — a WP interpretation of this design (marketing site + the two-panel builder + project records), documented in [`wordpress-theme.md`](./wordpress-theme.md). Note brief §11 specs the production build as React; the theme is for a quick launch/review.
 
 ## What's in the folder
