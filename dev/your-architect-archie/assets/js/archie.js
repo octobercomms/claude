@@ -1,0 +1,188 @@
+/* ============================================================
+   Your Architect – Archie — front-end client (talks to yaa/v1 REST).
+
+   The server owns the conversation + pricing: each turn returns the
+   assistant message and the full recomputed package, so this file is a
+   thin renderer + input handler. Session is a server cookie (resume is
+   automatic). Voice uses the Web Speech API where available.
+   ============================================================ */
+(function () {
+  'use strict';
+
+  var D = window.yaaData || {};
+  var REST = D.rest || '';
+  var NONCE = D.nonce || '';
+  var PRICING = D.pricing || {};
+  var BOT = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13.5 4 V16.5 A3 3 0 0 0 16.5 19.5 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 9 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>';
+
+  var el = function (id) { return document.getElementById(id); };
+  var msgList = el('msgList'), messages = el('messages'), input = el('textInput'),
+      sendBtn = el('sendBtn'), micBtn = el('micBtn'), nodes = el('nodes'), nodesEmpty = el('nodesEmpty'),
+      totalAmt = el('totalAmt'), toggleTotal = el('toggleTotal'), londonChip = el('londonChip'),
+      redirectBanner = el('redirectBanner'), quoteMeta = el('quoteMeta'), mValidity = el('mValidity'),
+      mDelivery = el('mDelivery'), mRevisions = el('mRevisions'), submitBtn = el('submitBtn'),
+      restartBtn = el('restartBtn'), panelToggle = el('panelToggle'), panel = el('packagePanel');
+
+  if (!msgList) return; // Archie not on this page.
+
+  var busy = false, done = false, hasService = false;
+
+  function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
+  function post(path, body) {
+    return fetch(REST + path, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-YAA-Nonce': NONCE },
+      body: JSON.stringify(body || {})
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }); });
+  }
+
+  // ---- Rendering ----
+  function addMsg(who, text, kind) {
+    var div = document.createElement('div');
+    div.className = 'msg ' + who + (kind ? ' ' + kind : '');
+    div.innerHTML = (who === 'bot' ? '<div class="avatar">' + BOT + '</div>' : '') + '<div class="text">' + text + '</div>';
+    msgList.appendChild(div);
+    requestAnimationFrame(function () { messages.scrollTop = messages.scrollHeight; });
+  }
+  var typingEl = null;
+  function typing(on) {
+    if (typingEl) { typingEl.remove(); typingEl = null; }
+    if (on) {
+      typingEl = document.createElement('div');
+      typingEl.className = 'msg bot';
+      typingEl.innerHTML = '<div class="avatar">' + BOT + '</div><div class="text typing"><span></span><span></span><span></span></div>';
+      msgList.appendChild(typingEl);
+      requestAnimationFrame(function () { messages.scrollTop = messages.scrollHeight; });
+    }
+  }
+
+  function validityDate(days) {
+    var d = new Date(); d.setDate(d.getDate() + (days || 30));
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function renderPackage(pkg) {
+    pkg = pkg || { nodes: [], total: 0 };
+    hasService = (pkg.nodes || []).some(function (n) { return n.id === 'service'; });
+    nodes.innerHTML = '';
+    if (!pkg.nodes || !pkg.nodes.length) {
+      nodes.appendChild(nodesEmpty);
+    } else {
+      pkg.nodes.forEach(function (n) {
+        var div = document.createElement('div');
+        div.className = 'node' + (n.kind ? ' ' + n.kind : '');
+        if (n.kind === 'info') {
+          div.innerHTML = '<div class="n-main"><div class="n-label">' + n.label + '</div></div>';
+        } else {
+          var price = n.price === null ? '<span class="n-price">' + (n.kind === 'consultant' ? 'you appoint' : '') + '</span>'
+                                       : '<span class="n-price">' + money(n.price) + '</span>';
+          var rm = n.removable ? '<button class="n-remove" data-remove="' + n.id + '" aria-label="Remove">✕</button>' : '';
+          div.innerHTML = '<div class="n-main"><div class="n-label">' + n.label + '</div>' +
+                          (n.sub ? '<div class="n-sub">' + n.sub + '</div>' : '') + '</div>' + price + rm;
+        }
+        nodes.appendChild(div);
+      });
+    }
+    totalAmt.textContent = money(pkg.total);
+    if (toggleTotal) toggleTotal.textContent = money(pkg.total);
+    londonChip.classList.toggle('show', !!pkg.london);
+    redirectBanner.classList.toggle('show', !!pkg.redirect);
+    submitBtn.textContent = pkg.redirect ? 'Request a Tiam consultation' : 'Save & submit project';
+    submitBtn.disabled = !hasService;
+    var meta = pkg.meta || {};
+    if (mDelivery && meta.delivery) mDelivery.textContent = meta.delivery;
+    if (mRevisions && meta.revisions) mRevisions.textContent = meta.revisions + ' revisions included';
+    if (mValidity) mValidity.textContent = validityDate(meta.validityDays || PRICING.quoteValidityDays);
+    quoteMeta.hidden = !hasService;
+  }
+
+  // ---- Input ----
+  function setBusy(b) {
+    busy = b;
+    input.disabled = b || done;
+    sendBtn.disabled = b || done;
+  }
+  function send() {
+    var text = (input.value || '').trim();
+    if (!text || busy || done) return;
+    input.value = ''; autoGrow();
+    addMsg('user', escapeHtml(text));
+    setBusy(true); typing(true);
+    post('message', { text: text }).then(function (res) {
+      typing(false);
+      if (!res.ok) {
+        addMsg('bot', (res.body && res.body.message) || 'Sorry — something went wrong. Please try again.', 'note');
+        setBusy(false); return;
+      }
+      addMsg('bot', escapeHtml(res.body.message));
+      renderPackage(res.body.package);
+      if (res.body.done) { done = true; input.placeholder = 'All set — submit your project on the right.'; }
+      setBusy(false);
+      if (!done) input.focus({ preventScroll: true });
+    }).catch(function () { typing(false); addMsg('bot', 'We couldn’t reach Archie. Please try again in a moment.', 'note'); setBusy(false); });
+  }
+
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } autoGrow(); });
+  input.addEventListener('input', autoGrow);
+  function autoGrow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 120) + 'px'; }
+  function escapeHtml(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+
+  // Node remove
+  nodes.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-remove]'); if (!b || busy) return;
+    setBusy(true);
+    post('remove', { id: b.getAttribute('data-remove') }).then(function (res) {
+      renderPackage(res.body && res.body.package); setBusy(false);
+      addMsg('bot', 'Done — I’ve taken that off. Your total’s updated on the right.', 'note');
+    }).catch(function () { setBusy(false); });
+  });
+
+  // Submit
+  submitBtn.addEventListener('click', function () {
+    if (submitBtn.disabled) return;
+    submitBtn.disabled = true; var original = submitBtn.textContent; submitBtn.textContent = 'Saving…';
+    post('submit', {}).then(function (res) {
+      var d = res.body || {};
+      if (d.checkoutUrl) { window.location.href = d.checkoutUrl; return; }
+      addMsg('bot', escapeHtml(d.message || 'Project saved.') + (d.ref ? ' <strong>(ref ' + d.ref + ')</strong>' : ''), 'note');
+      submitBtn.textContent = 'Submitted ✓';
+    }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = original; });
+  });
+
+  // Start over
+  if (restartBtn) restartBtn.addEventListener('click', function () {
+    post('reset', {}).then(function () { window.location.reload(); });
+  });
+
+  // Mobile panel toggle
+  if (panelToggle && panel) panelToggle.addEventListener('click', function () { panel.classList.toggle('open'); });
+
+  // Voice (Web Speech API)
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR && micBtn) { micBtn.disabled = true; micBtn.title = 'Voice input needs a supported browser'; }
+  var rec = null, recording = false;
+  if (micBtn && SR) micBtn.addEventListener('click', function () {
+    if (recording) { rec && rec.stop(); return; }
+    rec = new SR(); rec.lang = 'en-GB'; rec.interimResults = true;
+    var base = input.value ? input.value + ' ' : '';
+    rec.onstart = function () { recording = true; micBtn.classList.add('recording'); };
+    rec.onend = function () { recording = false; micBtn.classList.remove('recording'); };
+    rec.onerror = function () { recording = false; micBtn.classList.remove('recording'); };
+    rec.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; input.value = base + t; autoGrow(); };
+    rec.start();
+  });
+
+  // ---- Boot ----
+  post('start', {}).then(function (res) {
+    var d = res.body || {};
+    (d.messages || []).forEach(function (m) { addMsg(m.role === 'assistant' ? 'bot' : 'user', escapeHtml(m.text)); });
+    renderPackage(d.package);
+    if (d.configured === false) {
+      addMsg('bot', 'Archie isn’t connected yet — add a Claude API key in <em>Archie → Settings</em> to go live.', 'note');
+      setBusy(true);
+    } else {
+      input.focus({ preventScroll: true });
+    }
+  }).catch(function () { addMsg('bot', 'Archie couldn’t start. Please refresh.', 'note'); });
+})();
