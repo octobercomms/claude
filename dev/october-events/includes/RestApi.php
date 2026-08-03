@@ -1040,11 +1040,31 @@ final class RestApi {
     }
 
     public function stripe_webhook(\WP_REST_Request $req): \WP_REST_Response {
+        // Read the raw body and signature header, falling back to the PHP
+        // superglobals when WP's REST layer hands back an empty value (some
+        // server/security-plugin setups don't populate the REST request the way
+        // a plain webhook receiver expects — which breaks HMAC verification).
         $payload = $req->get_body();
-        $sig     = $req->get_header('stripe_signature') ?? '';
-        $event   = StripeConnector::parse_webhook($payload, (string) $sig);
+        if ($payload === '' || $payload === null) {
+            $raw = file_get_contents('php://input');
+            $payload = $raw !== false ? $raw : '';
+        }
+        $sig = (string) ($req->get_header('stripe_signature') ?? '');
+        if ($sig === '') {
+            $sig = (string) ($_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '');
+        }
+        $event = StripeConnector::parse_webhook((string) $payload, $sig);
         if ($event === null) {
-            return new \WP_REST_Response(['error' => 'invalid_signature'], 400);
+            // Non-sensitive diagnostics (no secret, no body content) so a failed
+            // delivery in the Stripe dashboard states exactly why it was rejected.
+            return new \WP_REST_Response([
+                'error'    => 'invalid_signature',
+                'reason'   => StripeConnector::$last_webhook_error,
+                'has_sig'  => $sig !== '',
+                'sig_len'  => strlen($sig),
+                'body_len' => strlen((string) $payload),
+                'sdk'      => class_exists('\\Stripe\\Webhook'),
+            ], 400);
         }
 
         $type   = (string) ($event['type'] ?? '');

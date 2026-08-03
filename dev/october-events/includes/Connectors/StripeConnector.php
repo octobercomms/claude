@@ -32,6 +32,9 @@ final class StripeConnector {
         return class_exists('\\Stripe\\StripeClient');
     }
 
+    /** Reason the last parse_webhook() rejected a payload (for diagnostics). */
+    public static string $last_webhook_error = '';
+
     /**
      * Ensure a Stripe customer exists for an account, returning its id.
      */
@@ -427,6 +430,7 @@ final class StripeConnector {
      * @return array|null Decoded event, or null when the signature is invalid.
      */
     public static function parse_webhook(string $payload, string $sig_header): ?array {
+        self::$last_webhook_error = '';
         $secret = (string) Settings::get('stripe_webhook_secret', '');
         if ($secret === '') {
             // ADF-02: never trust an unsigned webhook in production — a forged
@@ -436,6 +440,7 @@ final class StripeConnector {
                 Logger::log('Stripe webhook accepted UNSIGNED (OE_ALLOW_UNSIGNED_WEBHOOK enabled)');
                 return json_decode($payload, true) ?: null;
             }
+            self::$last_webhook_error = 'no_signing_secret_configured';
             Logger::log('Stripe webhook rejected — no signing secret configured');
             return null;
         }
@@ -445,6 +450,7 @@ final class StripeConnector {
                 $event = \Stripe\Webhook::constructEvent($payload, $sig_header, $secret);
                 return json_decode((string) $event, true);
             } catch (\Throwable $e) {
+                self::$last_webhook_error = 'sdk: ' . $e->getMessage();
                 Logger::log('Stripe webhook signature failed', ['error' => $e->getMessage()]);
                 return null;
             }
@@ -536,9 +542,11 @@ final class StripeConnector {
         $timestamp = (int) ($parts['t'][0] ?? 0);
         $signatures = $parts['v1'] ?? [];
         if ($timestamp === 0 || ! $signatures) {
+            self::$last_webhook_error = $sig_header === '' ? 'no_signature_header' : 'malformed_signature_header';
             return false;
         }
         if (abs(time() - $timestamp) > $tolerance) {
+            self::$last_webhook_error = 'timestamp_out_of_tolerance (server-vs-stripe skew ' . (time() - $timestamp) . 's)';
             return false;
         }
         $expected = hash_hmac('sha256', $timestamp . '.' . $payload, $secret);
@@ -547,6 +555,7 @@ final class StripeConnector {
                 return true;
             }
         }
+        self::$last_webhook_error = 'signature_mismatch (body ' . strlen($payload) . ' bytes)';
         return false;
     }
 }
