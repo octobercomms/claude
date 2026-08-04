@@ -2,10 +2,11 @@
 /**
  * Pricing model + server-side package builder.
  *
- * Ported from the site's single source of truth. On the live platform the
- * PANEL is authoritative: after each turn the server recomputes the package
- * from the collected state and returns it, so the client only renders. Archie
- * never states a price in conversation — this does.
+ * From Tiam's comments: TWO flat packages (not floor-area bands), a small set
+ * of add-ons, and items sourced separately (survey, structural) with a quote to
+ * follow. The PANEL is authoritative — after each turn the server recomputes the
+ * package from the collected state and returns it; the client only renders.
+ * Archie never states a price; this does.
  *
  * @package Your_Architect_Archie
  */
@@ -18,27 +19,20 @@ class YAA_Pricing {
 
 	public static function table() {
 		$table = array(
-			'services' => array(
-				'planning'        => array( 'label' => 'Planning application drawings', 'A' => 950,  'B' => 1350, 'C' => 1850 ),
-				'buildingcontrol' => array( 'label' => 'Building control drawings',     'A' => 850,  'B' => 1200, 'C' => 1650 ),
-				'permitted'       => array( 'label' => 'Permitted development drawings','A' => 750,  'B' => 950,  'C' => 1250 ),
-				'listed'          => array( 'label' => 'Listed building consent',       'A' => 1200, 'B' => 1600, 'C' => 2200 ),
-				'concept'         => array( 'label' => 'Concept design + 3D visual',    'A' => 400,  'B' => 600,  'C' => 900 ),
+			'packages' => array(
+				'planning'     => array( 'label' => 'Planning — full package', 'price' => 850 ),
+				'buildingregs' => array( 'label' => 'Building Regs drawings',   'price' => 950 ),
 			),
-			'survey' => array(
-				'A' => array( 'std' => 320, 'london' => 420 ),
-				'B' => array( 'std' => 380, 'london' => 495 ),
-				'C' => array( 'std' => 460, 'london' => 560 ),
+			'addons' => array(
+				'submission' => array( 'label' => 'We submit & manage your planning application', 'price' => 80 ),
+				'concept3d'  => array( 'label' => '3D concept visual (up to 2 revisions)',         'price' => 250 ),
+				'siteVisit'  => array( 'label' => 'Site visit (London boroughs / within the M25)', 'price' => 350 ),
 			),
-			'bands' => array(
-				'A' => 'Band A · up to 50m²',
-				'B' => 'Band B · 50–100m²',
-				'C' => 'Band C · 100–150m²',
-			),
-			'redirect_fee_over'   => 3500,
+			'separate'            => array( 'survey', 'structural' ),
 			'revisions_included'  => 2,
-			'delivery_days'       => '3–7 working days',
+			'delivery_days'       => 'within 7 days',
 			'quote_validity_days' => 30,
+			'riba_email'          => 'info@tiamarchitects.com',
 		);
 		/** Set the real figures / overrides here without touching code. */
 		return apply_filters( 'yaa_pricing_table', $table );
@@ -51,48 +45,47 @@ class YAA_Pricing {
 	/**
 	 * Build the package from collected state.
 	 *
-	 * @param array $s Keys: service, band, london, listed, survey, structural,
-	 *                 partyWall, concept.
-	 * @return array { nodes:[{id,label,sub,price|null,removable,kind}], total, redirect, london }
+	 * @param array $s Keys: package (planning|buildingregs|riba), submitApp,
+	 *                 concept, siteVisit, survey, structural, london.
+	 * @return array { nodes:[{id,label,sub,price|null,removable,kind}], total, redirect, london, meta }
 	 */
 	public static function build_package( array $s ) {
-		$t     = self::table();
-		$band  = ( isset( $s['band'] ) && 'over' === $s['band'] ) ? 'C' : ( isset( $s['band'] ) ? $s['band'] : 'B' );
-		$nodes = array();
-		$total = 0;
+		$t       = self::table();
+		$pkg     = isset( $s['package'] ) ? $s['package'] : '';
+		$nodes   = array();
+		$total   = 0;
 
-		$service = isset( $s['service'] ) ? $s['service'] : '';
-		if ( $service && isset( $t['services'][ $service ] ) ) {
-			$p      = (int) $t['services'][ $service ][ $band ];
-			$total += $p;
-			$nodes[] = array( 'id' => 'service', 'label' => $t['services'][ $service ]['label'], 'sub' => $t['bands'][ $band ], 'price' => $p, 'removable' => false );
+		if ( 'planning' === $pkg ) {
+			$total  += (int) $t['packages']['planning']['price'];
+			$nodes[] = array( 'id' => 'service', 'label' => 'Planning — full package', 'sub' => '3D concept & submission-ready drawings included', 'price' => (int) $t['packages']['planning']['price'], 'removable' => false );
+		} elseif ( 'buildingregs' === $pkg ) {
+			$total  += (int) $t['packages']['buildingregs']['price'];
+			$nodes[] = array( 'id' => 'service', 'label' => 'Building Regs drawings', 'sub' => 'Planning already approved', 'price' => (int) $t['packages']['buildingregs']['price'], 'removable' => false );
 		}
-		if ( ! empty( $s['listed'] ) ) {
-			$p      = (int) $t['services']['listed'][ $band ];
-			$total += $p;
-			$nodes[] = array( 'id' => 'listed', 'label' => 'Listed building consent', 'sub' => $t['bands'][ $band ], 'price' => $p, 'removable' => true );
+
+		if ( 'planning' === $pkg && ! empty( $s['submitApp'] ) ) {
+			$total  += (int) $t['addons']['submission']['price'];
+			$nodes[] = array( 'id' => 'submission', 'label' => $t['addons']['submission']['label'], 'sub' => 'Add-on', 'price' => (int) $t['addons']['submission']['price'], 'removable' => true, 'kind' => 'addon' );
+		}
+		if ( 'buildingregs' === $pkg && ! empty( $s['concept'] ) ) {
+			$total  += (int) $t['addons']['concept3d']['price'];
+			$nodes[] = array( 'id' => 'concept3d', 'label' => $t['addons']['concept3d']['label'], 'sub' => 'Add-on', 'price' => (int) $t['addons']['concept3d']['price'], 'removable' => true, 'kind' => 'addon' );
+		}
+		if ( ! empty( $s['siteVisit'] ) && ! empty( $s['london'] ) && $pkg && 'riba' !== $pkg ) {
+			$total  += (int) $t['addons']['siteVisit']['price'];
+			$nodes[] = array( 'id' => 'siteVisit', 'label' => $t['addons']['siteVisit']['label'], 'sub' => 'Add-on', 'price' => (int) $t['addons']['siteVisit']['price'], 'removable' => true, 'kind' => 'addon' );
 		}
 		if ( ! empty( $s['survey'] ) ) {
-			$rate   = (int) $t['survey'][ $band ][ ! empty( $s['london'] ) ? 'london' : 'std' ];
-			$total += $rate;
-			$nodes[] = array( 'id' => 'survey', 'label' => 'Measured survey', 'sub' => ( ! empty( $s['london'] ) ? 'London rate' : 'Standard rate' ) . ' · ' . $t['bands'][ $band ], 'price' => $rate, 'removable' => true );
-		}
-		if ( ! empty( $s['concept'] ) ) {
-			$p      = (int) $t['services']['concept'][ $band ];
-			$total += $p;
-			$nodes[] = array( 'id' => 'concept', 'label' => 'Concept design + 3D visual', 'sub' => 'Add-on · ' . $t['bands'][ $band ], 'price' => $p, 'removable' => true, 'kind' => 'addon' );
+			$nodes[] = array( 'id' => 'survey', 'label' => 'Measured survey', 'sub' => 'Sourced separately', 'price' => null, 'removable' => true, 'kind' => 'consultant' );
 		}
 		if ( ! empty( $s['structural'] ) ) {
-			$nodes[] = array( 'id' => 'structural', 'label' => 'Structural engineer', 'sub' => 'Appointed directly by you', 'price' => null, 'removable' => true, 'kind' => 'consultant' );
+			$nodes[] = array( 'id' => 'structural', 'label' => 'Structural engineer', 'sub' => 'Sourced separately', 'price' => null, 'removable' => true, 'kind' => 'consultant' );
 		}
-		if ( ! empty( $s['partyWall'] ) ) {
-			$nodes[] = array( 'id' => 'partyWall', 'label' => 'Party wall surveyor', 'sub' => 'Appointed directly by you', 'price' => null, 'removable' => true, 'kind' => 'consultant' );
-		}
-		if ( ! empty( $s['london'] ) && ( ! empty( $s['survey'] ) || $service ) ) {
-			$nodes[] = array( 'id' => 'london', 'label' => '✓ London pricing applied', 'sub' => '', 'price' => null, 'removable' => false, 'kind' => 'info' );
+		if ( ! empty( $s['london'] ) && $pkg && 'riba' !== $pkg ) {
+			$nodes[] = array( 'id' => 'london', 'label' => '✓ London project', 'sub' => '', 'price' => null, 'removable' => false, 'kind' => 'info' );
 		}
 
-		$redirect = ( isset( $s['band'] ) && 'over' === $s['band'] ) || $total > (int) $t['redirect_fee_over'] || ! empty( $s['ongoing'] );
+		$redirect = ( 'riba' === $pkg );
 
 		return array(
 			'nodes'    => $nodes,
@@ -100,22 +93,23 @@ class YAA_Pricing {
 			'redirect' => (bool) $redirect,
 			'london'   => ! empty( $s['london'] ),
 			'meta'     => array(
-				'delivery'      => $t['delivery_days'],
-				'revisions'     => (int) $t['revisions_included'],
-				'validityDays'  => (int) $t['quote_validity_days'],
+				'delivery'     => $t['delivery_days'],
+				'revisions'    => (int) $t['revisions_included'],
+				'validityDays' => (int) $t['quote_validity_days'],
 			),
 		);
 	}
 
-	/** The model localised to the front end (labels + bands for display). */
+	/** The model localised to the front end. */
 	public static function public_data() {
 		$t = self::table();
 		return array(
-			'services'          => $t['services'],
-			'bands'             => $t['bands'],
+			'packages'          => $t['packages'],
+			'addons'            => $t['addons'],
 			'deliveryDays'      => $t['delivery_days'],
 			'revisionsIncluded' => (int) $t['revisions_included'],
 			'quoteValidityDays' => (int) $t['quote_validity_days'],
+			'ribaEmail'         => $t['riba_email'],
 		);
 	}
 }

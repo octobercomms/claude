@@ -74,7 +74,7 @@
         if (n.kind === 'info') {
           div.innerHTML = '<div class="n-main"><div class="n-label">' + n.label + '</div></div>';
         } else {
-          var price = n.price === null ? '<span class="n-price">' + (n.kind === 'consultant' ? 'you appoint' : '') + '</span>'
+          var price = n.price === null ? '<span class="n-price">' + (n.kind === 'consultant' ? 'quote to follow' : '') + '</span>'
                                        : '<span class="n-price">' + money(n.price) + '</span>';
           var rm = n.removable ? '<button class="n-remove" data-remove="' + n.id + '" aria-label="Remove">✕</button>' : '';
           div.innerHTML = '<div class="n-main"><div class="n-label">' + n.label + '</div>' +
@@ -87,7 +87,7 @@
     if (toggleTotal) toggleTotal.textContent = money(pkg.total);
     londonChip.classList.toggle('show', !!pkg.london);
     redirectBanner.classList.toggle('show', !!pkg.redirect);
-    submitBtn.textContent = pkg.redirect ? 'Request a Tiam consultation' : 'Save & submit project';
+    submitBtn.textContent = pkg.redirect ? 'Contact Tiam Architects' : 'Save & submit project';
     submitBtn.disabled = !hasService;
     var meta = pkg.meta || {};
     if (mDelivery && meta.delivery) mDelivery.textContent = meta.delivery;

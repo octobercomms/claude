@@ -110,9 +110,9 @@ class YAA_Rest {
 			return new WP_REST_Response( array( 'error' => 'bad_nonce' ), 403 );
 		}
 		$id    = YAA_Project::current( true );
-		$node  = sanitize_key( (string) $req->get_param( 'id' ) );
+		$node  = sanitize_key( (string) $req->get_param( 'id' ) ); // sanitize_key lower-cases the id.
 		$state = YAA_Project::state( $id );
-		$map   = array( 'listed' => 'listed', 'survey' => 'survey', 'concept' => 'concept', 'structural' => 'structural', 'partyWall' => 'partyWall' );
+		$map   = array( 'submission' => 'submitApp', 'concept3d' => 'concept', 'sitevisit' => 'siteVisit', 'survey' => 'survey', 'structural' => 'structural' );
 		if ( isset( $map[ $node ] ) ) {
 			$state[ $map[ $node ] ] = false;
 		}

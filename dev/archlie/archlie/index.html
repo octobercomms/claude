@@ -110,13 +110,13 @@
               </div>
               <div class="ob-panel-foot">
                 <div class="redirect-banner" id="redirectBanner">
-                  <strong>A better fit for a full commission</strong>
-                  <p>A project this size or scope is usually best handled by our parent studio, Tiam Architects. You can still submit here, or request a consultation.</p>
+                  <strong>A full RIBA commission</strong>
+                  <p>Concept-to-construction work (RIBA Stages 0–7) is handled directly by Tiam Architects. Leave your details and the team will be in touch, or email info@tiamarchitects.com.</p>
                 </div>
                 <div class="total-row"><span class="t-label">Total</span><span class="t-amt" id="totalAmt">£0</span></div>
-                <p class="total-sub" id="totalSub">Fixed price · survey included where added</p>
+                <p class="total-sub" id="totalSub">Nothing is charged now</p>
                 <div class="quote-meta" id="quoteMeta" hidden>
-                  <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Delivery in <strong id="mDelivery">3–7 working days</strong></div>
+                  <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Drawings issued <strong id="mDelivery">within 7 days</strong></div>
                   <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> <span id="mRevisions">2 revisions included</span></div>
                   <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Quote valid until <strong id="mValidity">—</strong></div>
                 </div>
@@ -144,9 +144,9 @@
           <div class="sub">Everything in our control is fixed. No hourly rates.</div>
         </div>
         <div class="stat">
-          <div class="figure">3–7<span style="font-size:.4em;font-weight:700"> days</span></div>
+          <div class="figure">7<span style="font-size:.4em;font-weight:700"> days</span></div>
           <div class="label">Typical turnaround</div>
-          <div class="sub">A realistic timeframe, shown with your price.</div>
+          <div class="sub">Drawings usually issued within 7 days of survey receipt or confirmed requirements.</div>
         </div>
       </div>
     </div>
@@ -213,35 +213,96 @@
     </div>
   </section>
 
-  <!-- ===== PRICING ===== -->
+  <!-- ===== PRICING MENU (two flat packages) ===== -->
   <section class="zone zone--pale pad" id="pricing">
     <div class="band">
       <div class="sec-head">
         <span class="sec-kicker">Pricing</span>
-        <h2>Fixed prices, by size.</h2>
-        <p>Three floor-area bands across our services. Band B — a typical extension or loft — is where most projects land. Survey costs added at banded rates. Every price includes two revisions.</p>
+        <h2>Two fixed packages. Pick one.</h2>
+        <p>No floor-area bands, no hourly rates. Two flat prices, with a short menu of optional add-ons shown before you commit. Every package includes two revisions.</p>
       </div>
-      <div class="price-grid" id="priceGrid">
-        <div class="price-card" data-band="A"><h3>Band A</h3><p class="band-note">Up to 50m²</p><div class="rows"></div></div>
-        <div class="price-card feat" data-band="B"><h3>Band B</h3><p class="band-note">50–100m²</p><div class="rows"></div></div>
-        <div class="price-card" data-band="C"><h3>Band C</h3><p class="band-note">100–150m²</p><div class="rows"></div></div>
+      <div class="pkg-grid">
+        <div class="pkg-card feat">
+          <div class="pkg-top">
+            <h3>Planning — full package</h3>
+            <div class="pkg-price"><span data-pkg-price="planning">£850</span></div>
+          </div>
+          <p class="pkg-blurb">Home extensions · loft, mansard &amp; garage conversions · outbuildings · new dwellings</p>
+          <div class="pkg-inc-label">Includes</div>
+          <ul class="pkg-list">
+            <li>Site, location &amp; block plans</li>
+            <li>Existing + proposed drawings</li>
+            <li>3D concept design (up to 2 revisions)</li>
+            <li>Planning application prep, submission &amp; management</li>
+            <li>Detailed Building Regulations drawings</li>
+            <li>Drawing revisions</li>
+            <li>Free amendments requested by the council</li>
+            <li>Site visit on request (London boroughs only, additional charge)</li>
+          </ul>
+        </div>
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <h3>Building Regs drawings</h3>
+            <div class="pkg-price"><span data-pkg-price="buildingregs">£950</span></div>
+          </div>
+          <p class="pkg-blurb">For projects with planning already approved — internal alterations, approved extensions, conversions, outbuildings, new dwellings</p>
+          <div class="pkg-inc-label">Includes</div>
+          <ul class="pkg-list">
+            <li>Detailed Building Regulations drawings</li>
+            <li>Construction details &amp; written specification</li>
+            <li>Drainage layout where required</li>
+            <li>Building control submission on request</li>
+            <li>Drawing revisions</li>
+          </ul>
+        </div>
       </div>
-      <p class="price-note">Indicative prices, confirmed by Tiam before launch — set to sit just below comparable published rates. Over 150m², or a project that needs ongoing management, is handled by Tiam Architects as a full commission.</p>
+
+      <div class="addons">
+        <div class="addons-head">Optional add-ons</div>
+        <ul class="addon-list">
+          <li><span>3D concept visual (up to 2 revisions)</span><strong>£250</strong></li>
+          <li><span>We submit &amp; manage your planning application</span><strong>+£80</strong></li>
+          <li><span>Site visit (London boroughs / within the M25)</span><strong>£350</strong></li>
+          <li><span>Measured survey &amp; structural engineer</span><strong>sourced separately — quote to follow</strong></li>
+        </ul>
+        <p class="menu-note">Survey and structural engineer are never part of our fee: we source an independent local professional, share their quote for your approval first, and you only pay for their work — not our time. Full RIBA services (Stages 0–7), concept to construction, are handled by Tiam Architects — <a href="mailto:info@tiamarchitects.com">info@tiamarchitects.com</a>.</p>
+      </div>
     </div>
   </section>
 
-  <!-- ===== HOW IT WORKS ===== -->
+  <!-- ===== SERVICES ===== -->
+  <section class="zone pad" id="services">
+    <div class="band">
+      <div class="sec-head">
+        <span class="sec-kicker">Our services</span>
+        <h2>The full range, any location in mainland UK.</h2>
+        <p>Fully remote. Whatever your project needs, Archie will point you to the right package.</p>
+      </div>
+      <ul class="services-grid" id="servicesList">
+        <li>Pre-planning applications</li>
+        <li>Planning applications</li>
+        <li>Listed building consent</li>
+        <li>Permitted development / lawful development certificate</li>
+        <li>Loft &amp; garage conversions</li>
+        <li>Outbuildings</li>
+        <li>Change of use (without construction)</li>
+        <li>Retrospective applications</li>
+        <li>New dwellings</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== HOW WE WORK (Tiam's 3 steps) ===== -->
   <section class="zone pad" id="how">
     <div class="band">
       <div class="sec-head">
-        <span class="sec-kicker">How it works</span>
-        <h2>Four steps, no phone tag.</h2>
+        <span class="sec-kicker">How we work</span>
+        <h2>Three steps, no phone tag.</h2>
       </div>
-      <div class="steps">
-        <div class="step"><div class="n">01</div><h3>Tell Archie</h3><p>Answer a few plain questions — by text or voice. Your package and price build as you go.</p></div>
-        <div class="step"><div class="n">02</div><h3>See your price</h3><p>A fixed total, shown before you share any details. Save it and come back whenever you like.</p></div>
-        <div class="step"><div class="n">03</div><h3>We draw, you review</h3><p>Our registered architects prepare your drawings; you review a watermarked preview and request up to two revisions.</p></div>
-        <div class="step"><div class="n">04</div><h3>Full drawings on payment</h3><p>Pay online and the complete, submission-ready package is released to your portal.</p></div>
+      <div class="steps steps--3">
+        <div class="step"><div class="n">01</div><h3>You send us your project details</h3><p>Answer a few plain questions with Archie — by text or voice. Your fixed price builds as you go.</p></div>
+        <div class="step"><div class="n">02</div><h3>We confirm &amp; set you up</h3><p>We review your requirements, confirm the fee by email and open your project portal. You click approved.</p></div>
+        <div class="step"><div class="n">03</div><h3>Upload, we draw</h3><p>Add your sketches, photos and comments in the portal, and our registered architects produce your drawings. Simple as that.</p></div>
       </div>
     </div>
   </section>

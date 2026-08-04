@@ -94,7 +94,7 @@ class YAA_Project {
 
 	public static function state( $id ) {
 		$s = json_decode( (string) get_post_meta( $id, '_yaa_state', true ), true );
-		return is_array( $s ) ? $s : array( 'band' => 'B' );
+		return is_array( $s ) ? $s : array();
 	}
 	public static function set_state( $id, array $state ) {
 		update_post_meta( $id, '_yaa_state', wp_json_encode( $state ) );

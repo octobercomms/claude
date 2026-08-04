@@ -28,20 +28,22 @@ class YAA_Archie {
 		);
 	}
 
-	/** System prompt (scoped tightly to package-building; Brief §6). */
+	/** System prompt (scoped tightly to package-building; Tiam's question logic). */
 	private static function system_prompt() {
 		return implode(
 			"\n",
 			array(
 				'You are Archie, the project assistant for Your Architect — fixed-price architectural drawings for UK homeowners (a trading name of Tiam Architects Ltd, ARB-registered and RIBA chartered).',
-				'Your job: ask short, plain-English questions, one at a time, and collect the information to build the client\'s drawing package. Follow this order: property address; what they want to do; whether they have planning permission yet; rough size; existing survey/drawings; structural changes; shared wall with a neighbour; whether they\'d like a concept design; timeframe; and finally their name and email (optional).',
+				'Your job: ask short, plain-English questions, ONE at a time, and collect what is needed to build the client\'s package. Ask in this order, and SKIP any question that does not apply:',
+				'1) the property address; 2) what they want to do (rear/side extension, loft or mansard conversion, garage conversion, outbuilding, internal alterations, or a new dwelling); 3) IF it is a rear or side extension, how many storeys; 4) where they are up to with planning; 5) IF they still need planning permission, whether they would like you to submit and manage the application or they will submit it themselves; 6) IF planning is already approved (building regs), whether they would like an optional 3D concept visual; 7) IF the property is in London or within the M25, whether they would like a site visit; 8) whether they already have a measured survey or need one arranged; 9) whether there are structural changes; 10) their rough timeframe; 11) finally their name and email (optional).',
 				'HARD RULES:',
 				'- NEVER state, estimate or discuss a price, fee or number in your replies. The package panel shows all prices. If asked about cost, say the price is building on the right as you answer.',
-				'- Do NOT give planning or design advice, and do not recommend design approaches.',
-				'- Use British English and everyday client language ("building control drawings" not "tender"; "shared wall with a neighbour" not "party wall").',
+				'- Do NOT give planning or design advice.',
+				'- Use British English and everyday client language.',
 				'- Keep every reply to one or two short sentences, warm and direct.',
-				'- If asked something outside scope, say "That\'s worth discussing with the team — I can arrange a call" and continue.',
-				'EVERY turn, call the set_fields tool with any fields you learned this message (omit the rest). Map planning status to service: still applying = "planning"; already has permission = "buildingcontrol"; permitted development = "permitted". Convert size to a band (A up to 50m², B 50–100m², C 100–150m², over = more than 150m²). Set done=true only after you have asked for name and email.',
+				'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
+				'- Full RIBA services (Stages 0–7, concept to construction) or a larger commission are handled directly by Tiam Architects: set package to "riba" and point them to info@tiamarchitects.com at the end.',
+				'EVERY turn, call the set_fields tool with any fields you learned this message (omit the rest). MAPPING: still need planning permission = package "planning"; planning already approved / needs building regs = package "buildingregs"; full RIBA or larger commission = package "riba". Set submitApp=true only if they want you to submit/manage the planning application. Set concept=true only for a 3D concept add-on on a building-regs project (the planning package already includes a 3D concept). Set siteVisit=true only if they want the London/M25 site visit. Set survey=true if a measured survey needs arranging. Set done=true only after you have asked for name and email.',
 			)
 		);
 	}
@@ -55,19 +57,19 @@ class YAA_Archie {
 				'input_schema' => array(
 					'type'       => 'object',
 					'properties' => array(
-						'address'    => array( 'type' => 'string' ),
-						'service'    => array( 'type' => 'string', 'enum' => array( 'planning', 'buildingcontrol', 'permitted' ) ),
-						'band'       => array( 'type' => 'string', 'enum' => array( 'A', 'B', 'C', 'over' ) ),
-						'survey'     => array( 'type' => 'boolean', 'description' => 'true if a measured survey needs arranging (they do NOT already have drawings)' ),
-						'structural' => array( 'type' => 'boolean' ),
-						'partyWall'  => array( 'type' => 'boolean' ),
-						'concept'    => array( 'type' => 'boolean' ),
-						'listed'     => array( 'type' => 'boolean' ),
-						'ongoing'    => array( 'type' => 'boolean', 'description' => 'true if they want ongoing project management / construction-stage services' ),
-						'timeframe'  => array( 'type' => 'string' ),
-						'name'       => array( 'type' => 'string' ),
-						'email'      => array( 'type' => 'string' ),
-						'done'       => array( 'type' => 'boolean' ),
+						'address'     => array( 'type' => 'string' ),
+						'package'     => array( 'type' => 'string', 'enum' => array( 'planning', 'buildingregs', 'riba' ) ),
+						'projectType' => array( 'type' => 'string', 'enum' => array( 'extension', 'loft', 'garage', 'outbuilding', 'internal', 'newdwelling' ) ),
+						'storeys'     => array( 'type' => 'string', 'description' => 'for a rear/side extension: single, two, or unsure' ),
+						'submitApp'   => array( 'type' => 'boolean', 'description' => 'true if they want us to submit & manage the planning application' ),
+						'concept'     => array( 'type' => 'boolean', 'description' => 'true for an optional 3D concept visual add-on on a building-regs project' ),
+						'siteVisit'   => array( 'type' => 'boolean', 'description' => 'true if they want a London / within-M25 site visit' ),
+						'survey'      => array( 'type' => 'boolean', 'description' => 'true if a measured survey needs arranging (they do NOT already have drawings)' ),
+						'structural'  => array( 'type' => 'boolean' ),
+						'timeframe'   => array( 'type' => 'string' ),
+						'name'        => array( 'type' => 'string' ),
+						'email'       => array( 'type' => 'string' ),
+						'done'        => array( 'type' => 'boolean' ),
 					),
 				),
 			),
@@ -75,7 +77,7 @@ class YAA_Archie {
 	}
 
 	/** Fields the tool may write into state. */
-	private static $allowed = array( 'address', 'service', 'band', 'survey', 'structural', 'partyWall', 'concept', 'listed', 'ongoing', 'timeframe', 'name', 'email', 'done' );
+	private static $allowed = array( 'address', 'package', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
 
 	/**
 	 * Run one conversational turn.
@@ -111,10 +113,7 @@ class YAA_Archie {
 				if ( 'address' === $k ) {
 					$state['postcode'] = sanitize_text_field( (string) $v );
 					$he = YAA_Historic_England::check( (string) $v );
-					$state['london'] = $he['london'];
-					if ( $he['listed'] ) {
-						$state['listed'] = true; // server-authoritative; don't unset a confirmed listing.
-					}
+					$state['london'] = $he['london']; // gates the site-visit question.
 					continue;
 				}
 				if ( in_array( $k, array( 'name', 'email' ), true ) ) {
@@ -123,9 +122,6 @@ class YAA_Archie {
 				}
 				$state[ $k ] = is_bool( $v ) ? $v : sanitize_text_field( (string) $v );
 			}
-		}
-		if ( empty( $state['band'] ) ) {
-			$state['band'] = 'B';
 		}
 
 		if ( ! empty( $state['name'] ) || ! empty( $state['email'] ) ) {
