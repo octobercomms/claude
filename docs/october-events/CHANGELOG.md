@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.84.4 — Stripe webhook: raw-input fallbacks + failure reason
+
+Hardens the Stripe webhook receiver and makes failures self-explanatory, to
+chase down a "100% error / 400" webhook that persisted even with a correct,
+matching signing secret.
+
+- Reads the raw request body and `Stripe-Signature` header directly from PHP
+  (`php://input` / `$_SERVER`) when WordPress's REST layer returns an empty
+  value — a difference that can break HMAC verification on some server / security
+  setups even though a correct secret is configured.
+- The 400 response now includes a **non-sensitive reason** (`reason`, `has_sig`,
+  `sig_len`, `body_len`, `sdk`) so a failed delivery in the Stripe dashboard
+  states exactly why it was rejected (missing header, clock skew, signature
+  mismatch, empty body…) — no secret or payload content is exposed.
+
 ## 1.84.3 — address/date flow with no config
 
 The partner feed now defaults its address/date field mapping to the tours
