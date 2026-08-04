@@ -118,7 +118,7 @@ function archlie_primary_menu_fallback() {
 }
 
 /**
- * Site logo: custom logo, or the Your Architect "t" mark + wordmark.
+ * Site logo: custom logo, or the stacked "Your Architect" wordmark.
  */
 function archlie_logo() {
 	if ( has_custom_logo() ) {
@@ -126,7 +126,7 @@ function archlie_logo() {
 		return;
 	}
 	printf(
-		'<a href="%s" class="logo" aria-label="%s"><span class="ymark" aria-hidden="true"></span><span class="wordmark">Your Architect</span></a>',
+		'<a href="%s" class="logo" aria-label="%s"><span class="wordmark"><span>Your</span><span>Architect</span></span></a>',
 		esc_url( home_url( '/' ) ),
 		esc_attr__( 'Your Architect home', 'archlie' )
 	);

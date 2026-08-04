@@ -13,7 +13,7 @@
   var REST = D.rest || '';
   var NONCE = D.nonce || '';
   var PRICING = D.pricing || {};
-  var BOT = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13.5 4 V16.5 A3 3 0 0 0 16.5 19.5 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 9 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>';
+  var BOT = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx="24" cy="24" r="23" fill="#E4EFF7"/><path d="M11 20c0-8 6-13 13-13s13 5 13 13" stroke="#253E94" stroke-width="3.4" stroke-linecap="round"/><path d="M12 21c2.5-2 6-3 6-3M36 21c-2.5-2-6-3-6-3" stroke="#253E94" stroke-width="2.2" stroke-linecap="round"/><circle cx="18.5" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><circle cx="30" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><path d="M22.9 25h2.2" stroke="#253E94" stroke-width="2.4" stroke-linecap="round"/><path d="M19 34c2 1.8 8 1.8 10 0" stroke="#253E94" stroke-width="2.6" stroke-linecap="round"/></svg>';
 
   var el = function (id) { return document.getElementById(id); };
   var msgList = el('msgList'), messages = el('messages'), input = el('textInput'),

@@ -9,19 +9,26 @@
  */
 
 get_header();
-$t_svg = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13.5 4 V16.5 A3 3 0 0 0 16.5 19.5 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 9 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>';
+$face_svg = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx="24" cy="24" r="23" fill="#E4EFF7"/><path d="M11 20c0-8 6-13 13-13s13 5 13 13" stroke="#253E94" stroke-width="3.4" stroke-linecap="round"/><path d="M12 21c2.5-2 6-3 6-3M36 21c-2.5-2-6-3-6-3" stroke="#253E94" stroke-width="2.2" stroke-linecap="round"/><circle cx="18.5" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><circle cx="30" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><path d="M22.9 25h2.2" stroke="#253E94" stroke-width="2.4" stroke-linecap="round"/><path d="M19 34c2 1.8 8 1.8 10 0" stroke="#253E94" stroke-width="2.6" stroke-linecap="round"/></svg>';
 ?>
 
-<!-- HERO: logo (header) + tagline + Archie -->
-<section class="zone zone--pale" id="top">
+<!-- HERO: arc + tagline + Archie -->
+<section class="zone hero-zone" id="top">
+	<div class="hero-deco" aria-hidden="true"><span class="arc"></span><span class="strip"></span></div>
 	<div class="band hero">
-		<h1 class="tagline"><?php esc_html_e( 'Architecture priced', 'archlie' ); ?> <span class="u"><?php esc_html_e( 'upfront.', 'archlie' ); ?></span></h1>
+		<div class="hero-inner">
+			<h1 class="tagline"><?php esc_html_e( 'Architecture', 'archlie' ); ?><br><?php esc_html_e( 'priced upfront', 'archlie' ); ?></h1>
+			<p class="hero-lede"><?php esc_html_e( 'Fixed-price architectural drawings.', 'archlie' ); ?><br><?php esc_html_e( 'Priced online. No call required.', 'archlie' ); ?></p>
+			<div class="creds">
+				<span class="cred"><span class="mark">arb</span><span class="desc">Architects<br>Registration<br>Board</span></span>
+				<span class="cred"><span class="mark">RIBA</span><span class="desc">Chartered<br>Architect</span></span>
+			</div>
+		</div>
 
 		<div class="hero-embed-wrap" id="archie">
-			<span class="hero-cue"><?php esc_html_e( 'Talk to Archie — your price builds as you answer', 'archlie' ); ?></span>
 			<div class="archie-embed">
 				<div class="ob-top">
-					<span class="ob-title"><span class="archie-badge"><?php echo $t_svg; // phpcs:ignore ?></span> <?php esc_html_e( 'Chat with Archie', 'archlie' ); ?></span>
+					<span class="ob-title"><span class="archie-face" aria-hidden="true"><?php echo $face_svg; // phpcs:ignore ?></span> <?php esc_html_e( 'Talk to Archie — your personalised price builds as you answer', 'archlie' ); ?></span>
 					<div class="ob-actions"><button class="btn btn-outline" id="restartBtn" type="button"><?php esc_html_e( 'Start over', 'archlie' ); ?></button></div>
 				</div>
 				<div class="ob-body">
@@ -99,7 +106,7 @@ $t_svg = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13.5
 <section class="zone zone--ink pad">
 	<div class="band">
 		<div class="stats">
-			<div class="stat"><div class="figure">90%<span style="color:var(--terra)">+</span></div><div class="label"><?php esc_html_e( 'Planning approval rate', 'archlie' ); ?></div><div class="sub"><?php esc_html_e( 'Target at launch — the number that reframes the price.', 'archlie' ); ?></div></div>
+			<div class="stat"><div class="figure">90%<span class="accent">+</span></div><div class="label"><?php esc_html_e( 'Planning approval rate', 'archlie' ); ?></div><div class="sub"><?php esc_html_e( 'Target at launch — the number that reframes the price.', 'archlie' ); ?></div></div>
 			<div class="stat"><div class="figure">£0</div><div class="label"><?php esc_html_e( 'Hidden fees', 'archlie' ); ?></div><div class="sub"><?php esc_html_e( 'Everything in our control is fixed. No hourly rates.', 'archlie' ); ?></div></div>
 			<div class="stat"><div class="figure">3–7<span style="font-size:.4em;font-weight:700"> <?php esc_html_e( 'days', 'archlie' ); ?></span></div><div class="label"><?php esc_html_e( 'Typical turnaround', 'archlie' ); ?></div><div class="sub"><?php esc_html_e( 'A realistic timeframe, shown with your price.', 'archlie' ); ?></div></div>
 		</div>
@@ -172,10 +179,38 @@ $t_svg = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13.5
 	</div>
 </section>
 
+<!-- FAQ -->
+<section class="zone zone--pale pad" id="faq">
+	<div class="band">
+		<div class="sec-head">
+			<span class="sec-kicker"><?php esc_html_e( 'FAQ', 'archlie' ); ?></span>
+			<h2><?php esc_html_e( 'The questions we get asked most.', 'archlie' ); ?></h2>
+		</div>
+		<div class="faq">
+			<?php
+			$faqs = array(
+				array( __( 'Is the price really fixed?', 'archlie' ), __( "Yes. Everything in our control — the drawings, two revisions, and the survey where you add it — is a fixed total, shown before you share any details. The only things we can't fix are third-party fees (like your local authority's planning application fee), and we flag those clearly.", 'archlie' ) ),
+				array( __( 'Who actually does the drawings?', 'archlie' ), __( 'Registered architects at Tiam Architects Ltd — an ARB-registered, RIBA-chartered practice. Your Architect is our fixed-price service for standard residential projects; the same people prepare your package.', 'archlie' ) ),
+				array( __( 'What if my project is bigger or unusual?', 'archlie' ), __( "If it's over 150m², or needs ongoing management, Archie will flag it as a better fit for a full commission with Tiam. You can still submit here, or request a consultation — no wasted call either way.", 'archlie' ) ),
+				array( __( 'When do I pay?', 'archlie' ), __( 'Nothing is charged while you talk to Archie. We prepare your drawings and send a watermarked preview; you only pay online to release the full, submission-ready package.', 'archlie' ) ),
+			);
+			foreach ( $faqs as $i => $f ) {
+				printf(
+					'<details%s><summary>%s</summary><p>%s</p></details>',
+					0 === $i ? ' open' : '',
+					esc_html( $f[0] ),
+					esc_html( $f[1] )
+				);
+			}
+			?>
+		</div>
+	</div>
+</section>
+
 <!-- CTA -->
-<section class="zone zone--terra pad-sm">
+<section class="zone zone--blue pad-sm">
 	<div class="band" style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap">
-		<h2 style="font-size:clamp(1.6rem,3.4vw,2.4rem);max-width:20ch"><?php esc_html_e( 'Your price is a conversation away.', 'archlie' ); ?></h2>
+		<h2 style="font-size:clamp(1.6rem,3.4vw,2.4rem);max-width:20ch;color:#fff"><?php esc_html_e( 'Your price is a conversation away.', 'archlie' ); ?></h2>
 		<a href="#archie" class="btn btn-primary btn-lg"><?php esc_html_e( 'Talk to Archie', 'archlie' ); ?></a>
 	</div>
 </section>

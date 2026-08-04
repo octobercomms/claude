@@ -18,6 +18,13 @@
 <header class="site-head">
 	<div class="band">
 		<?php archlie_logo(); ?>
-		<a href="<?php echo esc_url( home_url( '/#pricing' ) ); ?>" class="head-link"><?php esc_html_e( 'See pricing', 'archlie' ); ?></a>
+		<nav class="nav" aria-label="<?php esc_attr_e( 'Primary', 'archlie' ); ?>">
+			<a class="navlink" href="<?php echo esc_url( home_url( '/#compare' ) ); ?>"><?php esc_html_e( 'Compare', 'archlie' ); ?></a>
+			<a class="navlink" href="<?php echo esc_url( home_url( '/#how' ) ); ?>"><?php esc_html_e( 'How', 'archlie' ); ?></a>
+			<a class="navlink" href="<?php echo esc_url( home_url( '/#pricing' ) ); ?>"><?php esc_html_e( 'Pricing', 'archlie' ); ?></a>
+			<a class="navlink" href="<?php echo esc_url( home_url( '/#archie' ) ); ?>"><?php esc_html_e( 'Explore', 'archlie' ); ?></a>
+			<a class="navlink" href="<?php echo esc_url( home_url( '/#faq' ) ); ?>"><?php esc_html_e( 'FAQ', 'archlie' ); ?></a>
+			<a class="btn btn-primary" href="<?php echo esc_url( home_url( '/#archie' ) ); ?>"><?php esc_html_e( 'Start', 'archlie' ); ?></a>
+		</nav>
 	</div>
 </header>

@@ -10,31 +10,44 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/styles.css">
   <link rel="stylesheet" href="assets/onboarding.css">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23C4603A'/%3E%3Cpath d='M18 7 V21 a3 3 0 0 0 3 3 h1' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M12 13 H22' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23263793'/%3E%3Cpath d='M13.2 9 h4.4 v15 h-3.4 v-11.6 l-2.6 .7 v-3 z' fill='white'/%3E%3C/svg%3E">
 </head>
 <body>
 
-  <!-- ===== HEADER (radical restraint) ===== -->
+  <!-- ===== HEADER ===== -->
   <header class="site-head">
     <div class="band">
       <a href="#top" class="logo" aria-label="Your Architect home">
-        <span class="ymark" aria-hidden="true"></span>
-        <span class="wordmark">Your Architect</span>
+        <span class="wordmark"><span>Your</span><span>Architect</span></span>
       </a>
-      <a href="#pricing" class="head-link">See pricing</a>
+      <nav class="nav" aria-label="Primary">
+        <a class="navlink" href="#compare">Compare</a>
+        <a class="navlink" href="#how">How</a>
+        <a class="navlink" href="#pricing">Pricing</a>
+        <a class="navlink" href="#archie">Explore</a>
+        <a class="navlink" href="#faq">FAQ</a>
+        <a class="btn btn-primary" href="#archie">Start</a>
+      </nav>
     </div>
   </header>
 
-  <!-- ===== HERO: logo + tagline + Archie, nothing else ===== -->
-  <section class="zone zone--pale" id="top">
+  <!-- ===== HERO: arc + tagline + Archie ===== -->
+  <section class="zone hero-zone" id="top">
+    <div class="hero-deco" aria-hidden="true"><span class="arc"></span><span class="strip"></span></div>
     <div class="band hero">
-      <h1 class="tagline">Architecture priced <span class="u">upfront.</span></h1>
+      <div class="hero-inner">
+        <h1 class="tagline">Architecture<br>priced upfront</h1>
+        <p class="hero-lede">Fixed-price architectural drawings.<br>Priced online. No call required.</p>
+        <div class="creds">
+          <span class="cred"><span class="mark">arb</span><span class="desc">Architects<br>Registration<br>Board</span></span>
+          <span class="cred"><span class="mark">RIBA</span><span class="desc">Chartered<br>Architect</span></span>
+        </div>
+      </div>
 
       <div class="hero-embed-wrap" id="archie">
-        <span class="hero-cue">Talk to Archie — your price builds as you answer</span>
         <div class="archie-embed">
           <div class="ob-top">
-            <span class="ob-title"><span class="archie-badge"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13.5 4 V16.5 A3 3 0 0 0 16.5 19.5 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 9 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg></span> Chat with Archie</span>
+            <span class="ob-title"><span class="archie-face" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="23" fill="#E4EFF7"/><path d="M11 20c0-8 6-13 13-13s13 5 13 13" stroke="#253E94" stroke-width="3.4" stroke-linecap="round"/><path d="M12 21c2.5-2 6-3 6-3M36 21c-2.5-2-6-3-6-3" stroke="#253E94" stroke-width="2.2" stroke-linecap="round"/><circle cx="18.5" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><circle cx="30" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><path d="M22.9 25h2.2" stroke="#253E94" stroke-width="2.4" stroke-linecap="round"/><path d="M19 34c2 1.8 8 1.8 10 0" stroke="#253E94" stroke-width="2.6" stroke-linecap="round"/></svg></span> Talk to Archie — your personalised price builds as you answer</span>
             <div class="ob-actions">
               <button class="btn btn-outline" id="restartBtn" type="button">Start over</button>
             </div>
@@ -121,7 +134,7 @@
     <div class="band">
       <div class="stats">
         <div class="stat">
-          <div class="figure">90%<span style="color:var(--terra)">+</span></div>
+          <div class="figure">90%<span class="accent">+</span></div>
           <div class="label">Planning approval rate</div>
           <div class="sub">Target at launch — the number that reframes the price.</div>
         </div>
@@ -140,7 +153,7 @@
   </section>
 
   <!-- ===== HONEST COMPARISON ===== -->
-  <section class="zone pad">
+  <section class="zone pad" id="compare">
     <div class="band">
       <div class="sec-head">
         <span class="sec-kicker">The honest comparison</span>
@@ -218,7 +231,7 @@
   </section>
 
   <!-- ===== HOW IT WORKS ===== -->
-  <section class="zone pad">
+  <section class="zone pad" id="how">
     <div class="band">
       <div class="sec-head">
         <span class="sec-kicker">How it works</span>
@@ -233,10 +246,38 @@
     </div>
   </section>
 
+  <!-- ===== FAQ ===== -->
+  <section class="zone zone--pale pad" id="faq">
+    <div class="band">
+      <div class="sec-head">
+        <span class="sec-kicker">FAQ</span>
+        <h2>The questions we get asked most.</h2>
+      </div>
+      <div class="faq">
+        <details open>
+          <summary>Is the price really fixed?</summary>
+          <p>Yes. Everything in our control — the drawings, two revisions, and the survey where you add it — is a fixed total, shown before you share any details. The only things we can't fix are third-party fees (like your local authority's planning application fee), and we flag those clearly.</p>
+        </details>
+        <details>
+          <summary>Who actually does the drawings?</summary>
+          <p>Registered architects at Tiam Architects Ltd — an ARB-registered, RIBA-chartered practice. Your Architect is our fixed-price service for standard residential projects; the same people prepare your package.</p>
+        </details>
+        <details>
+          <summary>What if my project is bigger or unusual?</summary>
+          <p>If it's over 150m², or needs ongoing management, Archie will flag it as a better fit for a full commission with Tiam. You can still submit here, or request a consultation — no wasted call either way.</p>
+        </details>
+        <details>
+          <summary>When do I pay?</summary>
+          <p>Nothing is charged while you talk to Archie. We prepare your drawings and send a watermarked preview; you only pay online to release the full, submission-ready package.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== CTA ===== -->
-  <section class="zone zone--terra pad-sm">
+  <section class="zone zone--blue pad-sm">
     <div class="band" style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap">
-      <h2 style="font-size:clamp(1.6rem,3.4vw,2.4rem);max-width:20ch">Your price is a conversation away.</h2>
+      <h2 style="font-size:clamp(1.6rem,3.4vw,2.4rem);max-width:20ch;color:#fff">Your price is a conversation away.</h2>
       <a href="#archie" class="btn btn-primary btn-lg">Talk to Archie</a>
     </div>
   </section>
@@ -246,7 +287,7 @@
     <div class="band">
       <div class="foot-top">
         <div class="foot-brand">
-          <a href="#top" class="logo"><span class="ymark" aria-hidden="true"></span><span class="wordmark">Your Architect</span></a>
+          <a href="#top" class="logo"><span class="wordmark"><span>Your</span><span>Architect</span></span></a>
           <div class="tagline-sm">Architecture priced upfront.</div>
           <p>Fixed-price planning, building control, permitted development and listed building drawings for standard residential projects.</p>
         </div>

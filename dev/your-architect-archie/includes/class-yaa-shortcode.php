@@ -37,19 +37,19 @@ class YAA_Shortcode {
 		);
 	}
 
-	private static function t_svg() {
-		return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13.5 4 V16.5 A3 3 0 0 0 16.5 19.5 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 9 H17.5" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>';
+	private static function face_svg() {
+		return '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx="24" cy="24" r="23" fill="#E4EFF7"/><path d="M11 20c0-8 6-13 13-13s13 5 13 13" stroke="#253E94" stroke-width="3.4" stroke-linecap="round"/><path d="M12 21c2.5-2 6-3 6-3M36 21c-2.5-2-6-3-6-3" stroke="#253E94" stroke-width="2.2" stroke-linecap="round"/><circle cx="18.5" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><circle cx="30" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><path d="M22.9 25h2.2" stroke="#253E94" stroke-width="2.4" stroke-linecap="round"/><path d="M19 34c2 1.8 8 1.8 10 0" stroke="#253E94" stroke-width="2.6" stroke-linecap="round"/></svg>';
 	}
 
 	public static function render( $atts = array() ) {
 		wp_enqueue_style( 'yaa-archie' );
 		wp_enqueue_script( 'yaa-archie' );
-		$t = self::t_svg();
+		$face = self::face_svg();
 		ob_start();
 		?>
 		<div class="yaa"><div class="archie-embed">
 			<div class="ob-top">
-				<span class="ob-title"><span class="archie-badge"><?php echo $t; // phpcs:ignore ?></span> <?php esc_html_e( 'Chat with Archie', 'your-architect-archie' ); ?></span>
+				<span class="ob-title"><span class="archie-face"><?php echo $face; // phpcs:ignore ?></span> <?php esc_html_e( 'Talk to Archie — your personalised price builds as you answer', 'your-architect-archie' ); ?></span>
 				<div class="ob-actions"><button class="btn btn-outline" id="restartBtn" type="button"><?php esc_html_e( 'Start over', 'your-architect-archie' ); ?></button></div>
 			</div>
 			<div class="ob-body">

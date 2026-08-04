@@ -1,89 +1,132 @@
-# Your Architect — Brand & Website Design Brief (Aug 2026)
+# Your Architect — Website Design Brief
 
-*Prepared by October Communications. Transcribed from `Your_Architect_Design_Brief.docx`.
-This is the current, authoritative design direction for Your Architect and supersedes the
-visual direction in the earlier v3 brief. Settled: the tagline (**Architecture priced
-upfront**), the name (**Your Architect / Archie**), the typeface (**Plus Jakarta Sans**),
-and the **terracotta** palette. Layout execution is the designer's, within the constraints.*
+_Prepared by October Communications · August 2026 (blue rebrand)_
 
-## 1. What we're building
-A self-service architectural drawing platform for UK homeowners — fixed-price planning,
-building control, permitted development and listed building drawings for standard
-residential projects. A trading name of **Tiam Architects Ltd** (ARB-registered, RIBA
-chartered). The core mechanic: a homeowner talks to an AI assistant, **Archie**, who builds
-their package through a short conversation; a fixed price assembles in real time. Domain:
-**yourarchitect.uk**.
+> This supersedes the earlier terracotta direction. The static site, the
+> WordPress theme and the Archie plugin all follow the blue palette and shape
+> language below. Internal code slugs stay `archlie` / `yaa`; only the visible
+> brand is affected.
 
-## 2. Positioning
-The pain is not "architecture is too expensive" — it's "I don't know what it costs and I'm
-afraid to find out." The absence of pricing reads as "not for you." Your Architect removes
-that barrier by showing the price upfront (the Warby Parker / Wise playbook). The villain is
-how architecture is usually priced and sold — the opacity, the "contact us for a quote."
-**What clients pay for, in priority:** certainty of process · planning approval rate (feature
-90%+) · speed to start · fixed price · ARB/RIBA registration (hygiene, not hero — *show it,
-don't lead with it*).
+## Product
+Self-service architectural drawing platform for UK homeowners: fixed-price
+planning and building-regs drawings for standard residential projects
+(extensions, lofts, conversions, outbuildings, new dwellings). Fully remote,
+any location in mainland UK. Trades as a name under **Tiam Architects Ltd**, an
+ARB-registered London practice. The homeowner talks to an AI assistant,
+**Archie**, who builds their package through a short conversation while a fixed
+price assembles live. Domain: **yourarchitect.uk**.
 
-## 3. Tone of voice
-Audience 35+, capable, considered. Plain English (say "construction drawings" not "tender";
-"shared wall with a neighbour" not "party wall"). Direct, economical, British English.
-Reassuring without being soft. Confident, not clever.
-**Tagline: "Architecture priced upfront."** — sits under the logo, stands alone, no comma,
-no subline.
+## Positioning
+The real pain point is not "too expensive" — it is "I don't know what it costs
+and I'm afraid to find out." Your Architect shows the price before any
+commitment. Transparency IS the democratisation (the Warby Parker / Wise move:
+don't say "cheap", show the price). The villain is how architecture is normally
+priced — the opacity, the "contact us for a quote". Your Architect is the
+anti-gatekeeper. Competitors lean warm purple/pink (Resi, Arkiplan, HOMZ); a
+confident **blue field with an orange accent** stands clearly apart.
 
-## 4. Naming
-Brand: **Your Architect**. Assistant: **Archie** (the face/personality). Legal: Tiam
-Architects Ltd trading as Your Architect (invoices + footer).
+## Audience
+35+, capable, considered homeowners with a defined project. Certainty-driven,
+not bargain-hunting. Make an anxious homeowner feel calm and in control, never
+patronised. Not youthful, not corporate.
 
-## 5. Visual direction
-**Do NOT produce a generic SaaS site:** no shadowed card on white, no hero-left/panel-right
-marketing split, no indigo/purple, no pill badges, no lifestyle/stock photography, no gradient
-meshes. Considered and intentional (references: Canevas, YOWIE, IKEA's disciplined colour).
-No portfolio photography exists — the language works through **type, colour, layout and
-structure**. Full-width **colour zones**: the page reads as bands of colour before words,
-executed with craft (not stiff flat blocks).
+## Tagline
+**"Architecture priced upfront."** Sits under the logo. No comma, no subline,
+stands alone.
 
-- **Type:** Plus Jakarta Sans. ExtraBold/Bold display, Medium UI, Regular body. The clipped
-  lowercase **"t"** cropped tight is the logo mark / favicon / app icon.
-- **Colour (terracotta — brick, warm, unused by competitors):** primary `#C4603A`, hover
-  `#A84D2F`, alert `#E05A30`, pale wash `#FAF0EB`, **sage `#4A7C6F` for confirmation only**,
-  off-white bg `#FAFAF8`, text `#1C1C1A`, hairlines `#E8E5E0`.
+## Typography
+**Plus Jakarta Sans** throughout. ExtraBold/Bold display, Medium UI, Regular
+body. Wordmark: "Your Architect" **stacked, left-aligned, tight leading**.
+App/favicon mark: a glyph knocked out of a rounded square in the primary blue or
+orange.
 
-## 6. Homepage
-**Above the fold — radical restraint, only three things:** the logo; the tagline; and
-**Archie's conversation, already running, embedded in the page** (not behind a button, not
-on a separate page). The conversation is the CTA. No badges, bullets, sub-headline or hero
-image above the fold.
-**The Archie interface:** two-panel — conversation + a live package builder; confirmed items
-appear as line items with prices and a running total assembles live; the **total is the
-visual hero of the panel — large, terracotta**; Archie never states a price in conversation
-(the panel does); voice input on every message; a project record from the first message
-(cookie-based) so a returning user resumes; **pricing is never gated behind contact details**.
-Not a gimmicky-chatbot aesthetic — a considered interface.
-**Below the fold (designer's discretion):** stats zone (approval rate 90%+, £0 hidden fees,
-average turnaround) · honest comparison (Your Architect vs traditional practice vs
-unregistered CAD) · pricing (three bands A/B/C, Band B featured "most common") · how it works
-(four steps) · footer (logo, tagline, legal, ARB/RIBA).
+## Colour (exact)
+| Token | Hex | Role |
+|-------|-----|------|
+| Bright blue | `#3478DE` | Primary. Large colour fields, links, structural zones. |
+| Deep navy | `#253E94` | Secondary. Deeper zones, tonal layering, dark high-contrast sections. |
+| Pale blue | `#C7DEED` | Soft cool tone. Light supporting zones, panel fills. |
+| Orange | `#DB6A2E` | **Accent only.** Primary CTAs, the total price, key figures, the mark. Never overused. |
+| Blush | `#F9DBCB` | Soft warm tone. Light zones, the warm counterpart to pale blue. |
+| Near-black | `#1C1C1A` | Text. |
+| Off-white | `#FAFAF8` | Neutral ground where needed. |
 
-## 7. Indicative pricing
-Sit just below comparable published rates. Survey added at banded rates (≈£295–£495). All
-prices include two revisions. Confirmed by Tiam before launch.
+Two families: a **cool blue trio** for structure/calm, a **warm orange/blush
+pair** for action/warmth. Use tonal blue-on-blue layering (bright over navy) for
+depth (à la Joby Aviation) rather than flat single-colour fields.
 
-| Service | Band A | Band B | Band C |
-|---|---|---|---|
-| Planning application | £950 | £1,350 | £1,850 |
-| Building control drawings | £850 | £1,200 | £1,650 |
-| Permitted development | £750 | £950 | £1,250 |
-| Listed building consent | £1,200 | £1,600 | £2,200 |
-| Concept design (add-on) | £400 | £600 | £900 |
+## Visual direction — critical
+Do **not** design a generic SaaS site. Avoid: white page with a shadowed card
+floating centre; hero-left / panel-right split; lifestyle/stock photography;
+photographic-hero-with-dark-overlay; pill badges as decoration; gradient meshes;
+chat-bubble styling that makes Archie look like a support widget. No portfolio
+photography exists and none should be faked — the language works through **type,
+colour, layout and structure**. References that got it right: Joby Aviation
+(tonal blue fields, a single sweeping geometric curve dividing zones, generous
+empty space, warm accent at the base), Canevas, YOWIE.
 
-## 8. Technical notes
-Standalone **React app on Hetzner** (not WordPress). Archie via **Claude API, server-side,
-streaming**, system prompt scoped to package-building. Voice: Web Speech API. Payments:
-Stripe + Stripe Connect. Listed detection: Historic England API on address entry. DB:
-PostgreSQL (records, history, package state, anonymous session persistence). No
-localStorage/sessionStorage in the artifacts context — use React state / server-side.
+## Layout
+Full-width colour zones give rhythm, using the blue trio for structure with
+orange as the recurring accent. Favour tonal layering and **a single confident
+geometric divide (a sweeping curve/diagonal)** over hard flat bands. The page
+should read as considered colour and shape before it reads as words. Generous
+empty space is part of the elegance.
 
-## 9. Explicit do-nots
-No generic SaaS layout · no indigo/purple/startup-blue · no lifestyle/stock photography ·
-no gimmicky-chatbot chat-bubble aesthetic · no "contact us for a quote" · no industry jargon ·
-no clutter above the fold · no Tiam branding, photography or named personnel.
+## Above the fold
+Radical restraint. Only three things: the logo; the tagline; and **the Archie
+conversation, already running, embedded in the page** (not behind a button, not
+a separate page). The conversation IS the CTA. No trust badges, bullets,
+sub-headline or hero image.
+
+## Archie interface (core of the product)
+Two-panel: conversation one side, a live package builder the other. Plain-English
+questions one at a time; confirmed items appear as priced line items with a
+running total. Voice input on every message. **The total is the panel's visual
+hero: large, orange, unmissable.** Archie never states a price in conversation —
+the panel does. A project record saves silently from the first message
+(cookie-based) so returning users resume; pricing is never gated behind contact
+details.
+
+## Pricing (two flat packages — NOT floor-area bands)
+- **Planning — full package · £850.** Home extensions, loft/mansard/garage
+  conversions, outbuildings, new dwellings. Includes site/location/block plans;
+  existing + proposed drawings; 3D concept design (up to 2 revisions); planning
+  application prep, submission & management; detailed Building Regs drawings;
+  revisions; free council-requested amendments. Site visit on request (London
+  boroughs only, additional charge).
+- **Building Regs drawings · £950.** For projects with planning already
+  approved: internal alterations, approved extensions, conversions, outbuildings,
+  new dwellings. Includes detailed Building Regs drawings; construction details &
+  written specification; drainage layout where required; building-control
+  submission on request; revisions.
+- **Full RIBA services (Stages 0–7):** redirect to info@tiamarchitects.com.
+
+Add-ons shown transparently: **3D concept £250**, **Tiam submits application
++£80**, **London site visit £350**. Separately quoted (not upfront): **measured
+survey** ("sourced separately — quote to follow") and **structural engineer**.
+
+### Archie question logic (from Tiam)
+Base package by project type, then branch questions adjust it: storeys for
+extensions; who submits the planning application (+£80 if Tiam); optional 3D
+visual (+£250, "highly recommended…"); London/M25 site visit (+£350); survey and
+structural engineer sourced separately with a quote shared for approval before
+proceeding.
+
+## Below the fold (order flexible)
+Stats (approval rate target 90%+, £0 hidden fees, fast turnaround); honest
+comparison (Your Architect vs traditional practice vs unregistered CAD); the
+pricing menu; how we work (three steps: send details → we confirm the fee & set
+up the portal, you approve → upload sketches/photos, we produce the drawings);
+timeframe (typically within 7 days of the survey/requirements being confirmed);
+footer with logo, tagline, and the "trading name of Tiam Architects Ltd" legal
+line.
+
+## Tone
+Plain English, client language not jargon. Direct, economical, British English.
+Reassuring not soft. Confident not clever — no puns.
+
+## Do-nots
+No SaaS card-on-white · no purple/mauve/pink · no photographic-hero-with-overlay
+· no stock photography · no chatbot-widget styling · no "contact us for a quote"
+(except the RIBA-stages redirect) · no jargon · no clutter above the fold · no
+Tiam branding on anything Your Architect-facing.
