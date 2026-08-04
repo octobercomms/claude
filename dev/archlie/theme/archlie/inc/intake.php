@@ -75,13 +75,14 @@ function archlie_handle_intake() {
 	$name     = isset( $payload['name'] ) ? sanitize_text_field( $payload['name'] ) : '';
 	$email    = isset( $payload['email'] ) ? sanitize_email( $payload['email'] ) : '';
 	$postcode = isset( $payload['postcode'] ) ? sanitize_text_field( $payload['postcode'] ) : '';
-	$service  = isset( $payload['service'] ) ? sanitize_key( $payload['service'] ) : '';
-	$band     = isset( $payload['band'] ) ? sanitize_key( $payload['band'] ) : '';
-	$total    = isset( $payload['total'] ) ? (int) $payload['total'] : 0;
-	$redirect = ! empty( $payload['redirect'] );
+	$package     = isset( $payload['package'] ) ? sanitize_key( $payload['package'] ) : '';
+	$projectType = isset( $payload['projectType'] ) ? sanitize_key( $payload['projectType'] ) : '';
+	$storeys     = isset( $payload['storeys'] ) ? sanitize_key( $payload['storeys'] ) : '';
+	$total       = isset( $payload['total'] ) ? (int) $payload['total'] : 0;
+	$redirect    = ! empty( $payload['redirect'] ) || 'riba' === $package;
 
 	$flags = array();
-	foreach ( array( 'london', 'listed', 'survey', 'structural', 'partyWall', 'concept' ) as $k ) {
+	foreach ( array( 'london', 'submitApp', 'siteVisit', 'survey', 'structural' ) as $k ) {
 		$flags[ $k ] = ! empty( $payload[ $k ] );
 	}
 	$timeframe = isset( $payload['timeframe'] ) ? sanitize_text_field( $payload['timeframe'] ) : '';
@@ -104,8 +105,9 @@ function archlie_handle_intake() {
 	update_post_meta( $post_id, '_archlie_name', $name );
 	update_post_meta( $post_id, '_archlie_email', $email );
 	update_post_meta( $post_id, '_archlie_postcode', $postcode );
-	update_post_meta( $post_id, '_archlie_service', $service );
-	update_post_meta( $post_id, '_archlie_band', $band );
+	update_post_meta( $post_id, '_archlie_package', $package );
+	update_post_meta( $post_id, '_archlie_project_type', $projectType );
+	update_post_meta( $post_id, '_archlie_storeys', $storeys );
 	update_post_meta( $post_id, '_archlie_total', $total );
 	update_post_meta( $post_id, '_archlie_redirect', $redirect ? '1' : '0' );
 	update_post_meta( $post_id, '_archlie_timeframe', $timeframe );
@@ -198,8 +200,8 @@ function archlie_project_meta_box_render( $post ) {
 		__( 'Name', 'archlie' )       => get_post_meta( $post->ID, '_archlie_name', true ),
 		__( 'Email', 'archlie' )      => get_post_meta( $post->ID, '_archlie_email', true ),
 		__( 'Postcode', 'archlie' )   => get_post_meta( $post->ID, '_archlie_postcode', true ),
-		__( 'Service', 'archlie' )    => get_post_meta( $post->ID, '_archlie_service', true ),
-		__( 'Band', 'archlie' )       => get_post_meta( $post->ID, '_archlie_band', true ),
+		__( 'Package', 'archlie' )    => get_post_meta( $post->ID, '_archlie_package', true ),
+		__( 'Project type', 'archlie' ) => get_post_meta( $post->ID, '_archlie_project_type', true ),
 		__( 'Quote total', 'archlie' )=> archlie_money( (int) get_post_meta( $post->ID, '_archlie_total', true ) ),
 		__( 'Tiam redirect', 'archlie' ) => get_post_meta( $post->ID, '_archlie_redirect', true ) === '1' ? __( 'Yes', 'archlie' ) : __( 'No', 'archlie' ),
 		__( 'Timeframe', 'archlie' )  => get_post_meta( $post->ID, '_archlie_timeframe', true ),

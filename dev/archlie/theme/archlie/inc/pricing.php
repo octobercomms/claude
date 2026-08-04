@@ -2,11 +2,10 @@
 /**
  * Archlie — pricing model (single source of truth).
  *
- * Confirmed indicative prices from Brief v3 §5. Tiam adjusts per actual
- * time-cost before launch. This table is localised to the front-end
- * (window.ARCHLIE_WP), which both the homepage price table and the
- * conversational package builder read — so PHP is the only place a number
- * is edited. Override at runtime with the `archlie_pricing_table` filter.
+ * From Tiam's comments: two flat packages (not floor-area bands), a small set
+ * of add-ons, and items sourced separately (survey, structural). Localised to
+ * the front-end (window.ARCHLIE_WP) and mirrored by assets/js/pricing.js.
+ * Override at runtime with the `archlie_pricing_table` filter.
  *
  * @package Archlie
  */
@@ -22,27 +21,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function archlie_pricing_table() {
 	$table = array(
-		'services' => array(
-			'planning'        => array( 'label' => __( 'Planning application drawings', 'archlie' ), 'A' => 950,  'B' => 1350, 'C' => 1850, 'kind' => 'service' ),
-			'buildingcontrol' => array( 'label' => __( 'Building control drawings', 'archlie' ),     'A' => 850,  'B' => 1200, 'C' => 1650, 'kind' => 'service' ),
-			'permitted'       => array( 'label' => __( 'Permitted development drawings', 'archlie' ),'A' => 750,  'B' => 950,  'C' => 1250, 'kind' => 'service' ),
-			'listed'          => array( 'label' => __( 'Listed building consent', 'archlie' ),       'A' => 1200, 'B' => 1600, 'C' => 2200, 'kind' => 'service' ),
-			'concept'         => array( 'label' => __( 'Concept design + 3D visual', 'archlie' ),     'A' => 400,  'B' => 600,  'C' => 900,  'kind' => 'addon' ),
+		'packages' => array(
+			'planning'     => array( 'label' => __( 'Planning — full package', 'archlie' ), 'price' => 850 ),
+			'buildingregs' => array( 'label' => __( 'Building Regs drawings', 'archlie' ),   'price' => 950 ),
 		),
-		'survey' => array(
-			'A' => array( 'std' => 320, 'london' => 420 ),
-			'B' => array( 'std' => 380, 'london' => 495 ),
-			'C' => array( 'std' => 460, 'london' => 560 ),
+		'addons' => array(
+			'submission' => array( 'label' => __( 'We submit & manage your planning application', 'archlie' ), 'price' => 80 ),
+			'concept3d'  => array( 'label' => __( '3D concept visual (up to 2 revisions)', 'archlie' ),        'price' => 250 ),
+			'siteVisit'  => array( 'label' => __( 'Site visit (London boroughs / within the M25)', 'archlie' ), 'price' => 350 ),
 		),
-		'bands' => array(
-			'A' => __( 'Band A · up to 50m²', 'archlie' ),
-			'B' => __( 'Band B · 50–100m²', 'archlie' ),
-			'C' => __( 'Band C · 100–150m²', 'archlie' ),
-		),
-		'redirect'          => array( 'feeOver' => 3500, 'areaOverBand' => true ),
+		'separate'          => array( 'survey', 'structural' ),
 		'revisionsIncluded' => 2,
-		'deliveryDays'      => __( '3–7 working days', 'archlie' ),
+		'deliveryDays'      => __( 'within 7 days', 'archlie' ),
 		'quoteValidityDays' => 30,
+		'ribaEmail'         => 'info@tiamarchitects.com',
 	);
 
 	/** Filter the Archlie pricing model. */
@@ -50,7 +42,7 @@ function archlie_pricing_table() {
 }
 
 /**
- * Format a GBP integer, e.g. 1350 => "£1,350".
+ * Format a GBP integer, e.g. 850 => "£850".
  *
  * @param int $amount Whole pounds.
  * @return string
@@ -60,16 +52,15 @@ function archlie_money( $amount ) {
 }
 
 /**
- * Cheapest-band "from" price for a service, formatted.
+ * A package's flat price, formatted.
  *
- * @param string $service Service key.
+ * @param string $package Package key (planning|buildingregs).
  * @return string
  */
-function archlie_price_from( $service ) {
+function archlie_package_price( $package ) {
 	$t = archlie_pricing_table();
-	if ( isset( $t['services'][ $service ] ) ) {
-		$s = $t['services'][ $service ];
-		return sprintf( /* translators: %s: price */ __( 'from %s', 'archlie' ), archlie_money( min( $s['A'], $s['B'], $s['C'] ) ) );
+	if ( isset( $t['packages'][ $package ] ) ) {
+		return archlie_money( $t['packages'][ $package ]['price'] );
 	}
 	return __( 'By arrangement', 'archlie' );
 }

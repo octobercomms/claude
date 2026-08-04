@@ -73,13 +73,12 @@ function archlie_assets() {
 	// Pricing model shared with the front-end (single source of truth).
 	$t = archlie_pricing_table();
 	$data = array(
-		'services'          => $t['services'],
-		'survey'            => $t['survey'],
-		'bands'             => $t['bands'],
-		'redirect'          => $t['redirect'],
+		'packages'          => $t['packages'],
+		'addons'            => $t['addons'],
 		'revisionsIncluded' => $t['revisionsIncluded'],
 		'deliveryDays'      => $t['deliveryDays'],
 		'quoteValidityDays' => $t['quoteValidityDays'],
+		'ribaEmail'         => $t['ribaEmail'],
 		'ajaxUrl'           => admin_url( 'admin-ajax.php' ),
 		'nonce'             => wp_create_nonce( 'archlie_intake' ),
 		'startUrl'          => archlie_start_url(),
