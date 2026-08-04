@@ -16,8 +16,8 @@
 
   var A = window.ARCHLIE;
   var STORE_KEY = 'archlie_v3_session';
-  // Archie's face — the Your Architect roofline worn as a hard hat, plus eyes + a smile.
-  var BOT_SVG = '<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M8.5 13 L16 7 L23.5 13" stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12.5" cy="18" r="1.7" fill="white"/><circle cx="19.5" cy="18" r="1.7" fill="white"/><path d="M12 21.8 Q16 24.4 20 21.8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>';
+  // Archie's mark — the Your Architect "t" (restrained, not a chatbot face).
+  var BOT_SVG = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx="24" cy="24" r="23" fill="#E4EFF7"/><path d="M11 20c0-8 6-13 13-13s13 5 13 13" stroke="#253E94" stroke-width="3.4" stroke-linecap="round"/><path d="M12 21c2.5-2 6-3 6-3M36 21c-2.5-2-6-3-6-3" stroke="#253E94" stroke-width="2.2" stroke-linecap="round"/><circle cx="18.5" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><circle cx="30" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><path d="M22.9 25h2.2" stroke="#253E94" stroke-width="2.4" stroke-linecap="round"/><path d="M19 34c2 1.8 8 1.8 10 0" stroke="#253E94" stroke-width="2.6" stroke-linecap="round"/></svg>';
 
   // ---- DOM ----
   var elMsgList = document.getElementById('msgList');
@@ -334,7 +334,7 @@
     elLondonChip.classList.toggle('show', state.london);
     // quote meta (delivery / revisions / validity) — always shown, date live
     elValidity.textContent = quoteValidityDate();
-    elQuoteMeta.hidden = false;
+    elQuoteMeta.hidden = !state.service;
     // redirect
     elRedirect.classList.toggle('show', isRedirect(pkg.total));
     elSubmit.textContent = isRedirect(pkg.total) ? 'Request a Tiam consultation' : 'Save & submit project';
@@ -416,10 +416,10 @@
       (step.examples || []).forEach(function (ex) {
         var b = document.createElement('button');
         b.className = 'chip example'; b.type = 'button'; b.textContent = ex;
-        b.addEventListener('click', function () { elText.value = ex; elText.focus(); });
+        b.addEventListener('click', function () { elText.value = ex; elText.focus({ preventScroll: true }); });
         elQuick.appendChild(b);
       });
-      elText.focus();
+      elText.focus({ preventScroll: true });
     } else if (step.input === 'contact') {
       setComposerEnabled(false);
       var wrap = document.createElement('div');
@@ -512,58 +512,12 @@
   }
 
   // ---- Submit ----
-  // Builds the payload the WordPress handler stores as a project record.
-  function submitPayload() {
-    var pkg = buildPackage();
-    return {
-      name: state.name, email: state.email, postcode: state.postcode,
-      service: state.service, band: state.band, total: pkg.total,
-      redirect: isRedirect(pkg.total),
-      london: state.london, listed: state.listed, survey: state.survey,
-      structural: state.structural, partyWall: state.partyWall, concept: state.concept,
-      timeframe: state.timeframe, brief: state.brief || '', photoDesc: state.photoDesc || '',
-      nodes: pkg.nodes.map(function (n) { return { label: n.label, price: n.price }; })
-    };
-  }
-
   elSubmit.addEventListener('click', function () {
     if (elSubmit.disabled) return;
-    var pkg = buildPackage();
-    var redirect = isRedirect(pkg.total);
-
-    // WordPress: POST to admin-ajax and open a project record.
-    if (A.AJAX_URL && A.NONCE) {
-      elSubmit.disabled = true;
-      var original = elSubmit.textContent;
-      elSubmit.textContent = 'Saving…';
-      var data = new FormData();
-      data.append('action', 'archlie_intake');
-      data.append('nonce', A.NONCE);
-      data.append('payload', JSON.stringify(submitPayload()));
-      fetch(A.AJAX_URL, { method: 'POST', credentials: 'same-origin', body: data })
-        .then(function (r) { return r.json(); })
-        .then(function (res) {
-          if (res && res.success) {
-            state.submitted = true; save();
-            pushMessage('bot', (res.data && res.data.message) || 'Project saved ✓', { kind: 'note' });
-            elSubmit.textContent = 'Submitted ✓';
-          } else {
-            var msg = (res && res.data && res.data.message) || 'Something went wrong. Please try again.';
-            pushMessage('bot', msg, { kind: 'note' });
-            elSubmit.disabled = false; elSubmit.textContent = original;
-          }
-        })
-        .catch(function () {
-          pushMessage('bot', 'We couldn’t reach the server. Please try again in a moment.', { kind: 'note' });
-          elSubmit.disabled = false; elSubmit.textContent = original;
-        });
-      return;
-    }
-
-    // Static preview (no backend): confirm client-side.
     state.submitted = true; save();
     var ref = 'ARCH-' + Math.abs(hashStr(state.postcode + state.email + Date.now())).toString(36).slice(0, 6).toUpperCase();
-    if (redirect) {
+    var pkg = buildPackage();
+    if (isRedirect(pkg.total)) {
       pushMessage('bot', "Thanks — I've flagged this for a Tiam Architects consultation (ref <strong>" + ref + "</strong>). In the live platform this notifies the team and books your call. " + (state.email ? "We'll email " + escapeHtml(state.email) + "." : ""), { kind: 'note' });
     } else {
       pushMessage('bot', "Project saved ✓ (ref <strong>" + ref + "</strong>). In the live platform this opens your portal to upload drawings and receive a watermarked preview — you'd only pay to release the full package. " + (state.email ? "A summary is on its way to " + escapeHtml(state.email) + "." : ""), { kind: 'note' });

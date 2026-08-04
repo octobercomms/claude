@@ -61,7 +61,7 @@ function archlie_assets() {
 	$dir = get_template_directory();
 	$uri = get_template_directory_uri();
 
-	wp_enqueue_style( 'archlie-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null );
+	wp_enqueue_style( 'archlie-fonts', 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap', array(), null );
 
 	$ver = function ( $rel ) use ( $dir ) {
 		return file_exists( $dir . $rel ) ? filemtime( $dir . $rel ) : ARCHLIE_VERSION;
@@ -88,10 +88,13 @@ function archlie_assets() {
 	wp_enqueue_script( 'archlie-pricing', $uri . '/assets/js/pricing.js', array(), $ver( '/assets/js/pricing.js' ), true );
 	wp_add_inline_script( 'archlie-pricing', 'window.ARCHLIE_WP = ' . wp_json_encode( $data ) . ';', 'before' );
 
-	if ( archlie_is_builder() ) {
+	// Archie runs on the builder page and embedded on the front page.
+	if ( archlie_is_builder() || is_front_page() ) {
 		wp_enqueue_style( 'archlie-onboarding', $uri . '/assets/css/onboarding.css', array( 'archlie-theme' ), $ver( '/assets/css/onboarding.css' ) );
 		wp_enqueue_script( 'archlie-onboarding', $uri . '/assets/js/onboarding.js', array( 'archlie-pricing' ), $ver( '/assets/js/onboarding.js' ), true );
-	} else {
+	}
+	// The homepage price grid + generic pages use app.js.
+	if ( ! archlie_is_builder() ) {
 		wp_enqueue_script( 'archlie-app', $uri . '/assets/js/app.js', array( 'archlie-pricing' ), $ver( '/assets/js/app.js' ), true );
 	}
 }
@@ -115,7 +118,7 @@ function archlie_primary_menu_fallback() {
 }
 
 /**
- * Site logo: custom logo, or the Archlie wordmark.
+ * Site logo: custom logo, or the stacked "Your Architect" wordmark.
  */
 function archlie_logo() {
 	if ( has_custom_logo() ) {
@@ -123,10 +126,9 @@ function archlie_logo() {
 		return;
 	}
 	printf(
-		'<a href="%s" class="brand" aria-label="%s"><span class="brand-mark">%s</span>Your <span>Architect</span></a>',
+		'<a href="%s" class="logo" aria-label="%s"><span class="wordmark"><span>Your</span><span>Architect</span></span></a>',
 		esc_url( home_url( '/' ) ),
-		esc_attr__( 'Your Architect home', 'archlie' ),
-		'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25 L16 7 L26 25" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+		esc_attr__( 'Your Architect home', 'archlie' )
 	);
 }
 

@@ -1,222 +1,219 @@
 <?php
 /**
- * Front page — the Archlie landing experience.
+ * Front page — Your Architect (Design Brief, Aug 2026).
+ *
+ * Radical restraint above the fold (logo + tagline + Archie embedded live),
+ * then colour-zone sections below.
  *
  * @package Archlie
  */
 
 get_header();
-$start = esc_url( archlie_start_url() );
+$face_svg = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx="24" cy="24" r="23" fill="#E4EFF7"/><path d="M11 20c0-8 6-13 13-13s13 5 13 13" stroke="#253E94" stroke-width="3.4" stroke-linecap="round"/><path d="M12 21c2.5-2 6-3 6-3M36 21c-2.5-2-6-3-6-3" stroke="#253E94" stroke-width="2.2" stroke-linecap="round"/><circle cx="18.5" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><circle cx="30" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><path d="M22.9 25h2.2" stroke="#253E94" stroke-width="2.4" stroke-linecap="round"/><path d="M19 34c2 1.8 8 1.8 10 0" stroke="#253E94" stroke-width="2.6" stroke-linecap="round"/></svg>';
 ?>
 
-<main id="content">
+<!-- HERO: arc + tagline + Archie -->
+<section class="zone hero-zone" id="top">
+	<div class="hero-deco" aria-hidden="true"><span class="arc"></span><span class="strip"></span></div>
+	<div class="band hero">
+		<div class="hero-inner">
+			<h1 class="tagline"><?php esc_html_e( 'Architecture', 'archlie' ); ?><br><?php esc_html_e( 'priced upfront', 'archlie' ); ?></h1>
+			<p class="hero-lede"><?php esc_html_e( 'Fixed-price architectural drawings.', 'archlie' ); ?><br><?php esc_html_e( 'Priced online. No call required.', 'archlie' ); ?></p>
+			<div class="creds">
+				<span class="cred"><span class="mark">arb</span><span class="desc">Architects<br>Registration<br>Board</span></span>
+				<span class="cred"><span class="mark">RIBA</span><span class="desc">Chartered<br>Architect</span></span>
+			</div>
+		</div>
 
-	<!-- HERO -->
-	<section class="hero">
-		<div class="wrap hero-inner">
-			<div class="hero-copy">
-				<span class="eyebrow"><?php echo esc_html( archlie_get( 'archlie_hero_eyebrow' ) ); ?></span>
-				<h1><?php echo esc_html( archlie_get( 'archlie_hero_heading' ) ); ?></h1>
-				<p class="lede"><?php echo esc_html( archlie_get( 'archlie_hero_lede' ) ); ?></p>
-				<div class="hero-actions">
-					<a href="<?php echo $start; ?>" class="btn btn-primary btn-lg"><?php esc_html_e( 'Start your project', 'archlie' ); ?></a>
-					<a href="#pricing" class="btn btn-ghost btn-lg"><?php esc_html_e( 'See pricing', 'archlie' ); ?></a>
+		<div class="hero-embed-wrap" id="archie">
+			<div class="archie-embed">
+				<div class="ob-top">
+					<span class="ob-title"><span class="archie-face" aria-hidden="true"><?php echo $face_svg; // phpcs:ignore ?></span> <?php esc_html_e( 'Talk to Archie — your personalised price builds as you answer', 'archlie' ); ?></span>
+					<div class="ob-actions"><button class="btn btn-outline" id="restartBtn" type="button"><?php esc_html_e( 'Start over', 'archlie' ); ?></button></div>
 				</div>
-				<div class="hero-trust">
-					<div class="reg-chips">
-						<span class="reg-chip"><span class="dot"></span> <?php esc_html_e( 'ARB registered', 'archlie' ); ?></span>
-						<span class="reg-chip"><span class="dot"></span> <?php esc_html_e( 'RIBA chartered practice', 'archlie' ); ?></span>
-						<span class="reg-chip"><span class="dot"></span> <?php esc_html_e( 'Survey included in your quote', 'archlie' ); ?></span>
-					</div>
-					<p class="reg-line"><?php esc_html_e( 'Real, registered architects — not unregistered CAD operators.', 'archlie' ); ?> <strong><?php esc_html_e( 'Your Architect is a trading name of Tiam Architects Ltd.', 'archlie' ); ?></strong></p>
+				<div class="ob-body">
+					<section class="ob-chat" aria-label="<?php esc_attr_e( 'Conversation', 'archlie' ); ?>">
+						<div class="ob-savebar" id="saveBar" hidden>
+							<div class="sb-inner">
+								<div class="sb-text">
+									<strong><?php esc_html_e( 'Save your progress', 'archlie' ); ?></strong>
+									<span><?php esc_html_e( "Enter your email and we'll send a link so you can pick this up later.", 'archlie' ); ?></span>
+								</div>
+								<form class="sb-form" id="saveForm">
+									<input type="email" id="saveEmail" placeholder="you@email.com" autocomplete="email" aria-label="<?php esc_attr_e( 'Email to save your progress', 'archlie' ); ?>">
+									<button type="submit" class="btn btn-primary" style="padding:9px 15px"><?php esc_html_e( 'Save', 'archlie' ); ?></button>
+								</form>
+								<button class="sb-close" id="saveClose" type="button" aria-label="<?php esc_attr_e( 'Dismiss', 'archlie' ); ?>">✕</button>
+							</div>
+							<div class="sb-saved" id="saveSaved" hidden><?php esc_html_e( "Saved ✓ — we'll email you a link to pick up where you left off.", 'archlie' ); ?></div>
+						</div>
+						<div class="ob-messages" id="messages"><div class="wrapmsg" id="msgList"></div></div>
+						<div class="ob-composer">
+							<div class="ob-composer-inner">
+								<div class="quick" id="quickReplies"></div>
+								<div class="composer-row" id="composerRow">
+									<button class="icon-btn" id="photoBtn" type="button" title="<?php esc_attr_e( 'Add a photo of your property', 'archlie' ); ?>" aria-label="<?php esc_attr_e( 'Add a photo', 'archlie' ); ?>">
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 0 1 2-2h1.5l1-1.5h5l1 1.5H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.2"/></svg>
+									</button>
+									<input type="file" id="photoInput" accept="image/*" hidden>
+									<div class="composer-input">
+										<textarea id="textInput" rows="1" placeholder="<?php esc_attr_e( 'Type your answer…', 'archlie' ); ?>" autocomplete="off"></textarea>
+										<button class="icon-btn" id="micBtn" type="button" title="<?php esc_attr_e( 'Voice input', 'archlie' ); ?>" aria-label="<?php esc_attr_e( 'Voice input', 'archlie' ); ?>">
+											<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg>
+										</button>
+									</div>
+									<button class="icon-btn send" id="sendBtn" type="button" title="<?php esc_attr_e( 'Send', 'archlie' ); ?>" aria-label="<?php esc_attr_e( 'Send', 'archlie' ); ?>">
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+									</button>
+								</div>
+							</div>
+						</div>
+					</section>
+					<aside class="ob-panel" id="packagePanel" aria-label="<?php esc_attr_e( 'Your project and price', 'archlie' ); ?>">
+						<button class="ob-panel-toggle" id="panelToggle" type="button"><span><?php esc_html_e( 'Your project', 'archlie' ); ?></span><span class="tt-amt" id="toggleTotal">£0</span></button>
+						<div class="ob-panel-head">
+							<div class="ph-row">
+								<h2><?php esc_html_e( 'Your project', 'archlie' ); ?></h2>
+								<span class="ph-chip" id="londonChip"><?php esc_html_e( 'London pricing', 'archlie' ); ?></span>
+							</div>
+							<p><?php esc_html_e( 'Your price builds as you answer. Nothing is charged now.', 'archlie' ); ?></p>
+						</div>
+						<div class="ob-nodes" id="nodes">
+							<div class="node-empty" id="nodesEmpty"><?php esc_html_e( 'Your package appears here as you answer Archie.', 'archlie' ); ?></div>
+						</div>
+						<div class="ob-panel-foot">
+							<div class="redirect-banner" id="redirectBanner">
+								<strong><?php esc_html_e( 'A better fit for a full commission', 'archlie' ); ?></strong>
+								<p><?php esc_html_e( 'A project this size or scope is usually best handled by our parent studio, Tiam Architects. You can still submit here, or request a consultation.', 'archlie' ); ?></p>
+							</div>
+							<div class="total-row"><span class="t-label"><?php esc_html_e( 'Total', 'archlie' ); ?></span><span class="t-amt" id="totalAmt">£0</span></div>
+							<p class="total-sub" id="totalSub"><?php esc_html_e( 'Fixed price · survey included where added', 'archlie' ); ?></p>
+							<div class="quote-meta" id="quoteMeta" hidden>
+								<div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> <?php esc_html_e( 'Delivery in', 'archlie' ); ?> <strong id="mDelivery">3–7 working days</strong></div>
+								<div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> <span id="mRevisions"><?php esc_html_e( '2 revisions included', 'archlie' ); ?></span></div>
+								<div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> <?php esc_html_e( 'Quote valid until', 'archlie' ); ?> <strong id="mValidity">—</strong></div>
+							</div>
+							<button class="btn btn-primary btn-block submit-btn" id="submitBtn" type="button" disabled><?php esc_html_e( 'Save & submit project', 'archlie' ); ?></button>
+						</div>
+					</aside>
 				</div>
 			</div>
-			<a href="<?php echo $start; ?>" class="teaser" aria-label="<?php esc_attr_e( 'Try the project builder', 'archlie' ); ?>">
-				<div class="teaser-bar"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="tlabel"><?php esc_html_e( 'Build your project — live price', 'archlie' ); ?></span></div>
-				<div class="teaser-body">
-					<div class="teaser-chat">
-						<div class="bubble bot"><?php esc_html_e( "What's the address of the property?", 'archlie' ); ?></div>
-						<div class="bubble user">24 Roupell St, London SE1</div>
-						<div class="bubble bot"><?php esc_html_e( "Thanks — I can see that's a listed building. Tell me a bit about what you're looking to do.", 'archlie' ); ?></div>
-						<div class="bubble user"><?php esc_html_e( 'Rear extension, still need planning', 'archlie' ); ?></div>
-					</div>
-					<div class="teaser-panel">
-						<div class="panel-title"><?php esc_html_e( 'Your project', 'archlie' ); ?></div>
-						<div class="tnode"><span><?php esc_html_e( 'Planning drawings · Band B', 'archlie' ); ?></span><span class="tprice">£1,350</span></div>
-						<div class="tnode"><span><?php esc_html_e( 'Listed building consent', 'archlie' ); ?></span><span class="tprice">£1,600</span></div>
-						<div class="tnode"><span><?php esc_html_e( 'Measured survey', 'archlie' ); ?></span><span class="tprice">£495</span></div>
-						<div class="tnode info"><?php esc_html_e( '✓ London pricing applied', 'archlie' ); ?></div>
-						<div class="ttotal"><span><?php esc_html_e( 'Total', 'archlie' ); ?></span><span class="amt">£3,445</span></div>
-					</div>
-				</div>
-			</a>
 		</div>
-	</section>
+	</div>
+</section>
 
-	<!-- TRUST STRIP -->
-	<section class="trust-strip">
-		<div class="wrap trust-strip-inner">
+<!-- STATS -->
+<section class="zone zone--ink pad">
+	<div class="band">
+		<div class="stats">
+			<div class="stat"><div class="figure">90%<span class="accent">+</span></div><div class="label"><?php esc_html_e( 'Planning approval rate', 'archlie' ); ?></div><div class="sub"><?php esc_html_e( 'Target at launch — the number that reframes the price.', 'archlie' ); ?></div></div>
+			<div class="stat"><div class="figure">£0</div><div class="label"><?php esc_html_e( 'Hidden fees', 'archlie' ); ?></div><div class="sub"><?php esc_html_e( 'Everything in our control is fixed. No hourly rates.', 'archlie' ); ?></div></div>
+			<div class="stat"><div class="figure">3–7<span style="font-size:.4em;font-weight:700"> <?php esc_html_e( 'days', 'archlie' ); ?></span></div><div class="label"><?php esc_html_e( 'Typical turnaround', 'archlie' ); ?></div><div class="sub"><?php esc_html_e( 'A realistic timeframe, shown with your price.', 'archlie' ); ?></div></div>
+		</div>
+	</div>
+</section>
+
+<!-- HONEST COMPARISON -->
+<section class="zone pad" id="compare">
+	<div class="band">
+		<div class="sec-head">
+			<span class="sec-kicker"><?php esc_html_e( 'The honest comparison', 'archlie' ); ?></span>
+			<h2><?php esc_html_e( 'What you actually get, side by side.', 'archlie' ); ?></h2>
+			<p><?php esc_html_e( 'No selling. The gap between a transparent service and how architecture is usually sold speaks for itself.', 'archlie' ); ?></p>
+		</div>
+		<div class="compare-wrap">
+			<table class="compare">
+				<thead>
+					<tr><th></th><th class="col us"><?php esc_html_e( 'Your Architect', 'archlie' ); ?></th><th class="col"><?php esc_html_e( 'Traditional practice', 'archlie' ); ?></th><th class="col"><?php esc_html_e( 'Unregistered CAD', 'archlie' ); ?></th></tr>
+				</thead>
+				<tbody>
+					<?php
+					$rows = array(
+						array( __( 'Price shown upfront', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Quote after a call', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Sometimes', 'archlie' ) . '</span>' ),
+						array( __( 'ARB / RIBA registered', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="no">✕</span>' ),
+						array( __( 'Survey included in the price', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Extra', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Extra', 'archlie' ) . '</span>' ),
+						array( __( 'Start today, no call', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="no">✕</span>', '<span class="muted">' . esc_html__( 'Varies', 'archlie' ) . '</span>' ),
+						array( __( 'Published approval rate', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Never shown', 'archlie' ) . '</span>', '<span class="no">✕</span>' ),
+						array( __( 'Revisions included', 'archlie' ), '<span class="yes">' . esc_html__( 'Two', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Hourly', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Varies', 'archlie' ) . '</span>' ),
+					);
+					foreach ( $rows as $r ) {
+						echo '<tr><th>' . esc_html( $r[0] ) . '</th><td class="cell us">' . wp_kses_post( $r[1] ) . '</td><td class="cell">' . wp_kses_post( $r[2] ) . '</td><td class="cell">' . wp_kses_post( $r[3] ) . '</td></tr>';
+					}
+					?>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</section>
+
+<!-- PRICING -->
+<section class="zone zone--pale pad" id="pricing">
+	<div class="band">
+		<div class="sec-head">
+			<span class="sec-kicker"><?php esc_html_e( 'Pricing', 'archlie' ); ?></span>
+			<h2><?php esc_html_e( 'Fixed prices, by size.', 'archlie' ); ?></h2>
+			<p><?php esc_html_e( 'Three floor-area bands across our services. Band B — a typical extension or loft — is where most projects land. Survey costs added at banded rates. Every price includes two revisions.', 'archlie' ); ?></p>
+		</div>
+		<div class="price-grid" id="priceGrid">
+			<div class="price-card" data-band="A"><h3><?php esc_html_e( 'Band A', 'archlie' ); ?></h3><p class="band-note"><?php esc_html_e( 'Up to 50m²', 'archlie' ); ?></p><div class="rows"></div></div>
+			<div class="price-card feat" data-band="B"><h3><?php esc_html_e( 'Band B', 'archlie' ); ?></h3><p class="band-note">50–100m²</p><div class="rows"></div></div>
+			<div class="price-card" data-band="C"><h3><?php esc_html_e( 'Band C', 'archlie' ); ?></h3><p class="band-note">100–150m²</p><div class="rows"></div></div>
+		</div>
+		<p class="price-note"><?php esc_html_e( 'Indicative prices, confirmed by Tiam before launch — set to sit just below comparable published rates. Over 150m², or a project that needs ongoing management, is handled by Tiam Architects as a full commission.', 'archlie' ); ?></p>
+	</div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="zone pad" id="how">
+	<div class="band">
+		<div class="sec-head">
+			<span class="sec-kicker"><?php esc_html_e( 'How it works', 'archlie' ); ?></span>
+			<h2><?php esc_html_e( 'Four steps, no phone tag.', 'archlie' ); ?></h2>
+		</div>
+		<div class="steps">
+			<div class="step"><div class="n">01</div><h3><?php esc_html_e( 'Tell Archie', 'archlie' ); ?></h3><p><?php esc_html_e( 'Answer a few plain questions — by text or voice. Your package and price build as you go.', 'archlie' ); ?></p></div>
+			<div class="step"><div class="n">02</div><h3><?php esc_html_e( 'See your price', 'archlie' ); ?></h3><p><?php esc_html_e( 'A fixed total, shown before you share any details. Save it and come back whenever you like.', 'archlie' ); ?></p></div>
+			<div class="step"><div class="n">03</div><h3><?php esc_html_e( 'We draw, you review', 'archlie' ); ?></h3><p><?php esc_html_e( 'Our registered architects prepare your drawings; you review a watermarked preview and request up to two revisions.', 'archlie' ); ?></p></div>
+			<div class="step"><div class="n">04</div><h3><?php esc_html_e( 'Full drawings on payment', 'archlie' ); ?></h3><p><?php esc_html_e( 'Pay online and the complete, submission-ready package is released to your portal.', 'archlie' ); ?></p></div>
+		</div>
+	</div>
+</section>
+
+<!-- FAQ -->
+<section class="zone zone--pale pad" id="faq">
+	<div class="band">
+		<div class="sec-head">
+			<span class="sec-kicker"><?php esc_html_e( 'FAQ', 'archlie' ); ?></span>
+			<h2><?php esc_html_e( 'The questions we get asked most.', 'archlie' ); ?></h2>
+		</div>
+		<div class="faq">
 			<?php
-			$ts = array(
-				__( 'ARB-registered architects', 'archlie' ),
-				__( 'Fixed prices, shown upfront', 'archlie' ),
-				__( 'Survey costs included', 'archlie' ),
-				__( '3–7 day turnaround', 'archlie' ),
-				__( '2 revisions included', 'archlie' ),
+			$faqs = array(
+				array( __( 'Is the price really fixed?', 'archlie' ), __( "Yes. Everything in our control — the drawings, two revisions, and the survey where you add it — is a fixed total, shown before you share any details. The only things we can't fix are third-party fees (like your local authority's planning application fee), and we flag those clearly.", 'archlie' ) ),
+				array( __( 'Who actually does the drawings?', 'archlie' ), __( 'Registered architects at Tiam Architects Ltd — an ARB-registered, RIBA-chartered practice. Your Architect is our fixed-price service for standard residential projects; the same people prepare your package.', 'archlie' ) ),
+				array( __( 'What if my project is bigger or unusual?', 'archlie' ), __( "If it's over 150m², or needs ongoing management, Archie will flag it as a better fit for a full commission with Tiam. You can still submit here, or request a consultation — no wasted call either way.", 'archlie' ) ),
+				array( __( 'When do I pay?', 'archlie' ), __( 'Nothing is charged while you talk to Archie. We prepare your drawings and send a watermarked preview; you only pay online to release the full, submission-ready package.', 'archlie' ) ),
 			);
-			foreach ( $ts as $t ) {
-				echo '<span class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> ' . esc_html( $t ) . '</span>';
+			foreach ( $faqs as $i => $f ) {
+				printf(
+					'<details%s><summary>%s</summary><p>%s</p></details>',
+					0 === $i ? ' open' : '',
+					esc_html( $f[0] ),
+					esc_html( $f[1] )
+				);
 			}
 			?>
 		</div>
-	</section>
+	</div>
+</section>
 
-	<!-- AI ONBOARDING HIGHLIGHT -->
-	<section class="section" id="how">
-		<div class="wrap">
-			<div class="ai-highlight">
-				<div class="ai-copy">
-					<span class="kicker"><?php esc_html_e( 'No forms. Just a conversation.', 'archlie' ); ?></span>
-					<h2><?php esc_html_e( 'Tell us about your project, watch your price build.', 'archlie' ); ?></h2>
-					<p><?php esc_html_e( "Answer a few plain-English questions — by text or voice — and Archie, our project assistant, builds your package and price on the right as you go. Nothing requires architectural knowledge, and you'll never fill in a form.", 'archlie' ); ?></p>
-					<ul class="ai-list">
-						<?php
-						$ai = array(
-							__( 'We check listed-building status from the address automatically', 'archlie' ),
-							__( 'Your fixed price is shown before we ask for any details', 'archlie' ),
-							__( 'Your project saves as you go — come back any time', 'archlie' ),
-						);
-						foreach ( $ai as $item ) {
-							echo '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> ' . esc_html( $item ) . '</li>';
-						}
-						?>
-					</ul>
-					<a href="<?php echo $start; ?>" class="btn btn-primary btn-lg"><?php esc_html_e( 'Build your project', 'archlie' ); ?></a>
-				</div>
-				<div class="steps" style="grid-template-columns:1fr">
-					<div class="step"><span class="sn">1</span><h3><?php esc_html_e( 'Have a quick chat', 'archlie' ); ?></h3><p><?php esc_html_e( 'Ten short questions about your property and what you want to do. Answer by typing or speaking.', 'archlie' ); ?></p></div>
-					<div class="step"><span class="sn">2</span><h3><?php esc_html_e( 'See your fixed price', 'archlie' ); ?></h3><p><?php esc_html_e( 'Your package builds live with a running total — drawings, survey and add-ons, all confirmed upfront.', 'archlie' ); ?></p></div>
-					<div class="step"><span class="sn">3</span><h3><?php esc_html_e( 'Submit & we get drawing', 'archlie' ); ?></h3><p><?php esc_html_e( 'Save your project, upload anything useful, and our registered architects prepare your drawings.', 'archlie' ); ?></p></div>
-					<div class="step"><span class="sn">4</span><h3><?php esc_html_e( 'Preview, approve, pay', 'archlie' ); ?></h3><p><?php esc_html_e( 'Review a watermarked preview, request up to two revisions, then pay to release the full package.', 'archlie' ); ?></p></div>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<!-- PRICING (table filled from window.ARCHLIE via app.js) -->
-	<section class="section section-tint" id="pricing">
-		<div class="wrap">
-			<div class="section-head">
-				<span class="kicker"><?php esc_html_e( 'Pricing', 'archlie' ); ?></span>
-				<h2><?php esc_html_e( 'Fixed prices, shown before you share any details', 'archlie' ); ?></h2>
-				<p><?php esc_html_e( 'Priced by service and floor area across three size bands. Survey costs are added at agreed banded rates — everything is confirmed in your quote.', 'archlie' ); ?></p>
-			</div>
-			<div class="price-wrap">
-				<table class="pricing" id="priceTable" aria-label="<?php esc_attr_e( 'Your Architect fixed prices by service and band', 'archlie' ); ?>">
-					<thead>
-						<tr>
-							<th><?php esc_html_e( 'Service', 'archlie' ); ?></th>
-							<th class="band"><?php esc_html_e( 'Band A', 'archlie' ); ?><br><small style="font-weight:400"><?php esc_html_e( 'up to 50m²', 'archlie' ); ?></small></th>
-							<th class="band"><?php esc_html_e( 'Band B', 'archlie' ); ?><br><small style="font-weight:400">50–100m²</small></th>
-							<th class="band"><?php esc_html_e( 'Band C', 'archlie' ); ?><br><small style="font-weight:400">100–150m²</small></th>
-						</tr>
-					</thead>
-					<tbody><!-- filled from assets/js/app.js --></tbody>
-				</table>
-			</div>
-			<div class="price-notes">
-				<div class="price-note"><strong><?php esc_html_e( 'Survey included', 'archlie' ); ?></strong><?php esc_html_e( 'Measured survey added at banded rates (approx. £295–£495). London rates apply where the address confirms it.', 'archlie' ); ?></div>
-				<div class="price-note"><strong><?php esc_html_e( '2 revisions included', 'archlie' ); ?></strong><?php esc_html_e( 'Two design revisions in every package. Further revisions are paid via the portal before processing.', 'archlie' ); ?></div>
-				<div class="price-note"><strong><?php esc_html_e( '30-day quote validity', 'archlie' ); ?></strong><?php esc_html_e( 'Every quote shows its expiry date. Delivery is a realistic 3–7 working days — quality over speed.', 'archlie' ); ?></div>
-			</div>
-			<p class="price-disclaimer"><?php esc_html_e( 'Confirmed indicative prices (Brief v3). Final figures set by Tiam before launch. Quotes rely on the accuracy of the information submitted — if material details are omitted (e.g. listed status or a party wall), revised pricing may apply.', 'archlie' ); ?></p>
-		</div>
-	</section>
-
-	<!-- SERVICES -->
-	<section class="section" id="services">
-		<div class="wrap">
-			<div class="section-head">
-				<span class="kicker"><?php esc_html_e( 'What we draw', 'archlie' ); ?></span>
-				<h2><?php esc_html_e( 'Standard residential packages, RIBA stages 0–4', 'archlie' ); ?></h2>
-				<p><?php esc_html_e( 'Straightforward, submission-ready drawings in the language you actually use. Construction-stage (RIBA 5) is available by arrangement.', 'archlie' ); ?></p>
-			</div>
-			<div class="svc-grid">
-				<div class="svc-card"><h3><?php esc_html_e( 'Planning application drawings', 'archlie' ); ?></h3><p><?php esc_html_e( 'Existing and proposed plans, elevations and site plans to accompany a householder or full planning application.', 'archlie' ); ?></p><span class="from"><?php echo esc_html( archlie_price_from( 'planning' ) ); ?></span></div>
-				<div class="svc-card"><h3><?php esc_html_e( 'Building control drawings', 'archlie' ); ?></h3><p><?php esc_html_e( 'Technical drawings and construction detail for building regulations approval — what you need once planning is in place.', 'archlie' ); ?></p><span class="from"><?php echo esc_html( archlie_price_from( 'buildingcontrol' ) ); ?></span></div>
-				<div class="svc-card"><h3><?php esc_html_e( 'Permitted development drawings', 'archlie' ); ?></h3><p><?php esc_html_e( 'Drawings and a lawful development certificate pack for works under permitted development rights.', 'archlie' ); ?></p><span class="from"><?php echo esc_html( archlie_price_from( 'permitted' ) ); ?></span></div>
-				<div class="svc-card"><h3><?php esc_html_e( 'Listed building consent', 'archlie' ); ?></h3><p><?php esc_html_e( 'A standard listed building consent application package, prepared by architects experienced with heritage work.', 'archlie' ); ?></p><span class="from"><?php echo esc_html( archlie_price_from( 'listed' ) ); ?></span></div>
-				<div class="svc-card"><h3><?php esc_html_e( 'Concept design & 3D visuals', 'archlie' ); ?> <span style="font-size:.7rem;font-weight:600;color:var(--indigo);background:var(--indigo-t);padding:2px 8px;border-radius:999px;vertical-align:middle"><?php esc_html_e( 'Add-on', 'archlie' ); ?></span></h3><p><?php esc_html_e( 'An optional concept layout or 3D visual to support your application and help you picture the finished result.', 'archlie' ); ?></p><span class="from"><?php echo esc_html( archlie_price_from( 'concept' ) ); ?></span></div>
-				<div class="svc-card"><h3><?php esc_html_e( 'Coordination & site attendance', 'archlie' ); ?> <span style="font-size:.7rem;font-weight:600;color:var(--muted);background:var(--canvas-2);padding:2px 8px;border-radius:999px;vertical-align:middle"><?php esc_html_e( 'By arrangement', 'archlie' ); ?></span></h3><p><?php esc_html_e( 'Consultant liaison and site attendance where a project needs more hands-on coordination. Quoted on the details.', 'archlie' ); ?></p><span class="from" style="color:var(--muted)"><?php esc_html_e( 'By arrangement', 'archlie' ); ?></span></div>
-			</div>
-			<p class="svc-note"><?php esc_html_e( 'Bigger or more complex — over 150m², construction-stage, or a heritage project beyond a standard consent?', 'archlie' ); ?> <a href="#tiam"><?php esc_html_e( "We'll pass you to Tiam Architects →", 'archlie' ); ?></a></p>
-		</div>
-	</section>
-
-	<!-- TIAM REDIRECT -->
-	<section class="section section-tint" id="tiam">
-		<div class="wrap">
-			<div class="redirect-card">
-				<div>
-					<span class="kicker"><?php esc_html_e( 'For larger commissions', 'archlie' ); ?></span>
-					<h2><?php esc_html_e( 'Some projects deserve the full studio', 'archlie' ); ?></h2>
-					<p><?php esc_html_e( 'Your Architect handles standard residential drawings brilliantly. When a project is bigger or more involved, we hand you to our parent practice, Tiam Architects, for a full commission and a proper conversation — same registered team, tailored service.', 'archlie' ); ?></p>
-				</div>
-				<ul class="redirect-list">
-					<li><?php esc_html_e( 'Floor area over 150m²', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Heritage work beyond a standard listed consent', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Estimated fee over £3,500', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Construction-stage or ongoing project management', 'archlie' ); ?></li>
-				</ul>
-			</div>
-		</div>
-	</section>
-
-	<!-- REGISTRATION -->
-	<section class="section" id="registration">
-		<div class="wrap">
-			<div class="two-col">
-				<div>
-					<span class="kicker"><?php esc_html_e( 'Why registration matters', 'archlie' ); ?></span>
-					<h2 style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:800;margin:10px 0 14px"><?php esc_html_e( "The trust the CAD shops can't offer", 'archlie' ); ?></h2>
-					<p style="color:var(--ink-soft);margin-bottom:14px"><?php esc_html_e( 'Anyone can draw a plan. Only architects on the ARB register may call themselves an architect — it means accountability, professional indemnity cover, and a formal route if anything goes wrong. At Your Architect you get that as standard, at a fixed price.', 'archlie' ); ?></p>
-					<p style="color:var(--ink-soft)"><?php esc_html_e( 'Every project is delivered by Tiam Architects Ltd, a RIBA chartered practice, and covered by its professional indemnity insurance.', 'archlie' ); ?></p>
-				</div>
-				<ul class="fact-list">
-					<li><strong><?php esc_html_e( 'ARB registered', 'archlie' ); ?></strong> — <?php printf( /* translators: %s: ARB no. */ esc_html__( 'architects on the Architects Registration Board register. Reg. no. %s.', 'archlie' ), '<em>' . esc_html( archlie_get( 'archlie_arb_no' ) ) . '</em>' ); ?></li>
-					<li><strong><?php esc_html_e( 'RIBA chartered practice', 'archlie' ); ?></strong> — <?php esc_html_e( 'delivered by Tiam Architects Ltd, a chartered practice.', 'archlie' ); ?></li>
-					<li><strong><?php esc_html_e( 'Covered by PI insurance', 'archlie' ); ?></strong> — <?php esc_html_e( "all Your Architect work sits under Tiam's existing professional indemnity policy.", 'archlie' ); ?></li>
-					<li><strong><?php esc_html_e( 'A formal route for queries', 'archlie' ); ?></strong> — <?php printf( /* translators: %s: company no. */ esc_html__( 'Company no. %s. Registered details shown on every invoice and quote.', 'archlie' ), '<em>' . esc_html( archlie_get( 'archlie_company_no' ) ) . '</em>' ); ?></li>
-				</ul>
-			</div>
-		</div>
-	</section>
-
-	<!-- FAQ -->
-	<section class="section section-tint" id="faq">
-		<div class="wrap wrap-narrow">
-			<div class="section-head"><span class="kicker"><?php esc_html_e( 'Questions', 'archlie' ); ?></span><h2><?php esc_html_e( 'Good to know', 'archlie' ); ?></h2></div>
-			<div class="faq">
-				<details class="faq-item" open><summary><?php esc_html_e( 'Are you actually architects?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'Yes. Your Architect is a trading name of Tiam Architects Ltd, an ARB-registered, RIBA-chartered practice. Your drawings are produced by registered architects — not unregistered CAD operators — and covered by our professional indemnity insurance.', 'archlie' ); ?></div></details>
-				<details class="faq-item"><summary><?php esc_html_e( 'Do I have to book a call?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'No. You build your project in a short online conversation and see your fixed price as you go. We only get in touch if we need something to complete your drawings.', 'archlie' ); ?></div></details>
-				<details class="faq-item"><summary><?php esc_html_e( 'Is the survey really included?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'If you need a measured survey, its cost is bundled into your quote at agreed banded rates, and our panel surveyor works to a one-week turnaround. If you already have adequate drawings, that cost is simply left out.', 'archlie' ); ?></div></details>
-				<details class="faq-item"><summary><?php esc_html_e( 'How many revisions do I get?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'Two design revisions are included in every package. From the third onward, you pay via the portal before the revision is processed. Additional revisions are time-charged.', 'archlie' ); ?></div></details>
-				<details class="faq-item"><summary><?php esc_html_e( 'How long does it take?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( "A realistic 3–7 working days, shown alongside your price. We don't make 48-hour promises — quality is the point.", 'archlie' ); ?></div></details>
-				<details class="faq-item"><summary><?php esc_html_e( 'What if my project is listed or larger?', 'archlie' ); ?></summary><div class="faq-body"><?php esc_html_e( 'We handle standard listed building consent applications directly. For heritage work beyond that, projects over 150m², or construction-stage work, we pass you to Tiam Architects for a full commission.', 'archlie' ); ?></div></details>
-			</div>
-		</div>
-	</section>
-
-	<!-- CTA -->
-	<section class="cta-band">
-		<div class="wrap cta-inner">
-			<h2><?php esc_html_e( 'Get your fixed price in a few minutes', 'archlie' ); ?></h2>
-			<p><?php esc_html_e( 'A short conversation. A clear price. Registered architects.', 'archlie' ); ?></p>
-			<a href="<?php echo $start; ?>" class="btn btn-primary btn-lg"><?php esc_html_e( 'Start your project', 'archlie' ); ?></a>
-		</div>
-	</section>
-
-</main>
+<!-- CTA -->
+<section class="zone zone--blue pad-sm">
+	<div class="band" style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap">
+		<h2 style="font-size:clamp(1.6rem,3.4vw,2.4rem);max-width:20ch;color:#fff"><?php esc_html_e( 'Your price is a conversation away.', 'archlie' ); ?></h2>
+		<a href="#archie" class="btn btn-primary btn-lg"><?php esc_html_e( 'Talk to Archie', 'archlie' ); ?></a>
+	</div>
+</section>
 
 <?php
 get_footer();
