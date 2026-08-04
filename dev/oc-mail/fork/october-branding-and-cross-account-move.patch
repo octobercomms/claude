@@ -405,10 +405,60 @@ index 0000000..9161fe5
 +
 +export default router;
 diff --git a/backend/src/routes/mail.js b/backend/src/routes/mail.js
-index e35d815..e61e359 100644
+index e35d815..3305c36 100644
 --- a/backend/src/routes/mail.js
 +++ b/backend/src/routes/mail.js
-@@ -1410,6 +1410,123 @@ router.post('/messages/bulk-move', async (req, res) => {
+@@ -683,14 +683,15 @@ router.patch('/messages/:id/read', async (req, res) => {
+     imapManager.broadcast({ type: 'message_flags', accountId: message.account_id, changes: [{ id, is_read: read }] }, req.session.userId);
+   }
+ 
+-  // GTD: a labeled message owns a sibling row per folder. Fan the read change out to
+-  // those rows (and their folder unread counts) so label views don't go stale. Gated on
+-  // gtd_enabled (so a non-GTD account is byte-identical to pre-GTD behaviour) AND on the
+-  // message actually having siblings — a plain single-folder message keeps the PK-only
+-  // fast path. The IMAP \Seen flag is written to the acted folder only (below): Gmail
+-  // propagates \Seen message-wide server-side, and per-copy writes to N folders would
+-  // multiply round-trips — an asymmetry accepted in the GTD design.
+-  if (accountResult.rows[0]?.gtd_enabled && Number(message.sibling_count) > 1) {
++  // A label-based message (Gmail) owns a sibling row per folder/label. Fan the read
++  // change out to those rows (and their folder unread counts) so the other copies —
++  // crucially the INBOX copy the account badge counts — don't stay unread. Runs whenever
++  // the message actually has siblings; a plain single-folder message keeps the PK-only
++  // fast path. Not gated on GTD: the badge is a live COUNT of unread INBOX rows, so a
++  // read on any label must reach the INBOX sibling or the count sticks. The IMAP \Seen
++  // flag is still written to the acted folder only (below) — Gmail propagates it
++  // message-wide server-side; the fan-out makes the LOCAL state correct immediately.
++  if (Number(message.sibling_count) > 1) {
+     await fanOutReadToSiblings(message.account_id, message.message_id, read);
+   }
+ 
+@@ -994,18 +995,13 @@ router.post('/messages/bulk-read', async (req, res) => {
+ 
+     // GTD: fan the read change out to sibling label rows of every updated message that
+     // belongs to a gtd_enabled account, adjusting each sibling folder's unread count.
+-    // Gating on gtd_enabled keeps a non-GTD account byte-identical to pre-GTD (no extra
+-    // fan-out query); the fan-out itself is also self-limiting for messages without
+-    // siblings. IMAP \Seen is still written per acted row only (below); Gmail propagates
+-    // it message-wide server-side.
+-    // gtdUpdatedIds is scoped to toUpdate (rows whose read-state actually changed), so a
+-    // message already at the target state never triggers sibling fan-out here — unlike the
+-    // single-message handler above, which fans out unconditionally regardless of whether the
+-    // acted message's own state changed. That asymmetry is acceptable: nothing else in this
+-    // path can push a sibling out of sync with its head, and the label-folder tick already
+-    // self-heals any divergence on the next read.
+-    const gtdUpdatedIds = toUpdate.filter(m => m.gtd_enabled).map(m => m.id);
+-    if (gtdUpdatedIds.length) await fanOutBulkReadToSiblings(gtdUpdatedIds, read);
++    // Fan the read-state out to each updated message's sibling rows (label copies),
++    // so the INBOX copy the account badge counts is updated too. Not gated on GTD: the
++    // badge is a live COUNT of unread INBOX rows, so a read on any label copy must reach
++    // the INBOX sibling or the count sticks. Scoped to toUpdate (rows that actually
++    // changed) and self-limiting for messages without siblings. IMAP \Seen is still
++    // written per acted row only (below); Gmail propagates it message-wide server-side.
++    await fanOutBulkReadToSiblings(toUpdate.map(m => m.id), read);
+     // Reflect the bulk read/unread change on the user's other sessions in place (no full refetch).
+     imapManager.broadcast({ type: 'message_flags', changes: toUpdate.map(m => ({ id: m.id, is_read: read })) }, req.session.userId);
+ 
+@@ -1410,6 +1406,123 @@ router.post('/messages/bulk-move', async (req, res) => {
    }
  });
  
@@ -6510,7 +6560,7 @@ index 8e2df0e..10c0e01 100644
            {/* Backdrop — covers full screen including status bar area */}
            {mobileSidebarOpen && (
 diff --git a/frontend/src/components/MessageList.jsx b/frontend/src/components/MessageList.jsx
-index efb16df..2484829 100644
+index efb16df..8307e62 100644
 --- a/frontend/src/components/MessageList.jsx
 +++ b/frontend/src/components/MessageList.jsx
 @@ -9,6 +9,7 @@ import { useSwipeRow } from '../hooks/useSwipeRow.js';
@@ -6521,7 +6571,38 @@ index efb16df..2484829 100644
  import {
    gtdActiveForContext, buildGtdDisplaySections, GTD_COLORS, GTD_CHIP_BG, sectionBadge, isSelectedRow,
    classifyThread, unclassifyThread,
-@@ -153,6 +154,8 @@ export default function MessageList() {
+@@ -20,6 +21,30 @@ import { createLatestRequest } from '../utils/latestRequest.js';
+ import { pendingMarkReadMap, completedMarkReadMap, setPending } from '../utils/pendingReads.js';
+ import { applyDeleteGuard, clearDeleteGuard, clearPendingDelete, setCompletedDelete, setPendingDelete } from '../utils/pendingDeletes.js';
+ 
++// Patch a same-ordered list of messages in place from a fresh fetch: update the mutable
++// per-row fields, but KEEP each unchanged row's original object identity so memoised rows
++// don't re-render. Used for flag-only background syncs (read/star/count changes) where the
++// order hasn't changed — avoids the wholesale array swap that shifts rows under the cursor.
++const MERGE_FIELDS = ['is_read', 'is_starred', 'unread_count', 'snippet', 'category', 'is_flagged', 'has_attachment', 'labels', 'subject', 'date'];
++function mergeMessagesInPlace(current, fresh) {
++  const byId = new Map(fresh.map(m => [m.id, m]));
++  return current.map(c => {
++    const f = byId.get(c.id);
++    if (!f) return c;
++    let changed = false;
++    for (const k of MERGE_FIELDS) {
++      const a = c[k], b = f[k];
++      if (a === b) continue;
++      if ((k === 'labels') && JSON.stringify(a) === JSON.stringify(b)) continue;
++      changed = true; break;
++    }
++    if (!changed) return c;
++    const merged = { ...c };
++    for (const k of MERGE_FIELDS) merged[k] = f[k];
++    return merged;
++  });
++}
++
+ // Folder icon for move picker
+ function FolderIcon({ specialUse, size = 13 }) {
+   const s = (specialUse || '').toLowerCase();
+@@ -153,6 +178,8 @@ export default function MessageList() {
    }, []);
  
    const [unreadOnly, setUnreadOnly] = useState(false);
@@ -6530,17 +6611,21 @@ index efb16df..2484829 100644
    const [activeCategory, setActiveCategory] = useState('primary');
    const [currentPage, setCurrentPage] = useState(1);
    const currentPageRef = useRef(1);
-@@ -178,6 +181,9 @@ export default function MessageList() {
+@@ -178,6 +205,13 @@ export default function MessageList() {
    const pendingDeleteTimers = useRef(new Map()); // id/thread key -> pending delete metadata
    const recentMessageOpenUntilRef = useRef(0);
    const deferredRefreshTimerRef = useRef(null);
++  // Last time the pointer moved over the list. While recently active, a background sync
++  // that would REORDER the list (new mail, removals) is deferred so rows don't shift
++  // under the cursor mid-click; flag-only updates still apply in place immediately.
++  const listActiveUntilRef = useRef(0);
 +  // Last time we kicked an on-open IMAP sync per "accountId:folder", so opening a
 +  // non-INBOX folder refreshes it (the 60s tick only syncs INBOX) without hammering.
 +  const folderSyncedAtRef = useRef(new Map());
  
    // Bulk selection state
    const [selectedIds, setSelectedIds] = useState(new Set());
-@@ -197,6 +203,9 @@ export default function MessageList() {
+@@ -197,6 +231,9 @@ export default function MessageList() {
  
    useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
    useEffect(() => { setActiveCategory('primary'); setActiveGtdTab(null); }, [selectedAccountId, selectedFolder, setActiveGtdTab]);
@@ -6550,7 +6635,7 @@ index efb16df..2484829 100644
    useEffect(() => {
      const markOpening = () => {
        recentMessageOpenUntilRef.current = Date.now() + 1500;
-@@ -337,13 +346,24 @@ export default function MessageList() {
+@@ -337,13 +374,24 @@ export default function MessageList() {
              setMessagesOffset(data.messages.length);
              setHasMoreMessages(data.messages.length < data.total);
  
@@ -6582,7 +6667,58 @@ index efb16df..2484829 100644
              } else {
                setFolderSyncing(false);
              }
-@@ -587,6 +607,12 @@ export default function MessageList() {
+@@ -414,18 +462,42 @@ export default function MessageList() {
+             // If the unread filter is on and the currently open message was just marked
+             // read, the server won't return it — preserve it so the user can keep reading.
+             let msgs = applyReadGuard(data.messages);
+-            const activeId = useStore.getState().selectedMessageId;
++            const store = useStore.getState();
++            const activeId = store.selectedMessageId;
+             if (unreadOnly && activeId && !msgs.some(m => m.id === activeId)) {
+-              const kept = useStore.getState().messages.find(m => m.id === activeId);
++              const kept = store.messages.find(m => m.id === activeId);
+               if (kept) msgs = [kept, ...msgs];
+             }
+-            setMessages(msgs);
+-            if (sm === 'paginated') {
+-              setHasMoreMessages(false);
+-            } else {
+-              setMessagesOffset(data.messages.length);
+-              setHasMoreMessages(data.messages.length < data.total);
++            const applyOffset = () => {
++              if (sm === 'paginated') setHasMoreMessages(false);
++              else { setMessagesOffset(data.messages.length); setHasMoreMessages(data.messages.length < data.total); }
++            };
++            const cur = store.messages;
++            const sameOrder = cur.length === msgs.length && cur.every((c, i) => c.id === msgs[i].id);
++            if (sameOrder) {
++              // Same rows in the same order — patch mutable fields in place, keeping the
++              // identity of unchanged rows. If NOTHING changed (the common case: a backfill
++              // tick or a redundant sync), skip the state update entirely so the list never
++              // repaints or shifts — that's the "constantly redownloading" feel gone.
++              const merged = mergeMessagesInPlace(cur, msgs);
++              if (merged.some((m, i) => m !== cur[i])) setMessages(merged);
++              applyOffset();
++              return;
++            }
++            // Structural change (new mail, removals, reorder). Don't swap the list out from
++            // under an active pointer — that's what causes the mis-clicks. Defer until the
++            // user pauses; a later refresh re-runs this and applies it once idle.
++            if (Date.now() < listActiveUntilRef.current) {
++              clearTimeout(deferredRefreshTimerRef.current);
++              deferredRefreshTimerRef.current = setTimeout(run, 700);
++              return;
+             }
++            // Idle: apply, preserving the scroll position so the viewport never jumps.
++            const el = listRef.current;
++            const top = el ? el.scrollTop : 0;
++            setMessages(msgs);
++            applyOffset();
++            if (el && top) requestAnimationFrame(() => { el.scrollTop = top; });
+           },
+         );
+       } catch { /* intentional */ }
+@@ -587,6 +659,12 @@ export default function MessageList() {
      setSyncing(true);
      try {
        await api.syncNow(selectedAccountId || undefined);
@@ -6595,7 +6731,7 @@ index efb16df..2484829 100644
        // The server will send sync_complete via WebSocket when done, which triggers
        // mailflow:refresh (list reload) and mailflow:sync_done (spinner off).
        // Safety fallback: stop spinner after 15s in case WS event never arrives.
-@@ -1937,6 +1963,44 @@ export default function MessageList() {
+@@ -1937,6 +2015,44 @@ export default function MessageList() {
          });
          break;
        }
@@ -6640,7 +6776,7 @@ index efb16df..2484829 100644
        case 'snooze': {
          const snoozedMsg = message;
          const untilIso = data;
-@@ -2318,6 +2382,25 @@ export default function MessageList() {
+@@ -2318,6 +2434,25 @@ export default function MessageList() {
              </svg>
            </button>
  
@@ -6666,7 +6802,7 @@ index efb16df..2484829 100644
            {/* Select / Cancel — replaces compose button; FAB is the primary compose affordance */}
            {selectionMode ? (
              <button
-@@ -2524,6 +2607,28 @@ export default function MessageList() {
+@@ -2524,6 +2659,28 @@ export default function MessageList() {
                  </select>
                </>
              )}
@@ -6695,7 +6831,15 @@ index efb16df..2484829 100644
              {/* Select / cancel selection */}
              <button
                onClick={() => selectionMode ? clearSelection() : setSelectionModeActive(true)}
-@@ -3449,6 +3554,16 @@ export default function MessageList() {
+@@ -2939,6 +3096,7 @@ export default function MessageList() {
+           ref={listRef}
+           onScroll={handleScroll}
+           onKeyDown={handleListKeyDown}
++          onMouseMove={() => { listActiveUntilRef.current = Date.now() + 1200; }}
+           tabIndex={0}
+           style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', outline: 'none', overscrollBehavior: 'contain' }}
+         >
+@@ -3449,6 +3607,16 @@ export default function MessageList() {
            />
          )}
  
@@ -6992,10 +7136,69 @@ index 0000000..b8fbb1d
 +  );
 +}
 diff --git a/frontend/src/components/Sidebar.jsx b/frontend/src/components/Sidebar.jsx
-index a155ef3..e63e756 100644
+index a155ef3..3111eb7 100644
 --- a/frontend/src/components/Sidebar.jsx
 +++ b/frontend/src/components/Sidebar.jsx
-@@ -826,25 +826,7 @@ export default function Sidebar() {
+@@ -315,7 +315,7 @@ export default function Sidebar() {
+     return () => document.removeEventListener('dragend', clear);
+   }, []);
+ 
+-  const handleMsgDrop = useCallback((e, targetFolder) => {
++  const handleMsgDrop = useCallback((e, targetFolder, targetAccountId) => {
+     e.preventDefault();
+     setMsgDragTarget(null);
+     const raw = e.dataTransfer.getData('application/x-mailflow-message');
+@@ -325,10 +325,48 @@ export default function Sidebar() {
+     const state = useStore.getState();
+     const pool = [...state.messages, ...state.searchResults];
+     const ids = payload.messageIds ?? [payload.messageId];
++    // Skip messages already sitting in the exact drop target (same account AND folder).
++    const atTarget = (m) => m.folder === targetFolder && (targetAccountId ? m.account_id === targetAccountId : true);
+     const msgs = ids
+       .map(id => pool.find(m => m.id === id))
+-      .filter(m => m != null && m.folder !== targetFolder);
++      .filter(m => m != null && !atTarget(m));
+     if (!msgs.length) return;
++
++    // Cross-account drop: the target account differs from the message's account. Reuse the
++    // per-message cross-account move (no bulk endpoint) with optimistic removal + rollback,
++    // no undo timer — mirrors the right-click "Move to account". Same-account drops keep the
++    // fast bulk-move-with-undo path below.
++    const crossMsgs = targetAccountId ? msgs.filter(m => m.account_id !== targetAccountId) : [];
++    if (crossMsgs.length) {
++      const destAccount = (state.accounts || []).find(a => a.id === targetAccountId);
++      const destName = destAccount?.email || destAccount?.name || 'account';
++      crossMsgs.forEach(msg => { state.removeMessage(msg.id); if (!msg.is_read) state.decrementUnread(msg.account_id); });
++      Promise.allSettled(crossMsgs.map(m => api.moveToAccount(m.id, targetAccountId, targetFolder)))
++        .then(results => {
++          const s = useStore.getState();
++          const failed = crossMsgs.filter((_, i) => results[i].status === 'rejected');
++          if (failed.length) {
++            s.restoreMessages(failed);
++            failed.forEach(m => { if (!m.is_read) s.incrementUnread(m.account_id); });
++            s.addNotification({ title: t('messageList.bulkMoved.failTitle'), body: t('messageList.bulkMoved.failBody', { count: failed.length }) });
++          }
++          api.getUnreadCounts().then(c => s.setUnreadCounts(c)).catch(() => {});
++        });
++      state.addNotification({ title: t('messageList.bulkMoved.title', { count: crossMsgs.length }), body: destName });
++      // If some dragged messages were same-account, fall through to move those too.
++      const sameMsgs = msgs.filter(m => m.account_id === targetAccountId);
++      if (!sameMsgs.length) return;
++      return bulkMoveSameAccount(sameMsgs, targetFolder);
++    }
++
++    return bulkMoveSameAccount(msgs, targetFolder);
++  }, [t]);
++
++  // Same-account bulk move with optimistic removal + 4.5s undo (extracted so the drop
++  // handler can call it for both the plain case and the same-account remainder of a
++  // mixed cross-account drop).
++  const bulkMoveSameAccount = useCallback((msgs, targetFolder) => {
++    const state = useStore.getState();
+     msgs.forEach(msg => {
+       state.removeMessage(msg.id);
+       if (!msg.is_read) state.decrementUnread(msg.account_id);
+@@ -826,25 +864,7 @@ export default function Sidebar() {
        }}>
          {!sidebarCollapsed && (
            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
@@ -7022,6 +7225,52 @@ index a155ef3..e63e756 100644
            </div>
          )}
          <button
+@@ -946,7 +966,7 @@ export default function Sidebar() {
+                     }}
+                     onDrop={e => {
+                       if (e.dataTransfer.types.includes('application/x-mailflow-message')) {
+-                        handleMsgDrop(e, path);
++                        handleMsgDrop(e, path, accountId);
+                         return;
+                       }
+                       e.preventDefault();
+@@ -1134,7 +1154,8 @@ export default function Sidebar() {
+                   display: 'flex', alignItems: 'center', gap: 8,
+                   padding: sidebarCollapsed ? '8px' : '7px 10px',
+                   borderRadius: 7, cursor: 'pointer',
+-                  background: isSelected && selectedFolder === 'INBOX'
++                  background: (msgDragTarget === `${account.id}:INBOX`) ? 'var(--accent-dim)'
++                    : isSelected && selectedFolder === 'INBOX'
+                     ? 'var(--bg-hover)' : 'transparent',
+                   transition: 'background 0.1s',
+                   justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+@@ -1147,6 +1168,17 @@ export default function Sidebar() {
+                   if (!(isSelected && selectedFolder === 'INBOX'))
+                     e.currentTarget.style.background = 'transparent';
+                 }}
++                onDragOver={e => {
++                  if (e.dataTransfer.types.includes('application/x-mailflow-message')) {
++                    e.preventDefault();
++                    e.dataTransfer.dropEffect = 'move';
++                    setMsgDragTarget(`${account.id}:INBOX`);
++                  }
++                }}
++                onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setMsgDragTarget(null); }}
++                onDrop={e => {
++                  if (e.dataTransfer.types.includes('application/x-mailflow-message')) { handleMsgDrop(e, 'INBOX', account.id); }
++                }}
+                 onClick={selectInbox}
+                 onContextMenu={!sidebarCollapsed ? (e) => openAccountCtxMenu(e, account) : undefined}
+                 title={rowLabel}
+@@ -1297,7 +1329,7 @@ export default function Sidebar() {
+                         onContextMenu={e => openFolderCtxMenu(e, account.id, folder)}
+                         onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setMsgDragTarget(`${account.id}:${folder.path}`); }}
+                         onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setMsgDragTarget(null); }}
+-                        onDrop={e => handleMsgDrop(e, folder.path)}
++                        onDrop={e => handleMsgDrop(e, folder.path, account.id)}
+                       >
+                         {/* Chevron toggle for parent folders; invisible spacer for leaf folders to align icons */}
+                         {hasChildren ? (
 diff --git a/frontend/src/components/TaskListModal.jsx b/frontend/src/components/TaskListModal.jsx
 new file mode 100644
 index 0000000..4551729
