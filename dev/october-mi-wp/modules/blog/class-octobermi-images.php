@@ -51,12 +51,16 @@ class OctoberMI_Blog_Images {
 			return;
 		}
 
-		// 2) Generate as a backup.
+		// 2) Generate as a backup — via the platform when integrated (OMI holds
+		// the image key, e.g. fal.ai), else with the site's own Gemini key.
 		if ( 'library_generate' !== $mode ) {
 			return;
 		}
 		$prompt = ! empty( $gen['hero_image_prompt'] ) ? (string) $gen['hero_image_prompt'] : (string) get_the_title( $post_id );
-		$generated = self::generate_gemini( $prompt, $post_id, $gen );
+		$generated = OctoberMI_Settings::is_integrated()
+			? self::generate_via_platform( $prompt, $post_id, $gen )
+			: self::generate_gemini( $prompt, $post_id, $gen );
+
 		if ( is_wp_error( $generated ) ) {
 			OctoberMI_Log::error( 'blog.hero', 'Hero image generation failed', array( 'message' => $generated->get_error_message() ) );
 			return;
@@ -64,6 +68,66 @@ class OctoberMI_Blog_Images {
 		if ( $generated ) {
 			set_post_thumbnail( $post_id, $generated );
 		}
+	}
+
+	// =====================================================================
+	// Platform-managed generation (integrated mode)
+	// =====================================================================
+
+	/**
+	 * Ask the platform to generate a hero (OMI holds the image key, e.g. fal.ai)
+	 * and sideload the result. Accepts either inline base64 or an image URL.
+	 * Returns attachment id, 0 to skip, or WP_Error.
+	 */
+	private static function generate_via_platform( $prompt, $post_id, array $gen ) {
+		$response = OctoberMI_Client::send(
+			'image',
+			array( 'prompt' => 'Editorial hero image, no text or logos in the image. ' . $prompt, 'post_title' => get_the_title( $post_id ) ),
+			'ai.image',
+			array( 'blocking' => true, 'retries' => 1, 'timeout' => 120 )
+		);
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( $code < 200 || $code >= 300 ) {
+			// 404 = platform hasn't shipped the image endpoint yet; skip quietly.
+			if ( 404 === $code ) {
+				return 0;
+			}
+			$msg = ( is_array( $data ) && ! empty( $data['message'] ) ) ? $data['message'] : 'Platform image HTTP ' . $code;
+			return new WP_Error( 'octobermi_platform_image', $msg );
+		}
+		if ( ! is_array( $data ) ) {
+			return 0;
+		}
+
+		// Inline base64?
+		foreach ( array( 'image_base64', 'b64', 'data' ) as $k ) {
+			if ( ! empty( $data[ $k ] ) && is_string( $data[ $k ] ) ) {
+				$raw = base64_decode( $data[ $k ], true );
+				if ( false !== $raw && '' !== $raw ) {
+					$mime = ! empty( $data['mime'] ) ? $data['mime'] : 'image/png';
+					return self::sideload( $raw, $mime, $post_id, $gen );
+				}
+			}
+		}
+		// Or a URL to fetch.
+		foreach ( array( 'image_url', 'url' ) as $k ) {
+			if ( ! empty( $data[ $k ] ) && is_string( $data[ $k ] ) ) {
+				$img = wp_remote_get( $data[ $k ], array( 'timeout' => 60 ) );
+				if ( is_wp_error( $img ) ) {
+					return $img;
+				}
+				$bytes = wp_remote_retrieve_body( $img );
+				if ( '' !== $bytes ) {
+					$mime = wp_remote_retrieve_header( $img, 'content-type' );
+					return self::sideload( $bytes, $mime ? $mime : 'image/png', $post_id, $gen );
+				}
+			}
+		}
+		return 0;
 	}
 
 	// =====================================================================

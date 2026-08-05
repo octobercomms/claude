@@ -84,9 +84,15 @@ class OctoberMI_Blog_Planner {
 		if ( is_wp_error( $response ) ) {
 			throw new Exception( $response->get_error_message() );
 		}
-		$parsed = self::parse_json( $response );
-		if ( ! $parsed || empty( $parsed['topics'] ) || ! is_array( $parsed['topics'] ) ) {
-			throw new Exception( __( 'The model did not return a usable topic plan.', 'october-mi' ) );
+		$parsed = OctoberMI_Claude::json_from_reply( $response );
+		$topics = self::topics_from( $parsed );
+		if ( empty( $topics ) ) {
+			OctoberMI_Log::error( 'blog.plan', 'Unparseable topic-plan reply', array( 'reply' => self::snippet( $response, 500 ) ) );
+			throw new Exception( sprintf(
+				/* translators: %s: a short excerpt of the model's reply. */
+				__( 'The model did not return a usable topic plan. It replied: “%s”', 'october-mi' ),
+				self::snippet( $response, 180 )
+			) );
 		}
 
 		// Merge new topics into the existing plan, de-duplicating by title.
@@ -96,7 +102,13 @@ class OctoberMI_Blog_Planner {
 			$seen[ strtolower( trim( $i['title'] ) ) ] = true;
 		}
 		$now = time();
-		foreach ( $parsed['topics'] as $t ) {
+		foreach ( $topics as $t ) {
+			if ( is_string( $t ) ) {
+				$t = array( 'title' => $t );
+			}
+			if ( ! is_array( $t ) ) {
+				continue;
+			}
 			if ( empty( $t['title'] ) ) {
 				continue;
 			}
@@ -139,14 +151,29 @@ class OctoberMI_Blog_Planner {
 			. "\nAudience: " . ( $brief['audience'] ? $brief['audience'] : '(infer)' );
 	}
 
-	private static function parse_json( $text ) {
-		$text  = (string) $text;
-		$start = strpos( $text, '{' );
-		$end   = strrpos( $text, '}' );
-		if ( false === $start || false === $end || $end <= $start ) {
-			return null;
+	/** Normalise the parsed reply into a plain list of topic items. */
+	private static function topics_from( $parsed ) {
+		if ( ! is_array( $parsed ) ) {
+			return array();
 		}
-		$data = json_decode( substr( $text, $start, $end - $start + 1 ), true );
-		return is_array( $data ) ? $data : null;
+		foreach ( array( 'topics', 'plan', 'items', 'posts' ) as $k ) {
+			if ( ! empty( $parsed[ $k ] ) && is_array( $parsed[ $k ] ) ) {
+				return $parsed[ $k ];
+			}
+		}
+		// A bare list (numeric keys) is itself the topics array.
+		if ( array_keys( $parsed ) === range( 0, count( $parsed ) - 1 ) ) {
+			return $parsed;
+		}
+		return array();
+	}
+
+	/** A short, whitespace-collapsed excerpt of a model reply for diagnostics. */
+	private static function snippet( $text, $len = 180 ) {
+		$t = trim( preg_replace( '/\s+/u', ' ', (string) $text ) );
+		if ( '' === $t ) {
+			return '(empty reply)';
+		}
+		return function_exists( 'mb_substr' ) ? mb_substr( $t, 0, $len ) : substr( $t, 0, $len );
 	}
 }

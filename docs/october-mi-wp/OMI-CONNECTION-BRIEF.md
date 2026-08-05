@@ -83,6 +83,22 @@ installed and using a **managed** key. October must be able to cut them off from
 
 ---
 
+## 3b. Build: `POST /api/wp-connect/image` (managed hero images)
+
+In **integrated** mode the plugin does not hold an image key — it asks the platform to
+generate the post's hero. The platform generates via its own image provider (**fal.ai** —
+`connectors/fal.js`) and returns the image.
+
+- **Auth:** same HMAC signature + connector-active check as `/generate`.
+- **Request body:** `{ …envelope, prompt: "…art-direction…", post_title: "…" }`.
+- **Behaviour:** generate one image via fal.ai (cost-logged against the client), then return
+  **either** `{ "image_base64": "…", "mime": "image/png" }` **or** `{ "image_url": "https://…" }`
+  — the plugin accepts both, sideloads into the media library, and sets it as the featured
+  image with alt text.
+- **Errors:** `401/403/409` → treated as revoked; **`404`** → the plugin assumes the endpoint
+  isn't live yet and silently skips the hero (so integrated posts still publish without an
+  image until this ships). Other errors are logged and skipped.
+
 ## 4. Build later (optional now): enrichment endpoints
 
 In connected mode the plugin can offload the heavy, paid, infra-bound research to OMI instead of

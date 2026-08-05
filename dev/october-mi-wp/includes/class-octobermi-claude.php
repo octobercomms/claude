@@ -165,7 +165,79 @@ class OctoberMI_Claude {
 			return new WP_Error( 'octobermi_platform_generate', $msg );
 		}
 
-		return is_array( $data ) && isset( $data['text'] ) ? (string) $data['text'] : '';
+		// Be tolerant of the platform's envelope shape ({text}, an Anthropic
+		// message object, {completion}, …) so a minor contract drift on the OMI
+		// side doesn't silently yield empty output.
+		return self::text_from_payload( $data );
+	}
+
+	/**
+	 * Pull assistant text out of whatever shape a backend returned:
+	 * a plain string, {text}, {completion}, {output_text}, or an Anthropic
+	 * message object with a content[] array.
+	 */
+	public static function text_from_payload( $data ) {
+		if ( is_string( $data ) ) {
+			return $data;
+		}
+		if ( ! is_array( $data ) ) {
+			return '';
+		}
+		foreach ( array( 'text', 'completion', 'output_text', 'output', 'result' ) as $k ) {
+			if ( isset( $data[ $k ] ) && is_string( $data[ $k ] ) && '' !== $data[ $k ] ) {
+				return $data[ $k ];
+			}
+		}
+		if ( ! empty( $data['content'] ) && is_array( $data['content'] ) ) {
+			$text = '';
+			foreach ( $data['content'] as $block ) {
+				if ( isset( $block['text'] ) ) {
+					$text .= $block['text'];
+				}
+			}
+			if ( '' !== $text ) {
+				return $text;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Extract a JSON value from a model reply that may be wrapped in prose or
+	 * ```json fences, or be a bare object/array. Returns array|null.
+	 */
+	public static function json_from_reply( $text ) {
+		$t = trim( (string) $text );
+		if ( '' === $t ) {
+			return null;
+		}
+		// Strip a leading ```json / ``` fence and trailing ```.
+		$t = preg_replace( '/^\s*```[a-zA-Z0-9]*\s*/', '', $t );
+		$t = preg_replace( '/\s*```\s*$/', '', $t );
+
+		$decoded = json_decode( $t, true );
+		if ( is_array( $decoded ) ) {
+			return $decoded;
+		}
+		// Fall back to the widest {...} or [...] span in the text.
+		$candidates = array();
+		$oo = strpos( $t, '{' );
+		$oc = strrpos( $t, '}' );
+		if ( false !== $oo && false !== $oc && $oc > $oo ) {
+			$candidates[] = substr( $t, $oo, $oc - $oo + 1 );
+		}
+		$ao = strpos( $t, '[' );
+		$ac = strrpos( $t, ']' );
+		if ( false !== $ao && false !== $ac && $ac > $ao ) {
+			$candidates[] = substr( $t, $ao, $ac - $ao + 1 );
+		}
+		foreach ( $candidates as $c ) {
+			$decoded = json_decode( $c, true );
+			if ( is_array( $decoded ) ) {
+				return $decoded;
+			}
+		}
+		return null;
 	}
 
 	/** Turn an Anthropic /v1/messages response into text or a WP_Error. */

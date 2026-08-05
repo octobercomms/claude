@@ -42,9 +42,16 @@ class OctoberMI_Blog_Writer {
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
-		$data = self::parse_json( $response );
+		$data = OctoberMI_Claude::json_from_reply( $response );
 		if ( null === $data || empty( $data['title'] ) || empty( $data['body_html'] ) ) {
-			return new WP_Error( 'octobermi_writer_parse', __( 'The model did not return a usable article.', 'october-mi' ) );
+			$snippet = trim( preg_replace( '/\s+/u', ' ', (string) $response ) );
+			$snippet = function_exists( 'mb_substr' ) ? mb_substr( $snippet, 0, 180 ) : substr( $snippet, 0, 180 );
+			OctoberMI_Log::error( 'blog.writer', 'Unparseable article reply', array( 'reply' => $snippet ) );
+			return new WP_Error( 'octobermi_writer_parse', sprintf(
+				/* translators: %s: a short excerpt of the model's reply. */
+				__( 'The model did not return a usable article. It replied: “%s”', 'october-mi' ),
+				'' === $snippet ? '(empty reply)' : $snippet
+			) );
 		}
 		return $data;
 	}
@@ -179,15 +186,4 @@ JSON;
 		return implode( "\n", $titles );
 	}
 
-	/** Pull the first JSON object out of a model reply and decode it. */
-	private static function parse_json( $text ) {
-		$text  = (string) $text;
-		$start = strpos( $text, '{' );
-		$end   = strrpos( $text, '}' );
-		if ( false === $start || false === $end || $end <= $start ) {
-			return null;
-		}
-		$data = json_decode( substr( $text, $start, $end - $start + 1 ), true );
-		return is_array( $data ) ? $data : null;
-	}
 }

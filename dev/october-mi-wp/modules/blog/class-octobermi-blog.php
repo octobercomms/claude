@@ -32,7 +32,7 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 	}
 
 	public function description() {
-		return __( 'Research, draft, optimise and publish premium blog posts on a schedule — reviewed by a real author before they go live.', 'october-mi' );
+		return __( 'Research, draft, optimise and publish premium blog posts on a schedule — reviewed by a real author, or fully automatic once you trust it.', 'october-mi' );
 	}
 
 	public function activate() {

@@ -76,9 +76,16 @@ class OctoberMI_Blog_Context_Pack {
 		}
 
 		OctoberMI_Jobs::progress( $job_id, 85, __( 'Structuring the company profile…', 'october-mi' ) );
-		$pack = self::parse_json( $response );
-		if ( null === $pack ) {
-			throw new Exception( __( 'Could not read a structured profile back from the model.', 'october-mi' ) );
+		$pack = OctoberMI_Claude::json_from_reply( $response );
+		if ( ! is_array( $pack ) || empty( $pack ) ) {
+			$snippet = trim( preg_replace( '/\s+/u', ' ', (string) $response ) );
+			$snippet = function_exists( 'mb_substr' ) ? mb_substr( $snippet, 0, 180 ) : substr( $snippet, 0, 180 );
+			OctoberMI_Log::error( 'blog.learn', 'Unparseable profile reply', array( 'reply' => $snippet ) );
+			throw new Exception( sprintf(
+				/* translators: %s: a short excerpt of the model's reply. */
+				__( 'Could not read a structured profile back from the model. It replied: “%s”', 'october-mi' ),
+				'' === $snippet ? '(empty reply)' : $snippet
+			) );
 		}
 
 		// Attach the internal-link map we already have from the corpus pass.
@@ -175,16 +182,4 @@ JSON;
 			. "=== WEBSITE CONTENT ===\n" . $corpus;
 	}
 
-	/** Pull the first JSON object out of a model reply and decode it. */
-	private static function parse_json( $text ) {
-		$text = (string) $text;
-		$start = strpos( $text, '{' );
-		$end   = strrpos( $text, '}' );
-		if ( false === $start || false === $end || $end <= $start ) {
-			return null;
-		}
-		$json = substr( $text, $start, $end - $start + 1 );
-		$data = json_decode( $json, true );
-		return is_array( $data ) ? $data : null;
-	}
 }
