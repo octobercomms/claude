@@ -231,4 +231,74 @@ class YAA_Archie {
 			'done'     => $done,
 		);
 	}
+
+	/**
+	 * Render the collected state as an ordered, form-style Q&A summary for the
+	 * admin — only the questions that apply to this project, each marked answered
+	 * or not, so Tiam can see exactly how far someone got and where they stopped.
+	 *
+	 * @return array[] each: { label, value, answered }
+	 */
+	public static function answer_summary( array $s ) {
+		$types = array(
+			'extension'   => 'Rear / side extension',
+			'loft'        => 'Loft or mansard conversion',
+			'garage'      => 'Garage conversion',
+			'outbuilding' => 'Garden room / outbuilding',
+			'internal'    => 'Internal alterations',
+			'newdwelling' => 'New dwelling',
+		);
+		$packages = array(
+			'planning'     => 'Still needs planning permission',
+			'buildingregs' => 'Planning approved — needs building regs',
+			'riba'         => 'Full RIBA / larger commission',
+		);
+		$storeys = array( 'single' => 'Single storey', 'two' => 'Two storey', 'unsure' => 'Not sure yet' );
+
+		$pkg      = isset( $s['package'] ) ? $s['package'] : '';
+		$is_priced = ( $pkg && 'riba' !== $pkg );
+		$yn       = function ( $k ) use ( $s ) {
+			return array( isset( $s[ $k ] ), ! empty( $s[ $k ] ) ? 'Yes' : 'No' );
+		};
+
+		// [ label, value|null, applies ]
+		$rows = array();
+		$rows[] = array( 'Property address', isset( $s['postcode'] ) ? $s['postcode'] : null, true );
+		$rows[] = array( 'What they want to do', isset( $s['projectType'], $types[ $s['projectType'] ] ) ? $types[ $s['projectType'] ] : null, true );
+		if ( isset( $s['projectType'] ) && 'extension' === $s['projectType'] ) {
+			$rows[] = array( 'Storeys', isset( $s['storeys'], $storeys[ $s['storeys'] ] ) ? $storeys[ $s['storeys'] ] : null, true );
+		}
+		$rows[] = array( 'Planning status', ( $pkg && isset( $packages[ $pkg ] ) ) ? $packages[ $pkg ] : null, true );
+		if ( 'planning' === $pkg ) {
+			list( $ans, $val ) = $yn( 'submitApp' );
+			$rows[] = array( 'We submit & manage the application', $ans ? $val : null, true );
+		}
+		if ( 'buildingregs' === $pkg ) {
+			list( $ans, $val ) = $yn( 'concept' );
+			$rows[] = array( '3D concept add-on', $ans ? $val : null, true );
+		}
+		if ( $is_priced && ! empty( $s['london'] ) ) {
+			list( $ans, $val ) = $yn( 'siteVisit' );
+			$rows[] = array( 'Site visit (London / M25)', $ans ? $val : null, true );
+		}
+		if ( $is_priced ) {
+			list( $ans, $val ) = $yn( 'survey' );
+			$rows[] = array( 'Needs a measured survey', $ans ? $val : null, true );
+			list( $ans2, $val2 ) = $yn( 'structural' );
+			$rows[] = array( 'Structural changes', $ans2 ? $val2 : null, true );
+			$rows[] = array( 'Timeframe', isset( $s['timeframe'] ) ? $s['timeframe'] : null, true );
+		}
+		$rows[] = array( 'Name', isset( $s['name'] ) && '' !== $s['name'] ? $s['name'] : null, true );
+		$rows[] = array( 'Email', isset( $s['email'] ) && '' !== $s['email'] ? $s['email'] : null, true );
+
+		$out = array();
+		foreach ( $rows as $r ) {
+			$out[] = array(
+				'label'    => $r[0],
+				'value'    => $r[1],
+				'answered' => ( null !== $r[1] && '' !== $r[1] ),
+			);
+		}
+		return $out;
+	}
 }

@@ -21,6 +21,7 @@
 
 <div class="ob-shell">
 
+	<?php if ( shortcode_exists( 'archie' ) ) : echo do_shortcode( '[archie]' ); else : ?>
 	<div class="ob-top">
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="logo" aria-label="<?php esc_attr_e( 'Your Architect home', 'archlie' ); ?>">
 			<span class="wordmark"><span>Your</span><span>Architect</span></span>
@@ -101,6 +102,7 @@
 			</div>
 		</aside>
 	</div>
+	<?php endif; ?>
 </div>
 
 <?php wp_footer(); ?>

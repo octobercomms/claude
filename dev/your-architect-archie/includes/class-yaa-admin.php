@@ -18,7 +18,7 @@ class YAA_Admin {
 
 	public static function menu() {
 		add_submenu_page(
-			'edit.php?post_type=' . YAA_Project::CPT,
+			YAA_Projects_Admin::SLUG,
 			__( 'Archie Settings', 'your-architect-archie' ),
 			__( 'Settings', 'your-architect-archie' ),
 			'manage_options',

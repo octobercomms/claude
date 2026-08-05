@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -37,6 +37,21 @@ Mail should go via an SMTP/API plugin on shared hosting. Rate limits + the daily
 token cap protect your Claude spend.
 
 == Changelog ==
+
+= 0.3.0 =
+* Project side moved from a CPT + postmeta to custom tables (YAA_DB): a
+  yaa_projects row per visitor with a status state-machine and denormalised
+  columns, plus a yaa_events audit/funnel log. Foundations for the studio
+  workflow (approve → email → payment → portal → analytics).
+* New branded "Archie Projects" admin: headline funnel stats, Started /
+  Submitted / RIBA / Abandoned tabs, and a per-project detail view that shows
+  the collected answers as a form (with "stopped at: …") so you can see where
+  people abandon — alongside the package, an activity timeline and the full
+  conversation. Styled to match the site.
+* Theme/plugin separation: the archlie theme now renders the [archie] shortcode
+  when the plugin is active (and stands its own scripted demo down), so the
+  theme can be rebuilt or swapped without touching Archie.
+* Follow-up cron + submit notifications rewritten onto the new tables.
 
 = 0.2.0 =
 * Archie is now a helpful guide, not a form-filler. Every question is written to be
