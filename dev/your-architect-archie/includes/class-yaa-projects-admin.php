@@ -39,6 +39,20 @@ class YAA_Projects_Admin {
 		add_action( 'admin_post_yaa_email_draft', array( __CLASS__, 'act_email_draft' ) );
 		add_action( 'admin_post_yaa_email_save', array( __CLASS__, 'act_email_save' ) );
 		add_action( 'admin_post_yaa_email_send', array( __CLASS__, 'act_email_send' ) );
+		add_action( 'admin_post_yaa_project_delete', array( __CLASS__, 'act_delete' ) );
+	}
+
+	/** Permanently delete a submission/project and everything attached to it. */
+	public static function act_delete() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'yaa_delete' ) ) {
+			wp_die( 'Nope' );
+		}
+		$pid = (int) ( $_POST['project_id'] ?? 0 );
+		if ( $pid ) {
+			YAA_Project::delete( $pid );
+		}
+		wp_safe_redirect( add_query_arg( array( 'page' => self::SLUG, 'notice' => 'deleted' ), admin_url( 'admin.php' ) ) );
+		exit;
 	}
 
 	// ---- Workflow actions (nonce + cap checked; redirect back to the project) ----
@@ -154,11 +168,16 @@ class YAA_Projects_Admin {
 				<a class="yaa-btn" href="<?php echo esc_url( admin_url( 'admin.php?page=yaa-settings' ) ); ?>"><?php esc_html_e( 'Settings', 'your-architect-archie' ); ?></a>
 			</div>
 
+
+			<?php if ( 'deleted' === ( isset( $_GET['notice'] ) ? sanitize_key( wp_unslash( $_GET['notice'] ) ) : '' ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="yaa-notice ok"><?php esc_html_e( 'Deleted.', 'your-architect-archie' ); ?></div>
+			<?php endif; ?>
+
 			<div class="yaa-stats">
-				<div class="yaa-stat"><span class="n"><?php echo esc_html( $total_n ); ?></span><span class="l"><?php esc_html_e( 'All projects', 'your-architect-archie' ); ?></span></div>
-				<div class="yaa-stat"><span class="n"><?php echo esc_html( $started_n ); ?></span><span class="l"><?php esc_html_e( 'Started, not submitted', 'your-architect-archie' ); ?></span></div>
-				<div class="yaa-stat"><span class="n"><?php echo esc_html( $submitted_n ); ?></span><span class="l"><?php esc_html_e( 'Submitted', 'your-architect-archie' ); ?></span></div>
-				<div class="yaa-stat"><span class="n"><?php echo esc_html( $conv ); ?>%</span><span class="l"><?php esc_html_e( 'Submit rate', 'your-architect-archie' ); ?></span></div>
+				<div class="yaa-stat"><span class="n"><?php echo esc_html( $total_n ); ?></span><span class="l"><?php esc_html_e( 'All submissions', 'your-architect-archie' ); ?></span></div>
+				<div class="yaa-stat"><span class="n"><?php echo esc_html( $started_n ); ?></span><span class="l"><?php esc_html_e( 'Partial submissions', 'your-architect-archie' ); ?></span></div>
+				<div class="yaa-stat"><span class="n"><?php echo esc_html( $submitted_n ); ?></span><span class="l"><?php esc_html_e( 'Projects (submitted)', 'your-architect-archie' ); ?></span></div>
+				<div class="yaa-stat"><span class="n"><?php echo esc_html( $conv ); ?>%</span><span class="l"><?php esc_html_e( 'Conversion rate', 'your-architect-archie' ); ?></span></div>
 			</div>
 
 			<div class="yaa-tabs">
@@ -177,7 +196,7 @@ class YAA_Projects_Admin {
 			</div>
 
 			<?php if ( empty( $rows ) ) : ?>
-				<div class="yaa-empty"><?php esc_html_e( 'No projects here yet.', 'your-architect-archie' ); ?></div>
+				<div class="yaa-empty"><?php esc_html_e( 'Nothing here yet.', 'your-architect-archie' ); ?></div>
 			<?php else : ?>
 			<table class="yaa-table">
 				<thead>
@@ -188,6 +207,7 @@ class YAA_Projects_Admin {
 						<th><?php esc_html_e( 'Progress', 'your-architect-archie' ); ?></th>
 						<th><?php esc_html_e( 'Total', 'your-architect-archie' ); ?></th>
 						<th><?php esc_html_e( 'Last activity', 'your-architect-archie' ); ?></th>
+						<th class="yaa-col-actions"><span class="screen-reader-text"><?php esc_html_e( 'Actions', 'your-architect-archie' ); ?></span></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -226,6 +246,14 @@ class YAA_Projects_Admin {
 						</td>
 						<td class="yaa-total"><?php echo esc_html( YAA_Pricing::money( (int) $r->total ) ); ?></td>
 						<td><div class="yaa-sub"><?php echo esc_html( self::ago( $r->updated ) ); ?></div></td>
+						<td class="yaa-row-actions" onclick="event.stopPropagation();">
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Permanently delete this submission and all of its data? This cannot be undone.');">
+								<input type="hidden" name="action" value="yaa_project_delete">
+								<input type="hidden" name="project_id" value="<?php echo esc_attr( (int) $r->id ); ?>">
+								<?php wp_nonce_field( 'yaa_delete' ); ?>
+								<button class="yaa-x" type="submit" aria-label="<?php esc_attr_e( 'Delete', 'your-architect-archie' ); ?>" title="<?php esc_attr_e( 'Delete', 'your-architect-archie' ); ?>">&#128465;</button>
+							</form>
+						</td>
 					</tr>
 				<?php endforeach; ?>
 				</tbody>
@@ -266,7 +294,7 @@ class YAA_Projects_Admin {
 		<div class="wrap yaa-admin">
 			<div class="yaa-head">
 				<div>
-					<a class="yaa-back" href="<?php echo $back; // phpcs:ignore WordPress.Security.EscapeOutput ?>">&larr; <?php esc_html_e( 'All projects', 'your-architect-archie' ); ?></a>
+					<a class="yaa-back" href="<?php echo $back; // phpcs:ignore WordPress.Security.EscapeOutput ?>">&larr; <?php esc_html_e( 'All submissions', 'your-architect-archie' ); ?></a>
 					<h1><?php echo esc_html( $who ); ?> <?php echo self::badge( $row->status ); // phpcs:ignore WordPress.Security.EscapeOutput ?></h1>
 					<p class="yaa-meta">
 						<?php if ( $row->email ) : ?><?php echo esc_html( $row->email ); ?> · <?php endif; ?>
@@ -275,7 +303,15 @@ class YAA_Projects_Admin {
 						<?php if ( $row->submitted_at ) : ?> · <?php esc_html_e( 'Submitted', 'your-architect-archie' ); ?> <?php echo esc_html( self::date( $row->submitted_at ) ); ?><?php endif; ?>
 					</p>
 				</div>
-				<div class="yaa-total-big"><?php echo esc_html( YAA_Pricing::money( (int) $row->total ) ); ?></div>
+				<div class="yaa-head-right">
+					<div class="yaa-total-big"><?php echo esc_html( YAA_Pricing::money( (int) $row->total ) ); ?></div>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Permanently delete this submission and all of its data? This cannot be undone.');">
+						<input type="hidden" name="action" value="yaa_project_delete">
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( (int) $row->id ); ?>">
+						<?php wp_nonce_field( 'yaa_delete' ); ?>
+						<button class="yaa-btn danger" type="submit"><?php esc_html_e( 'Delete', 'your-architect-archie' ); ?></button>
+					</form>
+				</div>
 			</div>
 
 			<div class="yaa-grid">
@@ -635,6 +671,12 @@ class YAA_Projects_Admin {
 		.yaa-file-kind.drawing { background:#eae4fb; color:#5b34c7; }
 		.yaa-file-row .yaa-del { margin-left:auto; }
 		.yaa-x { background:none; border:0; color:var(--muted); cursor:pointer; font-size:1rem; }
+		.yaa-row-actions { text-align:right; width:44px; }
+		.yaa-row-actions .yaa-x:hover { color:#c0392b; }
+		.yaa-col-actions { width:44px; }
+		.yaa-head-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+		.yaa-btn.danger { background:#fff; color:#c0392b; border:2px solid #f0c9c4; }
+		.yaa-btn.danger:hover { background:#c0392b; color:#fff !important; border-color:#c0392b; }
 		.yaa-upload { display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--bg); padding:12px; border-radius:10px; }
 		.yaa-upload .yaa-input { width:auto; flex:1; min-width:140px; margin:0; }
 		.yaa-upload select { border:2px solid var(--line); border-radius:9px; padding:8px 10px; font-family:inherit; }

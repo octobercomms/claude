@@ -153,6 +153,21 @@ class YAA_Files {
 		exit;
 	}
 
+	/** Remove every stored file (disk original + preview + row) for a project — used when a project is deleted. */
+	public static function delete_for_project( $project_id ) {
+		global $wpdb;
+		$project_id = (int) $project_id;
+		$files      = self::for_project( $project_id );
+		foreach ( (array) $files as $f ) {
+			$abs = self::abspath( $f );
+			if ( $f->path && file_exists( $abs ) ) {
+				@unlink( $abs ); // phpcs:ignore
+			}
+			self::delete_preview( $f );
+		}
+		$wpdb->delete( YAA_DB::files_table(), array( 'project_id' => $project_id ), array( '%d' ) ); // phpcs:ignore WordPress.DB
+	}
+
 	public static function handle_delete() {
 		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'yaa_files' ) ) {
 			wp_die( 'Nope' );

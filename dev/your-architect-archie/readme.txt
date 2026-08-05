@@ -39,6 +39,16 @@ protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
 
+= 0.4.6 =
+* You can now delete submissions/projects from the admin — a trash button on each
+  row and a Delete button on the detail page (both with a confirm). Deleting
+  removes the record and everything attached to it (events, drafted emails, and
+  any uploaded files, including the originals on disk).
+* Terminology: only a submitted entry (one with a reference) is called a
+  "Project" now. Everyone who started but didn't submit is a "partial submission".
+  The dashboard tiles read All submissions / Partial submissions / Projects
+  (submitted) / Conversion rate.
+
 = 0.4.5 =
 * Email is now properly captured. Archie asks for it as "so I can email you your
   quote and the team can get back to you" (not an optional "save & come back"),

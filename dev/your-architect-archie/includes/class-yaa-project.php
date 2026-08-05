@@ -214,6 +214,21 @@ class YAA_Project {
 		self::log_event( $id, 'paid', array( 'amount' => (int) $amount_pennies ) );
 	}
 
+	/** Permanently delete a project and everything attached to it (files on disk, file/event/email rows). */
+	public static function delete( $id ) {
+		global $wpdb;
+		$id = (int) $id;
+		if ( ! $id ) {
+			return;
+		}
+		if ( class_exists( 'YAA_Files' ) ) {
+			YAA_Files::delete_for_project( $id );
+		}
+		$wpdb->delete( YAA_DB::events_table(), array( 'project_id' => $id ), array( '%d' ) );   // phpcs:ignore WordPress.DB
+		$wpdb->delete( YAA_DB::emails_table(), array( 'project_id' => $id ), array( '%d' ) );   // phpcs:ignore WordPress.DB
+		$wpdb->delete( YAA_DB::projects_table(), array( 'id' => $id ), array( '%d' ) );         // phpcs:ignore WordPress.DB
+	}
+
 	// ---- Event log (audit + funnel; email/payment events land here later) ----
 	public static function log_event( $id, $type, array $meta = array() ) {
 		global $wpdb;
