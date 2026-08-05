@@ -44,6 +44,34 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 	public function boot() {
 		add_action( 'admin_menu', array( $this, 'register_menu' ), 20 );
 		add_action( 'admin_post_octobermi_blog_save_brief', array( $this, 'handle_save_brief' ) );
+		add_action( 'admin_post_octobermi_blog_learn', array( $this, 'handle_learn' ) );
+		add_action( 'wp_ajax_octobermi_blog_job_status', array( $this, 'ajax_job_status' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+
+		// This module's background job handlers (registered in every request,
+		// including WP-Cron, so queued jobs can run).
+		OctoberMI_Jobs::register_handler(
+			OctoberMI_Blog_Context_Pack::JOB_TYPE,
+			array( 'OctoberMI_Blog_Context_Pack', 'run_job' )
+		);
+	}
+
+	public function enqueue_assets( $hook ) {
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( self::MENU_SLUG !== $page ) {
+			return;
+		}
+		wp_enqueue_script(
+			'octobermi-blog',
+			OCTOBERMI_URL . 'modules/blog/blog-admin.js',
+			array(),
+			OCTOBERMI_VERSION,
+			true
+		);
+		wp_localize_script( 'octobermi-blog', 'OctoberMIBlog', array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => wp_create_nonce( 'octobermi_blog_status' ),
+		) );
 	}
 
 	// =====================================================================
@@ -110,6 +138,50 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 	}
 
 	// =====================================================================
+	// Learn my site (Context Pack)
+	// =====================================================================
+
+	public function handle_learn() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'october-mi' ) );
+		}
+		check_admin_referer( 'octobermi_blog_learn' );
+
+		if ( ! OctoberMI_Claude::available() ) {
+			$msg = __( 'Add a Claude API key (or connect a managed key) before learning your site.', 'october-mi' );
+			$ok  = false;
+		} else {
+			OctoberMI_Blog_Context_Pack::start();
+			$msg = __( 'Learning your site… this runs in the background and takes a minute.', 'october-mi' );
+			$ok  = true;
+		}
+
+		wp_safe_redirect( add_query_arg(
+			array( 'page' => self::MENU_SLUG, 'octobermi_notice' => rawurlencode( $msg ), 'octobermi_ok' => $ok ? '1' : '0' ),
+			admin_url( 'admin.php' )
+		) );
+		exit;
+	}
+
+	/** Poll endpoint for the latest learn job's state. */
+	public function ajax_job_status() {
+		check_ajax_referer( 'octobermi_blog_status', 'nonce' );
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'october-mi' ) ), 403 );
+		}
+		$job = OctoberMI_Jobs::latest_of_type( OctoberMI_Blog_Context_Pack::JOB_TYPE );
+		if ( ! $job ) {
+			wp_send_json_success( array( 'status' => 'none' ) );
+		}
+		wp_send_json_success( array(
+			'status'   => $job['status'],
+			'progress' => (int) $job['progress'],
+			'note'     => $job['note'],
+			'error'    => $job['error'],
+		) );
+	}
+
+	// =====================================================================
 	// Page
 	// =====================================================================
 
@@ -121,6 +193,9 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		$brief          = self::brief();
 		$engine_ready   = OctoberMI_Claude::available();
 		$backend        = OctoberMI_Claude::backend_label();
+		$pack           = OctoberMI_Blog_Context_Pack::get();
+		$learn_job      = OctoberMI_Jobs::latest_of_type( OctoberMI_Blog_Context_Pack::JOB_TYPE );
+		$learn_running  = $learn_job && in_array( $learn_job['status'], array( 'queued', 'running' ), true );
 		$notice         = isset( $_GET['octobermi_notice'] ) ? sanitize_text_field( wp_unslash( $_GET['octobermi_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$notice_ok      = isset( $_GET['octobermi_ok'] ) ? (bool) (int) $_GET['octobermi_ok'] : true; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		?>
@@ -161,6 +236,80 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 				<p class="description">
 					<?php esc_html_e( 'Scheduled generation runs in the background and never blocks your site. The full research → draft → review → publish pipeline arrives in the next update; this brief is what it will run on.', 'october-mi' ); ?>
 				</p>
+			</div>
+
+			<div class="octobermi-card">
+				<h2><?php esc_html_e( 'Company knowledge', 'october-mi' ); ?></h2>
+				<p class="description">
+					<?php esc_html_e( 'The engine reads your own pages and posts to learn your positioning, products, audience, voice and internal links — so every draft is specific to your business, not generic.', 'october-mi' ); ?>
+				</p>
+
+				<div id="octobermi-learn-status"
+					data-running="<?php echo $learn_running ? '1' : '0'; ?>"
+					<?php if ( $learn_running ) : ?>
+						data-progress="<?php echo esc_attr( (int) $learn_job['progress'] ); ?>"
+						data-note="<?php echo esc_attr( $learn_job['note'] ); ?>"
+					<?php endif; ?>>
+					<?php if ( $learn_running ) : ?>
+						<p><span class="octobermi-spinner"></span>
+							<span class="octobermi-learn-note"><?php echo esc_html( $learn_job['note'] ? $learn_job['note'] : __( 'Working…', 'october-mi' ) ); ?></span>
+							(<span class="octobermi-learn-pct"><?php echo esc_html( (int) $learn_job['progress'] ); ?></span>%)
+						</p>
+					<?php elseif ( $learn_job && 'error' === $learn_job['status'] ) : ?>
+						<p class="octobermi-fail"><?php echo esc_html( $learn_job['error'] ? $learn_job['error'] : __( 'Learning failed.', 'october-mi' ) ); ?></p>
+					<?php endif; ?>
+				</div>
+
+				<?php if ( $pack ) : ?>
+					<table class="widefat striped" style="margin:10px 0;">
+						<tbody>
+							<?php if ( ! empty( $pack['one_line'] ) ) : ?>
+								<tr><th style="width:160px;"><?php esc_html_e( 'Value proposition', 'october-mi' ); ?></th><td><?php echo esc_html( $pack['one_line'] ); ?></td></tr>
+							<?php endif; ?>
+							<?php if ( ! empty( $pack['positioning'] ) ) : ?>
+								<tr><th><?php esc_html_e( 'Positioning', 'october-mi' ); ?></th><td><?php echo esc_html( $pack['positioning'] ); ?></td></tr>
+							<?php endif; ?>
+							<?php if ( ! empty( $pack['products'] ) && is_array( $pack['products'] ) ) : ?>
+								<tr><th><?php esc_html_e( 'Products', 'october-mi' ); ?></th><td><?php echo esc_html( implode( ', ', array_filter( wp_list_pluck( $pack['products'], 'name' ) ) ) ); ?></td></tr>
+							<?php endif; ?>
+							<?php if ( ! empty( $pack['themes'] ) && is_array( $pack['themes'] ) ) : ?>
+								<tr><th><?php esc_html_e( 'Themes to own', 'october-mi' ); ?></th><td><?php echo esc_html( implode( ', ', $pack['themes'] ) ); ?></td></tr>
+							<?php endif; ?>
+							<?php if ( ! empty( $pack['voice']['summary'] ) ) : ?>
+								<tr><th><?php esc_html_e( 'Voice', 'october-mi' ); ?></th><td><?php echo esc_html( $pack['voice']['summary'] ); ?></td></tr>
+							<?php endif; ?>
+							<tr><th><?php esc_html_e( 'Learned from', 'october-mi' ); ?></th><td>
+								<?php
+								$counts = isset( $pack['source_counts'] ) ? $pack['source_counts'] : array();
+								$links  = isset( $pack['internal_links'] ) ? count( (array) $pack['internal_links'] ) : 0;
+								printf(
+									/* translators: 1: page count, 2: post count, 3: internal link count. */
+									esc_html__( '%1$d pages, %2$d posts — %3$d internal links mapped', 'october-mi' ),
+									(int) ( isset( $counts['pages'] ) ? $counts['pages'] : 0 ),
+									(int) ( isset( $counts['posts'] ) ? $counts['posts'] : 0 ),
+									(int) $links
+								);
+								if ( ! empty( $pack['learned_at'] ) ) {
+									echo ' · ' . esc_html( human_time_diff( (int) $pack['learned_at'], time() ) . ' ' . __( 'ago', 'october-mi' ) );
+								}
+								?>
+							</td></tr>
+						</tbody>
+					</table>
+				<?php elseif ( ! $learn_running ) : ?>
+					<p><em><?php esc_html_e( 'Not learned yet.', 'october-mi' ); ?></em></p>
+				<?php endif; ?>
+
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="octobermi_blog_learn" />
+					<?php wp_nonce_field( 'octobermi_blog_learn' ); ?>
+					<button type="submit" class="button" <?php disabled( ! $engine_ready || $learn_running ); ?>>
+						<?php echo $pack ? esc_html__( 'Re-learn my site', 'october-mi' ) : esc_html__( 'Learn my site', 'october-mi' ); ?>
+					</button>
+					<?php if ( ! $engine_ready ) : ?>
+						<span class="description"><?php esc_html_e( 'Configure the content engine first.', 'october-mi' ); ?></span>
+					<?php endif; ?>
+				</form>
 			</div>
 
 			<div class="octobermi-card">

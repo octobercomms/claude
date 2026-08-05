@@ -72,3 +72,24 @@ name; internal `october-mi` slug unchanged). See `PLATFORM-PLUGIN-ARCHITECTURE.m
 - `POST /api/wp-connect/generate` proxy (model allow-list, cost caps, usage logging).
 - Dashboard "revoke site" control (rotate `refresh_secret`) + optional remote-disable.
 - Enrichment endpoints (keyword/SERP clusters, competitor & subreddit research).
+
+## v1.2.0 — Pipeline groundwork: job runner + site-learner (this increment)
+
+- **Background job runner** (`includes/class-octobermi-jobs.php`): custom
+  `{prefix}octobermi_jobs` table, `enqueue()` → WP-Cron single event nudged with
+  `spawn_cron()`, per-type handlers registered by modules (so cron requests can run
+  them), progress/result/error tracking, auto-trim to 200 rows. All expensive work runs
+  here — never in a page request.
+- **Context Pack / site-learner** (`modules/blog/class-octobermi-context-pack.php`):
+  reads the site's own published pages + posts directly from WordPress (no HTTP fetch → no
+  SSRF surface), sends a bounded corpus to Claude, and stores a structured company profile
+  (positioning, products, ICP, brand-voice signals, themes, internal-link map, author
+  hints). Runs as the `blog_context_pack` job.
+- **Blog UI**: "Learn my site" / "Re-learn" button enqueues the job; a company-knowledge
+  card renders the pack; `blog-admin.js` polls `wp_ajax_octobermi_blog_job_status` and
+  refreshes when done. Button gated on engine availability.
+
+### Still to come (pipeline)
+- Keyword/SERP research + clusters/briefs (DataForSEO/Serper), grounded writer → optimise
+  (SEO/AEO/voice) → fact-check → schema/images, editorial queue + approve/publish, weekly
+  scheduler; `wp_kses` on save; rate/cost caps.

@@ -3,7 +3,7 @@
  * Plugin Name: October Marketing Platform
  * Plugin URI: https://octobercomms.com
  * Description: The October Marketing Platform on your site. A modular plugin whose capabilities you switch on as needed — starting with Blog Autopilot, which researches, drafts, optimises and publishes premium blog posts with Claude. Runs standalone with your own key, or connect it to the platform for central oversight.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: October
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCTOBERMI_VERSION', '1.1.0' );
+define( 'OCTOBERMI_VERSION', '1.2.0' );
 define( 'OCTOBERMI_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCTOBERMI_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCTOBERMI_BASENAME', plugin_basename( __FILE__ ) );
@@ -46,10 +46,15 @@ require_once OCTOBERMI_PATH . 'includes/class-octobermi-rest.php';
 require_once OCTOBERMI_PATH . 'includes/class-octobermi-updater.php';
 require_once OCTOBERMI_PATH . 'includes/class-octobermi-modules.php';
 require_once OCTOBERMI_PATH . 'includes/class-octobermi-claude.php';
+require_once OCTOBERMI_PATH . 'includes/class-octobermi-jobs.php';
+
+// Background job runner (core): expensive work never runs in a page request.
+OctoberMI_Jobs::init();
 
 // --- Modules -------------------------------------------------------------
 // Each capability is a module. Register them here; only the ones switched on
 // in Settings are booted, so a single-purpose install stays lean.
+require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-context-pack.php';
 require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-blog.php';
 OctoberMI_Modules::register( new OctoberMI_Blog_Module() );
 
