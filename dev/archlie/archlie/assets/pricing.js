@@ -60,15 +60,20 @@ window.ARCHLIE = (function () {
 
   // Full architectural service range (for the services section).
   var SERVICES = [
+    'Rear, side & wraparound extensions',
+    'Two-storey extensions',
+    'Loft & mansard conversions',
+    'Garage conversions',
+    'Garden rooms & outbuildings',
+    'New build homes',
+    'Internal alterations & refurbishment',
+    'Change of use (without construction)',
     'Pre-planning applications',
     'Planning applications',
-    'Listed building consent',
     'Permitted development / lawful development certificate',
-    'Loft & garage conversions',
-    'Outbuildings',
-    'Change of use (without construction)',
+    'Listed building consent',
     'Retrospective applications',
-    'New dwellings'
+    'Measured building surveys'
   ];
 
   var REVISIONS_INCLUDED = 2;

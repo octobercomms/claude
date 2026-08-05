@@ -47,7 +47,7 @@
       <div class="hero-embed-wrap" id="archie">
         <div class="archie-embed">
           <div class="ob-top">
-            <span class="ob-title"><span class="archie-face" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="23" fill="#E4EFF7"/><path d="M11 20c0-8 6-13 13-13s13 5 13 13" stroke="#253E94" stroke-width="3.4" stroke-linecap="round"/><path d="M12 21c2.5-2 6-3 6-3M36 21c-2.5-2-6-3-6-3" stroke="#253E94" stroke-width="2.2" stroke-linecap="round"/><circle cx="18.5" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><circle cx="30" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><path d="M22.9 25h2.2" stroke="#253E94" stroke-width="2.4" stroke-linecap="round"/><path d="M19 34c2 1.8 8 1.8 10 0" stroke="#253E94" stroke-width="2.6" stroke-linecap="round"/></svg></span> Talk to Archie — your personalised price builds as you answer</span>
+            <span class="ob-title"><span class="archie-face"><img class="a-ico" src="assets/archie-icon.svg" alt="Archie"></span> Talk to Archie — your personalised price builds as you answer</span>
             <div class="ob-actions">
               <button class="btn btn-outline" id="restartBtn" type="button">Start over</button>
             </div>
@@ -219,7 +219,7 @@
       <div class="sec-head">
         <span class="sec-kicker">Pricing</span>
         <h2>Two fixed packages. Pick one.</h2>
-        <p>No floor-area bands, no hourly rates. Two flat prices, with a short menu of optional add-ons shown before you commit. Every package includes two revisions.</p>
+        <p>No floor-area bands, no hourly rates. Two flat prices, with a short menu of optional add-ons shown before you commit. Every package includes two revisions — and we're not VAT-registered, so the price you see is the price you pay.</p>
       </div>
       <div class="pkg-grid">
         <div class="pkg-card feat">
@@ -265,7 +265,7 @@
           <li><span>Site visit (London boroughs / within the M25)</span><strong>£350</strong></li>
           <li><span>Measured survey &amp; structural engineer</span><strong>sourced separately — quote to follow</strong></li>
         </ul>
-        <p class="menu-note">Survey and structural engineer are never part of our fee: we source an independent local professional, share their quote for your approval first, and you only pay for their work — not our time. Full RIBA services (Stages 0–7), concept to construction, are handled by Tiam Architects — <a href="mailto:info@tiamarchitects.com">info@tiamarchitects.com</a>.</p>
+        <p class="menu-note">Need a measured survey or a structural engineer? We'll help — we find a trusted independent local professional, share their quote for your approval first, and you pay them directly for their work. No admin fees, and never for our time. Full RIBA services (Stages 0–7), concept to construction, are handled by Tiam Architects — <a href="mailto:info@tiamarchitects.com">info@tiamarchitects.com</a>.</p>
       </div>
     </div>
   </section>
@@ -279,15 +279,20 @@
         <p>Fully remote. Whatever your project needs, Archie will point you to the right package.</p>
       </div>
       <ul class="services-grid" id="servicesList">
+        <li>Rear, side &amp; wraparound extensions</li>
+        <li>Two-storey extensions</li>
+        <li>Loft &amp; mansard conversions</li>
+        <li>Garage conversions</li>
+        <li>Garden rooms &amp; outbuildings</li>
+        <li>New build homes</li>
+        <li>Internal alterations &amp; refurbishment</li>
+        <li>Change of use (without construction)</li>
         <li>Pre-planning applications</li>
         <li>Planning applications</li>
-        <li>Listed building consent</li>
         <li>Permitted development / lawful development certificate</li>
-        <li>Loft &amp; garage conversions</li>
-        <li>Outbuildings</li>
-        <li>Change of use (without construction)</li>
+        <li>Listed building consent</li>
         <li>Retrospective applications</li>
-        <li>New dwellings</li>
+        <li>Measured building surveys</li>
       </ul>
     </div>
   </section>
@@ -339,7 +344,10 @@
   <section class="zone zone--blue pad-sm">
     <div class="band" style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap">
       <h2 style="font-size:clamp(1.6rem,3.4vw,2.4rem);max-width:20ch;color:#fff">Your price is a conversation away.</h2>
-      <a href="#archie" class="btn btn-primary btn-lg">Talk to Archie</a>
+      <div class="cta-actions">
+        <a href="#archie" class="btn btn-primary btn-lg">Talk to Archie</a>
+        <a href="#book" class="cta-call">Prefer to talk it through first? Book a call →</a>
+      </div>
     </div>
   </section>
 
@@ -371,6 +379,7 @@
     </div>
   </footer>
 
+  <script>window.ARCHIE_ICON = 'assets/archie-icon.svg';</script>
   <script src="assets/pricing.js"></script>
   <script src="assets/app.js"></script>
   <script src="assets/onboarding.js"></script>

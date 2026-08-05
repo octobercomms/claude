@@ -91,6 +91,7 @@ function archlie_assets() {
 	if ( archlie_is_builder() || is_front_page() ) {
 		wp_enqueue_style( 'archlie-onboarding', $uri . '/assets/css/onboarding.css', array( 'archlie-theme' ), $ver( '/assets/css/onboarding.css' ) );
 		wp_enqueue_script( 'archlie-onboarding', $uri . '/assets/js/onboarding.js', array( 'archlie-pricing' ), $ver( '/assets/js/onboarding.js' ), true );
+		wp_add_inline_script( 'archlie-onboarding', 'window.ARCHIE_ICON = ' . wp_json_encode( $uri . '/assets/archie-icon.svg' ) . ';', 'before' );
 	}
 	// The homepage price grid + generic pages use app.js.
 	if ( ! archlie_is_builder() ) {
