@@ -105,6 +105,10 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 			throw new Exception( $post_id->get_error_message() );
 		}
 
+		// Hero image: best media-library match, else generate (best-effort).
+		OctoberMI_Jobs::progress( $job_id, 92, __( 'Choosing a hero image…', 'october-mi' ) );
+		OctoberMI_Blog_Images::attach_hero( $post_id, $gen );
+
 		return array(
 			'post_id' => (int) $post_id,
 			'title'   => get_the_title( $post_id ),

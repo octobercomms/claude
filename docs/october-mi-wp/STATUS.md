@@ -163,3 +163,19 @@ The plugin can now produce a real post end to end.
 ### Still to come
 - AI **hero images**; the **OMI-side** generate proxy + revoke control + DataForSEO/Serper
   enrichment (briefed separately).
+
+## v1.7.0 — Hero images (library-first, Gemini backup)
+
+- **Images** (`modules/blog/class-octobermi-images.php`): for each generated post,
+  1. **Library match** — scores existing media (title/alt/caption/filename) against the
+     article and asks Claude (haiku) to pick the best fit or reject them all; sets it as the
+     featured image. Free, no external API.
+  2. **Gemini backup** — if nothing fits (and mode allows), generates a bespoke hero from the
+     article's art-direction prompt via the Gemini image API, sideloads it into the media
+     library with alt text, and sets it as featured.
+  Best-effort: failures are logged and never fail the post; respects an existing featured image.
+- **Settings**: hero-image mode (off / library only / library-then-generate) + an encrypted,
+  write-only **Gemini image API key**. Gemini model id is filterable (`octobermi_gemini_image_model`).
+
+Note: Gemini runs on an own-key basis in the plugin today; in connected mode it could later be
+proxied through the platform (same revocation benefit as the Claude managed key).

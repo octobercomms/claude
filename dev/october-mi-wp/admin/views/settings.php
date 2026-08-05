@@ -112,6 +112,32 @@ foreach ( $log as $entry ) {
 			</p>
 		</div>
 
+		<?php
+		$hero_mode   = isset( $settings['hero_images'] ) ? $settings['hero_images'] : 'library_generate';
+		$has_gemini  = '' !== (string) ( isset( $settings['gemini_api_key'] ) ? $settings['gemini_api_key'] : '' );
+		?>
+		<div class="octobermi-card">
+			<h2><?php esc_html_e( 'Hero images', 'october-mi' ); ?></h2>
+			<p>
+				<label for="octobermi_hero_images"><strong><?php esc_html_e( 'For each generated post', 'october-mi' ); ?></strong></label><br />
+				<select id="octobermi_hero_images" name="octobermi_hero_images">
+					<option value="library_generate" <?php selected( $hero_mode, 'library_generate' ); ?>><?php esc_html_e( 'Use the best media-library image, or generate one', 'october-mi' ); ?></option>
+					<option value="library" <?php selected( $hero_mode, 'library' ); ?>><?php esc_html_e( 'Use the best media-library image only', 'october-mi' ); ?></option>
+					<option value="off" <?php selected( $hero_mode, 'off' ); ?>><?php esc_html_e( 'No hero image', 'october-mi' ); ?></option>
+				</select>
+			</p>
+			<p class="description"><?php esc_html_e( 'The engine scores your existing media against the article (and asks Claude to pick the best fit). If nothing fits and generation is on, it creates a bespoke hero with Gemini and adds it to your library with alt text.', 'october-mi' ); ?></p>
+			<p style="margin-top:12px;">
+				<label for="octobermi_gemini_key"><strong><?php esc_html_e( 'Gemini image API key', 'october-mi' ); ?></strong> <span class="description"><?php esc_html_e( '(only needed for generation)', 'october-mi' ); ?></span></label><br />
+				<input type="password" id="octobermi_gemini_key" name="octobermi_gemini_key" class="regular-text" autocomplete="off"
+					placeholder="<?php echo $has_gemini ? esc_attr( '•••••••• (saved)' ) : esc_attr__( 'AIza…', 'october-mi' ); ?>" />
+			</p>
+			<?php if ( $has_gemini ) : ?>
+				<p><label><input type="checkbox" name="octobermi_gemini_key_clear" value="1" /> <?php esc_html_e( 'Remove the saved Gemini key', 'october-mi' ); ?></label></p>
+			<?php endif; ?>
+			<p class="description"><?php esc_html_e( 'Stored encrypted on this site, never shown again.', 'october-mi' ); ?></p>
+		</div>
+
 		<div class="octobermi-card">
 			<h2><?php esc_html_e( 'Platform connection', 'october-mi' ); ?></h2>
 			<label>

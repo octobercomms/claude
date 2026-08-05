@@ -27,6 +27,7 @@ class OctoberMI_Settings {
 		'refresh_secret',
 		'github_token',
 		'claude_api_key',
+		'gemini_api_key',
 	);
 
 	public static function defaults() {
@@ -49,6 +50,10 @@ class OctoberMI_Settings {
 			// Safety rail: estimated monthly USD cap for own-key generation
 			// (0 = unlimited). Managed keys are capped platform-side.
 			'monthly_cost_cap' => 0,
+
+			// Hero images: 'off' | 'library' | 'library_generate'.
+			'hero_images'      => 'library_generate',
+			'gemini_api_key'   => '',
 
 			// --- Self-updater (GitHub repo) ---------------------------------
 			'github_token'    => '',
