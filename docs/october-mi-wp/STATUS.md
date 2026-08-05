@@ -93,3 +93,89 @@ name; internal `october-mi` slug unchanged). See `PLATFORM-PLUGIN-ARCHITECTURE.m
 - Keyword/SERP research + clusters/briefs (DataForSEO/Serper), grounded writer → optimise
   (SEO/AEO/voice) → fact-check → schema/images, editorial queue + approve/publish, weekly
   scheduler; `wp_kses` on save; rate/cost caps.
+
+## v1.3.0 — Post generation: writer → sanitised draft → schema (this increment)
+
+The plugin can now produce a real post end to end.
+
+- **Writer** (`modules/blog/class-octobermi-writer.php`): brief + Context Pack → strict-JSON
+  article (title, slug, meta description, excerpt, HTML body, tags, FAQ, hero-image prompt,
+  internal links used). Premium/E-E-A-T + AEO system prompt: question H2s with answer
+  capsules, no invented stats/sources, no AI-tell phrasing, uses the pack's internal links,
+  avoids already-published titles.
+- **Publisher** (`class-octobermi-publisher.php`): sanitises the model HTML with a tight
+  `wp_kses` allow-list (no script/style/iframe/handlers), creates the post as **draft**
+  (or auto-publish per brief), bylines the brief's **author**, stores meta description
+  (+ Yoast/Rank Math compat), FAQ, tags, hero prompt, and the generated flag.
+- **Schema** (`class-octobermi-schema.php`): front-end JSON-LD for generated posts —
+  `BlogPosting` + real `Person` author (with `sameAs`) + `Organization` + `FAQPage`.
+- **UI**: "Generate a post now" (optional topic) runs as a background `blog_generate` job;
+  an **editorial queue** lists engine posts with status/author/edit/view; the job poller now
+  handles multiple job types on one screen.
+
+### Still to come
+- Weekly **scheduler** (auto-generate on cadence); topic/keyword **research planner** and
+  connected DataForSEO/Serper enrichment; AI **hero images**; per-site rate/cost caps;
+  the OMI-side generate proxy + revoke control.
+
+## v1.4.0 — Autopilot scheduler (this increment)
+
+- **Scheduler** (`modules/blog/class-octobermi-scheduler.php`): opt-in recurring generation.
+  Custom cron intervals (weekly / biweekly / monthly), a recurring event that queues a
+  `blog_generate` job on the brief's cadence, and re-scheduling whenever the brief changes.
+  Guarded: only runs when the module is enabled and the engine is available; posts still
+  land per the brief's publish mode.
+- **Brief**: new `autopilot` toggle; the page shows the next scheduled run.
+- **Module lifecycle**: modules gained `deactivate()`; switching Blog off clears its
+  schedule. Turning autopilot on/off (or changing cadence) reschedules immediately.
+
+### Still to come
+- Topic/keyword **research planner** + connected DataForSEO/Serper enrichment; AI **hero
+  images**; per-site **rate/cost caps**; the **OMI-side** generate proxy + revoke control.
+
+## v1.5.0 — Topic planner (pillar/cluster plan)
+
+- **Planner** (`modules/blog/class-octobermi-planner.php`): builds a de-duplicated
+  pillar/cluster plan of specific, company-grounded topics (no invented volumes), stored and
+  worked through one per cycle. Runs as the `blog_plan` job.
+- **Generation consumes the plan**: when no explicit topic is given, generation claims the
+  next queued topic and retires it after publishing — so autopilot builds topical authority
+  and never repeats.
+- **UI**: a Content-plan card (plan/add-more button, queued vs. written list) with the
+  shared job poller.
+
+### Still to come
+- Per-site **rate/cost caps**; AI **hero images**; the **OMI-side** generate proxy + revoke
+  control + DataForSEO/Serper enrichment.
+
+## v1.6.0 — Cost/rate guardrails (security & spend)
+
+- **Usage tracker** (`includes/class-octobermi-usage.php`): records token usage from own-key
+  Anthropic calls and accumulates an estimated monthly cost (filterable price table).
+- **Monthly cost cap** (Settings, 0 = unlimited): once this month's estimate hits the cap,
+  learn/plan/generate — manual and scheduled — are blocked with a clear message. Managed
+  keys are capped platform-side, so this rail is for the own-key path.
+- **Rate limit**: at most 12 on-demand generations per rolling hour (`OctoberMI_Jobs::count_recent`).
+- **Autopilot respects both**: the scheduler skips (and logs) a run when blocked, so it can
+  never overspend.
+- Settings shows this-month estimated spend + call count.
+
+### Still to come
+- AI **hero images**; the **OMI-side** generate proxy + revoke control + DataForSEO/Serper
+  enrichment (briefed separately).
+
+## v1.7.0 — Hero images (library-first, Gemini backup)
+
+- **Images** (`modules/blog/class-octobermi-images.php`): for each generated post,
+  1. **Library match** — scores existing media (title/alt/caption/filename) against the
+     article and asks Claude (haiku) to pick the best fit or reject them all; sets it as the
+     featured image. Free, no external API.
+  2. **Gemini backup** — if nothing fits (and mode allows), generates a bespoke hero from the
+     article's art-direction prompt via the Gemini image API, sideloads it into the media
+     library with alt text, and sets it as featured.
+  Best-effort: failures are logged and never fail the post; respects an existing featured image.
+- **Settings**: hero-image mode (off / library only / library-then-generate) + an encrypted,
+  write-only **Gemini image API key**. Gemini model id is filterable (`octobermi_gemini_image_model`).
+
+Note: Gemini runs on an own-key basis in the plugin today; in connected mode it could later be
+proxied through the platform (same revocation benefit as the Claude managed key).

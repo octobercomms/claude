@@ -39,20 +39,80 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		if ( false === get_option( self::BRIEF_OPTION, false ) ) {
 			add_option( self::BRIEF_OPTION, self::brief_defaults(), '', false );
 		}
+		OctoberMI_Blog_Scheduler::reschedule();
 	}
+
+	public function deactivate() {
+		// Stop the autopilot when the capability is switched off.
+		OctoberMI_Blog_Scheduler::clear();
+	}
+
+	const GENERATE_JOB = 'blog_generate';
 
 	public function boot() {
 		add_action( 'admin_menu', array( $this, 'register_menu' ), 20 );
 		add_action( 'admin_post_octobermi_blog_save_brief', array( $this, 'handle_save_brief' ) );
 		add_action( 'admin_post_octobermi_blog_learn', array( $this, 'handle_learn' ) );
+		add_action( 'admin_post_octobermi_blog_generate', array( $this, 'handle_generate' ) );
+		add_action( 'admin_post_octobermi_blog_plan', array( $this, 'handle_plan' ) );
 		add_action( 'wp_ajax_octobermi_blog_job_status', array( $this, 'ajax_job_status' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+
+		// Front-end structured data for generated posts.
+		OctoberMI_Blog_Schema::init();
+
+		// Autopilot scheduler (custom cron intervals + the recurring run).
+		OctoberMI_Blog_Scheduler::init();
 
 		// This module's background job handlers (registered in every request,
 		// including WP-Cron, so queued jobs can run).
 		OctoberMI_Jobs::register_handler(
 			OctoberMI_Blog_Context_Pack::JOB_TYPE,
 			array( 'OctoberMI_Blog_Context_Pack', 'run_job' )
+		);
+		OctoberMI_Jobs::register_handler(
+			self::GENERATE_JOB,
+			array( __CLASS__, 'run_generate_job' )
+		);
+		OctoberMI_Jobs::register_handler(
+			OctoberMI_Blog_Planner::JOB_TYPE,
+			array( 'OctoberMI_Blog_Planner', 'run_job' )
+		);
+	}
+
+	/** Background handler: write one article and place it as a post. */
+	public static function run_generate_job( $job, $job_id ) {
+		OctoberMI_Jobs::progress( $job_id, 15, __( 'Writing the article with Claude…', 'october-mi' ) );
+		$payload = isset( $job['payload'] ) && is_array( $job['payload'] ) ? $job['payload'] : array();
+
+		// No explicit topic? Reserve the next one from the content plan (claiming
+		// marks it used immediately, so overlapping runs can't duplicate it).
+		if ( empty( $payload['topic'] ) ) {
+			$planned = OctoberMI_Blog_Planner::claim_next();
+			if ( '' !== $planned ) {
+				$payload['topic'] = $planned;
+			}
+		}
+
+		$gen = OctoberMI_Blog_Writer::generate( $payload );
+		if ( is_wp_error( $gen ) ) {
+			throw new Exception( $gen->get_error_message() );
+		}
+
+		OctoberMI_Jobs::progress( $job_id, 80, __( 'Placing the draft and structured data…', 'october-mi' ) );
+		$post_id = OctoberMI_Blog_Publisher::create_from_generated( $gen, self::brief() );
+		if ( is_wp_error( $post_id ) ) {
+			throw new Exception( $post_id->get_error_message() );
+		}
+
+		// Hero image: best media-library match, else generate (best-effort).
+		OctoberMI_Jobs::progress( $job_id, 92, __( 'Choosing a hero image…', 'october-mi' ) );
+		OctoberMI_Blog_Images::attach_hero( $post_id, $gen );
+
+		return array(
+			'post_id' => (int) $post_id,
+			'title'   => get_the_title( $post_id ),
+			'status'  => get_post_status( $post_id ),
 		);
 	}
 
@@ -87,6 +147,7 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 			'cadence'      => 'weekly',
 			'word_target'  => 1400,
 			'publish_mode' => 'draft', // 'draft' (review) | 'auto' (trusted auto-publish)
+			'autopilot'    => false,   // recurring auto-generation on the cadence
 		);
 	}
 
@@ -96,6 +157,42 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 			$stored = array();
 		}
 		return array_merge( self::brief_defaults(), $stored );
+	}
+
+	/** Max on-demand generations per rolling hour (runaway guard). */
+	const MAX_GENERATE_PER_HOUR = 12;
+
+	/** '' if a model call is allowed, else a human reason it's blocked. */
+	public static function engine_blocked() {
+		if ( ! OctoberMI_Claude::available() ) {
+			return __( 'Configure the content engine first.', 'october-mi' );
+		}
+		if ( OctoberMI_Usage::over_cap() ) {
+			return __( 'Monthly cost cap reached — raise it in Settings to continue.', 'october-mi' );
+		}
+		return '';
+	}
+
+	/** As engine_blocked(), plus the per-hour generation rate limit. */
+	public static function generation_blocked() {
+		$blocked = self::engine_blocked();
+		if ( '' !== $blocked ) {
+			return $blocked;
+		}
+		if ( OctoberMI_Jobs::count_recent( self::GENERATE_JOB, HOUR_IN_SECONDS ) >= self::MAX_GENERATE_PER_HOUR ) {
+			return __( 'Too many posts generated in the last hour — try again shortly.', 'october-mi' );
+		}
+		return '';
+	}
+
+	private static function status_label( $status ) {
+		$map = array(
+			'draft'   => __( 'Draft (review)', 'october-mi' ),
+			'pending' => __( 'Pending review', 'october-mi' ),
+			'future'  => __( 'Scheduled', 'october-mi' ),
+			'publish' => __( 'Published', 'october-mi' ),
+		);
+		return isset( $map[ $status ] ) ? $map[ $status ] : ucfirst( (string) $status );
 	}
 
 	public function register_menu() {
@@ -126,9 +223,13 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 			'cadence'      => isset( $_POST['cadence'] ) && in_array( $_POST['cadence'], $cadences, true ) ? sanitize_key( $_POST['cadence'] ) : 'weekly',
 			'word_target'  => isset( $_POST['word_target'] ) ? max( 300, min( 5000, absint( $_POST['word_target'] ) ) ) : 1400,
 			'publish_mode' => isset( $_POST['publish_mode'] ) && in_array( $_POST['publish_mode'], $modes, true ) ? sanitize_key( $_POST['publish_mode'] ) : 'draft',
+			'autopilot'    => ! empty( $_POST['autopilot'] ),
 		);
 
 		update_option( self::BRIEF_OPTION, $brief, false );
+
+		// Apply the cadence/autopilot choice to the schedule.
+		OctoberMI_Blog_Scheduler::reschedule();
 
 		wp_safe_redirect( add_query_arg(
 			array( 'page' => self::MENU_SLUG, 'octobermi_notice' => rawurlencode( __( 'Brief saved.', 'october-mi' ) ), 'octobermi_ok' => '1' ),
@@ -147,8 +248,9 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		}
 		check_admin_referer( 'octobermi_blog_learn' );
 
-		if ( ! OctoberMI_Claude::available() ) {
-			$msg = __( 'Add a Claude API key (or connect a managed key) before learning your site.', 'october-mi' );
+		$blocked = self::engine_blocked();
+		if ( '' !== $blocked ) {
+			$msg = $blocked;
 			$ok  = false;
 		} else {
 			OctoberMI_Blog_Context_Pack::start();
@@ -163,13 +265,65 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		exit;
 	}
 
-	/** Poll endpoint for the latest learn job's state. */
+	public function handle_generate() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'october-mi' ) );
+		}
+		check_admin_referer( 'octobermi_blog_generate' );
+
+		$blocked = self::generation_blocked();
+		if ( '' !== $blocked ) {
+			$msg = $blocked;
+			$ok  = false;
+		} else {
+			$topic = isset( $_POST['topic'] ) ? sanitize_text_field( wp_unslash( $_POST['topic'] ) ) : '';
+			OctoberMI_Jobs::enqueue( self::GENERATE_JOB, array( 'topic' => $topic ) );
+			$msg = __( 'Writing a new post… it will appear below when it\'s ready.', 'october-mi' );
+			$ok  = true;
+		}
+
+		wp_safe_redirect( add_query_arg(
+			array( 'page' => self::MENU_SLUG, 'octobermi_notice' => rawurlencode( $msg ), 'octobermi_ok' => $ok ? '1' : '0' ),
+			admin_url( 'admin.php' )
+		) );
+		exit;
+	}
+
+	public function handle_plan() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'october-mi' ) );
+		}
+		check_admin_referer( 'octobermi_blog_plan' );
+
+		$blocked = self::engine_blocked();
+		if ( '' !== $blocked ) {
+			$msg = $blocked;
+			$ok  = false;
+		} else {
+			OctoberMI_Blog_Planner::start();
+			$msg = __( 'Planning topics… the plan will appear below shortly.', 'october-mi' );
+			$ok  = true;
+		}
+
+		wp_safe_redirect( add_query_arg(
+			array( 'page' => self::MENU_SLUG, 'octobermi_notice' => rawurlencode( $msg ), 'octobermi_ok' => $ok ? '1' : '0' ),
+			admin_url( 'admin.php' )
+		) );
+		exit;
+	}
+
+	/** Poll endpoint for the latest job of a given (whitelisted) type. */
 	public function ajax_job_status() {
 		check_ajax_referer( 'octobermi_blog_status', 'nonce' );
 		if ( ! current_user_can( self::CAP ) ) {
 			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'october-mi' ) ), 403 );
 		}
-		$job = OctoberMI_Jobs::latest_of_type( OctoberMI_Blog_Context_Pack::JOB_TYPE );
+		$allowed = array( OctoberMI_Blog_Context_Pack::JOB_TYPE, self::GENERATE_JOB, OctoberMI_Blog_Planner::JOB_TYPE );
+		$type    = isset( $_POST['type'] ) ? sanitize_key( wp_unslash( $_POST['type'] ) ) : OctoberMI_Blog_Context_Pack::JOB_TYPE;
+		if ( ! in_array( $type, $allowed, true ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unknown job type.', 'october-mi' ) ), 400 );
+		}
+		$job = OctoberMI_Jobs::latest_of_type( $type );
 		if ( ! $job ) {
 			wp_send_json_success( array( 'status' => 'none' ) );
 		}
@@ -196,6 +350,21 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		$pack           = OctoberMI_Blog_Context_Pack::get();
 		$learn_job      = OctoberMI_Jobs::latest_of_type( OctoberMI_Blog_Context_Pack::JOB_TYPE );
 		$learn_running  = $learn_job && in_array( $learn_job['status'], array( 'queued', 'running' ), true );
+		$gen_job        = OctoberMI_Jobs::latest_of_type( self::GENERATE_JOB );
+		$gen_running    = $gen_job && in_array( $gen_job['status'], array( 'queued', 'running' ), true );
+		$next_run       = OctoberMI_Blog_Scheduler::next_run();
+		$plan           = OctoberMI_Blog_Planner::all();
+		$plan_job       = OctoberMI_Jobs::latest_of_type( OctoberMI_Blog_Planner::JOB_TYPE );
+		$plan_running   = $plan_job && in_array( $plan_job['status'], array( 'queued', 'running' ), true );
+		$recent_posts   = get_posts( array(
+			'post_type'        => 'post',
+			'post_status'      => array( 'publish', 'draft', 'future', 'pending' ),
+			'numberposts'      => 10,
+			'orderby'          => 'date',
+			'order'            => 'DESC',
+			'meta_key'         => OctoberMI_Blog_Schema::META_GENERATED, // phpcs:ignore WordPress.DB.SlowDBQuery
+			'suppress_filters' => false,
+		) );
 		$notice         = isset( $_GET['octobermi_notice'] ) ? sanitize_text_field( wp_unslash( $_GET['octobermi_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$notice_ok      = isset( $_GET['octobermi_ok'] ) ? (bool) (int) $_GET['octobermi_ok'] : true; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		?>
@@ -244,12 +413,9 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 					<?php esc_html_e( 'The engine reads your own pages and posts to learn your positioning, products, audience, voice and internal links — so every draft is specific to your business, not generic.', 'october-mi' ); ?>
 				</p>
 
-				<div id="octobermi-learn-status"
-					data-running="<?php echo $learn_running ? '1' : '0'; ?>"
-					<?php if ( $learn_running ) : ?>
-						data-progress="<?php echo esc_attr( (int) $learn_job['progress'] ); ?>"
-						data-note="<?php echo esc_attr( $learn_job['note'] ); ?>"
-					<?php endif; ?>>
+				<div id="octobermi-learn-status" class="octobermi-job-poll"
+					data-jobtype="<?php echo esc_attr( OctoberMI_Blog_Context_Pack::JOB_TYPE ); ?>"
+					data-running="<?php echo $learn_running ? '1' : '0'; ?>">
 					<?php if ( $learn_running ) : ?>
 						<p><span class="octobermi-spinner"></span>
 							<span class="octobermi-learn-note"><?php echo esc_html( $learn_job['note'] ? $learn_job['note'] : __( 'Working…', 'october-mi' ) ); ?></span>
@@ -310,6 +476,128 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 						<span class="description"><?php esc_html_e( 'Configure the content engine first.', 'october-mi' ); ?></span>
 					<?php endif; ?>
 				</form>
+			</div>
+
+			<div class="octobermi-card">
+				<h2><?php esc_html_e( 'Content plan', 'october-mi' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'A pillar/cluster plan of specific topics, grounded in what the engine knows about your business. Autopilot works through this so the blog builds topical authority instead of scattering one-off posts.', 'october-mi' ); ?></p>
+
+				<div id="octobermi-plan-status" class="octobermi-job-poll"
+					data-jobtype="<?php echo esc_attr( OctoberMI_Blog_Planner::JOB_TYPE ); ?>"
+					data-running="<?php echo $plan_running ? '1' : '0'; ?>">
+					<?php if ( $plan_running ) : ?>
+						<p><span class="octobermi-spinner"></span>
+							<span class="octobermi-learn-note"><?php echo esc_html( $plan_job['note'] ? $plan_job['note'] : __( 'Working…', 'october-mi' ) ); ?></span>
+							(<span class="octobermi-learn-pct"><?php echo esc_html( (int) $plan_job['progress'] ); ?></span>%)
+						</p>
+					<?php elseif ( $plan_job && 'error' === $plan_job['status'] ) : ?>
+						<p class="octobermi-fail"><?php echo esc_html( $plan_job['error'] ? $plan_job['error'] : __( 'Planning failed.', 'october-mi' ) ); ?></p>
+					<?php endif; ?>
+				</div>
+
+				<?php if ( ! empty( $plan ) ) : ?>
+					<table class="widefat striped" style="margin:10px 0;">
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'Topic', 'october-mi' ); ?></th>
+								<th><?php esc_html_e( 'Cluster', 'october-mi' ); ?></th>
+								<th><?php esc_html_e( 'Status', 'october-mi' ); ?></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ( $plan as $item ) : ?>
+								<tr>
+									<td><strong><?php echo esc_html( $item['title'] ); ?></strong>
+										<?php if ( ! empty( $item['angle'] ) ) : ?><br /><span class="description"><?php echo esc_html( $item['angle'] ); ?></span><?php endif; ?>
+									</td>
+									<td><?php echo esc_html( isset( $item['cluster'] ) ? $item['cluster'] : '' ); ?></td>
+									<td>
+										<?php if ( isset( $item['status'] ) && 'used' === $item['status'] ) : ?>
+											<span class="octobermi-ok"><?php esc_html_e( 'Written', 'october-mi' ); ?></span>
+										<?php else : ?>
+											<?php esc_html_e( 'Queued', 'october-mi' ); ?>
+										<?php endif; ?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				<?php elseif ( ! $plan_running ) : ?>
+					<p><em><?php esc_html_e( 'No plan yet — generate one, or just write posts ad hoc below.', 'october-mi' ); ?></em></p>
+				<?php endif; ?>
+
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="octobermi_blog_plan" />
+					<?php wp_nonce_field( 'octobermi_blog_plan' ); ?>
+					<button type="submit" class="button" <?php disabled( ! $engine_ready || $plan_running ); ?>>
+						<?php echo ! empty( $plan ) ? esc_html__( 'Add more topics', 'october-mi' ) : esc_html__( 'Plan topics', 'october-mi' ); ?>
+					</button>
+				</form>
+			</div>
+
+			<div class="octobermi-card">
+				<h2><?php esc_html_e( 'Create content', 'october-mi' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Generate a post now, or let the schedule run it. Drafts land in the queue below for a named author to review before publishing.', 'october-mi' ); ?></p>
+
+				<div id="octobermi-gen-status" class="octobermi-job-poll"
+					data-jobtype="<?php echo esc_attr( self::GENERATE_JOB ); ?>"
+					data-running="<?php echo $gen_running ? '1' : '0'; ?>">
+					<?php if ( $gen_running ) : ?>
+						<p><span class="octobermi-spinner"></span>
+							<span class="octobermi-learn-note"><?php echo esc_html( $gen_job['note'] ? $gen_job['note'] : __( 'Working…', 'october-mi' ) ); ?></span>
+							(<span class="octobermi-learn-pct"><?php echo esc_html( (int) $gen_job['progress'] ); ?></span>%)
+						</p>
+					<?php elseif ( $gen_job && 'error' === $gen_job['status'] ) : ?>
+						<p class="octobermi-fail"><?php echo esc_html( $gen_job['error'] ? $gen_job['error'] : __( 'Generation failed.', 'october-mi' ) ); ?></p>
+					<?php endif; ?>
+				</div>
+
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="octobermi_blog_generate" />
+					<?php wp_nonce_field( 'octobermi_blog_generate' ); ?>
+					<p>
+						<label for="octobermi_gen_topic"><strong><?php esc_html_e( 'Topic', 'october-mi' ); ?></strong> <span class="description"><?php esc_html_e( '(optional)', 'october-mi' ); ?></span></label><br />
+						<input type="text" id="octobermi_gen_topic" name="topic" class="large-text" placeholder="<?php esc_attr_e( 'Leave blank to let the engine choose the strongest topic from what it knows', 'october-mi' ); ?>" />
+					</p>
+					<button type="submit" class="button button-primary" <?php disabled( ! $engine_ready || $gen_running ); ?>>
+						<?php esc_html_e( 'Generate a post now', 'october-mi' ); ?>
+					</button>
+					<?php if ( ! $engine_ready ) : ?>
+						<span class="description"><?php esc_html_e( 'Configure the content engine first.', 'october-mi' ); ?></span>
+					<?php endif; ?>
+				</form>
+
+				<?php if ( ! empty( $recent_posts ) ) : ?>
+					<h3 style="margin-top:20px;"><?php esc_html_e( 'Editorial queue', 'october-mi' ); ?></h3>
+					<table class="widefat striped">
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'Title', 'october-mi' ); ?></th>
+								<th><?php esc_html_e( 'Status', 'october-mi' ); ?></th>
+								<th><?php esc_html_e( 'Author', 'october-mi' ); ?></th>
+								<th><?php esc_html_e( 'Date', 'october-mi' ); ?></th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ( $recent_posts as $rp ) : ?>
+								<?php $edit = get_edit_post_link( $rp->ID ); $view = get_permalink( $rp->ID ); $st = get_post_status( $rp ); ?>
+								<tr>
+									<td><?php echo esc_html( get_the_title( $rp ) ); ?></td>
+									<td><?php echo esc_html( self::status_label( $st ) ); ?></td>
+									<td><?php echo esc_html( get_the_author_meta( 'display_name', $rp->post_author ) ); ?></td>
+									<td><?php echo esc_html( get_the_date( '', $rp ) ); ?></td>
+									<td>
+										<?php if ( $edit ) : ?><a href="<?php echo esc_url( $edit ); ?>"><?php esc_html_e( 'Edit', 'october-mi' ); ?></a><?php endif; ?>
+										<?php if ( 'publish' === $st && $view ) : ?> &middot; <a href="<?php echo esc_url( $view ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'View', 'october-mi' ); ?></a><?php endif; ?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				<?php elseif ( ! $gen_running ) : ?>
+					<p><em><?php esc_html_e( 'No posts generated yet.', 'october-mi' ); ?></em></p>
+				<?php endif; ?>
 			</div>
 
 			<div class="octobermi-card">
@@ -379,6 +667,25 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 									<label><input type="radio" name="publish_mode" value="auto" <?php checked( $brief['publish_mode'], 'auto' ); ?> /> <?php esc_html_e( 'Publish automatically (trusted auto-publish)', 'october-mi' ); ?></label>
 								</fieldset>
 								<p class="description"><?php esc_html_e( 'Premium sites should keep review on: a named author approving each post is itself the trust signal Google rewards.', 'october-mi' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Autopilot', 'october-mi' ); ?></th>
+							<td>
+								<label><input type="checkbox" name="autopilot" value="1" <?php checked( ! empty( $brief['autopilot'] ) ); ?> /> <?php esc_html_e( 'Automatically generate a new post on the cadence above', 'october-mi' ); ?></label>
+								<p class="description">
+									<?php
+									if ( $next_run ) {
+										printf(
+											/* translators: %s: human-readable time until the next run. */
+											esc_html__( 'Next automatic post in %s.', 'october-mi' ),
+											esc_html( human_time_diff( time(), $next_run ) )
+										);
+									} else {
+										esc_html_e( 'Off. Turn on to run hands-free; each post still lands per your publishing choice above.', 'october-mi' );
+									}
+									?>
+								</p>
 							</td>
 						</tr>
 					</table>

@@ -50,6 +50,9 @@ class OctoberMI_Client {
 
 		$blocking = ! empty( $opts['blocking'] );
 		$retries  = isset( $opts['retries'] ) ? max( 0, (int) $opts['retries'] ) : ( $blocking ? 1 : 0 );
+		// Callers whose payload is a model call (which runs in a background job)
+		// can request a long timeout; default keeps hooks snappy.
+		$timeout  = isset( $opts['timeout'] ) ? max( 1, (int) $opts['timeout'] ) : ( $blocking ? 15 : 5 );
 
 		// Envelope shared by every push, so the platform always has context.
 		$payload = array_merge( array(
@@ -64,7 +67,7 @@ class OctoberMI_Client {
 
 		$args = array(
 			'method'      => 'POST',
-			'timeout'     => $blocking ? 15 : 5,
+			'timeout'     => $timeout,
 			'blocking'    => $blocking,
 			'redirection' => 0,
 			'headers'     => array(

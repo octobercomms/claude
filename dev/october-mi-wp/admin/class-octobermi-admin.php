@@ -121,11 +121,31 @@ class OctoberMI_Admin {
 		$key_source      = ( isset( $_POST['octobermi_key_source'] ) && 'platform' === $_POST['octobermi_key_source'] )
 			? 'platform' : 'client';
 
+		$cost_cap = isset( $_POST['octobermi_cost_cap'] ) ? (float) wp_unslash( $_POST['octobermi_cost_cap'] ) : 0;
+
+		$hero_modes = array( 'off', 'library', 'library_generate' );
+		$hero_mode  = ( isset( $_POST['octobermi_hero_images'] ) && in_array( $_POST['octobermi_hero_images'], $hero_modes, true ) )
+			? sanitize_key( $_POST['octobermi_hero_images'] ) : 'library_generate';
+
 		$changes = array(
-			'enabled_modules' => $enabled,
-			'connect_enabled' => $connect_enabled,
-			'key_source'      => $key_source,
+			'enabled_modules'  => $enabled,
+			'connect_enabled'  => $connect_enabled,
+			'key_source'       => $key_source,
+			'monthly_cost_cap' => max( 0, $cost_cap ),
+			'hero_images'      => $hero_mode,
 		);
+
+		// Write-only Gemini image key (same masking rule as the Claude key).
+		if ( isset( $_POST['octobermi_gemini_key'] ) ) {
+			$gk = trim( (string) wp_unslash( $_POST['octobermi_gemini_key'] ) );
+			if ( '' === $gk ) {
+				if ( ! empty( $_POST['octobermi_gemini_key_clear'] ) ) {
+					$changes['gemini_api_key'] = '';
+				}
+			} elseif ( false === strpos( $gk, "\xe2\x80\xa2" ) ) {
+				$changes['gemini_api_key'] = sanitize_text_field( $gk );
+			}
+		}
 
 		// Write-only key: ignore the mask, accept a real value, allow clearing.
 		if ( isset( $_POST['octobermi_claude_key'] ) ) {
@@ -147,6 +167,13 @@ class OctoberMI_Admin {
 			$module = OctoberMI_Modules::get( $newly_on );
 			if ( $module ) {
 				$module->activate();
+			}
+		}
+		// And teardown for modules switched off.
+		foreach ( array_diff( $before, $enabled ) as $newly_off ) {
+			$module = OctoberMI_Modules::get( $newly_off );
+			if ( $module ) {
+				$module->deactivate();
 			}
 		}
 

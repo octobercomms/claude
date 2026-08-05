@@ -169,6 +169,17 @@ class OctoberMI_Jobs {
 		return $row ? self::hydrate( $row ) : null;
 	}
 
+	/** How many jobs of a type were created in the last N seconds (rate guard). */
+	public static function count_recent( $type, $seconds ) {
+		global $wpdb;
+		$since = gmdate( 'Y-m-d H:i:s', time() - (int) $seconds );
+		return (int) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB
+			'SELECT COUNT(*) FROM ' . self::table() . ' WHERE type = %s AND created_at >= %s',
+			(string) $type,
+			$since
+		) );
+	}
+
 	private static function hydrate( array $row ) {
 		$row['payload'] = $row['payload'] ? json_decode( $row['payload'], true ) : array();
 		$row['result']  = $row['result'] ? json_decode( $row['result'], true ) : null;

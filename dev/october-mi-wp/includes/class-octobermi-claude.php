@@ -108,17 +108,33 @@ class OctoberMI_Claude {
 			return new WP_Error( 'octobermi_no_key', __( 'No Claude API key is configured.', 'october-mi' ) );
 		}
 
+		$body = self::build_body( $args );
 		$response = wp_remote_post( self::API_URL, array(
-			'timeout' => 60,
+			// Runs in a background job; large drafts can take a while.
+			'timeout' => 120,
 			'headers' => array(
 				'content-type'      => 'application/json',
 				'x-api-key'         => $key,
 				'anthropic-version' => self::API_VERSION,
 			),
-			'body'    => wp_json_encode( self::build_body( $args ) ),
+			'body'    => wp_json_encode( $body ),
 		) );
 
-		return self::parse_anthropic( $response );
+		$text = self::parse_anthropic( $response );
+
+		// Record token usage for the monthly cost estimate/cap.
+		if ( ! is_wp_error( $text ) && ! is_wp_error( $response ) ) {
+			$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+			if ( is_array( $decoded ) && ! empty( $decoded['usage'] ) ) {
+				OctoberMI_Usage::record(
+					isset( $decoded['model'] ) ? $decoded['model'] : $body['model'],
+					isset( $decoded['usage']['input_tokens'] ) ? (int) $decoded['usage']['input_tokens'] : 0,
+					isset( $decoded['usage']['output_tokens'] ) ? (int) $decoded['usage']['output_tokens'] : 0
+				);
+			}
+		}
+
+		return $text;
 	}
 
 	private static function complete_via_platform( array $args ) {
@@ -128,7 +144,8 @@ class OctoberMI_Claude {
 			'generate',
 			array( 'request' => self::build_body( $args ) ),
 			'ai.generate',
-			array( 'blocking' => true, 'retries' => 1 )
+			// Generation runs in a background job — allow a long timeout.
+			array( 'blocking' => true, 'retries' => 1, 'timeout' => 120 )
 		);
 
 		if ( is_wp_error( $response ) ) {
