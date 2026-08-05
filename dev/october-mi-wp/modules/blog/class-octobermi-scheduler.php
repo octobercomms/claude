@@ -62,6 +62,11 @@ class OctoberMI_Blog_Scheduler {
 			return;
 		}
 
+		// Ensure our custom recurrences exist in THIS request — reschedule() can
+		// run from the module-enable request, before boot()'s filter is added,
+		// and wp_schedule_event() rejects an unknown recurrence.
+		add_filter( 'cron_schedules', array( __CLASS__, 'add_schedules' ) ); // phpcs:ignore WordPress.WP.CronInterval
+
 		$key   = self::schedule_key( $brief['cadence'] );
 		$every = self::add_schedules( array() )[ $key ]['interval'];
 		wp_schedule_event( time() + $every, $key, self::HOOK );

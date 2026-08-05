@@ -110,7 +110,8 @@ class OctoberMI_Claude {
 
 		$body = self::build_body( $args );
 		$response = wp_remote_post( self::API_URL, array(
-			'timeout' => 60,
+			// Runs in a background job; large drafts can take a while.
+			'timeout' => 120,
 			'headers' => array(
 				'content-type'      => 'application/json',
 				'x-api-key'         => $key,
@@ -143,7 +144,8 @@ class OctoberMI_Claude {
 			'generate',
 			array( 'request' => self::build_body( $args ) ),
 			'ai.generate',
-			array( 'blocking' => true, 'retries' => 1 )
+			// Generation runs in a background job — allow a long timeout.
+			array( 'blocking' => true, 'retries' => 1, 'timeout' => 120 )
 		);
 
 		if ( is_wp_error( $response ) ) {

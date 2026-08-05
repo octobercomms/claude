@@ -85,13 +85,12 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		OctoberMI_Jobs::progress( $job_id, 15, __( 'Writing the article with Claude…', 'october-mi' ) );
 		$payload = isset( $job['payload'] ) && is_array( $job['payload'] ) ? $job['payload'] : array();
 
-		// No explicit topic? Take the next one from the content plan.
-		$from_plan = false;
+		// No explicit topic? Reserve the next one from the content plan (claiming
+		// marks it used immediately, so overlapping runs can't duplicate it).
 		if ( empty( $payload['topic'] ) ) {
 			$planned = OctoberMI_Blog_Planner::claim_next();
 			if ( '' !== $planned ) {
 				$payload['topic'] = $planned;
-				$from_plan        = true;
 			}
 		}
 
@@ -104,11 +103,6 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		$post_id = OctoberMI_Blog_Publisher::create_from_generated( $gen, self::brief() );
 		if ( is_wp_error( $post_id ) ) {
 			throw new Exception( $post_id->get_error_message() );
-		}
-
-		// Retire the planned topic so it isn't written again.
-		if ( $from_plan ) {
-			OctoberMI_Blog_Planner::mark_used( $payload['topic'] );
 		}
 
 		return array(

@@ -37,41 +37,27 @@ class OctoberMI_Blog_Planner {
 		return OctoberMI_Jobs::enqueue( self::JOB_TYPE, array() );
 	}
 
-	/** The next unused topic as a writer-ready string, or '' if the plan is dry. */
+	/**
+	 * Reserve the next unused topic and return it as a writer-ready string, or ''
+	 * if the plan is dry. Marking used at claim time (rather than after the post
+	 * is written) prevents two overlapping generate runs from picking the same
+	 * topic and producing duplicate articles.
+	 */
 	public static function claim_next() {
-		$queued = self::queued();
-		if ( empty( $queued ) ) {
-			return '';
-		}
-		$item = $queued[0];
-		$topic = $item['title'];
-		if ( ! empty( $item['angle'] ) ) {
-			$topic .= ' — ' . $item['angle'];
-		}
-		return $topic;
-	}
-
-	/** Mark the first queued item whose title matches as used. */
-	public static function mark_used( $title ) {
-		$plan  = self::all();
-		$title = trim( (string) $title );
-		foreach ( $plan as $i => $item ) {
-			if ( ( empty( $item['status'] ) || 'queued' === $item['status'] )
-				&& 0 === strcasecmp( trim( $item['title'] ), $title ) ) {
-				$plan[ $i ]['status'] = 'used';
-				update_option( self::OPTION, $plan, false );
-				return;
-			}
-		}
-		// If we can't match by exact title, retire the oldest queued item so the
-		// plan still advances.
+		$plan = self::all();
 		foreach ( $plan as $i => $item ) {
 			if ( empty( $item['status'] ) || 'queued' === $item['status'] ) {
 				$plan[ $i ]['status'] = 'used';
 				update_option( self::OPTION, $plan, false );
-				return;
+
+				$topic = $item['title'];
+				if ( ! empty( $item['angle'] ) ) {
+					$topic .= ' — ' . $item['angle'];
+				}
+				return $topic;
 			}
 		}
+		return '';
 	}
 
 	// =====================================================================
