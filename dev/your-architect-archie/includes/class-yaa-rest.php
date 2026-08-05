@@ -32,7 +32,33 @@ class YAA_Rest {
 		register_rest_route( self::NS, '/message', $args + array( 'callback' => array( __CLASS__, 'message' ) ) );
 		register_rest_route( self::NS, '/remove', $args + array( 'callback' => array( __CLASS__, 'remove' ) ) );
 		register_rest_route( self::NS, '/submit', $args + array( 'callback' => array( __CLASS__, 'submit' ) ) );
+		register_rest_route( self::NS, '/upload', $args + array( 'callback' => array( __CLASS__, 'upload' ) ) );
 		register_rest_route( self::NS, '/reset', $args + array( 'callback' => array( __CLASS__, 'reset' ) ) );
+	}
+
+	/** Client uploads a photo/sketch of the property — stored against the project. */
+	public static function upload( $req ) {
+		if ( ! self::check_nonce( $req ) ) {
+			return new WP_REST_Response( array( 'error' => 'bad_nonce', 'message' => __( 'Your session expired — please refresh the page and try again.', 'your-architect-archie' ) ), 403 );
+		}
+		$id      = YAA_Project::current( true );
+		$session = isset( $_COOKIE[ YAA_Project::COOKIE ] ) ? sanitize_text_field( wp_unslash( $_COOKIE[ YAA_Project::COOKIE ] ) ) : (string) $id;
+		if ( ! YAA_Rate_Limit::allow_turn( $session ) ) {
+			return new WP_REST_Response( array( 'error' => 'slow_down', 'message' => __( 'One moment — that came through very fast. Please try again.', 'your-architect-archie' ) ), 429 );
+		}
+		$mimes = array(
+			'jpg|jpeg|jpe' => 'image/jpeg',
+			'png'          => 'image/png',
+			'gif'          => 'image/gif',
+			'webp'         => 'image/webp',
+			'heic'         => 'image/heic',
+			'pdf'          => 'application/pdf',
+		);
+		$res = YAA_Files::store_uploaded( $id, 'file', 'client', __( 'Photo from client', 'your-architect-archie' ), '', $mimes );
+		if ( is_wp_error( $res ) ) {
+			return new WP_REST_Response( array( 'error' => $res->get_error_code(), 'message' => __( 'Sorry, I couldn\'t save that file — please try a JPG, PNG or PDF.', 'your-architect-archie' ) ), 400 );
+		}
+		return new WP_REST_Response( array( 'ok' => true, 'message' => __( 'Thanks — I\'ve saved that with your project. A photo really helps the team picture the space.', 'your-architect-archie' ) ) );
 	}
 
 	/** Abandon the current project + drop the cookie so /start makes a fresh one. */

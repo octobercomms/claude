@@ -107,6 +107,35 @@ class YAA_Files {
 		return (int) $wpdb->insert_id;
 	}
 
+	/**
+	 * Move an uploaded $_FILES entry into the secure dir and record it.
+	 *
+	 * @param array|null $mimes Optional allow-list for wp_handle_upload.
+	 * @return int|WP_Error file row id, or WP_Error on failure.
+	 */
+	public static function store_uploaded( $project_id, $file_key, $kind, $label = '', $source = '', $mimes = null ) {
+		if ( empty( $_FILES[ $file_key ]['name'] ) ) {
+			return new WP_Error( 'yaa_no_file', 'No file was uploaded.' );
+		}
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		self::secure_dir(); // ensure the locked dir + guards exist.
+		$overrides = array( 'test_form' => false );
+		if ( is_array( $mimes ) ) {
+			$overrides['mimes'] = $mimes;
+		}
+		add_filter( 'upload_dir', array( __CLASS__, 'to_secure' ) );
+		$moved = wp_handle_upload( $_FILES[ $file_key ], $overrides ); // phpcs:ignore
+		remove_filter( 'upload_dir', array( __CLASS__, 'to_secure' ) );
+
+		if ( ! is_array( $moved ) || ! empty( $moved['error'] ) || empty( $moved['file'] ) ) {
+			return new WP_Error( 'yaa_upload_failed', is_array( $moved ) && ! empty( $moved['error'] ) ? $moved['error'] : 'Upload failed.' );
+		}
+		$rel = ltrim( str_replace( self::basedir(), '', $moved['file'] ), '/' );
+		$id  = self::add( $project_id, $rel, $moved['type'], (int) filesize( $moved['file'] ), $kind, $label, $source );
+		YAA_Project::log_event( $project_id, 'file_uploaded', array( 'kind' => $kind ) );
+		return $id;
+	}
+
 	// ---- Admin upload / delete ----
 	public static function handle_upload() {
 		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'yaa_files' ) ) {
@@ -118,17 +147,7 @@ class YAA_Files {
 		$source     = sanitize_text_field( wp_unslash( $_POST['source'] ?? '' ) );
 
 		if ( $project_id && ! empty( $_FILES['file']['name'] ) ) {
-			require_once ABSPATH . 'wp-admin/includes/file.php';
-			self::secure_dir(); // ensure the locked dir + guards exist.
-			add_filter( 'upload_dir', array( __CLASS__, 'to_secure' ) );
-			$moved = wp_handle_upload( $_FILES['file'], array( 'test_form' => false ) ); // phpcs:ignore
-			remove_filter( 'upload_dir', array( __CLASS__, 'to_secure' ) );
-
-			if ( is_array( $moved ) && empty( $moved['error'] ) && ! empty( $moved['file'] ) ) {
-				$rel = ltrim( str_replace( self::basedir(), '', $moved['file'] ), '/' );
-				self::add( $project_id, $rel, $moved['type'], (int) filesize( $moved['file'] ), $kind, $label, $source );
-				YAA_Project::log_event( $project_id, 'file_uploaded', array( 'kind' => $kind ) );
-			}
+			self::store_uploaded( $project_id, 'file', $kind, $label, $source );
 		}
 		wp_safe_redirect( add_query_arg( array( 'page' => YAA_Projects_Admin::SLUG, 'project' => $project_id ), admin_url( 'admin.php' ) ) . '#files' );
 		exit;
@@ -196,7 +215,7 @@ class YAA_Files {
 		$ourl = $url . '/prev-' . (int) $file->id . '.jpg';
 		if ( ! file_exists( $out ) ) {
 			if ( ! self::make_preview( $file, $out ) ) {
-				return YAA_URL . 'assets/archie-icon.svg'; // graceful fallback.
+				return YAA_URL . 'assets/archie-icon.png'; // graceful fallback.
 			}
 		}
 		return $ourl;

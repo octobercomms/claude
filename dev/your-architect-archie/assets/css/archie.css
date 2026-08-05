@@ -56,6 +56,10 @@
   font-size: .95rem; padding: 10px 14px; border-radius: 12px; }
 .yaa .msg.photo .text { display: flex; align-items: center; gap: 10px; }
 .yaa .msg.photo img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; }
+.yaa .msg.upload .text { display: flex; align-items: center; gap: 10px; }
+.yaa .up-thumb { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.yaa .up-file { font-size: 1.5rem; line-height: 1; flex-shrink: 0; }
+.yaa .up-name { font-size: .9rem; font-weight: 600; word-break: break-word; }
 .yaa .typing { display: inline-flex; gap: 5px; align-items: center; padding: 8px 0; }
 .yaa .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--navy); opacity: .3; animation: blink 1.2s infinite; }
 .yaa .typing span:nth-child(2) { animation-delay: .2s; }

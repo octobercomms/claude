@@ -39,6 +39,18 @@ protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
 
+= 0.4.3 =
+* Quick-reply chips are reliable again: the server now derives suggested answers
+  deterministically from the next unanswered question (`suggested_options()`), so
+  tappable options appear every turn even when the model doesn't return its own —
+  and you can still type a free-text answer instead.
+* Restored the photo/file upload in the chat: tap the camera in the composer to add
+  a photo, sketch or PDF of the property. Files are stored against the project in the
+  protected `uploads/yaa-secure/` area via a new nonce-checked /upload endpoint, and
+  Archie confirms receipt in the conversation.
+* New Archie face: the avatar is now the blue hand-drawn Archie portrait (PNG) across
+  the chat header and message bubbles.
+
 = 0.4.2 =
 * Fix "Sorry — something went wrong" on the first message when the site is page-cached
   (StackCache) or behind a CDN: the REST nonce localised into the page could be stale

@@ -9,7 +9,7 @@
  */
 
 get_header();
-$face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() . '/assets/archie-icon.svg' ) . '" alt="Archie">';
+$face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() . '/assets/archie-icon.png' ) . '" alt="Archie">';
 ?>
 
 <!-- HERO: arc + tagline + Archie -->

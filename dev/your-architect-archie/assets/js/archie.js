@@ -25,7 +25,7 @@
       redirectBanner = el('redirectBanner'), quoteMeta = el('quoteMeta'), mValidity = el('mValidity'),
       mDelivery = el('mDelivery'), mRevisions = el('mRevisions'), submitBtn = el('submitBtn'),
       restartBtn = el('restartBtn'), panelToggle = el('panelToggle'), panel = el('packagePanel'),
-      quick = el('quickReplies');
+      quick = el('quickReplies'), photoBtn = el('photoBtn'), photoInput = el('photoInput');
 
   if (!msgList) return; // Archie not on this page.
 
@@ -200,6 +200,45 @@
     rec.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; input.value = base + t; autoGrow(); };
     rec.start();
   });
+
+  // ---- Photo / file upload ----
+  // Tapping the camera opens the file picker; on choose we show a thumbnail bubble,
+  // send the file (multipart, nonce in header + body) to /upload, then render
+  // Archie's acknowledgement. Images/PDFs only; the server re-checks the type.
+  if (photoBtn && photoInput) {
+    photoBtn.addEventListener('click', function () { if (!busy && !done) photoInput.click(); });
+    photoInput.addEventListener('change', function () {
+      var file = photoInput.files && photoInput.files[0];
+      photoInput.value = ''; // let the same file be re-picked later
+      if (!file || busy || done) return;
+      var isImg = /^image\//.test(file.type);
+      var thumb = isImg
+        ? '<img class="up-thumb" src="' + URL.createObjectURL(file) + '" alt="">'
+        : '<span class="up-file">📄</span>';
+      addMsg('user', thumb + '<span class="up-name">' + escapeHtml(file.name) + '</span>', 'upload');
+      clearOptions();
+      setBusy(true); typing(true);
+      var fd = new FormData();
+      fd.append('file', file);
+      fd.append('nonce', NONCE);
+      fetch(REST + 'upload', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'X-YAA-Nonce': NONCE },
+        body: fd
+      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+        .then(function (res) {
+          typing(false);
+          addMsg('bot', escapeHtml((res.body && res.body.message) ||
+            (res.ok ? 'Thanks — I’ve saved that with your project.' : 'Sorry — I couldn’t save that file. Please try a JPG, PNG or PDF.')), 'note');
+          setBusy(false);
+          if (!done) input.focus({ preventScroll: true });
+        }).catch(function () {
+          typing(false);
+          addMsg('bot', 'We couldn’t upload that just now. Please try again in a moment.', 'note');
+          setBusy(false);
+        });
+    });
+  }
 
   // ---- Boot ----
   post('start', {}).then(function (res) {

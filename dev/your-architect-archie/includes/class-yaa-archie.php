@@ -209,6 +209,13 @@ class YAA_Archie {
 			}
 		}
 
+		// If Claude didn't propose tappable replies this turn, fall back to
+		// deterministic options for whatever the next unanswered question is — so
+		// the closed-set questions always get quick chips regardless of the model.
+		if ( empty( $options ) ) {
+			$options = self::suggested_options( $state );
+		}
+
 		if ( ! empty( $state['name'] ) || ! empty( $state['email'] ) ) {
 			YAA_Project::set_contact( $project_id, isset( $state['name'] ) ? $state['name'] : '', isset( $state['email'] ) ? $state['email'] : '' );
 		}
@@ -230,6 +237,51 @@ class YAA_Archie {
 			'redirect' => ! empty( $package['redirect'] ),
 			'done'     => $done,
 		);
+	}
+
+	/**
+	 * Deterministic quick-reply options for the next unanswered question, derived
+	 * from the collected state and the fixed flow order. Used as a reliable
+	 * fallback when the model doesn't propose its own `replies`. Open questions
+	 * (address, name, email) return no options — those are free text.
+	 *
+	 * @return string[] short tappable labels (sent verbatim as the user's answer).
+	 */
+	public static function suggested_options( array $s ) {
+		$pkg      = isset( $s['package'] ) ? $s['package'] : '';
+		$priced   = ( $pkg && 'riba' !== $pkg );
+		$has      = function ( $k ) use ( $s ) {
+			return array_key_exists( $k, $s );
+		};
+
+		if ( ! $has( 'projectType' ) || '' === $s['projectType'] ) {
+			return array( 'Rear or side extension', 'Loft or mansard conversion', 'Garage conversion', 'Garden room / outbuilding', 'Internal alterations', 'A brand-new home', 'Something else' );
+		}
+		if ( 'extension' === $s['projectType'] && ( ! $has( 'storeys' ) || '' === $s['storeys'] ) ) {
+			return array( 'Single storey', 'Two storey', 'Not sure yet' );
+		}
+		if ( ! $pkg ) {
+			return array( 'I still need planning permission', 'Planning is already approved', 'It\'s a bigger project', 'I\'m not sure what this means' );
+		}
+		if ( 'planning' === $pkg && ! $has( 'submitApp' ) ) {
+			return array( 'Please submit & manage it for me', 'I\'ll submit it myself' );
+		}
+		if ( 'buildingregs' === $pkg && ! $has( 'concept' ) ) {
+			return array( 'Yes, add a 3D visual', 'No thanks' );
+		}
+		if ( $priced && ! empty( $s['london'] ) && ! $has( 'siteVisit' ) ) {
+			return array( 'Yes, please visit', 'No need' );
+		}
+		if ( $priced && ! $has( 'survey' ) ) {
+			return array( 'I already have measured drawings', 'I\'ll need a survey', 'What\'s a measured survey?' );
+		}
+		if ( $priced && ! $has( 'structural' ) ) {
+			return array( 'Yes', 'No / not sure' );
+		}
+		if ( $priced && ( ! $has( 'timeframe' ) || '' === $s['timeframe'] ) ) {
+			return array( 'Next few weeks', 'A few months', 'Just planning ahead' );
+		}
+		return array(); // name / email → free text.
 	}
 
 	/**
