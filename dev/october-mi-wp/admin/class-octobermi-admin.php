@@ -149,6 +149,13 @@ class OctoberMI_Admin {
 				$module->activate();
 			}
 		}
+		// And teardown for modules switched off.
+		foreach ( array_diff( $before, $enabled ) as $newly_off ) {
+			$module = OctoberMI_Modules::get( $newly_off );
+			if ( $module ) {
+				$module->deactivate();
+			}
+		}
 
 		$this->redirect_back( __( 'Settings saved.', 'october-mi' ), true );
 	}

@@ -117,3 +117,18 @@ The plugin can now produce a real post end to end.
 - Weekly **scheduler** (auto-generate on cadence); topic/keyword **research planner** and
   connected DataForSEO/Serper enrichment; AI **hero images**; per-site rate/cost caps;
   the OMI-side generate proxy + revoke control.
+
+## v1.4.0 — Autopilot scheduler (this increment)
+
+- **Scheduler** (`modules/blog/class-octobermi-scheduler.php`): opt-in recurring generation.
+  Custom cron intervals (weekly / biweekly / monthly), a recurring event that queues a
+  `blog_generate` job on the brief's cadence, and re-scheduling whenever the brief changes.
+  Guarded: only runs when the module is enabled and the engine is available; posts still
+  land per the brief's publish mode.
+- **Brief**: new `autopilot` toggle; the page shows the next scheduled run.
+- **Module lifecycle**: modules gained `deactivate()`; switching Blog off clears its
+  schedule. Turning autopilot on/off (or changing cadence) reschedules immediately.
+
+### Still to come
+- Topic/keyword **research planner** + connected DataForSEO/Serper enrichment; AI **hero
+  images**; per-site **rate/cost caps**; the **OMI-side** generate proxy + revoke control.

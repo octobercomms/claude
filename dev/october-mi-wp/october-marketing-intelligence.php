@@ -3,7 +3,7 @@
  * Plugin Name: October Marketing Platform
  * Plugin URI: https://octobercomms.com
  * Description: The October Marketing Platform on your site. A modular plugin whose capabilities you switch on as needed — starting with Blog Autopilot, which researches, drafts, optimises and publishes premium blog posts with Claude. Runs standalone with your own key, or connect it to the platform for central oversight.
- * Version: 1.3.0
+ * Version: 1.4.0
  * Author: October
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCTOBERMI_VERSION', '1.3.0' );
+define( 'OCTOBERMI_VERSION', '1.4.0' );
 define( 'OCTOBERMI_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCTOBERMI_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCTOBERMI_BASENAME', plugin_basename( __FILE__ ) );
@@ -58,6 +58,7 @@ require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-context-pack.php';
 require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-schema.php';
 require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-writer.php';
 require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-publisher.php';
+require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-scheduler.php';
 require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-blog.php';
 OctoberMI_Modules::register( new OctoberMI_Blog_Module() );
 

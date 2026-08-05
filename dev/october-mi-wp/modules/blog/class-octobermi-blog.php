@@ -39,6 +39,12 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		if ( false === get_option( self::BRIEF_OPTION, false ) ) {
 			add_option( self::BRIEF_OPTION, self::brief_defaults(), '', false );
 		}
+		OctoberMI_Blog_Scheduler::reschedule();
+	}
+
+	public function deactivate() {
+		// Stop the autopilot when the capability is switched off.
+		OctoberMI_Blog_Scheduler::clear();
 	}
 
 	const GENERATE_JOB = 'blog_generate';
@@ -53,6 +59,9 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 
 		// Front-end structured data for generated posts.
 		OctoberMI_Blog_Schema::init();
+
+		// Autopilot scheduler (custom cron intervals + the recurring run).
+		OctoberMI_Blog_Scheduler::init();
 
 		// This module's background job handlers (registered in every request,
 		// including WP-Cron, so queued jobs can run).
@@ -120,6 +129,7 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 			'cadence'      => 'weekly',
 			'word_target'  => 1400,
 			'publish_mode' => 'draft', // 'draft' (review) | 'auto' (trusted auto-publish)
+			'autopilot'    => false,   // recurring auto-generation on the cadence
 		);
 	}
 
@@ -169,9 +179,13 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 			'cadence'      => isset( $_POST['cadence'] ) && in_array( $_POST['cadence'], $cadences, true ) ? sanitize_key( $_POST['cadence'] ) : 'weekly',
 			'word_target'  => isset( $_POST['word_target'] ) ? max( 300, min( 5000, absint( $_POST['word_target'] ) ) ) : 1400,
 			'publish_mode' => isset( $_POST['publish_mode'] ) && in_array( $_POST['publish_mode'], $modes, true ) ? sanitize_key( $_POST['publish_mode'] ) : 'draft',
+			'autopilot'    => ! empty( $_POST['autopilot'] ),
 		);
 
 		update_option( self::BRIEF_OPTION, $brief, false );
+
+		// Apply the cadence/autopilot choice to the schedule.
+		OctoberMI_Blog_Scheduler::reschedule();
 
 		wp_safe_redirect( add_query_arg(
 			array( 'page' => self::MENU_SLUG, 'octobermi_notice' => rawurlencode( __( 'Brief saved.', 'october-mi' ) ), 'octobermi_ok' => '1' ),
@@ -269,6 +283,7 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		$learn_running  = $learn_job && in_array( $learn_job['status'], array( 'queued', 'running' ), true );
 		$gen_job        = OctoberMI_Jobs::latest_of_type( self::GENERATE_JOB );
 		$gen_running    = $gen_job && in_array( $gen_job['status'], array( 'queued', 'running' ), true );
+		$next_run       = OctoberMI_Blog_Scheduler::next_run();
 		$recent_posts   = get_posts( array(
 			'post_type'        => 'post',
 			'post_status'      => array( 'publish', 'draft', 'future', 'pending' ),
@@ -523,6 +538,25 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 									<label><input type="radio" name="publish_mode" value="auto" <?php checked( $brief['publish_mode'], 'auto' ); ?> /> <?php esc_html_e( 'Publish automatically (trusted auto-publish)', 'october-mi' ); ?></label>
 								</fieldset>
 								<p class="description"><?php esc_html_e( 'Premium sites should keep review on: a named author approving each post is itself the trust signal Google rewards.', 'october-mi' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Autopilot', 'october-mi' ); ?></th>
+							<td>
+								<label><input type="checkbox" name="autopilot" value="1" <?php checked( ! empty( $brief['autopilot'] ) ); ?> /> <?php esc_html_e( 'Automatically generate a new post on the cadence above', 'october-mi' ); ?></label>
+								<p class="description">
+									<?php
+									if ( $next_run ) {
+										printf(
+											/* translators: %s: human-readable time until the next run. */
+											esc_html__( 'Next automatic post in %s.', 'october-mi' ),
+											esc_html( human_time_diff( time(), $next_run ) )
+										);
+									} else {
+										esc_html_e( 'Off. Turn on to run hands-free; each post still lands per your publishing choice above.', 'october-mi' );
+									}
+									?>
+								</p>
 							</td>
 						</tr>
 					</table>

@@ -47,6 +47,12 @@ abstract class OctoberMI_Module {
 	 * One-time setup when the module is switched on. Must be idempotent.
 	 */
 	public function activate() {}
+
+	/**
+	 * Teardown when the module is switched off (e.g. clear scheduled events).
+	 * Must not destroy user data — a module can be switched back on.
+	 */
+	public function deactivate() {}
 }
 
 /**
