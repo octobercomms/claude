@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -37,6 +37,30 @@ Mail should go via an SMTP/API plugin on shared hosting. Rate limits + the daily
 token cap protect your Claude spend.
 
 == Changelog ==
+
+= 0.4.0 =
+* Studio workflow, end to end. A submitted project can now be driven all the way
+  to paid + delivered inside the Archie Projects admin.
+* Approve → Claude drafts a warm "good to go" confirmation email → Tiam edit the
+  subject/body → send. Sending goes via Brevo's transactional API (open/click
+  tracking through its webhook) when a key is set, else wp_mail with a tracking
+  pixel + click redirect. Email opens/clicks show on the project.
+* Client portal ([archie_portal], token-gated, auto-created on activation): the
+  confirmed project + fixed price, an embedded Stripe Payment Element while
+  unpaid, a receipt once paid, the client's uploads, and Tiam's files.
+* Payments: server-side PaymentIntent, embedded Payment Element on the portal,
+  and a signature-verified Stripe webhook that marks the project paid and unlocks
+  the drawings (idempotent).
+* Drawings paywall: Tiam upload drawings + third-party documents in the admin;
+  until paid, drawings are served as server-generated blurred + watermarked
+  previews (images) or locked placeholders, with originals streamed only through
+  a token + payment-checked endpoint. Third-party docs note "paid direct to the
+  provider, not Tiam".
+* Analytics dashboard with date-range toggles (7 / 30 / 90 / all): revenue, paid
+  count, avg value, the started→submitted→approved→paid funnel, revenue-over-time,
+  add-on attach rates, and London / listed / conservation splits.
+* New settings: Brevo API key, from name/address, Stripe webhook secret, portal
+  page. New tables: yaa_emails, yaa_files (schema v2).
 
 = 0.3.0 =
 * Project side moved from a CPT + postmeta to custom tables (YAA_DB): a

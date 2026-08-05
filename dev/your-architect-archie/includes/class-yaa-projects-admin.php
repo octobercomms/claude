@@ -35,6 +35,51 @@ class YAA_Projects_Admin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
+		add_action( 'admin_post_yaa_project_approve', array( __CLASS__, 'act_approve' ) );
+		add_action( 'admin_post_yaa_email_draft', array( __CLASS__, 'act_email_draft' ) );
+		add_action( 'admin_post_yaa_email_save', array( __CLASS__, 'act_email_save' ) );
+		add_action( 'admin_post_yaa_email_send', array( __CLASS__, 'act_email_send' ) );
+	}
+
+	// ---- Workflow actions (nonce + cap checked; redirect back to the project) ----
+	private static function guard( $nonce ) {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( $nonce ) ) {
+			wp_die( 'Nope' );
+		}
+	}
+	private static function back( $pid, $notice = '' ) {
+		$args = array( 'page' => self::SLUG, 'project' => (int) $pid );
+		if ( $notice ) {
+			$args['notice'] = $notice;
+		}
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) . '#workflow' );
+		exit;
+	}
+	public static function act_approve() {
+		self::guard( 'yaa_workflow' );
+		$pid = (int) ( $_POST['project_id'] ?? 0 );
+		YAA_Project::approve( $pid );
+		self::back( $pid, 'approved' );
+	}
+	public static function act_email_draft() {
+		self::guard( 'yaa_workflow' );
+		$pid = (int) ( $_POST['project_id'] ?? 0 );
+		$res = YAA_Email::draft( $pid );
+		self::back( $pid, is_wp_error( $res ) ? 'draft_failed' : 'drafted' );
+	}
+	public static function act_email_save() {
+		self::guard( 'yaa_workflow' );
+		$pid   = (int) ( $_POST['project_id'] ?? 0 );
+		$eid   = (int) ( $_POST['email_id'] ?? 0 );
+		YAA_Email::update_draft( $eid, sanitize_text_field( wp_unslash( $_POST['subject'] ?? '' ) ), wp_kses_post( wp_unslash( $_POST['body'] ?? '' ) ) );
+		self::back( $pid, 'saved' );
+	}
+	public static function act_email_send() {
+		self::guard( 'yaa_workflow' );
+		$pid = (int) ( $_POST['project_id'] ?? 0 );
+		$eid = (int) ( $_POST['email_id'] ?? 0 );
+		$res = YAA_Email::send( $eid );
+		self::back( $pid, is_wp_error( $res ) ? 'send_failed' : 'sent' );
 	}
 
 	public static function menu() {
@@ -278,6 +323,8 @@ class YAA_Projects_Admin {
 				</div>
 			</div>
 
+			<?php echo self::render_workflow( $row ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+
 			<div class="yaa-card">
 				<div class="yaa-card-head"><h2><?php esc_html_e( 'Conversation', 'your-architect-archie' ); ?></h2></div>
 				<div class="yaa-convo">
@@ -293,6 +340,161 @@ class YAA_Projects_Admin {
 			</div>
 		</div>
 		<?php
+	}
+
+	// ---- Workflow card (approve → email → files → payment) ----
+	private static function render_workflow( $project ) {
+		$pid    = (int) $project->id;
+		$status = $project->status;
+		$order  = array( 'submitted' => 0, 'approved' => 1, 'emailed' => 2, 'paid' => 3 );
+		$cur    = isset( $order[ $status ] ) ? $order[ $status ] : ( in_array( $status, array( 'partial', 'quoted' ), true ) ? -1 : 0 );
+		$email  = YAA_Email::latest( $pid );
+		$notice = isset( $_GET['notice'] ) ? sanitize_key( wp_unslash( $_GET['notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$notices = array(
+			'approved'     => array( 'ok', 'Project approved.' ),
+			'drafted'      => array( 'ok', 'Draft written — review and send below.' ),
+			'draft_failed' => array( 'err', 'Could not draft the email (check the Claude key).' ),
+			'saved'        => array( 'ok', 'Draft saved.' ),
+			'sent'         => array( 'ok', 'Email sent to the client.' ),
+			'send_failed'  => array( 'err', 'Could not send — check the recipient and email settings.' ),
+		);
+		$post_url = admin_url( 'admin-post.php' );
+		ob_start();
+		?>
+		<div class="yaa-card" id="workflow">
+			<div class="yaa-card-head"><h2><?php esc_html_e( 'Workflow', 'your-architect-archie' ); ?></h2>
+				<a class="yaa-sub" href="<?php echo esc_url( YAA_Portal::url( $pid ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open client portal ↗', 'your-architect-archie' ); ?></a>
+			</div>
+
+			<?php if ( isset( $notices[ $notice ] ) ) : ?>
+				<div class="yaa-notice <?php echo esc_attr( $notices[ $notice ][0] ); ?>"><?php echo esc_html( $notices[ $notice ][1] ); ?></div>
+			<?php endif; ?>
+
+			<div class="yaa-steps">
+				<?php foreach ( array( 'Submitted', 'Approved', 'Emailed', 'Paid' ) as $i => $label ) : ?>
+					<div class="yaa-step <?php echo $cur >= $i ? 'done' : ''; ?>"><span class="yaa-step-n"><?php echo $cur > $i ? '✓' : esc_html( $i + 1 ); ?></span><?php echo esc_html( $label ); ?></div>
+				<?php endforeach; ?>
+			</div>
+
+			<?php if ( 'redirected' === $status ) : ?>
+				<p class="yaa-sub"><?php esc_html_e( 'This is a full-RIBA / larger commission handled directly by Tiam — no online payment flow.', 'your-architect-archie' ); ?></p>
+			<?php else : ?>
+
+				<?php if ( 'submitted' === $status ) : ?>
+					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
+						<input type="hidden" name="action" value="yaa_project_approve">
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+						<?php wp_nonce_field( 'yaa_workflow' ); ?>
+						<p class="yaa-sub"><?php esc_html_e( 'Approve to move this to the confirmation email.', 'your-architect-archie' ); ?></p>
+						<button class="yaa-btn"><?php esc_html_e( 'Approve project', 'your-architect-archie' ); ?></button>
+					</form>
+				<?php endif; ?>
+
+				<?php if ( $cur >= 1 ) : ?>
+					<div class="yaa-wf-block">
+						<h3><?php esc_html_e( 'Confirmation email', 'your-architect-archie' ); ?></h3>
+						<?php if ( ! $email ) : ?>
+							<form method="post" action="<?php echo esc_url( $post_url ); ?>">
+								<input type="hidden" name="action" value="yaa_email_draft">
+								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+								<?php wp_nonce_field( 'yaa_workflow' ); ?>
+								<button class="yaa-btn"><?php esc_html_e( 'Draft with Claude', 'your-architect-archie' ); ?></button>
+							</form>
+						<?php elseif ( 'sent' === $email->status ) : ?>
+							<div class="yaa-email-sent">
+								<div class="yaa-badge green"><?php esc_html_e( 'Sent', 'your-architect-archie' ); ?></div>
+								<span class="yaa-sub"><?php echo esc_html( $email->sent_at ? self::ago( $email->sent_at ) : '' ); ?> · <?php echo esc_html( (int) $email->opens ); ?> <?php esc_html_e( 'opens', 'your-architect-archie' ); ?> · <?php echo esc_html( (int) $email->clicks ); ?> <?php esc_html_e( 'clicks', 'your-architect-archie' ); ?></span>
+								<div class="yaa-email-preview"><strong><?php echo esc_html( $email->subject ); ?></strong><p><?php echo nl2br( esc_html( $email->body ) ); ?></p></div>
+							</div>
+						<?php else : ?>
+							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-email-form">
+								<input type="hidden" name="action" value="yaa_email_save">
+								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+								<input type="hidden" name="email_id" value="<?php echo esc_attr( (int) $email->id ); ?>">
+								<?php wp_nonce_field( 'yaa_workflow' ); ?>
+								<label><?php esc_html_e( 'Subject', 'your-architect-archie' ); ?></label>
+								<input type="text" name="subject" value="<?php echo esc_attr( $email->subject ); ?>" class="yaa-input">
+								<label><?php esc_html_e( 'Body (the secure payment button is added automatically)', 'your-architect-archie' ); ?></label>
+								<textarea name="body" rows="9" class="yaa-input"><?php echo esc_textarea( $email->body ); ?></textarea>
+								<div class="yaa-inline">
+									<button class="yaa-btn ghost" name="action" value="yaa_email_save"><?php esc_html_e( 'Save draft', 'your-architect-archie' ); ?></button>
+								</div>
+							</form>
+							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline" onsubmit="return confirm('Send this email to the client?');">
+								<input type="hidden" name="action" value="yaa_email_send">
+								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+								<input type="hidden" name="email_id" value="<?php echo esc_attr( (int) $email->id ); ?>">
+								<?php wp_nonce_field( 'yaa_workflow' ); ?>
+								<button class="yaa-btn"><?php esc_html_e( 'Send to client', 'your-architect-archie' ); ?></button>
+							</form>
+						<?php endif; ?>
+					</div>
+				<?php endif; ?>
+
+				<?php if ( $cur >= 1 ) : ?>
+					<?php echo self::render_files_admin( $project ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+				<?php endif; ?>
+
+				<div class="yaa-wf-block">
+					<h3><?php esc_html_e( 'Payment', 'your-architect-archie' ); ?></h3>
+					<?php if ( $project->paid ) : ?>
+						<div class="yaa-badge green"><?php esc_html_e( 'Paid', 'your-architect-archie' ); ?></div>
+						<span class="yaa-sub"><?php echo esc_html( YAA_Pricing::money( (int) round( $project->amount_paid / 100 ) ) ); ?> · <?php echo esc_html( $project->paid_at ? self::ago( $project->paid_at ) : '' ); ?></span>
+					<?php else : ?>
+						<p class="yaa-sub"><?php esc_html_e( 'Awaiting payment. The client pays via the secure portal link in their email.', 'your-architect-archie' ); ?></p>
+					<?php endif; ?>
+				</div>
+
+			<?php endif; ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/** Tiam file uploads (drawings + third-party docs) with the paywall note. */
+	private static function render_files_admin( $project ) {
+		$pid   = (int) $project->id;
+		$files = class_exists( 'YAA_Files' ) ? YAA_Files::for_project( $pid ) : array();
+		$post_url = admin_url( 'admin-post.php' );
+		ob_start();
+		?>
+		<div class="yaa-wf-block" id="files">
+			<h3><?php esc_html_e( 'Drawings & documents', 'your-architect-archie' ); ?></h3>
+			<div class="yaa-file-list">
+				<?php if ( empty( $files ) ) : ?>
+					<span class="yaa-sub"><?php esc_html_e( 'Nothing uploaded yet.', 'your-architect-archie' ); ?></span>
+				<?php else : foreach ( $files as $f ) : ?>
+					<div class="yaa-file-row">
+						<span class="yaa-file-kind <?php echo esc_attr( $f->kind ); ?>"><?php echo esc_html( ucfirst( $f->kind ) ); ?></span>
+						<span><?php echo esc_html( $f->label ? $f->label : basename( (string) get_attached_file( $f->attachment_id ) ) ); ?><?php echo $f->source ? ' · ' . esc_html( $f->source ) : ''; ?></span>
+						<?php if ( 'drawing' === $f->kind ) : ?><span class="yaa-flag <?php echo $project->paid ? '' : 'warn'; ?>"><?php echo $project->paid ? esc_html__( 'released', 'your-architect-archie' ) : esc_html__( 'locked until paid', 'your-architect-archie' ); ?></span><?php endif; ?>
+						<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-del" onsubmit="return confirm('Delete this file?');">
+							<input type="hidden" name="action" value="yaa_files_delete">
+							<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+							<input type="hidden" name="file_id" value="<?php echo esc_attr( (int) $f->id ); ?>">
+							<?php wp_nonce_field( 'yaa_files' ); ?>
+							<button class="yaa-x" aria-label="Delete">✕</button>
+						</form>
+					</div>
+				<?php endforeach; endif; ?>
+			</div>
+			<form method="post" action="<?php echo esc_url( $post_url ); ?>" enctype="multipart/form-data" class="yaa-upload">
+				<input type="hidden" name="action" value="yaa_files_upload">
+				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+				<?php wp_nonce_field( 'yaa_files' ); ?>
+				<select name="kind">
+					<option value="drawing"><?php esc_html_e( 'Drawing (locked until paid)', 'your-architect-archie' ); ?></option>
+					<option value="doc"><?php esc_html_e( 'Document (always visible)', 'your-architect-archie' ); ?></option>
+				</select>
+				<input type="text" name="label" placeholder="<?php esc_attr_e( 'Label (optional)', 'your-architect-archie' ); ?>" class="yaa-input">
+				<input type="text" name="source" placeholder="<?php esc_attr_e( 'Source, e.g. Third-party surveyor', 'your-architect-archie' ); ?>" class="yaa-input">
+				<input type="file" name="file" required>
+				<button class="yaa-btn"><?php esc_html_e( 'Upload', 'your-architect-archie' ); ?></button>
+			</form>
+			<p class="yaa-sub"><?php esc_html_e( 'Third-party documents (e.g. a surveyor) — the client pays that provider directly, not Tiam.', 'your-architect-archie' ); ?></p>
+		</div>
+		<?php
+		return ob_get_clean();
 	}
 
 	// ---- Helpers ----
@@ -411,6 +613,31 @@ class YAA_Projects_Admin {
 		.yaa-msg.user { align-self:flex-end; background:#eaf0ff; }
 		.yaa-msg-who { font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
 		.yaa-msg-text { color:var(--ink); }
+		.yaa-notice { border-radius:10px; padding:10px 14px; margin-bottom:14px; font-weight:600; }
+		.yaa-notice.ok { background:#e5f6ec; color:#0f7a3d; }
+		.yaa-notice.err { background:#fdecec; color:#c0392b; }
+		.yaa-steps { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+		.yaa-step { display:flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; background:var(--bg); border:2px solid var(--line); color:var(--muted); font-weight:600; font-size:.86rem; }
+		.yaa-step.done { background:#eaf0ff; border-color:var(--blue); color:var(--navy); }
+		.yaa-step-n { width:20px; height:20px; border-radius:999px; background:#fff; border:1.5px solid currentColor; display:inline-flex; align-items:center; justify-content:center; font-size:.72rem; }
+		.yaa-wf-block { border-top:1px solid var(--line); margin-top:16px; padding-top:16px; }
+		.yaa-wf-block h3 { margin:0 0 10px; color:var(--navy); font-size:1rem; }
+		.yaa-inline { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+		.yaa-btn.ghost { background:#fff; color:var(--navy); border:2px solid var(--line); }
+		.yaa-btn { border:0; cursor:pointer; font-family:inherit; font-size:.9rem; }
+		.yaa-input { width:100%; border:2px solid var(--line); border-radius:9px; padding:9px 12px; font-family:inherit; margin:4px 0 12px; }
+		.yaa-email-form label { font-weight:600; font-size:.85rem; color:var(--ink); }
+		.yaa-email-preview { background:var(--bg); border-radius:10px; padding:12px 14px; margin-top:10px; }
+		.yaa-email-preview p { color:var(--ink); margin:6px 0 0; }
+		.yaa-file-list { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+		.yaa-file-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border:1.5px solid var(--line); border-radius:9px; }
+		.yaa-file-kind { font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:999px; background:#eef2fb; color:var(--navy); text-transform:uppercase; }
+		.yaa-file-kind.drawing { background:#eae4fb; color:#5b34c7; }
+		.yaa-file-row .yaa-del { margin-left:auto; }
+		.yaa-x { background:none; border:0; color:var(--muted); cursor:pointer; font-size:1rem; }
+		.yaa-upload { display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--bg); padding:12px; border-radius:10px; }
+		.yaa-upload .yaa-input { width:auto; flex:1; min-width:140px; margin:0; }
+		.yaa-upload select { border:2px solid var(--line); border-radius:9px; padding:8px 10px; font-family:inherit; }
 		@media (max-width:900px){ .yaa-grid{grid-template-columns:1fr;} .yaa-stats{grid-template-columns:repeat(2,1fr);} }
 		';
 	}

@@ -59,28 +59,34 @@ Elementor widget with self-contained (theme-proof) styling, **encrypted** API/St
 keys, per-session **rate limiting** + a **daily token cap**, admin settings, and a
 follow-up cron.
 
-**Marked TODO (model on Hillcroft):**
-- **Live Historic England API** (`YAA_Historic_England::api_lookup`) — a heuristic
+### The studio workflow (built)
+
+A submitted project is driven to paid + delivered inside **Archie Projects**:
+
+1. **Foundations** — custom tables; Projects admin with the started/submitted
+   funnel + form-style answers; theme/plugin split.
+2. **Approve → email** (`YAA_Email`) — Tiam approve; Claude drafts a "good to go"
+   email; Tiam edit + send. Brevo transactional API with **open/click** tracking
+   via its webhook (`/brevo-webhook`), else `wp_mail` + a pixel/redirect fallback
+   (`/track`). Open tracking is best-effort by nature.
+3. **Payment + portal** (`YAA_Stripe`, `YAA_Portal`) — token-gated `[archie_portal]`
+   page (auto-created on activation) with the confirmed project, an **embedded**
+   Stripe Payment Element while unpaid and a receipt once paid. A signature-verified
+   webhook (`/stripe-webhook`) marks the project paid (idempotent) and unlocks files.
+4. **Drawings paywall** (`YAA_Files`) — Tiam upload drawings + third-party docs;
+   until paid, drawings are served as server-generated **blurred + watermarked**
+   previews (or locked placeholders), with originals streamed only through a
+   token + payment-checked endpoint (`/file`).
+5. **Analytics** (`YAA_Analytics`) — funnel + sales dashboard with date-range
+   toggles (revenue, avg value, attach rates, London/listed/conservation splits).
+
+**Marked TODO:**
+- **Live Historic England API** (`YAA_Historic_England::api_lookup`) — heuristic
   fallback ships; flip `historic_api_on` once wired.
-
-### Studio workflow roadmap (agreed direction)
-
-The `projects` + `events` tables are the foundation for the studio workflow, built
-in phases:
-
-1. **Foundations** *(done)* — custom tables, the Projects admin with the
-   started/submitted funnel + form-style answered-questions view, theme/plugin split.
-2. **Approve → email** — Tiam approve a project; Claude drafts a "good to go"
-   confirmation email; Tiam edit + send. Send via a transactional provider (Brevo)
-   with **open/click** tracking via its webhooks (open tracking is best-effort).
-3. **Payment + portal** — an **embedded** Stripe Payment Element on a token-gated
-   `yourarchitect` portal page next to the confirmed project details; the page
-   becomes the client's home (receipt, their uploads, Tiam's drawings).
-4. **Drawings + paywall** — Tiam upload drawings; until paid they're served
-   **watermarked + blurred** (enforced server-side, originals via signed URLs on
-   payment). Third-party docs (e.g. surveyor — paid directly to them, not Tiam)
-   upload as a separate file kind.
-5. **Analytics** — funnel + sales dashboard with date-range toggles.
+- **File hardening for production** — store drawing originals outside the web root
+  (or behind a deny rule) so a guessed `wp-content` URL can't bypass the gate; the
+  access endpoint is the control on this dev build.
+- **Stripe Connect payouts** — split to Tiam / appointed consultants if wanted.
 
 ## File map
 
@@ -100,12 +106,16 @@ your-architect-archie/
 │   ├── class-yaa-rest.php        yaa/v1 endpoints (nonce + rate-limited)
 │   ├── class-yaa-shortcode.php   [archie] + assets + Elementor registration
 │   ├── class-yaa-elementor-widget.php  "Archie" widget
-│   ├── class-yaa-stripe.php      Payment gate STUB
+│   ├── class-yaa-stripe.php      PaymentIntent + signature-verified webhook
+│   ├── class-yaa-email.php       Claude-drafted email, Brevo/wp_mail send + tracking
+│   ├── class-yaa-portal.php      [archie_portal] client portal (pay / receipt / files)
+│   ├── class-yaa-files.php       Uploads, blurred previews, payment-gated download
 │   ├── class-yaa-followups.php   Submit emails + partial-lead cron
-│   ├── class-yaa-projects-admin.php  Branded Projects screen (funnel + form view)
+│   ├── class-yaa-projects-admin.php  Projects screen + workflow (approve/email/files)
+│   ├── class-yaa-analytics.php   Funnel + sales dashboard (date toggles)
 │   ├── class-yaa-admin.php       Settings screen
 │   └── class-yaa-log.php
-└── assets/{css/archie.css, js/archie.js}
+└── assets/{css/archie.css, css/portal.css, js/archie.js, js/portal.js}
 ```
 
 ## Setup

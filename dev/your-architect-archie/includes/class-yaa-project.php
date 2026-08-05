@@ -165,6 +165,55 @@ class YAA_Project {
 		return 'YA-' . strtoupper( substr( wp_hash( (string) $id ), 0, 6 ) );
 	}
 
+	/** Unguessable token for the client portal URL; created once, then reused. */
+	public static function ensure_token( $id ) {
+		$row = self::get( $id );
+		if ( $row && ! empty( $row->token ) ) {
+			return $row->token;
+		}
+		$token = substr( bin2hex( random_bytes( 16 ) ), 0, 32 );
+		self::update_row( $id, array( 'token' => $token ), array( '%s' ) );
+		return $token;
+	}
+
+	public static function by_token( $token ) {
+		global $wpdb;
+		$token = preg_replace( '/[^a-f0-9]/', '', (string) $token );
+		if ( 32 !== strlen( $token ) ) {
+			return null;
+		}
+		$table = YAA_DB::projects_table();
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE token = %s", $token ) ); // phpcs:ignore WordPress.DB
+	}
+
+	/** Tiam approves a submitted project — ready to send the confirmation email. */
+	public static function approve( $id ) {
+		$row = self::get( $id );
+		$data = array( 'status' => 'approved', 'approved_at' => current_time( 'mysql' ) );
+		$fmt  = array( '%s', '%s' );
+		if ( $row && empty( $row->ref ) ) {
+			$data['ref'] = self::make_ref( $id );
+			$fmt[]       = '%s';
+		}
+		self::update_row( $id, $data, $fmt );
+		self::ensure_token( $id );
+		self::log_event( $id, 'approved' );
+	}
+
+	/** Record a successful payment and unlock the drawings. */
+	public static function mark_paid( $id, $amount_pennies, $intent = '' ) {
+		$row = self::get( $id );
+		if ( $row && $row->paid ) {
+			return; // idempotent — webhooks can fire twice.
+		}
+		self::update_row(
+			$id,
+			array( 'paid' => 1, 'amount_paid' => (int) $amount_pennies, 'stripe_intent' => sanitize_text_field( (string) $intent ), 'paid_at' => current_time( 'mysql' ), 'status' => 'paid' ),
+			array( '%d', '%d', '%s', '%s', '%s' )
+		);
+		self::log_event( $id, 'paid', array( 'amount' => (int) $amount_pennies ) );
+	}
+
 	// ---- Event log (audit + funnel; email/payment events land here later) ----
 	public static function log_event( $id, $type, array $meta = array() ) {
 		global $wpdb;

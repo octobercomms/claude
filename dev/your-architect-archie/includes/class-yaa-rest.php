@@ -134,13 +134,14 @@ class YAA_Rest {
 		do_action( 'yaa_project_submitted', $id, $package );
 		YAA_Followups::notify_submit( $id, $package );
 
-		$ref     = 'YA-' . strtoupper( substr( wp_hash( (string) $id ), 0, 6 ) );
-		$checkout = YAA_Stripe::checkout_url( $id, $package ); // null unless Stripe is configured.
+		$ref = YAA_Project::make_ref( $id );
 
+		// Payment is not taken at submit — Tiam approve the project first, then send
+		// the client a secure portal link to pay. So no immediate checkout URL here.
 		$message = $redirect
 			? __( 'Thanks — this one is a better fit for a full commission with Tiam Architects, so I\'ve flagged it for a consultation.', 'your-architect-archie' )
-			: __( 'Project saved. We\'ll prepare your drawings and send a watermarked preview — you only pay to release the full package.', 'your-architect-archie' );
+			: __( 'Project saved. Our architects will review it and email you a secure link to confirm and pay — you only pay to release the full drawings.', 'your-architect-archie' );
 
-		return new WP_REST_Response( array( 'ref' => $ref, 'redirect' => $redirect, 'message' => $message, 'checkoutUrl' => $checkout ) );
+		return new WP_REST_Response( array( 'ref' => $ref, 'redirect' => $redirect, 'message' => $message, 'checkoutUrl' => null ) );
 	}
 }
