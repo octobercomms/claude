@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { withDbRetry } = require('../utils/dbRetry');
+const claude = require('../services/claude');
 
 const router = express.Router();
 
@@ -93,7 +94,7 @@ async function verifySignature(req, res, next) {
     }
 
     const { rows } = await pool.query(
-      `SELECT id, credentials FROM connectors WHERE client_id = $1 AND connector_type = 'wordpress_plugin' LIMIT 1`,
+      `SELECT id, status, credentials FROM connectors WHERE client_id = $1 AND connector_type = 'wordpress_plugin' LIMIT 1`,
       [clientId]
     );
     if (!rows.length) return res.status(404).json({ message: 'Site not paired.' });
@@ -117,6 +118,8 @@ async function verifySignature(req, res, next) {
 
     req.omiClientId = clientId;
     req.omiConnectorId = rows[0].id;
+    req.omiConnectorStatus = rows[0].status;
+    req.omiMonthlyCap = Number(creds.monthly_cap_usd) > 0 ? Number(creds.monthly_cap_usd) : null;
     next();
   } catch (err) {
     console.error('[wp-connect] signature check failed:', err.message);
@@ -151,6 +154,72 @@ function ingest(fallbackType) {
     }
   };
 }
+
+// ─── MANAGED-KEY PROXY ───────────────────────────────────────────────────────
+// The plugin never holds an Anthropic key: in managed mode it posts the model
+// request here and OMI performs the call with the platform-held key, enforcing
+// a model allow-list and a per-client monthly cost cap, and logging the spend.
+
+const { assessGenerate, makeBurstLimiter } = require('./wpGenerateGuards');
+
+// Default monthly managed-generation ceiling per client (USD). A per-client
+// override can be set as `monthly_cap_usd` in the connector credentials.
+const DEFAULT_MONTHLY_CAP_USD = Number(process.env.WP_PLUGIN_MONTHLY_CAP_USD) > 0
+  ? Number(process.env.WP_PLUGIN_MONTHLY_CAP_USD) : 20;
+
+// Safety net against a runaway site, on top of the router-wide rate limit.
+const allowBurst = makeBurstLimiter();
+
+// Month-to-date managed-generation spend for this client vs its cap.
+async function overMonthlyCap(clientId, cap) {
+  const { rows } = await pool.query(
+    `SELECT COALESCE(SUM(cost_usd), 0) AS spend
+       FROM api_cost_events
+      WHERE client_id = $1 AND feature = 'wp_plugin_generate'
+        AND ts >= date_trunc('month', now())`,
+    [clientId]
+  );
+  return Number(rows[0]?.spend || 0) >= cap;
+}
+
+router.post('/generate', verifySignature, async (req, res) => {
+  try {
+    const request = (req.body && req.body.request) || {};
+
+    // Status gate + model allow-list + request shape (revoke also rotates the
+    // secret, so the status 403 here is belt-and-braces on top of the 401).
+    const verdict = assessGenerate({
+      connectorStatus: req.omiConnectorStatus,
+      model: request.model,
+      messages: request.messages,
+    });
+    if (verdict.code !== 200) {
+      return res.status(verdict.code).json({ message: verdict.message });
+    }
+
+    if (!allowBurst(req.omiClientId)) {
+      return res.status(409).json({ message: 'Too many requests — slow down.' });
+    }
+    const cap = req.omiMonthlyCap || DEFAULT_MONTHLY_CAP_USD;
+    if (await overMonthlyCap(req.omiClientId, cap)) {
+      return res.status(409).json({ message: 'Monthly usage cap reached.' });
+    }
+
+    const text = await claude.callClaudeProxy({
+      model: request.model,
+      max_tokens: request.max_tokens,
+      system: request.system,
+      messages: request.messages,
+      temperature: typeof request.temperature === 'number' ? request.temperature : undefined,
+      feature: 'wp_plugin_generate',
+      clientId: req.omiClientId,
+    });
+    return res.json({ text });
+  } catch (err) {
+    console.error('[wp-connect] generate failed:', err.message);
+    return res.status(502).json({ message: 'Generation failed upstream.' });
+  }
+});
 
 router.post('/orders', verifySignature, ingest('order'));
 router.post('/customers', verifySignature, ingest('customer'));

@@ -84,6 +84,33 @@ router.get('/status', async (req, res) => {
   }
 });
 
+// Revoke a paired WordPress-plugin site (the managed-key kill-switch).
+// Rotates the refresh_secret to a fresh value the site never learns — so every
+// signed call from it (events, generate, enrich) fails signature/authorization
+// — and marks the connector revoked. The Anthropic key was never on the site,
+// so there is nothing left there to keep spending once this runs.
+router.post('/:id/revoke', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, connector_type, credentials FROM connectors WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Connector not found' });
+    if (rows[0].connector_type !== 'wordpress_plugin') {
+      return res.status(400).json({ error: 'Revoke applies only to the WordPress plugin connector.' });
+    }
+    const creds = (rows[0].credentials && decrypt(rows[0].credentials)) || {};
+    creds.refresh_secret = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `UPDATE connectors SET credentials = $1, status = 'revoked', error_message = 'Revoked from OMI', last_checked = NOW() WHERE id = $2`,
+      [JSON.stringify(encrypt(creds)), req.params.id]
+    );
+    res.json({ id: req.params.id, status: 'revoked' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Save credentials for a connector (API key type)
 router.put('/:id/credentials', async (req, res) => {
   try {

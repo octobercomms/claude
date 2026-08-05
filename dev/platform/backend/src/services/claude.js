@@ -97,6 +97,25 @@ async function callClaude({ max_tokens, system, user, model = null, feature = 'r
   return blocks.map(b => b.text).join('\n').trim();
 }
 
+// Managed-key proxy for the WordPress plugin's connected mode. Passes the
+// plugin's Anthropic /v1/messages shape straight through (multi-turn messages,
+// optional system + temperature), calls with the platform-held key, logs cost
+// against the client, and returns the concatenated text. The caller is
+// responsible for the model allow-list and cost caps — this just makes the call.
+async function callClaudeProxy({ model, max_tokens, system, messages, temperature, feature = 'wp_plugin_generate', clientId = null }) {
+  const params = {
+    model,
+    max_tokens: Math.min(Number(max_tokens) || 2200, 8000),
+    messages,
+  };
+  if (system) params.system = cacheableSystem(system);
+  if (typeof temperature === 'number') params.temperature = temperature;
+  const message = await callWithRetry(() => getClient().messages.create(params));
+  recordClaudeCost({ model, response: message, feature, clientId });
+  const blocks = (message.content || []).filter(b => b.type === 'text' && b.text);
+  return blocks.map(b => b.text).join('\n').trim();
+}
+
 // Retry transient API failures with exponential backoff. Anthropic's 529
 // "Overloaded" responses and 429 rate-limits are the common ones; 5xx is
 // also worth retrying. Without this the report was rendering the raw
@@ -532,6 +551,7 @@ module.exports = {
   researchBriefing,
   suggestMonthlyFocus,
   callClaude,
+  callClaudeProxy,
   chatBuildReportTemplate,
   verifyApiKey,
 };
