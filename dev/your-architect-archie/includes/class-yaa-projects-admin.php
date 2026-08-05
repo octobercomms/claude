@@ -466,7 +466,7 @@ class YAA_Projects_Admin {
 				<?php else : foreach ( $files as $f ) : ?>
 					<div class="yaa-file-row">
 						<span class="yaa-file-kind <?php echo esc_attr( $f->kind ); ?>"><?php echo esc_html( ucfirst( $f->kind ) ); ?></span>
-						<span><?php echo esc_html( $f->label ? $f->label : basename( (string) get_attached_file( $f->attachment_id ) ) ); ?><?php echo $f->source ? ' · ' . esc_html( $f->source ) : ''; ?></span>
+						<span><?php echo esc_html( YAA_Files::filename( $f ) ); ?><?php echo $f->source ? ' · ' . esc_html( $f->source ) : ''; ?></span>
 						<?php if ( 'drawing' === $f->kind ) : ?><span class="yaa-flag <?php echo $project->paid ? '' : 'warn'; ?>"><?php echo $project->paid ? esc_html__( 'released', 'your-architect-archie' ) : esc_html__( 'locked until paid', 'your-architect-archie' ); ?></span><?php endif; ?>
 						<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-del" onsubmit="return confirm('Delete this file?');">
 							<input type="hidden" name="action" value="yaa_files_delete">

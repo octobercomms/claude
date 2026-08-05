@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.4.1
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -19,24 +19,32 @@ the visitor answers. The server owns the conversation and the pricing — Claude
 never states a price. A project record is created from the first message (cookie),
 so a returning visitor resumes.
 
-Scope: this is a scaffold. The Claude turn, pricing, project records, rate limiting
-and the shortcode/Elementor front end are working; **Stripe** (payment gate +
-Connect payouts), the **client portal / watermarked preview**, and the live
-**Historic England** lookup are marked TODO for you to wire (model them on the
-Hillcroft Garden Designer plugin).
+Full studio workflow: a submitted project is approved, the client gets a
+Claude-drafted confirmation email, pays via an embedded Stripe Payment Element on
+a token-gated portal, and their drawings unlock there (served blurred + watermarked
+until paid). Analytics track the funnel + revenue. Only the live **Historic England**
+lookup and optional **Stripe Connect** payouts remain to wire.
 
 == Setup ==
 
-1. Install + activate.
-2. Archie Projects → Settings → add your Claude API key (stored encrypted),
-   notification email, ARB/company numbers, and rate limits.
+1. Install + activate (creates the tables and the "Your project" portal page).
+2. Archie Projects → Settings → Claude API key; Stripe secret/publishable +
+   webhook secret; Brevo API key + from name/address; portal page; rate limits.
 3. Add `[archie]` (or the Elementor widget) to your homepage.
-4. For payments/portal, add Stripe keys and implement the marked TODOs.
+4. Point a Stripe webhook at `/wp-json/yaa/v1/stripe-webhook` (and, for tracking,
+   a Brevo webhook at `/wp-json/yaa/v1/brevo-webhook`).
 
-Mail should go via an SMTP/API plugin on shared hosting. Rate limits + the daily
-token cap protect your Claude spend.
+Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
+protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.4.1 =
+* File security hardening for the live server: all project files (drawings + docs)
+  are now stored in a protected uploads/yaa-secure/ directory (deny-all .htaccess
+  + web.config + index.php) instead of the public media library, and served only
+  through the token + payment-checked endpoint. Removes the guessable-URL bypass.
+  (Nginx: add a deny rule for that path — .htaccess is Apache/LiteSpeed only.)
 
 = 0.4.0 =
 * Studio workflow, end to end. A submitted project can now be driven all the way

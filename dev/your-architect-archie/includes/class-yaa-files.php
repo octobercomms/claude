@@ -2,14 +2,16 @@
 /**
  * Project files — client uploads, Tiam drawings, and third-party documents.
  *
- * Drawings are gated: until the project is paid, the portal only ever gets a
- * server-generated blurred + watermarked PREVIEW (images) or a locked placeholder
- * (PDFs). Originals are streamed through a token-checked endpoint that refuses
- * gated drawings until payment clears — the raw file URL is never handed out.
+ * Security model (this runs on a live server): originals are NEVER placed in the
+ * public media library. They're stored in a protected uploads/yaa-secure/
+ * directory (deny-all .htaccess + web.config + index.php) and streamed only
+ * through a token-checked endpoint — and, for drawings, only once the project is
+ * paid. Until then the portal shows a server-generated blurred + watermarked
+ * preview (images) or a locked placeholder (PDFs). The raw file URL is never
+ * exposed, so there's no guessable-URL bypass.
  *
- * NOTE (production hardening): for a public launch, store originals outside the
- * web root (or behind a deny-all rule) so a guessed wp-content URL can't bypass
- * the gate. On this dev build the access endpoint is the control.
+ * Nginx note: .htaccess is ignored there — add a `location ^~ /wp-content/uploads/
+ * yaa-secure/ { deny all; }` rule. Apache / LiteSpeed honour the shipped .htaccess.
  *
  * @package Your_Architect_Archie
  */
@@ -34,6 +36,46 @@ class YAA_Files {
 		) );
 	}
 
+	// ---- Protected storage ----
+	/** The deny-all secure directory, created + locked down on first use. */
+	private static function secure_dir() {
+		$up  = wp_upload_dir();
+		$dir = trailingslashit( $up['basedir'] ) . 'yaa-secure';
+		if ( ! file_exists( $dir ) ) {
+			wp_mkdir_p( $dir );
+		}
+		if ( ! file_exists( $dir . '/.htaccess' ) ) {
+			file_put_contents( $dir . '/.htaccess', "Order deny,allow\nDeny from all\n<IfModule mod_authz_core.c>\n Require all denied\n</IfModule>\n" ); // phpcs:ignore
+		}
+		if ( ! file_exists( $dir . '/web.config' ) ) {
+			file_put_contents( $dir . '/web.config', "<configuration>\n <system.webServer>\n  <authorization>\n   <deny users=\"*\" />\n  </authorization>\n </system.webServer>\n</configuration>\n" ); // phpcs:ignore
+		}
+		if ( ! file_exists( $dir . '/index.php' ) ) {
+			file_put_contents( $dir . '/index.php', "<?php // Silence is golden.\n" ); // phpcs:ignore
+		}
+		return $dir;
+	}
+	private static function basedir() {
+		$up = wp_upload_dir();
+		return trailingslashit( $up['basedir'] );
+	}
+	/** Absolute path of a stored file from its uploads-relative path. */
+	private static function abspath( $file ) {
+		return self::basedir() . ltrim( (string) $file->path, '/' );
+	}
+	public static function filename( $file ) {
+		return $file->label ? $file->label : basename( (string) $file->path );
+	}
+
+	/** upload_dir filter: redirect wp_handle_upload into the secure directory. */
+	public static function to_secure( $dirs ) {
+		$secure = self::secure_dir();
+		$dirs['path']   = $secure;
+		$dirs['url']    = '';       // no public URL — access is via the endpoint only.
+		$dirs['subdir'] = '';
+		return $dirs;
+	}
+
 	// ---- Store ----
 	public static function for_project( $project_id, $kind = null ) {
 		global $wpdb;
@@ -49,20 +91,19 @@ class YAA_Files {
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d", (int) $id ) ); // phpcs:ignore WordPress.DB
 	}
 
-	public static function add( $project_id, $attachment_id, $kind, $label = '', $source = '' ) {
+	public static function add( $project_id, $path_rel, $mime, $size, $kind, $label = '', $source = '' ) {
 		global $wpdb;
-		$path = get_attached_file( $attachment_id );
 		$wpdb->insert( YAA_DB::files_table(), array(
-			'project_id'    => (int) $project_id,
-			'kind'          => sanitize_key( $kind ),
-			'label'         => sanitize_text_field( $label ),
-			'source'        => sanitize_text_field( $source ),
-			'attachment_id' => (int) $attachment_id,
-			'mime'          => (string) get_post_mime_type( $attachment_id ),
-			'size'          => $path && file_exists( $path ) ? (int) filesize( $path ) : 0,
-			'gated'         => ( 'drawing' === $kind ) ? 1 : 0,
-			'created'       => current_time( 'mysql' ),
-		), array( '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%d', '%s' ) ); // phpcs:ignore WordPress.DB
+			'project_id' => (int) $project_id,
+			'kind'       => sanitize_key( $kind ),
+			'label'      => sanitize_text_field( $label ),
+			'source'     => sanitize_text_field( $source ),
+			'path'       => (string) $path_rel,
+			'mime'       => (string) $mime,
+			'size'       => (int) $size,
+			'gated'      => ( 'drawing' === $kind ) ? 1 : 0,
+			'created'    => current_time( 'mysql' ),
+		), array( '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ) ); // phpcs:ignore WordPress.DB
 		return (int) $wpdb->insert_id;
 	}
 
@@ -78,11 +119,14 @@ class YAA_Files {
 
 		if ( $project_id && ! empty( $_FILES['file']['name'] ) ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
-			require_once ABSPATH . 'wp-admin/includes/media.php';
-			require_once ABSPATH . 'wp-admin/includes/image.php';
-			$attachment_id = media_handle_upload( 'file', 0 );
-			if ( ! is_wp_error( $attachment_id ) ) {
-				self::add( $project_id, $attachment_id, $kind, $label, $source );
+			self::secure_dir(); // ensure the locked dir + guards exist.
+			add_filter( 'upload_dir', array( __CLASS__, 'to_secure' ) );
+			$moved = wp_handle_upload( $_FILES['file'], array( 'test_form' => false ) ); // phpcs:ignore
+			remove_filter( 'upload_dir', array( __CLASS__, 'to_secure' ) );
+
+			if ( is_array( $moved ) && empty( $moved['error'] ) && ! empty( $moved['file'] ) ) {
+				$rel = ltrim( str_replace( self::basedir(), '', $moved['file'] ), '/' );
+				self::add( $project_id, $rel, $moved['type'], (int) filesize( $moved['file'] ), $kind, $label, $source );
 				YAA_Project::log_event( $project_id, 'file_uploaded', array( 'kind' => $kind ) );
 			}
 		}
@@ -98,8 +142,9 @@ class YAA_Files {
 		$pid = (int) ( $_POST['project_id'] ?? 0 );
 		$f   = self::get( $id );
 		if ( $f ) {
-			if ( $f->attachment_id ) {
-				wp_delete_attachment( (int) $f->attachment_id, true );
+			$abs = self::abspath( $f );
+			if ( $f->path && file_exists( $abs ) ) {
+				@unlink( $abs ); // phpcs:ignore
 			}
 			self::delete_preview( $f );
 			global $wpdb;
@@ -123,8 +168,8 @@ class YAA_Files {
 		if ( 'drawing' === $file->kind && $file->gated && ! $project->paid ) {
 			return new WP_REST_Response( array( 'error' => 'locked' ), 402 );
 		}
-		$path = get_attached_file( (int) $file->attachment_id );
-		if ( ! $path || ! file_exists( $path ) ) {
+		$path = self::abspath( $file );
+		if ( ! $file->path || ! file_exists( $path ) ) {
 			return new WP_REST_Response( array( 'error' => 'missing' ), 404 );
 		}
 		nocache_headers();
@@ -137,7 +182,7 @@ class YAA_Files {
 
 	// ---- Blurred + watermarked preview (safe to expose) ----
 	private static function preview_dir() {
-		$up = wp_upload_dir();
+		$up  = wp_upload_dir();
 		$dir = trailingslashit( $up['basedir'] ) . 'yaa-previews';
 		if ( ! file_exists( $dir ) ) {
 			wp_mkdir_p( $dir );
@@ -170,8 +215,8 @@ class YAA_Files {
 		if ( ! function_exists( 'imagecreatetruecolor' ) ) {
 			return false;
 		}
-		$path = get_attached_file( (int) $file->attachment_id );
-		if ( ! $path || ! file_exists( $path ) || 0 !== strpos( (string) $file->mime, 'image/' ) ) {
+		$path = self::abspath( $file );
+		if ( ! $file->path || ! file_exists( $path ) || 0 !== strpos( (string) $file->mime, 'image/' ) ) {
 			return false;
 		}
 		$src = self::load_image( $path, $file->mime );
@@ -189,7 +234,6 @@ class YAA_Files {
 			imagefilter( $blur, IMG_FILTER_GAUSSIAN_BLUR );
 		}
 		imagefilter( $blur, IMG_FILTER_BRIGHTNESS, 20 );
-		// Watermark.
 		$white = imagecolorallocatealpha( $blur, 255, 255, 255, 40 );
 		$tile  = 'PREVIEW · PAY TO UNLOCK  ';
 		for ( $y = 20; $y < $h; $y += 60 ) {

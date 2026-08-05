@@ -76,16 +76,17 @@ A submitted project is driven to paid + delivered inside **Archie Projects**:
 4. **Drawings paywall** (`YAA_Files`) — Tiam upload drawings + third-party docs;
    until paid, drawings are served as server-generated **blurred + watermarked**
    previews (or locked placeholders), with originals streamed only through a
-   token + payment-checked endpoint (`/file`).
+   token + payment-checked endpoint (`/file`). Originals are stored in a
+   **protected `uploads/yaa-secure/` directory** (deny-all `.htaccess` + `web.config`
+   + `index.php`), never the public media library — no guessable-URL bypass.
 5. **Analytics** (`YAA_Analytics`) — funnel + sales dashboard with date-range
    toggles (revenue, avg value, attach rates, London/listed/conservation splits).
 
 **Marked TODO:**
 - **Live Historic England API** (`YAA_Historic_England::api_lookup`) — heuristic
   fallback ships; flip `historic_api_on` once wired.
-- **File hardening for production** — store drawing originals outside the web root
-  (or behind a deny rule) so a guessed `wp-content` URL can't bypass the gate; the
-  access endpoint is the control on this dev build.
+- **Nginx deny rule** — the shipped deny-all `.htaccess` covers Apache/LiteSpeed;
+  on Nginx add `location ^~ /wp-content/uploads/yaa-secure/ { deny all; }`.
 - **Stripe Connect payouts** — split to Tiam / appointed consultants if wanted.
 
 ## File map

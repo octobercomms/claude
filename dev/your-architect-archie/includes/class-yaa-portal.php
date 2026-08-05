@@ -154,7 +154,7 @@ class YAA_Portal {
 							</a>
 						<?php endif; ?>
 						<div class="yp-file-meta">
-							<span class="yp-file-label"><?php echo esc_html( $f->label ? $f->label : basename( (string) get_attached_file( $f->attachment_id ) ) ); ?></span>
+							<span class="yp-file-label"><?php echo esc_html( YAA_Files::filename( $f ) ); ?></span>
 							<?php if ( $f->source ) : ?><span class="yp-file-src"><?php echo esc_html( $f->source ); ?></span><?php endif; ?>
 						</div>
 					</div>

@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class YAA_DB {
 
 	const SCHEMA_OPTION = 'yaa_db_version';
-	const SCHEMA        = '2';
+	const SCHEMA        = '3';
 
 	public static function projects_table() {
 		global $wpdb;
@@ -127,6 +127,7 @@ class YAA_DB {
 			label VARCHAR(190) NULL,
 			source VARCHAR(190) NULL,
 			attachment_id BIGINT UNSIGNED NULL,
+			path VARCHAR(255) NULL,
 			mime VARCHAR(100) NULL,
 			size BIGINT UNSIGNED NOT NULL DEFAULT 0,
 			gated TINYINT(1) NOT NULL DEFAULT 1,
