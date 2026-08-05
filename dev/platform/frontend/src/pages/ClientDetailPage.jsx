@@ -239,6 +239,16 @@ export default function ClientDetailPage() {
     setConnectors(prev => prev.filter(c => c.id !== connectorId));
   }
 
+  async function revokeConnector(connectorId) {
+    if (!window.confirm('Revoke this WordPress site? It rotates the site\'s secret and immediately cuts off managed AI generation and event pushes. The site keeps the plugin but can no longer use October\'s key. It would need to re-pair to reconnect.')) return;
+    try {
+      const updated = await api.post(`/connectors/${connectorId}/revoke`);
+      setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, ...updated } : c));
+    } catch (err) {
+      toast(err.message || 'Revoke failed', 'error');
+    }
+  }
+
   async function resetConnector(connectorId) {
     if (!window.confirm('Reset credentials? This will disconnect the connector so you can reconnect fresh.')) return;
     try {
@@ -545,6 +555,7 @@ export default function ClientDetailPage() {
                         onEditCredentials={(c) => { setCredModal(c); setCredValues({}); }}
                         onDelete={deleteConnector}
                         onReset={resetConnector}
+                        onRevoke={revokeConnector}
                         onConfigSave={handleConfigSave}
                         onAddAnother={handleAddAnother}
                         onConnectorUpdated={(connectorId, patch) =>
@@ -986,7 +997,7 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
   );
 }
 
-function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onConfigSave, onAddAnother, onConnectorUpdated }) {
+function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onRevoke, onConfigSave, onAddAnother, onConnectorUpdated }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
   const isShopify = SHOPIFY_TYPES.includes(connector.connector_type);
   const isActive = connector.status === 'active';
@@ -1144,6 +1155,9 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
             </button>
           )}
           {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} className="btn btn-sm" style={{ background: 'var(--warning)', color: '#fff', borderColor: 'var(--warning)' }}>Reset</button>}
+          {connector.connector_type === 'wordpress_plugin' && connector.status !== 'revoked' && (
+            <button onClick={() => onRevoke(connector.id)} className="btn btn-danger btn-sm" title="Rotate the site's secret and cut off managed generation immediately">Revoke site</button>
+          )}
           <button onClick={() => onDelete(connector.id)} className="btn btn-danger btn-sm">Remove</button>
         </div>
       </div>
