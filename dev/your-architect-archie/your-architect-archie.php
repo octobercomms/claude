@@ -3,7 +3,7 @@
  * Plugin Name: Your Architect – Archie
  * Plugin URI: https://yourarchitect.uk
  * Description: Archie — the conversational, fixed-price project builder for Your Architect. A two-panel AI assistant (embeddable with [archie] or the Elementor widget) that builds a homeowner's drawing package and price through a short chat, opens a project record, and gates full drawings behind payment. Trading name of Tiam Architects Ltd.
- * Version: 0.4.3
+ * Version: 0.4.4
  * Author: October Communications
  * Author URI: https://octobercomms.com
  * License: GPL-2.0-or-later
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'YAA_VERSION', '0.4.3' );
+define( 'YAA_VERSION', '0.4.4' );
 define( 'YAA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'YAA_URL', plugin_dir_url( __FILE__ ) );
 define( 'YAA_BASENAME', plugin_basename( __FILE__ ) );

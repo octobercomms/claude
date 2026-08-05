@@ -39,6 +39,10 @@ protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
 
+= 0.4.4 =
+* Taller chat: the embedded builder now fills 90vh of the viewport (min 560px) so
+  more of the conversation and package are visible without scrolling.
+
 = 0.4.3 =
 * Quick-reply chips are reliable again: the server now derives suggested answers
   deterministically from the next unanswered question (`suggested_options()`), so

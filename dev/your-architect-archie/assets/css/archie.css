@@ -37,7 +37,7 @@
 .yaa .archie-face { width: 40px; height: 40px; flex-shrink: 0; display: inline-flex; }
 .yaa .archie-face svg { width: 40px; height: 40px; }
 .yaa .archie-embed { border: 1.5px solid var(--line); border-radius: 22px; overflow: hidden; background: var(--paper); box-shadow: 0 30px 70px -40px rgba(28,47,115,.55); }
-.yaa .archie-embed .ob-body { height: 560px; }
+.yaa .archie-embed .ob-body { height: 90vh; min-height: 560px; }
 .yaa .archie-embed .ob-top .ob-title { font-size: 1.06rem; font-weight: 700; }
 .yaa .ob-body { display: grid; grid-template-columns: 1.1fr .9fr; min-height: 0; }
 .yaa .ob-chat { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--blush); }

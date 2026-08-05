@@ -21,7 +21,7 @@
 
 /* ---- Embedded frame (homepage) ---- */
 .archie-embed { border: 1.5px solid var(--line); border-radius: 22px; overflow: hidden; background: var(--paper); box-shadow: 0 30px 70px -40px rgba(28,47,115,.55); }
-.archie-embed .ob-body { height: 560px; }
+.archie-embed .ob-body { height: 90vh; min-height: 560px; }
 .archie-embed .ob-top .ob-title { font-size: 1.06rem; font-weight: 700; }
 
 /* ---- Two-panel body ---- */
