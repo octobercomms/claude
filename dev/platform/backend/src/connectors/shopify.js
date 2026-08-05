@@ -108,6 +108,26 @@ async function fetchAnalyticsData(credentials, startDate, endDate) {
   }
   const daily = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
 
+  // Discounts — how much is being given away in promos and on how many
+  // orders. Already fetched per order as total_discounts; nothing extra pulled.
+  let discountTotal = 0, discountedOrders = 0;
+  for (const o of orders) {
+    const disc = parseFloat(o.total_discounts || 0);
+    if (disc > 0) { discountTotal += disc; discountedOrders++; }
+  }
+
+  // New vs returning — Shopify stamps each order with the customer's lifetime
+  // order count at time of purchase (orders_count). 1 (or 0) → first purchase
+  // (new); >1 → returning. Guest checkouts with no customer record are counted
+  // separately so the three buckets still sum to total_orders.
+  let newCustomerOrders = 0, returningCustomerOrders = 0, guestOrders = 0;
+  for (const o of orders) {
+    const c = o.customer;
+    if (!c || c.id == null) { guestOrders++; continue; }
+    if (Number(c.orders_count || 0) > 1) returningCustomerOrders++;
+    else newCustomerOrders++;
+  }
+
   // Product-level breakdown from line items.
   const products = {};
   for (const o of orders) {
@@ -132,6 +152,11 @@ async function fetchAnalyticsData(credentials, startDate, endDate) {
       total_refunds: refundTotal.toFixed(2),
       refunded_orders: refundedOrders,
       net_revenue: (totalRevenue - refundTotal).toFixed(2),
+      total_discounts: discountTotal.toFixed(2),
+      discounted_orders: discountedOrders,
+      new_customer_orders: newCustomerOrders,
+      returning_customer_orders: returningCustomerOrders,
+      guest_orders: guestOrders,
       financial_status_breakdown: financialBreakdown,
       daily,
     },
