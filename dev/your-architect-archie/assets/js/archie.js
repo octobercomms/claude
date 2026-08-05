@@ -147,6 +147,9 @@
       if (res.body.done) { done = true; clearOptions(); input.placeholder = 'All set — submit your project on the right.'; }
       setBusy(false);
       if (!done) input.focus({ preventScroll: true });
+      // If they clicked submit before giving an email, Archie asked for it; now
+      // that we have one, finish the submission for them automatically.
+      if (pendingSubmit && res.body.hasEmail) { pendingSubmit = false; doSubmit(); }
     }).catch(function () { typing(false); addMsg('bot', 'We couldn’t reach Archie. Please try again in a moment.', 'note'); setBusy(false); });
   }
 
@@ -166,17 +169,29 @@
     }).catch(function () { setBusy(false); });
   });
 
-  // Submit
-  submitBtn.addEventListener('click', function () {
+  // Submit — needs an email so the studio can reply. If none yet, the server
+  // returns needEmail and Archie asks for it in the chat; once the person gives
+  // it, the message handler above auto-retries this for them.
+  var pendingSubmit = false, submitOriginal = submitBtn.textContent;
+  function doSubmit() {
     if (submitBtn.disabled) return;
-    submitBtn.disabled = true; var original = submitBtn.textContent; submitBtn.textContent = 'Saving…';
+    submitBtn.disabled = true; submitOriginal = submitBtn.textContent; submitBtn.textContent = 'Saving…';
     post('submit', {}).then(function (res) {
       var d = res.body || {};
+      if (d.needEmail) {
+        pendingSubmit = true;
+        addMsg('bot', escapeHtml(d.message || 'What’s the best email address to send your quote to?'), 'note');
+        submitBtn.disabled = false; submitBtn.textContent = submitOriginal;
+        if (!done) input.focus({ preventScroll: true });
+        return;
+      }
       if (d.checkoutUrl) { window.location.href = d.checkoutUrl; return; }
+      pendingSubmit = false;
       addMsg('bot', escapeHtml(d.message || 'Project saved.') + (d.ref ? ' <strong>(ref ' + d.ref + ')</strong>' : ''), 'note');
       submitBtn.textContent = 'Submitted ✓';
-    }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = original; });
-  });
+    }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = submitOriginal; });
+  }
+  submitBtn.addEventListener('click', doSubmit);
 
   // Start over
   if (restartBtn) restartBtn.addEventListener('click', function () {

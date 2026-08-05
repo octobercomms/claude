@@ -66,7 +66,7 @@ class YAA_Archie {
 			'8) do they already have a "measured survey" — explain it\'s an accurate set of drawings of the property as it exists today, which we need before designing — or should we arrange one;',
 			'9) will the work involve structural changes (removing walls, adding steel beams) — reassure "No / not sure" is fine;',
 			'10) their rough timeframe;',
-			'11) finally their name and email (optional — just so they can save and come back).',
+			'11) finally, the best email address to send their quote to — and their name. Frame it warmly: you would like to EMAIL them a copy of this fixed-price quote so they have it to keep, and it is how the team will confirm details and get back to them. This is how Your Architect contacts them, so an email really is needed — do NOT call it optional. Reassure them it is only ever used for their quote and their project, never marketing. If they hesitate, briefly explain why it matters and ask once more.',
 			'',
 			'HARD RULES:',
 			'- NEVER state, estimate or discuss a price, fee or number in your replies. The panel on the right shows every price as it builds. If asked "how much?", say the price is building on the right as they answer.',
@@ -74,7 +74,7 @@ class YAA_Archie {
 			'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
 			'- Full RIBA services (concept to construction) or a larger commission are handled directly by Tiam Architects: set package to "riba" and point them to info@tiamarchitects.com at the end.',
 			'',
-			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, a free description, name or email). MAPPING: still need planning permission = package "planning"; planning already approved / needs building regs = package "buildingregs"; full RIBA or larger commission = package "riba". submitApp=true only if they want us to submit/manage the planning application. concept=true only for the 3D visual add-on on a building-regs project (the planning package already includes a 3D concept). siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging. done=true only after you have asked for name and email.',
+			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, a free description, name or email). MAPPING: still need planning permission = package "planning"; planning already approved / needs building regs = package "buildingregs"; full RIBA or larger commission = package "riba". submitApp=true only if they want us to submit/manage the planning application. concept=true only for the 3D visual add-on on a building-regs project (the planning package already includes a 3D concept). siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging. done=true ONLY once you have captured a valid email address to reach them on (their name too if given) — never before.',
 		);
 
 		$known = self::address_knowledge( $state );
@@ -201,8 +201,15 @@ class YAA_Archie {
 					$state['conservation'] = ! empty( $he['conservation'] ); // drives conservation-area follow-ups.
 					continue;
 				}
-				if ( in_array( $k, array( 'name', 'email' ), true ) ) {
-					$state[ $k ] = sanitize_text_field( (string) $v );
+				if ( 'email' === $k ) {
+					$email = sanitize_email( (string) $v ); // only keep a genuine address.
+					if ( is_email( $email ) ) {
+						$state['email'] = $email;
+					}
+					continue;
+				}
+				if ( 'name' === $k ) {
+					$state['name'] = sanitize_text_field( (string) $v );
 					continue;
 				}
 				$state[ $k ] = is_bool( $v ) ? $v : sanitize_text_field( (string) $v );
@@ -222,6 +229,12 @@ class YAA_Archie {
 
 		$package = YAA_Pricing::build_package( $state );
 
+		// Never treat the chat as finished until we actually have an email to reach
+		// them on — an opened project with no contact is useless to the studio.
+		if ( $done && empty( $state['email'] ) ) {
+			$done = false;
+		}
+
 		$message = '' !== $result['text'] ? $result['text'] : __( 'Got it — thanks.', 'your-architect-archie' );
 		YAA_Project::set_state( $project_id, $state );
 		YAA_Project::add_message( $project_id, 'assistant', $message );
@@ -236,6 +249,7 @@ class YAA_Archie {
 			'options'  => $options,
 			'redirect' => ! empty( $package['redirect'] ),
 			'done'     => $done,
+			'hasEmail' => ! empty( $state['email'] ),
 		);
 	}
 

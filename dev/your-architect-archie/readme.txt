@@ -39,6 +39,14 @@ protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
 
+= 0.4.5 =
+* Email is now properly captured. Archie asks for it as "so I can email you your
+  quote and the team can get back to you" (not an optional "save & come back"),
+  and the chat only completes once a valid email is given.
+* Save & submit now requires a contact email: if you submit without one, Archie
+  asks for it in the chat and finishes the submission automatically once you reply
+  — so no project can be opened with no way to contact the client.
+
 = 0.4.4 =
 * Taller chat: the embedded builder now fills 90vh of the viewport (min 560px) so
   more of the conversation and package are visible without scrolling.

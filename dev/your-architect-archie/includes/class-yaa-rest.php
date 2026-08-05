@@ -156,9 +156,19 @@ class YAA_Rest {
 		if ( ! self::check_nonce( $req ) ) {
 			return new WP_REST_Response( array( 'error' => 'bad_nonce' ), 403 );
 		}
-		$id      = YAA_Project::current( true );
-		$package = YAA_Project::package( $id );
+		$id       = YAA_Project::current( true );
+		$state    = YAA_Project::state( $id );
+		$package  = YAA_Project::package( $id );
 		$redirect = ! empty( $package['redirect'] );
+
+		// We cannot open a project we have no way to reply to. If there's no email
+		// yet, don't submit — ask for it in the chat and let the front end retry.
+		if ( ! $redirect && empty( $state['email'] ) ) {
+			$ask = __( 'Before I save this — what\'s the best email address to send your quote to? That\'s how our architects will get back to you.', 'your-architect-archie' );
+			YAA_Project::add_message( $id, 'assistant', $ask );
+			return new WP_REST_Response( array( 'needEmail' => true, 'message' => $ask ), 200 );
+		}
+
 		YAA_Project::set_status( $id, $redirect ? 'redirected' : 'submitted' );
 
 		do_action( 'yaa_project_submitted', $id, $package );
