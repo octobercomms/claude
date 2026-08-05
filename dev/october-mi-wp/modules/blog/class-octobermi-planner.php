@@ -37,6 +37,11 @@ class OctoberMI_Blog_Planner {
 		return OctoberMI_Jobs::enqueue( self::JOB_TYPE, array() );
 	}
 
+	/** Wipe the whole plan (e.g. to re-plan after re-learning the site). */
+	public static function clear() {
+		delete_option( self::OPTION );
+	}
+
 	/**
 	 * Reserve the next unused topic and return it as a writer-ready string, or ''
 	 * if the plan is dry. Marking used at claim time (rather than after the post

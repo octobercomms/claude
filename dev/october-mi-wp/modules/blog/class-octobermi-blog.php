@@ -55,6 +55,7 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		add_action( 'admin_post_octobermi_blog_learn', array( $this, 'handle_learn' ) );
 		add_action( 'admin_post_octobermi_blog_generate', array( $this, 'handle_generate' ) );
 		add_action( 'admin_post_octobermi_blog_plan', array( $this, 'handle_plan' ) );
+		add_action( 'admin_post_octobermi_blog_plan_clear', array( $this, 'handle_plan_clear' ) );
 		add_action( 'wp_ajax_octobermi_blog_job_status', array( $this, 'ajax_job_status' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 
@@ -318,6 +319,19 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		exit;
 	}
 
+	public function handle_plan_clear() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'october-mi' ) );
+		}
+		check_admin_referer( 'octobermi_blog_plan_clear' );
+		OctoberMI_Blog_Planner::clear();
+		wp_safe_redirect( add_query_arg(
+			array( 'page' => self::MENU_SLUG, 'octobermi_notice' => rawurlencode( __( 'Content plan cleared.', 'october-mi' ) ), 'octobermi_ok' => '1' ),
+			admin_url( 'admin.php' )
+		) );
+		exit;
+	}
+
 	/** Poll endpoint for the latest job of a given (whitelisted) type. */
 	public function ajax_job_status() {
 		check_ajax_referer( 'octobermi_blog_status', 'nonce' );
@@ -539,6 +553,13 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 						<?php echo ! empty( $plan ) ? esc_html__( 'Add more topics', 'october-mi' ) : esc_html__( 'Plan topics', 'october-mi' ); ?>
 					</button>
 				</form>
+				<?php if ( ! empty( $plan ) ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Clear the whole content plan?', 'october-mi' ) ); ?>');">
+						<input type="hidden" name="action" value="octobermi_blog_plan_clear" />
+						<?php wp_nonce_field( 'octobermi_blog_plan_clear' ); ?>
+						<button type="submit" class="button button-link-delete"><?php esc_html_e( 'Clear plan', 'october-mi' ); ?></button>
+					</form>
+				<?php endif; ?>
 			</div>
 
 			<div class="octobermi-card">
