@@ -4,8 +4,16 @@
  *
  * Owns the system prompt, the field-extraction tool, and a single turn:
  * user message → Claude (text + set_fields) → merge state → server recomputes the
- * package → persist → return { message, package }. Archie never states a price;
- * the package panel does. Prices are computed by YAA_Pricing, never by the model.
+ * package → persist → return { message, package, options }. Archie never states a
+ * price; the package panel does. Prices are computed by YAA_Pricing, never by the
+ * model.
+ *
+ * Two things beyond plain form-filling:
+ *  - Every turn Archie may propose `replies` — short tappable answer buttons — so
+ *    the person can tap OR type. The UI renders them and always keeps the text box.
+ *  - The system prompt is rebuilt each turn with WHAT WE KNOW about the address
+ *    (London/M25, listed building, conservation area) from YAA_Historic_England,
+ *    so Archie can ask genuinely intelligent, plain-English follow-ups.
  *
  * @package Your_Architect_Archie
  */
@@ -16,44 +24,98 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class YAA_Archie {
 
-	/** The fixed opener (no Claude call — saves a turn's tokens). */
+	/** The fixed opener (no Claude call — saves a turn's tokens). Free-text, no chips. */
 	public static function opener( $project_id ) {
-		$text = __( "Hi — I'm Archie, Your Architect's project assistant. I'll ask a few short questions and build your fixed price as we go. First, what's the address of the property?", 'your-architect-archie' );
+		$text = __( "Hi — I'm Archie, Your Architect's project assistant. I'll ask a few simple questions, explain anything that's unclear, and build your fixed price as we go. There are no silly questions here. To start, what's the address of the property?", 'your-architect-archie' );
 		YAA_Project::add_message( $project_id, 'assistant', $text );
 		return array(
 			'message'  => $text,
 			'package'  => YAA_Project::package( $project_id ),
+			'options'  => array(), // address is free text — nothing to tap.
 			'redirect' => false,
 			'done'     => false,
 		);
 	}
 
-	/** System prompt (scoped tightly to package-building; Tiam's question logic). */
-	private static function system_prompt() {
-		return implode(
-			"\n",
-			array(
-				'You are Archie, the project assistant for Your Architect — fixed-price architectural drawings for UK homeowners (a trading name of Tiam Architects Ltd, ARB-registered and RIBA chartered).',
-				'Your job: ask short, plain-English questions, ONE at a time, and collect what is needed to build the client\'s package. Ask in this order, and SKIP any question that does not apply:',
-				'1) the property address; 2) what they want to do (rear/side extension, loft or mansard conversion, garage conversion, outbuilding, internal alterations, or a new dwelling); 3) IF it is a rear or side extension, how many storeys; 4) where they are up to with planning; 5) IF they still need planning permission, whether they would like you to submit and manage the application or they will submit it themselves; 6) IF planning is already approved (building regs), whether they would like an optional 3D concept visual; 7) IF the property is in London or within the M25, whether they would like a site visit; 8) whether they already have a measured survey or need one arranged; 9) whether there are structural changes; 10) their rough timeframe; 11) finally their name and email (optional).',
-				'HARD RULES:',
-				'- NEVER state, estimate or discuss a price, fee or number in your replies. The package panel shows all prices. If asked about cost, say the price is building on the right as you answer.',
-				'- Do NOT give planning or design advice.',
-				'- Use British English and everyday client language.',
-				'- Keep every reply to one or two short sentences, warm and direct.',
-				'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
-				'- Full RIBA services (Stages 0–7, concept to construction) or a larger commission are handled directly by Tiam Architects: set package to "riba" and point them to info@tiamarchitects.com at the end.',
-				'EVERY turn, call the set_fields tool with any fields you learned this message (omit the rest). MAPPING: still need planning permission = package "planning"; planning already approved / needs building regs = package "buildingregs"; full RIBA or larger commission = package "riba". Set submitApp=true only if they want you to submit/manage the planning application. Set concept=true only for a 3D concept add-on on a building-regs project (the planning package already includes a 3D concept). Set siteVisit=true only if they want the London/M25 site visit. Set survey=true if a measured survey needs arranging. Set done=true only after you have asked for name and email.',
-			)
+	/**
+	 * System prompt — scoped tightly to package-building, written to be answerable
+	 * by someone who knows nothing about architecture or planning. Rebuilt each turn
+	 * with what we've learned about the address so Archie can be clever, not scripted.
+	 */
+	private static function system_prompt( array $state = array() ) {
+		$lines = array(
+			'You are Archie, the project assistant for Your Architect — fixed-price architectural drawings for UK homeowners (a trading name of Tiam Architects Ltd, ARB-registered and RIBA chartered).',
+			'',
+			'WHO YOU ARE TALKING TO: ordinary homeowners who usually have NO idea how planning, drawings or architecture work, and may feel out of their depth. Your job is to make this feel easy and friendly — you are a helpful guide, not a form. Never make anyone feel they should already know something.',
+			'',
+			'HOW TO ASK EVERYTHING:',
+			'- One short question at a time, in plain everyday English. Never use jargon without immediately explaining it in a few words (e.g. "planning permission — that\'s the council\'s formal go-ahead to build").',
+			'- Keep every reply to one or two warm, direct sentences. British English.',
+			'- After ANY question that has a handful of natural answers, ALSO propose tappable buttons via the set_fields tool\'s `replies` field (2–5 very short labels, in the person\'s own words). The person can tap one OR type their own — both are fine.',
+			'- Whenever a question contains a term a non-expert might not know, ALWAYS include a final reply option worded like "What does that mean?" or "I\'m not sure". If they pick it (or seem confused, or ask), explain the term simply in one or two sentences with a relatable example, reassure them it\'s a normal thing not to know, then ask the same question again with the buttons.',
+			'- If someone answers "I don\'t know" to anything, that is completely fine: help them reason it out or offer a sensible default, never pressure them.',
+			'',
+			'THE INFORMATION TO COLLECT (ask in this order, and SKIP anything that clearly does not apply):',
+			'1) the property address (already asked in the opener);',
+			'2) what they want to do — e.g. a rear or side extension, a loft or mansard conversion, converting a garage, a garden room / outbuilding, internal alterations, or building a brand-new home;',
+			'3) IF it is a rear or side extension: is it single storey or two storey (offer "Not sure" — single is the common one);',
+			'4) where they are up to with planning — explain the choice plainly: they still need planning permission, OR planning is already approved and they now need "building regulations" drawings (the technical drawings a builder builds from), OR it is a large / full-service project;',
+			'5) IF they still need planning permission: would they like us to submit and manage the council application for them, or will they do that part themselves;',
+			'6) IF planning is already approved: would they like an optional simple 3D visual to help picture the design;',
+			'7) IF the property is in London or within the M25: would they like us to visit the property in person;',
+			'8) do they already have a "measured survey" — explain it\'s an accurate set of drawings of the property as it exists today, which we need before designing — or should we arrange one;',
+			'9) will the work involve structural changes (removing walls, adding steel beams) — reassure "No / not sure" is fine;',
+			'10) their rough timeframe;',
+			'11) finally their name and email (optional — just so they can save and come back).',
+			'',
+			'HARD RULES:',
+			'- NEVER state, estimate or discuss a price, fee or number in your replies. The panel on the right shows every price as it builds. If asked "how much?", say the price is building on the right as they answer.',
+			'- Do NOT give planning or design advice or promise an outcome; you help scope the drawings package only.',
+			'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
+			'- Full RIBA services (concept to construction) or a larger commission are handled directly by Tiam Architects: set package to "riba" and point them to info@tiamarchitects.com at the end.',
+			'',
+			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, a free description, name or email). MAPPING: still need planning permission = package "planning"; planning already approved / needs building regs = package "buildingregs"; full RIBA or larger commission = package "riba". submitApp=true only if they want us to submit/manage the planning application. concept=true only for the 3D visual add-on on a building-regs project (the planning package already includes a 3D concept). siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging. done=true only after you have asked for name and email.',
 		);
+
+		$known = self::address_knowledge( $state );
+		if ( $known ) {
+			$lines[] = '';
+			$lines[] = $known;
+		}
+
+		return implode( "\n", $lines );
 	}
 
-	/** The single field-extraction tool. */
+	/**
+	 * Turn what YAA_Historic_England found about the address into guidance Archie
+	 * can act on — so listed / conservation-area homes get intelligent, reassuring
+	 * follow-ups instead of the generic script. Only emitted once we have an address.
+	 */
+	private static function address_knowledge( array $state ) {
+		if ( empty( $state['postcode'] ) ) {
+			return '';
+		}
+		$facts = array();
+		$facts[] = ! empty( $state['london'] )
+			? '- Location: this address is in London / within the M25, so an in-person site visit can be offered.'
+			: '- Location: this address is outside London / the M25, so do not offer the London site visit.';
+
+		if ( ! empty( $state['listed'] ) ) {
+			$facts[] = '- This appears to be a LISTED BUILDING. Gently let them know (many owners do not realise): it means the building is legally protected for its special architectural or historic interest, so most changes need "listed building consent" as well as planning permission, and work has to be more sympathetic. Reassure them this is completely normal and we handle listed buildings routinely. Then ask what they are hoping to do. Never imply it is impossible, and never quote a number.';
+		}
+		if ( ! empty( $state['conservation'] ) ) {
+			$facts[] = '- This appears to be in a CONSERVATION AREA. Explain simply: that is an area protected for its overall character, so the council applies stricter rules and some normal "permitted development" rights are removed (meaning more things need permission). Reassure them we deal with conservation areas all the time and it just shapes the design and paperwork. Never quote a number.';
+		}
+
+		return "WHAT WE KNOW ABOUT THIS PROPERTY (from an address lookup — use it to be genuinely helpful and to ask smarter questions; introduce it warmly, never to alarm):\n" . implode( "\n", $facts );
+	}
+
+	/** The single field-extraction tool (now also carries the tappable `replies`). */
 	private static function tools() {
 		return array(
 			array(
 				'name'         => 'set_fields',
-				'description'  => 'Record the structured fields learned from the user this turn. Only include fields you are confident about.',
+				'description'  => 'Record the structured fields learned from the user this turn, and propose tappable quick-reply buttons for the question you just asked. Only include fields you are confident about.',
 				'input_schema' => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -70,19 +132,24 @@ class YAA_Archie {
 						'name'        => array( 'type' => 'string' ),
 						'email'       => array( 'type' => 'string' ),
 						'done'        => array( 'type' => 'boolean' ),
+						'replies'     => array(
+							'type'        => 'array',
+							'items'       => array( 'type' => 'string' ),
+							'description' => '2–5 very short (max ~5 words) tappable answer buttons for the question you just asked, in the user\'s own words. Include a final "What does that mean?" / "I\'m not sure" option whenever the question uses a term a non-expert might not know. OMIT entirely for open answers such as the address, a free description, name or email.',
+						),
 					),
 				),
 			),
 		);
 	}
 
-	/** Fields the tool may write into state. */
+	/** Fields the tool may write into state (`replies` is deliberately excluded — it drives the UI, not the record). */
 	private static $allowed = array( 'address', 'package', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
 
 	/**
 	 * Run one conversational turn.
 	 *
-	 * @return array|WP_Error { message, package, redirect, done }.
+	 * @return array|WP_Error { message, package, options, redirect, done }.
 	 */
 	public static function turn( $project_id, $user_text ) {
 		$user_text = trim( (string) $user_text );
@@ -94,15 +161,31 @@ class YAA_Archie {
 		$messages = YAA_Project::messages( $project_id );
 		$state    = YAA_Project::state( $project_id );
 
-		$result = YAA_Claude::turn( self::system_prompt(), $messages, self::tools() );
+		$result = YAA_Claude::turn( self::system_prompt( $state ), $messages, self::tools() );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
 		// Merge extracted fields.
-		$done = false;
+		$done    = false;
+		$options = array();
 		if ( ! empty( $result['tool']['input'] ) ) {
-			foreach ( $result['tool']['input'] as $k => $v ) {
+			$input = $result['tool']['input'];
+
+			// Tappable quick replies — drive the UI only, never stored in state.
+			if ( ! empty( $input['replies'] ) && is_array( $input['replies'] ) ) {
+				foreach ( $input['replies'] as $r ) {
+					$r = sanitize_text_field( (string) $r );
+					if ( '' !== $r ) {
+						$options[] = $r;
+					}
+					if ( count( $options ) >= 5 ) {
+						break;
+					}
+				}
+			}
+
+			foreach ( $input as $k => $v ) {
 				if ( ! in_array( $k, self::$allowed, true ) ) {
 					continue;
 				}
@@ -113,7 +196,9 @@ class YAA_Archie {
 				if ( 'address' === $k ) {
 					$state['postcode'] = sanitize_text_field( (string) $v );
 					$he = YAA_Historic_England::check( (string) $v );
-					$state['london'] = $he['london']; // gates the site-visit question.
+					$state['london']       = ! empty( $he['london'] );       // gates the site-visit question.
+					$state['listed']       = ! empty( $he['listed'] );       // drives listed-building follow-ups.
+					$state['conservation'] = ! empty( $he['conservation'] ); // drives conservation-area follow-ups.
 					continue;
 				}
 				if ( in_array( $k, array( 'name', 'email' ), true ) ) {
@@ -141,6 +226,7 @@ class YAA_Archie {
 		return array(
 			'message'  => $message,
 			'package'  => $package,
+			'options'  => $options,
 			'redirect' => ! empty( $package['redirect'] ),
 			'done'     => $done,
 		);

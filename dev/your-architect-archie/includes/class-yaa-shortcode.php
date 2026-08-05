@@ -58,6 +58,7 @@ class YAA_Shortcode {
 					<div class="ob-messages" id="messages"><div class="wrapmsg" id="msgList"></div></div>
 					<div class="ob-composer">
 						<div class="ob-composer-inner">
+							<div class="quick" id="quickReplies" role="group" aria-label="<?php esc_attr_e( 'Suggested answers — tap one or type your own', 'your-architect-archie' ); ?>"></div>
 							<div class="composer-row" id="composerRow">
 								<div class="composer-input">
 									<textarea id="textInput" rows="1" placeholder="<?php esc_attr_e( 'Type your answer…', 'your-architect-archie' ); ?>" autocomplete="off"></textarea>

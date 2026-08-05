@@ -83,6 +83,7 @@
 }
 .chip:hover { border-color: var(--blue); color: var(--blue); }
 .chip.example { border-style: dashed; color: var(--muted); font-weight: 500; }
+.chip.explain { border-style: dashed; color: var(--blue); font-weight: 500; }
 
 .composer-row { display: flex; gap: 8px; align-items: flex-end; }
 .composer-input { flex: 1; display: flex; align-items: center; gap: 8px; background: #fff; border: 1.5px solid var(--line-2); border-radius: 999px; padding: 5px 5px 5px 18px; }

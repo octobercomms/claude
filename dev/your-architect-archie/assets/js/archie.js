@@ -24,7 +24,8 @@
       totalAmt = el('totalAmt'), toggleTotal = el('toggleTotal'), londonChip = el('londonChip'),
       redirectBanner = el('redirectBanner'), quoteMeta = el('quoteMeta'), mValidity = el('mValidity'),
       mDelivery = el('mDelivery'), mRevisions = el('mRevisions'), submitBtn = el('submitBtn'),
-      restartBtn = el('restartBtn'), panelToggle = el('panelToggle'), panel = el('packagePanel');
+      restartBtn = el('restartBtn'), panelToggle = el('panelToggle'), panel = el('packagePanel'),
+      quick = el('quickReplies');
 
   if (!msgList) return; // Archie not on this page.
 
@@ -99,16 +100,34 @@
     quoteMeta.hidden = !hasService;
   }
 
+  // ---- Quick replies (tap-or-type) ----
+  // Archie proposes short answer buttons each turn; the composer always stays open,
+  // so the person can tap one OR type their own.
+  function clearOptions() { if (quick) quick.innerHTML = ''; }
+  function renderOptions(options) {
+    if (!quick) return;
+    clearOptions();
+    if (!options || !options.length || done) return;
+    options.forEach(function (label) {
+      var b = document.createElement('button');
+      b.className = 'chip'; b.type = 'button'; b.textContent = label;
+      b.addEventListener('click', function () { if (!busy && !done) send(label); });
+      quick.appendChild(b);
+    });
+  }
+
   // ---- Input ----
   function setBusy(b) {
     busy = b;
     input.disabled = b || done;
     sendBtn.disabled = b || done;
   }
-  function send() {
-    var text = (input.value || '').trim();
+  // `preset` is the label of a tapped quick reply; otherwise we read the text box.
+  function send(preset) {
+    var text = typeof preset === 'string' ? preset : (input.value || '').trim();
     if (!text || busy || done) return;
-    input.value = ''; autoGrow();
+    if (typeof preset !== 'string') { input.value = ''; autoGrow(); }
+    clearOptions();
     addMsg('user', escapeHtml(text));
     setBusy(true); typing(true);
     post('message', { text: text }).then(function (res) {
@@ -119,7 +138,8 @@
       }
       addMsg('bot', escapeHtml(res.body.message));
       renderPackage(res.body.package);
-      if (res.body.done) { done = true; input.placeholder = 'All set — submit your project on the right.'; }
+      renderOptions(res.body.options);
+      if (res.body.done) { done = true; clearOptions(); input.placeholder = 'All set — submit your project on the right.'; }
       setBusy(false);
       if (!done) input.focus({ preventScroll: true });
     }).catch(function () { typing(false); addMsg('bot', 'We couldn’t reach Archie. Please try again in a moment.', 'note'); setBusy(false); });
@@ -185,6 +205,7 @@
       addMsg('bot', 'Archie isn’t connected yet — add a Claude API key in <em>Archie → Settings</em> to go live.', 'note');
       setBusy(true);
     } else {
+      renderOptions(d.options);
       input.focus({ preventScroll: true });
     }
   }).catch(function () { addMsg('bot', 'Archie couldn’t start. Please refresh.', 'note'); });

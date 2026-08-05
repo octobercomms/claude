@@ -75,11 +75,11 @@ class YAA_Rest {
 		if ( empty( $messages ) ) {
 			$open = YAA_Archie::opener( $id );
 			return new WP_REST_Response(
-				array( 'messages' => YAA_Project::messages( $id ), 'package' => $open['package'], 'meta' => self::meta(), 'configured' => YAA_Claude::is_configured() )
+				array( 'messages' => YAA_Project::messages( $id ), 'package' => $open['package'], 'options' => $open['options'], 'meta' => self::meta(), 'configured' => YAA_Claude::is_configured() )
 			);
 		}
 		return new WP_REST_Response(
-			array( 'messages' => $messages, 'package' => YAA_Project::package( $id ), 'meta' => self::meta(), 'configured' => YAA_Claude::is_configured() )
+			array( 'messages' => $messages, 'package' => YAA_Project::package( $id ), 'options' => array(), 'meta' => self::meta(), 'configured' => YAA_Claude::is_configured() )
 		);
 	}
 

@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -37,6 +37,18 @@ Mail should go via an SMTP/API plugin on shared hosting. Rate limits + the daily
 token cap protect your Claude spend.
 
 == Changelog ==
+
+= 0.2.0 =
+* Archie is now a helpful guide, not a form-filler. Every question is written to be
+  answerable by someone with no knowledge of planning or architecture, defines its
+  jargon, and offers an "I'm not sure — explain this" path that explains the term in
+  plain English and re-asks.
+* Tap-or-type quick replies: Archie proposes short answer buttons each turn (via the
+  set_fields `replies` field) rendered under the composer, while the text box stays
+  open so people can tap an option OR type their own.
+* Location-aware questions: the address lookup now also flags conservation areas
+  (alongside listed buildings and London/M25), and what we know about the property is
+  fed into Archie each turn so he asks intelligent, reassuring follow-ups.
 
 = 0.1.0 =
 * Initial scaffold: Claude proxy (tool-use field extraction), server-side pricing
