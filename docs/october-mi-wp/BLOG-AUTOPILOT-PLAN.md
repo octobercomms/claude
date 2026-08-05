@@ -3,9 +3,15 @@
 **A multi-site WordPress plugin that turns Claude into a per-client editorial team,
 producing premium, SEO- and AI-optimised blog posts on a weekly cadence.**
 
-Status: planning / research complete. Code folder (when we build) will be
-`dev/blog-autopilot/`; this doc lives in `docs/blog-autopilot/` per the repo's
-two-folder rule.
+> **Architecture note (updated):** Blog Autopilot ships as the **first module of the
+> October Marketing Platform plugin** (`dev/october-mi-wp`), not a separate standalone
+> plugin. The plugin is standalone-or-connected, modular, and uses Claude directly on the
+> client site. See **`PLATFORM-PLUGIN-ARCHITECTURE.md`** for the authoritative architecture
+> (module system, key/revocation model, OMI-side brief, security/speed posture). This
+> document remains the reference for the **content pipeline and editorial method**; where
+> it describes a standalone plugin scaffold, defer to the architecture doc.
+
+Status: research complete; foundation built (v1.1.0). Content-pipeline increment next.
 
 ---
 

@@ -43,3 +43,32 @@
   was deliberately deferred to keep v1 option-only.
 - Product deletion is caught via `wp_trash_post` / `before_delete_post` filtered
   to the `product` post type, since WooCommerce has no dedicated delete hook.
+
+## v1.1.0 — Platform plugin foundation + Blog Autopilot module (this increment)
+
+The connector becomes the **October Marketing Platform** umbrella plugin (client-facing
+name; internal `october-mi` slug unchanged). See `PLATFORM-PLUGIN-ARCHITECTURE.md`.
+
+- **Module system** (`includes/class-octobermi-modules.php`): `OctoberMI_Module` base +
+  `OctoberMI_Modules` registry; only switched-on modules boot (menus/hooks/assets/cron).
+- **Gating UI**: Settings renders a checkbox per capability; disabled = invisible.
+- **Top-level admin menu** ("October Marketing"); Settings + module submenus hang off it
+  (moved off Tools). Visible strings renamed to *October Marketing Platform*.
+- **Dual-mode Claude client** (`includes/class-octobermi-claude.php`): direct (own key,
+  encrypted at rest, write-only field) or **proxied via the platform** (managed key never
+  stored on-site → revocable). Model defaults: haiku-4.5 / sonnet-5 / opus-5.
+- **Blog Autopilot module** (`modules/blog/`): gated submenu, per-site content brief
+  (topics, audience, tone, attributed author, cadence, length, publish mode), engine
+  status. Pipeline is the next increment.
+- Settings: `enabled_modules`, `connect_enabled`, `key_source`, encrypted `claude_api_key`.
+
+### Deferred to the pipeline increment
+- Background job runner (WP-Cron + spawned jobs); site-learner (Context Pack);
+  DataForSEO/Serper research + clusters/briefs; grounded writer → optimise → fact-check →
+  schema/images; editorial queue + approve/publish; weekly scheduler.
+- `wp_kses` sanitisation of AI output on save; SSRF-hardened crawler; rate/cost caps.
+
+### Deferred to OMI (platform, `dev/platform`)
+- `POST /api/wp-connect/generate` proxy (model allow-list, cost caps, usage logging).
+- Dashboard "revoke site" control (rotate `refresh_secret`) + optional remote-disable.
+- Enrichment endpoints (keyword/SERP clusters, competitor & subreddit research).

@@ -26,22 +26,32 @@ class OctoberMI_Settings {
 	const SECRET_KEYS = array(
 		'refresh_secret',
 		'github_token',
+		'claude_api_key',
 	);
 
 	public static function defaults() {
 		return array(
 			// --- Connection state (set during pairing) ----------------------
-			'client_id'      => '',
-			'refresh_secret' => '',
-			'client_name'    => '',
-			'connected_at'   => 0,
+			'client_id'       => '',
+			'refresh_secret'  => '',
+			'client_name'     => '',
+			'connected_at'    => 0,
+
+			// --- Modules & mode ---------------------------------------------
+			// enabled_modules: machine ids of switched-on capabilities.
+			// connect_enabled: has the platform connection been unlocked?
+			// key_source: 'client' (own key) | 'platform' (managed via pairing).
+			'enabled_modules' => array( 'blog' ),
+			'connect_enabled' => false,
+			'key_source'      => 'client',
+			'claude_api_key'  => '',
 
 			// --- Self-updater (GitHub repo) ---------------------------------
-			'github_token'   => '',
+			'github_token'    => '',
 
 			// --- Activity ---------------------------------------------------
-			'last_sync'      => 0,
-			'events_total'   => 0,
+			'last_sync'       => 0,
+			'events_total'    => 0,
 		);
 	}
 
@@ -92,6 +102,31 @@ class OctoberMI_Settings {
 	public static function is_connected() {
 		$all = self::all();
 		return ! empty( $all['client_id'] ) && ! empty( $all['refresh_secret'] );
+	}
+
+	/** Has the operator unlocked the platform connection UI? */
+	public static function connect_enabled() {
+		return (bool) self::get( 'connect_enabled', false );
+	}
+
+	/** Machine ids of the modules switched on. */
+	public static function enabled_modules() {
+		$v = self::get( 'enabled_modules', array() );
+		return is_array( $v ) ? $v : array();
+	}
+
+	/** Is a specific module switched on? */
+	public static function is_module_enabled( $id ) {
+		return in_array( $id, self::enabled_modules(), true );
+	}
+
+	/**
+	 * Are we using an October-managed key? Only true when the operator chose the
+	 * platform key source AND the site is actually paired — otherwise model
+	 * calls fall back to the local key.
+	 */
+	public static function is_managed_key() {
+		return 'platform' === self::get( 'key_source', 'client' ) && self::is_connected();
 	}
 
 	/** Wipe connection state (used by "Reset connection"). */

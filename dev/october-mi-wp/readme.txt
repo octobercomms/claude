@@ -1,13 +1,13 @@
-=== October Marketing Intelligence ===
+=== October Marketing Platform ===
 Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Connects your WordPress/WooCommerce site to the October Marketing Intelligence platform over outbound HTTPS, so firewalls never get in the way.
+The October Marketing Platform on your site: a modular plugin whose capabilities you switch on as needed — starting with Blog Autopilot. Runs standalone with your own Claude key, or connect to the platform for central oversight.
 
 == Description ==
 

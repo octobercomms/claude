@@ -70,3 +70,37 @@
 	display: inline-block;
 	margin-right: 12px;
 }
+
+/* --- Modules (capability toggles) ------------------------------------- */
+.octobermi-modules {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 8px;
+}
+
+.octobermi-module-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 12px;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	background: #fff;
+}
+
+.octobermi-module-row input[type="checkbox"] {
+	margin-top: 3px;
+}
+
+.octobermi-module-label {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+/* The main settings form stacks its cards full-width (override the inline
+   default that applies to small action forms inside a card). */
+.octobermi-wrap > form {
+	display: block;
+}
