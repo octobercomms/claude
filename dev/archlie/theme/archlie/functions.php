@@ -87,11 +87,15 @@ function archlie_assets() {
 	wp_enqueue_script( 'archlie-pricing', $uri . '/assets/js/pricing.js', array(), $ver( '/assets/js/pricing.js' ), true );
 	wp_add_inline_script( 'archlie-pricing', 'window.ARCHLIE_WP = ' . wp_json_encode( $data ) . ';', 'before' );
 
-	// Archie runs on the builder page and embedded on the front page.
-	if ( archlie_is_builder() || is_front_page() ) {
+	// Archie runs on the builder page and embedded on the front page — but ONLY
+	// as the theme's built-in scripted demo. When the Your Architect – Archie
+	// plugin is active it owns Archie (the [archie] shortcode brings its own
+	// assets), so the theme stands its demo down to avoid a double bind. This is
+	// the clean separation: swap the theme freely and Archie travels with the plugin.
+	if ( ( archlie_is_builder() || is_front_page() ) && ! shortcode_exists( 'archie' ) ) {
 		wp_enqueue_style( 'archlie-onboarding', $uri . '/assets/css/onboarding.css', array( 'archlie-theme' ), $ver( '/assets/css/onboarding.css' ) );
 		wp_enqueue_script( 'archlie-onboarding', $uri . '/assets/js/onboarding.js', array( 'archlie-pricing' ), $ver( '/assets/js/onboarding.js' ), true );
-		wp_add_inline_script( 'archlie-onboarding', 'window.ARCHIE_ICON = ' . wp_json_encode( $uri . '/assets/archie-icon.svg' ) . ';', 'before' );
+		wp_add_inline_script( 'archlie-onboarding', 'window.ARCHIE_ICON = ' . wp_json_encode( $uri . '/assets/archie-icon.png' ) . ';', 'before' );
 	}
 	// The homepage price grid + generic pages use app.js.
 	if ( ! archlie_is_builder() ) {

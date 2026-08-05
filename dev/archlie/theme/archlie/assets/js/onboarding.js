@@ -126,9 +126,8 @@
   // Steps may carry a `when(state)` predicate; those that don't apply are skipped.
   var STEPS = [
     { // Q1 — address (detects London / within the M25)
-      ask: "Hi — I'm Archie, Your Architect's project assistant. I'll ask a few short questions and build your fixed price as we go. First, what's the address of the property?",
+      ask: "Hi — I'm Archie, Your Architect's project assistant. I'll ask a few simple questions, explain anything that's unclear, and build your fixed price as we go. To start, what's the address of the property?",
       input: 'address',
-      examples: ['24 Roupell St, London SE1 8TB', '8 Chatsworth Rd, London E5', '14 Elm Grove, Manchester M20'],
       onAnswer: function (val, next) {
         state.postcode = val;
         state.london = /london/i.test(val) || /\b(e|ec|n|nw|se|sw|w|wc|br|cr|da|en|ha|ig|kt|rm|sm|tw|ub)\d/i.test(val);
@@ -161,12 +160,14 @@
       onAnswer: function (val, next) { state.storeys = val; botSay("Noted.", { then: next }); }
     },
     { // Q4 — planning status → package
-      ask: "Where are you up to with planning?",
+      ask: "Where are you up to with planning permission — the council's formal go-ahead to build?",
       input: 'chips',
+      explain: "No problem — this one trips a lot of people up. <strong>Planning permission</strong> is the council's approval for what you want to build. <strong>Building regulations</strong> drawings come later — they're the technical drawings your builder actually builds from. If you haven't applied to the council yet, pick the first option. If the council has already said yes and you just need the builder's drawings, pick the second. Still unsure? The first option is the usual starting point.",
       chips: [
         { label: 'I still need planning permission', value: 'planning' },
         { label: 'Planning is approved — I need building regs', value: 'buildingregs' },
-        { label: "It's a full RIBA / larger commission", value: 'riba' }
+        { label: "It's a full RIBA / larger commission", value: 'riba' },
+        { label: "I'm not sure what these mean", value: '__explain' }
       ],
       onAnswer: function (val, next) {
         state.package = val;
@@ -227,9 +228,11 @@
       ask: "Do you already have a measured survey of the property, or shall we arrange one?",
       input: 'chips',
       when: function (s) { return s.package && s.package !== 'riba'; },
+      explain: "A <strong>measured survey</strong> is simply an accurate set of drawings of your property exactly as it is today — the existing walls, windows and dimensions. We need it as the starting point before designing anything. Most people don't have one, so if you're not sure, choose \"I'll need a survey\" and we'll sort it.",
       chips: [
         { label: 'I already have measured drawings', value: 'have' },
-        { label: "I'll need a survey", value: 'need' }
+        { label: "I'll need a survey", value: 'need' },
+        { label: "What's a measured survey?", value: '__explain' }
       ],
       onAnswer: function (val, next) {
         state.survey = (val === 'need');
@@ -433,17 +436,20 @@
     if (step.input === 'chips') {
       step.chips.forEach(function (c) {
         var b = document.createElement('button');
-        b.className = 'chip'; b.type = 'button'; b.textContent = c.label;
-        b.addEventListener('click', function () { answer(c.value, c.label); });
+        b.className = 'chip' + (c.value === '__explain' ? ' explain' : ''); b.type = 'button'; b.textContent = c.label;
+        b.addEventListener('click', function () {
+          // "I'm not sure" — explain in plain English, then ask the same question again.
+          if (c.value === '__explain') {
+            pushMessage('user', c.label);
+            clearInputs();
+            botSay(step.explain || "Of course — let me explain.", { then: function () { showInput(step); } });
+            return;
+          }
+          answer(c.value, c.label);
+        });
         elQuick.appendChild(b);
       });
     } else if (step.input === 'address' || step.input === 'text') {
-      (step.examples || []).forEach(function (ex) {
-        var b = document.createElement('button');
-        b.className = 'chip example'; b.type = 'button'; b.textContent = ex;
-        b.addEventListener('click', function () { elText.value = ex; elText.focus({ preventScroll: true }); });
-        elQuick.appendChild(b);
-      });
       elText.focus({ preventScroll: true });
     } else if (step.input === 'contact') {
       setComposerEnabled(false);

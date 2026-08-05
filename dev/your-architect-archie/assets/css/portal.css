@@ -1,0 +1,41 @@
+/* Your Architect – Archie — client portal. Matches the site (navy + Plus Jakarta). */
+.yaa-portal { --navy:#253E94; --blue:#2f5fe0; --ink:#1a2233; --muted:#6b7488; --line:#e6e9f2; --bg:#f6f8fd;
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif; color:var(--ink); max-width:1000px; margin:0 auto; padding:24px 18px; }
+.yaa-portal * { box-sizing:border-box; }
+.yaa-portal .yp-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.yaa-portal .yp-brand { font-weight:800; font-size:1.3rem; color:var(--navy); }
+.yaa-portal .yp-ref { color:var(--muted); font-weight:600; }
+.yaa-portal .yp-card { background:#fff; border:2px solid var(--line); border-radius:16px; padding:22px 24px; margin-bottom:16px; }
+.yaa-portal .yp-hero h1 { font-size:1.6rem; color:var(--navy); margin:0 0 8px; }
+.yaa-portal .yp-status { display:inline-block; font-weight:700; font-size:.85rem; padding:4px 12px; border-radius:999px; background:#fff4e5; color:#a15c00; }
+.yaa-portal .yp-status.paid { background:#e5f6ec; color:#0f7a3d; }
+.yaa-portal h2 { font-size:1.1rem; color:var(--navy); margin:0 0 14px; }
+.yaa-portal .yp-grid { display:grid; grid-template-columns:1.3fr 1fr; gap:16px; }
+.yaa-portal .yp-summary { margin:0 0 14px; }
+.yaa-portal .yp-summary > div { display:flex; justify-content:space-between; gap:14px; padding:8px 0; border-bottom:1px solid var(--line); }
+.yaa-portal .yp-summary dt { color:var(--muted); margin:0; }
+.yaa-portal .yp-summary dd { margin:0; color:var(--navy); font-weight:600; text-align:right; }
+.yaa-portal .yp-node { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); }
+.yaa-portal .yp-node.total { border-bottom:0; font-weight:800; color:var(--navy); padding-top:10px; font-size:1.1rem; }
+.yaa-portal .yp-pay { align-self:start; }
+.yaa-portal .yp-sub { color:var(--muted); font-size:.9rem; }
+.yaa-portal #yaa-pay-element { margin:14px 0; }
+.yaa-portal .yp-btn { width:100%; background:var(--navy); color:#fff; border:0; border-radius:10px; padding:14px; font-family:inherit; font-weight:700; font-size:1rem; cursor:pointer; }
+.yaa-portal .yp-btn:hover { background:#1c2f70; }
+.yaa-portal .yp-btn:disabled { opacity:.6; cursor:default; }
+.yaa-portal .yp-pay-msg { color:#c0392b; font-size:.9rem; margin-top:10px; min-height:1.2em; }
+.yaa-portal .yp-lock { color:var(--muted); font-size:.8rem; margin-top:12px; text-align:center; }
+.yaa-portal .yp-receipt { text-align:center; padding:10px 0; }
+.yaa-portal .yp-tick { width:52px; height:52px; margin:0 auto 12px; border-radius:999px; background:#e5f6ec; color:#0f7a3d; font-size:1.7rem; line-height:52px; font-weight:800; }
+.yaa-portal .yp-files { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; }
+.yaa-portal .yp-file { border:1.5px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; }
+.yaa-portal .yp-thumb { display:flex; align-items:center; justify-content:center; height:120px; background:var(--bg); position:relative; overflow:hidden; text-decoration:none; }
+.yaa-portal .yp-thumb img { width:100%; height:100%; object-fit:cover; }
+.yaa-portal .yp-file.locked .yp-thumb img { filter:blur(2px); }
+.yaa-portal .yp-thumb-doc::before { content:'PDF'; color:var(--muted); font-weight:800; }
+.yaa-portal .yp-doc-ico { color:var(--navy); font-weight:800; }
+.yaa-portal .yp-lockbadge { position:absolute; inset:auto 0 8px 0; text-align:center; color:#fff; background:rgba(37,62,148,.82); font-size:.72rem; font-weight:700; padding:4px; }
+.yaa-portal .yp-file-meta { padding:10px 12px; display:flex; flex-direction:column; gap:2px; }
+.yaa-portal .yp-file-label { font-weight:600; font-size:.85rem; word-break:break-word; }
+.yaa-portal .yp-file-src { color:var(--muted); font-size:.75rem; }
+@media (max-width:820px){ .yaa-portal .yp-grid { grid-template-columns:1fr; } }

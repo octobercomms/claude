@@ -18,7 +18,7 @@ class YAA_Admin {
 
 	public static function menu() {
 		add_submenu_page(
-			'edit.php?post_type=' . YAA_Project::CPT,
+			YAA_Projects_Admin::SLUG,
 			__( 'Archie Settings', 'your-architect-archie' ),
 			__( 'Settings', 'your-architect-archie' ),
 			'manage_options',
@@ -42,9 +42,14 @@ class YAA_Admin {
 				'company_no'         => sanitize_text_field( $in['company_no'] ?? '' ),
 				'rate_limit_per_min' => (int) ( $in['rate_limit_per_min'] ?? 12 ),
 				'daily_token_cap'    => (int) ( $in['daily_token_cap'] ?? 500000 ),
-				'stripe_secret_key'  => isset( $in['stripe_secret_key'] ) ? $in['stripe_secret_key'] : '',
-				'stripe_publishable' => sanitize_text_field( $in['stripe_publishable'] ?? '' ),
-				'historic_api_on'    => empty( $in['historic_api_on'] ) ? 0 : 1,
+				'stripe_secret_key'     => isset( $in['stripe_secret_key'] ) ? $in['stripe_secret_key'] : '',
+				'stripe_publishable'    => sanitize_text_field( $in['stripe_publishable'] ?? '' ),
+				'stripe_webhook_secret' => isset( $in['stripe_webhook_secret'] ) ? $in['stripe_webhook_secret'] : '',
+				'brevo_api_key'         => isset( $in['brevo_api_key'] ) ? $in['brevo_api_key'] : '',
+				'email_from'            => sanitize_email( $in['email_from'] ?? '' ),
+				'email_from_name'       => sanitize_text_field( $in['email_from_name'] ?? '' ),
+				'portal_page_id'        => (int) ( $in['portal_page_id'] ?? 0 ),
+				'historic_api_on'       => empty( $in['historic_api_on'] ) ? 0 : 1,
 			)
 		);
 		wp_safe_redirect( add_query_arg( 'updated', '1', wp_get_referer() ) );
@@ -75,6 +80,11 @@ class YAA_Admin {
 					<tr><th><?php esc_html_e( 'Historic England API', 'your-architect-archie' ); ?></th><td><label><input type="checkbox" name="historic_api_on" value="1" <?php checked( $s['historic_api_on'], 1 ); ?>> <?php esc_html_e( 'Use the live listed-building lookup (else heuristic).', 'your-architect-archie' ); ?></label></td></tr>
 					<tr><th><?php esc_html_e( 'Stripe secret key', 'your-architect-archie' ); ?></th><td><input type="password" name="stripe_secret_key" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'stripe_secret_key' ) ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Stripe publishable key', 'your-architect-archie' ); ?></th><td><input type="text" name="stripe_publishable" class="regular-text" value="<?php echo esc_attr( $s['stripe_publishable'] ); ?>"></td></tr>
+					<tr><th><?php esc_html_e( 'Stripe webhook secret', 'your-architect-archie' ); ?></th><td><input type="password" name="stripe_webhook_secret" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'stripe_webhook_secret' ) ); ?>"><p class="description"><?php echo esc_html( 'Endpoint: ' . rest_url( 'yaa/v1/stripe-webhook' ) ); ?></p></td></tr>
+					<tr><th><?php esc_html_e( 'Brevo API key', 'your-architect-archie' ); ?></th><td><input type="password" name="brevo_api_key" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $secret_ph( 'brevo_api_key' ) ); ?>"><p class="description"><?php esc_html_e( 'Transactional email + open/click tracking. Blank = send via WordPress mail.', 'your-architect-archie' ); ?> <?php echo esc_html( 'Webhook: ' . rest_url( 'yaa/v1/brevo-webhook' ) ); ?></p></td></tr>
+					<tr><th><?php esc_html_e( 'Email from address', 'your-architect-archie' ); ?></th><td><input type="email" name="email_from" class="regular-text" value="<?php echo esc_attr( $s['email_from'] ); ?>"></td></tr>
+					<tr><th><?php esc_html_e( 'Email from name', 'your-architect-archie' ); ?></th><td><input type="text" name="email_from_name" class="regular-text" value="<?php echo esc_attr( $s['email_from_name'] ); ?>"></td></tr>
+					<tr><th><?php esc_html_e( 'Client portal page', 'your-architect-archie' ); ?></th><td><?php wp_dropdown_pages( array( 'name' => 'portal_page_id', 'selected' => (int) $s['portal_page_id'], 'show_option_none' => __( '— auto —', 'your-architect-archie' ), 'option_none_value' => 0 ) ); ?><p class="description"><?php esc_html_e( 'Page containing the [archie_portal] shortcode (auto-created on activation).', 'your-architect-archie' ); ?></p></td></tr>
 				</table>
 				<?php submit_button(); ?>
 			</form>

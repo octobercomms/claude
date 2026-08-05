@@ -24,7 +24,8 @@
       totalAmt = el('totalAmt'), toggleTotal = el('toggleTotal'), londonChip = el('londonChip'),
       redirectBanner = el('redirectBanner'), quoteMeta = el('quoteMeta'), mValidity = el('mValidity'),
       mDelivery = el('mDelivery'), mRevisions = el('mRevisions'), submitBtn = el('submitBtn'),
-      restartBtn = el('restartBtn'), panelToggle = el('panelToggle'), panel = el('packagePanel');
+      restartBtn = el('restartBtn'), panelToggle = el('panelToggle'), panel = el('packagePanel'),
+      quick = el('quickReplies'), photoBtn = el('photoBtn'), photoInput = el('photoInput');
 
   if (!msgList) return; // Archie not on this page.
 
@@ -32,10 +33,15 @@
 
   function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
   function post(path, body) {
+    // Send the nonce in the header AND the body: page caches (StackCache) can
+    // serve a stale localised nonce and CDNs can strip the custom header, so the
+    // body copy (server checks it as a fallback) keeps writes working.
+    var payload = body || {};
+    payload.nonce = NONCE;
     return fetch(REST + path, {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-YAA-Nonce': NONCE },
-      body: JSON.stringify(body || {})
+      body: JSON.stringify(payload)
     }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }); });
   }
 
@@ -99,16 +105,34 @@
     quoteMeta.hidden = !hasService;
   }
 
+  // ---- Quick replies (tap-or-type) ----
+  // Archie proposes short answer buttons each turn; the composer always stays open,
+  // so the person can tap one OR type their own.
+  function clearOptions() { if (quick) quick.innerHTML = ''; }
+  function renderOptions(options) {
+    if (!quick) return;
+    clearOptions();
+    if (!options || !options.length || done) return;
+    options.forEach(function (label) {
+      var b = document.createElement('button');
+      b.className = 'chip'; b.type = 'button'; b.textContent = label;
+      b.addEventListener('click', function () { if (!busy && !done) send(label); });
+      quick.appendChild(b);
+    });
+  }
+
   // ---- Input ----
   function setBusy(b) {
     busy = b;
     input.disabled = b || done;
     sendBtn.disabled = b || done;
   }
-  function send() {
-    var text = (input.value || '').trim();
+  // `preset` is the label of a tapped quick reply; otherwise we read the text box.
+  function send(preset) {
+    var text = typeof preset === 'string' ? preset : (input.value || '').trim();
     if (!text || busy || done) return;
-    input.value = ''; autoGrow();
+    if (typeof preset !== 'string') { input.value = ''; autoGrow(); }
+    clearOptions();
     addMsg('user', escapeHtml(text));
     setBusy(true); typing(true);
     post('message', { text: text }).then(function (res) {
@@ -119,9 +143,13 @@
       }
       addMsg('bot', escapeHtml(res.body.message));
       renderPackage(res.body.package);
-      if (res.body.done) { done = true; input.placeholder = 'All set — submit your project on the right.'; }
+      renderOptions(res.body.options);
+      if (res.body.done) { done = true; clearOptions(); input.placeholder = 'All set — submit your project on the right.'; }
       setBusy(false);
       if (!done) input.focus({ preventScroll: true });
+      // If they clicked submit before giving an email, Archie asked for it; now
+      // that we have one, finish the submission for them automatically.
+      if (pendingSubmit && res.body.hasEmail) { pendingSubmit = false; doSubmit(); }
     }).catch(function () { typing(false); addMsg('bot', 'We couldn’t reach Archie. Please try again in a moment.', 'note'); setBusy(false); });
   }
 
@@ -141,17 +169,29 @@
     }).catch(function () { setBusy(false); });
   });
 
-  // Submit
-  submitBtn.addEventListener('click', function () {
+  // Submit — needs an email so the studio can reply. If none yet, the server
+  // returns needEmail and Archie asks for it in the chat; once the person gives
+  // it, the message handler above auto-retries this for them.
+  var pendingSubmit = false, submitOriginal = submitBtn.textContent;
+  function doSubmit() {
     if (submitBtn.disabled) return;
-    submitBtn.disabled = true; var original = submitBtn.textContent; submitBtn.textContent = 'Saving…';
+    submitBtn.disabled = true; submitOriginal = submitBtn.textContent; submitBtn.textContent = 'Saving…';
     post('submit', {}).then(function (res) {
       var d = res.body || {};
+      if (d.needEmail) {
+        pendingSubmit = true;
+        addMsg('bot', escapeHtml(d.message || 'What’s the best email address to send your quote to?'), 'note');
+        submitBtn.disabled = false; submitBtn.textContent = submitOriginal;
+        if (!done) input.focus({ preventScroll: true });
+        return;
+      }
       if (d.checkoutUrl) { window.location.href = d.checkoutUrl; return; }
+      pendingSubmit = false;
       addMsg('bot', escapeHtml(d.message || 'Project saved.') + (d.ref ? ' <strong>(ref ' + d.ref + ')</strong>' : ''), 'note');
       submitBtn.textContent = 'Submitted ✓';
-    }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = original; });
-  });
+    }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = submitOriginal; });
+  }
+  submitBtn.addEventListener('click', doSubmit);
 
   // Start over
   if (restartBtn) restartBtn.addEventListener('click', function () {
@@ -176,15 +216,56 @@
     rec.start();
   });
 
+  // ---- Photo / file upload ----
+  // Tapping the camera opens the file picker; on choose we show a thumbnail bubble,
+  // send the file (multipart, nonce in header + body) to /upload, then render
+  // Archie's acknowledgement. Images/PDFs only; the server re-checks the type.
+  if (photoBtn && photoInput) {
+    photoBtn.addEventListener('click', function () { if (!busy && !done) photoInput.click(); });
+    photoInput.addEventListener('change', function () {
+      var file = photoInput.files && photoInput.files[0];
+      photoInput.value = ''; // let the same file be re-picked later
+      if (!file || busy || done) return;
+      var isImg = /^image\//.test(file.type);
+      var thumb = isImg
+        ? '<img class="up-thumb" src="' + URL.createObjectURL(file) + '" alt="">'
+        : '<span class="up-file">📄</span>';
+      addMsg('user', thumb + '<span class="up-name">' + escapeHtml(file.name) + '</span>', 'upload');
+      clearOptions();
+      setBusy(true); typing(true);
+      var fd = new FormData();
+      fd.append('file', file);
+      fd.append('nonce', NONCE);
+      fetch(REST + 'upload', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'X-YAA-Nonce': NONCE },
+        body: fd
+      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+        .then(function (res) {
+          typing(false);
+          addMsg('bot', escapeHtml((res.body && res.body.message) ||
+            (res.ok ? 'Thanks — I’ve saved that with your project.' : 'Sorry — I couldn’t save that file. Please try a JPG, PNG or PDF.')), 'note');
+          setBusy(false);
+          if (!done) input.focus({ preventScroll: true });
+        }).catch(function () {
+          typing(false);
+          addMsg('bot', 'We couldn’t upload that just now. Please try again in a moment.', 'note');
+          setBusy(false);
+        });
+    });
+  }
+
   // ---- Boot ----
   post('start', {}).then(function (res) {
     var d = res.body || {};
+    if (d.nonce) { NONCE = d.nonce; } // adopt the fresh, uncached nonce for all writes.
     (d.messages || []).forEach(function (m) { addMsg(m.role === 'assistant' ? 'bot' : 'user', escapeHtml(m.text)); });
     renderPackage(d.package);
     if (d.configured === false) {
       addMsg('bot', 'Archie isn’t connected yet — add a Claude API key in <em>Archie → Settings</em> to go live.', 'note');
       setBusy(true);
     } else {
+      renderOptions(d.options);
       input.focus({ preventScroll: true });
     }
   }).catch(function () { addMsg('bot', 'Archie couldn’t start. Please refresh.', 'note'); });

@@ -33,13 +33,13 @@ class YAA_Shortcode {
 				'rest'    => esc_url_raw( rest_url( 'yaa/v1/' ) ),
 				'nonce'   => wp_create_nonce( 'yaa_rest' ),
 				'pricing' => YAA_Pricing::public_data(),
-				'iconUrl' => esc_url_raw( YAA_URL . 'assets/archie-icon.svg' ),
+				'iconUrl' => esc_url_raw( YAA_URL . 'assets/archie-icon.png' ),
 			)
 		);
 	}
 
 	private static function face_svg() {
-		return '<img class="a-ico" src="' . esc_url( YAA_URL . 'assets/archie-icon.svg' ) . '" alt="Archie">';
+		return '<img class="a-ico" src="' . esc_url( YAA_URL . 'assets/archie-icon.png' ) . '" alt="Archie">';
 	}
 
 	public static function render( $atts = array() ) {
@@ -58,7 +58,12 @@ class YAA_Shortcode {
 					<div class="ob-messages" id="messages"><div class="wrapmsg" id="msgList"></div></div>
 					<div class="ob-composer">
 						<div class="ob-composer-inner">
+							<div class="quick" id="quickReplies" role="group" aria-label="<?php esc_attr_e( 'Suggested answers — tap one or type your own', 'your-architect-archie' ); ?>"></div>
 							<div class="composer-row" id="composerRow">
+								<button class="icon-btn" id="photoBtn" type="button" title="<?php esc_attr_e( 'Add a photo of your property', 'your-architect-archie' ); ?>" aria-label="<?php esc_attr_e( 'Add a photo', 'your-architect-archie' ); ?>">
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 0 1 2-2h1.5l1-1.5h5l1 1.5H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.2"/></svg>
+								</button>
+								<input type="file" id="photoInput" accept="image/*,application/pdf" hidden>
 								<div class="composer-input">
 									<textarea id="textInput" rows="1" placeholder="<?php esc_attr_e( 'Type your answer…', 'your-architect-archie' ); ?>" autocomplete="off"></textarea>
 									<button class="icon-btn" id="micBtn" type="button" title="<?php esc_attr_e( 'Voice input', 'your-architect-archie' ); ?>" aria-label="<?php esc_attr_e( 'Voice input', 'your-architect-archie' ); ?>">

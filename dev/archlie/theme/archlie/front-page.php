@@ -9,7 +9,7 @@
  */
 
 get_header();
-$face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() . '/assets/archie-icon.svg' ) . '" alt="Archie">';
+$face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() . '/assets/archie-icon.png' ) . '" alt="Archie">';
 ?>
 
 <!-- HERO: arc + tagline + Archie -->
@@ -26,6 +26,7 @@ $face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() .
 		</div>
 
 		<div class="hero-embed-wrap" id="archie">
+			<?php if ( shortcode_exists( 'archie' ) ) : echo do_shortcode( '[archie]' ); else : ?>
 			<div class="archie-embed">
 				<div class="ob-top">
 					<span class="ob-title"><span class="archie-face" aria-hidden="true"><?php echo $face_svg; // phpcs:ignore ?></span> <?php esc_html_e( 'Talk to Archie — your personalised price builds as you answer', 'archlie' ); ?></span>
@@ -98,6 +99,7 @@ $face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() .
 					</aside>
 				</div>
 			</div>
+			<?php endif; ?>
 		</div>
 	</div>
 </section>

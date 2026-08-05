@@ -21,7 +21,7 @@
 
 /* ---- Embedded frame (homepage) ---- */
 .archie-embed { border: 1.5px solid var(--line); border-radius: 22px; overflow: hidden; background: var(--paper); box-shadow: 0 30px 70px -40px rgba(28,47,115,.55); }
-.archie-embed .ob-body { height: 560px; }
+.archie-embed .ob-body { height: 90vh; min-height: 560px; }
 .archie-embed .ob-top .ob-title { font-size: 1.06rem; font-weight: 700; }
 
 /* ---- Two-panel body ---- */
@@ -83,6 +83,7 @@
 }
 .chip:hover { border-color: var(--blue); color: var(--blue); }
 .chip.example { border-style: dashed; color: var(--muted); font-weight: 500; }
+.chip.explain { border-style: dashed; color: var(--blue); font-weight: 500; }
 
 .composer-row { display: flex; gap: 8px; align-items: flex-end; }
 .composer-input { flex: 1; display: flex; align-items: center; gap: 8px; background: #fff; border: 1.5px solid var(--line-2); border-radius: 999px; padding: 5px 5px 5px 18px; }

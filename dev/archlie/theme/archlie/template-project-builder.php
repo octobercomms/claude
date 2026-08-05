@@ -21,11 +21,12 @@
 
 <div class="ob-shell">
 
+	<?php if ( shortcode_exists( 'archie' ) ) : echo do_shortcode( '[archie]' ); else : ?>
 	<div class="ob-top">
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="logo" aria-label="<?php esc_attr_e( 'Your Architect home', 'archlie' ); ?>">
 			<span class="wordmark"><span>Your</span><span>Architect</span></span>
 		</a>
-		<span class="ob-title"><span class="archie-face"><img class="a-ico" src="<?php echo esc_url( get_template_directory_uri() . '/assets/archie-icon.svg' ); ?>" alt="Archie"></span> <?php esc_html_e( 'Talk to Archie', 'archlie' ); ?></span>
+		<span class="ob-title"><span class="archie-face"><img class="a-ico" src="<?php echo esc_url( get_template_directory_uri() . '/assets/archie-icon.png' ); ?>" alt="Archie"></span> <?php esc_html_e( 'Talk to Archie', 'archlie' ); ?></span>
 		<div class="ob-actions">
 			<button class="btn btn-outline" id="restartBtn" type="button"><?php esc_html_e( 'Start over', 'archlie' ); ?></button>
 		</div>
@@ -101,6 +102,7 @@
 			</div>
 		</aside>
 	</div>
+	<?php endif; ?>
 </div>
 
 <?php wp_footer(); ?>
