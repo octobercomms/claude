@@ -272,11 +272,14 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		check_admin_referer( 'octobermi_blog_generate' );
 
 		$blocked = self::generation_blocked();
+		$topic   = isset( $_POST['topic'] ) ? sanitize_text_field( wp_unslash( $_POST['topic'] ) ) : '';
 		if ( '' !== $blocked ) {
 			$msg = $blocked;
 			$ok  = false;
+		} elseif ( '' === $topic && ! OctoberMI_Blog_Context_Pack::get() ) {
+			$msg = __( 'Learn your site first, or type a specific topic — otherwise the post would be generic.', 'october-mi' );
+			$ok  = false;
 		} else {
-			$topic = isset( $_POST['topic'] ) ? sanitize_text_field( wp_unslash( $_POST['topic'] ) ) : '';
 			OctoberMI_Jobs::enqueue( self::GENERATE_JOB, array( 'topic' => $topic ) );
 			$msg = __( 'Writing a new post… it will appear below when it\'s ready.', 'october-mi' );
 			$ok  = true;
@@ -298,6 +301,9 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		$blocked = self::engine_blocked();
 		if ( '' !== $blocked ) {
 			$msg = $blocked;
+			$ok  = false;
+		} elseif ( ! OctoberMI_Blog_Context_Pack::get() ) {
+			$msg = __( 'Learn your site first (Company knowledge, above) so topics are grounded in your business — otherwise the plan is generic.', 'october-mi' );
 			$ok  = false;
 		} else {
 			OctoberMI_Blog_Planner::start();

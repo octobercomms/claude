@@ -200,3 +200,20 @@ Driven by first live-test feedback.
 - **Design**: admin UI restyled to the October design system (two-tone, yellow accent for
   actions only, 2px borders, chunky radii, soft depth), scoped to the plugin's screens.
 - Capability description now notes the fully-automatic (no-review) option.
+
+## v1.8.1 — Grounding fix (topics/posts were generic, not site-specific)
+
+Root cause from live testing: the site-learner read raw `post_content`, which on page-builder
+sites (Elementor/Divi/blocks) holds little visible text — so the Context Pack was thin and the
+model fell back to generic B2B topics. (Confirmed the platform generate proxy is a clean
+pass-through and injects no October context.)
+
+- **Site-learner now reads real content**: renders blocks + shortcodes (`do_blocks` +
+  `do_shortcode`), and when a page's `post_content` is thin, fetches the rendered page over
+  HTTP — **same-site only** (host must match `home_url`, an SSRF guard) — to capture the
+  visible copy. Adds the site name/tagline, and falls back to the homepage if the corpus is
+  still tiny. Records a `chars` signal.
+- **No ungrounded generation**: Plan topics and no-topic/auto generation now require a learned
+  Context Pack ("Learn your site first"); the scheduler skips + logs if the site isn't learned.
+- **Prompt anchoring**: the planner is told the site URL and to match the company's real
+  industry, explicitly not to drift to generic SaaS/marketing/PM topics.

@@ -104,6 +104,13 @@ class OctoberMI_Blog_Context_Pack {
 		$links = array();
 		$parts = array();
 
+		// Site identity always helps ground the model.
+		$name    = get_bloginfo( 'name' );
+		$tagline = get_bloginfo( 'description' );
+		if ( $name || $tagline ) {
+			$parts[] = '## About this site' . "\n" . trim( $name . ( $tagline ? ' — ' . $tagline : '' ) );
+		}
+
 		$pages = get_posts( array(
 			'post_type'        => 'page',
 			'post_status'      => 'publish',
@@ -121,16 +128,28 @@ class OctoberMI_Blog_Context_Pack {
 			'suppress_filters' => false,
 		) );
 
+		$fetches = 0;
 		foreach ( array_merge( $pages, $posts ) as $p ) {
 			$title = get_the_title( $p );
-			$body  = wp_strip_all_tags( (string) $p->post_content, true );
-			$body  = trim( preg_replace( '/\s+/u', ' ', $body ) );
+			$body  = self::render_text( $p->post_content );
+
+			// Page builders (Elementor, Divi, etc.) store little in post_content
+			// — fall back to the rendered page over HTTP (same-site only), a few
+			// times, so we learn the real visible copy.
+			if ( strlen( $body ) < 160 && $fetches < 8 ) {
+				$fetched = self::fetch_visible_text( get_permalink( $p ) );
+				$fetches++;
+				if ( strlen( $fetched ) > strlen( $body ) ) {
+					$body = $fetched;
+				}
+			}
+
 			if ( '' === $title && '' === $body ) {
 				continue;
 			}
 			$snippet = function_exists( 'mb_substr' ) ? mb_substr( $body, 0, self::PER_DOC_CHARS ) : substr( $body, 0, self::PER_DOC_CHARS );
 
-			$parts[] = '## ' . $title . " (" . $p->post_type . ")\n" . $snippet;
+			$parts[] = '## ' . $title . ' (' . $p->post_type . ")\n" . $snippet;
 			$links[] = array(
 				'title' => $title,
 				'url'   => get_permalink( $p ),
@@ -138,11 +157,59 @@ class OctoberMI_Blog_Context_Pack {
 			);
 		}
 
+		$text = implode( "\n\n", $parts );
+
+		// Last resort: if we still learned almost nothing, read the homepage.
+		if ( strlen( $text ) < 400 ) {
+			$home = self::fetch_visible_text( home_url( '/' ) );
+			if ( '' !== $home ) {
+				$text .= "\n\n## Homepage\n" . ( function_exists( 'mb_substr' ) ? mb_substr( $home, 0, 3000 ) : substr( $home, 0, 3000 ) );
+			}
+		}
+
 		return array(
-			'text'   => implode( "\n\n", $parts ),
+			'text'   => $text,
 			'links'  => $links,
-			'counts' => array( 'pages' => count( $pages ), 'posts' => count( $posts ) ),
+			'counts' => array( 'pages' => count( $pages ), 'posts' => count( $posts ), 'chars' => strlen( $text ) ),
 		);
+	}
+
+	/** Render blocks + shortcodes to plain, collapsed text. */
+	private static function render_text( $content ) {
+		$content = (string) $content;
+		if ( function_exists( 'do_blocks' ) ) {
+			$content = do_blocks( $content );
+		}
+		$content = do_shortcode( $content );
+		$content = wp_strip_all_tags( $content, true );
+		return trim( preg_replace( '/\s+/u', ' ', $content ) );
+	}
+
+	/**
+	 * Fetch a page over HTTP and extract its visible text. Same-site only (the
+	 * host must match home_url) so this can never be pointed at another server.
+	 */
+	private static function fetch_visible_text( $url ) {
+		if ( ! $url ) {
+			return '';
+		}
+		$home_host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+		$host      = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if ( '' === $host || $host !== $home_host ) {
+			return '';
+		}
+		$res = wp_remote_get( $url, array( 'timeout' => 15, 'redirection' => 2 ) );
+		if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
+			return '';
+		}
+		$html = wp_remote_retrieve_body( $res );
+		if ( '' === $html ) {
+			return '';
+		}
+		// Drop non-content regions, then tags.
+		$html = preg_replace( '#<(script|style|noscript|nav|header|footer|svg)\b[^>]*>.*?</\1>#is', ' ', $html );
+		$text = wp_strip_all_tags( (string) $html, true );
+		return trim( preg_replace( '/\s+/u', ' ', $text ) );
 	}
 
 	// =====================================================================

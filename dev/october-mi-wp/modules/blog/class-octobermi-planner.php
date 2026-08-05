@@ -142,13 +142,14 @@ class OctoberMI_Blog_Planner {
 
 		$schema = '{ "topics": [ { "title": "specific post title", "angle": "the unique angle/intent", "cluster": "which pillar it belongs to" } ] }';
 
-		return "Build a plan of ~12 blog topics organised into 3-4 clusters for this company.\n\n"
-			. "Return EXACTLY: " . $schema . "\n\n"
-			. "Rules: each topic must be specific to this business and audience; cover a mix of search intents; "
-			. "no generic filler; no invented statistics or volumes.\n\n"
+		return 'Build a plan of ~12 blog topics organised into 3-4 clusters for the company that operates ' . home_url( '/' ) . ".\n\n"
+			. 'Return EXACTLY: ' . $schema . "\n\n"
+			. "Rules: base every topic STRICTLY on the company knowledge below — match this company's actual industry, products and audience. "
+			. "Do NOT drift to a generic industry (e.g. SaaS, marketing agencies, project-management tools) unless the knowledge clearly supports it. "
+			. "Cover a mix of search intents; no generic filler; no invented statistics or volumes.\n\n"
 			. "=== COMPANY KNOWLEDGE ===\n" . $knowledge . "\n\n"
-			. "=== BRIEF ===\nTopics/focus: " . ( $brief['topics'] ? $brief['topics'] : '(infer)' )
-			. "\nAudience: " . ( $brief['audience'] ? $brief['audience'] : '(infer)' );
+			. "=== BRIEF ===\nTopics/focus: " . ( $brief['topics'] ? $brief['topics'] : '(infer from the knowledge)' )
+			. "\nAudience: " . ( $brief['audience'] ? $brief['audience'] : '(infer from the knowledge)' );
 	}
 
 	/** Normalise the parsed reply into a plain list of topic items. */
