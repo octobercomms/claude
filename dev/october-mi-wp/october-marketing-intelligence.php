@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: October Marketing Intelligence
+ * Plugin Name: October Marketing Platform
  * Plugin URI: https://octobercomms.com
- * Description: Connects your WordPress/WooCommerce site to the October Marketing Intelligence platform. The site pushes commerce, content and SEO signals outbound over HTTPS (so web application firewalls never challenge it), and can publish drafts sent back from the platform.
- * Version: 1.0.0
+ * Description: The October Marketing Platform on your site. A modular plugin whose capabilities you switch on as needed — starting with Blog Autopilot, which researches, drafts, optimises and publishes premium blog posts with Claude. Runs standalone with your own key, or connect it to the platform for central oversight.
+ * Version: 1.2.0
  * Author: October
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCTOBERMI_VERSION', '1.0.0' );
+define( 'OCTOBERMI_VERSION', '1.2.0' );
 define( 'OCTOBERMI_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCTOBERMI_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCTOBERMI_BASENAME', plugin_basename( __FILE__ ) );
@@ -44,6 +44,22 @@ require_once OCTOBERMI_PATH . 'includes/class-octobermi-pairing.php';
 require_once OCTOBERMI_PATH . 'includes/class-octobermi-events.php';
 require_once OCTOBERMI_PATH . 'includes/class-octobermi-rest.php';
 require_once OCTOBERMI_PATH . 'includes/class-octobermi-updater.php';
+require_once OCTOBERMI_PATH . 'includes/class-octobermi-modules.php';
+require_once OCTOBERMI_PATH . 'includes/class-octobermi-claude.php';
+require_once OCTOBERMI_PATH . 'includes/class-octobermi-jobs.php';
+
+// Background job runner (core): expensive work never runs in a page request.
+OctoberMI_Jobs::init();
+
+// --- Modules -------------------------------------------------------------
+// Each capability is a module. Register them here; only the ones switched on
+// in Settings are booted, so a single-purpose install stays lean.
+require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-context-pack.php';
+require_once OCTOBERMI_PATH . 'modules/blog/class-octobermi-blog.php';
+OctoberMI_Modules::register( new OctoberMI_Blog_Module() );
+
+// Boot only the enabled modules (menus, hooks, assets, cron).
+add_action( 'plugins_loaded', array( 'OctoberMI_Modules', 'boot_enabled' ), 15 );
 
 register_activation_hook( __FILE__, array( 'OctoberMI_Activator', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'OctoberMI_Activator', 'deactivate' ) );
