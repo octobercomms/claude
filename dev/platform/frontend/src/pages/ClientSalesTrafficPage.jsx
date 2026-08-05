@@ -119,6 +119,20 @@ export default function ClientSalesTrafficPage() {
     { label: 'Conversion rate', value: (Number(k.conversionRate) || 0).toFixed(2) + '%' },
   ];
 
+  // Advisory ecom detail from the store connector — refunds, discounts,
+  // new-vs-returning and product mix. Present only when a store is connected.
+  const ecom = data && data.ecom;
+  const hasEcom = ecom && (Number(k.orders) > 0 || Number(ecom.netRevenue) !== 0);
+  const ecomCards = hasEcom ? [
+    { label: 'Net revenue', value: fmtMoney(ecom.netRevenue), sub: 'after refunds' },
+    { label: 'Refund rate', value: (Number(ecom.refundRate) || 0).toFixed(1) + '%', sub: `${fmtMoney(ecom.refunds)} · ${fmtNum(ecom.refundedOrders)} orders` },
+    { label: 'On discount', value: (Number(ecom.discountRate) || 0).toFixed(1) + '%', sub: `${fmtMoney(ecom.discounts)} given away` },
+    { label: 'Returning', value: (() => {
+        const known = Number(ecom.newCustomerOrders) + Number(ecom.returningCustomerOrders);
+        return known ? Math.round((Number(ecom.returningCustomerOrders) / known) * 100) + '%' : '—';
+      })(), sub: `${fmtNum(ecom.returningCustomerOrders)} returning · ${fmtNum(ecom.newCustomerOrders)} new` },
+  ] : [];
+
   return (
     <div className="suite-sales" ref={scopeRef}>
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Data</span></div>
@@ -265,6 +279,43 @@ export default function ClientSalesTrafficPage() {
               </ResponsiveContainer>
             ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No channel data.</p>}
           </div>
+
+          {hasEcom && (
+            <div style={{ marginTop: 16 }}>
+              <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 'var(--s5)' }}>
+                {ecomCards.map(c => (
+                  <div key={c.label} className="stat">
+                    <div className="stat-label">{c.label}</div>
+                    <div className="stat-value">{c.value}</div>
+                    {c.sub && <div className="body-sm text-subtle" style={{ marginTop: 2 }}>{c.sub}</div>}
+                  </div>
+                ))}
+              </div>
+              {ecom.topProducts && ecom.topProducts.length > 0 && (
+                <div className="card">
+                  <div className="caption">Top products by revenue</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', color: 'var(--text-subtle)' }}>
+                        <th style={{ padding: '6px 8px', fontWeight: 600 }}>Product</th>
+                        <th style={{ padding: '6px 8px', fontWeight: 600, textAlign: 'right' }}>Units</th>
+                        <th style={{ padding: '6px 8px', fontWeight: 600, textAlign: 'right' }}>Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ecom.topProducts.map((p, i) => (
+                        <tr key={i} style={{ borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                          <td style={{ padding: '6px 8px' }}>{p.title}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmtNum(p.units)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmtMoney(p.revenue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {data.notes && data.notes.length > 0 && (
             <p style={{ marginTop: 12, fontSize: 12, color: 'var(--text-subtle)' }}>{data.notes.join(' · ')}</p>

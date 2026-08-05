@@ -122,6 +122,12 @@ router.get('/:clientId', async (req, res) => {
       // Mixed-currency multi-store clients would need fxRates here too
       // (same pattern as the renderer in PR #307); not yet a need.
       let revenue = 0, orders = 0;
+      // Advisory ecom detail already computed by the connectors but not yet
+      // surfaced: refunds, discounts, new-vs-returning and the product mix.
+      // No new API scopes — these ride the same order fetch as revenue.
+      let refunds = 0, refundedOrders = 0, discounts = 0, discountedOrders = 0;
+      let newOrders = 0, returningOrders = 0, guestOrders = 0;
+      const productMap = {};
       const ecomDailyMap = {};
       await Promise.all(ecomConnectors.map(async (ecom) => {
         try {
@@ -131,6 +137,22 @@ router.get('/:clientId', async (req, res) => {
           const summary = (data && data.summary) || data || {};
           revenue += Number(summary.total_revenue || summary.revenue || 0);
           orders += Number(summary.total_orders || summary.orders || 0);
+          refunds += Number(summary.total_refunds || 0);
+          refundedOrders += Number(summary.refunded_orders || 0);
+          discounts += Number(summary.total_discounts || 0);
+          discountedOrders += Number(summary.discounted_orders || 0);
+          newOrders += Number(summary.new_customer_orders || 0);
+          returningOrders += Number(summary.returning_customer_orders || 0);
+          guestOrders += Number(summary.guest_orders || 0);
+          // Merge each store's top products by title (revenue is in each
+          // store's own currency; for Falcon that's all GBP so a plain sum
+          // holds — same assumption as the revenue roll-up above).
+          for (const p of (data.top_products || [])) {
+            const key = p.title || 'unknown';
+            const e = productMap[key] || (productMap[key] = { title: key, units: 0, revenue: 0 });
+            e.units += Number(p.units || 0);
+            e.revenue += Number(p.revenue || 0);
+          }
           // Roll up per-day ecom revenue/orders across every store, so the
           // chart reflects the real source of truth instead of GA4's
           // undercounted transactions metric. GA4 typically captures 30–70%
@@ -148,6 +170,26 @@ router.get('/:clientId', async (req, res) => {
       }));
       if (revenue) result.kpis.revenue = Math.round(revenue);
       if (orders) result.kpis.orders = orders;
+      // Advisory ecom detail block (present only when a store is connected).
+      // Net revenue is derived here from the summed gross and refunds so it
+      // stays consistent across a multi-store client even if one store didn't
+      // report its own net_revenue.
+      result.ecom = {
+        refunds: Math.round(refunds),
+        refundedOrders,
+        refundRate: orders ? (refundedOrders / orders) * 100 : 0,
+        netRevenue: Math.round(revenue - refunds),
+        discounts: Math.round(discounts),
+        discountedOrders,
+        discountRate: orders ? (discountedOrders / orders) * 100 : 0,
+        newCustomerOrders: newOrders,
+        returningCustomerOrders: returningOrders,
+        guestOrders,
+        topProducts: Object.values(productMap)
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 8)
+          .map(p => ({ title: p.title, units: p.units, revenue: Math.round(p.revenue) })),
+      };
       // Rebuild salesTrend from ecom data when available — keep the same
       // per-day rows we materialised for GA4 (so the X axis still spans the
       // full requested range with zero days visible), but overwrite the

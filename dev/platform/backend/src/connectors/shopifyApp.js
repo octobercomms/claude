@@ -51,6 +51,11 @@ async function fetchData(credentials, params) {
   let totalRevenue = 0;
   let refundTotal = 0;
   let refundedOrders = 0;
+  let discountTotal = 0;
+  let discountedOrders = 0;
+  let newCustomerOrders = 0;
+  let returningCustomerOrders = 0;
+  let guestOrders = 0;
   const financialBreakdown = {};
   const dailyMap = {};
   const products = {};
@@ -68,6 +73,15 @@ async function fetchData(credentials, params) {
       return sum + (txRefund || lineRefund);
     }, 0);
     if (refunded > 0) { refundTotal += refunded; refundedOrders += 1; }
+
+    // Discount + new-vs-returning, mirroring the pull-based shopify connector
+    // so app-sourced stores expose the same summary fields.
+    const disc = parseFloat(o.total_discounts || 0) || 0;
+    if (disc > 0) { discountTotal += disc; discountedOrders += 1; }
+    const c = o.customer;
+    if (!c || c.id == null) guestOrders += 1;
+    else if (Number(c.orders_count || 0) > 1) returningCustomerOrders += 1;
+    else newCustomerOrders += 1;
 
     const date = (o.created_at || '').slice(0, 10);
     if (date) {
@@ -99,6 +113,11 @@ async function fetchData(credentials, params) {
       total_refunds: refundTotal.toFixed(2),
       refunded_orders: refundedOrders,
       net_revenue: (totalRevenue - refundTotal).toFixed(2),
+      total_discounts: discountTotal.toFixed(2),
+      discounted_orders: discountedOrders,
+      new_customer_orders: newCustomerOrders,
+      returning_customer_orders: returningCustomerOrders,
+      guest_orders: guestOrders,
       financial_status_breakdown: financialBreakdown,
       daily,
     },
