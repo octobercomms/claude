@@ -132,3 +132,18 @@ The plugin can now produce a real post end to end.
 ### Still to come
 - Topic/keyword **research planner** + connected DataForSEO/Serper enrichment; AI **hero
   images**; per-site **rate/cost caps**; the **OMI-side** generate proxy + revoke control.
+
+## v1.5.0 — Topic planner (pillar/cluster plan)
+
+- **Planner** (`modules/blog/class-octobermi-planner.php`): builds a de-duplicated
+  pillar/cluster plan of specific, company-grounded topics (no invented volumes), stored and
+  worked through one per cycle. Runs as the `blog_plan` job.
+- **Generation consumes the plan**: when no explicit topic is given, generation claims the
+  next queued topic and retires it after publishing — so autopilot builds topical authority
+  and never repeats.
+- **UI**: a Content-plan card (plan/add-more button, queued vs. written list) with the
+  shared job poller.
+
+### Still to come
+- Per-site **rate/cost caps**; AI **hero images**; the **OMI-side** generate proxy + revoke
+  control + DataForSEO/Serper enrichment.
