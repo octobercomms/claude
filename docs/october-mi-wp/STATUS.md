@@ -93,3 +93,27 @@ name; internal `october-mi` slug unchanged). See `PLATFORM-PLUGIN-ARCHITECTURE.m
 - Keyword/SERP research + clusters/briefs (DataForSEO/Serper), grounded writer → optimise
   (SEO/AEO/voice) → fact-check → schema/images, editorial queue + approve/publish, weekly
   scheduler; `wp_kses` on save; rate/cost caps.
+
+## v1.3.0 — Post generation: writer → sanitised draft → schema (this increment)
+
+The plugin can now produce a real post end to end.
+
+- **Writer** (`modules/blog/class-octobermi-writer.php`): brief + Context Pack → strict-JSON
+  article (title, slug, meta description, excerpt, HTML body, tags, FAQ, hero-image prompt,
+  internal links used). Premium/E-E-A-T + AEO system prompt: question H2s with answer
+  capsules, no invented stats/sources, no AI-tell phrasing, uses the pack's internal links,
+  avoids already-published titles.
+- **Publisher** (`class-octobermi-publisher.php`): sanitises the model HTML with a tight
+  `wp_kses` allow-list (no script/style/iframe/handlers), creates the post as **draft**
+  (or auto-publish per brief), bylines the brief's **author**, stores meta description
+  (+ Yoast/Rank Math compat), FAQ, tags, hero prompt, and the generated flag.
+- **Schema** (`class-octobermi-schema.php`): front-end JSON-LD for generated posts —
+  `BlogPosting` + real `Person` author (with `sameAs`) + `Organization` + `FAQPage`.
+- **UI**: "Generate a post now" (optional topic) runs as a background `blog_generate` job;
+  an **editorial queue** lists engine posts with status/author/edit/view; the job poller now
+  handles multiple job types on one screen.
+
+### Still to come
+- Weekly **scheduler** (auto-generate on cadence); topic/keyword **research planner** and
+  connected DataForSEO/Serper enrichment; AI **hero images**; per-site rate/cost caps;
+  the OMI-side generate proxy + revoke control.
