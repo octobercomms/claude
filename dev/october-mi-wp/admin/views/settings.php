@@ -93,6 +93,23 @@ foreach ( $log as $entry ) {
 			<p class="description">
 				<?php esc_html_e( 'Stored encrypted on this site and never shown again. A managed key is never stored here at all — the platform holds it, so October can revoke it at any time.', 'october-mi' ); ?>
 			</p>
+
+			<?php $usage = OctoberMI_Usage::this_month(); $cap = (float) ( isset( $settings['monthly_cost_cap'] ) ? $settings['monthly_cost_cap'] : 0 ); ?>
+			<p style="margin-top:12px;">
+				<label for="octobermi_cost_cap"><strong><?php esc_html_e( 'Monthly cost cap (USD)', 'october-mi' ); ?></strong></label><br />
+				<input type="number" id="octobermi_cost_cap" name="octobermi_cost_cap" min="0" step="1" value="<?php echo esc_attr( $cap ? rtrim( rtrim( number_format( $cap, 2, '.', '' ), '0' ), '.' ) : '0' ); ?>" />
+				<span class="description"><?php esc_html_e( '0 = unlimited. A safety rail for own-key generation; managed keys are capped platform-side.', 'october-mi' ); ?></span>
+			</p>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: 1: estimated USD this month, 2: number of model calls. */
+					esc_html__( 'This month (estimated): $%1$s over %2$d calls.', 'october-mi' ),
+					esc_html( number_format( (float) $usage['cost'], 2 ) ),
+					(int) $usage['calls']
+				);
+				?>
+			</p>
 		</div>
 
 		<div class="octobermi-card">

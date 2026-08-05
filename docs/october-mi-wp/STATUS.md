@@ -147,3 +147,19 @@ The plugin can now produce a real post end to end.
 ### Still to come
 - Per-site **rate/cost caps**; AI **hero images**; the **OMI-side** generate proxy + revoke
   control + DataForSEO/Serper enrichment.
+
+## v1.6.0 — Cost/rate guardrails (security & spend)
+
+- **Usage tracker** (`includes/class-octobermi-usage.php`): records token usage from own-key
+  Anthropic calls and accumulates an estimated monthly cost (filterable price table).
+- **Monthly cost cap** (Settings, 0 = unlimited): once this month's estimate hits the cap,
+  learn/plan/generate — manual and scheduled — are blocked with a clear message. Managed
+  keys are capped platform-side, so this rail is for the own-key path.
+- **Rate limit**: at most 12 on-demand generations per rolling hour (`OctoberMI_Jobs::count_recent`).
+- **Autopilot respects both**: the scheduler skips (and logs) a run when blocked, so it can
+  never overspend.
+- Settings shows this-month estimated spend + call count.
+
+### Still to come
+- AI **hero images**; the **OMI-side** generate proxy + revoke control + DataForSEO/Serper
+  enrichment (briefed separately).

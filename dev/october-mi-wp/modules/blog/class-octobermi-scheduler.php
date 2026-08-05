@@ -77,7 +77,13 @@ class OctoberMI_Blog_Scheduler {
 
 	/** Cron entry point: queue one generation run. */
 	public static function run() {
-		if ( ! OctoberMI_Settings::is_module_enabled( 'blog' ) || ! OctoberMI_Claude::available() ) {
+		if ( ! OctoberMI_Settings::is_module_enabled( 'blog' ) ) {
+			return;
+		}
+		// Respect the engine state and the monthly cost cap — autopilot must
+		// never overspend.
+		if ( '' !== OctoberMI_Blog_Module::generation_blocked() ) {
+			OctoberMI_Log::error( 'blog.schedule', 'Skipped scheduled run', array( 'reason' => OctoberMI_Blog_Module::generation_blocked() ) );
 			return;
 		}
 		OctoberMI_Jobs::enqueue( OctoberMI_Blog_Module::GENERATE_JOB, array( 'topic' => '', 'source' => 'schedule' ) );

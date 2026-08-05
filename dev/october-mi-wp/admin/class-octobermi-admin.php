@@ -121,10 +121,13 @@ class OctoberMI_Admin {
 		$key_source      = ( isset( $_POST['octobermi_key_source'] ) && 'platform' === $_POST['octobermi_key_source'] )
 			? 'platform' : 'client';
 
+		$cost_cap = isset( $_POST['octobermi_cost_cap'] ) ? (float) wp_unslash( $_POST['octobermi_cost_cap'] ) : 0;
+
 		$changes = array(
-			'enabled_modules' => $enabled,
-			'connect_enabled' => $connect_enabled,
-			'key_source'      => $key_source,
+			'enabled_modules'  => $enabled,
+			'connect_enabled'  => $connect_enabled,
+			'key_source'       => $key_source,
+			'monthly_cost_cap' => max( 0, $cost_cap ),
 		);
 
 		// Write-only key: ignore the mask, accept a real value, allow clearing.

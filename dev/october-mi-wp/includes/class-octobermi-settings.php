@@ -46,6 +46,10 @@ class OctoberMI_Settings {
 			'key_source'      => 'client',
 			'claude_api_key'  => '',
 
+			// Safety rail: estimated monthly USD cap for own-key generation
+			// (0 = unlimited). Managed keys are capped platform-side.
+			'monthly_cost_cap' => 0,
+
 			// --- Self-updater (GitHub repo) ---------------------------------
 			'github_token'    => '',
 

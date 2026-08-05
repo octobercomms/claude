@@ -161,6 +161,32 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		return array_merge( self::brief_defaults(), $stored );
 	}
 
+	/** Max on-demand generations per rolling hour (runaway guard). */
+	const MAX_GENERATE_PER_HOUR = 12;
+
+	/** '' if a model call is allowed, else a human reason it's blocked. */
+	public static function engine_blocked() {
+		if ( ! OctoberMI_Claude::available() ) {
+			return __( 'Configure the content engine first.', 'october-mi' );
+		}
+		if ( OctoberMI_Usage::over_cap() ) {
+			return __( 'Monthly cost cap reached — raise it in Settings to continue.', 'october-mi' );
+		}
+		return '';
+	}
+
+	/** As engine_blocked(), plus the per-hour generation rate limit. */
+	public static function generation_blocked() {
+		$blocked = self::engine_blocked();
+		if ( '' !== $blocked ) {
+			return $blocked;
+		}
+		if ( OctoberMI_Jobs::count_recent( self::GENERATE_JOB, HOUR_IN_SECONDS ) >= self::MAX_GENERATE_PER_HOUR ) {
+			return __( 'Too many posts generated in the last hour — try again shortly.', 'october-mi' );
+		}
+		return '';
+	}
+
 	private static function status_label( $status ) {
 		$map = array(
 			'draft'   => __( 'Draft (review)', 'october-mi' ),
@@ -224,8 +250,9 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		}
 		check_admin_referer( 'octobermi_blog_learn' );
 
-		if ( ! OctoberMI_Claude::available() ) {
-			$msg = __( 'Add a Claude API key (or connect a managed key) before learning your site.', 'october-mi' );
+		$blocked = self::engine_blocked();
+		if ( '' !== $blocked ) {
+			$msg = $blocked;
 			$ok  = false;
 		} else {
 			OctoberMI_Blog_Context_Pack::start();
@@ -246,8 +273,9 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		}
 		check_admin_referer( 'octobermi_blog_generate' );
 
-		if ( ! OctoberMI_Claude::available() ) {
-			$msg = __( 'Configure the content engine before generating a post.', 'october-mi' );
+		$blocked = self::generation_blocked();
+		if ( '' !== $blocked ) {
+			$msg = $blocked;
 			$ok  = false;
 		} else {
 			$topic = isset( $_POST['topic'] ) ? sanitize_text_field( wp_unslash( $_POST['topic'] ) ) : '';
@@ -269,8 +297,9 @@ class OctoberMI_Blog_Module extends OctoberMI_Module {
 		}
 		check_admin_referer( 'octobermi_blog_plan' );
 
-		if ( ! OctoberMI_Claude::available() ) {
-			$msg = __( 'Configure the content engine before planning topics.', 'october-mi' );
+		$blocked = self::engine_blocked();
+		if ( '' !== $blocked ) {
+			$msg = $blocked;
 			$ok  = false;
 		} else {
 			OctoberMI_Blog_Planner::start();
