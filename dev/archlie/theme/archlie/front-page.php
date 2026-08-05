@@ -9,7 +9,7 @@
  */
 
 get_header();
-$face_svg = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx="24" cy="24" r="23" fill="#E4EFF7"/><path d="M11 20c0-8 6-13 13-13s13 5 13 13" stroke="#253E94" stroke-width="3.4" stroke-linecap="round"/><path d="M12 21c2.5-2 6-3 6-3M36 21c-2.5-2-6-3-6-3" stroke="#253E94" stroke-width="2.2" stroke-linecap="round"/><circle cx="18.5" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><circle cx="30" cy="25" r="4.4" stroke="#253E94" stroke-width="2.4"/><path d="M22.9 25h2.2" stroke="#253E94" stroke-width="2.4" stroke-linecap="round"/><path d="M19 34c2 1.8 8 1.8 10 0" stroke="#253E94" stroke-width="2.6" stroke-linecap="round"/></svg>';
+$face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() . '/assets/archie-icon.svg' ) . '" alt="Archie">';
 ?>
 
 <!-- HERO: arc + tagline + Archie -->
@@ -152,7 +152,7 @@ $face_svg = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx=
 		<div class="sec-head">
 			<span class="sec-kicker"><?php esc_html_e( 'Pricing', 'archlie' ); ?></span>
 			<h2><?php esc_html_e( 'Two fixed packages. Pick one.', 'archlie' ); ?></h2>
-			<p><?php esc_html_e( 'No floor-area bands, no hourly rates. Two flat prices, with a short menu of optional add-ons shown before you commit. Every package includes two revisions.', 'archlie' ); ?></p>
+			<p><?php esc_html_e( "No floor-area bands, no hourly rates. Two flat prices, with a short menu of optional add-ons shown before you commit. Every package includes two revisions — and we're not VAT-registered, so the price you see is the price you pay.", 'archlie' ); ?></p>
 		</div>
 		<div class="pkg-grid">
 			<div class="pkg-card feat">
@@ -197,7 +197,7 @@ $face_svg = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx=
 				<li><span><?php esc_html_e( 'Site visit (London boroughs / within the M25)', 'archlie' ); ?></span><strong><?php echo esc_html( archlie_money( 350 ) ); ?></strong></li>
 				<li><span><?php esc_html_e( 'Measured survey & structural engineer', 'archlie' ); ?></span><strong><?php esc_html_e( 'sourced separately — quote to follow', 'archlie' ); ?></strong></li>
 			</ul>
-			<p class="menu-note"><?php esc_html_e( 'Survey and structural engineer are never part of our fee: we source an independent local professional, share their quote for your approval first, and you only pay for their work — not our time. Full RIBA services (Stages 0–7), concept to construction, are handled by Tiam Architects —', 'archlie' ); ?> <a href="mailto:info@tiamarchitects.com">info@tiamarchitects.com</a>.</p>
+			<p class="menu-note"><?php esc_html_e( "Need a measured survey or a structural engineer? We'll help — we find a trusted independent local professional, share their quote for your approval first, and you pay them directly for their work. No admin fees, and never for our time. Full RIBA services (Stages 0–7), concept to construction, are handled by Tiam Architects —", 'archlie' ); ?> <a href="mailto:info@tiamarchitects.com">info@tiamarchitects.com</a>.</p>
 		</div>
 	</div>
 </section>
@@ -213,15 +213,20 @@ $face_svg = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx=
 		<ul class="services-grid">
 			<?php
 			$svcs = array(
+				__( 'Rear, side & wraparound extensions', 'archlie' ),
+				__( 'Two-storey extensions', 'archlie' ),
+				__( 'Loft & mansard conversions', 'archlie' ),
+				__( 'Garage conversions', 'archlie' ),
+				__( 'Garden rooms & outbuildings', 'archlie' ),
+				__( 'New build homes', 'archlie' ),
+				__( 'Internal alterations & refurbishment', 'archlie' ),
+				__( 'Change of use (without construction)', 'archlie' ),
 				__( 'Pre-planning applications', 'archlie' ),
 				__( 'Planning applications', 'archlie' ),
-				__( 'Listed building consent', 'archlie' ),
 				__( 'Permitted development / lawful development certificate', 'archlie' ),
-				__( 'Loft & garage conversions', 'archlie' ),
-				__( 'Outbuildings', 'archlie' ),
-				__( 'Change of use (without construction)', 'archlie' ),
+				__( 'Listed building consent', 'archlie' ),
 				__( 'Retrospective applications', 'archlie' ),
-				__( 'New dwellings', 'archlie' ),
+				__( 'Measured building surveys', 'archlie' ),
 			);
 			foreach ( $svcs as $svc ) {
 				echo '<li>' . esc_html( $svc ) . '</li>';
@@ -278,7 +283,10 @@ $face_svg = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx=
 <section class="zone zone--blue pad-sm">
 	<div class="band" style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap">
 		<h2 style="font-size:clamp(1.6rem,3.4vw,2.4rem);max-width:20ch;color:#fff"><?php esc_html_e( 'Your price is a conversation away.', 'archlie' ); ?></h2>
-		<a href="#archie" class="btn btn-primary btn-lg"><?php esc_html_e( 'Talk to Archie', 'archlie' ); ?></a>
+		<div class="cta-actions">
+			<a href="#archie" class="btn btn-primary btn-lg"><?php esc_html_e( 'Talk to Archie', 'archlie' ); ?></a>
+			<a href="#book" class="cta-call"><?php esc_html_e( 'Prefer to talk it through first? Book a call →', 'archlie' ); ?></a>
+		</div>
 	</div>
 </section>
 
