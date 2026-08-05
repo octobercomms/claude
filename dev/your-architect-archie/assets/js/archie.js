@@ -33,10 +33,15 @@
 
   function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
   function post(path, body) {
+    // Send the nonce in the header AND the body: page caches (StackCache) can
+    // serve a stale localised nonce and CDNs can strip the custom header, so the
+    // body copy (server checks it as a fallback) keeps writes working.
+    var payload = body || {};
+    payload.nonce = NONCE;
     return fetch(REST + path, {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-YAA-Nonce': NONCE },
-      body: JSON.stringify(body || {})
+      body: JSON.stringify(payload)
     }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }); });
   }
 
@@ -199,6 +204,7 @@
   // ---- Boot ----
   post('start', {}).then(function (res) {
     var d = res.body || {};
+    if (d.nonce) { NONCE = d.nonce; } // adopt the fresh, uncached nonce for all writes.
     (d.messages || []).forEach(function (m) { addMsg(m.role === 'assistant' ? 'bot' : 'user', escapeHtml(m.text)); });
     renderPackage(d.package);
     if (d.configured === false) {

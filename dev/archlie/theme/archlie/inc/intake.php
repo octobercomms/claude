@@ -47,7 +47,13 @@ function archlie_register_project_cpt() {
 		)
 	);
 }
-add_action( 'init', 'archlie_register_project_cpt' );
+// When the Your Architect – Archie plugin is active it owns projects (its own
+// tables + "Archie Projects" admin), so the theme stands its legacy archlie_project
+// CPT + AJAX intake down to avoid a duplicate "Your Architect Projects" menu. The
+// theme's project store only runs standalone, when the plugin isn't installed.
+if ( ! defined( 'YAA_VERSION' ) ) {
+	add_action( 'init', 'archlie_register_project_cpt' );
+}
 
 /**
  * Where new-project notifications are sent.
@@ -135,8 +141,10 @@ function archlie_handle_intake() {
 		)
 	);
 }
-add_action( 'wp_ajax_archlie_intake', 'archlie_handle_intake' );
-add_action( 'wp_ajax_nopriv_archlie_intake', 'archlie_handle_intake' );
+if ( ! defined( 'YAA_VERSION' ) ) {
+	add_action( 'wp_ajax_archlie_intake', 'archlie_handle_intake' );
+	add_action( 'wp_ajax_nopriv_archlie_intake', 'archlie_handle_intake' );
+}
 
 /**
  * Studio notification + client auto-reply.
@@ -188,7 +196,9 @@ function archlie_send_intake_emails( $name, $email, $total, $redirect, $post_id 
 function archlie_project_meta_box() {
 	add_meta_box( 'archlie_project_details', __( 'Project record', 'archlie' ), 'archlie_project_meta_box_render', 'archlie_project', 'normal', 'high' );
 }
-add_action( 'add_meta_boxes', 'archlie_project_meta_box' );
+if ( ! defined( 'YAA_VERSION' ) ) {
+	add_action( 'add_meta_boxes', 'archlie_project_meta_box' );
+}
 
 /**
  * Render the read-only project record.

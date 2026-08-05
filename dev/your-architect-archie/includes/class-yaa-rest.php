@@ -71,21 +71,25 @@ class YAA_Rest {
 		if ( ! $id ) {
 			return new WP_REST_Response( array( 'error' => 'no_session' ), 500 );
 		}
+		// Return a FRESH nonce from this (uncached) REST call — the one localised
+		// into the page can be stale behind a page cache (StackCache) or its header
+		// stripped by a CDN, which is what surfaces as "something went wrong".
+		$nonce    = wp_create_nonce( 'yaa_rest' );
 		$messages = YAA_Project::messages( $id );
 		if ( empty( $messages ) ) {
 			$open = YAA_Archie::opener( $id );
 			return new WP_REST_Response(
-				array( 'messages' => YAA_Project::messages( $id ), 'package' => $open['package'], 'options' => $open['options'], 'meta' => self::meta(), 'configured' => YAA_Claude::is_configured() )
+				array( 'messages' => YAA_Project::messages( $id ), 'package' => $open['package'], 'options' => $open['options'], 'meta' => self::meta(), 'nonce' => $nonce, 'configured' => YAA_Claude::is_configured() )
 			);
 		}
 		return new WP_REST_Response(
-			array( 'messages' => $messages, 'package' => YAA_Project::package( $id ), 'options' => array(), 'meta' => self::meta(), 'configured' => YAA_Claude::is_configured() )
+			array( 'messages' => $messages, 'package' => YAA_Project::package( $id ), 'options' => array(), 'meta' => self::meta(), 'nonce' => $nonce, 'configured' => YAA_Claude::is_configured() )
 		);
 	}
 
 	public static function message( $req ) {
 		if ( ! self::check_nonce( $req ) ) {
-			return new WP_REST_Response( array( 'error' => 'bad_nonce' ), 403 );
+			return new WP_REST_Response( array( 'error' => 'bad_nonce', 'message' => __( 'Your session expired — please refresh the page and try again.', 'your-architect-archie' ) ), 403 );
 		}
 		$id = YAA_Project::current( true );
 		$session = isset( $_COOKIE[ YAA_Project::COOKIE ] ) ? sanitize_text_field( wp_unslash( $_COOKIE[ YAA_Project::COOKIE ] ) ) : (string) $id;

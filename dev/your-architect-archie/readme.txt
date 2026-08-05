@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.4.1
+Stable tag: 0.4.2
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,16 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.4.2 =
+* Fix "Sorry — something went wrong" on the first message when the site is page-cached
+  (StackCache) or behind a CDN: the REST nonce localised into the page could be stale
+  or its custom header stripped, failing the nonce check. Archie now takes a fresh
+  nonce from the (uncached) /start call and also sends it in the request body, so
+  writes work regardless of caching. Bad-nonce responses now return a clear message.
+* Theme: when this plugin is active, the archlie theme no longer registers its legacy
+  archlie_project CPT + AJAX intake — removes the duplicate "Your Architect Projects"
+  admin menu. The theme's own project store only runs standalone.
 
 = 0.4.1 =
 * File security hardening for the live server: all project files (drawings + docs)
