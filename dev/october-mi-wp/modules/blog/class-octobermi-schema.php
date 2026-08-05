@@ -36,10 +36,12 @@ class OctoberMI_Blog_Schema {
 		if ( empty( $graph ) ) {
 			return;
 		}
+		// Harden against a stray "</script>" or quote in any string value.
+		$flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
 		echo "\n<script type=\"application/ld+json\">" . wp_json_encode( array(
 			'@context' => 'https://schema.org',
 			'@graph'   => $graph,
-		) ) . "</script>\n";
+		), $flags ) . "</script>\n";
 	}
 
 	private static function build( $post ) {
