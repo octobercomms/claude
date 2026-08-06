@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.4.2
+Stable tag: 0.4.7
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,19 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.4.7 =
+* Submission emails are now branded to match the Archie site (navy header, the
+  Your Architect wordmark, clean card layout) instead of plain text.
+* The studio notification comes from "Your Architect Submission"
+  &lt;noreply@yourarchitect.uk&gt; with the subject "New Project | &lt;name&gt;" (falls
+  back to the postcode or reference when no name was given), and carries the full
+  project: the fixed-price total, reference, submitted/started times, contact, every
+  question and answer, the priced package breakdown with delivery/revision/validity
+  notes, any London/listed/conservation flags, and a button to open it in the admin.
+  Reply goes straight to the client when we have their address.
+* When we captured the visitor's email, they now also receive a branded confirmation
+  summarising what they told Archie, their fixed price, and what happens next.
 
 = 0.4.6 =
 * You can now delete submissions/projects from the admin — a trash button on each
