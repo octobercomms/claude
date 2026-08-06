@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.4.7
+Stable tag: 0.4.8
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,16 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.4.8 =
+* A partial submission is now only recorded once someone actually starts the chat
+  (their first message), not every time the page loads. Simply opening or
+  refreshing the page no longer creates an empty "Anonymous / 0/5 / £0" row — the
+  greeting is shown without saving anything, and the project is created on the
+  first real answer. This keeps the funnel counts honest.
+* Bulk delete in Archie Projects: tick the checkbox on any rows (or the header
+  checkbox to select the whole list) and "Delete selected" removes them and all
+  of their data in one go. The single-row trash button still works too.
 
 = 0.4.7 =
 * Submission emails are now branded to match the Archie site (navy header, the

@@ -25,8 +25,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class YAA_Archie {
 
 	/** The fixed opener (no Claude call — saves a turn's tokens). Free-text, no chips. */
+	/** The opener greeting text — no side effects, safe to show before a project exists. */
+	public static function opener_text() {
+		return __( "Hi — I'm Archie, Your Architect's project assistant. I'll ask a few simple questions, explain anything that's unclear, and build your fixed price as we go. There are no silly questions here. To start, what's the address of the property?", 'your-architect-archie' );
+	}
+
 	public static function opener( $project_id ) {
-		$text = __( "Hi — I'm Archie, Your Architect's project assistant. I'll ask a few simple questions, explain anything that's unclear, and build your fixed price as we go. There are no silly questions here. To start, what's the address of the property?", 'your-architect-archie' );
+		$text = self::opener_text();
 		YAA_Project::add_message( $project_id, 'assistant', $text );
 		return array(
 			'message'  => $text,

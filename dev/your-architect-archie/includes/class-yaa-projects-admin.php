@@ -40,6 +40,7 @@ class YAA_Projects_Admin {
 		add_action( 'admin_post_yaa_email_save', array( __CLASS__, 'act_email_save' ) );
 		add_action( 'admin_post_yaa_email_send', array( __CLASS__, 'act_email_send' ) );
 		add_action( 'admin_post_yaa_project_delete', array( __CLASS__, 'act_delete' ) );
+		add_action( 'admin_post_yaa_projects_bulk_delete', array( __CLASS__, 'act_bulk_delete' ) );
 	}
 
 	/** Permanently delete a submission/project and everything attached to it. */
@@ -52,6 +53,35 @@ class YAA_Projects_Admin {
 			YAA_Project::delete( $pid );
 		}
 		wp_safe_redirect( add_query_arg( array( 'page' => self::SLUG, 'notice' => 'deleted' ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	/**
+	 * Delete from the list: a single row (the trash button, `delete_one`) or every
+	 * ticked row at once (`ids[]`). Both post the same bulk form so we never nest
+	 * <form> tags inside the table.
+	 */
+	public static function act_bulk_delete() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'yaa_bulk_delete' ) ) {
+			wp_die( 'Nope' );
+		}
+		$ids = array();
+		if ( isset( $_POST['delete_one'] ) ) {
+			$ids[] = (int) $_POST['delete_one'];
+		} elseif ( ! empty( $_POST['ids'] ) && is_array( $_POST['ids'] ) ) {
+			$ids = array_map( 'intval', wp_unslash( $_POST['ids'] ) );
+		}
+		$ids = array_filter( array_unique( $ids ) );
+		$n   = 0;
+		foreach ( $ids as $pid ) {
+			YAA_Project::delete( $pid );
+			$n++;
+		}
+		$args = array( 'page' => self::SLUG, 'notice' => $n ? 'deleted' : '' );
+		if ( ! empty( $_POST['tab'] ) ) {
+			$args['tab'] = sanitize_key( wp_unslash( $_POST['tab'] ) );
+		}
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 		exit;
 	}
 
@@ -198,9 +228,23 @@ class YAA_Projects_Admin {
 			<?php if ( empty( $rows ) ) : ?>
 				<div class="yaa-empty"><?php esc_html_e( 'Nothing here yet.', 'your-architect-archie' ); ?></div>
 			<?php else : ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="yaa-bulk">
+				<input type="hidden" name="action" value="yaa_projects_bulk_delete">
+				<input type="hidden" name="tab" value="<?php echo esc_attr( $active ); ?>">
+				<?php wp_nonce_field( 'yaa_bulk_delete' ); ?>
+
+				<div class="yaa-bulkbar">
+					<button type="submit" class="yaa-bulk-del" name="bulk" value="delete" disabled
+						onclick="return yaaConfirmBulk();">
+						<?php esc_html_e( 'Delete selected', 'your-architect-archie' ); ?><span class="yaa-bulk-count"></span>
+					</button>
+					<span class="yaa-bulk-hint"><?php esc_html_e( 'Tick rows to delete in bulk — this cannot be undone.', 'your-architect-archie' ); ?></span>
+				</div>
+
 			<table class="yaa-table">
 				<thead>
 					<tr>
+						<th class="yaa-col-check"><input type="checkbox" id="yaa-check-all" aria-label="<?php esc_attr_e( 'Select all', 'your-architect-archie' ); ?>"></th>
 						<th><?php esc_html_e( 'Person', 'your-architect-archie' ); ?></th>
 						<th><?php esc_html_e( 'Status', 'your-architect-archie' ); ?></th>
 						<th><?php esc_html_e( 'Project', 'your-architect-archie' ); ?></th>
@@ -226,6 +270,9 @@ class YAA_Projects_Admin {
 					$link    = esc_url( add_query_arg( array( 'page' => self::SLUG, 'project' => (int) $r->id ), admin_url( 'admin.php' ) ) );
 					?>
 					<tr onclick="window.location='<?php echo $link; // phpcs:ignore WordPress.Security.EscapeOutput ?>'">
+						<td class="yaa-col-check" onclick="event.stopPropagation();">
+							<input type="checkbox" class="yaa-check" name="ids[]" value="<?php echo esc_attr( (int) $r->id ); ?>" aria-label="<?php esc_attr_e( 'Select this submission', 'your-architect-archie' ); ?>">
+						</td>
 						<td>
 							<a class="yaa-who" href="<?php echo $link; // phpcs:ignore WordPress.Security.EscapeOutput ?>"><?php echo esc_html( $who ); ?></a>
 							<?php if ( $r->email && $r->name ) : ?><div class="yaa-sub"><?php echo esc_html( $r->email ); ?></div><?php endif; ?>
@@ -247,17 +294,37 @@ class YAA_Projects_Admin {
 						<td class="yaa-total"><?php echo esc_html( YAA_Pricing::money( (int) $r->total ) ); ?></td>
 						<td><div class="yaa-sub"><?php echo esc_html( self::ago( $r->updated ) ); ?></div></td>
 						<td class="yaa-row-actions" onclick="event.stopPropagation();">
-							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Permanently delete this submission and all of its data? This cannot be undone.');">
-								<input type="hidden" name="action" value="yaa_project_delete">
-								<input type="hidden" name="project_id" value="<?php echo esc_attr( (int) $r->id ); ?>">
-								<?php wp_nonce_field( 'yaa_delete' ); ?>
-								<button class="yaa-x" type="submit" aria-label="<?php esc_attr_e( 'Delete', 'your-architect-archie' ); ?>" title="<?php esc_attr_e( 'Delete', 'your-architect-archie' ); ?>">&#128465;</button>
-							</form>
+							<button class="yaa-x" type="submit" name="delete_one" value="<?php echo esc_attr( (int) $r->id ); ?>"
+								aria-label="<?php esc_attr_e( 'Delete', 'your-architect-archie' ); ?>" title="<?php esc_attr_e( 'Delete', 'your-architect-archie' ); ?>"
+								onclick="return confirm('Permanently delete this submission and all of its data? This cannot be undone.');">&#128465;</button>
 						</td>
 					</tr>
 				<?php endforeach; ?>
 				</tbody>
 			</table>
+			</form>
+			<script>
+			function yaaConfirmBulk(){
+				var n = document.querySelectorAll('.yaa-check:checked').length;
+				if ( ! n ) { return false; }
+				return confirm( 'Permanently delete ' + n + ' selected submission' + ( n > 1 ? 's' : '' ) + ' and all of their data? This cannot be undone.' );
+			}
+			(function(){
+				var all = document.getElementById('yaa-check-all');
+				var boxes = [].slice.call( document.querySelectorAll('.yaa-check') );
+				var del = document.querySelector('.yaa-bulk-del');
+				var cnt = document.querySelector('.yaa-bulk-count');
+				function sync(){
+					var n = document.querySelectorAll('.yaa-check:checked').length;
+					if ( del ) { del.disabled = ( n === 0 ); }
+					if ( cnt ) { cnt.textContent = n ? ' (' + n + ')' : ''; }
+					if ( all ) { all.checked = ( n > 0 && n === boxes.length ); all.indeterminate = ( n > 0 && n < boxes.length ); }
+				}
+				if ( all ) { all.addEventListener('change', function(){ boxes.forEach(function(b){ b.checked = all.checked; }); sync(); }); }
+				boxes.forEach(function(b){ b.addEventListener('change', sync); });
+				sync();
+			})();
+			</script>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -674,6 +741,14 @@ class YAA_Projects_Admin {
 		.yaa-row-actions { text-align:right; width:44px; }
 		.yaa-row-actions .yaa-x:hover { color:#c0392b; }
 		.yaa-col-actions { width:44px; }
+		.yaa-col-check { width:34px; text-align:center; }
+		.yaa-col-check input { cursor:pointer; }
+		.yaa-bulkbar { display:flex; align-items:center; gap:12px; margin:0 0 12px; }
+		.yaa-bulk-del { background:#fff; border:2px solid var(--line); color:var(--muted); font-weight:700; border-radius:999px; padding:7px 16px; cursor:pointer; font-size:.85rem; }
+		.yaa-bulk-del:not([disabled]) { border-color:#e0b4b0; color:#c0392b; }
+		.yaa-bulk-del:not([disabled]):hover { background:#fbeceb; border-color:#c0392b; }
+		.yaa-bulk-del[disabled] { opacity:.55; cursor:not-allowed; }
+		.yaa-bulk-hint { color:var(--muted); font-size:.82rem; }
 		.yaa-head-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
 		.yaa-btn.danger { background:#fff; color:#c0392b; border:2px solid #f0c9c4; }
 		.yaa-btn.danger:hover { background:#c0392b; color:#fff !important; border-color:#c0392b; }
