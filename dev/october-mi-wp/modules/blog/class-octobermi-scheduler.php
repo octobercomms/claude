@@ -91,6 +91,12 @@ class OctoberMI_Blog_Scheduler {
 			OctoberMI_Log::error( 'blog.schedule', 'Skipped scheduled run', array( 'reason' => OctoberMI_Blog_Module::generation_blocked() ) );
 			return;
 		}
+		// Don't run ungrounded: autopilot needs a learned Context Pack so posts
+		// are specific to the business, not generic.
+		if ( ! OctoberMI_Blog_Context_Pack::get() ) {
+			OctoberMI_Log::error( 'blog.schedule', 'Skipped scheduled run', array( 'reason' => 'site not learned yet' ) );
+			return;
+		}
 		OctoberMI_Jobs::enqueue( OctoberMI_Blog_Module::GENERATE_JOB, array( 'topic' => '', 'source' => 'schedule' ) );
 	}
 }

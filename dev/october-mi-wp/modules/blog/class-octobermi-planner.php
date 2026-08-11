@@ -37,6 +37,11 @@ class OctoberMI_Blog_Planner {
 		return OctoberMI_Jobs::enqueue( self::JOB_TYPE, array() );
 	}
 
+	/** Wipe the whole plan (e.g. to re-plan after re-learning the site). */
+	public static function clear() {
+		delete_option( self::OPTION );
+	}
+
 	/**
 	 * Reserve the next unused topic and return it as a writer-ready string, or ''
 	 * if the plan is dry. Marking used at claim time (rather than after the post
@@ -84,9 +89,15 @@ class OctoberMI_Blog_Planner {
 		if ( is_wp_error( $response ) ) {
 			throw new Exception( $response->get_error_message() );
 		}
-		$parsed = self::parse_json( $response );
-		if ( ! $parsed || empty( $parsed['topics'] ) || ! is_array( $parsed['topics'] ) ) {
-			throw new Exception( __( 'The model did not return a usable topic plan.', 'october-mi' ) );
+		$parsed = OctoberMI_Claude::json_from_reply( $response );
+		$topics = self::topics_from( $parsed );
+		if ( empty( $topics ) ) {
+			OctoberMI_Log::error( 'blog.plan', 'Unparseable topic-plan reply', array( 'reply' => self::snippet( $response, 500 ) ) );
+			throw new Exception( sprintf(
+				/* translators: %s: a short excerpt of the model's reply. */
+				__( 'The model did not return a usable topic plan. It replied: “%s”', 'october-mi' ),
+				self::snippet( $response, 180 )
+			) );
 		}
 
 		// Merge new topics into the existing plan, de-duplicating by title.
@@ -96,7 +107,13 @@ class OctoberMI_Blog_Planner {
 			$seen[ strtolower( trim( $i['title'] ) ) ] = true;
 		}
 		$now = time();
-		foreach ( $parsed['topics'] as $t ) {
+		foreach ( $topics as $t ) {
+			if ( is_string( $t ) ) {
+				$t = array( 'title' => $t );
+			}
+			if ( ! is_array( $t ) ) {
+				continue;
+			}
 			if ( empty( $t['title'] ) ) {
 				continue;
 			}
@@ -130,23 +147,39 @@ class OctoberMI_Blog_Planner {
 
 		$schema = '{ "topics": [ { "title": "specific post title", "angle": "the unique angle/intent", "cluster": "which pillar it belongs to" } ] }';
 
-		return "Build a plan of ~12 blog topics organised into 3-4 clusters for this company.\n\n"
-			. "Return EXACTLY: " . $schema . "\n\n"
-			. "Rules: each topic must be specific to this business and audience; cover a mix of search intents; "
-			. "no generic filler; no invented statistics or volumes.\n\n"
+		return 'Build a plan of ~12 blog topics organised into 3-4 clusters for the company that operates ' . home_url( '/' ) . ".\n\n"
+			. 'Return EXACTLY: ' . $schema . "\n\n"
+			. "Rules: base every topic STRICTLY on the company knowledge below — match this company's actual industry, products and audience. "
+			. "Do NOT drift to a generic industry (e.g. SaaS, marketing agencies, project-management tools) unless the knowledge clearly supports it. "
+			. "Cover a mix of search intents; no generic filler; no invented statistics or volumes.\n\n"
 			. "=== COMPANY KNOWLEDGE ===\n" . $knowledge . "\n\n"
-			. "=== BRIEF ===\nTopics/focus: " . ( $brief['topics'] ? $brief['topics'] : '(infer)' )
-			. "\nAudience: " . ( $brief['audience'] ? $brief['audience'] : '(infer)' );
+			. "=== BRIEF ===\nTopics/focus: " . ( $brief['topics'] ? $brief['topics'] : '(infer from the knowledge)' )
+			. "\nAudience: " . ( $brief['audience'] ? $brief['audience'] : '(infer from the knowledge)' );
 	}
 
-	private static function parse_json( $text ) {
-		$text  = (string) $text;
-		$start = strpos( $text, '{' );
-		$end   = strrpos( $text, '}' );
-		if ( false === $start || false === $end || $end <= $start ) {
-			return null;
+	/** Normalise the parsed reply into a plain list of topic items. */
+	private static function topics_from( $parsed ) {
+		if ( ! is_array( $parsed ) ) {
+			return array();
 		}
-		$data = json_decode( substr( $text, $start, $end - $start + 1 ), true );
-		return is_array( $data ) ? $data : null;
+		foreach ( array( 'topics', 'plan', 'items', 'posts' ) as $k ) {
+			if ( ! empty( $parsed[ $k ] ) && is_array( $parsed[ $k ] ) ) {
+				return $parsed[ $k ];
+			}
+		}
+		// A bare list (numeric keys) is itself the topics array.
+		if ( array_keys( $parsed ) === range( 0, count( $parsed ) - 1 ) ) {
+			return $parsed;
+		}
+		return array();
+	}
+
+	/** A short, whitespace-collapsed excerpt of a model reply for diagnostics. */
+	private static function snippet( $text, $len = 180 ) {
+		$t = trim( preg_replace( '/\s+/u', ' ', (string) $text ) );
+		if ( '' === $t ) {
+			return '(empty reply)';
+		}
+		return function_exists( 'mb_substr' ) ? mb_substr( $t, 0, $len ) : substr( $t, 0, $len );
 	}
 }

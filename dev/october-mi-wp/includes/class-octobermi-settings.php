@@ -40,11 +40,11 @@ class OctoberMI_Settings {
 
 			// --- Modules & mode ---------------------------------------------
 			// enabled_modules: machine ids of switched-on capabilities.
-			// connect_enabled: has the platform connection been unlocked?
-			// key_source: 'client' (own key) | 'platform' (managed via pairing).
+			// run_mode: 'standalone' (you provide the keys) | 'integrated'
+			//   (managed by the platform — keys and image generation come from
+			//   OMI, nothing is entered on the site).
 			'enabled_modules' => array( 'blog' ),
-			'connect_enabled' => false,
-			'key_source'      => 'client',
+			'run_mode'        => 'standalone',
 			'claude_api_key'  => '',
 
 			// Safety rail: estimated monthly USD cap for own-key generation
@@ -113,9 +113,14 @@ class OctoberMI_Settings {
 		return ! empty( $all['client_id'] ) && ! empty( $all['refresh_secret'] );
 	}
 
-	/** Has the operator unlocked the platform connection UI? */
-	public static function connect_enabled() {
-		return (bool) self::get( 'connect_enabled', false );
+	/** 'standalone' | 'integrated'. */
+	public static function run_mode() {
+		return 'integrated' === self::get( 'run_mode', 'standalone' ) ? 'integrated' : 'standalone';
+	}
+
+	/** Is this site managed by the platform (keys + images come from OMI)? */
+	public static function is_integrated() {
+		return 'integrated' === self::run_mode();
 	}
 
 	/** Machine ids of the modules switched on. */
@@ -130,12 +135,11 @@ class OctoberMI_Settings {
 	}
 
 	/**
-	 * Are we using an October-managed key? Only true when the operator chose the
-	 * platform key source AND the site is actually paired — otherwise model
-	 * calls fall back to the local key.
+	 * Are we using platform-managed generation? True only when the site is in
+	 * integrated mode AND actually paired — otherwise calls need a local key.
 	 */
 	public static function is_managed_key() {
-		return 'platform' === self::get( 'key_source', 'client' ) && self::is_connected();
+		return self::is_integrated() && self::is_connected();
 	}
 
 	/** Wipe connection state (used by "Reset connection"). */

@@ -117,9 +117,8 @@ class OctoberMI_Admin {
 			: array();
 		$enabled = array_values( array_intersect( $available, $submitted ) );
 
-		$connect_enabled = ! empty( $_POST['octobermi_connect_enabled'] );
-		$key_source      = ( isset( $_POST['octobermi_key_source'] ) && 'platform' === $_POST['octobermi_key_source'] )
-			? 'platform' : 'client';
+		$run_mode = ( isset( $_POST['octobermi_run_mode'] ) && 'integrated' === $_POST['octobermi_run_mode'] )
+			? 'integrated' : 'standalone';
 
 		$cost_cap = isset( $_POST['octobermi_cost_cap'] ) ? (float) wp_unslash( $_POST['octobermi_cost_cap'] ) : 0;
 
@@ -129,8 +128,7 @@ class OctoberMI_Admin {
 
 		$changes = array(
 			'enabled_modules'  => $enabled,
-			'connect_enabled'  => $connect_enabled,
-			'key_source'       => $key_source,
+			'run_mode'         => $run_mode,
 			'monthly_cost_cap' => max( 0, $cost_cap ),
 			'hero_images'      => $hero_mode,
 		);
