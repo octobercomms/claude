@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.4.9
+Stable tag: 0.5.0
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,24 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.5.0 =
+* New pricing model: a SERVICE MENU instead of two fixed packages. Archie asks
+  which service you need (pre-planning £450, full planning £690, building regs
+  £900, listed consent £550, permitted development / lawful development £450,
+  change of use £450, retrospective £450, new dwellings on request) and builds
+  your total additively — no more "select to remove" items.
+* Editable in the admin: a new "Archie → Pricing & Services" screen where you
+  can edit every service, add-on, price, delivery/validity, phone, booking link
+  and a couple of canned replies. Archie and the price panel follow it live — no
+  code changes needed to update pricing.
+* Add-ons Archie asks about and adds: submit & manage the application (+£100,
+  planning only), 3D visualisation (+£250), site visit (London/M25, +£350).
+* Survey question simplified to "Do you have existing plans drawn up?"; if not,
+  Archie reassures we'll arrange a trusted independent surveyor. Structural
+  "not sure" now gets a warm, editable reply.
+* An "I'm not sure — I need advice" path, plus a phone number and optional
+  15-minute-call booking link.
 
 = 0.4.9 =
 * Correct legal entity to Tiam Architects LLP (was "Ltd") across Archie, the

@@ -133,7 +133,6 @@ $face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() .
 					$rows = array(
 						array( __( 'Price shown upfront', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Quote after a call', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Sometimes', 'archlie' ) . '</span>' ),
 						array( __( 'ARB / RIBA registered', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="no">✕</span>' ),
-						array( __( 'Survey included in the price', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Extra', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Extra', 'archlie' ) . '</span>' ),
 						array( __( 'Start today, no call', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="no">✕</span>', '<span class="muted">' . esc_html__( 'Varies', 'archlie' ) . '</span>' ),
 						array( __( 'Published approval rate', 'archlie' ), '<span class="yes">' . esc_html__( 'Yes', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Never shown', 'archlie' ) . '</span>', '<span class="no">✕</span>' ),
 						array( __( 'Revisions included', 'archlie' ), '<span class="yes">' . esc_html__( 'Two', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Hourly', 'archlie' ) . '</span>', '<span class="muted">' . esc_html__( 'Varies', 'archlie' ) . '</span>' ),
@@ -148,58 +147,39 @@ $face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() .
 	</div>
 </section>
 
-<!-- PRICING MENU (two flat packages) -->
+<!-- PRICING MENU (service list — Archie works out the total) -->
 <section class="zone zone--pale pad" id="pricing">
 	<div class="band">
 		<div class="sec-head">
 			<span class="sec-kicker"><?php esc_html_e( 'Pricing', 'archlie' ); ?></span>
-			<h2><?php esc_html_e( 'Two fixed packages. Pick one.', 'archlie' ); ?></h2>
-			<p><?php esc_html_e( "No floor-area bands, no hourly rates. Two flat prices, with a short menu of optional add-ons shown before you commit. Every package includes two revisions — and we're not VAT-registered, so the price you see is the price you pay.", 'archlie' ); ?></p>
+			<h2><?php esc_html_e( 'Clear pricing. Archie works out your total.', 'archlie' ); ?></h2>
+			<p><?php esc_html_e( "Every service is a fixed price — no floor-area bands, no hourly rates, and we're not VAT-registered, so the price you see is the price you pay. Tell Archie what you need and he builds your total live, including any optional add-ons. Every package includes two revisions.", 'archlie' ); ?></p>
 		</div>
-		<div class="pkg-grid">
-			<div class="pkg-card feat">
-				<div class="pkg-top">
-					<h3><?php esc_html_e( 'Planning — full package', 'archlie' ); ?></h3>
-					<div class="pkg-price"><span data-pkg-price="planning"><?php echo esc_html( archlie_package_price( 'planning' ) ); ?></span></div>
-				</div>
-				<p class="pkg-blurb"><?php esc_html_e( 'Home extensions · loft, mansard & garage conversions · outbuildings · new dwellings', 'archlie' ); ?></p>
-				<div class="pkg-inc-label"><?php esc_html_e( 'Includes', 'archlie' ); ?></div>
-				<ul class="pkg-list">
-					<li><?php esc_html_e( 'Site, location & block plans', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Existing + proposed drawings', 'archlie' ); ?></li>
-					<li><?php esc_html_e( '3D concept design (up to 2 revisions)', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Planning application prep, submission & management', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Detailed Building Regulations drawings', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Drawing revisions', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Free amendments requested by the council', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Site visit on request (London boroughs only, additional charge)', 'archlie' ); ?></li>
-				</ul>
-			</div>
-			<div class="pkg-card">
-				<div class="pkg-top">
-					<h3><?php esc_html_e( 'Building Regs drawings', 'archlie' ); ?></h3>
-					<div class="pkg-price"><span data-pkg-price="buildingregs"><?php echo esc_html( archlie_package_price( 'buildingregs' ) ); ?></span></div>
-				</div>
-				<p class="pkg-blurb"><?php esc_html_e( 'For projects with planning already approved — internal alterations, approved extensions, conversions, outbuildings, new dwellings', 'archlie' ); ?></p>
-				<div class="pkg-inc-label"><?php esc_html_e( 'Includes', 'archlie' ); ?></div>
-				<ul class="pkg-list">
-					<li><?php esc_html_e( 'Detailed Building Regulations drawings', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Construction details & written specification', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Drainage layout where required', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Building control submission on request', 'archlie' ); ?></li>
-					<li><?php esc_html_e( 'Drawing revisions', 'archlie' ); ?></li>
-				</ul>
-			</div>
+		<?php $menu = archlie_service_menu(); ?>
+		<div class="price-menu">
+			<div class="addons-head"><?php esc_html_e( 'Services', 'archlie' ); ?></div>
+			<ul class="addon-list">
+				<?php foreach ( $menu['services'] as $svc ) : ?>
+					<li>
+						<span><?php echo esc_html( $svc['label'] ); ?><?php if ( ! empty( $svc['sub'] ) ) : ?><em class="price-sub"><?php echo esc_html( $svc['sub'] ); ?></em><?php endif; ?></span>
+						<strong><?php echo esc_html( archlie_service_price( isset( $svc['price'] ) ? $svc['price'] : null ) ); ?></strong>
+					</li>
+				<?php endforeach; ?>
+			</ul>
 		</div>
 		<div class="addons">
 			<div class="addons-head"><?php esc_html_e( 'Optional add-ons', 'archlie' ); ?></div>
 			<ul class="addon-list">
-				<li><span><?php esc_html_e( '3D concept visual (up to 2 revisions)', 'archlie' ); ?></span><strong><?php echo esc_html( archlie_money( 250 ) ); ?></strong></li>
-				<li><span><?php esc_html_e( 'We submit & manage your planning application', 'archlie' ); ?></span><strong>+<?php echo esc_html( archlie_money( 80 ) ); ?></strong></li>
-				<li><span><?php esc_html_e( 'Site visit (London boroughs / within the M25)', 'archlie' ); ?></span><strong><?php echo esc_html( archlie_money( 350 ) ); ?></strong></li>
-				<li><span><?php esc_html_e( 'Measured survey & structural engineer', 'archlie' ); ?></span><strong><?php esc_html_e( 'sourced separately — quote to follow', 'archlie' ); ?></strong></li>
+				<?php foreach ( $menu['addons'] as $add ) : ?>
+					<li><span><?php echo esc_html( $add['label'] ); ?></span><strong>+<?php echo esc_html( archlie_money( (int) $add['price'] ) ); ?></strong></li>
+				<?php endforeach; ?>
+				<li><span><?php esc_html_e( 'Measured survey &amp; structural engineer', 'archlie' ); ?></span><strong><?php esc_html_e( 'sourced separately — quote to follow', 'archlie' ); ?></strong></li>
 			</ul>
-			<p class="menu-note"><?php esc_html_e( "Need a measured survey or a structural engineer? We'll help — we find a trusted independent local professional, share their quote for your approval first, and you pay them directly for their work. No admin fees, and never for our time. Full RIBA services (Stages 0–7), concept to construction, are handled by Tiam Architects —", 'archlie' ); ?> <a href="mailto:info@tiamarchitects.com">info@tiamarchitects.com</a>.</p>
+			<p class="menu-note menu-note--lg"><?php esc_html_e( "A measured survey and a structural engineer are never part of our fee. If you need one, we'll help — we find a trusted independent local professional, share their quote for your approval first, and you pay them directly for their work. No admin fees, and never for our time.", 'archlie' ); ?></p>
+			<p class="menu-note menu-note--lg">
+				<?php esc_html_e( 'For a full RIBA service (Stages 0–7), concept to construction, or a new dwelling, contact Tiam Architects at', 'archlie' ); ?>
+				<a href="mailto:<?php echo esc_attr( isset( $menu['meta']['ribaEmail'] ) ? $menu['meta']['ribaEmail'] : 'info@tiamarchitects.com' ); ?>"><?php echo esc_html( isset( $menu['meta']['ribaEmail'] ) ? $menu['meta']['ribaEmail'] : 'info@tiamarchitects.com' ); ?></a><?php if ( ! empty( $menu['meta']['phone'] ) ) : ?> <?php esc_html_e( 'or call', 'archlie' ); ?> <a href="tel:<?php echo esc_attr( preg_replace( '/[^0-9+]/', '', $menu['meta']['phone'] ) ); ?>"><?php echo esc_html( $menu['meta']['phone'] ); ?></a><?php endif; ?>.
+			</p>
 		</div>
 	</div>
 </section>
@@ -210,7 +190,7 @@ $face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() .
 		<div class="sec-head">
 			<span class="sec-kicker"><?php esc_html_e( 'Our services', 'archlie' ); ?></span>
 			<h2><?php esc_html_e( 'The full range, any location in mainland UK.', 'archlie' ); ?></h2>
-			<p><?php esc_html_e( 'Fully remote. Whatever your project needs, Archie will point you to the right package.', 'archlie' ); ?></p>
+			<p><?php esc_html_e( 'Fully remote. Whatever your project needs, Archie will point you to the right service.', 'archlie' ); ?></p>
 		</div>
 		<ul class="services-grid">
 			<?php
@@ -263,7 +243,7 @@ $face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() .
 		<div class="faq">
 			<?php
 			$faqs = array(
-				array( __( 'Is the price really fixed?', 'archlie' ), __( "Yes. Everything in our control — the drawings, two revisions, and the survey where you add it — is a fixed total, shown before you share any details. The only things we can't fix are third-party fees (like your local authority's planning application fee), and we flag those clearly.", 'archlie' ) ),
+				array( __( 'Is the price really fixed?', 'archlie' ), __( "Yes. Everything in our control — the drawings and two revisions — is a fixed total, shown before you share any details. A measured survey and a structural engineer are sourced separately (we share their quote for your approval first), and third-party fees like your local authority's planning application fee we flag clearly.", 'archlie' ) ),
 				array( __( 'Who actually does the drawings?', 'archlie' ), __( 'Registered architects at Tiam Architects LLP — an ARB-registered, RIBA-chartered practice. Your Architect is our fixed-price service for standard residential projects; the same people prepare your package.', 'archlie' ) ),
 				array( __( 'What if my project is bigger or unusual?', 'archlie' ), __( "If it's over 150m², or needs ongoing management, Archie will flag it as a better fit for a full commission with Tiam. You can still submit here, or request a consultation — no wasted call either way.", 'archlie' ) ),
 				array( __( 'When do I pay?', 'archlie' ), __( 'Nothing is charged while you talk to Archie. We prepare your drawings and send a watermarked preview; you only pay online to release the full, submission-ready package.', 'archlie' ) ),
