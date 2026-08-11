@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.4.2
+Stable tag: 0.4.9
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,34 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.4.9 =
+* Correct legal entity to Tiam Architects LLP (was "Ltd") across Archie, the
+  emails and the site footer, and fill in the real registration details:
+  ARB 091365K & 091921G, Company no. OC437815.
+
+= 0.4.8 =
+* A partial submission is now only recorded once someone actually starts the chat
+  (their first message), not every time the page loads. Simply opening or
+  refreshing the page no longer creates an empty "Anonymous / 0/5 / £0" row — the
+  greeting is shown without saving anything, and the project is created on the
+  first real answer. This keeps the funnel counts honest.
+* Bulk delete in Archie Projects: tick the checkbox on any rows (or the header
+  checkbox to select the whole list) and "Delete selected" removes them and all
+  of their data in one go. The single-row trash button still works too.
+
+= 0.4.7 =
+* Submission emails are now branded to match the Archie site (navy header, the
+  Your Architect wordmark, clean card layout) instead of plain text.
+* The studio notification comes from "Your Architect Submission"
+  &lt;noreply@yourarchitect.uk&gt; with the subject "New Project | &lt;name&gt;" (falls
+  back to the postcode or reference when no name was given), and carries the full
+  project: the fixed-price total, reference, submitted/started times, contact, every
+  question and answer, the priced package breakdown with delivery/revision/validity
+  notes, any London/listed/conservation flags, and a button to open it in the admin.
+  Reply goes straight to the client when we have their address.
+* When we captured the visitor's email, they now also receive a branded confirmation
+  summarising what they told Archie, their fixed price, and what happens next.
 
 = 0.4.6 =
 * You can now delete submissions/projects from the admin — a trash button on each

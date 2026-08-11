@@ -93,23 +93,34 @@ class YAA_Rest {
 	}
 
 	public static function start( $req ) {
-		$id = YAA_Project::current( true );
-		if ( ! $id ) {
-			return new WP_REST_Response( array( 'error' => 'no_session' ), 500 );
-		}
 		// Return a FRESH nonce from this (uncached) REST call — the one localised
 		// into the page can be stale behind a page cache (StackCache) or its header
 		// stripped by a CDN, which is what surfaces as "something went wrong".
-		$nonce    = wp_create_nonce( 'yaa_rest' );
-		$messages = YAA_Project::messages( $id );
-		if ( empty( $messages ) ) {
-			$open = YAA_Archie::opener( $id );
+		$nonce = wp_create_nonce( 'yaa_rest' );
+
+		// Do NOT create a project just because the page loaded — that floods the
+		// admin with empty "partial" rows on every refresh. Only resume an existing
+		// one; the project is created on the first real message (see message()).
+		$id       = YAA_Project::current( false );
+		$messages = $id ? YAA_Project::messages( $id ) : array();
+
+		if ( $id && ! empty( $messages ) ) {
+			// Returning mid-chat — resume where they left off.
 			return new WP_REST_Response(
-				array( 'messages' => YAA_Project::messages( $id ), 'package' => $open['package'], 'options' => $open['options'], 'meta' => self::meta(), 'nonce' => $nonce, 'configured' => YAA_Claude::is_configured() )
+				array( 'messages' => $messages, 'package' => YAA_Project::package( $id ), 'options' => array(), 'meta' => self::meta(), 'nonce' => $nonce, 'configured' => YAA_Claude::is_configured() )
 			);
 		}
+
+		// Nothing started yet — greet without persisting anything.
 		return new WP_REST_Response(
-			array( 'messages' => $messages, 'package' => YAA_Project::package( $id ), 'options' => array(), 'meta' => self::meta(), 'nonce' => $nonce, 'configured' => YAA_Claude::is_configured() )
+			array(
+				'messages'   => array( array( 'role' => 'assistant', 'text' => YAA_Archie::opener_text() ) ),
+				'package'    => array( 'nodes' => array(), 'total' => 0 ),
+				'options'    => array(),
+				'meta'       => self::meta(),
+				'nonce'      => $nonce,
+				'configured' => YAA_Claude::is_configured(),
+			)
 		);
 	}
 
@@ -125,6 +136,13 @@ class YAA_Rest {
 		}
 		if ( ! YAA_Rate_Limit::allow_turn( $session ) ) {
 			return new WP_REST_Response( array( 'error' => 'slow_down', 'message' => __( 'One moment — you\'re going a little fast for me.', 'your-architect-archie' ) ), 429 );
+		}
+
+		// First real message: this is where the project actually begins. Seed the
+		// opener greeting (shown-but-not-stored at /start) so the saved transcript
+		// reads coherently for resume + the admin.
+		if ( empty( YAA_Project::messages( $id ) ) ) {
+			YAA_Archie::opener( $id );
 		}
 
 		$text   = (string) $req->get_param( 'text' );

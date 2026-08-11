@@ -264,7 +264,7 @@ $face_svg = '<img class="a-ico" src="' . esc_url( get_template_directory_uri() .
 			<?php
 			$faqs = array(
 				array( __( 'Is the price really fixed?', 'archlie' ), __( "Yes. Everything in our control — the drawings, two revisions, and the survey where you add it — is a fixed total, shown before you share any details. The only things we can't fix are third-party fees (like your local authority's planning application fee), and we flag those clearly.", 'archlie' ) ),
-				array( __( 'Who actually does the drawings?', 'archlie' ), __( 'Registered architects at Tiam Architects Ltd — an ARB-registered, RIBA-chartered practice. Your Architect is our fixed-price service for standard residential projects; the same people prepare your package.', 'archlie' ) ),
+				array( __( 'Who actually does the drawings?', 'archlie' ), __( 'Registered architects at Tiam Architects LLP — an ARB-registered, RIBA-chartered practice. Your Architect is our fixed-price service for standard residential projects; the same people prepare your package.', 'archlie' ) ),
 				array( __( 'What if my project is bigger or unusual?', 'archlie' ), __( "If it's over 150m², or needs ongoing management, Archie will flag it as a better fit for a full commission with Tiam. You can still submit here, or request a consultation — no wasted call either way.", 'archlie' ) ),
 				array( __( 'When do I pay?', 'archlie' ), __( 'Nothing is charged while you talk to Archie. We prepare your drawings and send a watermarked preview; you only pay online to release the full, submission-ready package.', 'archlie' ) ),
 			);

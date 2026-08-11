@@ -28,7 +28,7 @@
 			</div>
 			<div class="foot-legal">
 				<p>
-					<strong><?php esc_html_e( 'Your Architect is a trading name of Tiam Architects Ltd.', 'archlie' ); ?></strong>
+					<strong><?php esc_html_e( 'Your Architect is a trading name of Tiam Architects LLP.', 'archlie' ); ?></strong>
 					<?php
 					printf(
 						/* translators: 1: ARB number, 2: company number */
@@ -38,7 +38,7 @@
 					);
 					?>
 				</p>
-				<p>&copy; <?php echo esc_html( gmdate( 'Y' ) ); ?> <?php esc_html_e( 'Tiam Architects Ltd trading as Your Architect. Invoices are issued in the name of Tiam Architects Ltd.', 'archlie' ); ?></p>
+				<p>&copy; <?php echo esc_html( gmdate( 'Y' ) ); ?> <?php esc_html_e( 'Tiam Architects LLP trading as Your Architect. Invoices are issued in the name of Tiam Architects LLP.', 'archlie' ); ?></p>
 			</div>
 		</div>
 	</footer>
