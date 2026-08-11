@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.4.8
+Stable tag: 0.4.9
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,11 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.4.9 =
+* Correct legal entity to Tiam Architects LLP (was "Ltd") across Archie, the
+  emails and the site footer, and fill in the real registration details:
+  ARB 091365K & 091921G, Company no. OC437815.
 
 = 0.4.8 =
 * A partial submission is now only recorded once someone actually starts the chat

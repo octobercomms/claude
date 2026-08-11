@@ -22,8 +22,8 @@ function archlie_defaults() {
 		'archlie_hero_eyebrow' => __( 'Architectural drawings, priced instantly', 'archlie' ),
 		'archlie_hero_heading' => __( 'Fixed-price drawings from registered architects.', 'archlie' ),
 		'archlie_hero_lede'    => __( 'Planning, building control and permitted development drawings for standard residential work. Build your project in a short conversation, see a fixed price as you go, and submit when you’re ready — no call required.', 'archlie' ),
-		'archlie_arb_no'       => __( '[to confirm]', 'archlie' ),
-		'archlie_company_no'   => __( '[to confirm]', 'archlie' ),
+		'archlie_arb_no'       => __( '091365K & 091921G', 'archlie' ),
+		'archlie_company_no'   => __( 'OC437815', 'archlie' ),
 		'archlie_notify_email' => get_option( 'admin_email' ),
 	);
 }

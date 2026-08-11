@@ -67,7 +67,7 @@ class YAA_Email {
 		// Prefer a Claude-written draft when configured; fall back to the template above.
 		if ( YAA_Claude::is_configured() ) {
 			$system = implode( "\n", array(
-				'You write a short, warm confirmation email from Your Architect (a trading name of Tiam Architects Ltd, ARB-registered) to a UK homeowner whose fixed-price drawings project has just been approved and is good to go.',
+				'You write a short, warm confirmation email from Your Architect (a trading name of Tiam Architects LLP, ARB-registered) to a UK homeowner whose fixed-price drawings project has just been approved and is good to go.',
 				'Plain, friendly British English, about 110–140 words. One line of good news, a sentence on what happens next, and an invitation to complete their secure payment to start the drawings.',
 				'Do NOT invent facts, dates, prices or phone numbers. Do NOT add the payment link, a subject line inside the body, or a formal signature — the system appends the secure payment button and the signature. Write body as plain text with paragraph breaks.',
 				'Call draft_email with a subject and body.',
@@ -227,7 +227,7 @@ class YAA_Email {
 			. '<div style="border-top:1px solid #e6e9f2;margin-top:24px;padding-top:16px;color:#6b7488;font-size:13px">'
 			. 'Your fixed price: <strong style="color:#253E94">' . esc_html( $total ) . '</strong>'
 			. ( $project->ref ? ' · Ref ' . esc_html( $project->ref ) : '' )
-			. '<br>Your Architect — a trading name of Tiam Architects Ltd. ARB-registered, RIBA chartered.'
+			. '<br>Your Architect — a trading name of Tiam Architects LLP. ARB-registered, RIBA chartered.'
 			. '</div>' . $pixel . '</div>';
 	}
 

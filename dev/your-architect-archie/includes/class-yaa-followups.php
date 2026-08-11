@@ -212,7 +212,7 @@ class YAA_Followups {
 			. '<tr><td style="padding:14px 28px 28px;">' . $inner . '</td></tr>'
 			// Footer.
 			. '<tr><td style="background:#f8fafe;border-top:1px solid ' . self::LINE . ';padding:18px 28px;font-size:12px;color:#8B8A85;line-height:1.6;">'
-			. esc_html__( 'Your Architect — a trading name of Tiam Architects Ltd. ARB-registered, RIBA chartered.', 'your-architect-archie' )
+			. esc_html__( 'Your Architect — a trading name of Tiam Architects LLP. ARB-registered, RIBA chartered.', 'your-architect-archie' )
 			. '</td></tr>'
 			. '</table></td></tr></table></body></html>';
 	}
