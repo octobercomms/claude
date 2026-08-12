@@ -134,6 +134,33 @@ index 0000000..9b01e43
 +  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 +  PRIMARY KEY (user_id, message_id)
 +);
+diff --git a/backend/migrations/0040_rethread_sent_replies.sql b/backend/migrations/0040_rethread_sent_replies.sql
+new file mode 100644
+index 0000000..c8aa37a
+--- /dev/null
++++ b/backend/migrations/0040_rethread_sent_replies.sql
+@@ -0,0 +1,21 @@
++-- Backfill for the sent-reply threading bug: upsertSentMessageRecord used to hardcode a
++-- sent reply's thread_id to its OWN Message-ID, so every reply became a standalone thread
++-- instead of joining the conversation. The code now computes the thread correctly for new
++-- sends; this repairs the historical rows.
++--
++-- For each self-threaded message (thread_id = its own message_id) that is actually a reply
++-- (has an in_reply_to), adopt the thread_id of its parent — the message whose message_id
++-- matches this one's in_reply_to, in the same account. Inbox/original messages are already
++-- threaded correctly, so the parent carries the conversation's real thread_id; one hop is
++-- enough. Message-IDs are compared with surrounding <>/whitespace trimmed to tolerate
++-- format differences. The generated thread_key recomputes automatically from thread_id.
++
++UPDATE messages child
++SET thread_id = parent.thread_id
++FROM messages parent
++WHERE child.thread_id = child.message_id
++  AND child.in_reply_to IS NOT NULL AND btrim(child.in_reply_to, '<> ') <> ''
++  AND parent.account_id = child.account_id
++  AND parent.thread_id IS NOT NULL
++  AND btrim(parent.message_id, '<> ') = btrim(child.in_reply_to, '<> ')
++  AND parent.thread_id <> child.thread_id;
 diff --git a/backend/src/index.js b/backend/src/index.js
 index 483dcfa..53e2162 100644
 --- a/backend/src/index.js
@@ -797,6 +824,21 @@ index 0000000..c22c0d8
 +});
 +
 +export default router;
+diff --git a/backend/src/routes/send.js b/backend/src/routes/send.js
+index 380a68f..162c6b5 100644
+--- a/backend/src/routes/send.js
++++ b/backend/src/routes/send.js
+@@ -476,6 +476,10 @@ router.post('/send', async (req, res) => {
+     let sentCopySaved = null;
+     const sentMeta = sentFolder ? {
+       messageId: mailOptions.messageId,
++      // The reply chain, so the Sent copy threads with the original conversation
++      // instead of becoming a standalone thread.
++      inReplyTo: inReplyTo || null,
++      references: references || null,
+       subject: normalizedSubject,
+       fromName,
+       fromEmail,
 diff --git a/backend/src/routes/tasks.js b/backend/src/routes/tasks.js
 new file mode 100644
 index 0000000..5cbba96
@@ -1698,7 +1740,7 @@ index eabed8e..f0c89dc 100644
      mockQuery({ rows: [
        { thread_key: 't1', uid: 70, folder: 'INBOX', from_email: 'me@example.com', date: '2026-07-09T10:00:00Z', id: 'r1' },
 diff --git a/backend/src/services/imapManager.js b/backend/src/services/imapManager.js
-index 74a112b..a84ab64 100644
+index 74a112b..ce8a1fc 100644
 --- a/backend/src/services/imapManager.js
 +++ b/backend/src/services/imapManager.js
 @@ -447,6 +447,17 @@ const PROVIDERS = {
@@ -2009,7 +2051,31 @@ index 74a112b..a84ab64 100644
            // Log progress every 10 batches to avoid log spam
            if (batchesOnConn % 10 === 1 || i >= missingUids.length) {
              console.log(`Backfill ${logAccount(account)}: ${i}/${missingUids.length} missing fetched`);
-@@ -4286,6 +4383,48 @@ export class ImapManager {
+@@ -3621,12 +3718,22 @@ export class ImapManager {
+     fromEmail,
+     to = [],
+     cc = [],
++    inReplyTo = null,
++    references = null,
+     snippet = '',
+     date = new Date(),
+   }) {
+     if (!uid || !folder) return;
+     const msgId = sanitizeStr(messageId);
+-    const threadId = msgId || null;
++    // Thread the Sent copy into the original conversation: compute the thread from the
++    // reply's In-Reply-To/References (account-wide, so it finds the INBOX parent) rather
++    // than hardcoding the reply's own Message-ID — otherwise the sent reply becomes a
++    // standalone thread. This value is written first, so the later folder re-sync's
++    // COALESCE(thread_id, …) preserves it.
++    const threadId = await computeThreadId(
++      account.id, msgId, sanitizeStr(inReplyTo), sanitizeStr(references),
++      sanitizeStr(subject), safeDate(date)
++    );
+     await query(`
+       INSERT INTO messages (
+         account_id, uid, folder, message_id, subject,
+@@ -4286,6 +4393,48 @@ export class ImapManager {
      return newUid;
    }
  
@@ -2058,7 +2124,7 @@ index 74a112b..a84ab64 100644
    async permanentDeleteMessage(account, uid, folder) {
      await withFreshClient(account, async (client) => {
        const lock = await client.getMailboxLock(folder);
-@@ -4816,7 +4955,24 @@ export class ImapManager {
+@@ -4816,7 +4965,24 @@ export class ImapManager {
    // client). Phase 1: collect all server UID sets via one pool connection (IMAP-only, no
    // DB writes). Phase 2: diff and delete outside the IMAP connection so a DB error never
    // evicts a healthy pool client.
@@ -2083,7 +2149,7 @@ index 74a112b..a84ab64 100644
      // Captured before the Phase 1 snapshot. Any row inserted or re-synced after this
      // instant (new IDLE mail, a bulk-move reinsert) is NOT in the snapshot yet, so it
      // would look like an orphan. Excluding rows synced at/after the cutoff closes that
-@@ -4837,9 +4993,13 @@ export class ImapManager {
+@@ -4837,9 +5003,13 @@ export class ImapManager {
        await withFreshClient(account, async (client) => {
          for (const folder of folders) {
            let serverUids;
@@ -2097,7 +2163,7 @@ index 74a112b..a84ab64 100644
                serverUids = await client.search({ all: true }, { uid: true });
              } finally {
                lock.release();
-@@ -4849,7 +5009,7 @@ export class ImapManager {
+@@ -4849,7 +5019,7 @@ export class ImapManager {
              console.warn(`Reconcile: could not open ${logAccount(account)}/${folder}: ${extractImapError(err)}`);
              continue;
            }
@@ -2106,7 +2172,7 @@ index 74a112b..a84ab64 100644
          }
        });
      } catch (err) {
-@@ -4860,7 +5020,7 @@ export class ImapManager {
+@@ -4860,7 +5030,7 @@ export class ImapManager {
      // Phase 2 — diff each folder's server UIDs against the DB and delete orphans.
      // Runs outside withFreshClient so DB errors never cause unnecessary pool eviction.
      let deletedCount = 0;
@@ -2115,7 +2181,7 @@ index 74a112b..a84ab64 100644
        const dbResult = await query(
          'SELECT uid FROM messages WHERE account_id = $1 AND folder = $2 AND (synced_at IS NULL OR synced_at < $3)',
          [account.id, folder, reconcileStartedAt]
-@@ -4871,6 +5031,28 @@ export class ImapManager {
+@@ -4871,6 +5041,28 @@ export class ImapManager {
  
        if (orphanUids.length === 0) continue;
  
