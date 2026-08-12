@@ -48,6 +48,42 @@ class YAA_Archie {
 	 * with what we've learned about the address so Archie can be clever, not scripted.
 	 */
 	private static function system_prompt( array $state = array() ) {
+		$t        = YAA_Pricing::table();
+		$services = YAA_Pricing::services();
+		$addons   = $t['addons'];
+		$meta     = $t['meta'];
+		$ans      = isset( $t['answers'] ) ? $t['answers'] : array();
+
+		// Service menu (built from the editable config so Archie always reflects it).
+		$svc_lines = array();
+		foreach ( $services as $key => $svc ) {
+			$on_request = ( null === $svc['price'] || '' === $svc['price'] || ! empty( $svc['redirect'] ) );
+			$price      = $on_request ? 'priced on request' : YAA_Pricing::money( (int) $svc['price'] );
+			$svc_lines[] = sprintf( '- "%s" (service key: %s) — %s%s', $svc['label'], $key, $price, ( ! empty( $svc['sub'] ) ? ' — ' . $svc['sub'] : '' ) );
+		}
+
+		$addon_lines = array();
+		if ( ! empty( $addons['submission']['enabled'] ) ) {
+			$addon_lines[] = sprintf( '- "%s" — +%s. ONLY for the Full planning application service. Set submitApp=true if they want us to submit & manage it; if they will submit themselves, leave submitApp false. Recommend gently: letting us submit means the council deals with us directly and spares them the hassle.', $addons['submission']['label'], YAA_Pricing::money( (int) $addons['submission']['price'] ) );
+		}
+		if ( ! empty( $addons['concept3d']['enabled'] ) ) {
+			$addon_lines[] = sprintf( '- "%s" — +%s. Optional on any service. Set concept=true if they want it.', $addons['concept3d']['label'], YAA_Pricing::money( (int) $addons['concept3d']['price'] ) );
+		}
+		if ( ! empty( $addons['siteVisit']['enabled'] ) ) {
+			$addon_lines[] = sprintf( '- "%s" — +%s. ONLY offer if the property is in London / within the M25 (you will be told). Set siteVisit=true if they want it.', $addons['siteVisit']['label'], YAA_Pricing::money( (int) $addons['siteVisit']['price'] ) );
+		}
+
+		$phone           = isset( $meta['phone'] ) ? $meta['phone'] : '';
+		$booking         = isset( $meta['bookingUrl'] ) ? $meta['bookingUrl'] : '';
+		$riba            = isset( $meta['ribaEmail'] ) ? $meta['ribaEmail'] : 'info@tiamarchitects.com';
+		$structural_line = ! empty( $ans['structuralUnsure'] ) ? $ans['structuralUnsure'] : 'No problem — we can confirm this with you in due course.';
+		$survey_help     = ! empty( $ans['surveyHelp'] ) ? $ans['surveyHelp'] : 'No problem — we\'ll help. We find a trusted independent local professional to carry out an accurate laser-measured survey, and we base your drawings on that.';
+
+		$advice = 'If they are not sure what they need or want to talk to someone, offer a free 15-minute phone call'
+			. ( $booking ? ' (booking link: ' . $booking . ')' : '' )
+			. ( $phone ? ' or the phone number ' . $phone : '' )
+			. ', or that they can email their question — whatever suits them.';
+
 		$lines = array(
 			'You are Archie, the project assistant for Your Architect — fixed-price architectural drawings for UK homeowners (a trading name of Tiam Architects LLP, ARB-registered and RIBA chartered).',
 			'',
@@ -60,26 +96,31 @@ class YAA_Archie {
 			'- Whenever a question contains a term a non-expert might not know, ALWAYS include a final reply option worded like "What does that mean?" or "I\'m not sure". If they pick it (or seem confused, or ask), explain the term simply in one or two sentences with a relatable example, reassure them it\'s a normal thing not to know, then ask the same question again with the buttons.',
 			'- If someone answers "I don\'t know" to anything, that is completely fine: help them reason it out or offer a sensible default, never pressure them.',
 			'',
+			'THE SERVICES WE OFFER (this is the menu — set the `service` field to the matching key):',
+			implode( "\n", $svc_lines ),
+			'',
+			'OPTIONAL ADD-ONS Archie ASKS about and then adds (never listed as something to remove):',
+			( $addon_lines ? implode( "\n", $addon_lines ) : '- (none configured)' ),
+			'',
 			'THE INFORMATION TO COLLECT (ask in this order, and SKIP anything that clearly does not apply):',
 			'1) the property address (already asked in the opener);',
-			'2) what they want to do — e.g. a rear or side extension, a loft or mansard conversion, converting a garage, a garden room / outbuilding, internal alterations, or building a brand-new home;',
-			'3) IF it is a rear or side extension: is it single storey or two storey (offer "Not sure" — single is the common one);',
-			'4) where they are up to with planning — explain the choice plainly: they still need planning permission, OR planning is already approved and they now need "building regulations" drawings (the technical drawings a builder builds from), OR it is a large / full-service project;',
-			'5) IF they still need planning permission: would they like us to submit and manage the council application for them, or will they do that part themselves;',
-			'6) IF planning is already approved: would they like an optional simple 3D visual to help picture the design;',
-			'7) IF the property is in London or within the M25: would they like us to visit the property in person;',
-			'8) do they already have a "measured survey" — explain it\'s an accurate set of drawings of the property as it exists today, which we need before designing — or should we arrange one;',
-			'9) will the work involve structural changes (removing walls, adding steel beams) — reassure "No / not sure" is fine;',
-			'10) their rough timeframe;',
-			'11) finally, the best email address to send their quote to — and their name. Frame it warmly: you would like to EMAIL them a copy of this fixed-price quote so they have it to keep, and it is how the team will confirm details and get back to them. This is how Your Architect contacts them, so an email really is needed — do NOT call it optional. Reassure them it is only ever used for their quote and their project, never marketing. If they hesitate, briefly explain why it matters and ask once more.',
+			'2) WHICH SERVICE they need — offer the menu above in plain words as tappable options, plus "I\'m not sure / I need advice". Help them pick if unsure. Set the `service` field. ' . $advice,
+			'3) briefly, what the work physically is (a rear/side extension, loft, garage, outbuilding, internal work, a new home) — for our notes; set projectType if clear. Keep it to one light question, do not labour it.',
+			'4) the relevant add-ons for their service (see the add-ons list): for Full planning, whether we submit & manage the application; the optional 3D visualisation; and the site visit ONLY if they are in London / the M25.',
+			'5) "Do you have existing plans of your property drawn up?" — plain words for a measured survey (an accurate set of drawings of the property as it is today, which we need before designing). If YES → survey=false. If NO or "I\'d like the pro to help" → survey=true and reassure: "' . $survey_help . '"',
+			'6) will the work involve structural changes (removing walls, adding steel beams)? Reassure that "No / not sure" is completely fine. If they are unsure, reply: "' . $structural_line . '" and set structural only if you are confident.',
+			'7) their rough timeframe;',
+			'8) finally, the best email address to send their quote to — and their name. Frame it warmly: you would like to EMAIL them a copy of this fixed-price quote so they have it to keep, and it is how the team will confirm details and get back to them. This is how Your Architect contacts them, so an email really is needed — do NOT call it optional. Reassure them it is only ever used for their quote and their project, never marketing. If they hesitate, briefly explain why it matters and ask once more.',
+			'',
+			'IF THEY NEED BUILDING REGULATIONS DRAWINGS, also gently establish (weave in naturally, do not interrogate): do they already have planning permission, or does the work even need it (you can advise); do they have approved planning drawings they could share; do they have a structural engineer already (if not, reassure we can find a trusted independent local one and coordinate); and would they like us to submit the building control pack to their local authority for them.',
 			'',
 			'HARD RULES:',
 			'- NEVER state, estimate or discuss a price, fee or number in your replies. The panel on the right shows every price as it builds. If asked "how much?", say the price is building on the right as they answer.',
 			'- Do NOT give planning or design advice or promise an outcome; you help scope the drawings package only.',
 			'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
-			'- Full RIBA services (concept to construction) or a larger commission are handled directly by Tiam Architects: set package to "riba" and point them to info@tiamarchitects.com at the end.',
+			'- New dwellings and full RIBA services (concept to construction) or larger commissions are handled directly by Tiam Architects: set the `service` to "newdwelling" if that is what they want, and point them to ' . $riba . ' at the end.',
 			'',
-			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, a free description, name or email). MAPPING: still need planning permission = package "planning"; planning already approved / needs building regs = package "buildingregs"; full RIBA or larger commission = package "riba". submitApp=true only if they want us to submit/manage the planning application. concept=true only for the 3D visual add-on on a building-regs project (the planning package already includes a 3D concept). siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging. done=true ONLY once you have captured a valid email address to reach them on (their name too if given) — never before.',
+			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, a free description, name or email). submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have captured a valid email address to reach them on (their name too if given) — never before.',
 		);
 
 		$known = self::address_knowledge( $state );
@@ -117,6 +158,7 @@ class YAA_Archie {
 
 	/** The single field-extraction tool (now also carries the tappable `replies`). */
 	private static function tools() {
+		$service_keys = array_keys( YAA_Pricing::services() );
 		return array(
 			array(
 				'name'         => 'set_fields',
@@ -125,14 +167,14 @@ class YAA_Archie {
 					'type'       => 'object',
 					'properties' => array(
 						'address'     => array( 'type' => 'string' ),
-						'package'     => array( 'type' => 'string', 'enum' => array( 'planning', 'buildingregs', 'riba' ) ),
-						'projectType' => array( 'type' => 'string', 'enum' => array( 'extension', 'loft', 'garage', 'outbuilding', 'internal', 'newdwelling' ) ),
+						'service'     => array( 'type' => 'string', 'enum' => $service_keys, 'description' => 'the base service the homeowner needs, chosen from the service menu' ),
+						'projectType' => array( 'type' => 'string', 'enum' => array( 'extension', 'loft', 'garage', 'outbuilding', 'internal', 'newdwelling' ), 'description' => 'optional context — what the work physically is' ),
 						'storeys'     => array( 'type' => 'string', 'description' => 'for a rear/side extension: single, two, or unsure' ),
-						'submitApp'   => array( 'type' => 'boolean', 'description' => 'true if they want us to submit & manage the planning application' ),
-						'concept'     => array( 'type' => 'boolean', 'description' => 'true for an optional 3D concept visual add-on on a building-regs project' ),
+						'submitApp'   => array( 'type' => 'boolean', 'description' => 'true if they want us to submit & manage the planning application (planning service only)' ),
+						'concept'     => array( 'type' => 'boolean', 'description' => 'true if they want the optional 3D visualisation add-on' ),
 						'siteVisit'   => array( 'type' => 'boolean', 'description' => 'true if they want a London / within-M25 site visit' ),
-						'survey'      => array( 'type' => 'boolean', 'description' => 'true if a measured survey needs arranging (they do NOT already have drawings)' ),
-						'structural'  => array( 'type' => 'boolean' ),
+						'survey'      => array( 'type' => 'boolean', 'description' => 'true if a measured survey needs arranging (they do NOT already have existing plans drawn up)' ),
+						'structural'  => array( 'type' => 'boolean', 'description' => 'true if the work involves structural changes / needs a structural engineer' ),
 						'timeframe'   => array( 'type' => 'string' ),
 						'name'        => array( 'type' => 'string' ),
 						'email'       => array( 'type' => 'string' ),
@@ -149,7 +191,7 @@ class YAA_Archie {
 	}
 
 	/** Fields the tool may write into state (`replies` is deliberately excluded — it drives the UI, not the record). */
-	private static $allowed = array( 'address', 'package', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
+	private static $allowed = array( 'address', 'service', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
 
 	/**
 	 * Run one conversational turn.
@@ -267,37 +309,50 @@ class YAA_Archie {
 	 * @return string[] short tappable labels (sent verbatim as the user's answer).
 	 */
 	public static function suggested_options( array $s ) {
-		$pkg      = isset( $s['package'] ) ? $s['package'] : '';
-		$priced   = ( $pkg && 'riba' !== $pkg );
+		$service  = isset( $s['service'] ) ? (string) $s['service'] : '';
+		$services = YAA_Pricing::services();
+		$svc      = ( $service && isset( $services[ $service ] ) ) ? $services[ $service ] : null;
+		$priced   = ( $svc && empty( $svc['redirect'] ) && null !== $svc['price'] && '' !== $svc['price'] );
 		$has      = function ( $k ) use ( $s ) {
 			return array_key_exists( $k, $s );
 		};
 
+		// 1) Which service? — labels straight from the editable menu, plus an advice path.
+		if ( ! $svc ) {
+			$opts = array();
+			foreach ( $services as $svc_row ) {
+				$opts[] = $svc_row['label'];
+			}
+			$opts[] = 'I\'m not sure — I need advice';
+			return array_slice( $opts, 0, 9 );
+		}
+
+		if ( ! $priced ) {
+			return array(); // priced-on-request (e.g. new dwelling) → Archie hands off, free text.
+		}
+
+		// 2) Light project-type context.
 		if ( ! $has( 'projectType' ) || '' === $s['projectType'] ) {
-			return array( 'Rear or side extension', 'Loft or mansard conversion', 'Garage conversion', 'Garden room / outbuilding', 'Internal alterations', 'A brand-new home', 'Something else' );
+			return array( 'Rear or side extension', 'Loft or mansard conversion', 'Garage conversion', 'Garden room / outbuilding', 'Internal alterations', 'Something else' );
 		}
-		if ( 'extension' === $s['projectType'] && ( ! $has( 'storeys' ) || '' === $s['storeys'] ) ) {
-			return array( 'Single storey', 'Two storey', 'Not sure yet' );
-		}
-		if ( ! $pkg ) {
-			return array( 'I still need planning permission', 'Planning is already approved', 'It\'s a bigger project', 'I\'m not sure what this means' );
-		}
-		if ( 'planning' === $pkg && ! $has( 'submitApp' ) ) {
+		// 3) Add-ons.
+		if ( 'planning' === $service && ! $has( 'submitApp' ) ) {
 			return array( 'Please submit & manage it for me', 'I\'ll submit it myself' );
 		}
-		if ( 'buildingregs' === $pkg && ! $has( 'concept' ) ) {
-			return array( 'Yes, add a 3D visual', 'No thanks' );
+		if ( ! $has( 'concept' ) ) {
+			return array( 'Yes, add a 3D visualisation', 'No thanks', 'What\'s that?' );
 		}
-		if ( $priced && ! empty( $s['london'] ) && ! $has( 'siteVisit' ) ) {
+		if ( ! empty( $s['london'] ) && ! $has( 'siteVisit' ) ) {
 			return array( 'Yes, please visit', 'No need' );
 		}
-		if ( $priced && ! $has( 'survey' ) ) {
-			return array( 'I already have measured drawings', 'I\'ll need a survey', 'What\'s a measured survey?' );
+		// 4) Existing plans (measured survey), structural, timeframe.
+		if ( ! $has( 'survey' ) ) {
+			return array( 'Yes, I have plans drawn up', 'No — please help with a survey', 'What\'s a measured survey?' );
 		}
-		if ( $priced && ! $has( 'structural' ) ) {
+		if ( ! $has( 'structural' ) ) {
 			return array( 'Yes', 'No / not sure' );
 		}
-		if ( $priced && ( ! $has( 'timeframe' ) || '' === $s['timeframe'] ) ) {
+		if ( ! $has( 'timeframe' ) || '' === $s['timeframe'] ) {
 			return array( 'Next few weeks', 'A few months', 'Just planning ahead' );
 		}
 		return array(); // name / email → free text.
@@ -319,34 +374,31 @@ class YAA_Archie {
 			'internal'    => 'Internal alterations',
 			'newdwelling' => 'New dwelling',
 		);
-		$packages = array(
-			'planning'     => 'Still needs planning permission',
-			'buildingregs' => 'Planning approved — needs building regs',
-			'riba'         => 'Full RIBA / larger commission',
-		);
-		$storeys = array( 'single' => 'Single storey', 'two' => 'Two storey', 'unsure' => 'Not sure yet' );
+		$storeys  = array( 'single' => 'Single storey', 'two' => 'Two storey', 'unsure' => 'Not sure yet' );
+		$services = YAA_Pricing::table()['services'];
 
-		$pkg      = isset( $s['package'] ) ? $s['package'] : '';
-		$is_priced = ( $pkg && 'riba' !== $pkg );
-		$yn       = function ( $k ) use ( $s ) {
+		$service   = isset( $s['service'] ) ? (string) $s['service'] : '';
+		$svc       = ( $service && isset( $services[ $service ] ) ) ? $services[ $service ] : null;
+		$is_priced = ( $svc && empty( $svc['redirect'] ) && null !== $svc['price'] && '' !== $svc['price'] );
+		$yn        = function ( $k ) use ( $s ) {
 			return array( isset( $s[ $k ] ), ! empty( $s[ $k ] ) ? 'Yes' : 'No' );
 		};
 
 		// [ label, value|null, applies ]
 		$rows = array();
 		$rows[] = array( 'Property address', isset( $s['postcode'] ) ? $s['postcode'] : null, true );
-		$rows[] = array( 'What they want to do', isset( $s['projectType'], $types[ $s['projectType'] ] ) ? $types[ $s['projectType'] ] : null, true );
+		$rows[] = array( 'Service needed', $svc ? $svc['label'] : null, true );
+		$rows[] = array( 'What the work is', isset( $s['projectType'], $types[ $s['projectType'] ] ) ? $types[ $s['projectType'] ] : null, true );
 		if ( isset( $s['projectType'] ) && 'extension' === $s['projectType'] ) {
 			$rows[] = array( 'Storeys', isset( $s['storeys'], $storeys[ $s['storeys'] ] ) ? $storeys[ $s['storeys'] ] : null, true );
 		}
-		$rows[] = array( 'Planning status', ( $pkg && isset( $packages[ $pkg ] ) ) ? $packages[ $pkg ] : null, true );
-		if ( 'planning' === $pkg ) {
+		if ( 'planning' === $service ) {
 			list( $ans, $val ) = $yn( 'submitApp' );
 			$rows[] = array( 'We submit & manage the application', $ans ? $val : null, true );
 		}
-		if ( 'buildingregs' === $pkg ) {
-			list( $ans, $val ) = $yn( 'concept' );
-			$rows[] = array( '3D concept add-on', $ans ? $val : null, true );
+		if ( $is_priced ) {
+			list( $ansc, $valc ) = $yn( 'concept' );
+			$rows[] = array( '3D visualisation add-on', $ansc ? $valc : null, true );
 		}
 		if ( $is_priced && ! empty( $s['london'] ) ) {
 			list( $ans, $val ) = $yn( 'siteVisit' );
