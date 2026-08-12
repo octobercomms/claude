@@ -115,6 +115,25 @@ index 0000000..2c4193b
 +);
 +
 +CREATE INDEX IF NOT EXISTS idx_ai_drafts_user_status ON ai_drafts(user_id, status);
+diff --git a/backend/migrations/0039_task_completions.sql b/backend/migrations/0039_task_completions.sql
+new file mode 100644
+index 0000000..9b01e43
+--- /dev/null
++++ b/backend/migrations/0039_task_completions.sql
+@@ -0,0 +1,13 @@
++-- Remembers which source emails the user has already actioned (an AI task they ticked
++-- off, or a completed task that got cleared), keyed by the email's Message-ID. The
++-- refresh skips regenerating a task for any email in here — otherwise a task the user
++-- crossed off would reappear the next day simply because its email is still sitting in
++-- the folder. A new reply in the thread is a different Message-ID, so it still produces
++-- a fresh task.
++
++CREATE TABLE IF NOT EXISTS task_completions (
++  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
++  message_id  TEXT NOT NULL,
++  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++  PRIMARY KEY (user_id, message_id)
++);
 diff --git a/backend/src/index.js b/backend/src/index.js
 index 483dcfa..53e2162 100644
 --- a/backend/src/index.js
@@ -780,10 +799,10 @@ index 0000000..c22c0d8
 +export default router;
 diff --git a/backend/src/routes/tasks.js b/backend/src/routes/tasks.js
 new file mode 100644
-index 0000000..3ff8f30
+index 0000000..5cbba96
 --- /dev/null
 +++ b/backend/src/routes/tasks.js
-@@ -0,0 +1,205 @@
+@@ -0,0 +1,213 @@
 +import { Router } from 'express';
 +import { query } from '../services/db.js';
 +import { requireAuth } from '../middleware/auth.js';
@@ -857,8 +876,16 @@ index 0000000..3ff8f30
 +  res.json({ ok: true });
 +});
 +
-+// Clear completed tasks (headings are never removed).
++// Clear completed tasks (headings are never removed). Remembers the source email of any
++// AI task first, so a cleared task isn't regenerated from its still-in-folder email.
 +router.post('/tasks/clear-done', requireAuth, async (req, res) => {
++  await query(
++    `INSERT INTO task_completions (user_id, message_id)
++       SELECT user_id, source_ref FROM tasks
++        WHERE user_id = $1 AND source = 'ai' AND kind = 'task' AND done = true AND source_ref IS NOT NULL
++     ON CONFLICT (user_id, message_id) DO NOTHING`,
++    [uid(req)]
++  );
 +  const r = await query("DELETE FROM tasks WHERE user_id = $1 AND kind = 'task' AND done = true", [uid(req)]);
 +  res.json({ ok: true, removed: r.rowCount });
 +});
@@ -2616,10 +2643,10 @@ index 0000000..fbdc812
 +}
 diff --git a/backend/src/services/taskRefresh.js b/backend/src/services/taskRefresh.js
 new file mode 100644
-index 0000000..0c87b24
+index 0000000..d06f3a6
 --- /dev/null
 +++ b/backend/src/services/taskRefresh.js
-@@ -0,0 +1,218 @@
+@@ -0,0 +1,234 @@
 +import { query } from './db.js';
 +import { imapManager } from '../index.js';
 +import { generateFolderTasks, loadAiConfig, loadLegendText, parseLegend } from './taskGenerator.js';
@@ -2698,7 +2725,8 @@ index 0000000..0c87b24
 +  const prefRow = await query('SELECT preferences FROM users WHERE id = $1', [userId]);
 +  const sources = prefRow.rows[0]?.preferences?.taskSources || {};
 +  const ownerNames = prefRow.rows[0]?.preferences?.ownerNames || '';
-+  const accts = await query('SELECT * FROM email_accounts WHERE user_id = $1 AND enabled = true', [userId]);
++  // Ordered by the user's account order so task sections mirror the sidebar.
++  const accts = await query('SELECT * FROM email_accounts WHERE user_id = $1 AND enabled = true ORDER BY sort_order NULLS LAST, email_address', [userId]);
 +
 +  const jobs = [];
 +  for (const a of accts.rows) {
@@ -2739,6 +2767,21 @@ index 0000000..0c87b24
 +    rebuilt = true;
 +  }
 +
++  // Completed items: remember the source email of every AI task the user has ticked off
++  // (so it's never regenerated), then remove those done tasks. Without this, a task you
++  // crossed off reappears next day because its email is still in the folder.
++  await query(
++    `INSERT INTO task_completions (user_id, message_id)
++       SELECT user_id, source_ref FROM tasks
++        WHERE user_id = $1 AND source = 'ai' AND done = true AND source_ref IS NOT NULL
++     ON CONFLICT (user_id, message_id) DO NOTHING`,
++    [userId]
++  );
++  await query("DELETE FROM tasks WHERE user_id = $1 AND source = 'ai' AND kind = 'task' AND done = true", [userId]);
++  const completedRefs = new Set(
++    (await query('SELECT message_id FROM task_completions WHERE user_id = $1', [userId])).rows.map(r => r.message_id)
++  );
++
 +  const existing = (await query(
 +    `SELECT id, kind, text, done, position, source, source_ref
 +       FROM tasks WHERE user_id = $1 ORDER BY position ASC, created_at ASC`,
@@ -2768,7 +2811,7 @@ index 0000000..0c87b24
 +  generated.sort((a, b) => RANK[a.priority] - RANK[b.priority]);
 +  const newByAccount = new Map();   // acctKey -> { display, clients: Map(clientKey -> { display, tasks }) }
 +  for (const g of generated) {
-+    if (!g.messageId || trackedRefs.has(g.messageId)) continue;
++    if (!g.messageId || trackedRefs.has(g.messageId) || completedRefs.has(g.messageId)) continue;
 +    trackedRefs.add(g.messageId);
 +    const acctDisplay = g.account || 'Mail';
 +    const aKey = norm(acctDisplay);
@@ -7664,10 +7707,10 @@ index 0000000..4551729
 +}
 diff --git a/frontend/src/components/TasksView.jsx b/frontend/src/components/TasksView.jsx
 new file mode 100644
-index 0000000..03c4783
+index 0000000..45327d8
 --- /dev/null
 +++ b/frontend/src/components/TasksView.jsx
-@@ -0,0 +1,746 @@
+@@ -0,0 +1,767 @@
 +// Native task list — a restricted Notion-style outline: two block kinds, "heading"
 +// (a client/section) and "task" (a checkbox item). Type straight into it: Enter makes
 +// a new task, Backspace on an empty block removes it, the checkbox ticks a task off.
@@ -7693,6 +7736,7 @@ index 0000000..03c4783
 +  const [brief, setBrief] = useState(null);   // { text, date, stale } | null
 +  const [briefBusy, setBriefBusy] = useState(false);
 +  const [briefOpen, setBriefOpen] = useState(true);
++  const [copied, setCopied] = useState(false);
 +  const [assist, setAssist] = useState({});   // taskId -> { loading, text, error }
 +  const [research, setResearch] = useState({}); // taskId -> { loading, answer, sources, webVerified, error }
 +  const [canResearch, setCanResearch] = useState(false);
@@ -7727,6 +7771,23 @@ index 0000000..03c4783
 +    } catch (e) {
 +      setResearch(r => ({ ...r, [b.id]: { error: e.message || 'Research failed' } }));
 +    }
++  };
++
++  // Serialize the whole grouped list to Markdown (account → client → checkbox tasks)
++  // for pasting into Notion. `- [ ]` / `- [x]` become Notion to-dos.
++  const copyAll = async () => {
++    const lines = [];
++    for (const b of blocks) {
++      if (b.kind === 'account') lines.push(`\n## ${b.text || 'Mail'}`);
++      else if (b.kind === 'heading') lines.push(`\n### ${b.text || ''}`);
++      else lines.push(`- [${b.done ? 'x' : ' '}] ${b.text || ''}`);
++    }
++    const md = lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
++    try {
++      await navigator.clipboard.writeText(md);
++      setCopied(true);
++      setTimeout(() => setCopied(false), 1500);
++    } catch { setError(t('tasksView.copyFailed', { defaultValue: 'Copy failed — check clipboard permissions.' })); }
 +  };
 +
 +  const briefMe = async () => {
@@ -8155,6 +8216,9 @@ index 0000000..03c4783
 +      <button onClick={clearDone} style={btnStyle(false)}>
 +        {t('tasksView.clearDone', { defaultValue: 'Clear completed' })}
 +      </button>
++      <button onClick={copyAll} style={btnStyle(false)} title={t('tasksView.copyAllHint', { defaultValue: 'Copy the whole list as Markdown (for Notion)' })}>
++        {copied ? t('tasksView.copied', { defaultValue: 'Copied ✓' }) : t('tasksView.copyAll', { defaultValue: 'Copy all' })}
++      </button>
 +      <button onClick={() => setShowSettings(true)} style={btnStyle(false)} title={t('tasksView.settings', { defaultValue: 'Accounts, folders & clients' })}>
 +        {t('tasksView.settingsBtn', { defaultValue: 'Settings' })}
 +      </button>
@@ -8415,15 +8479,15 @@ index 0000000..03c4783
 +  flexShrink: 0, padding: 0, lineHeight: 1, transition: 'background 0.12s, color 0.12s',
 +};
 diff --git a/frontend/src/themes.js b/frontend/src/themes.js
-index 8583eff..58bd99c 100644
+index 8583eff..8615cb2 100644
 --- a/frontend/src/themes.js
 +++ b/frontend/src/themes.js
-@@ -1,4 +1,29 @@
+@@ -1,4 +1,35 @@
  export const THEMES = {
 +  october: {
 +    label: 'October',
 +    description: 'October brand — light & gold',
-+    preview: ['#ffffff', '#f5f4ef', '#e7cd41', '#000000'],
++    preview: ['#ffffff', '#f5f4ef', '#a67c00', '#000000'],
 +    vars: {
 +      '--bg-primary': '#ffffff',
 +      '--bg-secondary': '#ffffff',
@@ -8435,10 +8499,16 @@ index 8583eff..58bd99c 100644
 +      '--text-primary': '#000000',
 +      '--text-secondary': '#55524a',
 +      '--text-tertiary': '#8a877d',
-+      '--accent': '#e7cd41',
++      // A deeper gold than the bright brand mark: the accent is used both as a fill
++      // (buttons, with dark text) AND as a foreground colour on white (icons, links,
++      // active states, unread dots) in ~360 places. Bright #e7cd41 is unreadable as
++      // foreground on white (~1.4:1); this deeper gold reads ~3.9:1 on white and still
++      // carries dark text at ~4.4:1 — legible in both roles. The bright brand gold lives
++      // on in the logo/favicon (separate assets), so the identity is unchanged.
++      '--accent': '#a67c00',
 +      '--accent-text': '#1a1a1a',
-+      '--accent-dim': '#f7edb5',
-+      '--accent-glow': 'rgba(231,205,65,0.22)',
++      '--accent-dim': '#f6ecc2',
++      '--accent-glow': 'rgba(166,124,0,0.20)',
 +      '--green': '#2f9e44',
 +      '--red': '#e03131',
 +      '--amber': '#d9a520',
@@ -8448,7 +8518,7 @@ index 8583eff..58bd99c 100644
    dark: {
      label: 'Dark',
      description: 'Default dark theme',
-@@ -549,10 +574,9 @@ function darken(hex, t) {
+@@ -549,10 +580,9 @@ function darken(hex, t) {
  }
  
  function buildFaviconSvg(accent, count = 0) {
@@ -8462,7 +8532,7 @@ index 8583eff..58bd99c 100644
    let badge = '';
    if (count > 0) {
      const label = count > 99 ? '99+' : String(count);
-@@ -565,28 +589,14 @@ function buildFaviconSvg(accent, count = 0) {
+@@ -565,28 +595,14 @@ function buildFaviconSvg(accent, count = 0) {
              `fill="white" font-family="system-ui,sans-serif" font-weight="800" font-size="${fs}">${label}</text>`;
    }
  
@@ -8499,7 +8569,7 @@ index 8583eff..58bd99c 100644
    ${badge}
  </svg>`;
  }
-@@ -649,10 +659,9 @@ export function applyCustomCss(css) {
+@@ -649,10 +665,9 @@ export function applyCustomCss(css) {
  // login screen and the very first visit. Honors the OS light/dark setting and
  // falls back to dark. matchMedia is guarded so a missing API never throws.
  export function getInitialTheme() {
@@ -8513,12 +8583,12 @@ index 8583eff..58bd99c 100644
  }
  
  // ── Effective accent (theme value, or a custom-CSS override of --accent) ───────
-@@ -660,7 +669,7 @@ export function getInitialTheme() {
+@@ -660,7 +675,7 @@ export function getInitialTheme() {
  // The accent actually in effect. A custom-CSS override of --accent wins over the
  // theme's declared value, so JS-driven chrome (favicon, PWA theme-color, the logo
  // mark) reads the *computed* value to match what var(--accent) resolves to in CSS.
 -export function getEffectiveAccent(fallback = '#7c6af7') {
-+export function getEffectiveAccent(fallback = '#e7cd41') {
++export function getEffectiveAccent(fallback = '#a67c00') {
    try {
      const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
      return v || fallback;
