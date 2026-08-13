@@ -58,6 +58,7 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
   const startedRef = useRef(0);
   const tickRef = useRef(null);
   const livePreviewRef = useRef(null);
+  const liveStreamRef = useRef(null);  // the stream to show in the live preview
   const rafRef = useRef(null);        // camera-composite draw loop
   const pausedMsRef = useRef(0);       // total paused time
   const pauseStartRef = useRef(0);
@@ -83,6 +84,15 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
     } catch (err) { toast('Update failed: ' + (err?.message || ''), 'error'); }
   }
   useEffect(() => () => stopAllTracks(), []);
+
+  // Attach the live stream once the recording preview <video> is mounted.
+  useEffect(() => {
+    if (phase === 'recording' && livePreviewRef.current && liveStreamRef.current) {
+      livePreviewRef.current.srcObject = liveStreamRef.current;
+      livePreviewRef.current.muted = true;
+      livePreviewRef.current.play().catch(() => {});
+    }
+  }, [phase]);
 
   function stopAllTracks() {
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
@@ -161,7 +171,10 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
       // If the user stops sharing via the browser's own bar, end cleanly.
       display.getVideoTracks()[0].addEventListener('ended', () => { if (recorderRef.current && recorderRef.current.state !== 'inactive') stopRecording(); });
 
-      if (livePreviewRef.current) { livePreviewRef.current.srcObject = stream; livePreviewRef.current.muted = true; livePreviewRef.current.play().catch(() => {}); }
+      // Stash the stream; the preview <video> only mounts once phase flips to
+      // 'recording', so an effect attaches it then (setting it here finds a
+      // null ref and leaves the preview black).
+      liveStreamRef.current = stream;
 
       chunksRef.current = [];
       const rec = new MediaRecorder(stream, { mimeType: mime });
@@ -351,7 +364,7 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
                   {paused ? 'Paused' : 'Recording'} {fmtDur(elapsed)}
                 </span>
               </div>
-              <video ref={livePreviewRef} style={{ width: '100%', maxHeight: 320, background: '#000', borderRadius: 'var(--r-md)' }} />
+              <video ref={livePreviewRef} autoPlay muted playsInline style={{ width: '100%', maxHeight: 320, background: '#000', borderRadius: 'var(--r-md)' }} />
               <div className="row" style={{ marginTop: 12, gap: 10 }}>
                 <button onClick={togglePause}
                   style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
