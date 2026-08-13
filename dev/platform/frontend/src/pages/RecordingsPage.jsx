@@ -137,6 +137,11 @@ export default function RecordingsPage() {
     }
   }
 
+  async function transcribeOne(rec) {
+    try { await api.post(`/recordings/${rec.id}/transcribe`); toast('Transcribing… refresh in a moment'); }
+    catch (err) { toast('Transcription failed: ' + (err?.message || ''), 'error'); }
+  }
+
   async function copyLink(rec) {
     const link = window.location.origin + rec.share_path;
     try { await navigator.clipboard.writeText(link); toast('Share link copied'); }
@@ -325,6 +330,10 @@ export default function RecordingsPage() {
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontWeight: 600, textDecoration: 'none', color: 'var(--text)' }}>Open</a>
                 <button onClick={() => copyLink(r)}
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Copy link</button>
+                {!r.has_transcript && (
+                  <button onClick={() => transcribeOne(r)} title="Generate a transcript"
+                    style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Transcribe</button>
+                )}
                 <button onClick={() => remove(r)}
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--negative)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
               </div>

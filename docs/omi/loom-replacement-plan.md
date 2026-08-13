@@ -112,6 +112,25 @@ player, title, transcript toggle, and the view ping.
 3. **R2 + transcripts** — flip `MEDIA_STORE=r2` once the bucket is live; wire the
    Whisper transcript into the watch page.
 
+## Transcripts (Phase 3b — shipped)
+
+Recordings are transcribed automatically after upload/import by a self-contained
+backend path (`services/recordingTranscribe.js`): pull the stored file → extract
+a small mono 16 kHz mp3 with **ffmpeg** → OpenAI **Whisper** → store on
+`recordings.transcript` (the watch page already shows it). It's fired
+fire-and-forget from the upload/import routes and **no-ops cleanly** if the
+prerequisites aren't present. A `POST /recordings/:id/transcribe` endpoint (and a
+per-row "Transcribe" button) lets you retry or backfill migrated videos.
+
+**Two backend prerequisites for transcripts to populate:**
+
+- `OPENAI_API_KEY` set in the backend env (same key the video worker uses).
+- `ffmpeg` installed on the app server (`apt-get install -y ffmpeg`). Without it,
+  only recordings already under 25 MB can be transcribed (the raw file is sent
+  directly); longer ones are skipped. With it, any length works.
+
+Recordings still function fully without either — transcripts just stay empty.
+
 ## Out of scope (v1)
 
 Threaded comments, emoji reactions, in-browser trim/edit, workspaces/folders,

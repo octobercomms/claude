@@ -11,6 +11,7 @@ const { authenticate } = require('../middleware/auth');
 const pool = require('../db');
 const mediaStore = require('../services/mediaStore');
 const loomFetch = require('../services/loomFetch');
+const transcribe = require('../services/recordingTranscribe');
 
 const router = express.Router();
 router.use(authenticate);
@@ -92,6 +93,8 @@ router.post('/:id/finalize', express.json(), async (req, res) => {
       [duration, req.params.id, req.user?.id || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
+    // Kick transcription in the background (no-ops without OPENAI_API_KEY).
+    transcribe.transcribeInBackground(rows[0].id);
     res.json(present(rows[0]));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -131,6 +134,15 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Transcribe on demand (retry, or backfill a migrated video) ────────────────
+router.post('/:id/transcribe', async (req, res) => {
+  if (!transcribe.enabled) return res.status(503).json({ error: 'Transcription is not configured (no OPENAI_API_KEY).' });
+  const { rows } = await pool.query('SELECT id FROM recordings WHERE id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
+  transcribe.transcribeInBackground(req.params.id);
+  res.json({ ok: true, queued: true });
 });
 
 // ── Bulk delete (clear out migrated / dead recordings) ────────────────────────
@@ -186,6 +198,7 @@ router.post('/import', upload.single('file'), async (req, res) => {
     const key = mediaStore.keyFor(rec.id, mime);
     await mediaStore.saveBuffer(key, req.file.buffer, mime);
     await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, rec.id]);
+    transcribe.transcribeInBackground(rec.id);
     res.json(present({ ...rec, storage_key: key }));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -227,6 +240,7 @@ router.post('/import-loom', express.json(), async (req, res) => {
         const key = mediaStore.keyFor(recId, v.mime);
         await mediaStore.saveBuffer(key, v.buffer, v.mime);
         await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, recId]);
+        transcribe.transcribeInBackground(recId);
         results.push({ url, ok: true, id: recId, title, share_path: `/share/${v.loomId}` });
       } catch (err) {
         results.push({ url, ok: false, error: err.message || 'Import failed.' });

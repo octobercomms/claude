@@ -70,6 +70,9 @@ const disk = {
     return { stream, size, start, end };
   },
   async signedGetUrl() { return null; }, // disk streams locally — no external URL
+  async getBuffer(key) {
+    return fs.promises.readFile(diskPath(key));
+  },
   async remove(key) {
     try { await fs.promises.unlink(diskPath(key)); } catch { /* already gone */ }
   },
@@ -123,6 +126,10 @@ const r2 = {
   async signedGetUrl(key, ttlSec = 3600) {
     return getSignedUrl(s3(), new GetObjectCommand({ Bucket: bucket(), Key: key }), { expiresIn: ttlSec });
   },
+  async getBuffer(key) {
+    const out = await s3().send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
+    return Buffer.from(await out.Body.transformToByteArray());
+  },
   async remove(key) {
     try { await s3().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key })); } catch { /* already gone */ }
   },
@@ -143,5 +150,6 @@ module.exports = {
   saveBuffer: (...a) => active.saveBuffer(...a),
   openRead: (...a) => active.openRead(...a),
   signedGetUrl: (...a) => active.signedGetUrl(...a),
+  getBuffer: (...a) => active.getBuffer(...a),
   remove: (...a) => active.remove(...a),
 };
