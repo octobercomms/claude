@@ -31,6 +31,7 @@ export default function RecordingsPage() {
   const [elapsed, setElapsed] = useState(0);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [title, setTitle] = useState('');
+  const [selected, setSelected] = useState(() => new Set());
 
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -144,10 +145,26 @@ export default function RecordingsPage() {
     catch (err) { toast('Delete failed: ' + (err?.message || ''), 'error'); }
   }
 
+  function toggleSelect(id) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  async function bulkDelete() {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!window.confirm(`Delete ${ids.length} recording${ids.length === 1 ? '' : 's'}? This can’t be undone.`)) return;
+    try {
+      const r = await api.post('/recordings/bulk-delete', { ids });
+      setSelected(new Set());
+      load();
+      toast(`Deleted ${r?.deleted ?? ids.length}`);
+    } catch (err) { toast('Bulk delete failed: ' + (err?.message || ''), 'error'); }
+  }
+
   return (
     <div>
-      <div className="kicker"><span className="pip" /><span>Record</span></div>
-      <header className="hero"><div><h1 className="display mt-2">Recordings</h1>
+      <div className="kicker"><span className="pip" /><span>Video</span></div>
+      <header className="hero"><div><h1 className="display mt-2">Video</h1>
         <p className="body text-subtle" style={{ maxWidth: 560, marginTop: 8 }}>
           Record a screen walkthrough with your voice, get a share link, and see who watched — in-house, no Loom.
         </p></div></header>
@@ -214,19 +231,31 @@ export default function RecordingsPage() {
         </div>
       )}
 
-      <h2 className="h5" style={{ marginTop: 28, marginBottom: 12 }}>My recordings</h2>
+      <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: 28, marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <h2 className="h5" style={{ margin: 0 }}>My recordings</h2>
+        {selected.size > 0 && (
+          <button onClick={bulkDelete}
+            style={{ padding: '7px 16px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--negative)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            Delete selected ({selected.size})
+          </button>
+        )}
+      </div>
       {list === null ? (
         <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>
       ) : list.length === 0 ? (
         <div className="text-subtle" style={{ padding: 20 }}>No recordings yet — hit Start recording above.</div>
       ) : (
         <div className="grid" style={{ gap: 10 }}>
-          {list.map(r => (
-            <div key={r.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          {list.map(r => {
+            const views = (r.view_count || 0) + (r.imported_views || 0);
+            return (
+            <div key={r.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', outline: selected.has(r.id) ? '2px solid var(--accent)' : 'none' }}>
+              <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Select ${r.title}`} />
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontWeight: 700 }}>{r.title}</div>
                 <div className="body-sm text-subtle" style={{ marginTop: 3 }}>
-                  {fmtDate(r.created_at)} · {fmtDur(r.duration_s)} · {r.view_count || 0} view{(r.view_count || 0) === 1 ? '' : 's'}
+                  {fmtDate(r.created_at)} · {fmtDur(r.duration_s)} · {views} view{views === 1 ? '' : 's'}
+                  {r.imported_views ? ` (${r.imported_views} from Loom)` : ''}
                   {r.size_bytes ? ' · ' + fmtSize(r.size_bytes) : ''}
                   {r.status !== 'ready' ? ` · ${r.status}` : ''}
                 </div>
@@ -240,7 +269,8 @@ export default function RecordingsPage() {
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--negative)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
