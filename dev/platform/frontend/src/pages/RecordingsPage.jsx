@@ -32,6 +32,10 @@ export default function RecordingsPage() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [title, setTitle] = useState('');
   const [selected, setSelected] = useState(() => new Set());
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState(null);
 
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -145,6 +149,25 @@ export default function RecordingsPage() {
     catch (err) { toast('Delete failed: ' + (err?.message || ''), 'error'); }
   }
 
+  async function runLoomImport() {
+    const items = importText.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+      const [url, views, date] = line.split(',').map(s => (s || '').trim());
+      return { url, views: views || undefined, date: date || undefined };
+    }).filter(it => /loom\.com\/(share|embed)\//.test(it.url));
+    if (!items.length) { toast('Paste at least one Loom share link', 'error'); return; }
+    if (items.length > 20) { toast('Up to 20 links per batch — paste the rest after', 'error'); return; }
+    setImporting(true); setImportResults(null);
+    try {
+      const r = await api.post('/recordings/import-loom', { items });
+      const results = r?.results || [];
+      setImportResults(results);
+      const ok = results.filter(x => x.ok).length;
+      toast(`Imported ${ok} of ${items.length}${ok < items.length ? ' — see results' : ''}`);
+      load();
+    } catch (err) { toast('Import failed: ' + (err?.message || ''), 'error'); }
+    finally { setImporting(false); }
+  }
+
   function toggleSelect(id) {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
@@ -230,6 +253,43 @@ export default function RecordingsPage() {
           )}
         </div>
       )}
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <button onClick={() => setImportOpen(o => !o)}
+          style={{ background: 'transparent', border: 'none', padding: 0, font: 'inherit', fontWeight: 700, cursor: 'pointer', color: 'var(--text)' }}>
+          {importOpen ? '−' : '+'} Import from Loom
+        </button>
+        {importOpen && (
+          <div style={{ marginTop: 12 }}>
+            <p className="body-sm text-subtle" style={{ margin: '0 0 8px' }}>
+              Paste Loom share links, one per line. Optionally add prior view count and original date, comma-separated:
+              <br /><code>https://www.loom.com/share/abc123, 42, 2025-03-14</code>
+            </p>
+            <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={5} disabled={importing}
+              placeholder="https://www.loom.com/share/…&#10;https://www.loom.com/share/…, 128, 2024-11-02"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'monospace', resize: 'vertical' }} />
+            <div className="row" style={{ gap: 10, alignItems: 'center', marginTop: 10 }}>
+              <button onClick={runLoomImport} disabled={importing}
+                style={{ padding: '9px 20px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 800, fontSize: 14, cursor: importing ? 'default' : 'pointer', opacity: importing ? 0.6 : 1 }}>
+                {importing ? 'Importing…' : 'Import'}
+              </button>
+              <span className="body-sm text-subtle">Up to 20 per batch. Keeps the original Loom link as the share ID.</span>
+            </div>
+            <p className="body-sm text-subtle" style={{ margin: '10px 0 0' }}>
+              Best-effort — only works for videos with sharing/downloads enabled. Anything that can’t be pulled will show below; download those from Loom and re-add later.
+            </p>
+            {importResults && (
+              <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+                {importResults.map((r, i) => (
+                  <div key={i} className="body-sm" style={{ color: r.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                    {r.ok ? '✓' : '✕'} {r.url}{r.ok ? '' : ` — ${r.error}`}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: 28, marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <h2 className="h5" style={{ margin: 0 }}>My recordings</h2>
