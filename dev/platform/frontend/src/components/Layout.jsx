@@ -120,10 +120,9 @@ export default function Layout() {
                 {(!readOnly || user?.can_use_visualise) && (
                   <NavLink to={`/clients/${clientId}/visualise`} style={({ isActive }) => subLinkStyle(isActive)}>Visualise</NavLink>
                 )}
-                {/* Edit — guided video editor (trim / clean audio / captions). Agency-only. */}
-                {!readOnly && (
-                  <NavLink to={`/clients/${clientId}/edit`} style={({ isActive }) => subLinkStyle(isActive)}>Edit</NavLink>
-                )}
+                {/* Video — record, this client's library, and the editor in one
+                    place. Visible to clients too (they see their videos, view-only). */}
+                <NavLink to={`/clients/${clientId}/video`} style={({ isActive }) => subLinkStyle(isActive)}>Video</NavLink>
                 {/* Admin (connectors, strategy config, reports setup) is agency-only. */}
                 {!readOnly && (
                   <NavLink to={`/clients/${clientId}?tab=setup_overview`} style={subLinkStyle(!!clientMatch && ['setup_overview', 'strategy', 'details', 'brand', 'connectors', 'reports'].includes(currentTab))}>Admin</NavLink>
