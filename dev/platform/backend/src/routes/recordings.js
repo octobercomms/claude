@@ -10,6 +10,7 @@ const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
 const pool = require('../db');
 const mediaStore = require('../services/mediaStore');
+const loomFetch = require('../services/loomFetch');
 
 const router = express.Router();
 router.use(authenticate);
@@ -186,6 +187,52 @@ router.post('/import', upload.single('file'), async (req, res) => {
     await mediaStore.saveBuffer(key, req.file.buffer, mime);
     await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, rec.id]);
     res.json(present({ ...rec, storage_key: key }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Import from Loom by share link (best-effort auto-fetch) ───────────────────
+// Body: { items: [{ url, views?, date?, title? }] }. For each link OMI fetches
+// the video + title from Loom, stores it, and creates a recording whose share id
+// IS the Loom id (so the old /share/<id> link maps across). Per-item results are
+// returned so links that can't be pulled (private/downloads-off) can fall back
+// to a manual upload. Sequential + capped: this is a one-time migration, not a
+// hot path, and each item downloads then re-uploads a whole video.
+router.post('/import-loom', express.json(), async (req, res) => {
+  try {
+    const items = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 20);
+    if (!items.length) return res.status(400).json({ error: 'No links provided (max 20 per batch).' });
+
+    const results = [];
+    for (const it of items) {
+      const url = String(it?.url || '').trim();
+      try {
+        const v = await loomFetch.fetchLoomVideo(url);
+        // The Loom id is the share id — skip if we already imported it.
+        const exists = await pool.query('SELECT id FROM recordings WHERE public_token = $1', [v.loomId]);
+        if (exists.rows.length) { results.push({ url, ok: false, error: 'Already imported.' }); continue; }
+
+        const createdAt = it.date && !isNaN(Date.parse(it.date)) ? new Date(it.date) : new Date();
+        const views = Math.max(0, parseInt(it.views, 10) || 0);
+        const title = String(it.title || v.title || 'Imported from Loom').slice(0, 200);
+
+        const ins = await pool.query(
+          `INSERT INTO recordings
+             (created_by, title, mime, public_token, status, source, source_url, imported_views, size_bytes, created_at)
+           VALUES ($1,$2,$3,$4,'ready','loom_import',$5,$6,$7,$8) RETURNING id`,
+          [req.user?.id || null, title, v.mime, v.loomId, url, views, v.buffer.length, createdAt]
+        );
+        const recId = ins.rows[0].id;
+        const key = mediaStore.keyFor(recId, v.mime);
+        await mediaStore.saveBuffer(key, v.buffer, v.mime);
+        await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, recId]);
+        results.push({ url, ok: true, id: recId, title, share_path: `/share/${v.loomId}` });
+      } catch (err) {
+        results.push({ url, ok: false, error: err.message || 'Import failed.' });
+      }
+    }
+    res.json({ results });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
