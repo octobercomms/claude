@@ -143,10 +143,10 @@ export default function Layout() {
               <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}>Settings</NavLink>
             </li>
           )}
-          {/* Record — in-house screen recorder (Loom replacement). Agency-only. */}
+          {/* Video — in-house screen recorder + library (Loom replacement). Agency-only. */}
           {!readOnly && (
             <li>
-              <NavLink to="/recordings" style={({ isActive }) => linkStyle(isActive)}>Record</NavLink>
+              <NavLink to="/video" style={({ isActive }) => linkStyle(isActive)}>Video</NavLink>
             </li>
           )}
           <li>

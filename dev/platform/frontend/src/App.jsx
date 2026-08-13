@@ -75,6 +75,8 @@ export default function App() {
           <Route path="/approve/:token" element={<ApprovePage />} />
           <Route path="/coverage/:token" element={<PublicCoveragePage />} />
           <Route path="/press-release/:token" element={<PressReviewPage />} />
+          {/* /share is the Loom-parity public link; /watch kept as an alias. */}
+          <Route path="/share/:token" element={<WatchPage />} />
           <Route path="/watch/:token" element={<WatchPage />} />
           <Route path="/set-password/:token" element={<SetPasswordPage />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
@@ -97,7 +99,8 @@ export default function App() {
             <Route path="media" element={<Navigate to="/settings?tab=publications" replace />} />
             <Route path="media/journalist/:id" element={<JournalistProfilePage />} />
             <Route path="media/outlet/:id" element={<OutletProfilePage />} />
-            <Route path="recordings" element={<RecordingsPage />} />
+            <Route path="video" element={<RecordingsPage />} />
+            <Route path="recordings" element={<Navigate to="/video" replace />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="leads" element={<LeadsPage />} />

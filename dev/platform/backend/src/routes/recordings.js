@@ -34,7 +34,9 @@ function present(r, views) {
     status: r.status,
     has_transcript: !!r.transcript,
     public_token: r.public_token,
-    share_path: `/watch/${r.public_token}`,
+    share_path: `/share/${r.public_token}`,
+    imported_views: r.imported_views || 0,
+    source: r.source || 'recorder',
     created_at: r.created_at,
     ...(views !== undefined ? views : {}),
   };
@@ -57,7 +59,7 @@ router.post('/', express.json(), async (req, res) => {
     const rec = rows[0];
     const key = mediaStore.keyFor(rec.id, mime);
     await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, rec.id]);
-    res.json({ id: rec.id, upload: mediaStore.uploadDescriptor(key, mime), share_path: `/watch/${token}` });
+    res.json({ id: rec.id, upload: mediaStore.uploadDescriptor(key, mime), share_path: `/share/${token}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -125,6 +127,65 @@ router.get('/:id', async (req, res) => {
       `SELECT COUNT(*)::int AS view_count, COALESCE(MAX(watch_seconds),0)::int AS max_watch_seconds
          FROM recording_views WHERE recording_id = $1`, [req.params.id]);
     res.json({ ...present(rows[0], vrows[0]), transcript: rows[0].transcript || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Bulk delete (clear out migrated / dead recordings) ────────────────────────
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+router.post('/bulk-delete', express.json(), async (req, res) => {
+  try {
+    const ids = (Array.isArray(req.body?.ids) ? req.body.ids : [])
+      .map(String).filter(id => UUID_RE.test(id));
+    if (!ids.length) return res.status(400).json({ error: 'No valid ids' });
+    const { rows } = await pool.query(
+      `DELETE FROM recordings WHERE id = ANY($1::uuid[]) AND created_by IS NOT DISTINCT FROM $2 RETURNING storage_key`,
+      [ids, req.user?.id || null]
+    );
+    await Promise.all(rows.filter(r => r.storage_key).map(r => mediaStore.remove(r.storage_key).catch(() => {})));
+    res.json({ ok: true, deleted: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Import an existing video (e.g. migrated from Loom) ────────────────────────
+// A file plus metadata. share_id (the original Loom id) becomes the public_token
+// so the /share/<id> URL matches the old Loom link; created_at preserves the
+// original date; imported_views seeds the analytics baseline (prior Loom views).
+router.post('/import', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const b = req.body || {};
+    const title = String(b.title || 'Imported recording').slice(0, 200);
+    const mime = (req.file.mimetype || '').startsWith('video/') ? req.file.mimetype : 'video/mp4';
+    const importedViews = Math.max(0, parseInt(b.imported_views, 10) || 0);
+    const sourceUrl = b.source_url ? String(b.source_url).slice(0, 500) : null;
+    const createdAt = b.created_at && !isNaN(Date.parse(b.created_at)) ? new Date(b.created_at) : new Date();
+
+    // Preferred share id = the original Loom id, so the old link maps across.
+    // Must be URL-safe and unused; otherwise fall back to a random token so an
+    // import never collides or fails silently.
+    let token = String(b.share_id || '').trim();
+    if (!/^[A-Za-z0-9_-]{6,64}$/.test(token)) {
+      token = newToken();
+    } else {
+      const clash = await pool.query('SELECT 1 FROM recordings WHERE public_token = $1', [token]);
+      if (clash.rows.length) token = newToken();
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO recordings
+         (created_by, title, mime, public_token, status, source, source_url, imported_views, size_bytes, created_at)
+       VALUES ($1,$2,$3,$4,'ready','loom_import',$5,$6,$7,$8) RETURNING *`,
+      [req.user?.id || null, title, mime, token, sourceUrl, importedViews, req.file.size, createdAt]
+    );
+    const rec = rows[0];
+    const key = mediaStore.keyFor(rec.id, mime);
+    await mediaStore.saveBuffer(key, req.file.buffer, mime);
+    await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, rec.id]);
+    res.json(present({ ...rec, storage_key: key }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
