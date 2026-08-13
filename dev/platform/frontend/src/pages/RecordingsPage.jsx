@@ -33,7 +33,9 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
   const [list, setList] = useState(null);
   const [supported] = useState(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && typeof MediaRecorder !== 'undefined');
   const [withMic, setWithMic] = useState(true);
+  const [withCam, setWithCam] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | recording | preview | saving
+  const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [title, setTitle] = useState('');
@@ -56,6 +58,10 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
   const startedRef = useRef(0);
   const tickRef = useRef(null);
   const livePreviewRef = useRef(null);
+  const rafRef = useRef(null);        // camera-composite draw loop
+  const pausedMsRef = useRef(0);       // total paused time
+  const pauseStartRef = useRef(0);
+  const pausedRef = useRef(false);
 
   const load = () => api.get(clientId ? `/recordings?client_id=${clientId}` : '/recordings').then(setList).catch(() => setList([]));
   useEffect(() => { load(); }, [clientId]);
@@ -80,8 +86,43 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
 
   function stopAllTracks() {
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
     streamsRef.current.forEach(s => s.getTracks().forEach(t => t.stop()));
     streamsRef.current = [];
+  }
+
+  // Composite the screen + a circular camera bubble (bottom-left, Loom-style)
+  // onto a canvas and return its captured video track. Runs a draw loop until
+  // stopAllTracks cancels it.
+  function makeCameraComposite(display, camStream) {
+    const settings = display.getVideoTracks()[0].getSettings();
+    const w = settings.width || 1280, h = settings.height || 720;
+    const screenVideo = document.createElement('video');
+    screenVideo.srcObject = display; screenVideo.muted = true; screenVideo.play().catch(() => {});
+    const camVideo = document.createElement('video');
+    camVideo.srcObject = camStream; camVideo.muted = true; camVideo.play().catch(() => {});
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    const d = Math.round(Math.min(w, h) * 0.24);      // bubble diameter
+    const pad = Math.round(d * 0.16);
+    const bx = pad, by = h - d - pad;                 // bottom-left
+    const draw = () => {
+      try {
+        ctx.drawImage(screenVideo, 0, 0, w, h);
+        const sw = camVideo.videoWidth || 640, sh = camVideo.videoHeight || 480;
+        const side = Math.min(sw, sh);
+        ctx.save();
+        ctx.beginPath(); ctx.arc(bx + d / 2, by + d / 2, d / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+        ctx.drawImage(camVideo, (sw - side) / 2, (sh - side) / 2, side, side, bx, by, d, d);
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(bx + d / 2, by + d / 2, d / 2, 0, Math.PI * 2);
+        ctx.lineWidth = Math.max(2, d * 0.02); ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.stroke();
+      } catch { /* a frame not ready yet */ }
+      rafRef.current = requestAnimationFrame(draw);
+    };
+    draw();
+    return canvas.captureStream(30).getVideoTracks()[0];
   }
 
   async function startRecording() {
@@ -90,10 +131,7 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
     try {
       const display = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true });
       streamsRef.current.push(display);
-      const tracks = [...display.getVideoTracks()];
-      // Screen audio (if the user shared a tab with audio) plus their mic, so a
-      // narrated walkthrough captures the voice. Most browsers record only the
-      // first audio track, so prefer the mic when present.
+
       let micStream = null;
       if (withMic) {
         try {
@@ -101,12 +139,27 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
           streamsRef.current.push(micStream);
         } catch { /* no mic / denied — carry on with screen audio only */ }
       }
+      let camStream = null;
+      if (withCam) {
+        try {
+          camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+          streamsRef.current.push(camStream);
+        } catch { toast('Couldn’t access the camera — recording screen only.', 'error'); }
+      }
+
+      // Video track: the composited canvas (screen + camera bubble) when the
+      // camera is on, otherwise the raw screen track.
+      const videoTrack = (camStream && camStream.getVideoTracks().length)
+        ? makeCameraComposite(display, camStream)
+        : display.getVideoTracks()[0];
+      const tracks = [videoTrack];
+      // Prefer the mic audio (most browsers record only the first audio track).
       const audio = (micStream && micStream.getAudioTracks()[0]) || display.getAudioTracks()[0];
       if (audio) tracks.push(audio);
       const stream = new MediaStream(tracks);
 
       // If the user stops sharing via the browser's own bar, end cleanly.
-      display.getVideoTracks()[0].addEventListener('ended', () => { if (phase === 'recording') stopRecording(); });
+      display.getVideoTracks()[0].addEventListener('ended', () => { if (recorderRef.current && recorderRef.current.state !== 'inactive') stopRecording(); });
 
       if (livePreviewRef.current) { livePreviewRef.current.srcObject = stream; livePreviewRef.current.muted = true; livePreviewRef.current.play().catch(() => {}); }
 
@@ -116,7 +169,7 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
       rec.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
         blobRef.current = blob;
-        durationRef.current = (Date.now() - startedRef.current) / 1000;
+        durationRef.current = Math.max(0, (Date.now() - startedRef.current - pausedMsRef.current) / 1000);
         setPreviewUrl(URL.createObjectURL(blob));
         setPhase('preview');
         stopAllTracks();
@@ -124,8 +177,11 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
       recorderRef.current = rec;
       rec.start();
       startedRef.current = Date.now();
+      pausedMsRef.current = 0; pauseStartRef.current = 0; pausedRef.current = false; setPaused(false);
       setElapsed(0);
-      tickRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startedRef.current) / 1000)), 500);
+      tickRef.current = setInterval(() => {
+        if (!pausedRef.current) setElapsed(Math.floor((Date.now() - startedRef.current - pausedMsRef.current) / 1000));
+      }, 500);
       setPhase('recording');
     } catch (err) {
       stopAllTracks();
@@ -134,7 +190,20 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
     }
   }
 
+  function togglePause() {
+    const rec = recorderRef.current;
+    if (!rec) return;
+    if (rec.state === 'recording') {
+      rec.pause(); pausedRef.current = true; pauseStartRef.current = Date.now(); setPaused(true);
+    } else if (rec.state === 'paused') {
+      pausedMsRef.current += Date.now() - pauseStartRef.current;
+      rec.resume(); pausedRef.current = false; setPaused(false);
+    }
+  }
+
   function stopRecording() {
+    // If stopped while paused, close out the final pause segment first.
+    if (pausedRef.current && pauseStartRef.current) { pausedMsRef.current += Date.now() - pauseStartRef.current; pausedRef.current = false; }
     try { recorderRef.current && recorderRef.current.state !== 'inactive' && recorderRef.current.stop(); }
     catch { /* already stopped */ }
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
@@ -256,9 +325,13 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
         <div className="card" style={{ marginTop: 16 }}>
           {phase === 'idle' && (
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 14 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 10 }}>
                 <input type="checkbox" checked={withMic} onChange={e => setWithMic(e.target.checked)} />
                 Record my microphone (narration)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 14 }}>
+                <input type="checkbox" checked={withCam} onChange={e => setWithCam(e.target.checked)} />
+                Show my camera (a circle in the corner)
               </label>
               <button onClick={startRecording}
                 style={{ padding: '11px 24px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
@@ -273,13 +346,17 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
           {phase === 'recording' && (
             <div>
               <div className="row" style={{ alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--negative)' }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--negative)', display: 'inline-block', animation: 'pulse 1.2s infinite' }} />
-                  Recording {fmtDur(elapsed)}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, color: paused ? 'var(--text-subtle)' : 'var(--negative)' }}>
+                  <span style={{ width: 12, height: 12, borderRadius: paused ? 2 : '50%', background: paused ? 'var(--text-subtle)' : 'var(--negative)', display: 'inline-block', animation: paused ? 'none' : 'pulse 1.2s infinite' }} />
+                  {paused ? 'Paused' : 'Recording'} {fmtDur(elapsed)}
                 </span>
               </div>
               <video ref={livePreviewRef} style={{ width: '100%', maxHeight: 320, background: '#000', borderRadius: 'var(--r-md)' }} />
-              <div style={{ marginTop: 12 }}>
+              <div className="row" style={{ marginTop: 12, gap: 10 }}>
+                <button onClick={togglePause}
+                  style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+                  {paused ? '▶ Resume' : '❚❚ Pause'}
+                </button>
                 <button onClick={stopRecording}
                   style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--text)', color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
                   ■ Stop
