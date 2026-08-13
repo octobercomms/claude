@@ -30,7 +30,6 @@ import OutletProfilePage from './pages/OutletProfilePage';
 import ContactCleanupPage from './pages/ContactCleanupPage';
 import PublicCoveragePage from './pages/PublicCoveragePage';
 import PressReviewPage from './pages/PressReviewPage';
-import RecordingsPage from './pages/RecordingsPage';
 import WatchPage from './pages/WatchPage';
 import ClientVideoTab from './pages/ClientVideoTab';
 
@@ -99,8 +98,10 @@ export default function App() {
             <Route path="media" element={<Navigate to="/settings?tab=publications" replace />} />
             <Route path="media/journalist/:id" element={<JournalistProfilePage />} />
             <Route path="media/outlet/:id" element={<OutletProfilePage />} />
-            <Route path="video" element={<RecordingsPage />} />
-            <Route path="recordings" element={<Navigate to="/video" replace />} />
+            {/* Video is client-scoped now (Workspace → Video); the old global
+                page is gone. Bounce any stale links to the dashboard. */}
+            <Route path="video" element={<Navigate to="/dashboard" replace />} />
+            <Route path="recordings" element={<Navigate to="/dashboard" replace />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="leads" element={<LeadsPage />} />
