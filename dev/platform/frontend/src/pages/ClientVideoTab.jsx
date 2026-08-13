@@ -31,7 +31,7 @@ export default function ClientVideoTab() {
         ...(readOnly ? [] : [{ key: 'edit', label: 'Edit', fn: 'create', active: tab === 'edit', onClick: () => setTab('edit') }]),
       ]} />
 
-      {tab === 'library' && <RecordingsPage embedded clientId={id} />}
+      {tab === 'library' && <RecordingsPage embedded clientId={id} onSendToEdit={() => setTab('edit')} />}
       {tab === 'edit' && !readOnly && <ClientEditPage embedded clientId={id} />}
     </div>
   );

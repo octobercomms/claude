@@ -23,7 +23,7 @@ function pickMime() {
   return opts.find(m => MediaRecorder.isTypeSupported(m)) || null;
 }
 
-export default function RecordingsPage({ embedded = false, clientId = null } = {}) {
+export default function RecordingsPage({ embedded = false, clientId = null, onSendToEdit } = {}) {
   const toast = useToast();
   const { readOnly } = useAuth();
   // When scoped to a client, the library shows that client's videos and new
@@ -250,6 +250,15 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
   async function transcribeOne(rec) {
     try { await api.post(`/recordings/${rec.id}/transcribe`); toast('Transcribing… refresh in a moment'); }
     catch (err) { toast('Transcription failed: ' + (err?.message || ''), 'error'); }
+  }
+
+  async function sendToEdit(rec) {
+    if (!clientId) return;
+    try {
+      await api.post(`/edit/clients/${clientId}/edit/from-recording`, { recording_id: rec.id });
+      toast('Sent to Edit');
+      if (onSendToEdit) onSendToEdit();
+    } catch (err) { toast('Send to Edit failed: ' + (err?.message || ''), 'error'); }
   }
 
   async function copyLink(rec) {
@@ -524,6 +533,10 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontWeight: 600, textDecoration: 'none', color: 'var(--text)' }}>Open</a>
                 <button onClick={() => copyLink(r)}
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Copy link</button>
+                {canEdit && clientId && r.status === 'ready' && (
+                  <button onClick={() => sendToEdit(r)} title="Trim / caption this in the editor"
+                    style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Send to Edit</button>
+                )}
                 {canEdit && !r.has_transcript && (
                   <button onClick={() => transcribeOne(r)} title="Generate a transcript"
                     style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Transcribe</button>

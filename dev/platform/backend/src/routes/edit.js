@@ -11,6 +11,8 @@ const { loadVisibleClientIds, requireClientAccess } = require('../middleware/cli
 const editJobs = require('../services/editJobs');
 const editProcessor = require('../services/editProcessor');
 const stillsReel = require('../services/stillsReel');
+const pool = require('../db');
+const mediaStore = require('../services/mediaStore');
 
 const router = express.Router();
 
@@ -83,6 +85,36 @@ router.post('/clients/:clientId/edit', requireClientAccess({ paramNames: ['clien
     res.status(201).json(job);
   } catch (err) {
     console.error('[edit] create failed:', err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// Send an existing recording (from the Video library) into the editor as a
+// draft job — no re-upload. Copies the recording's stored file into the client's
+// edit dir and creates a draft the user then configures (trim/captions/etc).
+router.post('/clients/:clientId/edit/from-recording', requireClientAccess({ paramNames: ['clientId'] }), express.json(), async (req, res) => {
+  try {
+    const recId = req.body?.recording_id;
+    if (!recId) return res.status(400).json({ error: 'recording_id required' });
+    const { rows } = await pool.query(
+      'SELECT id, title, storage_key, mime, duration_s FROM recordings WHERE id = $1', [recId]);
+    const rec = rows[0];
+    if (!rec || !rec.storage_key) return res.status(404).json({ error: 'Recording not found' });
+
+    const buf = await mediaStore.getBuffer(rec.storage_key);
+    const ext = rec.mime === 'video/webm' ? '.webm' : '.mp4';
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+    await fs.promises.writeFile(path.join(editJobs.clientDir(req.params.clientId), filename), buf);
+
+    const clips = [{ url: editJobs.servedUrl(req.params.clientId, filename), name: rec.title || 'Recording' }];
+    const job = await editJobs.create(req.params.clientId, {
+      sourceName: rec.title || 'Recording', sourceUrl: clips[0].url,
+      sourceMeta: { duration: rec.duration_s || null, from_recording: rec.id },
+      ops: {}, clips, name: rec.title || null, status: 'draft', createdBy: req.user.id,
+    });
+    res.status(201).json(job);
+  } catch (err) {
+    console.error('[edit] from-recording failed:', err.message);
     res.status(err.status || 500).json({ error: err.message });
   }
 });
