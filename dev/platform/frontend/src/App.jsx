@@ -18,7 +18,6 @@ import ClientAudiencesPage from './pages/ClientAudiencesPage';
 import ClientAIVisibilityPage from './pages/ClientAIVisibilityPage';
 import ClientBrandPage from './pages/ClientBrandPage';
 import ClientVisualisePage from './pages/ClientVisualisePage';
-import ClientEditPage from './pages/ClientEditPage';
 import ApprovePage from './pages/ApprovePage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import GuidePage from './pages/GuidePage';
@@ -33,6 +32,7 @@ import PublicCoveragePage from './pages/PublicCoveragePage';
 import PressReviewPage from './pages/PressReviewPage';
 import RecordingsPage from './pages/RecordingsPage';
 import WatchPage from './pages/WatchPage';
+import ClientVideoTab from './pages/ClientVideoTab';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -46,10 +46,10 @@ function HomeRoute() {
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <HomePage />;
 }
 
-// Video studio moved into Social → Create → Video; keep the old URL working.
-function VideoRedirect() {
+// Edit folded into the client Video tab; keep the old URL working.
+function EditRedirect() {
   const { id } = useParams();
-  return <Navigate to={`/clients/${id}/social?tab=video`} replace />;
+  return <Navigate to={`/clients/${id}/video?tab=edit`} replace />;
 }
 
 // Email/Outreach moved into Owned → Email; keep the old URL working.
@@ -89,12 +89,12 @@ export default function App() {
             <Route path="clients/:id/outreach" element={<OutreachRedirect />} />
             <Route path="clients/:id/sales-traffic" element={<ClientSalesTrafficPage />} />
             <Route path="clients/:id/social" element={<ClientSocialPage />} />
-            <Route path="clients/:id/video" element={<VideoRedirect />} />
+            <Route path="clients/:id/video" element={<ClientVideoTab />} />
             <Route path="clients/:id/audiences" element={<ClientAudiencesPage />} />
             <Route path="clients/:id/ai-visibility" element={<ClientAIVisibilityPage />} />
             <Route path="clients/:id/brand" element={<ClientBrandPage />} />
             <Route path="clients/:id/visualise" element={<ClientVisualisePage />} />
-            <Route path="clients/:id/edit" element={<ClientEditPage />} />
+            <Route path="clients/:id/edit" element={<EditRedirect />} />
             <Route path="clients/:id/pr" element={<ClientPRPage />} />
             <Route path="media" element={<Navigate to="/settings?tab=publications" replace />} />
             <Route path="media/journalist/:id" element={<JournalistProfilePage />} />

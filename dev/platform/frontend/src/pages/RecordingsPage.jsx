@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 // In-OMI screen recorder (internal Loom replacement). Record a screen
 // walkthrough with your voice, save it, and share the /watch/:token link.
@@ -22,8 +23,13 @@ function pickMime() {
   return opts.find(m => MediaRecorder.isTypeSupported(m)) || null;
 }
 
-export default function RecordingsPage() {
+export default function RecordingsPage({ embedded = false, clientId = null } = {}) {
   const toast = useToast();
+  const { readOnly } = useAuth();
+  // When scoped to a client, the library shows that client's videos and new
+  // recordings are auto-attached to them. Read-only client logins get a
+  // view-only library (no recorder, import, delete or attach).
+  const canEdit = !readOnly;
   const [list, setList] = useState(null);
   const [supported] = useState(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && typeof MediaRecorder !== 'undefined');
   const [withMic, setWithMic] = useState(true);
@@ -48,9 +54,9 @@ export default function RecordingsPage() {
   const tickRef = useRef(null);
   const livePreviewRef = useRef(null);
 
-  const load = () => api.get('/recordings').then(setList).catch(() => setList([]));
-  useEffect(() => { load(); }, []);
-  useEffect(() => { api.get('/clients').then(setClients).catch(() => setClients([])); }, []);
+  const load = () => api.get(clientId ? `/recordings?client_id=${clientId}` : '/recordings').then(setList).catch(() => setList([]));
+  useEffect(() => { load(); }, [clientId]);
+  useEffect(() => { if (canEdit) api.get('/clients').then(setClients).catch(() => setClients([])); }, [canEdit]);
 
   const clientName = id => (clients.find(c => c.id === id)?.name) || 'Client';
 
@@ -140,7 +146,7 @@ export default function RecordingsPage() {
     if (!blobRef.current) return;
     setPhase('saving');
     try {
-      const created = await api.post('/recordings', { title: title.trim() || 'Untitled recording', mime: 'video/webm' });
+      const created = await api.post('/recordings', { title: title.trim() || 'Untitled recording', mime: 'video/webm', client_id: clientId || undefined });
       const fd = new FormData();
       fd.append('file', blobRef.current, 'recording.webm');
       await api.postForm(created.upload.path, fd);
@@ -210,13 +216,15 @@ export default function RecordingsPage() {
 
   return (
     <div>
+      {!embedded && (<>
       <div className="kicker"><span className="pip" /><span>Video</span></div>
       <header className="hero"><div><h1 className="display mt-2">Video</h1>
         <p className="body text-subtle" style={{ maxWidth: 560, marginTop: 8 }}>
           Record a screen walkthrough with your voice, get a share link, and see who watched — in-house, no Loom.
         </p></div></header>
+      </>)}
 
-      {!supported ? (
+      {canEdit && (!supported ? (
         <div className="card" style={{ marginTop: 16, color: 'var(--negative)' }}>
           Screen recording needs a Chromium browser (Chrome or Edge) on desktop. This browser doesn’t support it.
         </div>
@@ -276,8 +284,9 @@ export default function RecordingsPage() {
             </div>
           )}
         </div>
-      )}
+      ))}
 
+      {canEdit && (
       <div className="card" style={{ marginTop: 16 }}>
         <button onClick={() => setImportOpen(o => !o)}
           style={{ background: 'transparent', border: 'none', padding: 0, font: 'inherit', fontWeight: 700, cursor: 'pointer', color: 'var(--text)' }}>
@@ -314,10 +323,11 @@ export default function RecordingsPage() {
           </div>
         )}
       </div>
+      )}
 
-      <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: 28, marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <h2 className="h5" style={{ margin: 0 }}>My recordings</h2>
-        {selected.size > 0 && (
+      <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: embedded ? 16 : 28, marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <h2 className="h5" style={{ margin: 0 }}>{clientId ? 'Videos' : 'My recordings'}</h2>
+        {canEdit && selected.size > 0 && (
           <button onClick={bulkDelete}
             style={{ padding: '7px 16px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--negative)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             Delete selected ({selected.size})
@@ -327,14 +337,14 @@ export default function RecordingsPage() {
       {list === null ? (
         <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>
       ) : list.length === 0 ? (
-        <div className="text-subtle" style={{ padding: 20 }}>No recordings yet — hit Start recording above.</div>
+        <div className="text-subtle" style={{ padding: 20 }}>{canEdit ? 'No videos yet.' : 'No videos here yet.'}</div>
       ) : (
         <div className="grid" style={{ gap: 10 }}>
           {list.map(r => {
             const views = (r.view_count || 0) + (r.imported_views || 0);
             return (
             <div key={r.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', outline: selected.has(r.id) ? '2px solid var(--accent)' : 'none' }}>
-              <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Select ${r.title}`} />
+              {canEdit && <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Select ${r.title}`} />}
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontWeight: 700 }}>{r.title}</div>
                 <div className="body-sm text-subtle" style={{ marginTop: 3 }}>
@@ -343,6 +353,7 @@ export default function RecordingsPage() {
                   {r.size_bytes ? ' · ' + fmtSize(r.size_bytes) : ''}
                   {r.status !== 'ready' ? ` · ${r.status}` : ''}
                 </div>
+                {canEdit && (
                 <div className="row" style={{ gap: 6, marginTop: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                   {(r.client_ids || []).map(cid => (
                     <span key={cid} style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'var(--accent-tint, rgba(0,0,0,0.06))', border: 'var(--border-w) solid var(--card-border)' }}>{clientName(cid)}</span>
@@ -352,7 +363,8 @@ export default function RecordingsPage() {
                     {(r.client_ids || []).length ? 'Edit clients' : '+ Add to client'}
                   </button>
                 </div>
-                {editClients && editClients.recId === r.id && (
+                )}
+                {canEdit && editClients && editClients.recId === r.id && (
                   <div className="card" style={{ marginTop: 8, padding: 12, maxWidth: 360 }}>
                     <div className="body-sm" style={{ fontWeight: 700, marginBottom: 8 }}>Attach to clients</div>
                     <div style={{ maxHeight: 180, overflowY: 'auto', display: 'grid', gap: 4 }}>
@@ -376,12 +388,14 @@ export default function RecordingsPage() {
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontWeight: 600, textDecoration: 'none', color: 'var(--text)' }}>Open</a>
                 <button onClick={() => copyLink(r)}
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Copy link</button>
-                {!r.has_transcript && (
+                {canEdit && !r.has_transcript && (
                   <button onClick={() => transcribeOne(r)} title="Generate a transcript"
                     style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Transcribe</button>
                 )}
+                {canEdit && (
                 <button onClick={() => remove(r)}
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--negative)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                )}
               </div>
             </div>
             );
