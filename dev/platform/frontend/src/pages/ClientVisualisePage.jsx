@@ -15,27 +15,31 @@ const STATUS = {
   locked: { label: 'Locked', tone: 'var(--positive)' },
 };
 
-export default function ClientVisualisePage() {
-  const { id } = useParams();
+export default function ClientVisualisePage({ embedded = false, clientId: clientIdProp } = {}) {
+  const { id: routeId } = useParams();
+  const id = clientIdProp || routeId;
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') || 'library';
+  // Use a distinct query key when embedded so it doesn't collide with the
+  // parent Produce page's ?tab param.
+  const tabKey = embedded ? 'vtab' : 'tab';
+  const tab = params.get(tabKey) || 'library';
   const projectId = params.get('project');
 
-  const openStudio = (pid) => setParams({ tab: 'studio', project: pid });
-  const openLibrary = () => setParams({ tab: 'library' });
+  const openStudio = (pid) => setParams(prev => { const p = new URLSearchParams(prev); p.set(tabKey, 'studio'); p.set('project', pid); return p; });
+  const openLibrary = () => setParams(prev => { const p = new URLSearchParams(prev); p.set(tabKey, 'library'); p.delete('project'); return p; });
 
   return (
     <div>
-      <div className="kicker"><span className="pip" />Visualise</div>
+      {!embedded && <div className="kicker"><span className="pip" />Visualise</div>}
       {tab === 'studio' && projectId
         ? <Studio clientId={id} projectId={projectId} onBack={openLibrary} />
-        : <Library clientId={id} onOpen={openStudio} />}
+        : <Library clientId={id} onOpen={openStudio} embedded={embedded} />}
     </div>
   );
 }
 
 // ── Library ───────────────────────────────────────────────────────────────────
-function Library({ clientId, onOpen }) {
+function Library({ clientId, onOpen, embedded = false }) {
   const toast = useToast();
   const [projects, setProjects] = useState(null);
   const [presets, setPresets] = useState([]);
@@ -56,6 +60,7 @@ function Library({ clientId, onOpen }) {
 
   return (
     <>
+      {!embedded && (
       <header className="hero">
         <h1 className="display">Visualise</h1>
         <p className="body mt-4" style={{ maxWidth: 640 }}>
@@ -63,6 +68,7 @@ function Library({ clientId, onOpen }) {
           Every project is saved here and reopenable.
         </p>
       </header>
+      )}
 
       <div className="row between center mb-6 wrap" style={{ gap: 12 }}>
         <div className="caption">{projects?.length || 0} project{projects?.length === 1 ? '' : 's'}</div>

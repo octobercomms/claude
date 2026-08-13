@@ -17,7 +17,6 @@ import ClientSocialPage from './pages/ClientSocialPage';
 import ClientAudiencesPage from './pages/ClientAudiencesPage';
 import ClientAIVisibilityPage from './pages/ClientAIVisibilityPage';
 import ClientBrandPage from './pages/ClientBrandPage';
-import ClientVisualisePage from './pages/ClientVisualisePage';
 import ApprovePage from './pages/ApprovePage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import GuidePage from './pages/GuidePage';
@@ -45,10 +44,14 @@ function HomeRoute() {
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <HomePage />;
 }
 
-// Edit folded into the client Video tab; keep the old URL working.
+// Edit + Visualise folded into the client Produce suite; keep old URLs working.
 function EditRedirect() {
   const { id } = useParams();
   return <Navigate to={`/clients/${id}/video?tab=edit`} replace />;
+}
+function VisualiseRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/clients/${id}/video?tab=visualise`} replace />;
 }
 
 // Email/Outreach moved into Owned → Email; keep the old URL working.
@@ -92,7 +95,7 @@ export default function App() {
             <Route path="clients/:id/audiences" element={<ClientAudiencesPage />} />
             <Route path="clients/:id/ai-visibility" element={<ClientAIVisibilityPage />} />
             <Route path="clients/:id/brand" element={<ClientBrandPage />} />
-            <Route path="clients/:id/visualise" element={<ClientVisualisePage />} />
+            <Route path="clients/:id/visualise" element={<VisualiseRedirect />} />
             <Route path="clients/:id/edit" element={<EditRedirect />} />
             <Route path="clients/:id/pr" element={<ClientPRPage />} />
             <Route path="media" element={<Navigate to="/settings?tab=publications" replace />} />
