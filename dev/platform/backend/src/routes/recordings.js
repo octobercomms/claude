@@ -8,6 +8,7 @@ const express = require('express');
 const crypto = require('crypto');
 const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
+const { loadVisibleClientIds, assertClientAccess } = require('../middleware/clientAccess');
 const pool = require('../db');
 const mediaStore = require('../services/mediaStore');
 const loomFetch = require('../services/loomFetch');
@@ -15,6 +16,9 @@ const transcribe = require('../services/recordingTranscribe');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(loadVisibleClientIds);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Recorded blobs are held in memory only long enough to write them to the store.
 // Internal walkthroughs are small; the cap is a guard, not a target.
@@ -39,6 +43,7 @@ function present(r, views) {
     share_path: `/share/${r.public_token}`,
     imported_views: r.imported_views || 0,
     source: r.source || 'recorder',
+    client_ids: Array.isArray(r.client_ids) ? r.client_ids.filter(Boolean) : [],
     created_at: r.created_at,
     ...(views !== undefined ? views : {}),
   };
@@ -51,7 +56,8 @@ router.post('/', express.json(), async (req, res) => {
   try {
     const title = String(req.body?.title || 'Untitled recording').slice(0, 200);
     const mime = String(req.body?.mime || 'video/webm').slice(0, 60);
-    const clientId = req.body?.client_id || null;
+    let clientId = req.body?.client_id || null;
+    if (clientId) assertClientAccess(req, clientId); // can only file under a visible client
     const token = newToken();
     const { rows } = await pool.query(
       `INSERT INTO recordings (created_by, client_id, title, mime, public_token, status)
@@ -59,11 +65,14 @@ router.post('/', express.json(), async (req, res) => {
       [req.user?.id || null, clientId, title, mime, token]
     );
     const rec = rows[0];
+    if (clientId) {
+      await pool.query('INSERT INTO recording_clients (recording_id, client_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [rec.id, clientId]);
+    }
     const key = mediaStore.keyFor(rec.id, mime);
     await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, rec.id]);
     res.json({ id: rec.id, upload: mediaStore.uploadDescriptor(key, mime), share_path: `/share/${token}` });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -101,24 +110,39 @@ router.post('/:id/finalize', express.json(), async (req, res) => {
   }
 });
 
-// ── My recordings library ─────────────────────────────────────────────────────
+// ── Recordings library ────────────────────────────────────────────────────────
+// Default: my own recordings (agency library). With ?client_id=<id>: every
+// recording attached to that client — this is how a client's Video tab (and a
+// read-only client login) sees their videos.
 router.get('/', async (req, res) => {
   try {
+    const clientId = req.query.client_id || null;
+    let where, params;
+    if (clientId) {
+      assertClientAccess(req, clientId);
+      where = `r.id IN (SELECT recording_id FROM recording_clients WHERE client_id = $1)`;
+      params = [clientId];
+    } else {
+      where = `r.created_by IS NOT DISTINCT FROM $1`;
+      params = [req.user?.id || null];
+    }
     const { rows } = await pool.query(
       `SELECT r.*,
-              COUNT(v.id)::int AS view_count,
-              COALESCE(MAX(v.watch_seconds), 0)::int AS max_watch_seconds
+              COUNT(DISTINCT v.id)::int AS view_count,
+              COALESCE(MAX(v.watch_seconds), 0)::int AS max_watch_seconds,
+              COALESCE(ARRAY_AGG(DISTINCT rc.client_id) FILTER (WHERE rc.client_id IS NOT NULL), '{}') AS client_ids
          FROM recordings r
          LEFT JOIN recording_views v ON v.recording_id = r.id
-        WHERE r.created_by IS NOT DISTINCT FROM $1
+         LEFT JOIN recording_clients rc ON rc.recording_id = r.id
+        WHERE ${where}
         GROUP BY r.id
         ORDER BY r.created_at DESC
         LIMIT 200`,
-      [req.user?.id || null]
+      params
     );
     res.json(rows.map(r => present(r, { view_count: r.view_count, max_watch_seconds: r.max_watch_seconds })));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -130,9 +154,38 @@ router.get('/:id', async (req, res) => {
     const { rows: vrows } = await pool.query(
       `SELECT COUNT(*)::int AS view_count, COALESCE(MAX(watch_seconds),0)::int AS max_watch_seconds
          FROM recording_views WHERE recording_id = $1`, [req.params.id]);
-    res.json({ ...present(rows[0], vrows[0]), transcript: rows[0].transcript || null });
+    const { rows: crows } = await pool.query(
+      'SELECT client_id FROM recording_clients WHERE recording_id = $1', [req.params.id]);
+    res.json({ ...present({ ...rows[0], client_ids: crows.map(c => c.client_id) }, vrows[0]), transcript: rows[0].transcript || null });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Attach / move a recording across clients (many-to-many) ───────────────────
+// Replaces the recording's whole client set — covers "add to several clients"
+// and "move from one to another". Only the owner (or an admin) can reassign, and
+// only to clients the caller can see.
+router.put('/:id/clients', express.json(), async (req, res) => {
+  try {
+    const ids = (Array.isArray(req.body?.client_ids) ? req.body.client_ids : [])
+      .map(String).filter(id => UUID_RE.test(id));
+    const owned = await pool.query(
+      'SELECT id FROM recordings WHERE id = $1 AND (created_by IS NOT DISTINCT FROM $2 OR $3)',
+      [req.params.id, req.user?.id || null, req.user?.role === 'admin']
+    );
+    if (!owned.rows.length) return res.status(404).json({ error: 'Recording not found' });
+    for (const cid of ids) assertClientAccess(req, cid);
+
+    await pool.query('DELETE FROM recording_clients WHERE recording_id = $1', [req.params.id]);
+    for (const cid of ids) {
+      await pool.query('INSERT INTO recording_clients (recording_id, client_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.params.id, cid]);
+    }
+    // Keep the legacy single client_id roughly in sync (first attached, or null).
+    await pool.query('UPDATE recordings SET client_id = $1 WHERE id = $2', [ids[0] || null, req.params.id]);
+    res.json({ ok: true, client_ids: ids });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -146,7 +199,6 @@ router.post('/:id/transcribe', async (req, res) => {
 });
 
 // ── Bulk delete (clear out migrated / dead recordings) ────────────────────────
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 router.post('/bulk-delete', express.json(), async (req, res) => {
   try {
     const ids = (Array.isArray(req.body?.ids) ? req.body.ids : [])

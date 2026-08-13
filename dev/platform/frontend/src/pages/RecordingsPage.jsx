@@ -32,6 +32,8 @@ export default function RecordingsPage() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [title, setTitle] = useState('');
   const [selected, setSelected] = useState(() => new Set());
+  const [clients, setClients] = useState([]);
+  const [editClients, setEditClients] = useState(null); // { recId, set:Set }
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importing, setImporting] = useState(false);
@@ -48,6 +50,23 @@ export default function RecordingsPage() {
 
   const load = () => api.get('/recordings').then(setList).catch(() => setList([]));
   useEffect(() => { load(); }, []);
+  useEffect(() => { api.get('/clients').then(setClients).catch(() => setClients([])); }, []);
+
+  const clientName = id => (clients.find(c => c.id === id)?.name) || 'Client';
+
+  function openClientEditor(r) { setEditClients({ recId: r.id, set: new Set(r.client_ids || []) }); }
+  function toggleClientSel(id) {
+    setEditClients(ec => { const n = new Set(ec.set); n.has(id) ? n.delete(id) : n.add(id); return { ...ec, set: n }; });
+  }
+  async function saveClients() {
+    if (!editClients) return;
+    try {
+      await api.put(`/recordings/${editClients.recId}/clients`, { client_ids: [...editClients.set] });
+      setEditClients(null);
+      load();
+      toast('Updated');
+    } catch (err) { toast('Update failed: ' + (err?.message || ''), 'error'); }
+  }
   useEffect(() => () => stopAllTracks(), []);
 
   function stopAllTracks() {
@@ -324,6 +343,33 @@ export default function RecordingsPage() {
                   {r.size_bytes ? ' · ' + fmtSize(r.size_bytes) : ''}
                   {r.status !== 'ready' ? ` · ${r.status}` : ''}
                 </div>
+                <div className="row" style={{ gap: 6, marginTop: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {(r.client_ids || []).map(cid => (
+                    <span key={cid} style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'var(--accent-tint, rgba(0,0,0,0.06))', border: 'var(--border-w) solid var(--card-border)' }}>{clientName(cid)}</span>
+                  ))}
+                  <button onClick={() => openClientEditor(r)}
+                    style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-pill)', border: '1px dashed var(--card-border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-subtle)' }}>
+                    {(r.client_ids || []).length ? 'Edit clients' : '+ Add to client'}
+                  </button>
+                </div>
+                {editClients && editClients.recId === r.id && (
+                  <div className="card" style={{ marginTop: 8, padding: 12, maxWidth: 360 }}>
+                    <div className="body-sm" style={{ fontWeight: 700, marginBottom: 8 }}>Attach to clients</div>
+                    <div style={{ maxHeight: 180, overflowY: 'auto', display: 'grid', gap: 4 }}>
+                      {clients.map(c => (
+                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                          <input type="checkbox" checked={editClients.set.has(c.id)} onChange={() => toggleClientSel(c.id)} />
+                          {c.name}
+                        </label>
+                      ))}
+                      {!clients.length && <span className="body-sm text-subtle">No clients found.</span>}
+                    </div>
+                    <div className="row" style={{ gap: 8, marginTop: 10 }}>
+                      <button onClick={saveClients} style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Save</button>
+                      <button onClick={() => setEditClients(null)} style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="row" style={{ gap: 8 }}>
                 <a href={r.share_path} target="_blank" rel="noopener noreferrer"
