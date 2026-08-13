@@ -247,13 +247,21 @@ router.post('/import', upload.single('file'), async (req, res) => {
       [req.user?.id || null, title, mime, token, sourceUrl, importedViews, req.file.size, createdAt]
     );
     const rec = rows[0];
+    // Optionally attach to a client (e.g. imported from within a client's Video
+    // tab). Only to a client the caller can see.
+    const clientId = b.client_id || null;
+    if (clientId) {
+      assertClientAccess(req, clientId);
+      await pool.query('INSERT INTO recording_clients (recording_id, client_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [rec.id, clientId]);
+      await pool.query('UPDATE recordings SET client_id = $1 WHERE id = $2', [clientId, rec.id]);
+    }
     const key = mediaStore.keyFor(rec.id, mime);
     await mediaStore.saveBuffer(key, req.file.buffer, mime);
     await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, rec.id]);
     transcribe.transcribeInBackground(rec.id);
     res.json(present({ ...rec, storage_key: key }));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -268,6 +276,8 @@ router.post('/import-loom', express.json(), async (req, res) => {
   try {
     const items = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 20);
     if (!items.length) return res.status(400).json({ error: 'No links provided (max 20 per batch).' });
+    const clientId = req.body?.client_id || null;
+    if (clientId) assertClientAccess(req, clientId);
 
     const results = [];
     for (const it of items) {
@@ -289,6 +299,10 @@ router.post('/import-loom', express.json(), async (req, res) => {
           [req.user?.id || null, title, v.mime, v.loomId, url, views, v.buffer.length, createdAt]
         );
         const recId = ins.rows[0].id;
+        if (clientId) {
+          await pool.query('INSERT INTO recording_clients (recording_id, client_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [recId, clientId]);
+          await pool.query('UPDATE recordings SET client_id = $1 WHERE id = $2', [clientId, recId]);
+        }
         const key = mediaStore.keyFor(recId, v.mime);
         await mediaStore.saveBuffer(key, v.buffer, v.mime);
         await pool.query('UPDATE recordings SET storage_key = $1 WHERE id = $2', [key, recId]);
@@ -300,7 +314,7 @@ router.post('/import-loom', express.json(), async (req, res) => {
     }
     res.json({ results });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
