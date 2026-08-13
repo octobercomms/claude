@@ -31,6 +31,8 @@ import OutletProfilePage from './pages/OutletProfilePage';
 import ContactCleanupPage from './pages/ContactCleanupPage';
 import PublicCoveragePage from './pages/PublicCoveragePage';
 import PressReviewPage from './pages/PressReviewPage';
+import RecordingsPage from './pages/RecordingsPage';
+import WatchPage from './pages/WatchPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -73,6 +75,7 @@ export default function App() {
           <Route path="/approve/:token" element={<ApprovePage />} />
           <Route path="/coverage/:token" element={<PublicCoveragePage />} />
           <Route path="/press-release/:token" element={<PressReviewPage />} />
+          <Route path="/watch/:token" element={<WatchPage />} />
           <Route path="/set-password/:token" element={<SetPasswordPage />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<DashboardPage />} />
@@ -94,6 +97,7 @@ export default function App() {
             <Route path="media" element={<Navigate to="/settings?tab=publications" replace />} />
             <Route path="media/journalist/:id" element={<JournalistProfilePage />} />
             <Route path="media/outlet/:id" element={<OutletProfilePage />} />
+            <Route path="recordings" element={<RecordingsPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="leads" element={<LeadsPage />} />
