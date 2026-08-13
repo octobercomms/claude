@@ -75,21 +75,57 @@ const disk = {
   },
 };
 
-// ── r2 driver (phase 3) ──────────────────────────────────────────────────────
-// Kept as an explicit not-yet-configured stub so the swap is a small, isolated
-// change once the bucket + credentials exist. See the provisioning checklist in
-// docs/omi/loom-replacement-plan.md.
+// ── r2 driver ────────────────────────────────────────────────────────────────
+// Cloudflare R2 via the S3-compatible API. The browser still posts the blob to
+// our own endpoint (uploadDescriptor stays 'app' mode) and we stream it to R2
+// server-side — a presigned direct-to-R2 PUT is a later optimisation that needs
+// bucket CORS. Playback redirects to a short-lived presigned GET so the bytes
+// come straight from R2. See docs/omi/loom-replacement-plan.md.
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
 function r2Configured() {
   return !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID &&
             process.env.R2_SECRET_ACCESS_KEY && process.env.R2_BUCKET);
 }
-const r2NotReady = () => { throw new Error('R2 media store not configured (set R2_* env vars).'); };
+
+let _s3 = null;
+function s3() {
+  if (_s3) return _s3;
+  _s3 = new S3Client({
+    region: 'auto',
+    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    // R2 needs path-style: the wildcard TLS cert (*.r2.cloudflarestorage.com)
+    // only covers one label, so virtual-hosted style
+    // (<bucket>.<account>.r2.cloudflarestorage.com) fails TLS verification.
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    },
+  });
+  return _s3;
+}
+const bucket = () => process.env.R2_BUCKET;
+
 const r2 = {
-  uploadDescriptor: r2NotReady,
-  saveBuffer: r2NotReady,
-  openRead: r2NotReady,
-  signedGetUrl: r2NotReady,
-  remove: r2NotReady,
+  uploadDescriptor(key /*, mime */) {
+    return { mode: 'app', path: `/api/recordings/${encodeURIComponent(key)}/blob` };
+  },
+  async saveBuffer(key, buf, mime) {
+    await s3().send(new PutObjectCommand({
+      Bucket: bucket(), Key: key, Body: buf, ContentType: mime || 'video/webm',
+    }));
+    return { size: buf.length };
+  },
+  // Playback for R2 goes through signedGetUrl → redirect, so openRead isn't hit.
+  async openRead() { throw new Error('openRead is not used for the R2 store (playback redirects to a signed URL).'); },
+  async signedGetUrl(key, ttlSec = 3600) {
+    return getSignedUrl(s3(), new GetObjectCommand({ Bucket: bucket(), Key: key }), { expiresIn: ttlSec });
+  },
+  async remove(key) {
+    try { await s3().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key })); } catch { /* already gone */ }
+  },
 };
 
 // Select the active driver. Fall back to disk if r2 is asked for but not yet

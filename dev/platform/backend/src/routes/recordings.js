@@ -68,10 +68,10 @@ router.post('/', express.json(), async (req, res) => {
 router.post('/:key/blob', upload.single('file'), async (req, res) => {
   try {
     const key = req.params.key;
-    const { rows } = await pool.query('SELECT id FROM recordings WHERE storage_key = $1', [key]);
+    const { rows } = await pool.query('SELECT id, mime FROM recordings WHERE storage_key = $1', [key]);
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
     if (!req.file) return res.status(400).json({ error: 'No file' });
-    await mediaStore.saveBuffer(key, req.file.buffer);
+    await mediaStore.saveBuffer(key, req.file.buffer, rows[0].mime);
     await pool.query('UPDATE recordings SET size_bytes = $1 WHERE id = $2', [req.file.size, rows[0].id]);
     res.json({ ok: true });
   } catch (err) {
