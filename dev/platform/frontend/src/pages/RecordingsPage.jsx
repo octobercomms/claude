@@ -44,6 +44,9 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
   const [importText, setImportText] = useState('');
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState(null);
+  const [fileMeta, setFileMeta] = useState({ title: '', date: '', share_id: '', views: '' });
+  const [fileUploading, setFileUploading] = useState(false);
+  const fileImportRef = useRef(null);
 
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -188,7 +191,7 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
     if (items.length > 20) { toast('Up to 20 links per batch — paste the rest after', 'error'); return; }
     setImporting(true); setImportResults(null);
     try {
-      const r = await api.post('/recordings/import-loom', { items });
+      const r = await api.post('/recordings/import-loom', { items, client_id: clientId || undefined });
       const results = r?.results || [];
       setImportResults(results);
       const ok = results.filter(x => x.ok).length;
@@ -196,6 +199,27 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
       load();
     } catch (err) { toast('Import failed: ' + (err?.message || ''), 'error'); }
     finally { setImporting(false); }
+  }
+
+  async function uploadImport() {
+    const f = fileImportRef.current?.files?.[0];
+    if (!f) { toast('Choose a video file first', 'error'); return; }
+    setFileUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      if (fileMeta.title) fd.append('title', fileMeta.title);
+      if (fileMeta.date) fd.append('created_at', fileMeta.date);
+      if (fileMeta.share_id) fd.append('share_id', fileMeta.share_id);
+      if (fileMeta.views) fd.append('imported_views', fileMeta.views);
+      if (clientId) fd.append('client_id', clientId);
+      await api.postForm('/recordings/import', fd);
+      toast('Uploaded');
+      setFileMeta({ title: '', date: '', share_id: '', views: '' });
+      if (fileImportRef.current) fileImportRef.current.value = '';
+      load();
+    } catch (err) { toast('Upload failed: ' + (err?.message || ''), 'error'); }
+    finally { setFileUploading(false); }
   }
 
   function toggleSelect(id) {
@@ -320,6 +344,28 @@ export default function RecordingsPage({ embedded = false, clientId = null } = {
                 ))}
               </div>
             )}
+
+            <div style={{ marginTop: 18, paddingTop: 16, borderTop: 'var(--border-w) solid var(--card-border)' }}>
+              <div className="body-sm" style={{ fontWeight: 700, marginBottom: 4 }}>Or upload a file</div>
+              <p className="body-sm text-subtle" style={{ margin: '0 0 10px' }}>
+                For anything Loom won’t release: download the MP4 from Loom, then upload it here with its details. This always works.
+              </p>
+              <input ref={fileImportRef} type="file" accept="video/*" disabled={fileUploading} style={{ fontSize: 13 }} />
+              <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <input value={fileMeta.title} onChange={e => setFileMeta(m => ({ ...m, title: e.target.value }))} placeholder="Title"
+                  style={{ flex: '2 1 200px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'inherit' }} />
+                <input value={fileMeta.date} onChange={e => setFileMeta(m => ({ ...m, date: e.target.value }))} type="date" title="Original date"
+                  style={{ flex: '1 1 130px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'inherit' }} />
+                <input value={fileMeta.share_id} onChange={e => setFileMeta(m => ({ ...m, share_id: e.target.value }))} placeholder="Loom ID (optional)"
+                  style={{ flex: '1 1 150px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'inherit' }} />
+                <input value={fileMeta.views} onChange={e => setFileMeta(m => ({ ...m, views: e.target.value }))} type="number" min="0" placeholder="Prior views"
+                  style={{ flex: '1 1 110px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'inherit' }} />
+              </div>
+              <button onClick={uploadImport} disabled={fileUploading}
+                style={{ marginTop: 10, padding: '9px 20px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 14, cursor: fileUploading ? 'default' : 'pointer', opacity: fileUploading ? 0.6 : 1 }}>
+                {fileUploading ? 'Uploading…' : 'Upload video'}
+              </button>
+            </div>
           </div>
         )}
       </div>
