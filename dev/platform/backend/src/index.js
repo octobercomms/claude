@@ -159,6 +159,9 @@ app.use('/api/ses', require('./routes/sesWebhook'));
 // Public Growth Snapshot front door (embedded on octobercomms.com). No auth —
 // its own strict limiter + daily cap + SSRF guard live in the route/service.
 app.use('/api/public/snapshot', require('./routes/publicSnapshot'));
+// Public watch endpoints for the in-OMI recorder (token-gated playback + view
+// analytics). No auth — reached via an unguessable public_token share link.
+app.use('/api/public/watch', require('./routes/watchPublic'));
 // Public integration artifacts (GTM container template — no secrets). Before
 // auth so a plain download link works.
 app.use('/api/integrations', require('./routes/integrations'));
@@ -204,6 +207,7 @@ app.use('/api/pr', require('./routes/pr'));
 app.use('/api/pr-portal', require('./routes/prPortal')); // public, token-gated
 app.use('/api/pr-addon', require('./routes/prAddon')); // Gmail add-on, X-OMI-Key auth
 app.use('/api/sales-traffic', require('./routes/salesTraffic'));
+app.use('/api/recordings', require('./routes/recordings'));
 app.use('/api/strategist', require('./routes/strategist'));
 app.use('/api/october-forms', require('./routes/octoberForms'));
 app.use('/api/waitlist', require('./routes/waitlist'));
