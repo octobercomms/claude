@@ -48,7 +48,7 @@ function diskPath(key) {
 const disk = {
   uploadDescriptor(key /*, mime */) {
     // Browser posts the recorded blob to our authed finalize-upload endpoint.
-    return { mode: 'app', path: `/api/recordings/${encodeURIComponent(key)}/blob` };
+    return { mode: 'app', path: `/recordings/${encodeURIComponent(key)}/blob` };
   },
   async saveBuffer(key, buf) {
     ensureDiskDir();
@@ -110,7 +110,7 @@ const bucket = () => process.env.R2_BUCKET;
 
 const r2 = {
   uploadDescriptor(key /*, mime */) {
-    return { mode: 'app', path: `/api/recordings/${encodeURIComponent(key)}/blob` };
+    return { mode: 'app', path: `/recordings/${encodeURIComponent(key)}/blob` };
   },
   async saveBuffer(key, buf, mime) {
     await s3().send(new PutObjectCommand({
