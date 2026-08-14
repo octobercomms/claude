@@ -6,6 +6,7 @@ import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
 import DataFlowMap from '../components/DataFlowMap';
 import ClientChatPage from './ClientChatPage';
+import StrategistBriefingPanel from '../components/StrategistBriefingPanel';
 import { useCssVar } from '../hooks/useCssVar';
 import { useTabParam } from '../hooks/useTabParam';
 import { useAuth } from '../context/AuthContext';
@@ -51,7 +52,7 @@ export default function ClientSalesTrafficPage() {
   const accent = useCssVar('--accent', '#20A39E', scopeRef);
   const text = useCssVar('--text', '#1a1a1a', scopeRef);
   const subtle = useCssVar('--text-subtle', '#888', scopeRef);
-  const [tab, setTab] = useTabParam('overview', ['overview', 'dashboard', 'analyst']);
+  const [tab, setTab] = useTabParam('overview', ['overview', 'dashboard', 'analyst', 'strategist']);
   const [client, setClient] = useState(null);
   const [data, setData] = useState(null);
   const [start, setStart] = useState(() => isoDaysAgo(29));
@@ -64,7 +65,7 @@ export default function ClientSalesTrafficPage() {
 
   // A client login must never land on the private Analyse tab, even by
   // deep-link — bounce them to Overview.
-  useEffect(() => { if (readOnly && tab === 'analyst') setTab('overview'); }, [readOnly, tab, setTab]);
+  useEffect(() => { if (readOnly && (tab === 'analyst' || tab === 'strategist')) setTab('overview'); }, [readOnly, tab, setTab]);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
 
@@ -145,10 +146,12 @@ export default function ClientSalesTrafficPage() {
       <SuiteTabs tabs={[
         { key: 'overview',  label: 'Overview',     active: tab === 'overview',  onClick: () => setTab('overview') },
         { key: 'dashboard', label: 'Measure', fn: 'measure', active: tab === 'dashboard', onClick: () => setTab('dashboard') },
-        // Analyse (the agency's private AI chat history) is agency-only.
+        // Strategist (cross-PESO briefing) and Analyse (private AI chat) are agency-only.
+        ...(readOnly ? [] : [{ key: 'strategist', label: 'Strategist', fn: 'strategy', active: tab === 'strategist', onClick: () => setTab('strategist') }]),
         ...(readOnly ? [] : [{ key: 'analyst', label: 'Analyse', fn: 'research', active: tab === 'analyst', onClick: () => setTab('analyst') }]),
       ]} />
 
+      {tab === 'strategist' && !readOnly && <StrategistBriefingPanel clientId={id} />}
       {tab === 'analyst' && !readOnly && <ClientChatPage embedded clientId={id} />}
 
       {tab === 'overview' && (

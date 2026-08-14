@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AdCreativePanel from '../components/AdCreativePanel';
 import AdResizePanel from '../components/AdResizePanel';
-import StrategistPanel from '../components/StrategistPanel';
 import AudiencesPanel from '../components/AudiencesPanel';
 import ICPIntelligencePanel from '../components/ICPIntelligencePanel';
 import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
@@ -452,8 +451,15 @@ export default function ClientAdsPage() {
           <AccordionItem id="measure" fn="measure" title="Measure" subtitle="Spend, ROAS & profit per campaign">
             {() => renderMeasure()}
           </AccordionItem>
-          <AccordionItem id="briefing" fn="strategy" title="Briefing" subtitle="The strategist read">
-            {() => <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
+          <AccordionItem id="briefing" fn="strategy" title="Briefing" subtitle="Now part of the whole-account Strategist">
+            {() => (
+              <div className="empty" style={{ padding: 18 }}>
+                The Strategist now reviews the whole account — Paid, Earned, Shared and Owned — in one weekly briefing, with the priorities that matter most across every channel.
+                <div style={{ marginTop: 12 }}>
+                  <button className="btn btn-primary btn-sm" onClick={() => navigate(`/clients/${id}/sales-traffic?tab=strategist`)}>Open the Strategist →</button>
+                </div>
+              </div>
+            )}
           </AccordionItem>
           <AccordionItem id="competitors" fn="research" title="Competitors" subtitle="Watch rival ads">
             {() => <CompetitorAdsPanel clientId={id} />}
