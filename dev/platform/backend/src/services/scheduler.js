@@ -664,6 +664,54 @@ cron.schedule('0 7 * * 1', async () => {
   }
 });
 
+// Cross-PESO Strategist briefing — one whole-account briefing (Paid/Earned/
+// Shared/Owned + synthesis) per client every Monday at 07:10, emailed to the AM.
+// Staggered 10 min after the ads job to spread Claude load. Opt a client out
+// with the Strategist "weekly email" toggle (clients.strategist_active = false).
+// Serial per client — each briefing is five Opus passes.
+cron.schedule('10 7 * * 1', async () => {
+  try {
+    const briefing = require('./strategist/briefing');
+    const emailService = require('./emailService');
+    const platformUrl = process.env.PLATFORM_URL || '';
+    const envRecipients = (process.env.STRATEGIST_RECIPIENTS || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+    const { rows: clients } = await pool.query(
+      `SELECT id, name, strategist_recipients FROM clients
+        WHERE active = true AND COALESCE(strategist_active, true) = true
+        ORDER BY name ASC`
+    );
+    for (const cl of clients) {
+      try {
+        const id = await briefing.generate({ clientId: cl.id, days: 30, trigger: 'weekly_cron' });
+        const { rows: br } = await pool.query(
+          'SELECT period_start, period_end, synthesis FROM strategist_briefings WHERE id = $1', [id]);
+        const b = br[0] || {};
+        const { rows: recRows } = await pool.query(
+          `SELECT text FROM strategist_briefing_recommendations
+            WHERE briefing_id = $1 AND priority = 'crucial' ORDER BY position ASC`, [id]);
+        const recipients = (cl.strategist_recipients || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+        const to = recipients.length ? recipients : envRecipients;
+        if (!to.length) {
+          console.warn(`[strategist-briefing] no recipients for ${cl.name} — set recipients on the client or STRATEGIST_RECIPIENTS env`);
+          continue;
+        }
+        const period = b.period_start && b.period_end ? `${b.period_start} – ${b.period_end}` : '';
+        const reportUrl = platformUrl ? `${platformUrl}/clients/${cl.id}/sales-traffic?tab=strategist` : null;
+        await emailService.sendStrategistBriefing({
+          to, clientName: cl.name, period,
+          markdown: b.synthesis || '_Briefing was generated but had no synthesis._',
+          recommendations: recRows.map(r => r.text),
+          reportUrl,
+        });
+      } catch (err) {
+        console.error(`[strategist-briefing] weekly failed for ${cl.name}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[strategist-briefing] weekly job failed:', err.message);
+  }
+});
+
 async function runOutreachSends() {
   const { rows: due } = await pool.query(
     `SELECT s.id AS send_id, s.contact_id, s.campaign_id,
