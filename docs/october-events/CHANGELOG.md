@@ -5,6 +5,12 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.85.1 — move the "Pay over time" toggle to the Checkout tab
+
+The 1.85.0 toggle landed in the Tier-pricing accordion (Events tab) by mistake.
+Moved it to **Settings → Checkout → Checkout & tickets**, right next to the
+PayPal option, where it belongs.
+
 ## 1.85.0 — "Pay over time" (Klarna / Afterpay / Affirm) at ticket checkout
 
 Adds an optional Buy-Now-Pay-Later button to ticket checkout, via Stripe's own
