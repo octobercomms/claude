@@ -227,14 +227,14 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
       <?php endif; ?>
       <?php if ($has_stripe && \OE\Settings::get('bnpl_enabled', false)) : ?>
         <div class="oct-pay-or"><span><?php esc_html_e('or', 'october-events'); ?></span></div>
-        <div class="oct-payment-panel" id="panel-installments" role="tabpanel">
-          <button type="button" id="oct-pay-installments" class="oct-btn oct-btn--secondary oct-btn--full">
-            <span class="btn-text"><?php esc_html_e('Pay over time — Klarna, Afterpay or Affirm', 'october-events'); ?></span>
+        <div class="oct-bnpl" id="panel-installments" role="tabpanel">
+          <h6 class="oct-bnpl__title"><?php esc_html_e('Buy Now, Pay Later', 'october-events'); ?></h6>
+          <p class="oct-bnpl__sub"><?php esc_html_e('Spread the cost — pay in interest-free installments with Klarna, Afterpay or Affirm.', 'october-events'); ?></p>
+          <button type="button" id="oct-pay-installments" class="oct-btn oct-btn--full oct-btn--bnpl">
+            <span class="btn-text"><?php esc_html_e('Pay over time', 'october-events'); ?></span>
           </button>
           <div id="oct-installments-errors" class="oct-payment-error" role="alert" style="display:none"></div>
-          <div class="oct-stripe-badge">
-            <?php esc_html_e('Split your purchase into installments on Stripe’s secure page. Availability and terms depend on the provider and total.', 'october-events'); ?>
-          </div>
+          <p class="oct-bnpl__note"><?php esc_html_e('You’ll finish on Stripe’s secure page. Options and terms depend on the provider and total.', 'october-events'); ?></p>
         </div>
       <?php endif; ?>
       <?php if (! $has_stripe && ! $has_paypal) : ?>

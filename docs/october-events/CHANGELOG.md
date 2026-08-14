@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.85.2 — BNPL: show the installment options + a prominent block
+
+Two fixes after the first live test:
+
+- **The installment options weren't appearing on Stripe's page.** Stripe's
+  Adaptive Pricing (local-currency presentment) is incompatible with BNPL and
+  hides Klarna/Afterpay/Affirm. The Checkout Session now sets
+  `adaptive_pricing[enabled]=false` so the options can show (they're also matched
+  to the buyer's country — US buyers see the US plans).
+- **A prominent "Buy Now, Pay Later" block** replaces the thin button: a bordered
+  card with a heading, one-line explainer, and a large "Pay over time" button.
+
 ## 1.85.1 — move the "Pay over time" toggle to the Checkout tab
 
 The 1.85.0 toggle landed in the Tier-pricing accordion (Events tab) by mistake.

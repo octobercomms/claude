@@ -201,6 +201,10 @@ final class StripeConnector {
     public static function create_checkout_session(int $amount, string $currency, string $email, array $metadata, string $success_url, string $cancel_url, string $product_name = 'Tickets'): array {
         $params = [
             'mode'                                          => 'payment',
+            // Adaptive Pricing (local-currency presentment) is incompatible with
+            // BNPL — Stripe hides Klarna/Afterpay/Affirm while it's on. Force the
+            // base currency so the installment options can appear.
+            'adaptive_pricing[enabled]'                     => 'false',
             'success_url'                                   => $success_url,
             'cancel_url'                                    => $cancel_url,
             'line_items[0][quantity]'                       => 1,
