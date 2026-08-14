@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import ImportWizard from '../components/ImportWizard';
 import EditContactModal from '../components/EditContactModal';
 import ManageUsersPage from './ManageUsersPage';
+import LeadsPage from './LeadsPage';
 import SecurityPanel from '../components/SecurityPanel';
 import StrategyTemplatesPanel from '../components/StrategyTemplatesPanel';
 import AiModelsPanel from '../components/AiModelsPanel';
@@ -328,6 +329,7 @@ const SECTIONS = [
     { k: 'praddon', label: 'PR Gmail add-on' },
     { k: 'tags', label: 'Tags' },
     { k: 'strategy', label: 'Strategy templates' },
+    { k: 'leads', label: 'Leads' },
   ] },
   { key: 'account', label: 'Account', subs: [
     { k: 'users', label: 'Users & access' },
@@ -346,7 +348,7 @@ const SECTION_GROUPS = {
   ],
   workspace: [
     { label: 'Library',           subs: ['contacts', 'publications', 'tags'] },
-    { label: 'Templates & tools', subs: ['strategy', 'praddon'] },
+    { label: 'Templates & tools', subs: ['strategy', 'praddon', 'leads'] },
   ],
   account: [
     { label: 'Access', subs: ['users', 'security'] },
@@ -593,6 +595,7 @@ export default function SettingsPage() {
       {tab === 'publications' && <PublicationsPanel />}
       {tab === 'tags' && <TagsManager />}
       {tab === 'users' && <ManageUsersPage embedded />}
+      {tab === 'leads' && <LeadsPage embedded />}
       {tab === 'security' && <SecurityPanel />}
       {tab === 'strategy' && <StrategyTemplatesPanel />}
       {tab === 'costs' && (<>
