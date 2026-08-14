@@ -1271,12 +1271,17 @@ function CostsPanel() {
   const [rows, setRows] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState(null);
+  const [gbpPerUsd, setGbpPerUsd] = useState(null);
 
   async function load() {
     try { setRows(await api.get('/settings/usage')); }
     catch (e) { setErr(e.message); }
   }
   useEffect(() => { load(); }, []);
+  // Display-only GBP conversion for the USD totals. Falls back to a static
+  // approx if the live-rate endpoint isn't available (e.g. backend not yet
+  // deployed), so the £ figure always shows.
+  useEffect(() => { api.get('/settings/fx-rate').then(d => setGbpPerUsd(d.rate || 0.79)).catch(() => setGbpPerUsd(0.79)); }, []);
 
   async function refresh() {
     setRefreshing(true);
@@ -1312,7 +1317,10 @@ function CostsPanel() {
           {totalThisMonth > 0 && (
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Total spent this month</div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>${totalThisMonth.toFixed(2)}</div>
+              <div style={{ fontSize: 20, fontWeight: 800 }}>
+                ${totalThisMonth.toFixed(2)}
+                {gbpPerUsd ? <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-subtle)', marginLeft: 8 }}>≈ £{(totalThisMonth * gbpPerUsd).toFixed(2)}</span> : null}
+              </div>
             </div>
           )}
           <button onClick={refresh} disabled={refreshing} className="btn btn-primary" style={{ padding: '6px 14px' }}>
