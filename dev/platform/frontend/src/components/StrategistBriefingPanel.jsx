@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import StrategistChat from './StrategistChat';
 
 // Unified cross-PESO Strategist briefing. Left rail lists past briefings; the
 // main column shows the client-level synthesis, a pillar filter, the account-wide
@@ -31,6 +32,7 @@ export default function StrategistBriefingPanel({ clientId }) {
   const [recipientsDirty, setRecipientsDirty] = useState(false);
   const [openSections, setOpenSections] = useState(() => new Set(['synthesis']));
   const [downloading, setDownloading] = useState(null);
+  const [view, setView] = useState('briefing'); // 'briefing' | 'chat'
 
   const loadList = () => api.get(`/strategist/clients/${clientId}/briefings`)
     .then(r => { setList(r); if (r.length && !selectedId) setSelectedId(r[0].id); })
@@ -144,19 +146,42 @@ export default function StrategistBriefingPanel({ clientId }) {
           <p className="body mt-3">One expert briefing across the whole account — Paid, Earned, Shared and Owned — with the priorities that matter most this month. Emailed to you every Monday.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }} title="Include this client in the Monday email">
-            <input type="checkbox" checked={active} onChange={toggleActive} /> Weekly email
-          </label>
-          <select value={days} onChange={e => setDays(parseInt(e.target.value, 10))} className="input">
-            <option value={30}>Last 30 days</option>
-            <option value={60}>Last 60 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
-          <button className="btn btn-primary" onClick={generate} disabled={generating}>
-            {generating ? 'Generating…' : '+ Generate briefing'}
-          </button>
+          {view === 'briefing' && <>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }} title="Include this client in the Monday email">
+              <input type="checkbox" checked={active} onChange={toggleActive} /> Weekly email
+            </label>
+            <select value={days} onChange={e => setDays(parseInt(e.target.value, 10))} className="input">
+              <option value={30}>Last 30 days</option>
+              <option value={60}>Last 60 days</option>
+              <option value={90}>Last 90 days</option>
+            </select>
+            <button className="btn btn-primary" onClick={generate} disabled={generating}>
+              {generating ? 'Generating…' : '+ Generate briefing'}
+            </button>
+          </>}
         </div>
       </div>
+
+      {/* Briefing ↔ Ask toggle */}
+      <div className="row" style={{ gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        {[{ key: 'briefing', label: 'Briefing' }, { key: 'chat', label: 'Ask the strategist' }].map(v => (
+          <button key={v.key} onClick={() => setView(v.key)}
+            style={{ padding: '6px 16px', borderRadius: 'var(--r-pill)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              border: 'var(--border-w) solid ' + (view === v.key ? 'var(--text)' : 'var(--card-border)'),
+              background: view === v.key ? 'var(--text)' : 'var(--surface)', color: view === v.key ? '#fff' : 'var(--text)' }}>
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'chat' && <StrategistChat clientId={clientId} />}
+      {view === 'briefing' && <>{renderBriefingView()}</>}
+    </div>
+  );
+
+  function renderBriefingView() {
+    return (
+      <>
 
       {!list && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>}
       {list && list.length === 0 && !generating && (
@@ -264,8 +289,9 @@ export default function StrategistBriefingPanel({ clientId }) {
           </div>
         </div>
       )}
-    </div>
-  );
+      </>
+    );
+  }
 }
 
 function RecRow({ r, onToggle, pillarFilter }) {

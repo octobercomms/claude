@@ -701,10 +701,12 @@ async function executeTool(name, input, clientId) {
 
 // ── System prompt ──────────────────────────────────────────────────────────
 
-function buildSystemPrompt(client, connectors) {
+function buildSystemPrompt(client, connectors, opts = {}) {
   const connectorList = connectors.length
     ? connectors.map(c => `${c.connector_type}${c.store_label ? ` (${c.store_label})` : ''} [${c.status}]`).join(', ')
     : 'none configured';
+
+  if (opts.persona === 'strategist') return buildStrategistSystemPrompt(client, connectorList, opts.briefing);
 
   return `You are a performance marketing analyst working directly with October Communications on the ${client.name} account.
 
@@ -729,12 +731,47 @@ Client: ${client.name} | Domain: ${client.domain || 'not set'} | Monthly focus: 
 British English. Commercially minded. When you use tools, briefly mention what you checked so the account manager can see your reasoning.`;
 }
 
+// The Strategist persona — the same tool-using agent, but speaking as the senior
+// strategist who wrote the cross-PESO briefing. Grounded in the latest briefing
+// so follow-ups ("why did you say Paid is the priority?", "what should we do
+// about SEO?") stay consistent with it, while the live-data tools let it check
+// the numbers behind any question.
+function buildStrategistSystemPrompt(client, connectorList, briefing) {
+  let grounding = '';
+  if (briefing && briefing.synthesis) {
+    const period = briefing.period_start && briefing.period_end
+      ? `${new Date(briefing.period_start).toLocaleDateString('en-GB')} – ${new Date(briefing.period_end).toLocaleDateString('en-GB')}`
+      : 'recent';
+    const recs = Array.isArray(briefing.recommendations) && briefing.recommendations.length
+      ? '\n\nThe priorities you set (most important first):\n' + briefing.recommendations
+          .map(r => `- [${(r.priority || 'nice').toUpperCase()}] (${r.pillar}) ${r.text}${r.done ? ' — DONE' : ''}`).join('\n')
+      : '';
+    grounding = `\n\n# Your current briefing for ${client.name} (period ${period})
+This is the whole-account briefing you already wrote. Treat it as your own prior thinking — be consistent with it, build on it, and update it if fresh data you pull changes the picture.
+
+${briefing.synthesis}${recs}`;
+  } else {
+    grounding = `\n\nThere is no saved briefing for this client yet. Answer from the live data you can pull, and if it would help, suggest generating a full briefing first.`;
+  }
+
+  return `You are the senior strategist at October Communications — a UK marketing agency — the same person who writes ${client.name}'s cross-PESO briefings (Paid, Earned, Shared, Owned). The account lead is asking you questions directly.
+
+Be the expert in the room: commercially minded, decisive, and specific. For anything that turns on the numbers, pull the live data with your tools rather than guessing — then work the full chain: what the data shows → what it means → what you'd do → the expected impact. Explain your reasoning so the account lead learns from it, not just the conclusion. Distinguish what's crucial from what's merely nice to have. If the data is thin, say so plainly and never invent figures.
+
+You have the same tools as the analyst — read live connector data, SEO rankings, the Clarity CRO/funnel analysis, reports, anomalies, and the context log. Use them proactively; briefly note what you checked.
+
+Connected data sources: ${connectorList}
+Client: ${client.name} | Domain: ${client.domain || 'not set'} | Monthly focus: ${client.monthly_focus || 'not set'}${grounding}
+
+British English. Talk like a trusted strategic advisor: confident and warm, no filler, no hype.`;
+}
+
 // Run the analyst tool loop against DeepSeek's OpenAI-compatible API. Same
 // tools and executeTool as the Claude path — just translated to OpenAI's
 // function-calling shape (tools[].function, assistant tool_calls, role:'tool'
 // results). Returns { finalText, toolsUsed }. DeepSeek is text-only, so the
 // caller routes image/PDF turns to Claude before getting here.
-async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens }) {
+async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens, feature = 'ai_data_analyst_chat' }) {
   const axios = require('axios');
   const { getSetting } = require('../utils/settings');
   const key = process.env.DEEPSEEK_API_KEY || await getSetting('DEEPSEEK_API_KEY');
@@ -752,7 +789,7 @@ async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens 
 
     const u = data.usage || {};
     require('../services/costLog').recordApiCost({
-      provider: 'deepseek', feature: 'ai_data_analyst_chat', clientId,
+      provider: 'deepseek', feature, clientId,
       costUsd: ((u.prompt_tokens || 0) / 1e6) * DEEPSEEK_PRICES.input + ((u.completion_tokens || 0) / 1e6) * DEEPSEEK_PRICES.output,
       meta: { model: 'deepseek-chat', ...u },
     });
@@ -783,12 +820,13 @@ async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens 
 // ── Routes ─────────────────────────────────────────────────────────────────
 
 router.get('/:clientId', async (req, res) => {
+  const thread = req.query.thread === 'strategist' ? 'strategist' : 'analyst';
   try {
     const { rows } = await pool.query(
       `SELECT id, role, content, tools_used, created_at
-       FROM client_chat_messages WHERE client_id = $1
+       FROM client_chat_messages WHERE client_id = $1 AND thread = $2
        ORDER BY created_at ASC LIMIT 200`,
-      [req.params.clientId]
+      [req.params.clientId, thread]
     );
     res.json(rows);
   } catch (err) {
@@ -799,6 +837,11 @@ router.get('/:clientId', async (req, res) => {
 router.post('/:clientId', async (req, res) => {
   const { message, image, start_date, end_date, model } = req.body;
   if (!message?.trim() && !image) return res.status(400).json({ error: 'message required' });
+
+  // Which conversation this belongs to. The Strategist chat runs the same agent
+  // and tools but with the strategist persona and its own history thread.
+  const persona = req.body.persona === 'strategist' ? 'strategist' : 'analyst';
+  const thread = persona === 'strategist' ? 'strategist' : 'analyst';
 
   // Which model the AM picked for this question. DeepSeek is text-only, so an
   // image/PDF turn falls back to the default Claude model.
@@ -821,14 +864,35 @@ router.post('/:clientId', async (req, res) => {
       pool.query('SELECT * FROM clients WHERE id = $1', [clientId]),
       pool.query('SELECT connector_type, store_label, status FROM connectors WHERE client_id = $1', [clientId]),
       pool.query(
-        `SELECT role, content FROM client_chat_messages WHERE client_id = $1 ORDER BY created_at DESC LIMIT 40`,
-        [clientId]
+        `SELECT role, content FROM client_chat_messages WHERE client_id = $1 AND thread = $2 ORDER BY created_at DESC LIMIT 40`,
+        [clientId, thread]
       ),
     ]);
 
     if (!clientRes.rows.length) return res.status(404).json({ error: 'Client not found' });
     const client = clientRes.rows[0];
     const history = historyRes.rows.reverse();
+
+    // Strategist chat is grounded in the latest completed briefing so follow-ups
+    // stay consistent with it. Best-effort — the chat still works without one.
+    let briefing = null;
+    if (persona === 'strategist') {
+      try {
+        const { rows: brows } = await pool.query(
+          `SELECT id, synthesis, period_start, period_end FROM strategist_briefings
+            WHERE client_id = $1 AND status = 'completed' ORDER BY generated_at DESC LIMIT 1`,
+          [clientId]
+        );
+        if (brows.length) {
+          const { rows: recs } = await pool.query(
+            `SELECT pillar, priority, text, done FROM strategist_briefing_recommendations
+              WHERE briefing_id = $1 ORDER BY position ASC LIMIT 20`,
+            [brows[0].id]
+          );
+          briefing = { ...brows[0], recommendations: recs };
+        }
+      } catch (e) { console.warn('[Chat] strategist grounding load failed:', e.message); }
+    }
 
     const userText = message?.trim() || '';
     // /report prefix marks this turn as a structured-report request:
@@ -840,8 +904,8 @@ router.post('/:clientId', async (req, res) => {
     const reportRequested = /^\/report(\s|$)/i.test(userText);
     const cleanedUserText = reportRequested ? userText.replace(/^\/report\s*/i, '').trim() : userText;
     await pool.query(
-      'INSERT INTO client_chat_messages (client_id, role, content) VALUES ($1, $2, $3)',
-      [clientId, 'user', userText + (image ? ` [image: ${image.name}]` : '')]
+      'INSERT INTO client_chat_messages (client_id, role, content, thread) VALUES ($1, $2, $3, $4)',
+      [clientId, 'user', userText + (image ? ` [image: ${image.name}]` : ''), thread]
     );
 
     // Build user message content — support image and PDF attachments
@@ -877,10 +941,11 @@ router.post('/:clientId', async (req, res) => {
       ? `\n\nDATA WINDOW (set by the account manager): ${win.start} to ${win.end}. Every get_connector_data result this turn is already constrained to exactly this period — the figures you receive cover ${win.start} to ${win.end} and nothing else. Report on this period and refer to it by these exact dates. Do NOT describe the data as "90 days", "the last quarter", or any window other than ${win.start} to ${win.end}.`
       : '';
 
-    const systemText = buildSystemPrompt(client, connectorsRes.rows) + reportSuffix + windowSuffix;
+    const systemText = buildSystemPrompt(client, connectorsRes.rows, { persona, briefing }) + reportSuffix + windowSuffix;
+    const costFeature = persona === 'strategist' ? 'strategist_chat' : 'ai_data_analyst_chat';
 
     if (provider === 'deepseek') {
-      const r = await runDeepSeekChat({ systemText, messages, clientId, win, maxTokens: 8000 });
+      const r = await runDeepSeekChat({ systemText, messages, clientId, win, maxTokens: 8000, feature: costFeature });
       finalText = r.finalText;
       r.toolsUsed.filter(Boolean).forEach(t => toolsUsed.push(t));
     } else
@@ -901,7 +966,7 @@ router.post('/:clientId', async (req, res) => {
       // Cost log per round — chat sessions can be tool-heavy and the multi-
       // round shape means a single "what happened last week?" question
       // easily fires 3-6 Claude calls.
-      require('../services/costLog').recordClaudeCost({ model: chosenModel, response, feature: 'ai_data_analyst_chat', clientId });
+      require('../services/costLog').recordClaudeCost({ model: chosenModel, response, feature: costFeature, clientId });
 
       if (response.stop_reason === 'end_turn') {
         finalText = response.content.find(b => b.type === 'text')?.text || '';
@@ -942,9 +1007,9 @@ router.post('/:clientId', async (req, res) => {
     if (!finalText) finalText = 'I wasn\'t able to complete that. Please try again.';
 
     const { rows } = await pool.query(
-      `INSERT INTO client_chat_messages (client_id, role, content, tools_used)
-       VALUES ($1, 'assistant', $2, $3) RETURNING id, role, content, tools_used, created_at`,
-      [clientId, finalText, JSON.stringify(toolsUsed)]
+      `INSERT INTO client_chat_messages (client_id, role, content, tools_used, thread)
+       VALUES ($1, 'assistant', $2, $3, $4) RETURNING id, role, content, tools_used, created_at`,
+      [clientId, finalText, JSON.stringify(toolsUsed), thread]
     );
 
     res.json(rows[0]);
@@ -1001,8 +1066,9 @@ router.get('/:clientId/messages/:msgId/export.:format(pdf|docx)', async (req, re
 });
 
 router.delete('/:clientId', async (req, res) => {
+  const thread = req.query.thread === 'strategist' ? 'strategist' : 'analyst';
   try {
-    await pool.query('DELETE FROM client_chat_messages WHERE client_id = $1', [req.params.clientId]);
+    await pool.query('DELETE FROM client_chat_messages WHERE client_id = $1 AND thread = $2', [req.params.clientId, thread]);
     res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
