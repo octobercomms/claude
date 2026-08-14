@@ -80,6 +80,11 @@ final class Settings {
             // per transaction. Edit under Settings → Checkout.
             'card_fee_percent' => 2.9,
             'card_fee_fixed'   => 0.30,
+            // "Pay over time" (BNPL — Klarna / Afterpay / Affirm) at ticket
+            // checkout, via Stripe's hosted page. Off by default: enable the
+            // methods in the Stripe Dashboard first, then turn this on. The card
+            // checkout is unchanged either way.
+            'bnpl_enabled'     => false,
             // PayPal — a second checkout gateway alongside Stripe (off until set up).
             'paypal_enabled'   => false,
             'paypal_env'       => 'sandbox',

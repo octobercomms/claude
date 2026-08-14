@@ -190,6 +190,44 @@ final class StripeConnector {
         ];
     }
 
+    /**
+     * Create a hosted Checkout Session for a one-off ticket purchase, used for
+     * the "pay over time" (BNPL) option. The cart metadata rides on the underlying
+     * PaymentIntent so the existing webhook (payment_intent.succeeded → kind=ticket)
+     * creates the order, exactly like the on-site card flow.
+     *
+     * @return array{id:string,url:string,error:string,error_type:string}
+     */
+    public static function create_checkout_session(int $amount, string $currency, string $email, array $metadata, string $success_url, string $cancel_url, string $product_name = 'Tickets'): array {
+        $params = [
+            'mode'                                          => 'payment',
+            'success_url'                                   => $success_url,
+            'cancel_url'                                    => $cancel_url,
+            'line_items[0][quantity]'                       => 1,
+            'line_items[0][price_data][currency]'           => $currency,
+            'line_items[0][price_data][unit_amount]'        => $amount,
+            'line_items[0][price_data][product_data][name]' => $product_name,
+        ];
+        if ($email !== '') {
+            $params['customer_email'] = $email;
+        }
+        // Same metadata on the PaymentIntent (drives the webhook order creation)
+        // and the session (belt-and-suspenders / dashboard visibility).
+        foreach ($metadata as $k => $v) {
+            $params["payment_intent_data[metadata][{$k}]"] = (string) $v;
+            $params["metadata[{$k}]"]                       = (string) $v;
+        }
+
+        $sess = self::request('POST', '/checkout/sessions', $params);
+        $err  = is_array($sess['error'] ?? null) ? $sess['error'] : [];
+        return [
+            'id'         => (string) ($sess['id'] ?? ''),
+            'url'        => (string) ($sess['url'] ?? ''),
+            'error'      => (string) ($err['message'] ?? ''),
+            'error_type' => (string) ($err['type'] ?? ''),
+        ];
+    }
+
     public static function retrieve_payment_intent(string $intent_id): array {
         return self::request('GET', '/payment_intents/' . rawurlencode($intent_id));
     }

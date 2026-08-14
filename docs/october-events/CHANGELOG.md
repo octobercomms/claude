@@ -5,6 +5,31 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.85.0 — "Pay over time" (Klarna / Afterpay / Affirm) at ticket checkout
+
+Adds an optional Buy-Now-Pay-Later button to ticket checkout, via Stripe's own
+hosted page — no new payment provider or account, all through your existing
+Stripe.
+
+- **Settings → Checkout → "Offer Pay over time"** (off by default). Prerequisite:
+  enable Klarna/Afterpay/Affirm in the Stripe Dashboard (Settings → Payment
+  methods).
+- When on, a **"Pay over time"** button appears under the card checkout. It
+  prices the same cart, creates a hosted Stripe Checkout Session, and hands the
+  buyer to Stripe for the installment flow. **The card checkout is completely
+  unchanged** — this is purely additive.
+- The order is issued by the **existing webhook** from the PaymentIntent
+  metadata (same path as the card safety-net), so tickets and the confirmation
+  email are created on payment. On return the buyer sees a confirmation.
+- Guards: BNPL is skipped for carts under the $0.50 floor and for the
+  membership auto-join rate (BNPL can't carry a recurring subscription).
+- New endpoint `POST oe/v1/ticket-checkout-session`; new
+  `StripeConnector::create_checkout_session()`.
+
+Note: BNPL options only display when the cart clears each provider's minimum
+(Affirm ~$50), and carry a higher processing fee (~6% + 0.30). Test in Stripe
+test mode before enabling.
+
 ## 1.84.4 — Stripe webhook: raw-input fallbacks + failure reason
 
 Hardens the Stripe webhook receiver and makes failures self-explanatory, to

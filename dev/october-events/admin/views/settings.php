@@ -134,6 +134,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p><label><?php esc_html_e('Card fee %', 'october-events'); ?> <input type="number" step="0.01" min="0" max="20" name="card_fee_percent" value="<?php echo esc_attr((string) ($cfg['card_fee_percent'] ?? 2.9)); ?>" size="5"></label>
             &nbsp; <label><?php esc_html_e('+ fixed per transaction', 'october-events'); ?> <input type="number" step="0.01" min="0" name="card_fee_fixed" value="<?php echo esc_attr((string) ($cfg['card_fee_fixed'] ?? 0.30)); ?>" size="5"></label>
             <span class="description"><?php esc_html_e('Used for the “gross profit after fees” figure on Tickets → Sales analytics. Default is Stripe’s 2.9% + 0.30.', 'october-events'); ?></span></p>
+        <hr style="margin:16px 0;border:0;border-top:1px solid #eee">
+        <p><label><input type="checkbox" name="bnpl_enabled" value="1" <?php checked((bool) ($cfg['bnpl_enabled'] ?? false)); ?>> <strong><?php esc_html_e('Offer “Pay over time” (Klarna / Afterpay / Affirm)', 'october-events'); ?></strong></label></p>
+        <p class="description" style="max-width:820px"><?php esc_html_e('Adds a “Pay over time” button at ticket checkout that sends the buyer to Stripe’s secure page for installments. Your card checkout is unchanged. Prerequisite: enable Klarna/Afterpay/Affirm in your Stripe Dashboard (Settings → Payment methods) first — options only appear when the cart clears each provider’s minimum (Affirm ~$50). Note the higher BNPL fee (~6% + 0.30). Test in Stripe test mode before enabling.', 'october-events'); ?></p>
         </div></details>
 
         <details class="oe-acc" id="rejection"><summary><?php esc_html_e('Rejection email copy', 'october-events'); ?></summary><div class="oe-acc-body">

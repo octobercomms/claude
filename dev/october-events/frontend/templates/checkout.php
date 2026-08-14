@@ -225,6 +225,18 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
           <div id="oct-paypal-errors" class="oct-payment-error" role="alert" style="display:none"></div>
         </div>
       <?php endif; ?>
+      <?php if ($has_stripe && \OE\Settings::get('bnpl_enabled', false)) : ?>
+        <div class="oct-pay-or"><span><?php esc_html_e('or', 'october-events'); ?></span></div>
+        <div class="oct-payment-panel" id="panel-installments" role="tabpanel">
+          <button type="button" id="oct-pay-installments" class="oct-btn oct-btn--secondary oct-btn--full">
+            <span class="btn-text"><?php esc_html_e('Pay over time — Klarna, Afterpay or Affirm', 'october-events'); ?></span>
+          </button>
+          <div id="oct-installments-errors" class="oct-payment-error" role="alert" style="display:none"></div>
+          <div class="oct-stripe-badge">
+            <?php esc_html_e('Split your purchase into installments on Stripe’s secure page. Availability and terms depend on the provider and total.', 'october-events'); ?>
+          </div>
+        </div>
+      <?php endif; ?>
       <?php if (! $has_stripe && ! $has_paypal) : ?>
         <p class="oct-error"><?php esc_html_e('No payment method configured. Please contact the organiser.', 'october-events'); ?></p>
       <?php endif; ?>

@@ -88,6 +88,7 @@ final class Checkout {
             'nonce'             => wp_create_nonce('wp_rest'),
             'stripePublishable' => (string) Settings::get('stripe_publishable_key', ''),
             'paypalEnabled'     => $paypal_on,
+            'bnplEnabled'       => (bool) Settings::get('bnpl_enabled', false),
             'eventId'           => $event_id,
             'currency'          => $currency,
             'currencySymbol'    => $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$'),
