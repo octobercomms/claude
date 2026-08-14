@@ -6,6 +6,7 @@ const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const strategistReport = require('../services/strategistReport');
+const briefing = require('../services/strategist/briefing');
 const pdfService = require('../services/pdfService');
 
 router.use(authenticate);
@@ -218,6 +219,95 @@ router.patch('/actions/:id', async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Action not found' });
     res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Unified cross-PESO briefing ─────────────────────────────────────────────
+// A whole-client briefing (Paid/Earned/Shared/Owned + synthesis) with one
+// prioritised, pillar-tagged task list. See services/strategist/briefing.js.
+
+router.post('/clients/:clientId/briefing/generate', async (req, res) => {
+  const days = Math.max(7, Math.min(120, parseInt(req.body?.days, 10) || 30));
+  try {
+    const id = await briefing.generate({ clientId: req.params.clientId, days, trigger: 'manual' });
+    const { rows } = await pool.query('SELECT * FROM strategist_briefings WHERE id = $1', [id]);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.get('/clients/:clientId/briefings', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, period_start, period_end, generated_at, status, trigger, read_at, error_message,
+              CASE WHEN synthesis IS NULL THEN 0 ELSE LENGTH(synthesis) END AS synthesis_len
+         FROM strategist_briefings WHERE client_id = $1
+        ORDER BY generated_at DESC LIMIT 50`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/briefings/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM strategist_briefings WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Briefing not found' });
+    assertClientAccess(req, rows[0].client_id);
+    const { rows: recs } = await pool.query(
+      `SELECT id, pillar, priority, position, text, done, done_at, notes
+         FROM strategist_briefing_recommendations WHERE briefing_id = $1
+        ORDER BY position ASC`, [req.params.id]);
+    res.json({ ...rows[0], recommendations: recs });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/briefings/:id/read', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM strategist_briefings WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Briefing not found' });
+    assertClientAccess(req, rows[0].client_id);
+    await pool.query('UPDATE strategist_briefings SET read_at = COALESCE(read_at, NOW()) WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.delete('/briefings/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM strategist_briefings WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).end();
+    assertClientAccess(req, rows[0].client_id);
+    await pool.query('DELETE FROM strategist_briefings WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Tick a task off the account-wide list.
+router.patch('/briefing-actions/:id', async (req, res) => {
+  const { done, notes } = req.body || {};
+  try {
+    const { rows } = await pool.query(
+      `UPDATE strategist_briefing_recommendations
+          SET done = COALESCE($1, done),
+              notes = COALESCE($2, notes),
+              done_at = CASE WHEN $1 IS TRUE AND done = false THEN NOW() WHEN $1 IS FALSE THEN NULL ELSE done_at END,
+              done_by = CASE WHEN $1 IS TRUE AND done = false THEN $3 WHEN $1 IS FALSE THEN NULL ELSE done_by END
+        WHERE id = $4
+        RETURNING id, pillar, priority, position, text, done, done_at, notes`,
+      [typeof done === 'boolean' ? done : null, notes ?? null, req.user?.id || null, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Action not found' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Weekly-email opt-out toggle for this client.
+router.put('/clients/:clientId/active', async (req, res) => {
+  try {
+    const active = !!req.body?.active;
+    await pool.query('UPDATE clients SET strategist_active = $1 WHERE id = $2', [active, req.params.clientId]);
+    res.json({ ok: true, strategist_active: active });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
