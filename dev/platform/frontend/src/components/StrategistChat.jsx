@@ -81,7 +81,7 @@ export default function StrategistChat({ clientId }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 300px)', minHeight: 420 }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
         <p className="caption" style={{ color: 'var(--text-subtle)' }}>
           Grounded in the latest briefing — it can pull live data to answer. Type <code>/report</code> for a formatted, downloadable report.
@@ -89,7 +89,7 @@ export default function StrategistChat({ clientId }) {
         {messages.length > 0 && <button className="btn btn-ghost btn-sm" onClick={clearChat}>Clear</button>}
       </div>
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
+      <div ref={scrollRef} style={{ overflowY: 'auto', maxHeight: '58vh', minHeight: 120, paddingRight: 4 }}>
         {messages.length === 0 && !sending && (
           <div className="empty" style={{ padding: 18 }}>
             <div style={{ marginBottom: 12 }}>Ask the strategist anything about this account.</div>
