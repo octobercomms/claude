@@ -70,6 +70,15 @@ export default function StrategistChat({ clientId }) {
     finally { setDownloading(null); }
   }
 
+  // Promote a point from the conversation into the briefing steer notes, so the
+  // next weekly briefing is informed by it.
+  async function addToBriefing(text) {
+    try {
+      await api.post(`/strategist/clients/${clientId}/steer`, { text: (text || '').slice(0, 4000), source: 'chat' });
+      toast('Added to the briefing notes');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
   async function clearChat() {
     if (!confirm('Clear this strategist conversation?')) return;
     try { await api.delete(`/chat/${clientId}?thread=strategist`); setMessages([]); }
@@ -123,6 +132,9 @@ export default function StrategistChat({ clientId }) {
                         </button>
                         <button className="btn btn-ghost btn-sm" disabled={!!downloading} onClick={() => download(m.id, 'docx')} title="Download this answer as a Word doc">
                           {downloading === `${m.id}.docx` ? '…' : '↓ Word'}
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => addToBriefing(m.content)} title="Feed this into the next weekly briefing">
+                          + Add to briefing
                         </button>
                       </div>
                     )}

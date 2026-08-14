@@ -33,6 +33,8 @@ export default function StrategistBriefingPanel({ clientId }) {
   const [openSections, setOpenSections] = useState(() => new Set(['synthesis']));
   const [downloading, setDownloading] = useState(null);
   const [view, setView] = useState('briefing'); // 'briefing' | 'chat'
+  const [steer, setSteer] = useState([]);
+  const [steerText, setSteerText] = useState('');
 
   const loadList = () => api.get(`/strategist/clients/${clientId}/briefings`)
     .then(r => { setList(r); if (r.length && !selectedId) setSelectedId(r[0].id); })
@@ -46,6 +48,23 @@ export default function StrategistBriefingPanel({ clientId }) {
       setRecipientsDirty(false);
     }).catch(() => {});
   }, [clientId]);
+
+  const loadSteer = () => api.get(`/strategist/clients/${clientId}/steer`).then(setSteer).catch(() => {});
+  // Reload steer whenever the Briefing view is shown — the chat can add notes.
+  useEffect(() => { if (view === 'briefing') loadSteer(); /* eslint-disable-line */ }, [clientId, view]);
+
+  async function addSteer() {
+    const text = steerText.trim();
+    if (!text) return;
+    try {
+      const n = await api.post(`/strategist/clients/${clientId}/steer`, { text, source: 'note' });
+      setSteer(s => [n, ...s]); setSteerText('');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function removeSteer(id) {
+    try { await api.delete(`/strategist/steer/${id}`); setSteer(s => s.filter(n => n.id !== id)); }
+    catch (e) { toast(e.message, 'error'); }
+  }
 
   useEffect(() => {
     if (!selectedId) { setSelected(null); return; }
@@ -182,6 +201,38 @@ export default function StrategistBriefingPanel({ clientId }) {
   function renderBriefingView() {
     return (
       <>
+
+      {/* Steer the next briefing — the account lead's own thoughts inform generation */}
+      <div className="card body-sm" style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+          Steer the next briefing
+        </div>
+        <p className="caption" style={{ color: 'var(--text-subtle)', margin: '0 0 8px' }}>
+          Your thoughts, decisions and priorities. The strategist reads these and weights them when it next generates — add here, or use “Add to briefing” in Ask the strategist.
+        </p>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <textarea value={steerText} onChange={e => setSteerText(e.target.value)} rows={2}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addSteer(); } }}
+            placeholder="e.g. We're pushing the autumn collection — lean into SEO and social, ease off paid until stock lands."
+            style={{ flex: 1, resize: 'vertical', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit',
+              border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+          <button className="btn btn-secondary btn-sm" disabled={!steerText.trim()} onClick={addSteer}>Add</button>
+        </div>
+        {steer.length > 0 && (
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {steer.map(n => (
+              <div key={n.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, lineHeight: 1.45 }}>
+                <span style={{ flex: 1 }}>
+                  {n.source === 'chat' && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-subtle)', marginRight: 6 }}>from chat</span>}
+                  {n.text}
+                </span>
+                <button onClick={() => removeSteer(n.id)} title="Remove"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {!list && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>}
       {list && list.length === 0 && !generating && (
