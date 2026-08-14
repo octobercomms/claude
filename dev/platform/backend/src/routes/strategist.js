@@ -363,4 +363,44 @@ router.put('/clients/:clientId/active', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Steer notes ─────────────────────────────────────────────────────────────
+// The account lead's own thoughts that inform the next briefing. Typed here or
+// promoted from a point in the ask-the-strategist chat. briefing.generate()
+// reads them and weights them into every pass.
+
+router.get('/clients/:clientId/steer', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, text, source, created_at FROM strategist_steer_notes
+        WHERE client_id = $1 ORDER BY created_at DESC LIMIT 100`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/steer', async (req, res) => {
+  const text = String(req.body?.text || '').trim();
+  const source = req.body?.source === 'chat' ? 'chat' : 'note';
+  if (!text) return res.status(400).json({ error: 'text required' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO strategist_steer_notes (client_id, text, source, created_by)
+       VALUES ($1, $2, $3, $4) RETURNING id, text, source, created_at`,
+      [req.params.clientId, text.slice(0, 4000), source, req.user?.id || null]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/steer/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM strategist_steer_notes WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).end();
+    assertClientAccess(req, rows[0].client_id);
+    await pool.query('DELETE FROM strategist_steer_notes WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 module.exports = router;

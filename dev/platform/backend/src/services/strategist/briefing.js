@@ -95,11 +95,27 @@ function contextBlock(ctx) {
   return bits.join('\n');
 }
 
-function pillarPrompt({ pillar, ctx, data }) {
+// The account lead's own notes/steer for this briefing (typed directly or
+// promoted from the strategist chat). Rendered as a prompt block so every pass
+// weights them. Each note is capped so a long promoted chat answer can't
+// dominate the prompt.
+function steerBlock(steer, { emphasis = false } = {}) {
+  const notes = (steer || []).map(s => String(s || '').trim()).filter(Boolean).slice(0, 30);
+  if (!notes.length) return '';
+  const bullets = notes.map(n => `- ${n.length > 600 ? n.slice(0, 600) + '…' : n}`).join('\n');
+  const heading = emphasis
+    ? `# The account lead's steer (important — reflect this)
+The account lead has shared these thoughts to inform this briefing. Treat them as priorities and context: engage with them directly, act on them where the data supports it, and if you disagree with any, say so plainly and explain why.`
+    : `# The account lead's steer
+Points the account lead flagged for this briefing — weight them and address any that touch ${'this channel'} where relevant:`;
+  return `\n\n${heading}\n${bullets}`;
+}
+
+function pillarPrompt({ pillar, ctx, data, steer }) {
   return `You are ${pillar.lens} writing the **${pillar.label}** section of a client briefing.
 
 # Client context
-${contextBlock(ctx)}
+${contextBlock(ctx)}${steerBlock(steer)}
 
 # Your brief
 ${pillar.frame}
@@ -117,12 +133,12 @@ ${JSON.stringify(data, null, 2)}
 \`\`\``;
 }
 
-function synthesisPrompt({ ctx, commercial, sections }) {
+function synthesisPrompt({ ctx, commercial, sections, steer }) {
   const pillarBlocks = sections.map(s => `## ${s.label}\n${s.ok ? s.markdown : `_No ${s.label} data this period._`}`).join('\n\n');
   return `You are the lead strategist writing the **client-level synthesis** at the top of the briefing, having read all four pillar analyses below.
 
 # Client context
-${contextBlock(ctx)}
+${contextBlock(ctx)}${steerBlock(steer, { emphasis: true })}
 ${commercial ? `\n# Commercial headline\nRevenue (period): £${commercial.revenue.toLocaleString('en-GB')} from ${commercial.orders} orders.` : ''}
 
 # The four pillar analyses
@@ -147,7 +163,7 @@ function parseRecs(markdown) {
   return out;
 }
 
-async function runPillar(pillar, clientId, days, ctx) {
+async function runPillar(pillar, clientId, days, ctx, steer) {
   try {
     const data = await pillar.mod.reportData(clientId, { days });
     if (!data || !data.has_data) {
@@ -155,7 +171,7 @@ async function runPillar(pillar, clientId, days, ctx) {
     }
     const markdown = await claude.callClaude({
       model: MODEL, feature: FEATURE, clientId, max_tokens: 6000,
-      system: SYSTEM, user: pillarPrompt({ pillar, ctx, data }),
+      system: SYSTEM, user: pillarPrompt({ pillar, ctx, data, steer }),
     });
     return { pillar: pillar.key, label: pillar.label, ok: true, markdown, data, recommendations: parseRecs(markdown) };
   } catch (err) {
@@ -185,6 +201,16 @@ async function generate({ clientId, days = 30, trigger = 'manual' }) {
   const client = crows[0];
   const ctx = await loadContext(clientId, client);
 
+  // The account lead's steer — their own notes/thoughts to inform this briefing.
+  let steer = [];
+  try {
+    const { rows: srows } = await pool.query(
+      'SELECT text FROM strategist_steer_notes WHERE client_id = $1 ORDER BY created_at DESC LIMIT 30',
+      [clientId]
+    );
+    steer = srows.map(r => r.text);
+  } catch { /* table optional / best-effort */ }
+
   const ins = await pool.query(
     `INSERT INTO strategist_briefings (client_id, status, trigger, period_start, period_end)
      VALUES ($1, 'generating', $2, (NOW() - make_interval(days => $3))::date, NOW()::date) RETURNING id`,
@@ -197,12 +223,12 @@ async function generate({ clientId, days = 30, trigger = 'manual' }) {
     const end = new Date().toISOString().slice(0, 10);
     const [commercial, sections] = await Promise.all([
       commercialSnapshot(clientId, start, end),
-      Promise.all(PILLARS.map(p => runPillar(p, clientId, days, ctx))),
+      Promise.all(PILLARS.map(p => runPillar(p, clientId, days, ctx, steer))),
     ]);
 
     const synthMd = await claude.callClaude({
       model: MODEL, feature: FEATURE, clientId, max_tokens: 8000,
-      system: SYSTEM, user: synthesisPrompt({ ctx, commercial, sections }),
+      system: SYSTEM, user: synthesisPrompt({ ctx, commercial, sections, steer }),
     });
 
     await pool.query(
