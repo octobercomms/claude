@@ -130,11 +130,6 @@ export default function Layout() {
               bottom of the rail for everyone. */}
           {user?.role === 'admin' && (
             <li>
-              <NavLink to="/leads" style={({ isActive }) => linkStyle(isActive)}>Leads</NavLink>
-            </li>
-          )}
-          {user?.role === 'admin' && (
-            <li>
               <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}>Settings</NavLink>
             </li>
           )}
