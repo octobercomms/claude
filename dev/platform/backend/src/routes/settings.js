@@ -8,6 +8,7 @@ const nodemailer = require('nodemailer');
 const dataforseo = require('../connectors/dataforseo');
 const flaresolverr = require('../services/flaresolverr');
 const pageSpeed = require('../services/pageSpeed');
+const fxRates = require('../services/fxRates');
 
 const bcrypt = require('bcryptjs');
 
@@ -393,6 +394,20 @@ function buildTransporter() {
 
 // ─── USAGE / COSTS ────────────────────────────────────────────────────────
 const usageTracking = require('../services/usageTracking');
+
+// Live-ish FX rate for display-only GBP conversion of the (USD) cost totals.
+// ECB-backed via fxRates; falls back to a static approx if the fetch fails.
+router.get('/fx-rate', async (req, res) => {
+  const base = String(req.query.base || 'USD').toUpperCase();
+  const target = String(req.query.target || 'GBP').toUpperCase();
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const rate = await fxRates.getRate(base, target, today);
+    res.json({ base, target, rate });
+  } catch {
+    res.json({ base, target, rate: base === 'USD' && target === 'GBP' ? 0.79 : null, approx: true });
+  }
+});
 
 router.get('/usage', async (req, res) => {
   try {
