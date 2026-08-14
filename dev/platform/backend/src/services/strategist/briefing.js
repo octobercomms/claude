@@ -33,7 +33,18 @@ const PILLARS = [
     frame: 'Work the Technical / Content / Authority / Measurement framework plus AI-search readiness (AI Overviews). Judge rankings and movement, technical health, authority, and the biggest ranking opportunities.' },
 ];
 
-const SYSTEM = `You are the strategist on the October Communications team — a UK marketing agency — writing an internal briefing for the account lead. Confident, specific, commercially literate, British English. No hype, no filler, no generic advice ("consider improving content"); every point must be specific enough to act on this week and grounded in the numbers given. If a pillar's data is thin, say so plainly rather than over-reading it. Never invent numbers.`;
+const SYSTEM = `You are the senior strategist on the October Communications team — a UK marketing agency — writing a thorough internal briefing for the account lead. Be the expert in the room: think like the business owner deciding where the next few months of effort and budget should go.
+
+For every point you make, work the full chain: what the data actually shows (cite the number) → what it means / why it's happening → what you would do about it → the expected impact and how it moves the account to its next stage. Don't just name a metric — interpret it. Where useful, explain the mechanics so the account lead understands *why* the recommendation works, not just what to do.
+
+Depth is welcome and expected — this is a proper strategic review, not a one-line summary. But rigour comes first: every claim must be grounded in the numbers provided, specific enough to act on, and free of generic filler ("consider improving content", "engage your audience"). If a pillar's data is thin, say so plainly and don't over-read it. Confident, commercially literate, British English. Never invent numbers — if a figure isn't in the data, don't cite it.`;
+
+// Client-facing reframe: the account director's voice, written for the client.
+const CLIENT_SYSTEM = `You are a senior account director at October Communications, a UK marketing agency, writing a polished progress report addressed to the client. Warm, confident, plain British English, jargon kept light and always explained.
+
+Your job is to tell the client the story of their marketing this period: what we did, what the results were, what it means for their business, and what we're focusing on next. Explain the "so what" behind the numbers — a client should finish the report understanding both how things are going and that they're in expert hands.
+
+Hard rules: only use figures that appear in the internal briefing you're given — never invent or round beyond what's there. Do not expose internal commercial candour, agency margins, blunt criticism of the client, or the internal [CRUCIAL]/[NICE] tags. Reframe priorities positively as "where we're focusing next". No hype, no empty superlatives. British English throughout.`;
 
 // Pull light client context to steer the analysis.
 async function loadContext(clientId, client) {
@@ -92,10 +103,13 @@ ${contextBlock(ctx)}
 
 # Your brief
 ${pillar.frame}
-Write a tight markdown analysis (no top-level heading — the UI adds it):
-- **What's working** and **what's holding growth back**, citing specific numbers from the data.
+Write a thorough markdown analysis (no top-level heading — the UI adds it). Use \`###\` sub-headings and cover:
+- **What the data shows** — read the numbers: the state of play, the trend, and what stands out (good and bad). Cite specific figures.
+- **What's working** — what to protect and build on, and *why* it's working.
+- **What's holding growth back** — the real constraints, root cause not just symptom, with the numbers that reveal them.
+- **What I'd do** — the specific moves, each with the reasoning (why it works) and the expected impact / what "good" looks like next.
 - End with a \`### Recommendations\` list. Each line MUST start with \`[CRUCIAL]\` or \`[NICE]\` (crucial = do it in the next 30–90 days, it moves the needle; nice = worthwhile but not urgent), then the specific action and the one-line why.
-If the data is too thin to judge, say so in one line and give at most one recommendation.
+Be genuinely useful and specific — enough that the account lead could act on this on Monday. If the data is too thin to judge a sub-section, say so plainly rather than padding.
 
 # ${pillar.label} data (last ${data.days} days)
 \`\`\`json
@@ -115,10 +129,11 @@ ${commercial ? `\n# Commercial headline\nRevenue (period): £${commercial.revenu
 ${pillarBlocks}
 
 # Write (markdown, no top-level heading)
-1. **The headline** — 2–3 sentences: how the account is doing overall and the single biggest opportunity right now.
-2. **Where to focus** — the cross-channel story: what's working to build on, what's holding growth back, and how the channels should support each other.
-3. A \`### This month's priorities\` list — the few things that matter most across the WHOLE account, most important first. Each line starts with \`[CRUCIAL]\` or \`[NICE]\`, then the action and why. These are account-level priorities, not a rehash of every pillar recommendation.
-Be decisive: if you were the business owner, where would you put the next month of effort, and what is merely nice to have?`;
+1. **The headline** — a short paragraph: how the account is doing overall, the single biggest opportunity right now, and the one risk worth naming.
+2. **Where to focus** — the cross-channel story in real depth: what's working to build on, what's holding growth back, and — importantly — how the channels should support each other (e.g. what owned/earned should do for paid, where social amplifies the rest). Explain the reasoning, not just the conclusion.
+3. **The next stage** — if you were the business owner, what does "levelling up" look like over the next few months, and what's the sequence to get there?
+4. A \`### This month's priorities\` list — the few things that matter most across the WHOLE account, most important first. Each line starts with \`[CRUCIAL]\` or \`[NICE]\`, then the action and why. These are account-level priorities, not a rehash of every pillar recommendation.
+Be decisive and commercially minded: where should the next month of effort and budget go, and what is merely nice to have?`;
 }
 
 // Parse "[CRUCIAL]/[NICE] text" lines out of a markdown block.
@@ -139,7 +154,7 @@ async function runPillar(pillar, clientId, days, ctx) {
       return { pillar: pillar.key, label: pillar.label, ok: false, markdown: '', data, recommendations: [] };
     }
     const markdown = await claude.callClaude({
-      model: MODEL, feature: FEATURE, clientId, max_tokens: 4000,
+      model: MODEL, feature: FEATURE, clientId, max_tokens: 6000,
       system: SYSTEM, user: pillarPrompt({ pillar, ctx, data }),
     });
     return { pillar: pillar.key, label: pillar.label, ok: true, markdown, data, recommendations: parseRecs(markdown) };
@@ -186,7 +201,7 @@ async function generate({ clientId, days = 30, trigger = 'manual' }) {
     ]);
 
     const synthMd = await claude.callClaude({
-      model: MODEL, feature: FEATURE, clientId, max_tokens: 5000,
+      model: MODEL, feature: FEATURE, clientId, max_tokens: 8000,
       system: SYSTEM, user: synthesisPrompt({ ctx, commercial, sections }),
     });
 
@@ -215,4 +230,56 @@ async function generate({ clientId, days = 30, trigger = 'manual' }) {
   }
 }
 
-module.exports = { generate, parseRecs, PILLARS };
+// ── Client-facing report ─────────────────────────────────────────────────────
+// A second Claude pass that reframes a completed briefing into a polished
+// progress report addressed to the client. Cached on the briefing row; pass
+// { force: true } to regenerate. Returns the markdown.
+const PILLAR_LABEL = { paid: 'Paid media', earned: 'PR & earned media', shared: 'Social', owned: 'SEO & content', cross: 'Across the account' };
+
+function clientReportPrompt({ ctx, synthesis, sections }) {
+  const pillarBlocks = (sections || [])
+    .filter(s => s.ok && s.markdown)
+    .map(s => `## ${PILLAR_LABEL[s.pillar] || s.label}\n${s.markdown}`)
+    .join('\n\n');
+  return `Rewrite the internal strategist briefing below as a progress report for the client.
+
+# Client
+${contextBlock(ctx)}
+
+# Internal briefing — account-level synthesis
+${synthesis || '_none_'}
+
+# Internal briefing — by channel
+${pillarBlocks || '_none_'}
+
+# Write the client report (markdown, no top-level # heading — the document adds the title)
+Structure it as:
+- A short, warm opening paragraph — the story of the period in 3–4 sentences.
+- \`## How things are going\` — the honest-but-constructive overall picture, in plain English, with the headline numbers that matter to them.
+- \`## By channel\` — a subsection (\`###\`) for each channel that has something to report (paid media, PR & earned, social, SEO & content). What we did, the results, and what it means. Skip channels with nothing to say rather than padding.
+- \`## Where we're focusing next\` — the plan for the coming weeks as a short prioritised list, framed as what we're doing for them (not internal jargon, no [CRUCIAL]/[NICE] tags).
+- A one-line close.
+Keep it readable for a busy business owner — thorough but not padded. Only use numbers that appear above.`;
+}
+
+async function clientReport(briefingId, { force = false } = {}) {
+  const { rows } = await pool.query('SELECT * FROM strategist_briefings WHERE id = $1', [briefingId]);
+  if (!rows.length) throw new Error('Briefing not found');
+  const b = rows[0];
+  if (b.status !== 'completed') throw new Error('Briefing not ready');
+  if (b.client_report && !force) return b.client_report;
+
+  const { rows: crows } = await pool.query('SELECT * FROM clients WHERE id = $1', [b.client_id]);
+  const client = crows[0] || { name: 'Client' };
+  const ctx = await loadContext(b.client_id, client);
+  const sections = Array.isArray(b.sections) ? b.sections : [];
+
+  const md = await claude.callClaude({
+    model: MODEL, feature: 'strategist_client_report', clientId: b.client_id, max_tokens: 6000,
+    system: CLIENT_SYSTEM, user: clientReportPrompt({ ctx, synthesis: b.synthesis, sections }),
+  });
+  await pool.query('UPDATE strategist_briefings SET client_report = $1, client_report_at = NOW() WHERE id = $2', [md, briefingId]);
+  return md;
+}
+
+module.exports = { generate, clientReport, parseRecs, PILLARS };
