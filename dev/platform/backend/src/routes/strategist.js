@@ -7,6 +7,7 @@ const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const strategistReport = require('../services/strategistReport');
 const briefing = require('../services/strategist/briefing');
+const briefingExport = require('../services/strategist/briefingExport');
 const pdfService = require('../services/pdfService');
 
 router.use(authenticate);
@@ -261,6 +262,57 @@ router.get('/briefings/:id', async (req, res) => {
         ORDER BY position ASC`, [req.params.id]);
     res.json({ ...rows[0], recommendations: recs });
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Download a briefing as a branded document. Two audiences:
+//   ?audience=internal (default) — the verbatim briefing: synthesis, per-pillar
+//     analysis, task list and the data appendix. For the account lead.
+//   ?audience=client — a Claude reframe as a client-facing progress report
+//     (cached; ?refresh=1 regenerates). Meant to be edited before sending.
+// Format is pdf or docx (Word — editable). Reuses the report export engine.
+router.get('/briefings/:id/export.:format(pdf|docx)', async (req, res) => {
+  const { id, format } = req.params;
+  const audience = req.query.audience === 'client' ? 'client' : 'internal';
+  try {
+    const { rows } = await pool.query(
+      `SELECT b.*, cl.name AS client_name FROM strategist_briefings b
+         JOIN clients cl ON cl.id = b.client_id WHERE b.id = $1`, [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Briefing not found' });
+    const b = rows[0];
+    assertClientAccess(req, b.client_id);
+    if (b.status !== 'completed') return res.status(400).json({ error: 'Briefing not ready' });
+
+    let markdown, title;
+    if (audience === 'client') {
+      markdown = await briefing.clientReport(id, { force: req.query.refresh === '1' });
+      title = `${b.client_name} — Marketing update`;
+    } else {
+      const { rows: recs } = await pool.query(
+        `SELECT pillar, priority, position, text, done FROM strategist_briefing_recommendations
+          WHERE briefing_id = $1 ORDER BY position ASC`, [id]);
+      markdown = briefingExport.internalMarkdown({ briefing: b, recommendations: recs });
+      title = `${b.client_name} — Strategist briefing`;
+    }
+
+    const chatExport = require('../services/chatExport');
+    const generatedAt = b.generated_at ? new Date(b.generated_at) : new Date();
+    const safe = String(b.client_name || 'client').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const filename = `${safe}-strategist-${audience}-${b.period_end || 'report'}.${format}`;
+
+    if (format === 'pdf') {
+      const buf = await chatExport.markdownToPdfBuffer(markdown, { title, clientName: b.client_name, generatedAt });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(buf);
+    }
+    const buf = await chatExport.markdownToDocxBuffer(markdown, { title, clientName: b.client_name, generatedAt });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(buf);
+  } catch (err) {
+    console.error('[strategist] briefing export failed:', err);
+    res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 router.post('/briefings/:id/read', async (req, res) => {

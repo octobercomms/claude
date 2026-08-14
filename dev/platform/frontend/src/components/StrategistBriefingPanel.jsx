@@ -30,6 +30,7 @@ export default function StrategistBriefingPanel({ clientId }) {
   const [recipients, setRecipients] = useState('');
   const [recipientsDirty, setRecipientsDirty] = useState(false);
   const [openSections, setOpenSections] = useState(() => new Set(['synthesis']));
+  const [downloading, setDownloading] = useState(null);
 
   const loadList = () => api.get(`/strategist/clients/${clientId}/briefings`)
     .then(r => { setList(r); if (r.length && !selectedId) setSelectedId(r[0].id); })
@@ -104,6 +105,29 @@ export default function StrategistBriefingPanel({ clientId }) {
     setOpenSections(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
   }
 
+  // Download the briefing as a branded document. audience=internal is the
+  // verbatim briefing + data appendix (PDF); audience=client is a Claude
+  // reframe as a client-facing progress report (Word, editable). The client
+  // reframe is generated on first download (~20s) then cached.
+  async function downloadReport(audience, format) {
+    const key = `${audience}.${format}`;
+    setDownloading(key);
+    try {
+      const res = await api.raw(`/strategist/briefings/${selected.id}/export.${format}?audience=${audience}`);
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: res.statusText })); throw new Error(err.error || `HTTP ${res.status}`); }
+      const blob = await res.blob();
+      const cd = res.headers.get('content-disposition') || '';
+      const m = cd.match(/filename="([^"]+)"/);
+      const filename = m ? m[1] : `strategist.${format}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) { toast(`Download failed: ${e.message}`, 'error'); }
+    finally { setDownloading(null); }
+  }
+
   const completed = selected && selected.status === 'completed';
   const sections = (completed && Array.isArray(selected.sections)) ? selected.sections : [];
   const recs = (completed && Array.isArray(selected.recommendations)) ? selected.recommendations : [];
@@ -168,6 +192,19 @@ export default function StrategistBriefingPanel({ clientId }) {
               <div className="card" style={{ color: 'var(--negative)', fontSize: 13 }}>Generation failed: {selected.error_message || 'unknown error'}</div>
             )}
             {completed && (<>
+              {/* Downloads — internal briefing (PDF) + client-facing draft (Word) */}
+              <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('internal', 'pdf')}
+                  title="The full briefing — synthesis, per-pillar analysis, task list and the data behind it.">
+                  {downloading === 'internal.pdf' ? 'Preparing…' : '↓ Briefing (PDF)'}
+                </button>
+                <button className="btn btn-secondary btn-sm" disabled={!!downloading} onClick={() => downloadReport('client', 'docx')}
+                  title="A client-ready progress report you can edit in Word before sending. First download takes ~20s while Claude writes it.">
+                  {downloading === 'client.docx' ? 'Writing client draft…' : '↓ Client draft (Word)'}
+                </button>
+                <span className="caption" style={{ color: 'var(--text-subtle)' }}>Client draft is reframed for the client — edit before sending.</span>
+              </div>
+
               {/* Synthesis */}
               <div className="card body-sm" style={{ marginBottom: 14 }}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{selected.synthesis || ''}</ReactMarkdown>
