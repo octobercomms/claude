@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.85.3 — BNPL: show the "as low as" per-payment estimate
+
+Makes it clear the buyer is splitting the cost, not being asked for a bigger
+amount. The Buy-Now-Pay-Later block now shows a live **"As low as $X × 4
+interest-free payments"** line that updates with the cart, plus a reassurance
+that tickets arrive straight away. (The full price is still charged — the
+provider spreads it; the exact schedule is shown by Klarna/Afterpay/Affirm on
+Stripe's page.) The block hides on free/membership carts.
+
 ## 1.85.2 — BNPL: show the installment options + a prominent block
 
 Two fixes after the first live test:

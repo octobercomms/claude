@@ -300,6 +300,12 @@
 
     $('#oct-summary-total').text(currencySymbol + displayTotal.toFixed(2));
     $('#oct-card-btn-amount').text(currencySymbol + displayTotal.toFixed(2));
+    // BNPL: show the "as low as" pay-in-4 estimate so buyers see the split up
+    // front. The full amount is still charged — the provider spreads it.
+    var $bnplEst = $('#oct-bnpl-est');
+    if ($bnplEst.length) {
+      $bnplEst.text('As low as ' + currencySymbol + (displayTotal / 4).toFixed(2) + ' × 4 interest-free payments');
+    }
     updateAttendeeNames(cart);
 
     // A free ticket that now carries a membership must go through the card (the $5
@@ -310,6 +316,8 @@
     $('#oct-free-section').toggle(isFree && !membershipOnly);
     // Joining needs the card path (it subscribes the same card), so hide PayPal.
     $('#panel-paypal, .oct-pay-or').toggle(!joining);
+    // BNPL: also hide when joining or below the $0.50 payable floor.
+    $('.oct-bnpl-or, #panel-installments').toggle(!joining && displayTotal >= 0.5);
 
     syncMembershipUI();
   }

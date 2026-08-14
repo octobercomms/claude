@@ -226,10 +226,11 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
         </div>
       <?php endif; ?>
       <?php if ($has_stripe && \OE\Settings::get('bnpl_enabled', false)) : ?>
-        <div class="oct-pay-or"><span><?php esc_html_e('or', 'october-events'); ?></span></div>
+        <div class="oct-pay-or oct-bnpl-or"><span><?php esc_html_e('or', 'october-events'); ?></span></div>
         <div class="oct-bnpl" id="panel-installments" role="tabpanel">
           <h6 class="oct-bnpl__title"><?php esc_html_e('Buy Now, Pay Later', 'october-events'); ?></h6>
-          <p class="oct-bnpl__sub"><?php esc_html_e('Spread the cost — pay in interest-free installments with Klarna, Afterpay or Affirm.', 'october-events'); ?></p>
+          <p class="oct-bnpl__est" id="oct-bnpl-est"></p>
+          <p class="oct-bnpl__sub"><?php esc_html_e('Spread the cost with Klarna, Afterpay or Affirm — interest-free. You still get your tickets straight away.', 'october-events'); ?></p>
           <button type="button" id="oct-pay-installments" class="oct-btn oct-btn--full oct-btn--bnpl">
             <span class="btn-text"><?php esc_html_e('Pay over time', 'october-events'); ?></span>
           </button>

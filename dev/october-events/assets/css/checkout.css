@@ -902,3 +902,9 @@
   font-size: 12px;
   color: #8a8175;
 }
+.oct-bnpl__est {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--oct-accent);
+}
