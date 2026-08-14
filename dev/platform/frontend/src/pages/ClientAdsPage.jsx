@@ -7,7 +7,7 @@ import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
 import SuiteOverview from '../components/SuiteOverview';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import Stepper from '../components/Stepper';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
@@ -21,7 +21,6 @@ import { useToast } from '../context/ToastContext';
 // against the same underlying connector data.
 export default function ClientAdsPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const toast = useToast();
   const [client, setClient] = useState(null);
   const [adsData, setAdsData] = useState(null);
@@ -37,7 +36,7 @@ export default function ClientAdsPage() {
   // 'pipeline' are aliases that resolve to the brief step so old deep
   // links still land sensibly.
   const [tab, setTab] = useTabParam('overview', [
-    'overview', 'health', 'performance', 'playbook', 'strategist', 'audiences', 'competitor_ads', 'resize',
+    'overview', 'health', 'performance', 'playbook', 'audiences', 'competitor_ads', 'resize',
     // pipeline sub-tabs
     'pipeline', 'creative',
     'brief', 'concepts', 'render', 'approve', 'launch',
@@ -59,7 +58,7 @@ export default function ClientAdsPage() {
   // Redesign spine (docs/omi/redesign-brief.md §3): Overview + Health + Build.
   // Health absorbs Measure + Briefing + Competitors + Playbook (read-outs);
   // Build absorbs the creative pipeline plus Audiences + Resize as tools.
-  const HEALTH_TABS = ['performance', 'strategist', 'competitor_ads', 'playbook'];
+  const HEALTH_TABS = ['performance', 'competitor_ads', 'playbook'];
   const BUILD_TOOLS = ['audiences', 'resize'];
   const isBuildGroup = isPipelineGroup || BUILD_TOOLS.includes(tab);
   const currentGroup = normalisedTab === 'overview' ? 'overview'
@@ -70,7 +69,7 @@ export default function ClientAdsPage() {
   const [healthOpen, setHealthOpen] = useState(() => new Set(['measure']));
   const toggleHealth = (idv) => setHealthOpen(prev => (prev.has(idv) ? new Set() : new Set([idv])));
   const openHealth = (idv) => setHealthOpen(new Set([idv]));
-  const goHealth = (section) => { if (section) openHealth(section); setTab(section === 'measure' ? 'performance' : section === 'briefing' ? 'strategist' : section === 'competitors' ? 'competitor_ads' : 'playbook'); };
+  const goHealth = (section) => { if (section) openHealth(section); setTab(section === 'measure' ? 'performance' : section === 'competitors' ? 'competitor_ads' : 'playbook'); };
   // Build tools (Audiences · Resize) — an accordion under the pipeline, so the
   // stepper stays the clear focus and the tools are discoverable, not a tiny
   // link row. Opening a tool via deep link expands its section.
@@ -81,7 +80,7 @@ export default function ClientAdsPage() {
   }, [tab]);
   // A deep link or nav to an absorbed Health tab opens its accordion section.
   useEffect(() => {
-    const hs = { performance: 'measure', strategist: 'briefing', competitor_ads: 'competitors', playbook: 'playbook' };
+    const hs = { performance: 'measure', competitor_ads: 'competitors', playbook: 'playbook' };
     if (hs[tab]) openHealth(hs[tab]);
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -450,16 +449,6 @@ export default function ClientAdsPage() {
         <Accordion open={healthOpen} onToggle={toggleHealth}>
           <AccordionItem id="measure" fn="measure" title="Measure" subtitle="Spend, ROAS & profit per campaign">
             {() => renderMeasure()}
-          </AccordionItem>
-          <AccordionItem id="briefing" fn="strategy" title="Briefing" subtitle="Now part of the whole-account Strategist">
-            {() => (
-              <div className="empty" style={{ padding: 18 }}>
-                The Strategist now reviews the whole account — Paid, Earned, Shared and Owned — in one weekly briefing, with the priorities that matter most across every channel.
-                <div style={{ marginTop: 12 }}>
-                  <button className="btn btn-primary btn-sm" onClick={() => navigate(`/clients/${id}/sales-traffic?tab=strategist`)}>Open the Strategist →</button>
-                </div>
-              </div>
-            )}
           </AccordionItem>
           <AccordionItem id="competitors" fn="research" title="Competitors" subtitle="Watch rival ads">
             {() => <CompetitorAdsPanel clientId={id} />}
