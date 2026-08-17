@@ -285,7 +285,9 @@ ${currentTemplate
     // plenty of headroom; the truncation branch below catches anything
     // bigger and surfaces a real error.
     max_tokens: 16384,
-    system,
+    // The template-builder system prompt is ~2k tokens and identical on every
+    // turn of the conversation — cache it so rounds 2..N read it at ~10% cost.
+    system: cacheableSystem(system),
     tools,
     tool_choice: { type: 'any' },
     messages,
