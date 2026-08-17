@@ -300,7 +300,7 @@ final class Settings {
             'bnpl_enabled'     => ! empty($in['bnpl_enabled']),
             'rejection_copy'   => $rejection,
             'ai_source_urls'   => array_values($sources),
-            'ai_model'         => sanitize_text_field((string) ($in['ai_model'] ?? 'claude-sonnet-4-20250514')),
+            'ai_model'         => sanitize_text_field((string) ($in['ai_model'] ?? 'claude-sonnet-5')),
             'ai_voice_guide'   => sanitize_textarea_field((string) ($in['ai_voice_guide'] ?? '')),
             'ai_examples'      => array_map('sanitize_textarea_field', array_values($examples)),
             'digest_enabled'   => ! empty($in['digest_enabled']),

@@ -86,14 +86,17 @@ final class ClaudeConnector {
      */
     public static function message(string $prompt, int $max_tokens = 1024, string $system = ''): ?string {
         $payload = [
-            'model'      => (string) Settings::get('ai_model', 'claude-sonnet-4-20250514'),
+            'model'      => (string) Settings::get('ai_model', 'claude-sonnet-5'),
             'max_tokens' => $max_tokens,
             'messages'   => [
                 ['role' => 'user', 'content' => $prompt],
             ],
         ];
         if ($system !== '') {
-            $payload['system'] = $system;
+            // Prompt caching: the system prompt (house voice guide + examples) is
+            // the same across every generation, so cache it and re-bill it at ~10%
+            // instead of full price each call.
+            $payload['system'] = self::cacheable_system($system);
         }
 
         $response = wp_remote_post(self::API_BASE, [
@@ -116,6 +119,7 @@ final class ClaudeConnector {
             Logger::log('Claude non-2xx', ['code' => $code, 'body' => wp_remote_retrieve_body($response)]);
             return null;
         }
+        self::log_cache_usage($data);
 
         // Anthropic returns content as an array of blocks.
         $text = '';
@@ -182,11 +186,14 @@ final class ClaudeConnector {
      */
     private static function raw_call(array $messages, array $tools, string $system, int $max_tokens): ?array {
         $payload = [
-            'model'      => (string) Settings::get('ai_model', 'claude-sonnet-4-20250514'),
+            'model'      => (string) Settings::get('ai_model', 'claude-sonnet-5'),
             'max_tokens' => $max_tokens,
             'messages'   => $messages,
         ];
-        if ($system !== '') { $payload['system'] = $system; }
+        // Cache the system block — since tools render before system, one
+        // breakpoint here caches the tools + assistant instructions together, so
+        // every turn of a support-chat conversation reuses them.
+        if ($system !== '') { $payload['system'] = self::cacheable_system($system); }
         if ($tools) { $payload['tools'] = $tools; }
 
         $response = wp_remote_post(self::API_BASE, [
@@ -208,7 +215,38 @@ final class ClaudeConnector {
             Logger::log('Claude assistant non-2xx', ['code' => $code, 'body' => wp_remote_retrieve_body($response)]);
             return null;
         }
+        self::log_cache_usage($data);
         return $data;
+    }
+
+    /**
+     * Wrap the system prompt as a cache-controlled content block (Anthropic
+     * prompt caching). The stable prefix is written once, then read on repeat
+     * calls at ~10% of the input price. Min cacheable prefix is ~1K tokens; a
+     * shorter prompt simply isn't cached (no error, no harm).
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private static function cacheable_system(string $system): array {
+        return [[
+            'type'          => 'text',
+            'text'          => $system,
+            'cache_control' => ['type' => 'ephemeral'],
+        ]];
+    }
+
+    /** Record cache hits/writes so caching can be verified from the log. */
+    private static function log_cache_usage(array $data): void {
+        $u     = is_array($data['usage'] ?? null) ? $data['usage'] : [];
+        $read  = (int) ($u['cache_read_input_tokens'] ?? 0);
+        $write = (int) ($u['cache_creation_input_tokens'] ?? 0);
+        if ($read || $write) {
+            Logger::log('Claude prompt cache', [
+                'read'    => $read,
+                'written' => $write,
+                'input'   => (int) ($u['input_tokens'] ?? 0),
+            ]);
+        }
     }
 
     /**

@@ -147,7 +147,16 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </section>
         <section class="oe-set-panel" data-tab="ai">
         <details class="oe-acc" id="voice"><summary><?php esc_html_e('AI Stories connector', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p><label><?php esc_html_e('Model', 'october-events'); ?><br><input type="text" name="ai_model" class="regular-text" value="<?php echo esc_attr((string) ($cfg['ai_model'] ?? '')); ?>"></label></p>
+        <?php $ai_model = (string) ($cfg['ai_model'] ?? ''); $ai_models = \OE\Settings::ai_models(); ?>
+        <p><label><?php esc_html_e('Model', 'october-events'); ?><br>
+            <select name="ai_model" class="regular-text">
+                <?php foreach ($ai_models as $mid => $mlabel) : ?>
+                    <option value="<?php echo esc_attr($mid); ?>" <?php selected($ai_model, $mid); ?>><?php echo esc_html($mlabel); ?></option>
+                <?php endforeach; ?>
+                <?php if ($ai_model !== '' && ! isset($ai_models[$ai_model])) : ?>
+                    <option value="<?php echo esc_attr($ai_model); ?>" selected><?php echo esc_html(sprintf(__('%s (current — retired, please switch)', 'october-events'), $ai_model)); ?></option>
+                <?php endif; ?>
+            </select></label></p>
         <p><label><?php esc_html_e('Source URLs (one per line, RSS preferred)', 'october-events'); ?><br>
             <textarea name="ai_source_urls" rows="5" class="large-text"><?php echo esc_textarea(implode("\n", (array) ($cfg['ai_source_urls'] ?? []))); ?></textarea></label></p>
 

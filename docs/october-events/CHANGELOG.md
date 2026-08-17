@@ -5,6 +5,24 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.86.0 — Claude prompt caching + a model picker (lower AI cost, no retired model)
+
+Two changes to the AI features (AI Stories + the support chat):
+
+- **Prompt caching.** The system prompt — the ADF house-voice guide, the example
+  pieces, and the support-chat tool definitions — is the same on every call, so
+  it's now sent with a `cache_control: ephemeral` breakpoint. Anthropic caches
+  that stable prefix and re-bills it at ~10% on repeat calls within the window,
+  cutting the input cost of every generation and every chat turn. Cache hits and
+  writes are recorded in the log ("Claude prompt cache") so the saving can be
+  verified. This is what the "low cache hit rate" note from Anthropic was about.
+- **The model is now a dropdown, not a free-text box.** Settings → AI Stories
+  connector lists the current Claude models (Sonnet 5 recommended, Opus 5, Haiku
+  4.5) instead of a field you have to type an id into. The old default,
+  `claude-sonnet-4-20250514`, has been **retired by Anthropic** (so AI calls
+  pinned to it fail); the default is now `claude-sonnet-5`. If a site still has a
+  retired id saved, it's shown flagged "retired, please switch" until changed.
+
 ## 1.85.3 — BNPL: show the "as low as" per-payment estimate
 
 Makes it clear the buyer is splitting the cost, not being asked for a bigger
