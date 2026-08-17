@@ -211,7 +211,9 @@ ${currentPlan
     const response = await getClient().messages.create({
       model: MODEL,
       max_tokens: 8192,
-      system: SYSTEM + require('./playbooks').systemSuffix(['copywriting']),
+      // Tool loop — the same large system + tools repeat every round; cache
+      // the prefix so rounds 2..N read it at ~10% input cost.
+      system: require('./claude').cacheableSystem(SYSTEM + require('./playbooks').systemSuffix(['copywriting'])),
       tools,
       // Don't force a tool on data-fetch rounds — let Claude choose. The
       // system prompt makes the contract: end on propose_plan or reply_only.

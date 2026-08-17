@@ -95,7 +95,9 @@ ${client.briefing_field ? `About: ${client.briefing_field}` : ''}${voiceContext}
   const message = await sdk.messages.create({
     model: MODEL,
     max_tokens: 6000,
-    system,
+    // Multi-turn refine chat — the system (role + rules + brand voice + the
+    // artifact being refined) is identical every turn; cache it.
+    system: require('./claude').cacheableSystem(system),
     messages: claudeMessages,
   });
   require('./costLog').recordClaudeCost({ model: MODEL, response: message, feature: 'refine_chat' });
