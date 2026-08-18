@@ -80,6 +80,11 @@ final class Settings {
             // per transaction. Edit under Settings → Checkout.
             'card_fee_percent' => 2.9,
             'card_fee_fixed'   => 0.30,
+            // "Pay over time" (BNPL — Klarna / Afterpay / Affirm) at ticket
+            // checkout, via Stripe's hosted page. Off by default: enable the
+            // methods in the Stripe Dashboard first, then turn this on. The card
+            // checkout is unchanged either way.
+            'bnpl_enabled'     => false,
             // PayPal — a second checkout gateway alongside Stripe (off until set up).
             'paypal_enabled'   => false,
             'paypal_env'       => 'sandbox',
@@ -115,7 +120,7 @@ final class Settings {
             'rejection_copy'  => [],
             // AI Stories connector source URLs (RSS preferred) (§6).
             'ai_source_urls'  => [],
-            'ai_model'        => 'claude-sonnet-4-20250514',
+            'ai_model'        => 'claude-sonnet-5',
             // Editable "tone of voice" training for the AI Stories layer.
             'ai_voice_guide'  => '',
             'ai_examples'     => [],
@@ -247,5 +252,19 @@ final class Settings {
 
     public static function has_secret(string $key): bool {
         return (string) self::get($key, '') !== '';
+    }
+
+    /**
+     * The Claude models the AI features can run on, as id => label. Used to
+     * build the model dropdown in Settings so admins pick a current model
+     * instead of typing a (possibly retired) id by hand. Keep the first entry
+     * as the recommended default.
+     */
+    public static function ai_models(): array {
+        return [
+            'claude-sonnet-5'   => 'Claude Sonnet 5 (recommended — best value)',
+            'claude-opus-5'     => 'Claude Opus 5 (most capable)',
+            'claude-haiku-4-5'  => 'Claude Haiku 4.5 (fastest, cheapest)',
+        ];
     }
 }

@@ -5,6 +5,76 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.86.0 — Claude prompt caching + a model picker (lower AI cost, no retired model)
+
+Two changes to the AI features (AI Stories + the support chat):
+
+- **Prompt caching.** The system prompt — the ADF house-voice guide, the example
+  pieces, and the support-chat tool definitions — is the same on every call, so
+  it's now sent with a `cache_control: ephemeral` breakpoint. Anthropic caches
+  that stable prefix and re-bills it at ~10% on repeat calls within the window,
+  cutting the input cost of every generation and every chat turn. Cache hits and
+  writes are recorded in the log ("Claude prompt cache") so the saving can be
+  verified. This is what the "low cache hit rate" note from Anthropic was about.
+- **The model is now a dropdown, not a free-text box.** Settings → AI Stories
+  connector lists the current Claude models (Sonnet 5 recommended, Opus 5, Haiku
+  4.5) instead of a field you have to type an id into. The old default,
+  `claude-sonnet-4-20250514`, has been **retired by Anthropic** (so AI calls
+  pinned to it fail); the default is now `claude-sonnet-5`. If a site still has a
+  retired id saved, it's shown flagged "retired, please switch" until changed.
+
+## 1.85.3 — BNPL: show the "as low as" per-payment estimate
+
+Makes it clear the buyer is splitting the cost, not being asked for a bigger
+amount. The Buy-Now-Pay-Later block now shows a live **"As low as $X × 4
+interest-free payments"** line that updates with the cart, plus a reassurance
+that tickets arrive straight away. (The full price is still charged — the
+provider spreads it; the exact schedule is shown by Klarna/Afterpay/Affirm on
+Stripe's page.) The block hides on free/membership carts.
+
+## 1.85.2 — BNPL: show the installment options + a prominent block
+
+Two fixes after the first live test:
+
+- **The installment options weren't appearing on Stripe's page.** Stripe's
+  Adaptive Pricing (local-currency presentment) is incompatible with BNPL and
+  hides Klarna/Afterpay/Affirm. The Checkout Session now sets
+  `adaptive_pricing[enabled]=false` so the options can show (they're also matched
+  to the buyer's country — US buyers see the US plans).
+- **A prominent "Buy Now, Pay Later" block** replaces the thin button: a bordered
+  card with a heading, one-line explainer, and a large "Pay over time" button.
+
+## 1.85.1 — move the "Pay over time" toggle to the Checkout tab
+
+The 1.85.0 toggle landed in the Tier-pricing accordion (Events tab) by mistake.
+Moved it to **Settings → Checkout → Checkout & tickets**, right next to the
+PayPal option, where it belongs.
+
+## 1.85.0 — "Pay over time" (Klarna / Afterpay / Affirm) at ticket checkout
+
+Adds an optional Buy-Now-Pay-Later button to ticket checkout, via Stripe's own
+hosted page — no new payment provider or account, all through your existing
+Stripe.
+
+- **Settings → Checkout → "Offer Pay over time"** (off by default). Prerequisite:
+  enable Klarna/Afterpay/Affirm in the Stripe Dashboard (Settings → Payment
+  methods).
+- When on, a **"Pay over time"** button appears under the card checkout. It
+  prices the same cart, creates a hosted Stripe Checkout Session, and hands the
+  buyer to Stripe for the installment flow. **The card checkout is completely
+  unchanged** — this is purely additive.
+- The order is issued by the **existing webhook** from the PaymentIntent
+  metadata (same path as the card safety-net), so tickets and the confirmation
+  email are created on payment. On return the buyer sees a confirmation.
+- Guards: BNPL is skipped for carts under the $0.50 floor and for the
+  membership auto-join rate (BNPL can't carry a recurring subscription).
+- New endpoint `POST oe/v1/ticket-checkout-session`; new
+  `StripeConnector::create_checkout_session()`.
+
+Note: BNPL options only display when the cart clears each provider's minimum
+(Affirm ~$50), and carry a higher processing fee (~6% + 0.30). Test in Stripe
+test mode before enabling.
+
 ## 1.84.4 — Stripe webhook: raw-input fallbacks + failure reason
 
 Hardens the Stripe webhook receiver and makes failures self-explanatory, to

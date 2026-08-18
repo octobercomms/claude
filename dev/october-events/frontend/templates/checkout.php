@@ -225,6 +225,19 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
           <div id="oct-paypal-errors" class="oct-payment-error" role="alert" style="display:none"></div>
         </div>
       <?php endif; ?>
+      <?php if ($has_stripe && \OE\Settings::get('bnpl_enabled', false)) : ?>
+        <div class="oct-pay-or oct-bnpl-or"><span><?php esc_html_e('or', 'october-events'); ?></span></div>
+        <div class="oct-bnpl" id="panel-installments" role="tabpanel">
+          <h6 class="oct-bnpl__title"><?php esc_html_e('Buy Now, Pay Later', 'october-events'); ?></h6>
+          <p class="oct-bnpl__est" id="oct-bnpl-est"></p>
+          <p class="oct-bnpl__sub"><?php esc_html_e('Spread the cost with Klarna, Afterpay or Affirm — interest-free. You still get your tickets straight away.', 'october-events'); ?></p>
+          <button type="button" id="oct-pay-installments" class="oct-btn oct-btn--full oct-btn--bnpl">
+            <span class="btn-text"><?php esc_html_e('Pay over time', 'october-events'); ?></span>
+          </button>
+          <div id="oct-installments-errors" class="oct-payment-error" role="alert" style="display:none"></div>
+          <p class="oct-bnpl__note"><?php esc_html_e('You’ll finish on Stripe’s secure page. Options and terms depend on the provider and total.', 'october-events'); ?></p>
+        </div>
+      <?php endif; ?>
       <?php if (! $has_stripe && ! $has_paypal) : ?>
         <p class="oct-error"><?php esc_html_e('No payment method configured. Please contact the organiser.', 'october-events'); ?></p>
       <?php endif; ?>

@@ -867,3 +867,44 @@
 .oct-membership-note a { color: inherit; text-decoration: underline; font-weight: 600; }
 .oct-flash { animation: octFlash 1.2s ease; }
 @keyframes octFlash { 0%,100% { background: transparent; } 25% { background: #fdf4d6; } }
+
+/* ---- Buy Now, Pay Later (BNPL) block ---- */
+.oct-bnpl {
+  border: 2px solid var(--oct-border);
+  border-radius: 16px;
+  padding: 20px 20px 18px;
+  background: #faf7ee;
+  margin-top: 8px;
+}
+.oct-bnpl__title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--oct-text);
+}
+.oct-bnpl__sub {
+  margin: 0 0 14px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #4a4a4a;
+}
+.oct-btn--bnpl {
+  background: var(--oct-text);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  padding: 16px 24px;
+}
+.oct-btn--bnpl:hover { background: #000; }
+.oct-bnpl__note {
+  margin: 10px 2px 0;
+  font-size: 12px;
+  color: #8a8175;
+}
+.oct-bnpl__est {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--oct-accent);
+}

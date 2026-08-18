@@ -300,6 +300,12 @@
 
     $('#oct-summary-total').text(currencySymbol + displayTotal.toFixed(2));
     $('#oct-card-btn-amount').text(currencySymbol + displayTotal.toFixed(2));
+    // BNPL: show the "as low as" pay-in-4 estimate so buyers see the split up
+    // front. The full amount is still charged — the provider spreads it.
+    var $bnplEst = $('#oct-bnpl-est');
+    if ($bnplEst.length) {
+      $bnplEst.text('As low as ' + currencySymbol + (displayTotal / 4).toFixed(2) + ' × 4 interest-free payments');
+    }
     updateAttendeeNames(cart);
 
     // A free ticket that now carries a membership must go through the card (the $5
@@ -310,6 +316,8 @@
     $('#oct-free-section').toggle(isFree && !membershipOnly);
     // Joining needs the card path (it subscribes the same card), so hide PayPal.
     $('#panel-paypal, .oct-pay-or').toggle(!joining);
+    // BNPL: also hide when joining or below the $0.50 payable floor.
+    $('.oct-bnpl-or, #panel-installments').toggle(!joining && displayTotal >= 0.5);
 
     syncMembershipUI();
   }
@@ -405,6 +413,55 @@
   }
   function showCardError(m) { $('#oct-card-errors').text(m).show(); }
   function hideCardError() { $('#oct-card-errors').hide().text(''); }
+
+  /* ---- Pay over time (BNPL via hosted Stripe Checkout) ----
+     Validates like the card path, then hands off to a Stripe-hosted page that
+     offers Klarna/Afterpay/Affirm. The order is created by the webhook from the
+     PaymentIntent metadata, so we just redirect and show a confirmation on return. */
+  function handleInstallments() {
+    if (state.processing) { return; }
+    var $err = $('#oct-installments-errors');
+    function fail(m) { $err.text(m).show(); }
+    var email = $('#oct-email').val().trim(), name = $('#oct-name').val().trim();
+    $err.hide().text('');
+    if (!email || !isValidEmail(email)) { $('#oct-email').addClass('error').focus(); fail('Please enter a valid email address.'); return; }
+    if (!readCart().length) { fail('Please choose at least one ticket.'); return; }
+    if (!checkTerms()) { fail('Please agree to the Terms & Conditions.'); return; }
+    if (joiningEffective()) { fail('Pay-over-time isn’t available with the membership rate — choose the standard ticket, or pay by card.'); return; }
+    setProcessing(true, '#oct-pay-installments');
+    var body = payload(name, email);
+    body.return_url = location.href.split('#')[0].split('?')[0];
+    rest('/ticket-checkout-session', body).then(function (res) {
+      if (!res.ok || !res.body.url) {
+        setProcessing(false, '#oct-pay-installments');
+        fail(friendlyServerError(res.body, 'Could not start the pay-over-time checkout. Please try card instead.'));
+        return;
+      }
+      window.location = res.body.url; // hand off to Stripe's hosted page
+    });
+  }
+  // Show a confirmation when the buyer returns from Stripe's hosted page. The
+  // order/tickets are issued by the webhook, so we confirm and point to email.
+  function handleBnplReturn() {
+    var q = window.location.search || '';
+    if (/[?&]oe_paid=1/.test(q)) {
+      $('#oct-checkout-form').hide();
+      $('#oct-success').show();
+      var $links = $('#oct-ticket-links');
+      if ($links.length) { $links.html('<p>Your payment was received. Your tickets are being issued and will be emailed to you shortly.</p>'); }
+      if ($('#oct-success').offset()) { $('html, body').animate({ scrollTop: $('#oct-success').offset().top - 40 }, 400); }
+      cleanBnplUrl();
+    } else if (/[?&]oe_cancelled=1/.test(q)) {
+      var $e = $('#oct-installments-errors');
+      if ($e.length) { $e.text('Payment cancelled — you can try again, or pay by card.').show(); }
+      cleanBnplUrl();
+    }
+  }
+  function cleanBnplUrl() {
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, location.href.split('?')[0].split('#')[0]);
+    }
+  }
 
   /* ---- Plain-English payment errors ----
      Turn Stripe's decline/validation codes (and our own server codes) into
@@ -562,5 +619,9 @@
     setRowQty($row, action === 'plus' ? current + 1 : current - 1);
   };
 
-  $(document).ready(init);
+  $(document).ready(function () {
+    init();
+    $(document).on('click', '#oct-pay-installments', handleInstallments);
+    handleBnplReturn();
+  });
 })(jQuery);

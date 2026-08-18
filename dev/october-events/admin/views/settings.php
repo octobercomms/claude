@@ -147,7 +147,16 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </section>
         <section class="oe-set-panel" data-tab="ai">
         <details class="oe-acc" id="voice"><summary><?php esc_html_e('AI Stories connector', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p><label><?php esc_html_e('Model', 'october-events'); ?><br><input type="text" name="ai_model" class="regular-text" value="<?php echo esc_attr((string) ($cfg['ai_model'] ?? '')); ?>"></label></p>
+        <?php $ai_model = (string) ($cfg['ai_model'] ?? ''); $ai_models = \OE\Settings::ai_models(); ?>
+        <p><label><?php esc_html_e('Model', 'october-events'); ?><br>
+            <select name="ai_model" class="regular-text">
+                <?php foreach ($ai_models as $mid => $mlabel) : ?>
+                    <option value="<?php echo esc_attr($mid); ?>" <?php selected($ai_model, $mid); ?>><?php echo esc_html($mlabel); ?></option>
+                <?php endforeach; ?>
+                <?php if ($ai_model !== '' && ! isset($ai_models[$ai_model])) : ?>
+                    <option value="<?php echo esc_attr($ai_model); ?>" selected><?php echo esc_html(sprintf(__('%s (current — retired, please switch)', 'october-events'), $ai_model)); ?></option>
+                <?php endif; ?>
+            </select></label></p>
         <p><label><?php esc_html_e('Source URLs (one per line, RSS preferred)', 'october-events'); ?><br>
             <textarea name="ai_source_urls" rows="5" class="large-text"><?php echo esc_textarea(implode("\n", (array) ($cfg['ai_source_urls'] ?? []))); ?></textarea></label></p>
 
@@ -367,6 +376,13 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                     <p style="margin:8px 0 0"><label><?php esc_html_e('Client ID', 'october-events'); ?><br>
                         <input type="text" name="paypal_client_id" value="<?php echo esc_attr((string) ($cfg['paypal_client_id'] ?? '')); ?>" class="regular-text code" autocomplete="off" spellcheck="false"></label></p>
                     <p class="description"><?php esc_html_e('From the PayPal Developer dashboard (matching the environment above). Add the Client secret under the API keys section. Until all three are set, PayPal stays hidden and card checkout is unaffected.', 'october-events'); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Pay over time', 'october-events'); ?></th>
+                <td>
+                    <label><input type="checkbox" name="bnpl_enabled" value="1" <?php checked((bool) ($cfg['bnpl_enabled'] ?? false)); ?>> <?php esc_html_e('Offer “Pay over time” — Klarna / Afterpay / Affirm (alongside card)', 'october-events'); ?></label>
+                    <p class="description"><?php esc_html_e('Adds a “Pay over time” button that sends the buyer to Stripe’s secure page for installments. Card checkout is unchanged. Prerequisite: enable Klarna/Afterpay/Affirm in your Stripe Dashboard (Settings → Payment methods). Options only show when the cart clears each provider’s minimum (Affirm ~$50), and carry a higher fee (~6% + 0.30). Test in Stripe test mode before enabling.', 'october-events'); ?></p>
                 </td>
             </tr>
         </tbody></table>

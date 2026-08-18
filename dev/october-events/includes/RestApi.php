@@ -100,6 +100,13 @@ final class RestApi {
             'callback'            => [$this, 'ticket_confirm'],
             'permission_callback' => '__return_true',
         ]);
+        // "Pay over time" (BNPL) — a hosted Stripe Checkout Session. The order is
+        // created by the webhook from the PaymentIntent metadata, same as cards.
+        register_rest_route(self::NS, '/ticket-checkout-session', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'ticket_checkout_session'],
+            'permission_callback' => '__return_true',
+        ]);
         // PayPal: create an approved order, then capture + issue tickets.
         register_rest_route(self::NS, '/paypal-create', [
             'methods'             => 'POST',
@@ -759,6 +766,73 @@ final class RestApi {
             'intent_id'     => $intent['id'],
             'amount'        => $cents,
         ], 200);
+    }
+
+    /**
+     * "Pay over time" (BNPL): price the same cart as /ticket-intent, then create a
+     * hosted Stripe Checkout Session with the cart metadata on its PaymentIntent so
+     * the webhook issues the order on success. Card checkout is untouched.
+     */
+    public function ticket_checkout_session(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('ticket_intent', 15)) {
+            return $this->too_many();
+        }
+        if (! (bool) \OE\Settings::get('bnpl_enabled', false)) {
+            return new \WP_REST_Response(['error' => 'not_enabled'], 403);
+        }
+        if (! \OE\Connectors\StripeConnector::is_ready()) {
+            return new \WP_REST_Response(['error' => 'payments_unavailable'], 503);
+        }
+        $priced = $this->price_checkout($req, false);
+        if (is_wp_error($priced)) {
+            return new \WP_REST_Response(['error' => $priced->get_error_message()], (int) ($priced->get_error_data()['status'] ?? 400));
+        }
+        $cents = (int) round($priced['total'] * 100);
+        if ($cents < 50) {
+            return new \WP_REST_Response(['error' => 'amount_too_low'], 400);
+        }
+        // BNPL funds a one-off amount; it can't carry a recurring membership join.
+        if (! empty($priced['needs_join'])) {
+            return new \WP_REST_Response(['error' => 'join_not_supported'], 409);
+        }
+
+        $buyer     = ['email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name'))];
+        $attendees = $this->attendee_names_param($req);
+        $att_json  = wp_json_encode($attendees) ?: '[]';
+        while (strlen($att_json) > 480 && $attendees) { array_pop($attendees); $att_json = wp_json_encode($attendees) ?: '[]'; }
+        $meta = [
+            'kind'      => 'ticket',
+            'event_id'  => $priced['event_id'],
+            'cart'      => $this->cart_meta($priced['lines']),
+            'email'     => $buyer['email'],
+            'name'      => $buyer['name'],
+            'promo'     => $priced['promo']['code'] ?? '',
+            'attendees' => $att_json,
+        ];
+
+        // Return to the page the buyer started on (same-origin only), preserving a
+        // marker the checkout JS reads to show the confirmation.
+        $return = esc_url_raw((string) $req->get_param('return_url'));
+        if ($return === '' || wp_parse_url($return, PHP_URL_HOST) !== wp_parse_url(home_url(), PHP_URL_HOST)) {
+            $return = get_permalink($priced['event_id']) ?: home_url('/');
+        }
+        $sep         = strpos($return, '?') === false ? '?' : '&';
+        $success_url = $return . $sep . 'oe_paid=1&session_id={CHECKOUT_SESSION_ID}';
+        $cancel_url  = $return . $sep . 'oe_cancelled=1';
+
+        $sess = \OE\Connectors\StripeConnector::create_checkout_session(
+            $cents,
+            (string) \OE\Settings::get('currency', 'usd'),
+            $buyer['email'],
+            $meta,
+            $success_url,
+            $cancel_url,
+            (string) (get_the_title($priced['event_id']) ?: __('Tickets', 'october-events'))
+        );
+        if (($sess['url'] ?? '') === '') {
+            return new \WP_REST_Response(['error' => 'session_failed'], 502);
+        }
+        return new \WP_REST_Response(['url' => $sess['url']], 200);
     }
 
     public function ticket_confirm(\WP_REST_Request $req): \WP_REST_Response {
