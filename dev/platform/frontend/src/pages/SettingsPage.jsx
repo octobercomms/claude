@@ -7,6 +7,7 @@ import ManageUsersPage from './ManageUsersPage';
 import LeadsPage from './LeadsPage';
 import SecurityPanel from '../components/SecurityPanel';
 import StrategyTemplatesPanel from '../components/StrategyTemplatesPanel';
+import TendersPanel from '../components/TendersPanel';
 import AiModelsPanel from '../components/AiModelsPanel';
 import IntegrationsPage from './IntegrationsPage';
 import { roWrite } from '../utils/readOnly';
@@ -330,6 +331,7 @@ const SECTIONS = [
     { k: 'tags', label: 'Tags' },
     { k: 'strategy', label: 'Strategy templates' },
     { k: 'leads', label: 'Leads' },
+    { k: 'tenders', label: 'Tenders' },
   ] },
   { key: 'account', label: 'Account', subs: [
     { k: 'users', label: 'Users & access' },
@@ -348,7 +350,7 @@ const SECTION_GROUPS = {
   ],
   workspace: [
     { label: 'Library',           subs: ['contacts', 'publications', 'tags'] },
-    { label: 'Templates & tools', subs: ['strategy', 'praddon', 'leads'] },
+    { label: 'Templates & tools', subs: ['strategy', 'praddon', 'leads', 'tenders'] },
   ],
   account: [
     { label: 'Access', subs: ['users', 'security'] },
@@ -596,6 +598,7 @@ export default function SettingsPage() {
       {tab === 'tags' && <TagsManager />}
       {tab === 'users' && <ManageUsersPage embedded />}
       {tab === 'leads' && <LeadsPage embedded />}
+      {tab === 'tenders' && <TendersPanel />}
       {tab === 'security' && <SecurityPanel />}
       {tab === 'strategy' && <StrategyTemplatesPanel />}
       {tab === 'costs' && (<>
