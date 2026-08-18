@@ -61,6 +61,18 @@ cron.schedule('0 */12 * * *', async () => {
   try { await require('./prMonitor').runDue(); } catch (e) { console.error('[Scheduler] PR monitor failed:', e.message); }
 });
 
+// Daily at 07:30 — TLS certificate expiry watch. Reads the live served cert for
+// each watched domain (TLS_MONITOR_DOMAINS, or the PLATFORM_URL host) and emails
+// ALERT_EMAIL if any is within TLS_ALERT_DAYS (default 14) of expiry or the host
+// is unreachable. Silent when all healthy. Catches a lapse whatever the cause —
+// so a cert can't silently expire and take a site down.
+cron.schedule('30 7 * * *', async () => {
+  try {
+    const r = await require('./tlsMonitor').runCheck();
+    if (r.alerts) console.warn(`[Scheduler] TLS watch: ${r.alerts}/${r.checked} domain(s) need attention`);
+  } catch (e) { console.error('[Scheduler] TLS watch failed:', e.message); }
+});
+
 // Daily at 08:00 — Instagram discovery autopilot. Re-runs each enabled client's
 // saved query and emails a digest of any NEW public profiles found. Discovery
 // only; the AM still sends every DM by hand.
