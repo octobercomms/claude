@@ -530,6 +530,18 @@ button { font-family: inherit; }
   color: var(--text-subtle); margin-bottom: var(--s3);
 }
 
+/* Compact overview — used when the bento launchpad sits above the pillar chat.
+   Tightens the hero band (smaller headline, less padding, smaller live-number
+   tiles) and the section gap so the launchpad stays a glance, not a scroll. */
+.oview--compact { gap: var(--s4); }
+.oview--compact .oview-hero { padding: var(--s5); gap: var(--s4) var(--s6); }
+.oview--compact .oview-hero-title { font-size: 21px; letter-spacing: -0.4px; line-height: 1.12; max-width: 30ch; }
+.oview--compact .oview-cta-row { margin-top: var(--s3); }
+.oview--compact .oview-hero-stats { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.oview--compact .oview-stat { padding: 8px 11px; }
+.oview--compact .oview-stat-val { font-size: 18px; }
+.oview--compact .oview-stat-name { font-size: 11px; }
+
 /* ─── Chips ──────────────────────────────────────────────────────── */
 
 .chip {
