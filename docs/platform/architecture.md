@@ -81,9 +81,12 @@ SPA fallback: try_files … /index.html
 
 ## Deploy topology
 
-- Push to `main` → `update.sh` runs on the VPS: `git pull` → run migrations →
-  `npm ci` backend → build frontend → rsync to `/var/www/platform` →
-  `pm2 reload october-platform` → sync nginx if changed.
+- **Fully automated.** PRs against `main` auto-merge; the
+  `platform-deploy.yml` GitHub Action then runs on the push to `main` and SSHes
+  into the VPS to run `update.sh`: `git pull` → run migrations → `npm ci`
+  backend → build frontend → rsync to `/var/www/platform` →
+  `pm2 reload october-platform` → sync nginx if changed. No manual merge or
+  deploy step. (No Cloudflare gate — that comment is the separate ADF app.)
 - One API process (`october-platform`, port 3001) behind nginx. Video worker
   runs elsewhere. Postgres is local to the VPS.
 
@@ -93,4 +96,4 @@ See [backend.md](backend.md), [frontend.md](frontend.md),
 
 ---
 
-_Last verified: 2026-06-28._
+_Last verified: 2026-08-18._

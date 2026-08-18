@@ -38,7 +38,9 @@
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` and the
   `Claude-Session:` trailer. **Never** put the model id in commits/PRs/code.
 - **PRs:** open ready-for-review against `main`; body ends with the Claude Code
-  attribution line.
+  attribution line. PRs **auto-merge** once checks pass, and the merge
+  **auto-deploys** to production via the `platform-deploy.yml` GitHub Action — no
+  manual merge or deploy step (see [deployment.md](deployment.md#continuous-deployment-github-actions)).
 
 ## How to add common things
 
@@ -70,4 +72,4 @@
 
 ---
 
-_Last verified: 2026-06-28._
+_Last verified: 2026-08-18._
