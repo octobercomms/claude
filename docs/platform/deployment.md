@@ -1,7 +1,36 @@
 # OMI — Deployment & Operations
 
 Production: a single Ubuntu VPS running Postgres + the API behind nginx, plus a
-separate video-worker box. Deploys over SSH on merge to `main`.
+separate video-worker box.
+
+**The whole pipeline is hands-off.** PRs against `main` are set to **auto-merge**
+(GitHub merges them automatically once checks pass), and every push to `main`
+that touches the platform triggers an **auto-deploy** — so you don't have to
+merge or deploy by hand. See [Continuous deployment](#continuous-deployment-github-actions)
+below. (OMI has **no** Cloudflare preview / merge gate — the Cloudflare PR
+comment is the separate ADF app; ignore it.)
+
+## Continuous deployment (GitHub Actions)
+
+`.github/workflows/platform-deploy.yml` deploys OMI automatically — there is **no
+"paste `update.sh` into the terminal" step** and no manual merge in the normal
+flow:
+
+- **Trigger:** push to `main` that changes `dev/platform/**`,
+  `dev/october-mi-shopify/**`, or the workflow file itself. A PR that only
+  touches `/docs` or another app doesn't redeploy the platform.
+- **What it does:** SSHes into the VPS (`DEPLOY_HOST`/`DEPLOY_USER`/`DEPLOY_SSH_KEY`
+  secrets) and runs `bash /opt/october-source/dev/platform/update.sh` — the same
+  script described below. A non-zero exit fails the Actions run so bad deploys
+  are flagged in the Actions tab.
+- **Concurrency:** `group: platform-deploy`, `cancel-in-progress: false` — one
+  deploy at a time; a second merge waits for the first to finish (no partial
+  mid-rsync state). 10-minute step timeout.
+- **Manual re-run:** `workflow_dispatch` lets you re-run the deploy from the
+  Actions tab if needed.
+
+So the day-to-day loop is: open a PR → it auto-merges → the deploy workflow runs
+→ production is updated. Nothing manual required.
 
 ## Scripts
 
@@ -12,7 +41,7 @@ deps; runs migrations; builds the frontend to `/var/www/platform`; installs the
 nginx config; issues a Let's Encrypt cert for `platform.octobercomms.com`;
 starts PM2 with `ecosystem.config.js` and registers the startup hook.
 
-### `update.sh` (continuous deploy — runs on each release)
+### `update.sh` (continuous deploy — run by the deploy workflow on each merge)
 1. `git fetch` + hard reset to `origin/main` (source at `/opt/october-source`).
 2. **Run migrations** from the backend dir — **fails the deploy if a migration fails** (before any restart).
 3. `npm ci --omit=dev` backend.
@@ -89,4 +118,4 @@ See `backend/.env.example` and `worker/.env.example` for the full list.
 
 ---
 
-_Last verified: 2026-06-28._
+_Last verified: 2026-08-18._

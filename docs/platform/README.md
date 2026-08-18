@@ -6,12 +6,13 @@ ads, PR/outreach, ecommerce analytics, and AI tooling per client.
 
 - **Code:** `dev/platform/` (backend Node/Express, frontend React/Vite, video worker)
 - **Docs:** `docs/platform/` (this folder — technical reference) and `docs/omi/` (strategy, feature briefs, integration plans)
-- **Production:** https://platform.octobercomms.com — deploys over SSH on merge to `main`
+- **Production:** https://platform.octobercomms.com — PRs against `main` auto-merge and auto-deploy (GitHub Action SSHes into the VPS); no manual merge/deploy. See [deployment.md](deployment.md#continuous-deployment-github-actions)
 - **Do not** brand the platform "nvelope" (that's a separate product).
 
 > **Cloudflare note:** PRs get a `october-platform.pages.dev` Cloudflare comment.
 > That preview is the **ADF / October Events app** (`dev/october-platform`), **not OMI**.
-> OMI has no Cloudflare preview — it deploys via SSH. Treat those comments as "no action".
+> OMI has no Cloudflare preview and no merge gate — it auto-merges and auto-deploys
+> via a GitHub Action that SSHes into the VPS. Treat those comments as "no action".
 
 ---
 
@@ -58,4 +59,4 @@ ingest, contacts intelligence, local SEO toolkit, and more).
 
 ---
 
-_Last verified: 2026-06-28 (against `dev/platform` @ branch `claude/peaceful-franklin-drpsew`)._
+_Last verified: 2026-08-18 (against `dev/platform` @ branch `claude/omi-overview`)._
