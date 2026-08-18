@@ -528,7 +528,7 @@ export default function ClientSocialPage() {
       })()}
 
       {socialTab === 'overview' && (
-        <>
+        <div className="stack stack-lg">
         <SuiteOverview
           compact
           tagline="A month of on-brand content, mostly on autopilot."
@@ -566,7 +566,7 @@ export default function ClientSocialPage() {
           )}
         />
         <OverviewChat clientId={id} pillar="shared" />
-        </>
+        </div>
       )}
 
       {/* PERFORMANCE → INSIGHTS — hero metrics, loop, next-up, recap. */}

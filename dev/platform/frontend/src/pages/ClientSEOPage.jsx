@@ -1138,7 +1138,7 @@ export default function ClientSEOPage() {
       })()}
 
       {activeTab === 'overview' && (
-        <>
+        <div className="stack stack-lg">
         <SuiteOverview
           compact
           tagline="Get found where buyers look — and turn the traffic into leads."
@@ -1211,7 +1211,7 @@ export default function ClientSEOPage() {
           actions={<a className="btn btn-secondary" href={`/api/seo/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
         />
         <OverviewChat clientId={id} pillar="owned" />
-        </>
+        </div>
       )}
 
       {historyKeyword && (
