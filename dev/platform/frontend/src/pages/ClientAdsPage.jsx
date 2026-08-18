@@ -5,6 +5,7 @@ import AudiencesPanel from '../components/AudiencesPanel';
 import ICPIntelligencePanel from '../components/ICPIntelligencePanel';
 import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
 import SuiteOverview from '../components/SuiteOverview';
+import OverviewChat from '../components/OverviewChat';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, Link } from 'react-router-dom';
@@ -471,6 +472,7 @@ export default function ClientAdsPage() {
       {normalisedTab === 'overview' && (
         <div className="stack stack-lg">
         <SuiteOverview
+          compact
           tagline="See what every pound returns — then make the better ad."
           description="Live ROAS and profit per campaign, a weekly list of exactly what to change, and a one-line brief turned into on-brand ads ready to launch. No designer, no media-buyer spreadsheet."
           benefits={['ROAS & profit per campaign', 'Exactly what to change', 'Brief → ads, ready to launch']}
@@ -515,6 +517,7 @@ export default function ClientAdsPage() {
           ]}
           actions={<a className="btn btn-secondary" href={`/api/paid/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
         />
+        <OverviewChat clientId={id} pillar="paid" />
         </div>
       )}
 
