@@ -4,9 +4,10 @@ Turns each PESO pillar's **Overview** tab from a static launchpad into a chat wi
 Claude that already knows the pillar's live numbers and can *do* the pillar's
 jobs — so the account manager stops mining data and setting up content by hand.
 
-**"Chat leads, data stays":** the chat renders as the lead element at the top of
-the Overview tab; the existing `SuiteOverview` launchpad is kept directly below,
-untouched.
+**Bentos stay, chat is the addition below:** the Overview tab keeps its
+`SuiteOverview` launchpad on top (rendered with the new `compact` prop, which
+trims the hero prose so the bentos stay tight), with the pillar chat added
+directly beneath it.
 
 ## Where it is
 

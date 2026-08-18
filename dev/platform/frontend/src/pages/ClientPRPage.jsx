@@ -860,8 +860,8 @@ export default function ClientPRPage() {
 
       {!loading && tab === 'overview' && (
         <div className="stack stack-lg">
-          <OverviewChat clientId={id} pillar="earned" />
           <SuiteOverview
+            compact
             tagline="Never pitch from memory — or lose a hit — again."
             description="Every pitch, placement and journalist relationship in one log. Coverage records itself from a link, your best targets come ranked, and the client gets a live page of their wins."
             benefits={['Coverage logs itself from a link', 'Targets come ranked', 'Client sees a live wins page']}
@@ -916,6 +916,7 @@ export default function ClientPRPage() {
               </div>
             ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
           </div>
+          <OverviewChat clientId={id} pillar="earned" />
         </div>
       )}
 

@@ -529,8 +529,8 @@ export default function ClientSocialPage() {
 
       {socialTab === 'overview' && (
         <>
-        <OverviewChat clientId={id} pillar="shared" />
         <SuiteOverview
+          compact
           tagline="A month of on-brand content, mostly on autopilot."
           description="Brainstorm nine posts at once, film a reel in your own voice, schedule the lot across every channel — then learn what landed so the next batch starts ahead."
           benefits={['Nine on-brand posts at once', 'Reels in your own voice', 'Scheduled across every channel']}
@@ -565,6 +565,7 @@ export default function ClientSocialPage() {
             />
           )}
         />
+        <OverviewChat clientId={id} pillar="shared" />
         </>
       )}
 

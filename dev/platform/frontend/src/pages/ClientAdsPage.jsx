@@ -471,8 +471,8 @@ export default function ClientAdsPage() {
 
       {normalisedTab === 'overview' && (
         <div className="stack stack-lg">
-        <OverviewChat clientId={id} pillar="paid" />
         <SuiteOverview
+          compact
           tagline="See what every pound returns — then make the better ad."
           description="Live ROAS and profit per campaign, a weekly list of exactly what to change, and a one-line brief turned into on-brand ads ready to launch. No designer, no media-buyer spreadsheet."
           benefits={['ROAS & profit per campaign', 'Exactly what to change', 'Brief → ads, ready to launch']}
@@ -517,6 +517,7 @@ export default function ClientAdsPage() {
           ]}
           actions={<a className="btn btn-secondary" href={`/api/paid/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
         />
+        <OverviewChat clientId={id} pillar="paid" />
         </div>
       )}
 

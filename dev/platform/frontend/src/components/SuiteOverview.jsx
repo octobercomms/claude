@@ -35,6 +35,7 @@ export default function SuiteOverview({
   tools = null,      // (legacy, ignored in the new layout)
   toolsLabel = 'Fix-it tools',
   otherJobs = null,  // (legacy, ignored in the new layout)
+  compact = false,   // trim the hero prose — used when the overview sits above the pillar chat
 }) {
   if (primary) {
     return (
@@ -48,6 +49,7 @@ export default function SuiteOverview({
         map={map}
         mapLayout={mapLayout}
         diagram={diagram}
+        compact={compact}
       />
     );
   }
@@ -95,17 +97,20 @@ export default function SuiteOverview({
 // action — then the workflow map as the main content (it doubles as the
 // navigation to every section, so no separate tool/other-job link rows).
 // No repeated heading: the page masthead already names the suite.
-function GrammarOverview({ tagline, description, benefits = [], primary, readouts, actions, map = [], mapLayout = 'ring', diagram = null }) {
+function GrammarOverview({ tagline, description, benefits = [], primary, readouts, actions, map = [], mapLayout = 'ring', diagram = null, compact = false }) {
   return (
-    <div className="oview">
+    <div className={'oview' + (compact ? ' oview--compact' : '')}>
       {/* Hero that sells the section: the value headline, what's possible /
           the benefits, the one primary action — with the live numbers beside
-          it. One headline (not three); the page masthead names the suite. */}
+          it. One headline (not three); the page masthead names the suite.
+          In compact mode (the overview sits above the pillar chat) we drop the
+          descriptive prose + benefits list and keep just the headline, live
+          numbers and the primary action, so the bentos stay tight. */}
       <div className="oview-hero">
         <div className="oview-hero-body">
           {tagline && <h2 className="oview-hero-title">{tagline}</h2>}
-          {description && <p className="oview-hero-desc">{description}</p>}
-          {benefits.length > 0 && (
+          {!compact && description && <p className="oview-hero-desc">{description}</p>}
+          {!compact && benefits.length > 0 && (
             <ul className="oview-benefits">
               {benefits.map((b, i) => <li key={i}>{b}</li>)}
             </ul>

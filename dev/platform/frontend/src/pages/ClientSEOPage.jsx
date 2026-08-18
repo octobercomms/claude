@@ -1139,8 +1139,8 @@ export default function ClientSEOPage() {
 
       {activeTab === 'overview' && (
         <>
-        <OverviewChat clientId={id} pillar="owned" />
         <SuiteOverview
+          compact
           tagline="Get found where buyers look — and turn the traffic into leads."
           description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach them from your own domain."
           benefits={['Rank on Google & in AI answers', 'Fix what holds the site back', 'Turn visitors into leads']}
@@ -1210,6 +1210,7 @@ export default function ClientSEOPage() {
           ]}
           actions={<a className="btn btn-secondary" href={`/api/seo/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
         />
+        <OverviewChat clientId={id} pillar="owned" />
         </>
       )}
 
