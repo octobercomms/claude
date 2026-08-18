@@ -108,6 +108,7 @@ export default function App() {
             <Route path="rankings" element={<RankingsPage />} />
             {/* Leads folded into Settings → Workspace → Leads; keep old links working. */}
             <Route path="leads" element={<Navigate to="/settings?tab=leads" replace />} />
+            <Route path="tenders" element={<Navigate to="/settings?tab=tenders" replace />} />
             <Route path="leads/:id" element={<SnapshotStudioPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="settings" element={<SettingsPage />} />

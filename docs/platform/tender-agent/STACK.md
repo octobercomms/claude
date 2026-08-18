@@ -78,6 +78,10 @@ source by flipping `tender_sources.enabled`.
 - **Manual run:** `POST /api/tender/ingest/run` (optionally `{ source_id }`).
 - **Admin API:** `GET /api/tender/sources`, `GET /api/tender/notices`
   (filters: `market`, `upcoming`, `needs_check`, `limit`/`offset`).
+- **UI:** Settings → Templates & tools → **Tenders** (next to Leads —
+  org-level, agency-staff only). `components/TendersPanel.jsx` lists the source
+  feeds with their last-poll status + a "Run scan now" button, and the open
+  notices with market / needs-check filters. Also reachable at `/tenders`.
 
 Adapters normalise via `services/tender/normalise.js` (content hash, date
 parsing incl. ISO + RFC-822, value parsing, expired check). Keyword/CPV config in
