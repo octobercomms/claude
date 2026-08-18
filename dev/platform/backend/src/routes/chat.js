@@ -136,6 +136,103 @@ const TOOLS = [
   },
 ];
 
+// ── Pillar (PESO overview) chat: grounding + action tools ───────────────────
+// Each PESO pillar Overview (Paid, Earned, Shared, Owned) fronts a chat that
+// runs this same agent with a pillar persona: the base read tools above, plus a
+// grounding tool that pulls the pillar's live overview, plus ONE "make it"
+// action that produces and PERSISTS a real deliverable inside OMI. Everything
+// here is internal/reversible — the agent never sends an email, publishes to a
+// live site, or schedules to a live account (enforced by the pillar prompt and
+// by only wiring internal service calls).
+
+const PILLAR_OVERVIEW_MODULES = {
+  paid:   '../services/paidOverviewReport',
+  earned: '../services/earnedOverviewReport',
+  shared: '../services/socialOverviewReport',
+  owned:  '../services/ownedOverviewReport',
+};
+
+const GET_PILLAR_OVERVIEW_TOOL = {
+  name: 'get_pillar_overview',
+  description: 'Pull this pillar\'s live overview — the same figures the pillar\'s Overview report is built from (spend/ROAS for Paid, coverage/journalists for Earned, post performance for Shared, rankings/audit for Owned). Call this first to ground yourself in the current numbers before answering or making anything.',
+  input_schema: { type: 'object', properties: { days: { type: 'number', description: 'Look-back window in days. Omit to use the pillar default.' } } },
+};
+
+// One flagship action per pillar. The tool name maps 1:1 to the pillar persona
+// that is allowed to call it (see personaTools), so a persona can never reach
+// another pillar's action.
+const PILLAR_ACTION_TOOLS = {
+  owned: {
+    name: 'generate_content_draft',
+    description: 'Write and SAVE a full content draft (a blog post / article in markdown) into the client\'s Owned → Build → Draft library, ready for the account manager to edit and publish. Use when the user asks you to draft or write a piece of content. Does NOT publish anything live.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        brief: { type: 'string', description: 'The content brief: topic, angle, audience, key points, desired word count and structure. Be specific — this drives the whole draft.' },
+        target_keyword: { type: 'string', description: 'Primary SEO keyword to target (optional but recommended).' },
+      },
+      required: ['brief'],
+    },
+  },
+  shared: {
+    name: 'generate_social_posts',
+    description: 'Generate and SAVE a batch of social posts (hook + caption + hashtags + storyboard) into the client\'s Shared post library, ready to review and refine. Use when the user asks you to draft, create or plan social posts. Does NOT publish or schedule anything to live accounts.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        brief: { type: 'string', description: 'What the posts are about: campaign, theme, product, tone, must-include points.' },
+        platforms: { type: 'array', items: { type: 'string' }, description: 'Target platforms, e.g. ["instagram","tiktok","linkedin"]. Omit for a sensible default.' },
+        count: { type: 'number', description: 'How many posts to generate (default ~9).' },
+        length: { type: 'string', description: 'Caption length preference, e.g. "short", "medium", "long".' },
+      },
+      required: ['brief'],
+    },
+  },
+  paid: {
+    name: 'generate_ad_creatives',
+    description: 'Generate and SAVE a batch of on-brand ad creative concepts (headlines, primary text, descriptions) into the client\'s Paid → Creative pipeline, ready to review. Use when the user asks you to write or create ad copy / creative. Does NOT launch or spend anything.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        brief: { type: 'string', description: 'The ad brief: product/offer, audience, angle, tone, must-include points or constraints.' },
+        platform: { type: 'string', description: 'Target platform, e.g. "meta" or "google". Default "meta".' },
+        count: { type: 'number', description: 'How many concepts to generate (4–16, default 8).' },
+      },
+      required: ['brief'],
+    },
+  },
+  earned: {
+    name: 'build_pitch_targets',
+    description: 'Build a ranked list of journalists to pitch for a story, using the client\'s own media contacts and relationship history. Give either a URL of the announcement/press release or a short brief of the story. Returns the angle and ranked targets — it does NOT contact anyone.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'URL of the announcement / press release / news page to pitch (optional if a brief is given).' },
+        brief: { type: 'string', description: 'A short description of the story/angle to pitch (optional if a URL is given).' },
+      },
+    },
+  },
+};
+
+const PILLAR_PERSONAS = Object.keys(PILLAR_ACTION_TOOLS); // ['owned','shared','paid','earned']
+const VALID_THREADS = ['analyst', 'strategist', ...PILLAR_PERSONAS];
+
+// The tool set a given persona is allowed to use. Analyst/strategist keep the
+// base read tools exactly as before; a pillar persona additionally gets the
+// grounding tool and its own single action tool.
+function personaTools(persona) {
+  if (!PILLAR_ACTION_TOOLS[persona]) return TOOLS;
+  return [...TOOLS, GET_PILLAR_OVERVIEW_TOOL, PILLAR_ACTION_TOOLS[persona]];
+}
+
+// Recursively cap arrays so a heavy overview / batch payload can't blow the
+// context window when handed back to the model as a tool result.
+function capArrays(v, cap = 15) {
+  if (Array.isArray(v)) return v.slice(0, cap).map(x => capArrays(x, cap));
+  if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v)) o[k] = capArrays(v[k], cap); return o; }
+  return v;
+}
+
 // ── Tool implementations ───────────────────────────────────────────────────
 
 async function toolGetClientInfo(clientId) {
@@ -682,7 +779,60 @@ async function toolSetReportSection(clientId, { section, weekly, monthly }) {
   };
 }
 
-async function executeTool(name, input, clientId) {
+// Pull a pillar's live overview via its report module (paidOverviewReport, …).
+async function toolGetPillarOverview(clientId, pillar, { days } = {}) {
+  const modPath = PILLAR_OVERVIEW_MODULES[pillar];
+  if (!modPath) return { error: `No overview available for "${pillar}"` };
+  try {
+    const mod = require(modPath);
+    const data = await mod.reportData(clientId, days ? { days } : {});
+    return capArrays(data);
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+// Run a pillar's flagship "make it" action. Every branch calls an internal
+// service that persists a draft/batch inside OMI (or, for Earned, returns a
+// ranked target list) — nothing here sends, publishes, or schedules anything.
+async function toolGeneratePillarDeliverable(pillar, clientId, input = {}) {
+  try {
+    if (pillar === 'owned') {
+      const draft = await require('../services/contentDraft').generateDraft({
+        clientId, brief: input.brief, targetKeyword: input.target_keyword,
+      });
+      return { success: true, saved_to: 'Owned → Build → Draft', draft_id: draft.id, title: draft.title,
+        meta_description: draft.meta_description, preview: (draft.body_markdown || '').slice(0, 1500) };
+    }
+    if (pillar === 'shared') {
+      const result = await require('../services/social').generateBatch({
+        clientId, brief: input.brief, platforms: input.platforms, count: input.count, length: input.length,
+      });
+      const posts = result.posts || [];
+      return { success: true, saved_to: 'Shared → post library', batch_id: result.batch?.id || null,
+        post_count: posts.length, posts: capArrays(posts.map(p => ({ hook: p.hook, caption: p.caption, hashtags: p.hashtags })), 12) };
+    }
+    if (pillar === 'paid') {
+      const count = Math.min(Math.max(parseInt(input.count) || 8, 4), 16);
+      const result = await require('../services/adCreative').generateBatch({
+        clientId, brief: input.brief, platform: input.platform || 'meta', count, assetIds: [], campaignContext: null,
+      });
+      const creatives = result.creatives || [];
+      return { success: true, saved_to: 'Paid → Creative pipeline', batch_id: result.batch?.id || null,
+        concept_count: creatives.length, concepts: capArrays(creatives.map(c => ({ headline: c.headline, primary_text: c.primary_text, description: c.description })), 12) };
+    }
+    if (pillar === 'earned') {
+      const out = await require('../services/prTarget').findTargets({ clientId, url: input.url, brief: input.brief });
+      return capArrays(out);
+    }
+    return { error: `No action available for "${pillar}"` };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+async function executeTool(name, input, clientId, ctx = {}) {
+  const pillar = ctx.pillar || null;
   switch (name) {
     case 'get_client_info':       return toolGetClientInfo(clientId);
     case 'get_connector_data':    return toolGetConnectorData(clientId, input);
@@ -695,6 +845,14 @@ async function executeTool(name, input, clientId) {
     case 'resolve_context_entry': return toolResolveContextEntry(input.id);
     case 'get_report_sections':   return toolGetReportSections(clientId);
     case 'set_report_section':    return toolSetReportSection(clientId, input);
+    case 'get_pillar_overview':   return toolGetPillarOverview(clientId, pillar, input);
+    // The four pillar action tools all resolve here; `pillar` (from the persona)
+    // decides which service runs, and each tool is only offered to its own
+    // persona, so a persona can't trigger another pillar's action.
+    case 'generate_content_draft':
+    case 'generate_social_posts':
+    case 'generate_ad_creatives':
+    case 'build_pitch_targets':   return toolGeneratePillarDeliverable(pillar, clientId, input);
     default: return { error: `Unknown tool: ${name}` };
   }
 }
@@ -707,6 +865,7 @@ function buildSystemPrompt(client, connectors, opts = {}) {
     : 'none configured';
 
   if (opts.persona === 'strategist') return buildStrategistSystemPrompt(client, connectorList, opts.briefing);
+  if (PILLAR_ACTION_TOOLS[opts.persona]) return buildPillarSystemPrompt(opts.persona, client, connectorList);
 
   return `You are a performance marketing analyst working directly with October Communications on the ${client.name} account.
 
@@ -729,6 +888,35 @@ get_connector_data returns rich detail you should use: GA4 includes traffic sour
 Client: ${client.name} | Domain: ${client.domain || 'not set'} | Monthly focus: ${client.monthly_focus || 'not set'}
 
 British English. Commercially minded. When you use tools, briefly mention what you checked so the account manager can see your reasoning.`;
+}
+
+// The PESO pillar personas — the same tool-using agent, scoped to one pillar and
+// pointed at doing the work: it grounds itself in the pillar's live overview,
+// pulls data with the read tools, and uses its single action tool to actually
+// make + save a deliverable inside OMI. The hard boundary keeps every
+// outward-facing / irreversible step (send, publish, go-live) with the account
+// manager — the agent prepares, the AM presses the button.
+const PILLAR_META = {
+  paid:   { name: 'Paid',   scope: 'paid media — Google Ads and Meta Ads',       make: 'generate and save on-brand ad creative concepts',                          avoid: 'launch, edit or pause live campaigns, or spend any budget' },
+  earned: { name: 'Earned', scope: 'PR, media relations and coverage',           make: 'build a ranked journalist pitch-target list (and draft releases or pitches directly in your reply)', avoid: 'email or contact any journalist, or send the client coverage report' },
+  shared: { name: 'Shared', scope: 'organic social media',                       make: 'generate and save a batch of social posts',                                avoid: 'publish or schedule anything to live accounts, or send DMs' },
+  owned:  { name: 'Owned',  scope: 'SEO and owned content',                      make: 'write and save a full content draft',                                       avoid: 'publish anything to the live website or CMS' },
+};
+
+function buildPillarSystemPrompt(pillar, client, connectorList) {
+  const m = PILLAR_META[pillar];
+  return `You are October Communications' ${m.name} specialist working directly with the account manager on the ${client.name} account. ${m.name} covers ${m.scope} — the "${m.name}" pillar of the PESO model.
+
+You are here to DO the work, not just describe it. Start by pulling the live picture with get_pillar_overview, and use your other tools (live connector data, SEO rankings, CRO/funnel findings, anomalies, reports, the context log) proactively so everything you say is grounded in real numbers, not guesses.
+
+You can make things: ${m.make}. When the account manager asks you to produce something, use your action tool to actually create it — it saves into OMI, ready for them to review — then tell them what you made and where to find it. You can also draft copy, plans and analysis directly in your reply, which the AM can download as a PDF or Word document (or prefix a request with /report for a formatted one).
+
+Hard boundary — you never take irreversible or outward-facing actions. Do not ${m.avoid}. Anything that leaves OMI or goes live is the account manager's decision: prepare the draft, then tell them exactly which button to press. Never invent figures, client facts or results — if you don't have the data, say so plainly.
+
+Connected data sources: ${connectorList}
+Client: ${client.name} | Domain: ${client.domain || 'not set'} | Monthly focus: ${client.monthly_focus || 'not set'}
+
+British English. Commercially minded, direct, no hype, no filler. When you use a tool, briefly say what you checked or made so the AM can follow your reasoning.`;
 }
 
 // The Strategist persona — the same tool-using agent, but speaking as the senior
@@ -771,13 +959,13 @@ British English. Talk like a trusted strategic advisor: confident and warm, no f
 // function-calling shape (tools[].function, assistant tool_calls, role:'tool'
 // results). Returns { finalText, toolsUsed }. DeepSeek is text-only, so the
 // caller routes image/PDF turns to Claude before getting here.
-async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens, feature = 'ai_data_analyst_chat' }) {
+async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens, feature = 'ai_data_analyst_chat', toolset = TOOLS, ctx = {} }) {
   const axios = require('axios');
   const { getSetting } = require('../utils/settings');
   const key = process.env.DEEPSEEK_API_KEY || await getSetting('DEEPSEEK_API_KEY');
   if (!key) { const e = new Error("DeepSeek isn't configured — add a DeepSeek API key in Settings, or pick a Claude model."); e.status = 400; throw e; }
 
-  const tools = TOOLS.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } }));
+  const tools = toolset.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } }));
   const msgs = [{ role: 'system', content: systemText }, ...messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }))];
   const toolsUsed = [];
   let finalText = '';
@@ -805,7 +993,7 @@ async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens,
           let input = {};
           try { input = JSON.parse(tc.function?.arguments || '{}'); } catch { /* bad args */ }
           if (win && tc.function?.name === 'get_connector_data') input = { ...input, start_date: win.start, end_date: win.end, days: undefined };
-          result = await executeTool(tc.function?.name, input, clientId);
+          result = await executeTool(tc.function?.name, input, clientId, ctx);
         } catch (err) { result = { error: err.message }; }
         msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
       }
@@ -820,7 +1008,7 @@ async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens,
 // ── Routes ─────────────────────────────────────────────────────────────────
 
 router.get('/:clientId', async (req, res) => {
-  const thread = req.query.thread === 'strategist' ? 'strategist' : 'analyst';
+  const thread = VALID_THREADS.includes(req.query.thread) ? req.query.thread : 'analyst';
   try {
     const { rows } = await pool.query(
       `SELECT id, role, content, tools_used, created_at
@@ -838,10 +1026,14 @@ router.post('/:clientId', async (req, res) => {
   const { message, image, start_date, end_date, model } = req.body;
   if (!message?.trim() && !image) return res.status(400).json({ error: 'message required' });
 
-  // Which conversation this belongs to. The Strategist chat runs the same agent
-  // and tools but with the strategist persona and its own history thread.
-  const persona = req.body.persona === 'strategist' ? 'strategist' : 'analyst';
-  const thread = persona === 'strategist' ? 'strategist' : 'analyst';
+  // Which conversation this belongs to. The Strategist and the four PESO pillar
+  // chats run the same agent and tools but each with its own persona, system
+  // prompt, tool set and history thread. Anything unrecognised falls back to the
+  // default analyst.
+  const persona = VALID_THREADS.includes(req.body.persona) ? req.body.persona : 'analyst';
+  const thread = persona;
+  const pillar = PILLAR_ACTION_TOOLS[persona] ? persona : null;
+  const activeTools = personaTools(persona);
 
   // Which model the AM picked for this question. DeepSeek is text-only, so an
   // image/PDF turn falls back to the default Claude model.
@@ -942,10 +1134,10 @@ router.post('/:clientId', async (req, res) => {
       : '';
 
     const systemText = buildSystemPrompt(client, connectorsRes.rows, { persona, briefing }) + reportSuffix + windowSuffix;
-    const costFeature = persona === 'strategist' ? 'strategist_chat' : 'ai_data_analyst_chat';
+    const costFeature = persona === 'strategist' ? 'strategist_chat' : pillar ? `overview_chat_${pillar}` : 'ai_data_analyst_chat';
 
     if (provider === 'deepseek') {
-      const r = await runDeepSeekChat({ systemText, messages, clientId, win, maxTokens: 8000, feature: costFeature });
+      const r = await runDeepSeekChat({ systemText, messages, clientId, win, maxTokens: 8000, feature: costFeature, toolset: activeTools, ctx: { pillar } });
       finalText = r.finalText;
       r.toolsUsed.filter(Boolean).forEach(t => toolsUsed.push(t));
     } else
@@ -960,7 +1152,7 @@ router.post('/:clientId', async (req, res) => {
         // Cache the (stable) system prompt so each tool-loop round reuses it at
         // ~10% input cost instead of re-sending the full analyst context.
         system: require('../services/claude').cacheableSystem(systemText),
-        tools: TOOLS,
+        tools: activeTools,
         messages,
       });
       // Cost log per round — chat sessions can be tool-heavy and the multi-
@@ -989,7 +1181,7 @@ router.post('/:clientId', async (req, res) => {
               if (win && block.name === 'get_connector_data') {
                 toolInput = { ...toolInput, start_date: win.start, end_date: win.end, days: undefined };
               }
-              result = await executeTool(block.name, toolInput, clientId);
+              result = await executeTool(block.name, toolInput, clientId, { pillar });
             } catch (err) {
               result = { error: err.message };
             }
@@ -1066,7 +1258,7 @@ router.get('/:clientId/messages/:msgId/export.:format(pdf|docx)', async (req, re
 });
 
 router.delete('/:clientId', async (req, res) => {
-  const thread = req.query.thread === 'strategist' ? 'strategist' : 'analyst';
+  const thread = VALID_THREADS.includes(req.query.thread) ? req.query.thread : 'analyst';
   try {
     await pool.query('DELETE FROM client_chat_messages WHERE client_id = $1 AND thread = $2', [req.params.clientId, thread]);
     res.status(204).end();

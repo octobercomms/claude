@@ -13,6 +13,7 @@ import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
 import SuiteOverview from '../components/SuiteOverview';
+import OverviewChat from '../components/OverviewChat';
 import SuiteTabs from '../components/SuiteTabs';
 import SocialAuditPanel from '../components/SocialAuditPanel';
 import SocialDmBotPanel from '../components/SocialDmBotPanel';
@@ -527,6 +528,8 @@ export default function ClientSocialPage() {
       })()}
 
       {socialTab === 'overview' && (
+        <>
+        <OverviewChat clientId={id} pillar="shared" />
         <SuiteOverview
           tagline="A month of on-brand content, mostly on autopilot."
           description="Brainstorm nine posts at once, film a reel in your own voice, schedule the lot across every channel — then learn what landed so the next batch starts ahead."
@@ -562,6 +565,7 @@ export default function ClientSocialPage() {
             />
           )}
         />
+        </>
       )}
 
       {/* PERFORMANCE → INSIGHTS — hero metrics, loop, next-up, recap. */}

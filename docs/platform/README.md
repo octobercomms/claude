@@ -49,6 +49,7 @@ If something here contradicts the code, the **code wins** — fix the doc.
 
 ## Existing feature docs (already in this folder)
 
+- [pillar-overview-chat.md](pillar-overview-chat.md) — the acting Claude chat on every PESO Overview tab
 - [social-posts-planner.md](social-posts-planner.md) — social planner feature
 - [ctr-boosters.md](ctr-boosters.md) — CTR booster notes
 - [security-audit.md](security-audit.md) — security posture

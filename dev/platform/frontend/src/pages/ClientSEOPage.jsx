@@ -17,6 +17,7 @@ import {
 import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import AiSeoPanel from '../components/organic/AiSeoPanel';
 import SuiteOverview from '../components/SuiteOverview';
+import OverviewChat from '../components/OverviewChat';
 import ProcessRail from '../components/ProcessRail';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import FindPanel from '../components/organic/FindPanel';
@@ -1137,6 +1138,8 @@ export default function ClientSEOPage() {
       })()}
 
       {activeTab === 'overview' && (
+        <>
+        <OverviewChat clientId={id} pillar="owned" />
         <SuiteOverview
           tagline="Get found where buyers look — and turn the traffic into leads."
           description="Show up on Google and in AI answers, fix what's holding the site back, publish content that ranks, then capture those visitors and reach them from your own domain."
@@ -1207,6 +1210,7 @@ export default function ClientSEOPage() {
           ]}
           actions={<a className="btn btn-secondary" href={`/api/seo/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
         />
+        </>
       )}
 
       {historyKeyword && (
