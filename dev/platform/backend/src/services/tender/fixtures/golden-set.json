@@ -1,0 +1,61 @@
+{
+  "note": "Regression set for the Tender Agent scorer (brief §2). Three true positives and three near-misses the filter must reject. The rejections do more work than the positives — the failure mode is a cultural-looking buyer running a research or consultation brief. Phase 2 runs this on every prompt change; if any of the six flips, the change does not ship.",
+  "as_of": "2026-08-17",
+  "cases": [
+    {
+      "id": "gs-british-council-venice",
+      "verdict": "pursue",
+      "buyer_name": "British Council",
+      "external_ref": "UK_811",
+      "title": "Venice Biennale PR Consultant",
+      "value_min": 20000, "currency": "GBP",
+      "closing_at": "2026-08-27",
+      "summary": "International arts earned media on the UK Pavilion.",
+      "expected_reasons": ["buyer is a national arts/cultural body", "scope is international earned media / PR for an arts commission"]
+    },
+    {
+      "id": "gs-destination-canada-media",
+      "verdict": "pursue",
+      "buyer_name": "Destination Canada",
+      "external_ref": "NRFP DC-2026-AK-03",
+      "title": "Media Relations and PR Services",
+      "term_months": 96, "currency": "CAD",
+      "summary": "Global media relations for a national destination organisation.",
+      "expected_reasons": ["buyer is a national destination/tourism body", "scope is global media relations / PR"]
+    },
+    {
+      "id": "gs-visitscotland-strategic-comms",
+      "verdict": "pursue",
+      "buyer_name": "VisitScotland",
+      "title": "Global Strategic Communications and Media",
+      "value_min": 348000, "currency": "GBP",
+      "summary": "International press office for a national destination body.",
+      "expected_reasons": ["buyer is a national destination body", "scope is an international press office / strategic communications"]
+    },
+    {
+      "id": "gs-ngs-audience-research",
+      "verdict": "reject",
+      "buyer_name": "National Galleries of Scotland",
+      "title": "Audience Research",
+      "value_min": 396363, "currency": "GBP",
+      "summary": "Right buyer, wrong service — market research needing MRS accreditation, not PR.",
+      "disqualifiers": ["service is market/audience research, not earned media/PR", "requires MRS accreditation"]
+    },
+    {
+      "id": "gs-lymington-baths-consultation",
+      "verdict": "reject",
+      "buyer_name": "Lymington Sea Water Baths",
+      "title": "Consultation Consultant",
+      "summary": "Heritage project tagged with a PR CPV code, but the scope is community consultation.",
+      "disqualifiers": ["scope is community consultation, not media relations/PR", "CPV code is misleading"]
+    },
+    {
+      "id": "gs-ppf-design-agency",
+      "verdict": "reject",
+      "buyer_name": "Pension Protection Fund",
+      "title": "Design Agency Services",
+      "summary": "Comms-adjacent but a non-cultural buyer.",
+      "disqualifiers": ["buyer is not an arts/culture/design/heritage/destination body", "scope is design agency services, not cultural PR"]
+    }
+  ]
+}

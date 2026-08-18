@@ -35,6 +35,16 @@ cron.schedule('* * * * *', () => { heygen.pollPending().catch(() => {}); });
 // OpenAI key added after items were already queued). No-op without a key.
 cron.schedule('* * * * *', () => { swipeProcessor.processQueue().catch(() => {}); });
 
+// Tender Agent ingest: poll every enabled portal daily at 06:30. We poll daily
+// (not only on digest days) so a notice published mid-week with a short window
+// isn't missed; the twice-weekly email digest reads from what's been ingested.
+cron.schedule('30 6 * * *', async () => {
+  try {
+    const report = await require('./tender/ingest').run({ log: (m) => console.log(m) });
+    console.log(`[Scheduler] Tender ingest: ${report.totals.inserted} new, ${report.totals.updated} updated`);
+  } catch (e) { console.error('[Scheduler] Tender ingest failed:', e.message); }
+});
+
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
   console.log('[Scheduler] Running weekly reports...');
