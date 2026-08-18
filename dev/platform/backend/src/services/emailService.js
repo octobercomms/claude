@@ -970,4 +970,58 @@ async function sendVisibilityAlerts(groups = []) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts };
+// TLS certificate expiry alert. Sent by the daily cron ONLY when a watched
+// domain's served cert is within the alert window or the host is unreachable —
+// so it's silent in steady state and loud before an expiry can take a site
+// down. `problems` = [{ host, ok, daysLeft?, validTo?, error? }].
+async function sendCertExpiryAlert({ problems = [], alertDays = 14 }) {
+  if (!process.env.ALERT_EMAIL || !problems.length) return;
+
+  const rows = problems.map(p => {
+    const expired = p.ok && typeof p.daysLeft === 'number' && p.daysLeft < 0;
+    const state = !p.ok
+      ? `<span style="color:#c62828;font-weight:600;">unreachable</span>`
+      : expired
+        ? `<span style="color:#c62828;font-weight:700;">EXPIRED ${Math.abs(p.daysLeft)}d ago</span>`
+        : `<span style="color:${p.daysLeft <= 7 ? '#c62828' : '#9a6b00'};font-weight:600;">${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} left</span>`;
+    const detail = p.ok
+      ? `expires ${p.validTo instanceof Date ? p.validTo.toUTCString() : p.validTo}`
+      : (p.error || '—');
+    return `
+      <tr>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; font-weight: 600;">${p.host}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${state}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #666; font-size: 12px;">${detail}</td>
+      </tr>`;
+  }).join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #1a1a1a;">TLS certificate alert</h2>
+      <p style="color: #666;">${problems.length} watched domain${problems.length === 1 ? '' : 's'} ${problems.length === 1 ? 'needs' : 'need'} attention — a certificate is expiring within ${alertDays} days or the host is unreachable.</p>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+        <thead>
+          <tr style="background: #f5f5f5;">
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Domain</th>
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Status</th>
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Detail</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin-top: 24px; color: #666; font-size: 13px;">
+        On the server: <code>certbot renew</code> then <code>systemctl reload nginx</code>. If renewal fails, check
+        <code>systemctl list-timers '*certbot*'</code> and <code>/var/log/letsencrypt/letsencrypt.log</code>.
+      </p>
+      <p style="color: #aaa; font-size: 11px; margin-top: 32px;">October Marketing Intelligence — daily TLS watch. You only get this when a cert is close to expiry or a host is down.</p>
+    </div>`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject: `TLS alert: ${problems.length} certificate${problems.length === 1 ? '' : 's'} need attention`,
+    html,
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert };
