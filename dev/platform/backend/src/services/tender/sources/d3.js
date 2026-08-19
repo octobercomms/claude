@@ -11,11 +11,18 @@ const cheerio = require('cheerio');
 const http = require('../http');
 const { resolveClosing, parseAmount, cpvList } = require('../normalise');
 
-// Pull the OCID out of a notice URL like https://d3tenders.com/contract/{OCID}
+// Pull the OCID out of a notice URL. D3 uses two forms: a query form
+// (…/contract/?ocid=ocds-…) — which is what the RSS <link> carries — and a
+// clean path form (…/contract/ocds-….json|.md). Handle both, plus an optional
+// file suffix, so enrichment gets a real OCID instead of an empty capture.
 function ocidFromUrl(url) {
   if (!url) return null;
-  const m = String(url).match(/\/contract\/([^/?#.]+)/);
-  return m ? m[1] : null;
+  const s = String(url);
+  let m = s.match(/[?&]ocid=([^&#]+)/i);
+  if (m) return decodeURIComponent(m[1]);
+  m = s.match(/\/contract\/([^/?#]+?)(?:\.(?:json|md|html))?(?:[?#]|$)/i);
+  if (m && m[1]) return m[1];
+  return null;
 }
 
 // Parse an RSS feed body into basic items via cheerio in XML mode.

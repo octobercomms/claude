@@ -37,7 +37,20 @@ const SERVICE = [
   /\bsocial media (management|marketing|agency|strategy)\b/,
   /\bcontent marketing\b/,
   /\bmedia buying\b/,
+  /\bmedia planning\b/,
   /\bcampaign management\b/,
+  /\bbrand positioning\b/,
+  /\bbrand development\b/,
+  /\bbrand strategy\b/,
+  /\bbrand(ing)? and marketing\b/,
+  /\baudience development\b/,
+  /\bmarketing strategy\b/,
+  /\bdigital marketing\b/,
+  /\bcreative (agency|services|campaign|and marketing)\b/,
+  /\bdestination marketing\b/,
+  /\bplace (marketing|branding)\b/,
+  /\bmarketing\b/,      // broad — only promotes to a "match" when a sector term is also present
+  /\badvertising\b/,
 ];
 
 const SECTOR = [
