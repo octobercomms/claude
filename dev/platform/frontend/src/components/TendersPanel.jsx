@@ -39,8 +39,9 @@ export default function TendersPanel() {
   const toast = useToast();
   const [sources, setSources] = useState([]);
   const [notices, setNotices] = useState([]);
+  const [counts, setCounts] = useState(null);
   const [market, setMarket] = useState('');
-  const [needsCheck, setNeedsCheck] = useState(false);
+  const [relevance, setRelevance] = useState('match');
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
 
@@ -51,16 +52,17 @@ export default function TendersPanel() {
   async function loadNotices() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ upcoming: '1', limit: '150' });
+      const params = new URLSearchParams({ upcoming: '1', relevance, limit: '300' });
       if (market) params.set('market', market);
-      if (needsCheck) params.set('needs_check', '1');
-      setNotices(await api.get(`/tender/notices?${params.toString()}`));
+      const res = await api.get(`/tender/notices?${params.toString()}`);
+      setNotices(res.notices || []);
+      setCounts(res.counts || null);
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
   }
 
   useEffect(() => { loadSources(); }, []); // eslint-disable-line
-  useEffect(() => { loadNotices(); }, [market, needsCheck]); // eslint-disable-line
+  useEffect(() => { loadNotices(); }, [market, relevance]); // eslint-disable-line
 
   async function runScan() {
     if (running) return;
@@ -83,8 +85,10 @@ export default function TendersPanel() {
             <h2 className="h3" style={{ margin: '0 0 4px' }}>Tenders</h2>
             <p className="body-sm text-muted" style={{ margin: 0, maxWidth: 640 }}>
               Public-sector PR &amp; communications tenders in October’s niche — arts, culture, design,
-              heritage and destination buyers. Pulled from the portal feeds below, deduplicated and
-              filtered to what’s still open. This is October’s own pipeline, not a client’s.
+              heritage and destination buyers. Pulled from the portal feeds below, deduplicated, and
+              filtered to marketing/PR work for creative-sector buyers (the feeds carry a lot of
+              unrelated fit-out, maintenance and events work — that’s hidden by default). This is
+              October’s own pipeline, not a client’s.
             </p>
           </div>
           <button className="btn btn-primary" onClick={runScan} disabled={running}>
@@ -134,13 +138,14 @@ export default function TendersPanel() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
           <div className="oview-grplabel" style={{ margin: 0 }}>Open notices{notices.length ? ` (${notices.length})` : ''}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select className="input" value={relevance} onChange={e => setRelevance(e.target.value)} style={{ width: 'auto' }}>
+              <option value="match">Creative-sector PR{counts ? ` (${counts.match})` : ''}</option>
+              <option value="comms">All PR / comms{counts ? ` (${counts.match + counts.maybe})` : ''}</option>
+              <option value="all">Everything{counts ? ` (${counts.total})` : ''}</option>
+            </select>
             <select className="input" value={market} onChange={e => setMarket(e.target.value)} style={{ width: 'auto' }}>
               {MARKETS.map(m => <option key={m.k} value={m.k}>{m.label}</option>)}
             </select>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-              <input type="checkbox" checked={needsCheck} onChange={e => setNeedsCheck(e.target.checked)} />
-              Needs manual check
-            </label>
           </div>
         </div>
 
@@ -148,7 +153,9 @@ export default function TendersPanel() {
           <p className="body-sm text-muted">Loading…</p>
         ) : !notices.length ? (
           <div className="empty" style={{ padding: 18 }}>
-            Nothing ingested yet. Hit <strong>Run scan now</strong> to pull the latest notices from the live feeds.
+            {counts && counts.total > 0
+              ? <>No creative-sector PR tenders in the current feed. Switch to <strong>All PR / comms</strong> or <strong>Everything</strong> above to widen the filter.</>
+              : <>Nothing ingested yet. Hit <strong>Run scan now</strong> to pull the latest notices from the live feeds.</>}
           </div>
         ) : (
           <div className="md-table-wrap">
@@ -172,6 +179,7 @@ export default function TendersPanel() {
                           ? <a href={n.url} target="_blank" rel="noopener noreferrer">{n.title || n.external_ref}</a>
                           : (n.title || n.external_ref)}
                         {n.needs_manual_check && <span className="badge" style={{ marginLeft: 8, fontSize: 11 }}>check</span>}
+                        {n.relevance_reason && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>· {n.relevance_reason}</span>}
                       </td>
                       <td style={tdStyle}>{n.buyer_name || '—'}</td>
                       <td style={tdStyle}>{(n.market || '').toUpperCase() || '—'}</td>
