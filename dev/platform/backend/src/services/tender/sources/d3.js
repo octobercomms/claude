@@ -75,14 +75,87 @@ function fromOcds(doc) {
 }
 
 // source: the tender_sources row. Returns an array of normalised notices.
-async function fetch(source, { log = () => {} } = {}) {
+// The keyword set we search D3 for. High-precision service phrases — the point
+// is to pull exactly the PR/comms/creative notices (current AND still-open
+// historical ones), instead of scraping two broad, recent-only category feeds
+// that flood us with fit-out/CCTV noise and miss the good ones. Tunable via the
+// source config's `searchTerms`.
+const DEFAULT_SEARCH_TERMS = [
+  'public relations', 'media relations', 'press office', 'communications agency',
+  'marketing communications', 'strategic communications', 'PR agency', 'PR consultant',
+  'earned media', 'brand strategy', 'audience development', 'destination marketing',
+  'media buying', 'marketing agency',
+];
+
+// Turn an OCDS doc (+ optional feed fallback) into the common notice shape.
+function toNotice(base, ocid, fields, fallback = {}) {
+  const { closing_at, needs_manual_check } = resolveClosing(fields?.closing_raw);
+  return {
+    external_ref: ocid,
+    url: fallback.link || `${base}/contract/?ocid=${ocid}`,
+    title: fields?.title || fallback.title || null,
+    buyer_name: fields?.buyer_name || null,
+    buyer_country: fields?.buyer_country || 'United Kingdom',
+    buyer_city: fields?.buyer_city || null,
+    cpv_codes: fields?.cpv_codes || [],
+    published_at: fields?.published_raw ? new Date(fields.published_raw) : (fallback.pubDate ? new Date(fallback.pubDate) : null),
+    closing_at,
+    value_min: parseAmount(fields?.value_amount),
+    value_max: parseAmount(fields?.value_amount),
+    currency: fields?.currency || 'GBP',
+    description: fields?.description || fallback.description || null,
+    raw_payload: { source_item: fallback, ocds_fields: fields },
+    needs_manual_check,
+  };
+}
+
+// Keyword-search ingest (default). Harvest every /contract/ link from each
+// keyword's results page — robust to the SERP's exact markup — then enrich each
+// via its OCDS JSON.
+async function fetchSearch(source, { log = () => {} } = {}) {
+  const cfg = source.config || {};
+  const base = source.endpoint.replace(/\/$/, '');
+  const ocdsTemplate = cfg.ocds || '/contract/{OCID}.json';
+  const terms = Array.isArray(cfg.searchTerms) && cfg.searchTerms.length ? cfg.searchTerms : DEFAULT_SEARCH_TERMS;
+  const maxEnrich = Number(cfg.maxEnrich) || 200;
+
+  const ocids = new Set();
+  for (const term of terms) {
+    const url = `${base}/search/?search=1&serp=1&rank=recent&searchbox=${encodeURIComponent(term).replace(/%20/g, '+')}`;
+    try {
+      const html = await http.get(url, { type: 'text' });
+      const $ = cheerio.load(html);
+      $('a[href*="/contract/"]').each((_, el) => {
+        const ocid = ocidFromUrl($(el).attr('href'));
+        if (ocid) ocids.add(ocid);
+      });
+    } catch (e) { log(`D3 search "${term}" failed: ${e.message}`); }
+  }
+  if (!ocids.size) { log('D3 search: no contract links found — the SERP may be JS-rendered or blocked; falling back needed'); return []; }
+
+  const notices = [];
+  let n = 0;
+  for (const ocid of ocids) {
+    if (n >= maxEnrich) break;
+    try {
+      const doc = await http.get(base + ocdsTemplate.replace('{OCID}', ocid), { type: 'json' });
+      notices.push(toNotice(base, ocid, fromOcds(doc)));
+      n++;
+    } catch (e) { log(`D3 OCDS ${ocid} failed: ${e.message}`); }
+  }
+  log(`D3 search: ${ocids.size} contracts across ${terms.length} terms, ${n} enriched`);
+  return notices;
+}
+
+// Legacy category-RSS ingest — kept for fallback (config.mode = 'rss'). Broad
+// and recent-only; see fetchSearch for why search is the default now.
+async function fetchRss(source, { log = () => {} } = {}) {
   const cfg = source.config || {};
   const base = source.endpoint.replace(/\/$/, '');
   const feeds = Array.isArray(cfg.rss) ? cfg.rss : ['/feeds/rss-79.xml', '/feeds/rss-92.xml'];
   const ocdsTemplate = cfg.ocds || '/contract/{OCID}.json';
   const maxEnrich = Number(cfg.maxEnrich) || 60;
 
-  // 1) Gather RSS items across every configured feed, de-duplicated by OCID.
   const byOcid = new Map();
   for (const feed of feeds) {
     let xml;
@@ -95,42 +168,23 @@ async function fetch(source, { log = () => {} } = {}) {
     }
   }
 
-  // 2) Enrich each (up to maxEnrich) via its OCDS JSON; fall back to RSS fields.
   const notices = [];
   let enriched = 0;
   for (const [ocid, item] of byOcid) {
-    const url = item.link || `${base}/contract/${ocid}`;
     let fields = null;
     if (enriched < maxEnrich) {
-      try {
-        const doc = await http.get(base + ocdsTemplate.replace('{OCID}', ocid), { type: 'json' });
-        fields = fromOcds(doc);
-        enriched++;
-      } catch (e) { log(`D3 OCDS ${ocid} failed: ${e.message}`); }
+      try { fields = fromOcds(await http.get(base + ocdsTemplate.replace('{OCID}', ocid), { type: 'json' })); enriched++; }
+      catch (e) { log(`D3 OCDS ${ocid} failed: ${e.message}`); }
     }
-    const title = fields?.title || item.title || null;
-    const description = fields?.description || item.description || null;
-    const { closing_at, needs_manual_check } = resolveClosing(fields?.closing_raw);
-    notices.push({
-      external_ref: ocid,
-      url,
-      title,
-      buyer_name: fields?.buyer_name || null,
-      buyer_country: fields?.buyer_country || 'United Kingdom',
-      buyer_city: fields?.buyer_city || null,
-      cpv_codes: fields?.cpv_codes || [],
-      published_at: fields?.published_raw ? new Date(fields.published_raw) : (item.pubDate ? new Date(item.pubDate) : null),
-      closing_at,
-      value_min: parseAmount(fields?.value_amount),
-      value_max: parseAmount(fields?.value_amount),
-      currency: fields?.currency || 'GBP',
-      description,
-      raw_payload: { rss: item, ocds_fields: fields },
-      needs_manual_check,
-    });
+    notices.push(toNotice(base, ocid, fields, item));
   }
-  log(`D3: ${byOcid.size} items, ${enriched} enriched`);
+  log(`D3 rss: ${byOcid.size} items, ${enriched} enriched`);
   return notices;
 }
 
-module.exports = { fetch, parseRss, fromOcds, ocidFromUrl };
+// Dispatcher — keyword search by default; opt into legacy RSS with config.mode='rss'.
+async function fetch(source, opts = {}) {
+  return source.config?.mode === 'rss' ? fetchRss(source, opts) : fetchSearch(source, opts);
+}
+
+module.exports = { fetch, fetchSearch, fetchRss, parseRss, fromOcds, ocidFromUrl, toNotice, DEFAULT_SEARCH_TERMS };
