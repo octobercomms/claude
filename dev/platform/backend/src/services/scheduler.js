@@ -42,6 +42,11 @@ cron.schedule('30 6 * * *', async () => {
   try {
     const report = await require('./tender/ingest').run({ log: (m) => console.log(m) });
     console.log(`[Scheduler] Tender ingest: ${report.totals.inserted} new, ${report.totals.updated} updated`);
+    // Email the account lead the new matches, if the digest is enabled.
+    try {
+      const d = await require('./tender/digest').runDigest({ log: (m) => console.log(m) });
+      if (d.sent) console.log(`[Scheduler] Tender digest: emailed ${d.count} to ${d.to}`);
+    } catch (e) { console.error('[Scheduler] Tender digest failed:', e.message); }
   } catch (e) { console.error('[Scheduler] Tender ingest failed:', e.message); }
 });
 

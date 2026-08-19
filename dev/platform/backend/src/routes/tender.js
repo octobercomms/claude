@@ -8,6 +8,8 @@ const pool = require('../db');
 const { authenticate, agencyOnly } = require('../middleware/auth');
 const ingest = require('../services/tender/ingest');
 const { prefilter } = require('../services/tender/classify');
+const tenderChat = require('../services/tender/chat');
+const digest = require('../services/tender/digest');
 
 const router = express.Router();
 router.use(authenticate);
@@ -38,6 +40,8 @@ router.get('/notices', async (req, res) => {
   if (market) { params.push(market); where.push(`s.market = $${params.length}`); }
   if (needs_check === '1' || needs_check === 'true') where.push('n.needs_manual_check = true');
   if (upcoming === '1' || upcoming === 'true') where.push('(n.closing_at IS NULL OR n.closing_at >= NOW())');
+  // Dismissed notices are hidden unless explicitly requested.
+  if (req.query.dismissed !== '1' && req.query.dismissed !== 'true') where.push('n.dismissed = false');
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   try {
     // Classify in-process over the most recent matching notices, then filter by
@@ -82,6 +86,60 @@ router.post('/ingest/run', async (req, res) => {
     const report = await ingest.run({ sourceId, log: (m) => console.log(m) });
     res.json(report);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Dismiss a notice so it never shows again (and won't be emailed). Reversible.
+router.post('/notices/:id/dismiss', async (req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      'UPDATE tender_notices SET dismissed = true, dismissed_at = NOW() WHERE id = $1', [req.params.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Notice not found' });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/notices/:id/restore', async (req, res) => {
+  try {
+    await pool.query('UPDATE tender_notices SET dismissed = false, dismissed_at = NULL WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Digest settings — auto-email new matching tenders.
+router.get('/settings', async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT digest_enabled, digest_email, last_digest_at FROM tender_settings WHERE id = 1');
+    res.json(rows[0] || { digest_enabled: false, digest_email: null, last_digest_at: null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.put('/settings', async (req, res) => {
+  const enabled = !!req.body?.digest_enabled;
+  const email = (req.body?.digest_email || '').trim() || null;
+  if (enabled && !email) return res.status(400).json({ error: 'An email address is required to turn alerts on.' });
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'That email address looks invalid.' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE tender_settings SET digest_enabled = $1, digest_email = $2, updated_at = NOW() WHERE id = 1
+       RETURNING digest_enabled, digest_email, last_digest_at`,
+      [enabled, email]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+// Send the digest now (on-demand / test), even if the toggle is off.
+router.post('/digest/run', async (_req, res) => {
+  try { res.json(await digest.runDigest({ force: true, log: (m) => console.log(m) })); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Per-notice chat — "Start with Claude" (assess fit, outline a bid).
+router.get('/notices/:id/chat', async (req, res) => {
+  try { res.json(await tenderChat.history(req.params.id)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/notices/:id/chat', async (req, res) => {
+  try { res.json(await tenderChat.send(req.params.id, req.body?.message)); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;
