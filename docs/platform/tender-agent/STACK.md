@@ -81,7 +81,25 @@ source by flipping `tender_sources.enabled`.
 - **UI:** Settings → Templates & tools → **Tenders** (next to Leads —
   org-level, agency-staff only). `components/TendersPanel.jsx` lists the source
   feeds with their last-poll status + a "Run scan now" button, and the open
-  notices with market / needs-check filters. Also reachable at `/tenders`.
+  notices with a relevance selector (Creative-sector PR / All PR-comms /
+  Everything) and market filter. Also reachable at `/tenders`.
+
+## Relevance prefilter (brief §6 Stage 1 — shipped early)
+
+The feeds carry the whole of CPV div 79/92, so the raw list is mostly noise
+(fit-out, CCTV, resurfacing, catering, fireworks…). `services/tender/classify.js`
+`prefilter(notice)` is the cheap deterministic Stage-1 pass: it needs a
+comms/PR/marketing **service** term AND a **creative-sector** signal, minus an
+exclusion list, and returns a tier — `match` (creative-sector PR, the default
+view), `maybe` (PR/comms, sector not yet visible), or `noise`. `GET /notices`
+classifies in-process and filters by `?relevance=match|comms|all`, returning
+per-tier counts. Term lists live in `classify.js` for now (they move to a config
+table so Daniel can tune them without a deploy). The LLM Stage-2 scorer (grounded
+in the golden set) is still to come and refines the `maybe`/`match` set.
+
+Note: buyer/value/closing columns come from the OCDS enrichment, which needs
+live-feed validation on the box — until then many rows show only the RSS title
+(and so land in `maybe`/`noise` when the sector lives only in the buyer name).
 
 Adapters normalise via `services/tender/normalise.js` (content hash, date
 parsing incl. ISO + RFC-822, value parsing, expired check). Keyword/CPV config in

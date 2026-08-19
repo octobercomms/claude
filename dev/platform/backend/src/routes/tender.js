@@ -7,6 +7,7 @@ const express = require('express');
 const pool = require('../db');
 const { authenticate, agencyOnly } = require('../middleware/auth');
 const ingest = require('../services/tender/ingest');
+const { prefilter } = require('../services/tender/classify');
 
 const router = express.Router();
 router.use(authenticate);
@@ -26,9 +27,12 @@ router.get('/sources', async (_req, res) => {
 // List notices. Filters: market, upcoming (closing in the future or unknown),
 // needs_check. Newest first. Paginated with limit/offset.
 router.get('/notices', async (req, res) => {
-  const { market, upcoming, needs_check } = req.query;
-  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-  const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+  const { market, needs_check } = req.query;
+  const upcoming = req.query.upcoming === undefined ? '1' : req.query.upcoming;
+  // relevance: match = creative-sector PR only (default); comms = any PR/comms;
+  // all = unfiltered raw feed. The niche prefilter runs here (services/tender/classify).
+  const relevance = ['match', 'comms', 'all'].includes(req.query.relevance) ? req.query.relevance : 'match';
+  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
   const where = [];
   const params = [];
   if (market) { params.push(market); where.push(`s.market = $${params.length}`); }
@@ -36,6 +40,9 @@ router.get('/notices', async (req, res) => {
   if (upcoming === '1' || upcoming === 'true') where.push('(n.closing_at IS NULL OR n.closing_at >= NOW())');
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   try {
+    // Classify in-process over the most recent matching notices, then filter by
+    // the requested relevance tier. Counts are returned so the UI can label each
+    // view ("Creative-sector PR (12) · All PR/comms (31) · Everything (150)").
     const { rows } = await pool.query(
       `SELECT n.id, n.external_ref, n.url, n.title, n.buyer_name, n.buyer_country, n.buyer_city,
               n.cpv_codes, n.published_at, n.closing_at, n.value_min, n.value_max, n.currency,
@@ -43,10 +50,26 @@ router.get('/notices', async (req, res) => {
        FROM tender_notices n LEFT JOIN tender_sources s ON s.id = n.source_id
        ${clause}
        ORDER BY n.first_seen_at DESC
-       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-      [...params, limit, offset]
+       LIMIT 500`,
+      params
     );
-    res.json(rows);
+    const classified = rows.map(r => {
+      const c = prefilter(r);
+      return { ...r, tier: c.tier, relevance_reason: c.reason };
+    });
+    const counts = { match: 0, maybe: 0, noise: 0, total: classified.length };
+    for (const r of classified) counts[r.tier]++;
+
+    const keep = relevance === 'all' ? classified
+      : relevance === 'comms' ? classified.filter(r => r.tier !== 'noise')
+      : classified.filter(r => r.tier === 'match');
+
+    // Best matches first, then soonest-closing (unknown deadlines last).
+    const rank = { match: 0, maybe: 1, noise: 2 };
+    keep.sort((a, b) => (rank[a.tier] - rank[b.tier])
+      || ((a.closing_at ? new Date(a.closing_at) : Infinity) - (b.closing_at ? new Date(b.closing_at) : Infinity)));
+
+    res.json({ notices: keep.slice(0, limit), counts });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
