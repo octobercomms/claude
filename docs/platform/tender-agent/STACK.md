@@ -51,10 +51,19 @@ Later phases add `tender_scores`, `tender_briefs`, `opportunities`,
 
 | Source | Market | Access | Status |
 |--------|--------|--------|--------|
-| D3 Tenders | UK (all 4 UK portals) | RSS feeds (79 business, 92 cultural) + OCDS JSON enrichment | **Live** |
+| D3 Tenders | UK (all 4 UK portals) | **Keyword search** (harvest /contract/ links per service term) + OCDS JSON enrichment | **Live** |
 | TED | EU | v3 notices search API by CPV | **Live** (field names to confirm against the live API on first deploy) |
 | CanadaBuys | Canada | Tender-notices RSS (open-data CSV = later enrichment) | Adapter built, **disabled** until live-validated |
 | SAM.gov | US | Opportunities API (needs free `SAM_API_KEY`) | Adapter built, **disabled**; low-yield per the 17 Aug scan |
+
+**D3 ingest = keyword search, not category RSS.** `sources/d3.js` defaults to
+`fetchSearch`: for each of ~14 PR/comms/creative service terms it GETs D3's
+search results and harvests every `/contract/` link (robust to SERP markup),
+dedupes the OCIDs, and enriches each via `/contract/{OCID}.json`. This pulls
+exactly the notices we want — current and still-open historical (the broad
+category RSS feeds only carry recent items, so notices published before we
+started polling, like the Venice Biennale, were missed). Legacy RSS is kept
+behind `config.mode = 'rss'`.
 
 All fetches go through `services/tender/http.js`: descriptive user agent, ≥1
 request/second per host, exponential backoff, public records only (never a login
