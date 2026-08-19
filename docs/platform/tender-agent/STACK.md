@@ -88,10 +88,23 @@ source by flipping `tender_sources.enabled`.
 - **Admin API:** `GET /api/tender/sources`, `GET /api/tender/notices`
   (filters: `market`, `upcoming`, `needs_check`, `limit`/`offset`).
 - **UI:** Settings → Templates & tools → **Tenders** (next to Leads —
-  org-level, agency-staff only). `components/TendersPanel.jsx` lists the source
-  feeds with their last-poll status + a "Run scan now" button, and the open
-  notices with a relevance selector (Creative-sector PR / All PR-comms /
-  Everything) and market filter. Also reachable at `/tenders`.
+  org-level, agency-staff only). `components/TendersPanel.jsx`: source feeds +
+  last-poll status + "Run scan now"; the open notices with a relevance selector
+  (Creative-sector PR / All PR-comms / Everything) and market filter; per-notice
+  **Dismiss** (hides it for good) and **Start with Claude**; an **Email alerts**
+  block; and a **SAM.gov key** field. Also reachable at `/tenders`.
+- **Dismiss:** `POST /notices/:id/dismiss` sets `tender_notices.dismissed`;
+  `GET /notices` hides dismissed by default, and the digest never emails them.
+- **Start with Claude:** `services/tender/chat.js` — a per-notice chat
+  (`tender_chat_messages`) that judges fit, runs the go/no-go test, and outlines
+  a bid. `GET|POST /notices/:id/chat`.
+- **Email alerts (auto-run digest):** `services/tender/digest.js` emails the new
+  `match`-tier notices first-seen since the last digest to the address in
+  `tender_settings` — run from the scheduler right after each daily scan, gated
+  by a toggle. `GET|PUT /settings`, and `POST /digest/run` sends now (test).
+- **US (SAM.gov):** enabled (migration 147); needs a free `SAM_API_KEY`, pasted
+  in the Tenders panel (stored via `/settings/platform-keys` → `platform_settings`
+  + `process.env`). Canada (CanadaBuys) is also on.
 
 ## Relevance prefilter (brief §6 Stage 1 — shipped early)
 

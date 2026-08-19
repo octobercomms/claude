@@ -576,6 +576,18 @@ async function sendConnectorHealthAlert(issues) {
   });
 }
 
+// Tender Agent digest — the HTML is composed by services/tender/digest.js; this
+// just delivers it to the address configured in the Tenders settings.
+async function sendTenderDigest({ to, subject, html }) {
+  if (!to) return;
+  return sendMailWithRetry(getTransporter(), {
+    from: getSenderAddress(),
+    to,
+    subject,
+    html,
+  });
+}
+
 // Security audit alert. Sent by the daily cron ONLY when there's a new,
 // actionable finding (a real failure or a high/critical warning) — or an
 // all-clear when previously-flagged issues are resolved. Steady-state
@@ -1024,4 +1036,4 @@ async function sendCertExpiryAlert({ problems = [], alertDays = 14 }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert };
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest };

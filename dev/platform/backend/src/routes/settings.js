@@ -40,6 +40,10 @@ const SETTINGS_KEYS = [
   // fetch Instagram reels as logged-in-you (IG blocks anonymous downloads).
   'IG_SESSIONID',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
+  // SAM.gov (US) Opportunities API key — enables the US source in the Tender
+  // Agent. Free key from sam.gov. Saved here (and to process.env) so the
+  // tender ingest can read it. Set/managed from the Tenders panel.
+  'SAM_API_KEY',
   // Google PageSpeed Insights API key (Tier-0, key only) — pulls real Core Web
   // Vitals (CrUX field data + Lighthouse lab) for the Site audit. Get one from
   // the Google Cloud console (PageSpeed Insights API). Used by services/pageSpeed.js.
