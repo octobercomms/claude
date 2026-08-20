@@ -51,13 +51,18 @@ router.get('/notices', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT n.id, n.external_ref, n.url, n.title, n.buyer_name, n.buyer_country, n.buyer_city,
               n.cpv_codes, n.published_at, n.closing_at, n.value_min, n.value_max, n.currency,
-              n.needs_manual_check, n.first_seen_at, s.name AS source_name, s.market
+              n.description, n.needs_manual_check, n.first_seen_at,
+              s.name AS source_name, s.market, s.kind AS source_kind
        FROM tender_notices n LEFT JOIN tender_sources s ON s.id = n.source_id
        ${clause}
        ORDER BY n.first_seen_at DESC
        LIMIT 500`,
       params
     );
+    // Classify over the same fields the adapter saw (incl. description) so the
+    // display tier matches ingest — without description the sector words in the
+    // body (e.g. "heritage, culture, tourism") are missed and a real match sinks
+    // to "maybe".
     const classified = rows.map(r => {
       const c = prefilter(r);
       return { ...r, tier: c.tier, relevance_reason: c.reason };
@@ -65,9 +70,12 @@ router.get('/notices', async (req, res) => {
     const counts = { match: 0, maybe: 0, noise: 0, total: classified.length };
     for (const r of classified) counts[r.tier]++;
 
+    // A notice the user added by hand is intentional — never hide it behind the
+    // relevance filter (otherwise "added" but "can't find it").
+    const isManual = r => r.source_kind === 'manual';
     const keep = relevance === 'all' ? classified
-      : relevance === 'comms' ? classified.filter(r => r.tier !== 'noise')
-      : classified.filter(r => r.tier === 'match');
+      : relevance === 'comms' ? classified.filter(r => r.tier !== 'noise' || isManual(r))
+      : classified.filter(r => r.tier === 'match' || isManual(r));
 
     // Best matches first, then soonest-closing (unknown deadlines last).
     const rank = { match: 0, maybe: 1, noise: 2 };
