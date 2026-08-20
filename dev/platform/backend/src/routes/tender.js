@@ -4,6 +4,9 @@
 // in later phases — see docs/platform/tender-agent/STACK.md.
 
 const express = require('express');
+const path = require('path');
+const crypto = require('crypto');
+const multer = require('multer');
 const pool = require('../db');
 const { authenticate, agencyOnly } = require('../middleware/auth');
 const ingest = require('../services/tender/ingest');
@@ -11,6 +14,19 @@ const { prefilter } = require('../services/tender/classify');
 const tenderChat = require('../services/tender/chat');
 const digest = require('../services/tender/digest');
 const addByUrl = require('../services/tender/addByUrl');
+const tenderProfile = require('../services/tender/profile');
+const bidFiles = require('../services/tender/bidFiles');
+const chatExport = require('../services/chatExport');
+
+// Uploads for a tender's bid workspace — disk storage, one folder per notice,
+// uuid filenames (originals kept in the DB row).
+const bidUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => { try { cb(null, bidFiles.dirFor(req.params.id)); } catch (e) { cb(e); } },
+    filename: (_req, file, cb) => cb(null, `${crypto.randomUUID()}${path.extname(file.originalname || '').slice(0, 12)}`),
+  }),
+  limits: { fileSize: 25 * 1024 * 1024, files: 10 },
+});
 
 const router = express.Router();
 router.use(authenticate);
@@ -52,7 +68,8 @@ router.get('/notices', async (req, res) => {
       `SELECT n.id, n.external_ref, n.url, n.title, n.buyer_name, n.buyer_country, n.buyer_city,
               n.cpv_codes, n.published_at, n.closing_at, n.value_min, n.value_max, n.currency,
               n.description, n.needs_manual_check, n.first_seen_at,
-              s.name AS source_name, s.market, s.kind AS source_kind
+              s.name AS source_name, s.market, s.kind AS source_kind,
+              EXISTS (SELECT 1 FROM tender_chat_messages c WHERE c.notice_id = n.id) AS has_chat
        FROM tender_notices n LEFT JOIN tender_sources s ON s.id = n.source_id
        ${clause}
        ORDER BY n.first_seen_at DESC
@@ -158,7 +175,28 @@ router.post('/digest/run', async (_req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Per-notice chat — "Start with Claude" (assess fit, outline a bid).
+// The October bid profile — shared cross-bid memory the workspace reads/edits.
+router.get('/profile', async (_req, res) => {
+  try { res.json(await tenderProfile.get()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.put('/profile', async (req, res) => {
+  try { res.json(await tenderProfile.set(req.body?.profile_md)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// A single notice (for the workspace page header).
+router.get('/notices/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT n.*, s.name AS source_name, s.market FROM tender_notices n
+       LEFT JOIN tender_sources s ON s.id = n.source_id WHERE n.id = $1`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Notice not found' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Per-notice chat — "Start / Continue with Claude" (fit, plan, draft deliverables).
 router.get('/notices/:id/chat', async (req, res) => {
   try { res.json(await tenderChat.history(req.params.id)); }
   catch (err) { res.status(500).json({ error: err.message }); }
@@ -166,6 +204,62 @@ router.get('/notices/:id/chat', async (req, res) => {
 router.post('/notices/:id/chat', async (req, res) => {
   try { res.json(await tenderChat.send(req.params.id, req.body?.message)); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Export one chat message (a produced deliverable) as a downloadable doc.
+router.get('/notices/:id/chat/:messageId/export', async (req, res) => {
+  const fmt = req.query.format === 'pdf' ? 'pdf' : 'docx';
+  try {
+    const { rows } = await pool.query('SELECT content FROM tender_chat_messages WHERE id = $1 AND notice_id = $2', [req.params.messageId, req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Message not found' });
+    const { rows: n } = await pool.query('SELECT title FROM tender_notices WHERE id = $1', [req.params.id]);
+    const title = n[0]?.title || 'Tender bid';
+    const opts = { title, clientName: 'October Communications', generatedAt: new Date() };
+    const safe = title.replace(/[^a-z0-9]+/gi, '-').slice(0, 60).replace(/^-|-$/g, '') || 'bid';
+    if (fmt === 'pdf') {
+      const buf = await chatExport.markdownToPdfBuffer(rows[0].content || '', opts);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${safe}.pdf"`);
+      return res.send(buf);
+    }
+    const buf = await chatExport.markdownToDocxBuffer(rows[0].content || '', opts);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${safe}.docx"`);
+    res.send(buf);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Workspace files — upload / list / download / delete.
+router.get('/notices/:id/files', async (req, res) => {
+  try { res.json(await bidFiles.list(req.params.id)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/notices/:id/files', bidUpload.array('files', 10), async (req, res) => {
+  try {
+    const saved = [];
+    for (const f of req.files || []) {
+      saved.push(await bidFiles.record(req.params.id, {
+        filename: f.originalname, stored_name: f.filename, mime: f.mimetype, size_bytes: f.size,
+      }));
+    }
+    res.json({ ok: true, files: saved });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.get('/files/:fileId/download', async (req, res) => {
+  try {
+    const row = await bidFiles.getRow(req.params.fileId);
+    if (!row) return res.status(404).json({ error: 'File not found' });
+    const fp = path.join(bidFiles.dirFor(row.notice_id), row.stored_name);
+    if (!fp.startsWith(bidFiles.ROOT + path.sep)) return res.status(400).json({ error: 'Invalid path' });
+    res.download(fp, row.filename);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.delete('/files/:fileId', async (req, res) => {
+  try {
+    const ok = await bidFiles.remove(req.params.fileId);
+    if (!ok) return res.status(404).json({ error: 'File not found' });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

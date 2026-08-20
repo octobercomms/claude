@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
@@ -34,6 +35,7 @@ function fmtValue(n, currency) {
 
 export default function TendersPanel() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [sources, setSources] = useState([]);
   const [notices, setNotices] = useState([]);
   const [counts, setCounts] = useState(null);
@@ -288,7 +290,7 @@ export default function TendersPanel() {
                         {dl != null && dl >= 0 && dl <= 14 && <span style={{ marginLeft: 6, color: 'var(--danger, #c0392b)', fontWeight: 700 }}>{dl}d</span>}
                       </td>
                       <td style={{ ...tdStyle, whiteSpace: 'nowrap', textAlign: 'right' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setChatNotice(n)} title="Assess fit &amp; outline a bid with Claude">Start with Claude</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/tenders/${n.id}`)} title="Open the bid workspace — assess fit, plan and produce the bid with Claude">{n.has_chat ? 'Continue with Claude' : 'Start with Claude'}</button>
                         <button className="btn btn-ghost btn-sm" onClick={() => dismiss(n)} title="Dismiss — hide this and don't show it again" style={{ marginLeft: 6 }}>Dismiss</button>
                       </td>
                     </tr>

@@ -138,9 +138,20 @@ source by flipping `tender_sources.enabled`.
   paste box in the Tenders panel.
 - **Dismiss:** `POST /notices/:id/dismiss` sets `tender_notices.dismissed`;
   `GET /notices` hides dismissed by default, and the digest never emails them.
-- **Start with Claude:** `services/tender/chat.js` — a per-notice chat
-  (`tender_chat_messages`) that judges fit, runs the go/no-go test, and outlines
-  a bid. `GET|POST /notices/:id/chat`.
+- **Bid workspace (Start / Continue with Claude):** a persistent per-tender page
+  at `/tenders/:id` (`pages/TenderWorkspacePage.jsx`) — not a modal. The list
+  button reads **Continue with Claude** once there's history (`has_chat` on
+  `GET /notices`). `services/tender/chat.js` judges fit, runs the go/no-go test,
+  plans the bid and **produces the deliverables** (capability statement, draft
+  responses, cover letter) in markdown. It grounds on: the notice, uploaded
+  **files** (`tender_bid_files`, disk under `uploads/tenders/<id>/` — PDFs +
+  images read natively, text inlined) and the shared **October bid profile**
+  (`tender_org_profile`, one row) which carries cross-bid memory, plus a digest
+  of the other live notices. Any produced reply exports to **Word/PDF**
+  (`chatExport`). Migration `155`. Routes: `GET|POST /notices/:id/chat`,
+  `GET /notices/:id/chat/:mid/export?format=docx|pdf`, `GET /notices/:id`,
+  `GET|PUT /profile`, `GET|POST /notices/:id/files`, `GET /files/:id/download`,
+  `DELETE /files/:id`.
 - **Email alerts (auto-run digest):** `services/tender/digest.js` emails the new
   `match`-tier notices first-seen since the last digest to the address in
   `tender_settings` — run from the scheduler right after each daily scan, gated
