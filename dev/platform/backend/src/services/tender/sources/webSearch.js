@@ -28,7 +28,7 @@ const MODEL = 'claude-sonnet-4-6';
 const MARKET_BRIEFS = {
   'United Kingdom': {
     country: 'United Kingdom',
-    portals: 'Find a Tender (find-tender.service.gov.uk), Contracts Finder (contractsfinder.service.gov.uk), Public Contracts Scotland (publiccontractsscotland.gov.uk), Sell2Wales (sell2wales.gov.wales)',
+    portals: 'Find a Tender (find-tender.service.gov.uk), Contracts Finder (contractsfinder.service.gov.uk), Public Contracts Scotland (publiccontractsscotland.gov.uk), Sell2Wales (sell2wales.gov.wales), and the aggregators Infobrokers (infobrokers.co.uk — a curated list of UK marketing & PR public tenders, a strong source for the small ones), Tussell and BidStats',
     examples: 'PR consultancy for a national pavilion at an international exhibition (e.g. the British Council at the Venice Biennale); brand positioning and audience development for a heritage trail, park or destination (e.g. a river/coastal trail); press office and media relations for a museum, gallery, festival or arts council; strategic communications for a cultural or tourism body',
     buyers: 'the British Council, Arts Council England/Wales, Creative Scotland, national museums and galleries, heritage trusts, festivals and biennales, VisitBritain/VisitScotland and regional destination organisations, local authority culture/tourism teams',
     // Portal search-result pages to read directly with web_fetch — these list
@@ -40,11 +40,12 @@ const MARKET_BRIEFS = {
       'https://www.find-tender.service.gov.uk/Search/Results?keywords=marketing',
       'https://www.contractsfinder.service.gov.uk/Search/Results?keywords=public+relations',
       'https://www.publiccontractsscotland.gov.uk/search/search_mainpage.aspx',
+      'https://www.infobrokers.co.uk/',
     ],
   },
   'Canada': {
     country: 'Canada',
-    portals: 'CanadaBuys (canadabuys.canada.ca), MERX, BC Bid, and provincial/municipal portals',
+    portals: 'CanadaBuys (canadabuys.canada.ca), MERX (merx.com), Biddingo (biddingo.com), BC Bid, and provincial/municipal portals',
     examples: 'media relations and public relations services for a destination or business-events body; advertising/creative production; audience and marketing communications for a museum, gallery or cultural agency',
     buyers: 'Destination Canada, provincial tourism bodies, national museums and cultural agencies, arts councils, city culture/tourism departments',
   },
@@ -76,7 +77,8 @@ ${fetchBlock}
 Portals to search: ${b.portals}.
 Also search buyers advertising directly: ${b.buyers}.
 
-Service terms (what October does): public relations, media relations, press office, communications, strategic/marketing communications, brand and positioning strategy, audience development, campaign and destination marketing.
+Service terms (what October does): public relations, PR agency, media relations, press office, communications agency, marketing communications, strategic communications, earned media, thought leadership, press strategy, brand and positioning strategy, audience development, destination marketing.
+Sector terms (who the buyer is): museum, gallery, arts, culture, cultural, heritage, design, architecture, tourism, exhibition, festival, biennale, theatre. Ignore generic marketing, advertising, digital-build or non-cultural procurement.
 
 Concretely, look for opportunities like: ${b.examples}.
 

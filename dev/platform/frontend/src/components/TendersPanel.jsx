@@ -236,10 +236,20 @@ export default function TendersPanel() {
                   return (
                     <tr key={n.id}>
                       <td style={tdStyle}>
-                        {n.url
-                          ? <a href={n.url} target="_blank" rel="noopener noreferrer">{n.title || n.external_ref}</a>
-                          : (n.title || n.external_ref)}
-                        {n.needs_manual_check && <span className="badge" style={{ marginLeft: 8, fontSize: 11 }}>check</span>}
+                        {/* Always clickable: the direct notice URL when we have one,
+                            otherwise a web search for the title + buyer so the row
+                            is never a dead end. */}
+                        <a href={n.url || `https://www.google.com/search?q=${encodeURIComponent(`${n.title || ''} ${n.buyer_name || ''} tender`.trim())}`}
+                           target="_blank" rel="noopener noreferrer" title={n.url ? 'Open the notice' : 'No direct link — search the web for this notice'}>
+                          {n.title || n.external_ref}
+                        </a>
+                        {!n.url && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-subtle)' }}>↗ search</span>}
+                        {n.needs_manual_check && (
+                          <span className="badge" style={{ marginLeft: 8, fontSize: 11 }}
+                            title="Closing date couldn’t be read automatically — open the notice to confirm the deadline before bidding.">
+                            deadline?
+                          </span>
+                        )}
                         {n.relevance_reason && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>· {n.relevance_reason}</span>}
                       </td>
                       <td style={tdStyle}>{n.buyer_name || '—'}</td>
