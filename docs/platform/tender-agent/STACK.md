@@ -51,7 +51,7 @@ Later phases add `tender_scores`, `tender_briefs`, `opportunities`,
 
 | Source | Market | Access | Status |
 |--------|--------|--------|--------|
-| Find a Tender (UK) | UK-wide (all portals' above-threshold + UK4) | Official OCDS API firehose (`ocdsReleasePackages?stages=tender`), paged + filtered locally | **Live** |
+| Find a Tender (UK) | UK-wide (all portals' above-threshold + UK4) | Official OCDS API firehose (`ocdsReleasePackages?stages=tender&updatedFrom=…`), paged to `links.next` exhaustion + filtered locally | **Live** |
 | Contracts Finder (UK) | England (+ below-threshold) | Official OCDS API keyword search (`OCDS/Search?keyword=…`), filtered locally | **Live** |
 | Public Contracts Scotland | Scotland | OCDS API `/v1/Notices?dateFrom=mm-yyyy&outputType=0`, filtered locally | **Live** |
 | Sell2Wales | Wales | OCDS API `/v1/Notices?dateFrom=mm-yyyy&outputType=0&locale=2057`, filtered locally | **Live** |
@@ -60,7 +60,17 @@ Later phases add `tender_scores`, `tender_briefs`, `opportunities`,
 All UK portals D3 aggregated are now covered directly by their own official OCDS
 APIs. `sources/ukPortals.js` handles all four: Find a Tender + Contracts Finder
 (GOV.UK) and Public Contracts Scotland + Sell2Wales (same Scottish Government
-`/v1/Notices` API — `windowParam:'dateFrom'`, `windowFormat:'mm-yyyy'`).
+`/v1/Notices` API — `windowParam:'dateFrom'`, `windowFormat:'dd-mm-yyyy'`).
+
+**Windowed paging.** When the endpoint filters server-side by an update/date
+window (`updatedFrom` for Find a Tender, `dateFrom` for PCS/Sell2Wales) the
+adapter trusts that window and pages `links.next` to exhaustion (up to
+`maxPages`) — it does **not** early-stop on `release.date`, because a notice
+updated inside the window can carry an older publication date and would wrongly
+truncate the feed (this was hiding the Venice Biennale notice). If a windowed
+call returns nothing (a portal that rejects our date format), the adapter falls
+back to the unwindowed `/v1/Notices` batch so a daily poll still gets the
+current open notices.
 | TED | EU | v3 notices search API by CPV | **Live** (field names to confirm against the live API on first deploy) |
 | CanadaBuys | Canada | Official open-data CSV (`openTenderNotice…csv`), parsed + filtered locally | **Live** |
 | SAM.gov | US | Opportunities API (needs free `SAM_API_KEY`) | Adapter built, **disabled**; low-yield per the 17 Aug scan |
