@@ -15,13 +15,24 @@ const { resolveClosing, parseAmount } = require('../normalise');
 const { fromOcds } = require('./d3');
 const { prefilter } = require('../classify');
 
+// Best public URL for a notice: a tenderNotice document link, else the
+// release's self link, else portal base + id.
+function noticeUrl(release, noticeBase) {
+  const docs = (release.tender && release.tender.documents) || [];
+  const doc = docs.find(d => d.documentType === 'tenderNotice' && d.url) || docs.find(d => d.url);
+  if (doc && doc.url) return doc.url;
+  if (release.links && release.links.self) return release.links.self;
+  const id = release.id || release.ocid;
+  return noticeBase && id ? `${noticeBase}${id}` : null;
+}
+
 function mapRelease(release, { country, noticeBase }) {
   const f = fromOcds(release); // fromOcds falls through to the bare release object
   const id = release.id || release.ocid;
   const { closing_at, needs_manual_check } = resolveClosing(f.closing_raw);
   return {
     external_ref: release.ocid || id,
-    url: noticeBase && id ? `${noticeBase}${id}` : null,
+    url: noticeUrl(release, noticeBase),
     title: f.title,
     buyer_name: f.buyer_name,
     buyer_country: f.buyer_country || country,
@@ -75,8 +86,19 @@ async function fetch(source, { log = () => {} } = {}) {
       for (const r of rs) { const k = r.ocid || r.id; if (k && !seen.has(k)) { seen.add(k); releases.push(r); } }
     }
   } else {
+    // firehose: page listUrl. windowParam names the date-window query param
+    // ('updatedFrom' for Find a Tender). Set false for APIs that return a batch
+    // with no windowing (Public Contracts Scotland / Sell2Wales /v1/Notices).
     let start = cfg.listUrl;
-    if (cutoff) start += (start.includes('?') ? '&' : '?') + 'updatedFrom=' + cutoff.toISOString().slice(0, 19);
+    const wp = cfg.windowParam === undefined ? 'updatedFrom' : cfg.windowParam;
+    if (cutoff && wp) {
+      // Find a Tender wants an ISO instant (updatedFrom); PCS/Sell2Wales want a
+      // 'mm-yyyy' month (dateFrom).
+      const val = cfg.windowFormat === 'mm-yyyy'
+        ? `${String(cutoff.getMonth() + 1).padStart(2, '0')}-${cutoff.getFullYear()}`
+        : cutoff.toISOString().slice(0, 19);
+      start += (start.includes('?') ? '&' : '?') + wp + '=' + val;
+    }
     releases = await pageReleases(start, { maxPages: cfg.maxPages || 40, cutoffDate: cutoff, log });
   }
 
