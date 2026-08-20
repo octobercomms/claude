@@ -51,6 +51,9 @@ export default function TendersPanel() {
   const [savingSam, setSavingSam] = useState(false);
   // Per-notice chat
   const [chatNotice, setChatNotice] = useState(null);
+  // Add a tender by URL
+  const [addUrl, setAddUrl] = useState('');
+  const [adding, setAdding] = useState(false);
 
   async function loadSources() {
     try { setSources(await api.get('/tender/sources')); } catch (e) { toast(e.message, 'error'); }
@@ -122,6 +125,20 @@ export default function TendersPanel() {
     setNotices(prev => prev.filter(x => x.id !== n.id));         // optimistic
     try { await api.post(`/tender/notices/${n.id}/dismiss`, {}); }
     catch (e) { toast(e.message, 'error'); loadNotices(); }
+  }
+
+  async function addByUrl() {
+    const url = addUrl.trim();
+    if (!url || adding) return;
+    setAdding(true);
+    toast('Reading the notice…');
+    try {
+      const r = await api.post('/tender/notices/add-url', { url });
+      toast(r.outcome === 'skipped' ? `Already tracked: ${r.title}` : `Added: ${r.title}`, 'success');
+      setAddUrl('');
+      await loadNotices();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setAdding(false); }
   }
 
   return (
@@ -211,6 +228,17 @@ export default function TendersPanel() {
               {MARKETS.map(m => <option key={m.k} value={m.k}>{m.label}</option>)}
             </select>
           </div>
+        </div>
+
+        {/* Add a tender by URL — the guaranteed path for one you've already found. */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          <input className="input" type="url" placeholder="Found one yourself? Paste a tender URL to add it…"
+            value={addUrl} onChange={e => setAddUrl(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addByUrl(); } }}
+            style={{ flex: 1, minWidth: 280 }} />
+          <button className="btn btn-secondary btn-sm" onClick={addByUrl} disabled={adding || !addUrl.trim()}>
+            {adding ? 'Adding…' : 'Add tender'}
+          </button>
         </div>
 
         {loading ? (

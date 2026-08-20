@@ -10,6 +10,7 @@ const ingest = require('../services/tender/ingest');
 const { prefilter } = require('../services/tender/classify');
 const tenderChat = require('../services/tender/chat');
 const digest = require('../services/tender/digest');
+const addByUrl = require('../services/tender/addByUrl');
 
 const router = express.Router();
 router.use(authenticate);
@@ -75,6 +76,23 @@ router.get('/notices', async (req, res) => {
 
     res.json({ notices: keep.slice(0, limit), counts });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Add a tender by URL — Claude reads the page, extracts the details, and it
+// drops into the list like any other notice. The guaranteed path for a notice
+// you've already found (esp. small below-threshold ones search can miss).
+router.post('/notices/add-url', async (req, res) => {
+  const url = (req.body?.url || '').trim();
+  if (!/^https?:\/\/.+/i.test(url)) return res.status(400).json({ error: 'Enter a valid tender URL (https://…).' });
+  try {
+    const notice = await addByUrl.buildNotice(url);
+    const { rows } = await pool.query("SELECT id FROM tender_sources WHERE name = 'Added by URL'");
+    const sourceId = rows[0]?.id;
+    if (!sourceId) return res.status(500).json({ error: 'Manual source not found — migrations may not have run.' });
+    const outcome = await ingest.upsertNotice(sourceId, notice);
+    if (outcome === 'expired') return res.status(400).json({ error: `That notice looks closed (deadline ${notice.closing_at ? notice.closing_at.toISOString().slice(0, 10) : 'unknown'}).` });
+    res.json({ ok: true, outcome, title: notice.title, closing_at: notice.closing_at });
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // Trigger an ingest run now. Optional body { source_id } to poll one source.

@@ -129,6 +129,13 @@ source by flipping `tender_sources.enabled`.
   (Creative-sector PR / All PR-comms / Everything) and market filter; per-notice
   **Dismiss** (hides it for good) and **Start with Claude**; an **Email alerts**
   block; and a **SAM.gov key** field. Also reachable at `/tenders`.
+- **Add by URL:** `POST /notices/add-url { url }` — the guaranteed path for a
+  notice you already found (esp. small below-threshold ones web search can miss).
+  `services/tender/addByUrl.js` has Claude read the page (Anthropic-side
+  `web_fetch`, with a server-fetch + text-parse fallback), extract
+  title/buyer/country/closing/value, and upsert it under the `Added by URL`
+  source (migration 154; `enabled=false` so ingest never polls it). Surfaced as a
+  paste box in the Tenders panel.
 - **Dismiss:** `POST /notices/:id/dismiss` sets `tender_notices.dismissed`;
   `GET /notices` hides dismissed by default, and the digest never emails them.
 - **Start with Claude:** `services/tender/chat.js` — a per-notice chat
