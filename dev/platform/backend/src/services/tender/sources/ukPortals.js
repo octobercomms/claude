@@ -86,20 +86,37 @@ async function fetch(source, { log = () => {} } = {}) {
       for (const r of rs) { const k = r.ocid || r.id; if (k && !seen.has(k)) { seen.add(k); releases.push(r); } }
     }
   } else {
-    // firehose: page listUrl. windowParam names the date-window query param
-    // ('updatedFrom' for Find a Tender). Set false for APIs that return a batch
-    // with no windowing (Public Contracts Scotland / Sell2Wales /v1/Notices).
-    let start = cfg.listUrl;
+    // firehose: page listUrl. windowParam names the server-side date filter
+    // ('updatedFrom' for Find a Tender, 'dateFrom' for PCS/Sell2Wales); set it
+    // false for a batch API with no windowing.
+    //
+    // When the server windows the result we TRUST it and page links.next to
+    // exhaustion (up to maxPages) — we must NOT early-stop on release.date,
+    // because a notice updated inside the window can carry an older publication
+    // date and would wrongly truncate the feed (that is why Find a Tender was
+    // surfacing only a handful, and the Venice Biennale notice went missing).
+    // For an unwindowed feed we keep the release.date early-stop so we don't
+    // page the whole history.
+    const maxPages = cfg.maxPages || 40;
     const wp = cfg.windowParam === undefined ? 'updatedFrom' : cfg.windowParam;
+    let start = cfg.listUrl, windowed = false;
     if (cutoff && wp) {
-      // Find a Tender wants an ISO instant (updatedFrom); PCS/Sell2Wales want a
-      // 'mm-yyyy' month (dateFrom).
-      const val = cfg.windowFormat === 'mm-yyyy'
+      const val = cfg.windowFormat === 'dd-mm-yyyy'
+        ? `${String(cutoff.getDate()).padStart(2, '0')}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${cutoff.getFullYear()}`
+        : cfg.windowFormat === 'mm-yyyy'
         ? `${String(cutoff.getMonth() + 1).padStart(2, '0')}-${cutoff.getFullYear()}`
         : cutoff.toISOString().slice(0, 19);
       start += (start.includes('?') ? '&' : '?') + wp + '=' + val;
+      windowed = true;
     }
-    releases = await pageReleases(start, { maxPages: cfg.maxPages || 40, cutoffDate: cutoff, log });
+    releases = await pageReleases(start, { maxPages, cutoffDate: windowed ? null : cutoff, log });
+    // If the windowed call came back empty (e.g. the portal rejected our date
+    // format), fall back to the unwindowed batch so a daily poll still picks up
+    // the current open notices. /v1/Notices returns the recent set in one page.
+    if (windowed && releases.length === 0) {
+      log(`${source.name}: windowed fetch empty — retrying without ${wp}`);
+      releases = await pageReleases(cfg.listUrl, { maxPages, cutoffDate: cutoff, log });
+    }
   }
 
   // Map + filter to the niche at ingest (keep match + maybe; drop the noise).
