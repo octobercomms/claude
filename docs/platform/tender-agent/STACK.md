@@ -71,9 +71,12 @@ truncate the feed (this was hiding the Venice Biennale notice). If a windowed
 call returns nothing (a portal that rejects our date format), the adapter falls
 back to the unwindowed `/v1/Notices` batch so a daily poll still gets the
 current open notices.
+| **Web search (Claude)** | Global (UK+CA+EU+US) | Anthropic `web_search` tool — Claude searches the open web + portal pages and returns open notices as JSON | **Live** |
 | TED | EU | v3 notices search API by CPV | **Live** (field names to confirm against the live API on first deploy) |
 | CanadaBuys | Canada | Official open-data CSV (`openTenderNotice…csv`), parsed + filtered locally | **Live** |
 | SAM.gov | US | Opportunities API (needs free `SAM_API_KEY`) | Adapter built, **disabled**; low-yield per the 17 Aug scan |
+
+**Why web search matters (the below-threshold gap).** UK procurement only *requires* UK-wide publication above a value threshold (~£214k for services). The small jobs October wants — a £20k Venice Biennale PR brief, a River Tweed brand project — are **below threshold**, so the tidy OCDS API feeds either omit them or hide them behind a low-value flag; the direct API adapters therefore can't see them (and some portals block/cap our server-side fetch). `sources/webSearch.js` closes that gap the way a person does: Claude uses the `web_search` tool (the same capability `services/claude.js` `researchBriefing` already uses) to search portals + the open web, read the notice pages, and return open opportunities as JSON — small ones included. The search runs at Anthropic's end, so it isn't subject to the portal firewalls. Results flow through the same normalise → classify → dedupe → store → email pipeline; `external_ref` is the notice's host+path so re-runs dedupe. Cost is logged as the `tender_web_search` feature.
 
 **D3 ingest = keyword search, not category RSS.** `sources/d3.js` defaults to
 `fetchSearch`: for each of ~14 PR/comms/creative service terms it GETs D3's

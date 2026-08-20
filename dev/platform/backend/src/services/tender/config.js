@@ -34,6 +34,7 @@ const CPV_CODES = [
 // (first match wins), falling back to `kind`.
 const ADAPTERS = {
   ukPortals:  () => require('./sources/ukPortals'), // Find a Tender + Contracts Finder (official OCDS APIs)
+  webSearch:  () => require('./sources/webSearch'), // Claude web-search discovery (finds small/below-threshold jobs)
   d3:         () => require('./sources/d3'),         // legacy mirror (retired)
   ted:        () => require('./sources/ted'),
   canadabuys: () => require('./sources/canadabuys'),
@@ -42,6 +43,7 @@ const ADAPTERS = {
 
 function resolveAdapter(source) {
   const name = (source.name || '').toLowerCase();
+  if (name.includes('web search') || name.includes('web discovery')) return ADAPTERS.webSearch();
   if (name.includes('find a tender') || name.includes('contracts finder')
       || name.includes('scotland') || name.includes('sell2wales') || name.includes('wales')) return ADAPTERS.ukPortals();
   if (name.includes('d3')) return ADAPTERS.d3();
