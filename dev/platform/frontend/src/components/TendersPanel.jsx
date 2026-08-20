@@ -53,6 +53,8 @@ export default function TendersPanel() {
   const [savingSam, setSavingSam] = useState(false);
   // Per-notice chat
   const [chatNotice, setChatNotice] = useState(null);
+  // Inline closing-date edit: { id, value }
+  const [editDate, setEditDate] = useState(null);
   // Add a tender by URL
   const [addUrl, setAddUrl] = useState('');
   const [adding, setAdding] = useState(false);
@@ -127,6 +129,15 @@ export default function TendersPanel() {
     setNotices(prev => prev.filter(x => x.id !== n.id));         // optimistic
     try { await api.post(`/tender/notices/${n.id}/dismiss`, {}); }
     catch (e) { toast(e.message, 'error'); loadNotices(); }
+  }
+
+  async function saveDate(n) {
+    try {
+      const updated = await api.put(`/tender/notices/${n.id}/closing`, { closing_at: editDate.value || null });
+      setNotices(prev => prev.map(x => x.id === n.id ? { ...x, closing_at: updated.closing_at, needs_manual_check: updated.needs_manual_check } : x));
+      setEditDate(null);
+      toast('Closing date updated', 'success');
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function addByUrl() {
@@ -286,8 +297,23 @@ export default function TendersPanel() {
                       <td style={tdStyle}>{(n.market || '').toUpperCase() || '—'}</td>
                       <td style={tdStyle}>{fmtValue(n.value_min, n.currency)}</td>
                       <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                        {fmtDate(n.closing_at)}
-                        {dl != null && dl >= 0 && dl <= 14 && <span style={{ marginLeft: 6, color: 'var(--danger, #c0392b)', fontWeight: 700 }}>{dl}d</span>}
+                        {editDate?.id === n.id ? (
+                          <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                            <input type="date" value={editDate.value} autoFocus
+                              onChange={e => setEditDate({ id: n.id, value: e.target.value })}
+                              style={{ padding: '2px 5px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                            <button className="btn btn-primary btn-sm" onClick={() => saveDate(n)}>Save</button>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setEditDate(null)}>✕</button>
+                          </span>
+                        ) : (
+                          <>
+                            {n.closing_at ? fmtDate(n.closing_at) : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
+                            {dl != null && dl >= 0 && dl <= 14 && <span style={{ marginLeft: 6, color: 'var(--danger, #c0392b)', fontWeight: 700 }}>{dl}d</span>}
+                            <button className="btn-link" title="Set / edit closing date"
+                              onClick={() => setEditDate({ id: n.id, value: n.closing_at ? new Date(n.closing_at).toISOString().slice(0, 10) : '' })}
+                              style={{ marginLeft: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--link, #06c)', fontSize: 12 }}>✎</button>
+                          </>
+                        )}
                       </td>
                       <td style={{ ...tdStyle, whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/tenders/${n.id}`)} title="Open the bid workspace — assess fit, plan and produce the bid with Claude">{n.has_chat ? 'Continue with Claude' : 'Start with Claude'}</button>

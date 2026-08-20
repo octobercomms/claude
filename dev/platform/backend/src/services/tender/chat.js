@@ -104,4 +104,32 @@ async function send(noticeId, message) {
   return rows[0];
 }
 
-module.exports = { send, history, buildSystem, crossBidContext };
+// "Learn from this bid" — read the conversation and propose durable, reusable
+// additions to October's shared bid profile (services, sectors, references,
+// boilerplate, win/loss lessons), skipping anything one-off or already known.
+// Returns { suggestion } — empty string when there's nothing worth keeping.
+async function suggestProfileUpdate(noticeId) {
+  const prior = await history(noticeId);
+  if (!prior.length) { const e = new Error('Nothing to learn from yet — work the bid first.'); e.status = 400; throw e; }
+  const { rows: nrows } = await pool.query('SELECT * FROM tender_notices WHERE id = $1', [noticeId]);
+  const notice = nrows[0] || {};
+  const { profile_md } = await profile.get();
+
+  const sys = `You maintain October Communications' shared bid profile — the durable, reusable facts that help win FUTURE public-sector PR bids: services, sectors, named reference projects and clients, boilerplate lines, pricing norms, and win/loss lessons. You are given the current profile and one bid conversation.
+
+Propose ONLY new, durable additions genuinely learned from the conversation. Exclude anything specific to this single tender, anything already in the profile, and anything invented or unconfirmed. If there is nothing genuinely reusable to add, reply with exactly "NOTHING TO ADD". Otherwise output a short markdown snippet (a heading and a few bullets) ready to append to the profile. British English, factual, no preamble.`;
+  const convo = prior.map(m => `${m.role === 'user' ? 'Lead' : 'Claude'}: ${m.content}`).join('\n\n').slice(0, 24000);
+  const user = `## Current profile\n${profile_md || '(empty)'}\n\n## This bid\n${notice.title || '—'} — ${notice.buyer_name || 'buyer unknown'}\n\n## Conversation\n${convo}`;
+
+  const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+  const resp = await client.messages.create({
+    model: MODEL, max_tokens: 1200,
+    system: claude.cacheableSystem(sys),
+    messages: [{ role: 'user', content: user }],
+  });
+  try { costLog.recordClaudeCost({ model: MODEL, response: resp, feature: 'tender_profile_learn', clientId: null }); } catch { /* best effort */ }
+  const text = resp.content.filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n').trim();
+  return { suggestion: /^\s*NOTHING TO ADD\s*$/i.test(text) ? '' : text };
+}
+
+module.exports = { send, history, buildSystem, crossBidContext, suggestProfileUpdate };

@@ -21,6 +21,21 @@ function fmtBytes(n) {
   if (n < 1048576) return `${Math.round(n / 1024)} KB`;
   return `${(n / 1048576).toFixed(1)} MB`;
 }
+function toDateInput(d) {
+  if (!d) return '';
+  const x = new Date(d);
+  return isNaN(x.getTime()) ? '' : x.toISOString().slice(0, 10);
+}
+
+// One-click deliverable generators — each sends a crafted prompt through the
+// same chat, so the produced document is downloadable as Word/PDF like any reply.
+const DELIVERABLES = [
+  { label: 'Go / no-go memo', prompt: 'Write a concise go/no-go memo for this tender: fit against October’s niche, the three-comparable-references test, deadline realism, value vs effort, and a clear recommendation. Produce the full memo.' },
+  { label: 'Capability statement', prompt: 'Draft a full capability statement for this bid — October’s relevant experience, sector credentials, team, approach and proof points. Ground it in October’s bid profile and any uploaded files. Produce the complete document, not a summary.' },
+  { label: 'Answers to questions', prompt: 'Draft October’s full written responses to the buyer’s questions/requirements. If the questions are in an uploaded document, answer each in turn; otherwise answer the standard selection and award questions for a PR/comms tender. Produce the complete document.' },
+  { label: 'Cover letter', prompt: 'Write a one-page cover letter from October to the buyer — warm, specific to their brief, evidence-led. Produce the full letter.' },
+  { label: 'Bid plan', prompt: 'Produce a bid plan: what to gather, who does what, the win themes, the risks, and a timeline worked back from the deadline.' },
+];
 
 async function downloadBlob(path, fallbackName, toast) {
   try {
@@ -55,6 +70,11 @@ export default function TenderWorkspacePage() {
   const [profileMd, setProfileMd] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  // Editable closing date + learn-from-bid
+  const [editingClose, setEditingClose] = useState(false);
+  const [closeDraft, setCloseDraft] = useState('');
+  const [learn, setLearn] = useState(null); // { suggestion }
+  const [learning, setLearning] = useState(false);
 
   useEffect(() => {
     api.get(`/tender/notices/${id}`).then(setNotice).catch(e => toast(e.message, 'error'));
@@ -114,26 +134,69 @@ export default function TenderWorkspacePage() {
     finally { setSavingProfile(false); }
   }
 
+  async function saveClose() {
+    try {
+      const updated = await api.put(`/tender/notices/${id}/closing`, { closing_at: closeDraft || null });
+      setNotice(updated); setEditingClose(false);
+      toast('Closing date updated', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function learnFromBid() {
+    setLearning(true);
+    try {
+      const r = await api.post(`/tender/notices/${id}/profile-suggestion`, {});
+      if (!r.suggestion) { toast('Nothing new to add to the profile yet.'); setLearn(null); }
+      else setLearn(r);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLearning(false); }
+  }
+  async function acceptLearn() {
+    try {
+      const p = await api.post('/tender/profile/append', { snippet: learn.suggestion });
+      setProfileMd(p.profile_md || ''); setLearn(null); setProfileOpen(true);
+      toast('Added to October bid profile', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
   const val = notice?.value_min ? `${notice.currency || ''} ${Number(notice.value_min).toLocaleString('en-GB')}`.trim() : '—';
 
   return (
-    <div className="stack stack-lg" style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <div className="stack stack-lg" style={{ width: '100%' }}>
       <button className="btn btn-ghost btn-sm" onClick={() => navigate('/settings?tab=tenders')} style={{ alignSelf: 'flex-start' }}>← Back to tenders</button>
 
       {/* Notice header */}
       <div className="card">
         <div className="oview-grplabel">Bid workspace</div>
         <h2 className="h3" style={{ margin: '2px 0 6px' }}>{notice?.title || 'Loading…'}</h2>
-        <div className="body-sm text-muted" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <div className="body-sm text-muted" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <span><strong>Buyer:</strong> {notice?.buyer_name || '—'}{notice?.buyer_country ? ` (${notice.buyer_country})` : ''}</span>
           <span><strong>Value:</strong> {val}</span>
-          <span><strong>Closes:</strong> {fmtDate(notice?.closing_at)}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <strong>Closes:</strong>
+            {editingClose ? (
+              <>
+                <input type="date" value={closeDraft} onChange={e => setCloseDraft(e.target.value)}
+                  style={{ padding: '3px 6px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                <button className="btn btn-primary btn-sm" onClick={saveClose}>Save</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditingClose(false)}>Cancel</button>
+              </>
+            ) : (
+              <>
+                {notice?.closing_at ? fmtDate(notice.closing_at) : <span style={{ color: 'var(--danger, #c0392b)' }}>not set</span>}
+                <button className="btn-link" onClick={() => { setCloseDraft(toDateInput(notice?.closing_at)); setEditingClose(true); }}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--link, #06c)', textDecoration: 'underline', fontSize: 12 }}>
+                  {notice?.closing_at ? 'edit' : 'add'}
+                </button>
+              </>
+            )}
+          </span>
           {notice?.url && <a href={notice.url} target="_blank" rel="noopener noreferrer">Open the notice ↗</a>}
         </div>
         {notice?.description && <p className="body-sm" style={{ margin: '10px 0 0', color: 'var(--text-subtle)' }}>{notice.description}</p>}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 16, alignItems: 'start' }}>
         {/* Chat */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', minHeight: 460 }}>
           <div className="oview-grplabel">Work with Claude</div>
@@ -170,7 +233,14 @@ export default function TenderWorkspacePage() {
             ))}
             {sending && <div className="caption" style={{ color: 'var(--text-subtle)', padding: '4px 2px' }}>Thinking…</div>}
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'flex-end' }}>
+          {/* One-click deliverables — produce the full document, then Download Word/PDF on the reply. */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+            <span className="caption" style={{ color: 'var(--text-subtle)', alignSelf: 'center', marginRight: 2 }}>Produce:</span>
+            {DELIVERABLES.map(d => (
+              <button key={d.label} className="btn btn-secondary btn-sm" disabled={sending} onClick={() => send(d.prompt)}>{d.label}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-end' }}>
             <textarea value={input} onChange={e => setInput(e.target.value)} rows={2}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Ask for fit, a plan, or a drafted deliverable… (Enter to send)"
@@ -206,6 +276,22 @@ export default function TenderWorkspacePage() {
               October bid profile {profileOpen ? '▾' : '▸'}
             </button>
             <p className="caption" style={{ margin: '4px 0 0', color: 'var(--text-subtle)' }}>Shared across every bid — Claude reads this and gets sharper as you add wins, losses and reusable boilerplate.</p>
+
+            {/* Learn from this bid — Claude proposes durable additions from the chat. */}
+            <button className="btn btn-secondary btn-sm" onClick={learnFromBid} disabled={learning} style={{ marginTop: 8 }}>
+              {learning ? 'Reviewing…' : 'Learn from this bid'}
+            </button>
+            {learn?.suggestion && (
+              <div className="card" style={{ marginTop: 8, padding: 10, background: 'var(--surface-2, #f7f7f5)' }}>
+                <div className="caption" style={{ color: 'var(--text-subtle)', marginBottom: 6 }}>Claude suggests adding to the profile:</div>
+                <div className="body-sm"><ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{learn.suggestion}</ReactMarkdown></div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  <button className="btn btn-primary btn-sm" onClick={acceptLearn}>Add to profile</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setLearn(null)}>Dismiss</button>
+                </div>
+              </div>
+            )}
+
             {profileOpen && (
               <div style={{ marginTop: 10 }}>
                 <textarea value={profileMd} onChange={e => setProfileMd(e.target.value)} rows={12}

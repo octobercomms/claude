@@ -152,6 +152,15 @@ source by flipping `tender_sources.enabled`.
   `GET /notices/:id/chat/:mid/export?format=docx|pdf`, `GET /notices/:id`,
   `GET|PUT /profile`, `GET|POST /notices/:id/files`, `GET /files/:id/download`,
   `DELETE /files/:id`.
+  - **Full-width** page. **One-click deliverable generators** (go/no-go memo,
+    capability statement, answers to questions, cover letter, bid plan) — each
+    sends a crafted prompt through the chat so the produced document is
+    downloadable like any reply. **Editable closing date** (fill in a
+    "deadline?" or correct a moved deadline) via `PUT /notices/:id/closing`, in
+    both the workspace header and the notices list. **Learn from this bid** —
+    `POST /notices/:id/profile-suggestion` asks Claude for durable, reusable
+    additions to the October profile (skipping one-off/known/invented); the lead
+    accepts them via `POST /profile/append`, so the profile compounds.
 - **Email alerts (auto-run digest):** `services/tender/digest.js` emails the new
   `match`-tier notices first-seen since the last digest to the address in
   `tender_settings` — run from the scheduler right after each daily scan, gated

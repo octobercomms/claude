@@ -21,4 +21,12 @@ async function set(profileMd) {
   return rows[0];
 }
 
-module.exports = { get, set };
+// Append a learned snippet to the profile (used by "Learn from this bid").
+async function append(snippet) {
+  const s = (snippet || '').trim();
+  if (!s) return get();
+  const cur = (await get()).profile_md || '';
+  return set(cur ? `${cur}\n\n${s}` : s);
+}
+
+module.exports = { get, set, append };
