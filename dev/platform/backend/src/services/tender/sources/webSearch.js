@@ -31,6 +31,16 @@ const MARKET_BRIEFS = {
     portals: 'Find a Tender (find-tender.service.gov.uk), Contracts Finder (contractsfinder.service.gov.uk), Public Contracts Scotland (publiccontractsscotland.gov.uk), Sell2Wales (sell2wales.gov.wales)',
     examples: 'PR consultancy for a national pavilion at an international exhibition (e.g. the British Council at the Venice Biennale); brand positioning and audience development for a heritage trail, park or destination (e.g. a river/coastal trail); press office and media relations for a museum, gallery, festival or arts council; strategic communications for a cultural or tourism body',
     buyers: 'the British Council, Arts Council England/Wales, Creative Scotland, national museums and galleries, heritage trusts, festivals and biennales, VisitBritain/VisitScotland and regional destination organisations, local authority culture/tourism teams',
+    // Portal search-result pages to read directly with web_fetch — these list
+    // EVERY current notice for the keyword (incl. small below-threshold ones
+    // that rank too low to appear in general web search).
+    fetchUrls: [
+      'https://www.find-tender.service.gov.uk/Search/Results?keywords=public+relations',
+      'https://www.find-tender.service.gov.uk/Search/Results?keywords=communications',
+      'https://www.find-tender.service.gov.uk/Search/Results?keywords=marketing',
+      'https://www.contractsfinder.service.gov.uk/Search/Results?keywords=public+relations',
+      'https://www.publiccontractsscotland.gov.uk/search/search_mainpage.aspx',
+    ],
   },
   'Canada': {
     country: 'Canada',
@@ -56,10 +66,13 @@ const DEFAULT_MARKETS = Object.keys(MARKET_BRIEFS);
 
 function buildPrompt(marketName, maxResults) {
   const b = MARKET_BRIEFS[marketName] || { country: marketName, portals: 'the official government procurement portals and the open web', examples: 'PR, media relations, communications, brand and audience-development work for creative-sector buyers', buyers: 'museums, galleries, arts councils, heritage bodies and destination-marketing organisations' };
+  const fetchBlock = Array.isArray(b.fetchUrls) && b.fetchUrls.length
+    ? `\nFIRST, use web_fetch to read these portal SEARCH-RESULT pages directly and extract every open notice listed on them (this catches the small, low-value notices that don't rank in general web search):\n${b.fetchUrls.map(u => `- ${u}`).join('\n')}\nFollow into a result's notice page with web_fetch when you need its deadline or value. THEN also run web searches to widen coverage.\n`
+    : '';
   return `You are the sourcing scout for October, a PR and communications agency that works with the creative sector — arts, culture, museums, galleries, heritage, design, architecture, festivals, biennales, and tourism/destination organisations.
 
-Find PUBLIC-SECTOR tender or contract opportunities in ${b.country} that October could bid for RIGHT NOW. Be thorough: run several web searches, scoped to the named portals (use site: searches like "site:find-tender.service.gov.uk public relations") AND to the open web, combining the service terms with the sector terms. Read the notice pages to confirm the deadline and requirement.
-
+Find PUBLIC-SECTOR tender or contract opportunities in ${b.country} that October could bid for RIGHT NOW. Be thorough: read the portal search pages directly AND run several web searches, combining the service terms with the sector terms. Read the notice pages to confirm the deadline and requirement.
+${fetchBlock}
 Portals to search: ${b.portals}.
 Also search buyers advertising directly: ${b.buyers}.
 
@@ -123,25 +136,36 @@ function refFromUrl(url, title) {
   return (title || '').trim().toLowerCase().slice(0, 200) || null;
 }
 
-// One web_search-enabled Claude call for a single market. Returns the raw JSON
-// items Claude reported (before mapping/filtering).
-async function searchMarket(client, marketName, { model, maxResults, maxSearches, log }) {
+// One Claude call for a single market. Uses web_fetch (read portal search pages
+// directly — catches the small notices general search misses) + web_search (to
+// widen coverage). Returns the raw JSON items Claude reported. If web_fetch is
+// not enabled on the account the first call errors, so we retry with web_search
+// only rather than failing the whole source.
+async function searchMarket(client, marketName, { model, maxResults, maxSearches, maxFetches, log }) {
+  const prompt = buildPrompt(marketName, maxResults);
+  const withFetch = [
+    { type: 'web_search_20250305', name: 'web_search', max_uses: maxSearches },
+    { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: maxFetches },
+  ];
+  const searchOnly = [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxSearches }];
+
+  async function call(tools) {
+    return client.messages.create({ model, max_tokens: 4000, tools, messages: [{ role: 'user', content: prompt }] });
+  }
+
   let message;
   try {
-    message = await client.messages.create({
-      model,
-      max_tokens: 4000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxSearches }],
-      messages: [{ role: 'user', content: buildPrompt(marketName, maxResults) }],
-    });
+    message = await call(withFetch);
   } catch (e) {
-    log(`Web search (${marketName}) failed: ${e.message}`);
-    return [];
+    // web_fetch may not be enabled for this account — fall back to search only.
+    log(`Web (${marketName}) web_fetch unavailable (${e.message}); retrying search-only`);
+    try { message = await call(searchOnly); }
+    catch (e2) { log(`Web search (${marketName}) failed: ${e2.message}`); return []; }
   }
   try { recordClaudeCost({ model, response: message, feature: 'tender_web_search' }); } catch { /* non-fatal */ }
   const text = (message.content || []).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n');
   const items = extractArray(text);
-  log(`Web search (${marketName}): ${items.length} found`);
+  log(`Web (${marketName}): ${items.length} found`);
   return items;
 }
 
@@ -150,6 +174,7 @@ async function fetch(source, { log = () => {}, stats = {} } = {}) {
   const markets = Array.isArray(cfg.markets) && cfg.markets.length ? cfg.markets : DEFAULT_MARKETS;
   const maxResults = cfg.maxResults || 20;
   const maxSearches = cfg.maxSearches || 6; // per market
+  const maxFetches = cfg.maxFetches || 6;   // per market (portal search pages + notice pages)
   const model = cfg.model || MODEL;
 
   const key = process.env.CLAUDE_API_KEY;
@@ -161,7 +186,7 @@ async function fetch(source, { log = () => {}, stats = {} } = {}) {
   // the small, below-threshold notices stays high.
   const raw = [];
   for (const m of markets) {
-    raw.push(...await searchMarket(client, m, { model, maxResults, maxSearches, log }));
+    raw.push(...await searchMarket(client, m, { model, maxResults, maxSearches, maxFetches, log }));
   }
   stats.scanned = raw.length;
 
