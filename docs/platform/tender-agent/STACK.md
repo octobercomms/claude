@@ -62,7 +62,7 @@ APIs. `sources/ukPortals.js` handles all four: Find a Tender + Contracts Finder
 (GOV.UK) and Public Contracts Scotland + Sell2Wales (same Scottish Government
 `/v1/Notices` API — `windowParam:'dateFrom'`, `windowFormat:'mm-yyyy'`).
 | TED | EU | v3 notices search API by CPV | **Live** (field names to confirm against the live API on first deploy) |
-| CanadaBuys | Canada | Tender-notices RSS (open-data CSV = later enrichment) | Adapter built, **disabled** until live-validated |
+| CanadaBuys | Canada | Official open-data CSV (`openTenderNotice…csv`), parsed + filtered locally | **Live** |
 | SAM.gov | US | Opportunities API (needs free `SAM_API_KEY`) | Adapter built, **disabled**; low-yield per the 17 Aug scan |
 
 **D3 ingest = keyword search, not category RSS.** `sources/d3.js` defaults to
