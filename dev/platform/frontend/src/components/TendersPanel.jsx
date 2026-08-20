@@ -192,96 +192,7 @@ export default function TendersPanel() {
         </button>
       </div>
 
-      {/* Alerts — auto-run email digest */}
-      <div className="card">
-        <div className="oview-grplabel">Email alerts</div>
-        <p className="body-sm text-muted" style={{ margin: '0 0 10px' }}>
-          The scan runs automatically every day. Turn this on to get emailed the new creative-sector PR
-          matches each time — nothing to check by hand.
-        </p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14 }}>
-            <input type="checkbox" checked={digestEnabled} onChange={e => setDigestEnabled(e.target.checked)} />
-            Email me new tenders
-          </label>
-          <input className="input" type="email" placeholder="you@octobercomms.com" value={digestEmail}
-            onChange={e => setDigestEmail(e.target.value)} style={{ minWidth: 260 }} />
-          <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={savingSettings}>
-            {savingSettings ? 'Saving…' : 'Save'}
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={sendTest} title="Send the digest now, to check it works">Send test</button>
-        </div>
-      </div>
-
-      {/* Company details — the SQ facts every bid reuses */}
-      <div className="card">
-        <button className="oview-grplabel" onClick={() => setCompanyOpen(o => !o)}
-          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-          Company details {companyOpen ? '▾' : '▸'}
-        </button>
-        <p className="body-sm text-muted" style={{ margin: '4px 0 0' }}>
-          The registration, insurance, accreditation and policy facts a public-sector tender asks for.
-          Enter them once — every bid uses them verbatim, so Claude never invents a company or VAT number.
-        </p>
-        {companyOpen && (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10, marginTop: 12 }}>
-              {companyFields.map(([key, label]) => {
-                const multiline = ['registered_address', 'trading_address', 'directors', 'turnover', 'insurances', 'accreditations', 'policies', 'additional', 'bid_contact'].includes(key);
-                return (
-                  <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5 }}>
-                    <span style={{ fontWeight: 600 }}>{label}</span>
-                    {multiline
-                      ? <textarea value={company[key] || ''} rows={2} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))}
-                          style={{ resize: 'vertical', padding: '7px 9px', fontSize: 13, fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
-                      : <input className="input" value={company[key] || ''} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))} />}
-                  </label>
-                );
-              })}
-            </div>
-            <button className="btn btn-primary btn-sm" onClick={saveCompany} disabled={savingCompany} style={{ marginTop: 12 }}>
-              {savingCompany ? 'Saving…' : 'Save company details'}
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Sources */}
-      <div className="card">
-        <div className="oview-grplabel">Sources</div>
-        <div className="md-table-wrap">
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Source</th><th style={thStyle}>Market</th><th style={thStyle}>Status</th>
-                <th style={thStyle}>Last polled</th><th style={thStyle}>Last result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sources.map(s => (
-                <tr key={s.id}>
-                  <td style={tdStyle}>{s.name}</td>
-                  <td style={tdStyle}>{(s.market || '').toUpperCase() || '—'}</td>
-                  <td style={tdStyle}><span className={'suite-status-dot' + (s.enabled ? ' ok' : '')} style={{ marginRight: 6 }} />{s.enabled ? 'On' : 'Off'}</td>
-                  <td style={tdStyle}>{fmtDate(s.last_polled_at)}</td>
-                  <td style={{ ...tdStyle, color: 'var(--text-subtle)' }}>{s.last_status || '—'}</td>
-                </tr>
-              ))}
-              {!sources.length && <tr><td style={tdStyle} colSpan={5}>No sources configured.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
-          <span className="body-sm text-muted">US (SAM.gov) needs a free API key:</span>
-          <input className="input" type="password" placeholder="SAM.gov API key" value={samKey}
-            onChange={e => setSamKey(e.target.value)} style={{ minWidth: 240 }} />
-          <button className="btn btn-ghost btn-sm" onClick={saveSamKey} disabled={savingSam || !samKey.trim()}>
-            {savingSam ? 'Saving…' : 'Save key'}
-          </button>
-        </div>
-      </div>
-
-      {/* Notices */}
+      {/* Notices — the list first; it's what you act on */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
           <div className="oview-grplabel" style={{ margin: 0 }}>Open notices{notices.length ? ` (${notices.length})` : ''}</div>
@@ -380,6 +291,95 @@ export default function TendersPanel() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Alerts — auto-run email digest */}
+      <div className="card">
+        <div className="oview-grplabel">Email alerts</div>
+        <p className="body-sm text-muted" style={{ margin: '0 0 10px' }}>
+          The scan runs automatically every day. Turn this on to get emailed the new creative-sector PR
+          matches each time — nothing to check by hand.
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14 }}>
+            <input type="checkbox" checked={digestEnabled} onChange={e => setDigestEnabled(e.target.checked)} />
+            Email me new tenders
+          </label>
+          <input className="input" type="email" placeholder="you@octobercomms.com" value={digestEmail}
+            onChange={e => setDigestEmail(e.target.value)} style={{ minWidth: 260 }} />
+          <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={savingSettings}>
+            {savingSettings ? 'Saving…' : 'Save'}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={sendTest} title="Send the digest now, to check it works">Send test</button>
+        </div>
+      </div>
+
+      {/* Company details — the SQ facts every bid reuses */}
+      <div className="card">
+        <button className="oview-grplabel" onClick={() => setCompanyOpen(o => !o)}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+          Company details {companyOpen ? '▾' : '▸'}
+        </button>
+        <p className="body-sm text-muted" style={{ margin: '4px 0 0' }}>
+          The registration, insurance, accreditation and policy facts a public-sector tender asks for.
+          Enter them once — every bid uses them verbatim, so Claude never invents a company or VAT number.
+        </p>
+        {companyOpen && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10, marginTop: 12 }}>
+              {companyFields.map(([key, label]) => {
+                const multiline = ['registered_address', 'trading_address', 'directors', 'turnover', 'insurances', 'accreditations', 'policies', 'additional', 'bid_contact'].includes(key);
+                return (
+                  <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5 }}>
+                    <span style={{ fontWeight: 600 }}>{label}</span>
+                    {multiline
+                      ? <textarea value={company[key] || ''} rows={2} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))}
+                          style={{ resize: 'vertical', padding: '7px 9px', fontSize: 13, fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                      : <input className="input" value={company[key] || ''} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))} />}
+                  </label>
+                );
+              })}
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={saveCompany} disabled={savingCompany} style={{ marginTop: 12 }}>
+              {savingCompany ? 'Saving…' : 'Save company details'}
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Sources — the places it searches */}
+      <div className="card">
+        <div className="oview-grplabel">Sources</div>
+        <div className="md-table-wrap">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Source</th><th style={thStyle}>Market</th><th style={thStyle}>Status</th>
+                <th style={thStyle}>Last polled</th><th style={thStyle}>Last result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sources.map(s => (
+                <tr key={s.id}>
+                  <td style={tdStyle}>{s.name}</td>
+                  <td style={tdStyle}>{(s.market || '').toUpperCase() || '—'}</td>
+                  <td style={tdStyle}><span className={'suite-status-dot' + (s.enabled ? ' ok' : '')} style={{ marginRight: 6 }} />{s.enabled ? 'On' : 'Off'}</td>
+                  <td style={tdStyle}>{fmtDate(s.last_polled_at)}</td>
+                  <td style={{ ...tdStyle, color: 'var(--text-subtle)' }}>{s.last_status || '—'}</td>
+                </tr>
+              ))}
+              {!sources.length && <tr><td style={tdStyle} colSpan={5}>No sources configured.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+          <span className="body-sm text-muted">US (SAM.gov) needs a free API key:</span>
+          <input className="input" type="password" placeholder="SAM.gov API key" value={samKey}
+            onChange={e => setSamKey(e.target.value)} style={{ minWidth: 240 }} />
+          <button className="btn btn-ghost btn-sm" onClick={saveSamKey} disabled={savingSam || !samKey.trim()}>
+            {savingSam ? 'Saving…' : 'Save key'}
+          </button>
+        </div>
       </div>
 
       {chatNotice && <TenderChatModal notice={chatNotice} onClose={() => setChatNotice(null)} />}
