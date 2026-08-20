@@ -1,33 +1,68 @@
-// Tender Agent — "Start with Claude": a per-notice chat that helps the account
-// lead judge fit and outline a bid. Lightweight (no tools) — it reasons over the
-// notice's own details. Messages persist in tender_chat_messages.
+// Tender Agent — "Start / Continue with Claude": the per-tender bid workspace
+// chat. It reasons over the notice, the uploaded files (RFP pack, past bids,
+// capability decks), and the shared October bid profile — so it can judge fit,
+// plan the bid, and draft the actual deliverables. Messages persist in
+// tender_chat_messages; the profile + cross-bid context make it sharper each
+// time.
 
 const pool = require('../../db');
 const Anthropic = require('@anthropic-ai/sdk');
 const claude = require('../claude');
 const costLog = require('../costLog');
+const profile = require('./profile');
+const bidFiles = require('./bidFiles');
 
 const MODEL = 'claude-sonnet-4-6';
 
-function buildSystem(notice) {
+// A short digest of the other tenders in the pipeline, so the agent has
+// cross-bid context ("we're also chasing X for buyer Y") without loading every
+// chat. Excludes the current notice and dismissed ones.
+async function crossBidContext(noticeId) {
+  const { rows } = await pool.query(
+    `SELECT n.title, n.buyer_name, n.buyer_country, n.closing_at,
+            EXISTS (SELECT 1 FROM tender_chat_messages c WHERE c.notice_id = n.id) AS worked
+     FROM tender_notices n
+     WHERE n.id <> $1 AND n.dismissed = false AND (n.closing_at IS NULL OR n.closing_at >= NOW())
+     ORDER BY worked DESC, n.first_seen_at DESC
+     LIMIT 20`,
+    [noticeId]
+  );
+  if (!rows.length) return '';
+  const line = r => `- ${r.title || '—'} — ${r.buyer_name || 'buyer unknown'}${r.buyer_country ? ` (${r.buyer_country})` : ''}${r.worked ? ' [in progress]' : ''}`;
+  return rows.map(line).join('\n');
+}
+
+function buildSystem(notice, { profileMd, others, skippedFiles }) {
   const val = notice.value_min ? `${notice.currency || ''} ${Number(notice.value_min).toLocaleString('en-GB')}`.trim() : 'not stated';
   const closes = notice.closing_at ? new Date(notice.closing_at).toLocaleDateString('en-GB') : 'unknown';
-  return `You are a bid strategist at October Communications, a UK PR & communications agency specialising in arts, culture, design, heritage and destination marketing. The account lead is deciding whether to pursue a public-sector tender and, if so, how to approach the bid.
+  return `You are a bid strategist and writer at October Communications, a UK PR & communications agency specialising in arts, culture, design, architecture, heritage and destination marketing. You help the account lead run a public-sector tender end to end: judge fit, plan the bid, and PRODUCE the deliverables (capability statement, draft responses to the buyer's questions, cover letter, case-study selection).
 
-The tender:
+This tender:
 - Title: ${notice.title || '—'}
 - Buyer: ${notice.buyer_name || '—'}${notice.buyer_country ? ` (${notice.buyer_country})` : ''}
 - Value: ${val}
 - Closes: ${closes}
 - Link: ${notice.url || '—'}
-- Detail: ${notice.description || '(only the title is available — say so plainly if the detail is too thin to judge)'}
+- Detail: ${notice.description || '(thin — say so plainly if there is too little to judge, and use any uploaded documents)'}
 
-Help the lead: judge fit against October's niche (is it genuinely arts/culture/design/heritage/destination PR, not adjacent build/research/consultation work?); run the go/no-go test (three comparable references, deadline realistic, value vs effort); and when asked, outline a bid approach — structure, angle, and the evidence to gather. Be commercially direct, British English, no hype, no em dashes. Never invent facts about October or the buyer — if you don't have a detail, say what to check.`;
+## October's bid profile (shared across every bid — use it, and suggest additions when you learn something reusable)
+${profileMd ? profileMd.slice(0, 8000) : '(empty — ask the lead for October\'s services, sectors and reference projects, and offer to draft a profile)'}
+
+## Other tenders in October's pipeline (for cross-bid awareness)
+${others || '(none)'}
+
+How you work:
+- Judge fit against October's niche (genuinely arts/culture/design/heritage/destination PR, not adjacent build/research/consultation work) and run the go/no-go test (three comparable references, deadline realistic, value vs effort).
+- Read the uploaded documents (RFP pack, past bids, capability decks) and ground your drafts in them. ${skippedFiles && skippedFiles.length ? `Note: these attachments couldn't be read (unsupported type) — ask the lead to paste their key text: ${skippedFiles.join(', ')}.` : ''}
+- When asked to produce a deliverable, write the full thing in clean markdown (headings, short paragraphs, no em dashes) so it can be exported to Word/PDF as-is. Don't summarise when asked to draft — produce the actual document.
+- Never invent facts about October, its past work, or the buyer. If a detail is missing, say exactly what to confirm.
+
+British English. Commercially direct. No hype.`;
 }
 
 async function history(noticeId) {
   const { rows } = await pool.query(
-    'SELECT id, role, content, created_at FROM tender_chat_messages WHERE notice_id = $1 ORDER BY created_at ASC LIMIT 80',
+    'SELECT id, role, content, created_at FROM tender_chat_messages WHERE notice_id = $1 ORDER BY created_at ASC LIMIT 120',
     [noticeId]
   );
   return rows;
@@ -41,19 +76,27 @@ async function send(noticeId, message) {
   const notice = nrows[0];
 
   const prior = await history(noticeId);
+  const [{ profile_md }, others, files] = await Promise.all([
+    profile.get(), crossBidContext(noticeId), bidFiles.contentBlocks(noticeId),
+  ]);
   await pool.query('INSERT INTO tender_chat_messages (notice_id, role, content) VALUES ($1, $2, $3)', [noticeId, 'user', text]);
 
+  // Attach the workspace files to this turn so the agent can read them.
+  const userContent = files.blocks.length
+    ? [...files.blocks, { type: 'text', text }]
+    : text;
+
   const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
-  const messages = [...prior.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: text }];
+  const messages = [...prior.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userContent }];
   const resp = await client.messages.create({
     model: MODEL,
-    max_tokens: 4000,
-    system: claude.cacheableSystem(buildSystem(notice)),
+    max_tokens: 8000,
+    system: claude.cacheableSystem(buildSystem(notice, { profileMd: profile_md, others, skippedFiles: files.skipped })),
     messages,
   });
   try { costLog.recordClaudeCost({ model: MODEL, response: resp, feature: 'tender_chat', clientId: null }); } catch { /* best effort */ }
 
-  const reply = resp.content.find(b => b.type === 'text')?.text || 'Sorry, I could not respond just now.';
+  const reply = resp.content.filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n').trim() || 'Sorry, I could not respond just now.';
   const { rows } = await pool.query(
     'INSERT INTO tender_chat_messages (notice_id, role, content) VALUES ($1, $2, $3) RETURNING id, role, content, created_at',
     [noticeId, 'assistant', reply]
@@ -61,4 +104,4 @@ async function send(noticeId, message) {
   return rows[0];
 }
 
-module.exports = { send, history, buildSystem };
+module.exports = { send, history, buildSystem, crossBidContext };

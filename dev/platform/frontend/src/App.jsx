@@ -21,6 +21,7 @@ import ApprovePage from './pages/ApprovePage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import GuidePage from './pages/GuidePage';
 import SnapshotStudioPage from './pages/SnapshotStudioPage';
+import TenderWorkspacePage from './pages/TenderWorkspacePage';
 import SettingsPage from './pages/SettingsPage';
 import ClientPRPage from './pages/ClientPRPage';
 import JournalistProfilePage from './pages/JournalistProfilePage';
@@ -109,6 +110,7 @@ export default function App() {
             {/* Leads folded into Settings → Workspace → Leads; keep old links working. */}
             <Route path="leads" element={<Navigate to="/settings?tab=leads" replace />} />
             <Route path="tenders" element={<Navigate to="/settings?tab=tenders" replace />} />
+            <Route path="tenders/:id" element={<TenderWorkspacePage />} />
             <Route path="leads/:id" element={<SnapshotStudioPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="settings" element={<SettingsPage />} />
