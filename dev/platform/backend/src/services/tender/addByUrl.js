@@ -51,8 +51,15 @@ Return ONLY a JSON object (in a \`\`\`json block), using null for anything genui
 If the page is not actually a tender/contract notice, return {"title": null}.`;
 }
 
-async function textFromClaude(client, messages, tools) {
-  const msg = await client.messages.create({ model: MODEL, max_tokens: 1500, ...(tools ? { tools } : {}), messages });
+// web_fetch is a beta API tool — it only activates when the request carries the
+// web-fetch beta flag (via the beta namespace). Without it the API rejects the
+// tool and we fall back to a server-side fetch, which portals like Public
+// Contracts Scotland block. Same pattern as sources/webSearch.js.
+const WEB_FETCH_BETA = 'web-fetch-2025-09-10';
+
+async function textFromClaude(client, messages, tools, betas) {
+  const params = { model: MODEL, max_tokens: 1500, ...(tools ? { tools } : {}), messages };
+  const msg = betas ? await client.beta.messages.create({ ...params, betas }) : await client.messages.create(params);
   try { recordClaudeCost({ model: MODEL, response: msg, feature: 'tender_add_url' }); } catch { /* non-fatal */ }
   return (msg.content || []).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n');
 }
@@ -65,9 +72,11 @@ async function buildNotice(url) {
 
   let text;
   try {
-    // Preferred: let Claude fetch the page itself (Anthropic-side).
+    // Preferred: let Claude fetch the page itself (Anthropic-side, via web_fetch).
     text = await textFromClaude(client, [{ role: 'user', content: prompt(url, null) }],
-      [{ type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 3 }]);
+      [{ type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 3 }],
+      [WEB_FETCH_BETA]);
+    if (!extractObject(text)?.title) throw new Error('web_fetch returned no usable notice');
   } catch {
     // Fallback: fetch the page from our server, then parse the text.
     let pageText = '';
