@@ -151,17 +151,25 @@ async function searchMarket(client, marketName, { model, maxResults, maxSearches
   ];
   const searchOnly = [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxSearches }];
 
-  async function call(tools) {
-    return client.messages.create({ model, max_tokens: 4000, tools, messages: [{ role: 'user', content: prompt }] });
+  const base = { model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] };
+  // web_fetch is a beta API tool — it only activates when the request carries the
+  // web-fetch beta flag. Send it via the beta namespace; if that path (or the
+  // tool) isn't available on this account, fall back to plain web_search so the
+  // source never hard-fails.
+  async function callWithFetch() {
+    return client.beta.messages.create({ ...base, tools: withFetch, betas: ['web-fetch-2025-09-10'] });
+  }
+  async function callSearchOnly() {
+    return client.messages.create({ ...base, tools: searchOnly });
   }
 
   let message;
   try {
-    message = await call(withFetch);
+    message = await callWithFetch();
   } catch (e) {
     // web_fetch may not be enabled for this account — fall back to search only.
     log(`Web (${marketName}) web_fetch unavailable (${e.message}); retrying search-only`);
-    try { message = await call(searchOnly); }
+    try { message = await callSearchOnly(); }
     catch (e2) { log(`Web search (${marketName}) failed: ${e2.message}`); return []; }
   }
   try { recordClaudeCost({ model, response: message, feature: 'tender_web_search' }); } catch { /* non-fatal */ }
