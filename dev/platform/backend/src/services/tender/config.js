@@ -33,7 +33,8 @@ const CPV_CODES = [
 // to one of these. Keyed by a lowercase token matched against the source name
 // (first match wins), falling back to `kind`.
 const ADAPTERS = {
-  d3:         () => require('./sources/d3'),
+  ukPortals:  () => require('./sources/ukPortals'), // Find a Tender + Contracts Finder (official OCDS APIs)
+  d3:         () => require('./sources/d3'),         // legacy mirror (retired)
   ted:        () => require('./sources/ted'),
   canadabuys: () => require('./sources/canadabuys'),
   sam:        () => require('./sources/sam'),
@@ -41,6 +42,7 @@ const ADAPTERS = {
 
 function resolveAdapter(source) {
   const name = (source.name || '').toLowerCase();
+  if (name.includes('find a tender') || name.includes('contracts finder')) return ADAPTERS.ukPortals();
   if (name.includes('d3')) return ADAPTERS.d3();
   if (name.includes('ted')) return ADAPTERS.ted();
   if (name.includes('canadabuys') || name.includes('canada')) return ADAPTERS.canadabuys();

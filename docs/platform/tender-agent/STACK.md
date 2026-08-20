@@ -51,7 +51,10 @@ Later phases add `tender_scores`, `tender_briefs`, `opportunities`,
 
 | Source | Market | Access | Status |
 |--------|--------|--------|--------|
-| D3 Tenders | UK (all 4 UK portals) | **Keyword search** (harvest /contract/ links per service term) + OCDS JSON enrichment | **Live** |
+| Find a Tender (UK) | UK-wide (all portals' above-threshold + UK4) | Official OCDS API firehose (`ocdsReleasePackages?stages=tender`), paged + filtered locally | **Live** |
+| Contracts Finder (UK) | England (+ below-threshold) | Official OCDS API keyword search (`OCDS/Search?keyword=…`), filtered locally | **Live** |
+| D3 Tenders | UK mirror | (retired — JS SPA search can't be scraped; superseded by the two official APIs) | Off |
+| _Gap: Public Contracts Scotland + Sell2Wales below-threshold need their own OCDS sources_ | Scotland / Wales | TODO | — |
 | TED | EU | v3 notices search API by CPV | **Live** (field names to confirm against the live API on first deploy) |
 | CanadaBuys | Canada | Tender-notices RSS (open-data CSV = later enrichment) | Adapter built, **disabled** until live-validated |
 | SAM.gov | US | Opportunities API (needs free `SAM_API_KEY`) | Adapter built, **disabled**; low-yield per the 17 Aug scan |
