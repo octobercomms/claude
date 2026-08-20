@@ -42,7 +42,8 @@ const ADAPTERS = {
 
 function resolveAdapter(source) {
   const name = (source.name || '').toLowerCase();
-  if (name.includes('find a tender') || name.includes('contracts finder')) return ADAPTERS.ukPortals();
+  if (name.includes('find a tender') || name.includes('contracts finder')
+      || name.includes('scotland') || name.includes('sell2wales') || name.includes('wales')) return ADAPTERS.ukPortals();
   if (name.includes('d3')) return ADAPTERS.d3();
   if (name.includes('ted')) return ADAPTERS.ted();
   if (name.includes('canadabuys') || name.includes('canada')) return ADAPTERS.canadabuys();
