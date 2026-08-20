@@ -98,7 +98,11 @@ source by flipping `tender_sources.enabled`.
    hard rule); else upsert on `(source_id, external_ref)` — insert new, update on
    changed `content_hash`, skip on identical.
 3. Record `last_polled_at` + a `last_status` line per source; return a run
-   summary (seen / inserted / updated / skipped / expired per source).
+   summary (scanned / relevant / inserted / updated / skipped / expired per
+   source). `last_status` reads e.g. `ok: 58 scanned, 0 relevant — 0 new, …` so
+   a working-but-quiet feed (many scanned, none in the niche) is distinguishable
+   from a broken one (nothing fetched). Adapters report the raw pre-filter count
+   via `stats.scanned`.
 
 - **Cron:** daily at 06:30 (`services/scheduler.js`). We poll daily even though
   the digest is twice weekly, so a mid-week notice with a short window isn't

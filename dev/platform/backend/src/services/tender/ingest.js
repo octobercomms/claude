@@ -74,16 +74,21 @@ async function upsertNotice(sourceId, n) {
 }
 
 async function ingestSource(source, { log = () => {} } = {}) {
-  const summary = { source: source.name, seen: 0, inserted: 0, updated: 0, skipped: 0, expired: 0, invalid: 0, error: null };
+  const summary = { source: source.name, scanned: 0, seen: 0, inserted: 0, updated: 0, skipped: 0, expired: 0, invalid: 0, error: null };
   const adapter = resolveAdapter(source);
   if (!adapter) { summary.error = 'no adapter'; return summary; }
   let notices = [];
+  // Adapters may report how many raw notices they scanned before the niche
+  // filter via stats.scanned — so a working-but-quiet feed (many scanned, none
+  // relevant) reads differently from a broken one (nothing fetched at all).
+  const stats = {};
   try {
-    notices = await adapter.fetch(source, { log }) || [];
+    notices = await adapter.fetch(source, { log, stats }) || [];
   } catch (e) {
     summary.error = e.message;
   }
-  summary.seen = notices.length;
+  summary.seen = notices.length; // relevant (passed the niche filter)
+  summary.scanned = stats.scanned != null ? stats.scanned : notices.length;
   for (const n of notices) {
     try {
       const outcome = await upsertNotice(source.id, n);
@@ -95,7 +100,7 @@ async function ingestSource(source, { log = () => {} } = {}) {
   }
   const status = summary.error
     ? `error: ${summary.error}`
-    : `ok: ${summary.inserted} new, ${summary.updated} updated, ${summary.skipped} same, ${summary.expired} expired`;
+    : `ok: ${summary.scanned} scanned, ${summary.seen} relevant — ${summary.inserted} new, ${summary.updated} updated, ${summary.skipped} same, ${summary.expired} expired`;
   await pool.query('UPDATE tender_sources SET last_polled_at = NOW(), last_status = $2 WHERE id = $1', [source.id, status.slice(0, 300)]);
   return summary;
 }

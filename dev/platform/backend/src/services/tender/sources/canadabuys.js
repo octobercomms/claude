@@ -32,7 +32,7 @@ function parseCsv(text) {
   return rows;
 }
 
-async function fetch(source, { log = () => {} } = {}) {
+async function fetch(source, { log = () => {}, stats = {} } = {}) {
   const cfg = source.config || {};
   const url = cfg.listUrl || 'https://canadabuys.canada.ca/opendata/pub/openTenderNotice-ouvertAvisAppelOffres.csv';
   const country = cfg.country || 'Canada';
@@ -43,6 +43,7 @@ async function fetch(source, { log = () => {} } = {}) {
 
   const rows = parseCsv(text);
   if (rows.length < 2) { log('CanadaBuys: empty CSV'); return []; }
+  stats.scanned = rows.length - 1; // raw notices in the CSV, before the niche filter
   const header = rows[0].map(h => h.replace(/^﻿/, '').trim());
   const col = name => header.indexOf(name);
   const iTitle = col('title-titre-eng');

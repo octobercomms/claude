@@ -70,7 +70,7 @@ async function pageReleases(startUrl, { maxPages, cutoffDate, log }) {
   return out;
 }
 
-async function fetch(source, { log = () => {} } = {}) {
+async function fetch(source, { log = () => {}, stats = {} } = {}) {
   const cfg = source.config || {};
   const country = cfg.country || 'United Kingdom';
   const cutoff = cfg.sinceDays ? new Date(Date.now() - cfg.sinceDays * 86400000) : null;
@@ -120,6 +120,7 @@ async function fetch(source, { log = () => {} } = {}) {
   }
 
   // Map + filter to the niche at ingest (keep match + maybe; drop the noise).
+  stats.scanned = releases.length; // raw notices fetched, before the niche filter
   const notices = [];
   for (const r of releases) {
     const n = mapRelease(r, { country, noticeBase: cfg.noticeBase });
