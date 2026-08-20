@@ -188,6 +188,12 @@ router.post('/profile/append', async (req, res) => {
   try { res.json(await tenderProfile.append(req.body?.snippet)); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
+// Structured company details (SQ facts) + the field list the form renders.
+router.get('/profile/company-fields', (_req, res) => res.json(tenderProfile.COMPANY_FIELDS));
+router.put('/profile/company', async (req, res) => {
+  try { res.json(await tenderProfile.setCompany(req.body?.company)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // A single notice (for the workspace page header).
 router.get('/notices/:id', async (req, res) => {

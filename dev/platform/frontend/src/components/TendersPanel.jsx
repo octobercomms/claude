@@ -55,6 +55,11 @@ export default function TendersPanel() {
   const [chatNotice, setChatNotice] = useState(null);
   // Inline closing-date edit: { id, value }
   const [editDate, setEditDate] = useState(null);
+  // Company details (SQ facts every bid reuses)
+  const [companyFields, setCompanyFields] = useState([]);
+  const [company, setCompany] = useState({});
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [savingCompany, setSavingCompany] = useState(false);
   // Add a tender by URL
   const [addUrl, setAddUrl] = useState('');
   const [adding, setAdding] = useState(false);
@@ -80,8 +85,24 @@ export default function TendersPanel() {
       setDigestEmail(s.digest_email || '');
     } catch (e) { /* non-fatal */ }
   }
+  async function loadCompany() {
+    try {
+      const [fields, p] = await Promise.all([api.get('/tender/profile/company-fields'), api.get('/tender/profile')]);
+      setCompanyFields(fields || []);
+      setCompany(p.company || {});
+    } catch (e) { /* non-fatal */ }
+  }
+  async function saveCompany() {
+    setSavingCompany(true);
+    try {
+      const r = await api.put('/tender/profile/company', { company });
+      setCompany(r.company || {});
+      toast('Company details saved — every bid will use these', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSavingCompany(false); }
+  }
 
-  useEffect(() => { loadSources(); loadSettings(); }, []); // eslint-disable-line
+  useEffect(() => { loadSources(); loadSettings(); loadCompany(); }, []); // eslint-disable-line
   useEffect(() => { loadNotices(); }, [market, relevance]); // eslint-disable-line
 
   async function runScan() {
@@ -190,6 +211,39 @@ export default function TendersPanel() {
           </button>
           <button className="btn btn-ghost btn-sm" onClick={sendTest} title="Send the digest now, to check it works">Send test</button>
         </div>
+      </div>
+
+      {/* Company details — the SQ facts every bid reuses */}
+      <div className="card">
+        <button className="oview-grplabel" onClick={() => setCompanyOpen(o => !o)}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+          Company details {companyOpen ? '▾' : '▸'}
+        </button>
+        <p className="body-sm text-muted" style={{ margin: '4px 0 0' }}>
+          The registration, insurance, accreditation and policy facts a public-sector tender asks for.
+          Enter them once — every bid uses them verbatim, so Claude never invents a company or VAT number.
+        </p>
+        {companyOpen && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10, marginTop: 12 }}>
+              {companyFields.map(([key, label]) => {
+                const multiline = ['registered_address', 'trading_address', 'directors', 'turnover', 'insurances', 'accreditations', 'policies', 'additional', 'bid_contact'].includes(key);
+                return (
+                  <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5 }}>
+                    <span style={{ fontWeight: 600 }}>{label}</span>
+                    {multiline
+                      ? <textarea value={company[key] || ''} rows={2} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))}
+                          style={{ resize: 'vertical', padding: '7px 9px', fontSize: 13, fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                      : <input className="input" value={company[key] || ''} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))} />}
+                  </label>
+                );
+              })}
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={saveCompany} disabled={savingCompany} style={{ marginTop: 12 }}>
+              {savingCompany ? 'Saving…' : 'Save company details'}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Sources */}
