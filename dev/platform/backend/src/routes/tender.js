@@ -184,6 +184,10 @@ router.put('/profile', async (req, res) => {
   try { res.json(await tenderProfile.set(req.body?.profile_md)); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
+router.post('/profile/append', async (req, res) => {
+  try { res.json(await tenderProfile.append(req.body?.snippet)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // A single notice (for the workspace page header).
 router.get('/notices/:id', async (req, res) => {
@@ -194,6 +198,32 @@ router.get('/notices/:id', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Notice not found' });
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Set / edit a notice's closing date — fill one in when it couldn't be parsed
+// ("deadline?"), or correct it if the buyer moves the deadline. Clearing it
+// (null) flags it for manual check again.
+router.put('/notices/:id/closing', async (req, res) => {
+  if (!('closing_at' in (req.body || {}))) return res.status(400).json({ error: 'closing_at required' });
+  const raw = req.body.closing_at;
+  const d = raw ? new Date(raw) : null;
+  if (raw && (!(d instanceof Date) || isNaN(d.getTime()))) return res.status(400).json({ error: 'That date could not be read — use YYYY-MM-DD.' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE tender_notices
+         SET closing_at = $1, needs_manual_check = CASE WHEN $1 IS NULL THEN true ELSE false END, updated_at = NOW()
+       WHERE id = $2 RETURNING *`,
+      [d, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Notice not found' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// "Learn from this bid" — propose durable additions to the shared profile.
+router.post('/notices/:id/profile-suggestion', async (req, res) => {
+  try { res.json(await tenderChat.suggestProfileUpdate(req.params.id)); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Per-notice chat — "Start / Continue with Claude" (fit, plan, draft deliverables).
