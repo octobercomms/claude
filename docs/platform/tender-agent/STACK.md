@@ -76,6 +76,16 @@ current open notices.
 | CanadaBuys | Canada | Official open-data CSV (`openTenderNotice…csv`), parsed + filtered locally | **Live** |
 | SAM.gov | US | Opportunities API (needs free `SAM_API_KEY`) | Adapter built, **disabled**; low-yield per the 17 Aug scan |
 
+**Recall (per-market + page-fetch).** `webSearch.js` runs one focused pass per
+market (UK/CA/EU/US), each with its own budget, the named portals, and concrete
+below-threshold example patterns. Each pass uses **`web_fetch`** to read the
+portal search-result pages directly (e.g. Find a Tender / Contracts Finder /
+Public Contracts Scotland keyword search) — so it extracts *every* current notice
+including the small ones that rank too low for general web search — **plus**
+`web_search` to widen coverage. If `web_fetch` isn't enabled on the account the
+call falls back to search-only. `external_ref` is the notice host+path (+ a
+recognised id query param) so re-runs dedupe.
+
 **Why web search matters (the below-threshold gap).** UK procurement only *requires* UK-wide publication above a value threshold (~£214k for services). The small jobs October wants — a £20k Venice Biennale PR brief, a River Tweed brand project — are **below threshold**, so the tidy OCDS API feeds either omit them or hide them behind a low-value flag; the direct API adapters therefore can't see them (and some portals block/cap our server-side fetch). `sources/webSearch.js` closes that gap the way a person does: Claude uses the `web_search` tool (the same capability `services/claude.js` `researchBriefing` already uses) to search portals + the open web, read the notice pages, and return open opportunities as JSON — small ones included. The search runs at Anthropic's end, so it isn't subject to the portal firewalls. Results flow through the same normalise → classify → dedupe → store → email pipeline; `external_ref` is the notice's host+path so re-runs dedupe. Cost is logged as the `tender_web_search` feature.
 
 **D3 ingest = keyword search, not category RSS.** `sources/d3.js` defaults to
