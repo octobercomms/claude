@@ -32,7 +32,7 @@ async function crossBidContext(noticeId) {
   return rows.map(line).join('\n');
 }
 
-function buildSystem(notice, { profileMd, others, skippedFiles }) {
+function buildSystem(notice, { profileMd, company, others, skippedFiles }) {
   const val = notice.value_min ? `${notice.currency || ''} ${Number(notice.value_min).toLocaleString('en-GB')}`.trim() : 'not stated';
   const closes = notice.closing_at ? new Date(notice.closing_at).toLocaleDateString('en-GB') : 'unknown';
   return `You are a bid strategist and writer at October Communications, a UK PR & communications agency specialising in arts, culture, design, architecture, heritage and destination marketing. You help the account lead run a public-sector tender end to end: judge fit, plan the bid, and PRODUCE the deliverables (capability statement, draft responses to the buyer's questions, cover letter, case-study selection).
@@ -44,6 +44,9 @@ This tender:
 - Closes: ${closes}
 - Link: ${notice.url || '—'}
 - Detail: ${notice.description || '(thin — say so plainly if there is too little to judge, and use any uploaded documents)'}
+
+## October — company details (the SQ facts a tender needs; use these VERBATIM, never invent one)
+${profile.companyBlock(company)}
 
 ## October's bid profile (shared across every bid — use it, and suggest additions when you learn something reusable)
 ${profileMd ? profileMd.slice(0, 8000) : '(empty — ask the lead for October\'s services, sectors and reference projects, and offer to draft a profile)'}
@@ -76,7 +79,7 @@ async function send(noticeId, message) {
   const notice = nrows[0];
 
   const prior = await history(noticeId);
-  const [{ profile_md }, others, files] = await Promise.all([
+  const [{ profile_md, company }, others, files] = await Promise.all([
     profile.get(), crossBidContext(noticeId), bidFiles.contentBlocks(noticeId),
   ]);
   await pool.query('INSERT INTO tender_chat_messages (notice_id, role, content) VALUES ($1, $2, $3)', [noticeId, 'user', text]);
@@ -91,7 +94,7 @@ async function send(noticeId, message) {
   const resp = await client.messages.create({
     model: MODEL,
     max_tokens: 8000,
-    system: claude.cacheableSystem(buildSystem(notice, { profileMd: profile_md, others, skippedFiles: files.skipped })),
+    system: claude.cacheableSystem(buildSystem(notice, { profileMd: profile_md, company, others, skippedFiles: files.skipped })),
     messages,
   });
   try { costLog.recordClaudeCost({ model: MODEL, response: resp, feature: 'tender_chat', clientId: null }); } catch { /* best effort */ }
