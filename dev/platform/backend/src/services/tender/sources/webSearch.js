@@ -21,39 +21,70 @@ const { recordClaudeCost } = require('../../costLog');
 
 const MODEL = 'claude-sonnet-4-6';
 
-// Default markets + the search framing. Overridable via source.config.
-const DEFAULT_MARKETS = ['United Kingdom', 'Canada', 'European Union', 'United States'];
+// One focused search brief per market — named portals + concrete below-threshold
+// patterns so recall is high on exactly the small jobs the API feeds miss. Each
+// runs as its own web_search-enabled call so every market gets dedicated search
+// budget (one broad call ran too few queries and missed Venice / River Tweed).
+const MARKET_BRIEFS = {
+  'United Kingdom': {
+    country: 'United Kingdom',
+    portals: 'Find a Tender (find-tender.service.gov.uk), Contracts Finder (contractsfinder.service.gov.uk), Public Contracts Scotland (publiccontractsscotland.gov.uk), Sell2Wales (sell2wales.gov.wales)',
+    examples: 'PR consultancy for a national pavilion at an international exhibition (e.g. the British Council at the Venice Biennale); brand positioning and audience development for a heritage trail, park or destination (e.g. a river/coastal trail); press office and media relations for a museum, gallery, festival or arts council; strategic communications for a cultural or tourism body',
+    buyers: 'the British Council, Arts Council England/Wales, Creative Scotland, national museums and galleries, heritage trusts, festivals and biennales, VisitBritain/VisitScotland and regional destination organisations, local authority culture/tourism teams',
+  },
+  'Canada': {
+    country: 'Canada',
+    portals: 'CanadaBuys (canadabuys.canada.ca), MERX, BC Bid, and provincial/municipal portals',
+    examples: 'media relations and public relations services for a destination or business-events body; advertising/creative production; audience and marketing communications for a museum, gallery or cultural agency',
+    buyers: 'Destination Canada, provincial tourism bodies, national museums and cultural agencies, arts councils, city culture/tourism departments',
+  },
+  'European Union': {
+    country: 'European Union',
+    portals: 'TED (ted.europa.eu) and national procurement portals',
+    examples: 'communications, PR and audience-development services for a cultural institution, museum, festival, biennale or European Capital of Culture; destination marketing for a tourism board',
+    buyers: 'national museums and cultural ministries, festivals and biennales, tourism boards, European cultural programmes',
+  },
+  'United States': {
+    country: 'United States',
+    portals: 'SAM.gov (sam.gov) and state/city procurement portals',
+    examples: 'public relations, media relations and marketing communications for an arts commission, museum, cultural district or tourism office; audience development and destination marketing',
+    buyers: 'state arts commissions, museums and cultural institutions, city tourism/destination-marketing offices, national cultural agencies',
+  },
+};
 
-function buildPrompt(markets, maxResults) {
+const DEFAULT_MARKETS = Object.keys(MARKET_BRIEFS);
+
+function buildPrompt(marketName, maxResults) {
+  const b = MARKET_BRIEFS[marketName] || { country: marketName, portals: 'the official government procurement portals and the open web', examples: 'PR, media relations, communications, brand and audience-development work for creative-sector buyers', buyers: 'museums, galleries, arts councils, heritage bodies and destination-marketing organisations' };
   return `You are the sourcing scout for October, a PR and communications agency that works with the creative sector — arts, culture, museums, galleries, heritage, design, architecture, festivals, biennales, and tourism/destination organisations.
 
-Use web search to find PUBLIC-SECTOR and public-body tender or contract opportunities that October could bid for RIGHT NOW. Search the official portals AND the open web:
-- UK: Find a Tender, Contracts Finder, Public Contracts Scotland, Sell2Wales
-- Canada: CanadaBuys, provincial portals (e.g. BC Bid)
-- EU: TED and national portals
-- US: SAM.gov and state/city portals
-plus arts councils, museums, cultural bodies and destination-marketing organisations advertising directly.
+Find PUBLIC-SECTOR tender or contract opportunities in ${b.country} that October could bid for RIGHT NOW. Be thorough: run several web searches, scoped to the named portals (use site: searches like "site:find-tender.service.gov.uk public relations") AND to the open web, combining the service terms with the sector terms. Read the notice pages to confirm the deadline and requirement.
 
-Target the kind of work October does: public relations, media relations, press office, strategic communications, marketing communications, brand/positioning strategy, audience development, campaign and destination marketing — for creative-sector buyers.
+Portals to search: ${b.portals}.
+Also search buyers advertising directly: ${b.buyers}.
+
+Service terms (what October does): public relations, media relations, press office, communications, strategic/marketing communications, brand and positioning strategy, audience development, campaign and destination marketing.
+
+Concretely, look for opportunities like: ${b.examples}.
 
 CRITICAL:
-- Include SMALL and below-threshold notices (e.g. £10k–£200k). These are the ones that matter most and the ones the tidy data feeds miss. Do NOT skip an opportunity for being low-value.
+- Prioritise SMALL and below-threshold notices (roughly £10k–£250k). These are the ones October wants and the ones the tidy government data feeds hide — do NOT skip an opportunity for being low value. Chase them deliberately.
 - Only include opportunities that are OPEN now, with a submission deadline in the future (after today). Never include closed, awarded or expired notices.
-- Markets to cover: ${markets.join(', ')}.
+- Don't stop after one search — keep searching different service×sector combinations and portals until you've been genuinely thorough.
 
-Return up to ${maxResults} opportunities. When you are done searching, output ONLY a JSON array (in a \`\`\`json code block) with one object per opportunity:
+Return up to ${maxResults} opportunities. When done, output ONLY a JSON array (in a \`\`\`json code block), one object per opportunity:
 [
   {
     "title": "notice title",
     "buyer": "the contracting organisation",
-    "country": "United Kingdom | Canada | European Union | United States | …",
+    "country": "${b.country}",
     "url": "the canonical public notice URL",
     "closing": "the submission deadline as YYYY-MM-DD (omit if genuinely unknown)",
     "value": "contract value if stated, e.g. £20,000 (omit if unknown)",
     "summary": "one sentence on the requirement"
   }
 ]
-No commentary outside the JSON block. If you find nothing genuinely relevant, return [].`;
+No commentary outside the JSON block. If you genuinely find nothing relevant, return [].`;
 }
 
 // Pull the JSON array out of Claude's final text (it emits planning text between
@@ -71,49 +102,78 @@ function extractArray(text) {
   return [];
 }
 
-// A stable external_ref from the notice URL (host + path, no query/hash), so the
-// same opportunity found on two runs dedupes instead of duplicating.
+// A stable external_ref from the notice URL, so the same opportunity found on
+// two runs dedupes instead of duplicating. Host + path, plus a recognised notice
+// id from the query when the portal keys notices that way (e.g. Public Contracts
+// Scotland's ?ID=…) — otherwise two distinct notices on a generic script path
+// (search_view.aspx) would wrongly collapse to one. Volatile params (origin,
+// page, utm…) are dropped so the ref is stable across how the link was reached.
+const ID_PARAMS = ['id', 'noticeid', 'ocid', 'ref', 'reference', 'noticeref'];
 function refFromUrl(url, title) {
   if (url) {
-    try { const u = new URL(url); return `${u.host}${u.pathname}`.replace(/\/$/, '').toLowerCase(); }
-    catch { /* fall through */ }
+    try {
+      const u = new URL(url);
+      let ref = `${u.host}${u.pathname}`.replace(/\/$/, '').toLowerCase();
+      for (const [k, v] of u.searchParams) {
+        if (v && ID_PARAMS.includes(k.toLowerCase())) { ref += `?${k.toLowerCase()}=${v.toLowerCase()}`; break; }
+      }
+      return ref;
+    } catch { /* fall through */ }
   }
   return (title || '').trim().toLowerCase().slice(0, 200) || null;
+}
+
+// One web_search-enabled Claude call for a single market. Returns the raw JSON
+// items Claude reported (before mapping/filtering).
+async function searchMarket(client, marketName, { model, maxResults, maxSearches, log }) {
+  let message;
+  try {
+    message = await client.messages.create({
+      model,
+      max_tokens: 4000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxSearches }],
+      messages: [{ role: 'user', content: buildPrompt(marketName, maxResults) }],
+    });
+  } catch (e) {
+    log(`Web search (${marketName}) failed: ${e.message}`);
+    return [];
+  }
+  try { recordClaudeCost({ model, response: message, feature: 'tender_web_search' }); } catch { /* non-fatal */ }
+  const text = (message.content || []).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n');
+  const items = extractArray(text);
+  log(`Web search (${marketName}): ${items.length} found`);
+  return items;
 }
 
 async function fetch(source, { log = () => {}, stats = {} } = {}) {
   const cfg = source.config || {};
   const markets = Array.isArray(cfg.markets) && cfg.markets.length ? cfg.markets : DEFAULT_MARKETS;
-  const maxResults = cfg.maxResults || 25;
-  const maxSearches = cfg.maxSearches || 8;
+  const maxResults = cfg.maxResults || 20;
+  const maxSearches = cfg.maxSearches || 6; // per market
+  const model = cfg.model || MODEL;
 
   const key = process.env.CLAUDE_API_KEY;
   if (!key) { log('Web search: CLAUDE_API_KEY not set'); return []; }
+  const client = new Anthropic({ apiKey: key });
 
-  let message;
-  try {
-    message = await new Anthropic({ apiKey: key }).messages.create({
-      model: cfg.model || MODEL,
-      max_tokens: 4000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxSearches }],
-      messages: [{ role: 'user', content: buildPrompt(markets, maxResults) }],
-    });
-  } catch (e) {
-    log(`Web search failed: ${e.message}`);
-    return [];
+  // A focused pass per market (serial, to stay polite on token/rate budgets),
+  // then merge. Each market gets its own dedicated search budget so recall on
+  // the small, below-threshold notices stays high.
+  const raw = [];
+  for (const m of markets) {
+    raw.push(...await searchMarket(client, m, { model, maxResults, maxSearches, log }));
   }
-  try { recordClaudeCost({ model: cfg.model || MODEL, response: message, feature: 'tender_web_search' }); } catch { /* non-fatal */ }
-
-  const text = (message.content || []).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n');
-  const raw = extractArray(text);
   stats.scanned = raw.length;
 
+  const seen = new Set();
   const notices = [];
   for (const item of raw) {
     const title = (item.title || '').trim();
     const url = (item.url || '').trim() || null;
     const external_ref = refFromUrl(url, title);
     if (!title || !external_ref) continue;
+    if (seen.has(external_ref)) continue; // dedupe across market passes
+    seen.add(external_ref);
     const { closing_at, needs_manual_check } = resolveClosing(item.closing);
     const n = {
       external_ref,
@@ -137,8 +197,8 @@ async function fetch(source, { log = () => {}, stats = {} } = {}) {
     if (prefilter(n).tier === 'noise') continue;
     notices.push(n);
   }
-  log(`Web search: ${raw.length} found → ${notices.length} relevant`);
+  log(`Web search: ${raw.length} found across ${markets.length} markets → ${notices.length} relevant`);
   return notices;
 }
 
-module.exports = { fetch, extractArray, refFromUrl };
+module.exports = { fetch, extractArray, refFromUrl, searchMarket };
