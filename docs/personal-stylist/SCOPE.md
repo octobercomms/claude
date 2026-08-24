@@ -231,7 +231,7 @@ Run the repo's **`october-security`** skill before "real" use. Requirements:
 
 | Phase | Deliverable | Host needed? |
 |---|---|---|
-| **0** | **Static monthly-briefing prototype** (seeded 2-location wardrobe) — validate that the styling *reads as smart* before building anything | No — local/artifact |
+| **0** ✅ | **Static monthly-briefing prototype** (seeded 2-location wardrobe) — validate that the styling *reads as smart* before building anything. **Delivered:** `dev/personal-stylist/index.html`, Clueless-themed mobile mockup (today's outfit + reasoning, week strip, pack-light Margate trip, laundry flag) | No — local/artifact |
 | 1 | Skeleton on 20i: auth, DB schema, wardrobe CRUD, photo upload, manual tagging | Yes |
 | 2 | Vision auto-tagging (Claude) | Yes |
 | 3 | Availability model (location × wash × committed) + wardrobe filters | Yes |
@@ -299,11 +299,9 @@ garment image → a composited image of the user wearing the item.
 - **💷 Cost:** the **only** paid piece in an otherwise-free stack. Small but
   per-image — **cap it**: render only outfits the user is actively considering,
   not every suggestion. Server-side key, usage budget.
-- **🔒 Privacy [CONFIRM]:** try-on requires sending a photo to fal.ai (a third
-  party), which collides with §7. Two acceptable modes, user's choice:
-  1. **Opt-in real photo** — user explicitly enables it, knowing the photo goes
-     to fal.ai for that render (verify fal/FASHN data-retention terms first).
-  2. **Avatar stand-in** — generate a neutral body model approximating the
-     user's proportions once, and try garments on *that*; real photos never leave.
+- **🔒 Privacy → resolved: opt-in real photo.** Owner is comfortable sending a
+  real photo to fal.ai for the render. Still gated behind an explicit opt-in
+  toggle, and we verify fal/FASHN data-retention terms before shipping. The
+  avatar stand-in stays available as a later option but is not the default.
 - **Placement:** a later, optional phase (after core styling works). Not on the
   critical path; the app is fully useful without it.
