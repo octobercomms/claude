@@ -60,7 +60,7 @@ flagged **[CONFIRM]**; everything else is a recommended default.
 | Runtime | **PHP 8.x** | 20i shared hosting is PHP-first; zero extra cost |
 | DB | **MySQL / MariaDB** via PDO | Bundled with 20i; prepared statements |
 | Router | Vanilla PHP thin router (optional Slim if Composer available) | Minimal deps on shared hosting |
-| Frontend | **PWA**: HTML + Tailwind + Alpine.js | Photo-heavy + mobile-first; installable; buildless-friendly |
+| Frontend | **PWA**: HTML + Tailwind + Alpine.js, **small committed build step** | Photo-heavy + mobile-first; installable. Precompiled Tailwind + bundled JS committed to the repo for lean, fast pages; deploy is still a git pull |
 | Images | Files outside web root + GD/Imagick thumbnails | Private storage; auth proxy for body photos |
 | Auth | PHP sessions + bcrypt + "remember me" | Single user; simple and safe |
 | Jobs | 20i **cron** → PHP CLI scripts | Monthly briefing, nightly maintenance, wash reminders |
@@ -194,7 +194,8 @@ generated outfit that exactly matches one worn in the last N days and re-ask.
    varied outfit directions for notable days.
 6. **Trip planner** — pick destination + dates → pulls events → **packing list**
    ("bring these 9; Margate already has the rest").
-7. **Shopping brief** — gap-analysis suggestions, budget-aware.
+7. **Shopping brief** — gap-analysis that names **specific products with buy
+   links** (budget- and taste-bounded), not just a described gap.
 8. **Body & style profile** *(private)* — measurements, optional photo, taste.
 9. **Settings** — connect Google Calendar, home locations, units, briefing day.
 
@@ -244,16 +245,22 @@ Phase 0 is the cheapest way to de-risk the whole idea — no backend, no cost,
 and it answers the one question that matters: *does the advice feel like a
 stylist or like a colour-matcher?*
 
-## 10. Decisions to confirm
+## 10. Decisions (resolved)
 
-1. **[CONFIRM] Taste-learning** — recommended: **both** (a short onboarding quiz
-   to *seed* the style profile, then thumbs up/down on outfits to *refine* it).
-   This is the single biggest lever on whether it feels genuinely yours.
-2. **[CONFIRM] Briefing delivery** — in-app only, or also emailed/pushed to your
-   phone on the monthly cron? (Email is easy from PHP; push needs a PWA
-   subscription.)
-3. **[CONFIRM] Shopping brief output** — describe the gap only, or suggest
-   specific products/links to buy?
-4. **[CONFIRM] Frontend approach** — buildless (Tailwind Play CDN + Alpine, drag-
-   and-drop deploy) vs. a small committed build step. Recommended: buildless for
-   v1 to keep 20i deploys trivial.
+1. **Taste-learning → Both.** A short onboarding quiz *seeds* the style profile;
+   thumbs up/down on outfits *refines* it over time. Needs both the quiz flow
+   (Phase 9) and the `ratings → style_profile.rating_signal` loop (Phase 4).
+2. **Briefing delivery → In-app only.** The monthly cron generates the briefing;
+   the user opens the app to read it. No email/push plumbing in scope for v1.
+3. **Shopping brief → Suggest specific products with buy links.** Beyond
+   describing the gap, name concrete items to buy. Adds a **product-search step**
+   (see below) to Phase 8 — the LLM proposes what fills the gap, then a product
+   lookup resolves real products + links, budget- and taste-bounded.
+4. **Frontend → Small committed build step.** Precompiled Tailwind + bundled JS
+   committed to the repo; deploy stays a git pull. (Not buildless.)
+
+**Follow-on from decision 3 — product search.** Naming real products needs a
+source of truth for products/links. Options to settle at Phase 8: a shopping/
+product-search API, affiliate feeds, or a curated retailer set. **[CONFIRM at
+Phase 8]** which source — it's the only new external dependency these decisions
+introduce, and it doesn't block Phases 0–7.

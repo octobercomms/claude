@@ -149,14 +149,15 @@ The intelligence is built as:
 - **A per-user style profile** — captured up front and refined over time.
 - **Vision** doing the cataloguing grunt work so reasoning is over the real wardrobe.
 
-## 8. Open questions
-1. **Taste-learning approach** — quiz to seed vs. learn-from-ratings vs. both
-   (recommend both: quiz seeds, ratings refine). *Biggest open question — it's the
-   difference between useful and gimmick.*
-2. Platform: web app first (fastest to prototype) vs. mobile (better for
-   photographing clothes on the go)?
-3. How much daily interaction does the user actually want vs. monthly briefing only?
-4. Shopping brief: suggest specific products/links, or just describe the gap?
+## 8. Decisions settled
+See [`SCOPE.md`](./SCOPE.md) §10 for detail. In short:
+1. **Taste-learning → both** — quiz seeds the profile, ratings refine it.
+2. **Platform → PWA** — installable web app, mobile-first (good for photographing
+   clothes), served from the 20i host.
+3. **Briefing delivery → in-app only** for v1.
+4. **Shopping brief → specific products with buy links** (adds a product-search
+   step at Phase 8).
+5. **Frontend → small committed build step** (precompiled Tailwind + bundled JS).
 
 ## 9. Suggested build order
 1. **Prototype the monthly-briefing screen** with a small seeded wardrobe split
