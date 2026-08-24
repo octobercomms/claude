@@ -326,11 +326,13 @@ A shipping paid competitor, **clueless.clothing** (iOS + Android, £/$9.99·mo /
 - **See-it-on-me try-on** (fal.ai, §12).
 - **Shopping brief → specific buyable products** (they surface gaps only).
 
-**Identity implication [decision]:** they *are* "Clueless." Leaning on literal
-Clueless kitsch — and the working name **"AS IF"** (also a Clueless catchphrase)
-— risks reading as derivative of a real competitor. **Direction: go classier** —
-a premium fashion-app aesthetic (Bodoni masthead, warm-neutral palette) keeping
-only a *whisper* of Clueless (a plaid hairline, the Auto Dress / Dress Me verbs).
-Two prototype variants exist for comparison (kitsch vs. classy); once chosen, the
-winner becomes `dev/personal-stylist/index.html` and the name may be revisited to
-avoid the collision.
+**Identity implication — moot for this project.** The owner has confirmed this
+is a **private, personal app, not for public launch.** So the "avoid looking
+derivative of clueless.clothing" and name-collision concerns do **not** apply:
+the design choice is purely personal taste, and the name **"AS IF"** stays.
+Both prototype variants (kitsch Clueless vs. classy fashion-app) are valid —
+pick whichever the owner most enjoys using daily; the winner becomes
+`dev/personal-stylist/index.html`. The competitor remains useful only as an
+idea source (named stylist voice, thumbs up/down learning). The differentiating
+features (two homes, laundry, pack-light, try-on) are built because they're
+personally useful, not for competitive edge.
