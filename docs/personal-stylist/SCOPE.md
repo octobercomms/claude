@@ -268,7 +268,23 @@ product-search API, affiliate feeds, or a curated retailer set. **[CONFIRM at
 Phase 8]** which source — it's the only new external dependency these decisions
 introduce, and it doesn't block Phases 0–7.
 
-## 11. Visual design — "Clueless" theme
+## 11. Visual design — **chosen: classy fashion-app** (whisper of Clueless)
+
+**Decision: ship the classy direction.** `dev/personal-stylist/index.html` is the
+classy prototype. It's a premium fashion-app aesthetic:
+- **Type:** Bodoni Moda (Didone masthead/headlines) + DM Sans (UI/body).
+- **Palette:** warm chalk `#EFEBE3` / surface `#F8F5EF`, ink `#211E1B`, taupe
+  secondary `#7B7469`, aubergine accent `#5B3A55`, muted gold `#B8934A`.
+- **Layout:** airy, hairline dividers, refined figure, ink-fill / outline buttons.
+- **The Clueless soul, kept to a whisper:** a single plaid hairline under the
+  wordmark, and the **Auto Dress / Dress Me** verbs. No leopard, no CRT font,
+  no chrome.
+
+The full-kitsch Clueless variant was explored and set aside (see §13 — moot for a
+private app; chosen on personal taste). Original film reference stills remain in
+`docs/personal-stylist/` for the plaid/verb nods.
+
+### (Archived) The full-Clueless theme
 
 The app's inspiration is Cher Horowitz's wardrobe computer in *Clueless* (1995),
 and the homage is deliberate because the film's UI **maps onto the real feature
