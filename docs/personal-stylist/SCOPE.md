@@ -305,3 +305,32 @@ garment image → a composited image of the user wearing the item.
   avatar stand-in stays available as a later option but is not the default.
 - **Placement:** a later, optional phase (after core styling works). Not on the
   critical path; the app is fully useful without it.
+
+## 13. Competitive landscape — clueless.clothing
+
+A shipping paid competitor, **clueless.clothing** (iOS + Android, £/$9.99·mo /
+~$70·yr, no free tier), already covers much of the core loop:
+- AI stylist persona ("Katire") that **plans 7 days** from closet + forecast +
+  **calendar**; weather-aware; thumbs up/down taste learning; swap/regenerate.
+- **Wardrobe intelligence** (gaps, underused pieces); **travel** = pick what
+  you're packing, it mixes-and-matches a capsule.
+
+**What this validates:** the concept and the exact taste-learning loop we chose
+(quiz-seed was ours; ratings-refine matches them). A named stylist voice works.
+
+**Our uncovered wedge (they do *not* do these):**
+- **Two physical homes** — items *live* in London/Margate; "already in Margate";
+  pack only the gap. Their travel assumes one closet.
+- **Laundry / availability** state + plan-ahead ("run a load by Wednesday").
+- **Wear-vs-pack conflict** across the horizon.
+- **See-it-on-me try-on** (fal.ai, §12).
+- **Shopping brief → specific buyable products** (they surface gaps only).
+
+**Identity implication [decision]:** they *are* "Clueless." Leaning on literal
+Clueless kitsch — and the working name **"AS IF"** (also a Clueless catchphrase)
+— risks reading as derivative of a real competitor. **Direction: go classier** —
+a premium fashion-app aesthetic (Bodoni masthead, warm-neutral palette) keeping
+only a *whisper* of Clueless (a plaid hairline, the Auto Dress / Dress Me verbs).
+Two prototype variants exist for comparison (kitsch vs. classy); once chosen, the
+winner becomes `dev/personal-stylist/index.html` and the name may be revisited to
+avoid the collision.
