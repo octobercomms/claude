@@ -1,0 +1,259 @@
+# Personal Stylist — Full Technical Scope
+
+**Companion to:** [`BRIEF.md`](./BRIEF.md) (concept & feature rationale)
+**Status:** Scope / pre-build
+**Target host:** 20i shared hosting (free tier) — PHP 8 + MySQL
+**Code:** `dev/personal-stylist/` · **Docs:** `docs/personal-stylist/`
+
+This document turns the concept into a buildable spec: architecture, stack,
+database schema, the styling engine, screens, API surface, integrations,
+security/privacy, and a phased plan. Where a choice is the owner's to make it's
+flagged **[CONFIRM]**; everything else is a recommended default.
+
+---
+
+## 1. Design principles
+
+- **Single user.** No multi-tenancy, no social features, no scale pressure. This
+  simplifies everything — but the app holds sensitive data (body photos,
+  calendar, home locations, API keys), so **privacy and secret-handling are the
+  hard requirements**, not scale.
+- **Server holds all secrets.** Claude/vision key, Google OAuth secret, weather
+  calls that need keys — all server-side. The browser never sees a secret.
+- **Keep it boring and buildless where possible.** Shared hosting rewards a
+  simple deploy (git pull or file upload), minimal dependencies, and no heavy
+  build step. Favour vanilla PHP + PDO and a light frontend over a framework
+  that fights the host.
+- **The intelligence is a rubric, not vibes.** Styling quality comes from an
+  explicit reasoning framework (occasion → weather → silhouette → colour →
+  personal taste) applied over the real wardrobe, not generic colour rules.
+
+## 2. Architecture & stack
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Browser (PWA — installable to phone home screen)        │
+│  HTML + Tailwind + Alpine.js · camera capture · offline  │
+│  shell. Talks to the backend over a JSON API.            │
+└───────────────────────────┬─────────────────────────────┘
+                            │ HTTPS (same origin)
+┌───────────────────────────▼─────────────────────────────┐
+│  PHP 8 backend on 20i                                    │
+│  • Thin router → JSON API endpoints                      │
+│  • PDO → MySQL (catalogue, profiles, state)              │
+│  • Image store on disk OUTSIDE web root, served via an    │
+│    authenticated proxy script (private, non-guessable)   │
+│  • Server-side calls out to Claude / Google / weather    │
+│  • PHP session auth (single user), CSRF, bcrypt          │
+│  • CLI scripts run by cron (briefing, reminders)         │
+└───────┬───────────────┬───────────────┬─────────────────┘
+        │               │               │
+   Claude API      Google Calendar   Open-Meteo
+   (vision +       (OAuth 2.0,       (free, no key —
+   reasoning)      read-only)        forecast + geocode)
+```
+
+**Stack decisions**
+
+| Layer | Choice | Why |
+|---|---|---|
+| Runtime | **PHP 8.x** | 20i shared hosting is PHP-first; zero extra cost |
+| DB | **MySQL / MariaDB** via PDO | Bundled with 20i; prepared statements |
+| Router | Vanilla PHP thin router (optional Slim if Composer available) | Minimal deps on shared hosting |
+| Frontend | **PWA**: HTML + Tailwind + Alpine.js | Photo-heavy + mobile-first; installable; buildless-friendly |
+| Images | Files outside web root + GD/Imagick thumbnails | Private storage; auth proxy for body photos |
+| Auth | PHP sessions + bcrypt + "remember me" | Single user; simple and safe |
+| Jobs | 20i **cron** → PHP CLI scripts | Monthly briefing, nightly maintenance, wash reminders |
+| LLM/vision | **Anthropic Claude API** | Vision tags garments; text does the styling reasoning |
+| Calendar | **Google Calendar API** (OAuth 2.0, read-only) | Owner's single mixed calendar |
+| Weather | **Open-Meteo** | Free, no API key, forecast + geocoding — ideal for a free build |
+
+**Pre-build checks on the 20i plan** (control panel): PHP 8.x available;
+outbound HTTPS/`curl` not blocked (needed to reach APIs); cron available;
+enough disk for a few hundred photos + thumbnails (hundreds of MB — fine).
+
+## 3. Data model
+
+Full schema (MySQL). Timestamps `created_at`/`updated_at` on every table.
+
+```
+users                    -- single row; owner login
+  id, email, password_hash, remember_token
+
+settings                 -- app-wide prefs
+  id, key, value                       -- home locations, units, briefing day, budget
+
+locations                -- the two homes (+ "packed"/in-transit as a state)
+  id, name, lat, lon                   -- London, Margate
+
+items                    -- one garment
+  id, name, type, subtype
+  colours (json), pattern, fabric, warmth, formality, seasons (json)
+  care (json)                          -- wash temp, dry-clean, delicate
+  location_id                          -- where it physically is
+  wash_state                           -- clean | worn_ok | basket | washing
+  committed_to_outfit_id               -- nullable; reserved for a planned outfit
+  wear_count, last_worn_at, last_worn_location_id
+  status                               -- active | stored | archived
+  notes
+
+item_photos
+  id, item_id, path, is_primary, width, height
+
+outfits                  -- a saved or planned combination
+  id, name, planned_date, occasion, location_id
+  weather_context (json), rationale, rating, source   -- ai | manual
+
+outfit_items             -- many-to-many
+  outfit_id, item_id, role                -- top | bottom | outer | shoes | accessory
+
+wear_log                 -- history feeds the variety engine
+  id, item_id, worn_on, location_id, weather (json), outfit_id
+
+trips                    -- a planned time away
+  id, destination_location_id, start_date, end_date, notes
+
+trip_events              -- what's happening on the trip (from calendar or manual)
+  id, trip_id, date, title, formality, source
+
+packing_lists
+  id, trip_id, generated_at, items (json), rationale
+
+body_profile             -- PRIVATE (see §7)
+  id, height_cm, weight_kg, measurements (json), photo_paths (json), notes
+
+style_profile            -- learned taste
+  id, archetypes (json), preferences (json), likes (json), dislikes (json),
+  rating_signal (json)                    -- aggregated from outfit ratings
+
+shopping_suggestions
+  id, generated_at, description, fills_gap (json), pairs_with (json), status
+
+calendar_tokens          -- Google OAuth (server-side only, encrypted at rest)
+  id, access_token, refresh_token, expires_at, scope
+
+calendar_events_cache    -- pulled from Google, refreshed periodically
+  id, external_id, date, title, inferred_formality, location_text, raw (json)
+
+weather_cache
+  id, location_id, date, forecast (json), fetched_at
+```
+
+## 4. The availability model (core logic)
+
+An item is **wearable on a given date at a given location** iff all three hold:
+
+1. **Location** — item's `location_id` == where the user will be that day
+   (accounting for planned trips moving items).
+2. **Wash state** — `clean` or `worn_ok`; `basket`/`washing` are excluded *unless*
+   there's time to launder before the date (then it's surfaced with a
+   "run a load by X" flag rather than hidden).
+3. **Not committed** — `committed_to_outfit_id` is null, or committed to *this*
+   outfit.
+
+This single predicate drives daily suggestions, packing, and laundry flags.
+Implemented as one query + a small rules layer, reused everywhere.
+
+## 5. The styling engine
+
+**Inputs assembled server-side:**
+- Candidate items (already filtered by the §4 availability predicate).
+- Event context (occasion + inferred formality) for the date.
+- Weather for the date/location (from Open-Meteo).
+- Body profile (proportions) and style profile (taste, likes/dislikes).
+- Recent `wear_log` + recent outfit combos (to drive **variety**).
+
+**Call:** Claude API with a **styling-rubric system prompt** (the §2/BRIEF
+framework as explicit rules) and **structured output** (tool use → JSON), so the
+result is machine-usable, not prose to parse.
+
+**Output shape (per recommendation):**
+```json
+{
+  "items": [ { "item_id": 12, "role": "top" }, ... ],
+  "rationale": "charcoal merino + oxford — client meeting, 9°C and drizzle",
+  "weather_fit": "warm mid-layer, no rain risk to the fabric",
+  "variety_note": "you've not worn the merino in 3 weeks"
+}
+```
+
+**Variety enforcement:** pass wear counts + recent combinations; the rubric
+rewards under-worn pieces and penalises repeats. Belt-and-braces: reject a
+generated outfit that exactly matches one worn in the last N days and re-ask.
+
+**Vision tagging** uses the same API: garment photo in → attributes JSON out
+(type, colours, pattern, fabric, warmth, formality, seasons, care), user confirms.
+
+## 6. Screens & flows
+
+1. **Wardrobe** — grid; filter by location / type / availability; wear-count badges.
+2. **Add item** — camera or upload → auto-tag → confirm/correct → save.
+3. **Item detail** — edit tags; set location; set wash state; wear log.
+4. **Today** — the day's suggested outfit + one-line why; swap/accept; "wore this".
+5. **Monthly briefing** *(hero)* — the month's trips, pre-positioning advice, and
+   varied outfit directions for notable days.
+6. **Trip planner** — pick destination + dates → pulls events → **packing list**
+   ("bring these 9; Margate already has the rest").
+7. **Shopping brief** — gap-analysis suggestions, budget-aware.
+8. **Body & style profile** *(private)* — measurements, optional photo, taste.
+9. **Settings** — connect Google Calendar, home locations, units, briefing day.
+
+## 7. Security & privacy (non-negotiable)
+
+Run the repo's **`october-security`** skill before "real" use. Requirements:
+- **Secrets** in config outside web root / server env; never committed. `.env`
+  and the image store git-ignored.
+- **Body photos & measurements** are the most protected data: stored outside web
+  root, served only through an authenticated proxy (no public/guessable URLs),
+  **one-tap delete**, never sent to any third party. (Vision tagging runs on
+  *garment* photos, not body photos.)
+- **Auth:** bcrypt, PHP session hardening, CSRF tokens on all mutating requests,
+  rate-limit + lockout on login.
+- **Transport:** HTTPS enforced; secure/HttpOnly/SameSite cookies.
+- **Google tokens:** stored server-side, encrypted at rest, read-only scope,
+  revocable from Settings.
+- **DB:** PDO prepared statements throughout (no string-built SQL).
+
+## 8. External integration notes
+
+- **Google Calendar:** OAuth 2.0 web flow, `calendar.readonly` scope, offline
+  access for a refresh token; nightly sync into `calendar_events_cache`; map
+  event keywords → inferred formality (tunable rules + LLM assist).
+- **Weather (Open-Meteo):** geocode the two homes once (store lat/lon); fetch
+  daily forecast per location/date; cache in `weather_cache` to limit calls.
+- **Claude API:** one server-side wrapper for both vision tagging and styling
+  reasoning; centralise the key, retries, and structured-output handling.
+
+## 9. Phased build plan
+
+| Phase | Deliverable | Host needed? |
+|---|---|---|
+| **0** | **Static monthly-briefing prototype** (seeded 2-location wardrobe) — validate that the styling *reads as smart* before building anything | No — local/artifact |
+| 1 | Skeleton on 20i: auth, DB schema, wardrobe CRUD, photo upload, manual tagging | Yes |
+| 2 | Vision auto-tagging (Claude) | Yes |
+| 3 | Availability model (location × wash × committed) + wardrobe filters | Yes |
+| 4 | Styling engine + **Today** view + save/rate outfits | Yes |
+| 5 | Google Calendar + Open-Meteo integration | Yes |
+| 6 | **Monthly briefing** generation via cron + variety engine | Yes |
+| 7 | Trip planner + **pack-light optimiser** | Yes |
+| 8 | Shopping brief (gap analysis) | Yes |
+| 9 | Body & style profile + silhouette reasoning | Yes |
+| 10 | Security hardening pass (`october-security`), PWA polish, house design system | Yes |
+
+Phase 0 is the cheapest way to de-risk the whole idea — no backend, no cost,
+and it answers the one question that matters: *does the advice feel like a
+stylist or like a colour-matcher?*
+
+## 10. Decisions to confirm
+
+1. **[CONFIRM] Taste-learning** — recommended: **both** (a short onboarding quiz
+   to *seed* the style profile, then thumbs up/down on outfits to *refine* it).
+   This is the single biggest lever on whether it feels genuinely yours.
+2. **[CONFIRM] Briefing delivery** — in-app only, or also emailed/pushed to your
+   phone on the monthly cron? (Email is easy from PHP; push needs a PWA
+   subscription.)
+3. **[CONFIRM] Shopping brief output** — describe the gap only, or suggest
+   specific products/links to buy?
+4. **[CONFIRM] Frontend approach** — buildless (Tailwind Play CDN + Alpine, drag-
+   and-drop deploy) vs. a small committed build step. Recommended: buildless for
+   v1 to keep 20i deploys trivial.

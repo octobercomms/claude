@@ -4,6 +4,8 @@
 **Owner:** October (personal project)
 **Code will live in:** `dev/personal-stylist/`
 **Docs live in:** `docs/personal-stylist/` (this folder)
+**Full technical scope:** [`SCOPE.md`](./SCOPE.md)
+**Hosting:** 20i shared hosting (free) — PHP 8 + MySQL. See SCOPE.md §2.
 
 A private, AI-powered personal stylist. You photograph your clothes; it learns
 your taste, your body, and your life; and it tells you *what to wear, when, and
