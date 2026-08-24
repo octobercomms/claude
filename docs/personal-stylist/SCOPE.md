@@ -206,8 +206,10 @@ Run the repo's **`october-security`** skill before "real" use. Requirements:
   and the image store git-ignored.
 - **Body photos & measurements** are the most protected data: stored outside web
   root, served only through an authenticated proxy (no public/guessable URLs),
-  **one-tap delete**, never sent to any third party. (Vision tagging runs on
-  *garment* photos, not body photos.)
+  **one-tap delete**, never sent to any third party — **except** the optional
+  virtual try-on feature (§12), which is explicit opt-in and, by choice, may use
+  an avatar stand-in instead of a real photo. (Vision tagging runs on *garment*
+  photos, not body photos.)
 - **Auth:** bcrypt, PHP session hardening, CSRF tokens on all mutating requests,
   rate-limit + lockout on login.
 - **Transport:** HTTPS enforced; secure/HttpOnly/SameSite cookies.
@@ -243,7 +245,8 @@ Run the repo's **`october-security`** skill before "real" use. Requirements:
 
 Phase 0 is the cheapest way to de-risk the whole idea — no backend, no cost,
 and it answers the one question that matters: *does the advice feel like a
-stylist or like a colour-matcher?*
+stylist or like a colour-matcher?* The **Clueless theme (§11)** applies from
+Phase 1 onward; **virtual try-on (§12)** slots in after Phase 9 as optional.
 
 ## 10. Decisions (resolved)
 
@@ -264,3 +267,43 @@ source of truth for products/links. Options to settle at Phase 8: a shopping/
 product-search API, affiliate feeds, or a curated retailer set. **[CONFIRM at
 Phase 8]** which source — it's the only new external dependency these decisions
 introduce, and it doesn't block Phases 0–7.
+
+## 11. Visual design — "Clueless" theme
+
+The app's inspiration is Cher Horowitz's wardrobe computer in *Clueless* (1995),
+and the homage is deliberate because the film's UI **maps onto the real feature
+set**:
+
+| Clueless element | This app |
+|---|---|
+| **"Auto Dress"** button | AI assembles a full outfit for you |
+| **"Dress Me"** button | Dress me *for this* — occasion + weather driven |
+| Rotating paper-doll figure in the outfit | The outfit preview (and try-on, §12) |
+| Category tabs (Shoes, Jewelry, Scarves, Pants, Sweaters…) | Wardrobe filters by type |
+| Leopard-print trim, chrome buttons, yellow-plaid energy | Theme skin |
+
+**Direction: Clueless-*inspired*, not a pixel-copy.** Keep the joy — leopard
+trim, chunky chrome buttons, the paper-doll avatar, the palette — on a modern,
+touch-first, responsive layout underneath. A literal 90s CRT UI is charming
+briefly and painful to use on a phone; capture the spirit, keep the usability.
+As a **personal** app it is *not* bound by the repo's house design system and
+carries its own identity. Reference stills live in `docs/personal-stylist/`.
+
+## 12. Virtual try-on (fal.ai) — optional, paid, privacy-gated
+
+**Feasible and strong.** fal.ai hosts production try-on models: person image +
+garment image → a composited image of the user wearing the item.
+- **Model:** FASHN v1.6 (~$0.075/generation) renders patterns/plaid accurately
+  from flat-lay garment photos — exactly the photos the app already stores.
+  Alternatives: FLUX 2 try-on, Kling. Python/JS SDKs; one server-side call.
+- **💷 Cost:** the **only** paid piece in an otherwise-free stack. Small but
+  per-image — **cap it**: render only outfits the user is actively considering,
+  not every suggestion. Server-side key, usage budget.
+- **🔒 Privacy [CONFIRM]:** try-on requires sending a photo to fal.ai (a third
+  party), which collides with §7. Two acceptable modes, user's choice:
+  1. **Opt-in real photo** — user explicitly enables it, knowing the photo goes
+     to fal.ai for that render (verify fal/FASHN data-retention terms first).
+  2. **Avatar stand-in** — generate a neutral body model approximating the
+     user's proportions once, and try garments on *that*; real photos never leave.
+- **Placement:** a later, optional phase (after core styling works). Not on the
+  critical path; the app is fully useful without it.
