@@ -1,0 +1,41 @@
+/* AS IF — shared styles (classy palette, matches the design in ../../index.html). */
+:root{
+  --paper:#EFEBE3; --surface:#F8F5EF; --ink:#211E1B; --stone:#7B7469;
+  --line:#DAD3C6; --plum:#5B3A55; --gold:#B8934A; --err:#8a2f2f;
+  --font-display:"Bodoni Moda",Georgia,serif;
+  --font-body:"DM Sans",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-body);color:var(--ink);background:var(--paper);
+  -webkit-text-size-adjust:100%}
+a{color:var(--plum)}
+.wordmark{font-family:var(--font-display);font-weight:600;font-size:28px;letter-spacing:.06em;margin:0;line-height:1}
+.wordmark em{font-style:italic;font-weight:500}
+.tag{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--stone);margin:6px 0 0}
+
+/* Auth */
+body.auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;
+  padding:28px 24px;width:100%;max-width:360px;box-shadow:0 20px 44px -22px rgba(33,30,27,.5)}
+.card form{display:flex;flex-direction:column;gap:14px;margin-top:20px}
+.card label{display:flex;flex-direction:column;gap:6px;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--stone)}
+.card input{font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line);
+  border-radius:10px;padding:11px 12px}
+.card input:focus{outline:2px solid var(--plum);outline-offset:1px;border-color:var(--plum)}
+.card button{font-family:var(--font-body);font-weight:600;font-size:13px;letter-spacing:.04em;
+  background:var(--ink);color:var(--paper);border:0;border-radius:11px;padding:13px;cursor:pointer;margin-top:4px}
+.error{color:var(--err);font-size:13px;margin:14px 0 0}
+
+/* App shell */
+.top{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;
+  background:var(--surface);border-bottom:1px solid var(--line)}
+.top a{font-size:11px;letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
+.wrap{max-width:640px;margin:0 auto;padding:24px 22px 60px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:18px}
+.panel h2{font-family:var(--font-display);font-weight:500;font-size:22px;margin:0 0 10px}
+.kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kv:last-child{border-bottom:0}
+.kv .v{color:var(--stone)}
+.ok{color:#4f7034;font-weight:600}
+.muted{color:var(--stone);font-size:13px;line-height:1.6}
