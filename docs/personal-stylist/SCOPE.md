@@ -402,15 +402,29 @@ will pay a little to skip.
 The paywall lines up with marginal cost: AI cost only accrues for paying users; a
 free user costs ~£0 in AI (flat hosting only).
 
-| Tier | Indicative price | What you get |
-|---|---|---|
-| **Free** | £0 | Digital wardrobe: photograph + **manual** tag, browse/filter, two homes, laundry/availability, manual outfit building, packing checklist, weather, effort dial. A genuinely useful organiser; its job is to get the wardrobe *in*. |
-| **Essentials** | **~£3.99/mo** | The AI, **metered**: daily Auto-Dress, monthly briefing, auto-tagging quota, a small try-on allowance (~5/mo). Priced to beat the subscription "groan" — an instant yes for something genuinely useful. |
-| **Unlimited-ish** | **~£9.99/mo** | Generous fair-use caps ("more than you'd need," not literally infinite): unlimited Auto-Dress, large auto-tagging, ~40–60 try-ons/mo, all planning features open. |
+| Tier | Indicative price | Try-ons/mo | What you get |
+|---|---|---|---|
+| **Free** | £0 | 0 | Digital wardrobe: photograph + **manual** tag, browse/filter, two homes, laundry/availability, manual outfit building, packing checklist, weather, effort dial. A genuinely useful organiser; its job is to get the wardrobe *in*. |
+| **Essentials** | **~£3.99/mo** | **2** | The AI, **metered**: daily Auto-Dress, monthly briefing, auto-tagging quota. The instant-yes price. Keep the styling generous here so 2 try-ons reads as a *sampler*, not a demo. |
+| **Pro** | **~£9.99/mo** | **20** | Generous fair-use on Auto-Dress + planning; large auto-tagging. |
+| **Power** *(hold for launch)* | **~£19.99/mo** | **50** | Only ship this if people actually max out 20/mo — see caution below. |
+
+Owner's try-on allowances (proposed): **2 / 20 / 50**. Economics fine at every
+tier (try-on ≈ £0.06; even 50 ≈ £3 vs £19.99).
+
+**Two design cautions (owner + Claude):**
+1. **Don't gate on try-on alone.** If try-on count is the *only* differentiator, a
+   user who doesn't care about it has no reason to upgrade past £3.99 — and
+   try-on is a "nice", not the daily value (that's Auto-Dress). Add a second
+   *felt* lever: an **auto-tagging quota**, and/or reserve the **planning
+   superpowers** (monthly briefing, pack-light, shopping brief) for £9.99+.
+2. **Cap the tier count.** Free + 3 paid is a lot for the "no headspace" ICP.
+   Launch **Free / £3.99 / £9.99**; hold **£19.99** in reserve and add it only if
+   real usage shows people maxing 20 try-ons. Easy to add, hard to walk back.
 
 Pricing psychology (owner's own reasoning): a low entry price kills the groan and
 converts immediately; metering the costly feature (try-on) both protects margin
-and gives a natural reason to step up to the £9.99 tier.
+and gives a natural reason to step up.
 
 ### Unit economics (today's rates: Sonnet 5 $2/$10, Haiku 4.5 $1/$5, fal.ai $0.075/try-on)
 - Wardrobe tagging (~150 items, one-time): **~$0.40–0.75**
