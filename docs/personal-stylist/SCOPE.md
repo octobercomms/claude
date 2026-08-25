@@ -384,3 +384,57 @@ pick whichever the owner most enjoys using daily; the winner becomes
 idea source (named stylist voice, thumbs up/down learning). The differentiating
 features (two homes, laundry, pack-light, try-on) are built because they're
 personally useful, not for competitive edge.
+
+## 14. Business model — EXPLORATORY, not being built yet
+
+> **Status: idea captured, not on the build path.** The plan stays personal-first
+> (Phases 0–10 for the owner). Only after the owner has used and refined it, and
+> shown it to friends, would any of this be built. Nothing here changes the
+> current build order.
+
+### If it ever goes public: who it's for
+A sharper ICP than clueless.clothing (which is broad/unisex): **men ~45+ who
+don't have the headspace to look good** but want to — the "arrest the slob drift"
+user (§1). The app outsources the *thinking*, which is exactly what this person
+will pay a little to skip.
+
+### Tiers — free = no AI, paid = the AI does the thinking
+The paywall lines up with marginal cost: AI cost only accrues for paying users; a
+free user costs ~£0 in AI (flat hosting only).
+
+| Tier | Indicative price | What you get |
+|---|---|---|
+| **Free** | £0 | Digital wardrobe: photograph + **manual** tag, browse/filter, two homes, laundry/availability, manual outfit building, packing checklist, weather, effort dial. A genuinely useful organiser; its job is to get the wardrobe *in*. |
+| **Essentials** | **~£3.99/mo** | The AI, **metered**: daily Auto-Dress, monthly briefing, auto-tagging quota, a small try-on allowance (~5/mo). Priced to beat the subscription "groan" — an instant yes for something genuinely useful. |
+| **Unlimited-ish** | **~£9.99/mo** | Generous fair-use caps ("more than you'd need," not literally infinite): unlimited Auto-Dress, large auto-tagging, ~40–60 try-ons/mo, all planning features open. |
+
+Pricing psychology (owner's own reasoning): a low entry price kills the groan and
+converts immediately; metering the costly feature (try-on) both protects margin
+and gives a natural reason to step up to the £9.99 tier.
+
+### Unit economics (today's rates: Sonnet 5 $2/$10, Haiku 4.5 $1/$5, fal.ai $0.075/try-on)
+- Wardrobe tagging (~150 items, one-time): **~$0.40–0.75**
+- Auto-Dress styling, with prompt-caching: **~$0.30–1.00/mo**
+- Monthly briefing: **~$0.10/mo**
+- Try-on: **$0.075 each** (the only hard per-unit cost — meter it)
+- **Typical active paid user: ~$1–3/mo in AI; try-on-heavy: ~$4–5.**
+  Comfortable margin at both £3.99 (~$5) and £9.99 (~$12.50).
+
+### Cost-control musts
+1. **Prompt-cache the wardrobe context** — same every call, ~10× cheaper Auto-Dress.
+2. **Hard per-user caps**, especially on try-on — one abusive user must never run
+   up the bill. Essentials = small allowance; Unlimited = generous fair-use cap,
+   optional top-up credits beyond it.
+
+### What going public would add (bigger than the personal app)
+Accounts + auth at scale; **per-user data isolation** (security becomes
+first-class — run `october-security`); **Stripe** subscriptions + free/paid
+gating; usage-limit/abuse controls on the AI; hosting beyond free 20i shared (a
+paid plan or small VPS). A **PWA** keeps it off the App Store (no 30% cut, no
+review). Weeks of work, not an afternoon.
+
+### Recommended sequencing
+Build for the owner first → use it for a couple of months → show friends → only
+then decide whether to open it up. By then there's a working product, real usage
+data, and proof the styling is good — the "is this a business" question gets
+answered for almost free.
