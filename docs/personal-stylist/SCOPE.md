@@ -184,6 +184,29 @@ generated outfit that exactly matches one worn in the last N days and re-ask.
 **Vision tagging** uses the same API: garment photo in → attributes JSON out
 (type, colours, pattern, fabric, warmth, formality, seasons, care), user confirms.
 
+### The effort dial — not every day is equal
+
+A per-day **effort level (1–5): Comfy → Casual → Smart → Sharp → Full.** Most
+days are low (WFH gym-shorts) and shouldn't burn a hero outfit or clean laundry.
+Two controls, resolving the tension between "don't waste an outfit" and "I want
+to dress better for me":
+- **Daily dial** — **auto-set** from the day's calendar occasion + weather (WFH →
+  low, client pitch → high), **user-overridable** for days the calendar can't
+  know ("feel like making an effort today").
+- **Baseline floor** (a `settings` value) — e.g. "never below Casual" — so even
+  low days get a *slightly* considered version rather than literal slob mode.
+  Nudging the floor up over time is how the owner raises their everyday.
+
+It feeds the styling engine as an input: the level sets the formality
+floor/ceiling and how far to reach into "hero" pieces. **Low genuinely means low**
+— at *Comfy* it recommends the comfortable option and *conserves* good pieces +
+clean laundry for the days (and trips) that matter, tying straight into the
+availability and pack-light systems.
+
+Data model additions: `settings.effort_baseline`; each day/`Event` carries a
+derived `effort_default` and an optional user `effort_override`; a saved
+`Outfit` records the `effort_level` it was built for.
+
 ## 6. Screens & flows
 
 1. **Wardrobe** — grid; filter by location / type / availability; wear-count badges.

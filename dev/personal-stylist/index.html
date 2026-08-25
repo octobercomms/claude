@@ -83,8 +83,20 @@
 
   .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:22px}
   .headline{font-family:var(--font-display);font-weight:500;font-size:27px;line-height:1.08;margin:0 0 4px;text-wrap:balance;letter-spacing:.005em}
-  .sub{font-size:13px;color:var(--stone);margin:0 0 18px}
+  .sub{font-size:13px;color:var(--stone);margin:0 0 16px}
   .sub b{color:var(--ink);font-weight:600}
+
+  .dial{margin:0 0 18px;padding:14px 0 0;border-top:1px solid var(--line-soft)}
+  .dial-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+  .dial-top .lab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--stone)}
+  .dial-top .val{font-family:var(--font-display);font-style:italic;font-size:16px;color:var(--plum)}
+  .dial-track{position:relative;height:4px;border-radius:2px;background:var(--line);margin:0 7px}
+  .dial-fill{position:absolute;left:0;top:0;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--plum))}
+  .dial-knob{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:var(--surface);border:2px solid var(--plum);transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(33,30,27,.3)}
+  .dial-scale{display:flex;justify-content:space-between;margin-top:10px}
+  .dial-scale span{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--stone)}
+  .dial-scale span.on{color:var(--ink);font-weight:600}
+  .dial-cap{font-size:11px;color:var(--stone);margin:9px 0 0;font-style:italic}
 
   .look{display:flex;gap:18px}
   .fig{flex:0 0 118px}
@@ -169,6 +181,13 @@
     <section class="card">
       <h2 class="headline">Sharp, not stuffy.</h2>
       <p class="sub">Client pitch at 10, drinks after · <b>agency-smart</b></p>
+
+      <div class="dial" role="group" aria-label="How dressed-up today">
+        <div class="dial-top"><span class="lab">How dressed?</span><span class="val">Sharp · 4/5</span></div>
+        <div class="dial-track"><span class="dial-fill" style="width:80%"></span><span class="dial-knob" style="left:80%"></span></div>
+        <div class="dial-scale"><span>Comfy</span><span>Casual</span><span>Smart</span><span class="on">Sharp</span><span>Full</span></div>
+        <p class="dial-cap">Auto-set from your day — a client pitch. Drag to dress it up or down.</p>
+      </div>
 
       <div class="look">
         <div class="fig">
