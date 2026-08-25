@@ -27,6 +27,14 @@ flagged **[CONFIRM]**; everything else is a recommended default.
 - **The intelligence is a rubric, not vibes.** Styling quality comes from an
   explicit reasoning framework (occasion → weather → silhouette → colour →
   personal taste) applied over the real wardrobe, not generic colour rules.
+- **The purpose: dress good to feel good — keep the owner choosing.** The app
+  exists to arrest *drift* into slob, not just to answer "what do I wear." The
+  slob slide is never a decision; it's the absence of one. So the app takes a
+  gentle side: put-together is the default (see the effort baseline), Comfy is a
+  choice you make, not gravity. Its **voice is on your side** — encouraging,
+  never nagging or shaming — but it *notices*: a run of low-effort days earns a
+  light nudge ("fancy dialling it up tomorrow?"), and effort should feel like it
+  builds (light momentum), because the whole point is felt, not just functional.
 
 ## 2. Architecture & stack
 
@@ -193,9 +201,10 @@ to dress better for me":
 - **Daily dial** — **auto-set** from the day's calendar occasion + weather (WFH →
   low, client pitch → high), **user-overridable** for days the calendar can't
   know ("feel like making an effort today").
-- **Baseline floor** (a `settings` value) — e.g. "never below Casual" — so even
-  low days get a *slightly* considered version rather than literal slob mode.
-  Nudging the floor up over time is how the owner raises their everyday.
+- **Baseline floor** (a `settings` value) — **defaults to *Smart*, not Casual.**
+  A normal day is "put-together" by default; *Comfy* is a deliberate dial-*down*,
+  never the gravity you drift into. You have to actively choose slob — it is
+  never the resting state.
 
 It feeds the styling engine as an input: the level sets the formality
 floor/ceiling and how far to reach into "hero" pieces. **Low genuinely means low**
