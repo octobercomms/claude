@@ -398,6 +398,19 @@ don't have the headspace to look good** but want to — the "arrest the slob dri
 user (§1). The app outsources the *thinking*, which is exactly what this person
 will pay a little to skip.
 
+### Governing principle — the "Prime" model (owner's, and it's the right one)
+**Be genuinely generous, then upgrades feel natural — not extracted.** A cheap app
+that is *actually useful* every day, where you upgrade because you're using it
+loads and want more, not because the basics were deliberately crippled. Like
+Amazon Prime: a no-brainer you're already inside; one subscription just gives you
+more. This is also the *better business* for the use-it→friends→sell path —
+generous products get recommended, stingy ones get deleted. It fits the costs
+exactly: only **try-on** has a real per-use bill, so it's the only thing metered;
+everything else is cheap enough to be effectively unlimited. **Upgrade = more of
+what you already love, never unlock-the-bit-that-should-have-worked.** Meter the
+one costly feature *honestly* ("your plan includes N renders, each runs a real
+image") — never as a squeeze.
+
 ### Tiers — free = no AI, paid = the AI does the thinking
 The paywall lines up with marginal cost: AI cost only accrues for paying users; a
 free user costs ~£0 in AI (flat hosting only).
@@ -405,26 +418,28 @@ free user costs ~£0 in AI (flat hosting only).
 | Tier | Indicative price | Try-ons/mo | What you get |
 |---|---|---|---|
 | **Free** | £0 | 0 | Digital wardrobe: photograph + **manual** tag, browse/filter, two homes, laundry/availability, manual outfit building, packing checklist, weather, effort dial. A genuinely useful organiser; its job is to get the wardrobe *in*. |
-| **Essentials** | **~£3.99/mo** | **2** | The AI, **metered**: daily Auto-Dress, monthly briefing, auto-tagging quota. The instant-yes price. Keep the styling generous here so 2 try-ons reads as a *sampler*, not a demo. |
-| **Pro** | **~£9.99/mo** | **20** | Generous fair-use on Auto-Dress + planning; large auto-tagging. |
-| **Power** *(hold for launch)* | **~£19.99/mo** | **50** | Only ship this if people actually max out 20/mo — see caution below. |
+| **Essentials** | **~£3.99/mo** | **2** | The full daily app, **abundant**: effectively-unlimited Auto-Dress, monthly briefing, generous auto-tagging (fair-use soft caps only). A complete, genuinely useful product on its own — try-on is the one metered extra (a taster). |
+| **Pro** | **~£9.99/mo** | **20** | Same app, *more headroom* — for people using it loads who want more try-ons (and any other fair-use ceiling raised). Not new features unlocked; more of the same. |
+| **Power** *(hold for launch)* | **~£19.99/mo** | **50** | Only ship if people actually max out 20/mo — see caution below. |
 
 Owner's try-on allowances (proposed): **2 / 20 / 50**. Economics fine at every
 tier (try-on ≈ £0.06; even 50 ≈ £3 vs £19.99).
 
 **Two design cautions (owner + Claude):**
-1. **Don't gate on try-on alone.** If try-on count is the *only* differentiator, a
-   user who doesn't care about it has no reason to upgrade past £3.99 — and
-   try-on is a "nice", not the daily value (that's Auto-Dress). Add a second
-   *felt* lever: an **auto-tagging quota**, and/or reserve the **planning
-   superpowers** (monthly briefing, pack-light, shopping brief) for £9.99+.
+1. **Upgrade is "more," not "un-gate."** Per the Prime principle: keep the daily
+   value (Auto-Dress, briefings, tagging) abundant on *every* paid tier. The tiers
+   differ by *volume* (mainly try-ons, plus any fair-use ceiling), because that's
+   what a heavy user naturally outgrows — never by withholding a basic that should
+   have worked. *(This supersedes an earlier note about adding gates to justify
+   upgrades — the owner rightly rejected that; generosity is the strategy.)*
 2. **Cap the tier count.** Free + 3 paid is a lot for the "no headspace" ICP.
    Launch **Free / £3.99 / £9.99**; hold **£19.99** in reserve and add it only if
    real usage shows people maxing 20 try-ons. Easy to add, hard to walk back.
 
-Pricing psychology (owner's own reasoning): a low entry price kills the groan and
-converts immediately; metering the costly feature (try-on) both protects margin
-and gives a natural reason to step up.
+Pricing psychology (owner's own reasoning): a low, genuinely-generous entry price
+kills the groan and earns advocacy; try-on is metered only because it has a real
+per-render cost, and upgrading buys *more of what you already use*, not access to
+basics.
 
 ### Unit economics (today's rates: Sonnet 5 $2/$10, Haiku 4.5 $1/$5, fal.ai $0.075/try-on)
 - Wardrobe tagging (~150 items, one-time): **~$0.40–0.75**
