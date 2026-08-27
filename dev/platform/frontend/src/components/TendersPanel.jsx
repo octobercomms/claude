@@ -82,6 +82,9 @@ export default function TendersPanel() {
   // Add a tender by URL
   const [addUrl, setAddUrl] = useState('');
   const [adding, setAdding] = useState(false);
+  // Bulk select + qualify
+  const [selected, setSelected] = useState(() => new Set());
+  const [qualifying, setQualifying] = useState(false);
 
   async function loadSources() {
     try { setSources(await api.get('/tender/sources')); } catch (e) { toast(e.message, 'error'); }
@@ -172,6 +175,55 @@ export default function TendersPanel() {
     catch (e) { toast(e.message, 'error'); loadNotices(); }
   }
 
+  // Bulk select helpers.
+  function toggleOne(id) {
+    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  }
+  function toggleAll() {
+    setSelected(prev => prev.size === notices.length ? new Set() : new Set(notices.map(n => n.id)));
+  }
+
+  // Qualify all not-yet-scored notices, looping in batches until the backlog is
+  // clear (each call scores up to 20 and reports how many remain).
+  async function qualifyAll() {
+    if (qualifying) return;
+    setQualifying(true);
+    let total = 0;
+    try {
+      for (;;) {
+        const r = await api.post('/tender/notices/qualify', {});
+        total += r.scored || 0;
+        if (r.remaining) toast(`Qualifying… ${total} done, ${r.remaining} to go`);
+        if (!r.remaining || !r.scored) break; // done, or nothing progressing
+      }
+      toast(total ? `Qualified ${total} notices` : 'Everything is already qualified', 'success');
+      await loadNotices();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setQualifying(false); }
+  }
+
+  async function qualifySelected() {
+    const ids = [...selected];
+    if (!ids.length || qualifying) return;
+    setQualifying(true);
+    try {
+      const r = await api.post('/tender/notices/qualify', { ids });
+      toast(`Re-qualified ${r.scored} notice${r.scored === 1 ? '' : 's'}`, 'success');
+      setSelected(new Set());
+      await loadNotices();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setQualifying(false); }
+  }
+
+  async function dismissSelected() {
+    const ids = [...selected];
+    if (!ids.length) return;
+    setNotices(prev => prev.filter(x => !selected.has(x.id))); // optimistic
+    setSelected(new Set());
+    try { await api.post('/tender/notices/dismiss-bulk', { ids }); await loadNotices(); }
+    catch (e) { toast(e.message, 'error'); loadNotices(); }
+  }
+
   async function saveDate(n) {
     try {
       const updated = await api.put(`/tender/notices/${n.id}/closing`, { closing_at: editDate.value || null });
@@ -217,6 +269,10 @@ export default function TendersPanel() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
           <div className="oview-grplabel" style={{ margin: 0 }}>Open notices{notices.length ? ` (${notices.length})` : ''}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="btn btn-ghost btn-sm" onClick={qualifyAll} disabled={qualifying}
+              title="Run the go/no-go test on every notice that hasn't been scored yet">
+              {qualifying ? 'Qualifying…' : 'Qualify all'}
+            </button>
             <select className="input" value={verdict} onChange={e => setVerdict(e.target.value)} style={{ width: 'auto' }}
               title="Claude auto-runs the go/no-go test on every notice. Default shows the ones worth a look; No-go keeps the rejects out of your way but findable.">
               <option value="shortlist">Worth a look{vcounts ? ` (${vcounts.shortlist})` : ''}</option>
@@ -246,6 +302,16 @@ export default function TendersPanel() {
           </button>
         </div>
 
+        {/* Bulk-action bar — appears once you tick some notices. */}
+        {selected.size > 0 && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10, padding: '8px 12px', background: 'var(--surface-2, #f6f6f6)', borderRadius: 'var(--r-sm)' }}>
+            <span className="body-sm" style={{ fontWeight: 700 }}>{selected.size} selected</span>
+            <button className="btn btn-ghost btn-sm" onClick={qualifySelected} disabled={qualifying}>Re-run go/no-go</button>
+            <button className="btn btn-ghost btn-sm" onClick={dismissSelected}>Dismiss selected</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())} style={{ marginLeft: 'auto' }}>Clear</button>
+          </div>
+        )}
+
         {loading ? (
           <p className="body-sm text-muted">Loading…</p>
         ) : !notices.length ? (
@@ -259,6 +325,10 @@ export default function TendersPanel() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr>
+                  <th style={{ ...thStyle, width: 28 }}>
+                    <input type="checkbox" checked={selected.size === notices.length && notices.length > 0}
+                      onChange={toggleAll} title="Select all" />
+                  </th>
                   <th style={thStyle}>Title</th><th style={thStyle}>Buyer</th><th style={thStyle}>Market</th>
                   <th style={thStyle}>Value</th><th style={thStyle}>Closes</th><th style={thStyle}></th>
                 </tr>
@@ -267,7 +337,10 @@ export default function TendersPanel() {
                 {notices.map(n => {
                   const dl = daysLeft(n.closing_at);
                   return (
-                    <tr key={n.id}>
+                    <tr key={n.id} style={selected.has(n.id) ? { background: 'var(--surface-2, #f6f6f6)' } : undefined}>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <input type="checkbox" checked={selected.has(n.id)} onChange={() => toggleOne(n.id)} />
+                      </td>
                       <td style={tdStyle}>
                         {/* Always clickable: the direct notice URL when we have one,
                             otherwise a web search for the title + buyer so the row

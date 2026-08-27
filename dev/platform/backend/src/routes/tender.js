@@ -140,6 +140,33 @@ router.post('/notices/add-url', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// Qualify (run the go/no-go test) on demand. With { ids } scores those notices
+// (re-runs the test); without, scores a batch of not-yet-qualified ones. Returns
+// how many still need scoring so the UI can loop a "Qualify all" until 0.
+router.post('/notices/qualify', async (req, res) => {
+  try {
+    const score = require('../services/tender/score');
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
+    const { scored } = ids && ids.length
+      ? await score.scoreIds(ids, { log: (m) => console.log(m) })
+      : await score.scoreUnscored({ limit: 20, log: (m) => console.log(m) });
+    const remaining = await score.pendingCount();
+    res.json({ scored, remaining });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Dismiss several notices at once (bulk "Dismiss selected").
+router.post('/notices/dismiss-bulk', async (req, res) => {
+  const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String).filter(Boolean);
+  if (!ids.length) return res.status(400).json({ error: 'No notices selected.' });
+  try {
+    const { rowCount } = await pool.query(
+      'UPDATE tender_notices SET dismissed = true, dismissed_at = NOW() WHERE id::text = ANY($1::text[])', [ids]
+    );
+    res.json({ ok: true, dismissed: rowCount });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Trigger an ingest run now. Optional body { source_id } to poll one source.
 // Long-running (network + rate limits), so this awaits and returns the summary;
 // the cron does the same on a schedule.

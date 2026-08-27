@@ -90,4 +90,30 @@ async function scoreUnscored({ limit = 40, log = () => {} } = {}) {
   return { scored };
 }
 
-module.exports = { scoreNotice, scoreUnscored };
+// Score a specific set of notices (bulk "Qualify selected"). Re-scores even if
+// already qualified, so it doubles as a "re-run the test on these".
+async function scoreIds(ids, { log = () => {} } = {}) {
+  const list = (Array.isArray(ids) ? ids : []).map(String).filter(Boolean);
+  if (!list.length) return { scored: 0 };
+  const { rows } = await pool.query('SELECT * FROM tender_notices WHERE id::text = ANY($1::text[])', [list]);
+  const prof = await profile.get().catch(() => ({ profile_md: '' }));
+  let scored = 0;
+  for (const notice of rows) {
+    try {
+      const { verdict, reason } = await scoreNotice(notice, { profileMd: prof.profile_md });
+      await pool.query('UPDATE tender_notices SET verdict = $2, verdict_reason = $3, verdict_at = NOW() WHERE id = $1', [notice.id, verdict, reason]);
+      scored++;
+    } catch (e) { log(`[tender] score failed for ${notice.id}: ${e.message}`); }
+  }
+  return { scored };
+}
+
+// How many notices are still waiting for a verdict (for the "Qualify all" loop).
+async function pendingCount() {
+  const { rows } = await pool.query(
+    'SELECT COUNT(*)::int AS n FROM tender_notices WHERE verdict IS NULL AND dismissed = false AND (closing_at IS NULL OR closing_at >= NOW())'
+  );
+  return rows[0].n;
+}
+
+module.exports = { scoreNotice, scoreUnscored, scoreIds, pendingCount };
