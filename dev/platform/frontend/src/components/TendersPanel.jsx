@@ -342,14 +342,18 @@ export default function TendersPanel() {
                         <input type="checkbox" checked={selected.has(n.id)} onChange={() => toggleOne(n.id)} />
                       </td>
                       <td style={tdStyle}>
-                        {/* Always clickable: the direct notice URL when we have one,
-                            otherwise a web search for the title + buyer so the row
-                            is never a dead end. */}
-                        <a href={n.url || `https://www.google.com/search?q=${encodeURIComponent(`${n.title || ''} ${n.buyer_name || ''} tender`.trim())}`}
-                           target="_blank" rel="noopener noreferrer" title={n.url ? 'Open the notice' : 'No direct link — search the web for this notice'}>
-                          {n.title || n.external_ref}
-                        </a>
-                        {!n.url && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-subtle)' }}>↗ search</span>}
+                        {/* Link priority: the official notice page → else the page
+                            Claude actually read to find it ("how it found this") →
+                            else a web search so the row is never a dead end. */}
+                        {(() => {
+                          const href = n.url || n.source_url || `https://www.google.com/search?q=${encodeURIComponent(`${n.title || ''} ${n.buyer_name || ''} tender`.trim())}`;
+                          const tag = n.url ? null : n.source_url ? 'where Claude found this' : 'search';
+                          const tip = n.url ? 'Open the notice' : n.source_url ? 'The page Claude read to find this notice' : 'No direct link — search the web for this notice';
+                          return (<>
+                            <a href={href} target="_blank" rel="noopener noreferrer" title={tip}>{n.title || n.external_ref}</a>
+                            {tag && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-subtle)' }}>↗ {tag}</span>}
+                          </>);
+                        })()}
                         {n.needs_manual_check && (
                           <span className="badge" style={{ marginLeft: 8, fontSize: 11 }}
                             title="Closing date couldn’t be read automatically — open the notice to confirm the deadline before bidding.">

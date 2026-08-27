@@ -76,6 +76,15 @@ current open notices.
 | CanadaBuys | Canada | Official open-data CSV (`openTenderNotice…csv`), parsed + filtered locally | **Live** |
 | SAM.gov | US | Opportunities API (needs free `SAM_API_KEY`) | Adapter built, **disabled**; low-yield per the 17 Aug scan |
 
+**Provenance ("how it found this").** Each web-search notice carries a
+`source_url` — the page Claude actually retrieved to find it — captured from the
+`web_search`/`web_fetch` tool-result blocks and kept only if the model's reported
+source is one Claude really retrieved (or on the same host), so it can't be a
+fabricated link. The `url` column stays the official notice page (never an
+aggregator; null when unverified). The row links `url` → else `source_url`
+("where Claude found this") → else a title+buyer web search, so it's never a
+dead end and always traceable.
+
 **Recall (per-market + page-fetch).** `webSearch.js` runs one focused pass per
 market (UK/CA/EU/US), each with its own budget, the named portals, and concrete
 below-threshold example patterns. Each pass uses **`web_fetch`** to read the

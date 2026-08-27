@@ -28,6 +28,7 @@ async function upsertNotice(sourceId, n) {
 
   const cols = {
     url: n.url || null,
+    source_url: n.source_url || null,
     title: n.title || null,
     buyer_name: n.buyer_name || null,
     buyer_country: n.buyer_country || null,
@@ -47,11 +48,11 @@ async function upsertNotice(sourceId, n) {
   if (!existing.rows.length) {
     await pool.query(
       `INSERT INTO tender_notices
-        (source_id, external_ref, url, title, buyer_name, buyer_country, buyer_city,
+        (source_id, external_ref, url, source_url, title, buyer_name, buyer_country, buyer_city,
          cpv_codes, published_at, closing_at, value_min, value_max, currency,
          description, raw_payload, content_hash, needs_manual_check)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
-      [sourceId, n.external_ref, cols.url, cols.title, cols.buyer_name, cols.buyer_country, cols.buyer_city,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+      [sourceId, n.external_ref, cols.url, cols.source_url, cols.title, cols.buyer_name, cols.buyer_country, cols.buyer_city,
        cols.cpv_codes, cols.published_at, cols.closing_at, cols.value_min, cols.value_max, cols.currency,
        cols.description, cols.raw_payload, cols.content_hash, cols.needs_manual_check]
     );
@@ -64,14 +65,14 @@ async function upsertNotice(sourceId, n) {
   // test on the amended notice.
   await pool.query(
     `UPDATE tender_notices SET
-       url=$3, title=$4, buyer_name=$5, buyer_country=$6, buyer_city=$7, cpv_codes=$8,
+       url=$3, source_url=$18, title=$4, buyer_name=$5, buyer_country=$6, buyer_city=$7, cpv_codes=$8,
        published_at=$9, closing_at=$10, value_min=$11, value_max=$12, currency=$13,
        description=$14, raw_payload=$15, content_hash=$16, needs_manual_check=$17, updated_at=NOW(),
        verdict=NULL, verdict_reason=NULL, verdict_at=NULL
      WHERE source_id=$1 AND external_ref=$2`,
     [sourceId, n.external_ref, cols.url, cols.title, cols.buyer_name, cols.buyer_country, cols.buyer_city,
      cols.cpv_codes, cols.published_at, cols.closing_at, cols.value_min, cols.value_max, cols.currency,
-     cols.description, cols.raw_payload, cols.content_hash, cols.needs_manual_check]
+     cols.description, cols.raw_payload, cols.content_hash, cols.needs_manual_check, cols.source_url]
   );
   return 'updated';
 }

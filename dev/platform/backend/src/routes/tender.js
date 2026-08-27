@@ -68,7 +68,7 @@ router.get('/notices', async (req, res) => {
     // the requested relevance tier. Counts are returned so the UI can label each
     // view ("Creative-sector PR (12) · All PR/comms (31) · Everything (150)").
     const { rows } = await pool.query(
-      `SELECT n.id, n.external_ref, n.url, n.title, n.buyer_name, n.buyer_country, n.buyer_city,
+      `SELECT n.id, n.external_ref, n.url, n.source_url, n.title, n.buyer_name, n.buyer_country, n.buyer_city,
               n.cpv_codes, n.published_at, n.closing_at, n.value_min, n.value_max, n.currency,
               n.description, n.needs_manual_check, n.first_seen_at, n.verdict, n.verdict_reason,
               s.name AS source_name, s.market, s.kind AS source_kind,
