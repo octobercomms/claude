@@ -54,7 +54,7 @@ cron.schedule('30 6 * * *', async () => {
     } catch (e) { console.error('[Scheduler] Tender digest failed:', e.message); }
   } catch (e) { console.error('[Scheduler] Tender ingest failed:', e.message); }
 });
-cron.schedule('35 6 * * 1,4', async () => {
+cron.schedule('35 6 * * 1', async () => { // weekly (Monday) — it's the only paid tender source
   try {
     const report = await require('./tender/ingest').run({ onlySearch: true, log: (m) => console.log(m) });
     console.log(`[Scheduler] Tender web search: ${report.totals.inserted} new, ${report.totals.updated} updated`);
@@ -702,53 +702,13 @@ cron.schedule('0 7 * * 1', async () => {
   }
 });
 
-// Cross-PESO Strategist briefing — one whole-account briefing (Paid/Earned/
-// Shared/Owned + synthesis) per client every Monday at 07:10, emailed to the AM.
-// Staggered 10 min after the ads job to spread Claude load. Opt a client out
-// with the Strategist "weekly email" toggle (clients.strategist_active = false).
-// Serial per client — each briefing is five Opus passes.
-cron.schedule('10 7 * * 1', async () => {
-  try {
-    const briefing = require('./strategist/briefing');
-    const emailService = require('./emailService');
-    const platformUrl = process.env.PLATFORM_URL || '';
-    const envRecipients = (process.env.STRATEGIST_RECIPIENTS || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
-    const { rows: clients } = await pool.query(
-      `SELECT id, name, strategist_recipients FROM clients
-        WHERE active = true AND COALESCE(strategist_active, true) = true
-        ORDER BY name ASC`
-    );
-    for (const cl of clients) {
-      try {
-        const id = await briefing.generate({ clientId: cl.id, days: 30, trigger: 'weekly_cron' });
-        const { rows: br } = await pool.query(
-          'SELECT period_start, period_end, synthesis FROM strategist_briefings WHERE id = $1', [id]);
-        const b = br[0] || {};
-        const { rows: recRows } = await pool.query(
-          `SELECT text FROM strategist_briefing_recommendations
-            WHERE briefing_id = $1 AND priority = 'crucial' ORDER BY position ASC`, [id]);
-        const recipients = (cl.strategist_recipients || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
-        const to = recipients.length ? recipients : envRecipients;
-        if (!to.length) {
-          console.warn(`[strategist-briefing] no recipients for ${cl.name} — set recipients on the client or STRATEGIST_RECIPIENTS env`);
-          continue;
-        }
-        const period = b.period_start && b.period_end ? `${b.period_start} – ${b.period_end}` : '';
-        const reportUrl = platformUrl ? `${platformUrl}/clients/${cl.id}/sales-traffic?tab=strategist` : null;
-        await emailService.sendStrategistBriefing({
-          to, clientName: cl.name, period,
-          markdown: b.synthesis || '_Briefing was generated but had no synthesis._',
-          recommendations: recRows.map(r => r.text),
-          reportUrl,
-        });
-      } catch (err) {
-        console.error(`[strategist-briefing] weekly failed for ${cl.name}:`, err.message);
-      }
-    }
-  } catch (err) {
-    console.error('[strategist-briefing] weekly job failed:', err.message);
-  }
-});
+// Cross-PESO Strategist briefing — the whole-account briefing (Paid/Earned/
+// Shared/Owned + synthesis) is generated ON DEMAND from Data → Strategist, not
+// on a schedule. The weekly Monday cron was disabled to cut cost (each briefing
+// is five Opus passes per client, and the auto-email wasn't being read). Re-enable
+// by restoring the cron.schedule('10 7 * * 1', …) job from git history if a
+// standing weekly briefing is wanted again. The manual "Generate" button is
+// unchanged, so quality on demand is exactly the same.
 
 async function runOutreachSends() {
   const { rows: due } = await pool.query(
