@@ -35,19 +35,30 @@ cron.schedule('* * * * *', () => { heygen.pollPending().catch(() => {}); });
 // OpenAI key added after items were already queued). No-op without a key.
 cron.schedule('* * * * *', () => { swipeProcessor.processQueue().catch(() => {}); });
 
-// Tender Agent ingest: poll every enabled portal daily at 06:30. We poll daily
-// (not only on digest days) so a notice published mid-week with a short window
-// isn't missed; the twice-weekly email digest reads from what's been ingested.
+// Tender Agent ingest — split by cost:
+//  • Daily 06:30: the FREE API feeds (Find a Tender, Contracts Finder,
+//    CanadaBuys, SAM.gov, TED, PCS, Sell2Wales). No per-call cost, so poll daily
+//    — a notice published mid-week with a short window isn't missed. Also runs
+//    the digest.
+//  • Mon & Thu 06:35: the PAID Claude web-search source only (below-threshold /
+//    off-portal discovery). Tenders have weeks-long deadlines, so twice a week is
+//    plenty, and this is where the cost lives — keeping it off the daily run
+//    stops it ballooning.
 cron.schedule('30 6 * * *', async () => {
   try {
-    const report = await require('./tender/ingest').run({ log: (m) => console.log(m) });
-    console.log(`[Scheduler] Tender ingest: ${report.totals.inserted} new, ${report.totals.updated} updated`);
-    // Email the account lead the new matches, if the digest is enabled.
+    const report = await require('./tender/ingest').run({ includeSearch: false, log: (m) => console.log(m) });
+    console.log(`[Scheduler] Tender ingest (API feeds): ${report.totals.inserted} new, ${report.totals.updated} updated`);
     try {
       const d = await require('./tender/digest').runDigest({ log: (m) => console.log(m) });
       if (d.sent) console.log(`[Scheduler] Tender digest: emailed ${d.count} to ${d.to}`);
     } catch (e) { console.error('[Scheduler] Tender digest failed:', e.message); }
   } catch (e) { console.error('[Scheduler] Tender ingest failed:', e.message); }
+});
+cron.schedule('35 6 * * 1,4', async () => {
+  try {
+    const report = await require('./tender/ingest').run({ onlySearch: true, log: (m) => console.log(m) });
+    console.log(`[Scheduler] Tender web search: ${report.totals.inserted} new, ${report.totals.updated} updated`);
+  } catch (e) { console.error('[Scheduler] Tender web search failed:', e.message); }
 });
 
 // Weekly reports: every Monday at 10:00 AM

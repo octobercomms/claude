@@ -110,10 +110,20 @@ async function ingestSource(source, { log = () => {} } = {}) {
 }
 
 // Run every enabled source (or a single source by id). Returns the run report.
-async function run({ sourceId = null, log = console.log } = {}) {
-  const { rows: sources } = sourceId
+// includeSearch=false skips the paid Claude web-search source (kind 'search') —
+// used for the cheap daily API-feed poll; onlySearch=true runs only it (the
+// twice-weekly deep pass). The free API feeds carry no per-call cost, so they
+// poll daily; web search is the only source that costs money.
+async function run({ sourceId = null, includeSearch = true, onlySearch = false, log = console.log } = {}) {
+  const { rows: allSources } = sourceId
     ? await pool.query('SELECT * FROM tender_sources WHERE id = $1', [sourceId])
     : await pool.query('SELECT * FROM tender_sources WHERE enabled = true ORDER BY name');
+  const sources = allSources.filter(s => {
+    const isSearch = s.kind === 'search';
+    if (onlySearch) return isSearch;
+    if (!includeSearch) return !isSearch;
+    return true;
+  });
 
   const results = [];
   for (const source of sources) {
