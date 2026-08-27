@@ -60,11 +60,14 @@ async function upsertNotice(sourceId, n) {
 
   if (existing.rows[0].content_hash === hash) return 'skipped';
 
+  // Content changed → clear the verdict so the qualifier re-runs the go/no-go
+  // test on the amended notice.
   await pool.query(
     `UPDATE tender_notices SET
        url=$3, title=$4, buyer_name=$5, buyer_country=$6, buyer_city=$7, cpv_codes=$8,
        published_at=$9, closing_at=$10, value_min=$11, value_max=$12, currency=$13,
-       description=$14, raw_payload=$15, content_hash=$16, needs_manual_check=$17, updated_at=NOW()
+       description=$14, raw_payload=$15, content_hash=$16, needs_manual_check=$17, updated_at=NOW(),
+       verdict=NULL, verdict_reason=NULL, verdict_at=NULL
      WHERE source_id=$1 AND external_ref=$2`,
     [sourceId, n.external_ref, cols.url, cols.title, cols.buyer_name, cols.buyer_country, cols.buyer_city,
      cols.cpv_codes, cols.published_at, cols.closing_at, cols.value_min, cols.value_max, cols.currency,
@@ -121,7 +124,15 @@ async function run({ sourceId = null, log = console.log } = {}) {
     skipped: t.skipped + r.skipped, expired: t.expired + r.expired,
   }), { seen: 0, inserted: 0, updated: 0, skipped: 0, expired: 0 });
   log(`[tender] done: ${totals.inserted} new / ${totals.updated} updated across ${results.length} sources`);
-  return { ran_at: new Date().toISOString(), sources: results, totals };
+
+  // Auto go/no-go qualify anything not yet scored (new notices + the existing
+  // backlog). Bounded per run so cost stays predictable; the backlog clears over
+  // a run or two and daily new notices are scored as they arrive.
+  let qualified = 0;
+  try { ({ scored: qualified } = await require('./score').scoreUnscored({ limit: 60, log })); }
+  catch (e) { log(`[tender] qualify pass failed: ${e.message}`); }
+
+  return { ran_at: new Date().toISOString(), sources: results, totals, qualified };
 }
 
 module.exports = { run, ingestSource, upsertNotice };

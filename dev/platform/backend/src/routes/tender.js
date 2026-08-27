@@ -51,6 +51,9 @@ router.get('/notices', async (req, res) => {
   // relevance: match = creative-sector PR only (default); comms = any PR/comms;
   // all = unfiltered raw feed. The niche prefilter runs here (services/tender/classify).
   const relevance = ['match', 'comms', 'all'].includes(req.query.relevance) ? req.query.relevance : 'match';
+  // verdict view: shortlist (go + review + not-yet-scored) is the default working
+  // list; nogo is the rejected pile; all shows everything regardless.
+  const verdictView = ['shortlist', 'go', 'nogo', 'all'].includes(req.query.verdict) ? req.query.verdict : 'shortlist';
   const limit = Math.min(parseInt(req.query.limit) || 100, 500);
   const where = [];
   const params = [];
@@ -67,7 +70,7 @@ router.get('/notices', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT n.id, n.external_ref, n.url, n.title, n.buyer_name, n.buyer_country, n.buyer_city,
               n.cpv_codes, n.published_at, n.closing_at, n.value_min, n.value_max, n.currency,
-              n.description, n.needs_manual_check, n.first_seen_at,
+              n.description, n.needs_manual_check, n.first_seen_at, n.verdict, n.verdict_reason,
               s.name AS source_name, s.market, s.kind AS source_kind,
               EXISTS (SELECT 1 FROM tender_chat_messages c WHERE c.notice_id = n.id) AS has_chat
        FROM tender_notices n LEFT JOIN tender_sources s ON s.id = n.source_id
@@ -90,16 +93,33 @@ router.get('/notices', async (req, res) => {
     // A notice the user added by hand is intentional — never hide it behind the
     // relevance filter (otherwise "added" but "can't find it").
     const isManual = r => r.source_kind === 'manual';
-    const keep = relevance === 'all' ? classified
+    const relKeep = relevance === 'all' ? classified
       : relevance === 'comms' ? classified.filter(r => r.tier !== 'noise' || isManual(r))
       : classified.filter(r => r.tier === 'match' || isManual(r));
 
-    // Best matches first, then soonest-closing (unknown deadlines last).
-    const rank = { match: 0, maybe: 1, noise: 2 };
-    keep.sort((a, b) => (rank[a.tier] - rank[b.tier])
+    // Verdict counts over the relevance-kept set, so the dropdown labels match
+    // what the current relevance view would show. Not-yet-scored counts toward
+    // the shortlist (pending), so nothing hides while the backlog qualifies.
+    const verdictOf = r => (['go', 'review', 'nogo'].includes(r.verdict) ? r.verdict : 'pending');
+    const vcounts = { shortlist: 0, go: 0, nogo: 0 };
+    for (const r of relKeep) {
+      const v = verdictOf(r);
+      if (v === 'nogo' && !isManual(r)) vcounts.nogo++; else vcounts.shortlist++;
+      if (v === 'go') vcounts.go++;
+    }
+
+    // Manual adds always survive the verdict filter too.
+    const keep = verdictView === 'all' ? relKeep
+      : verdictView === 'go' ? relKeep.filter(r => verdictOf(r) === 'go' || isManual(r))
+      : verdictView === 'nogo' ? relKeep.filter(r => verdictOf(r) === 'nogo' && !isManual(r))
+      : relKeep.filter(r => verdictOf(r) !== 'nogo' || isManual(r)); // shortlist
+
+    // Go first, then review/pending; within a tier, soonest-closing first.
+    const vrank = { go: 0, review: 1, pending: 1, nogo: 2 };
+    keep.sort((a, b) => (vrank[verdictOf(a)] - vrank[verdictOf(b)])
       || ((a.closing_at ? new Date(a.closing_at) : Infinity) - (b.closing_at ? new Date(b.closing_at) : Infinity)));
 
-    res.json({ notices: keep.slice(0, limit), counts });
+    res.json({ notices: keep.slice(0, limit), counts, vcounts });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

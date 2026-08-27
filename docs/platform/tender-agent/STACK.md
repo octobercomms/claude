@@ -169,6 +169,19 @@ source by flipping `tender_sources.enabled`.
   in the Tenders panel (stored via `/settings/platform-keys` → `platform_settings`
   + `process.env`). Canada (CanadaBuys) is also on.
 
+## Auto go/no-go qualifier (list-shrinker)
+
+The feeds surface ~5 new notices/day, so the list grows unmanageable. After each
+scan, `services/tender/score.js` `scoreUnscored()` runs October's go/no-go test
+(grounded in the bid profile) on every not-yet-scored notice and tags it
+`go` / `review` / `nogo` with a one-line reason (bounded to 60/run so the backlog
+clears over a run or two; a changed notice is re-scored — ingest nulls its
+verdict on a content-hash change). `GET /notices?verdict=` filters: **shortlist**
+(go + review + not-yet-scored — the default working list), **go**, **nogo** (the
+rejected pile, kept not deleted), **all**. Nothing is thrown away — a wrong reject
+is one dropdown away. Columns `verdict` / `verdict_reason` / `verdict_at`
+(migration 157).
+
 ## Relevance prefilter (brief §6 Stage 1 — shipped early)
 
 The feeds carry the whole of CPV div 79/92, so the raw list is mostly noise

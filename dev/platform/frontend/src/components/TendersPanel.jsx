@@ -33,14 +33,33 @@ function fmtValue(n, currency) {
   return `${sym}${Math.round(Number(n)).toLocaleString('en-GB')}`;
 }
 
+// Auto go/no-go verdict pill. null = not yet qualified.
+function VerdictBadge({ verdict, reason }) {
+  const map = {
+    go: { label: 'Go', bg: 'rgba(39,174,96,0.14)', fg: '#1e8449' },
+    review: { label: 'Review', bg: 'var(--surface-2, #f0f0f0)', fg: 'var(--text-subtle)' },
+    nogo: { label: 'No-go', bg: 'rgba(192,57,43,0.12)', fg: '#c0392b' },
+  };
+  const v = map[verdict];
+  if (!v) return <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }} title="Claude is still qualifying this one">qualifying…</span>;
+  return (
+    <span title={reason || ''} style={{
+      marginLeft: 8, fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 999,
+      background: v.bg, color: v.fg, whiteSpace: 'nowrap',
+    }}>{v.label}</span>
+  );
+}
+
 export default function TendersPanel() {
   const toast = useToast();
   const navigate = useNavigate();
   const [sources, setSources] = useState([]);
   const [notices, setNotices] = useState([]);
   const [counts, setCounts] = useState(null);
+  const [vcounts, setVcounts] = useState(null);
   const [market, setMarket] = useState('');
   const [relevance, setRelevance] = useState('match');
+  const [verdict, setVerdict] = useState('shortlist'); // go/no-go view
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
 
@@ -70,11 +89,12 @@ export default function TendersPanel() {
   async function loadNotices() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ upcoming: '1', relevance, limit: '300' });
+      const params = new URLSearchParams({ upcoming: '1', relevance, verdict, limit: '300' });
       if (market) params.set('market', market);
       const res = await api.get(`/tender/notices?${params.toString()}`);
       setNotices(res.notices || []);
       setCounts(res.counts || null);
+      setVcounts(res.vcounts || null);
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
   }
@@ -103,7 +123,7 @@ export default function TendersPanel() {
   }
 
   useEffect(() => { loadSources(); loadSettings(); loadCompany(); }, []); // eslint-disable-line
-  useEffect(() => { loadNotices(); }, [market, relevance]); // eslint-disable-line
+  useEffect(() => { loadNotices(); }, [market, relevance, verdict]); // eslint-disable-line
 
   async function runScan() {
     if (running) return;
@@ -197,6 +217,13 @@ export default function TendersPanel() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
           <div className="oview-grplabel" style={{ margin: 0 }}>Open notices{notices.length ? ` (${notices.length})` : ''}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select className="input" value={verdict} onChange={e => setVerdict(e.target.value)} style={{ width: 'auto' }}
+              title="Claude auto-runs the go/no-go test on every notice. Default shows the ones worth a look; No-go keeps the rejects out of your way but findable.">
+              <option value="shortlist">Worth a look{vcounts ? ` (${vcounts.shortlist})` : ''}</option>
+              <option value="go">Go only{vcounts ? ` (${vcounts.go})` : ''}</option>
+              <option value="nogo">No-go{vcounts ? ` (${vcounts.nogo})` : ''}</option>
+              <option value="all">All verdicts</option>
+            </select>
             <select className="input" value={relevance} onChange={e => setRelevance(e.target.value)} style={{ width: 'auto' }}>
               <option value="match">Creative-sector PR{counts ? ` (${counts.match})` : ''}</option>
               <option value="comms">All PR / comms{counts ? ` (${counts.match + counts.maybe})` : ''}</option>
@@ -224,7 +251,7 @@ export default function TendersPanel() {
         ) : !notices.length ? (
           <div className="empty" style={{ padding: 18 }}>
             {counts && counts.total > 0
-              ? <>No creative-sector PR tenders in the current feed. Switch to <strong>All PR / comms</strong> or <strong>Everything</strong> above to widen the filter.</>
+              ? <>Nothing worth a look in this view. Try <strong>No-go</strong> or <strong>All verdicts</strong>, or widen the relevance filter to <strong>All PR / comms</strong>.</>
               : <>Nothing ingested yet. Hit <strong>Run scan now</strong> to pull the latest notices from the live feeds.</>}
           </div>
         ) : (
@@ -256,7 +283,10 @@ export default function TendersPanel() {
                             deadline?
                           </span>
                         )}
-                        {n.relevance_reason && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>· {n.relevance_reason}</span>}
+                        <VerdictBadge verdict={n.verdict} reason={n.verdict_reason} />
+                        {(n.verdict_reason || n.relevance_reason) && (
+                          <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>· {n.verdict_reason || n.relevance_reason}</span>
+                        )}
                       </td>
                       <td style={tdStyle}>{n.buyer_name || '—'}</td>
                       <td style={tdStyle}>{(n.market || '').toUpperCase() || '—'}</td>
