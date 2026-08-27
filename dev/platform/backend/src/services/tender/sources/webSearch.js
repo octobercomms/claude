@@ -98,13 +98,14 @@ Return up to ${maxResults} opportunities. When done, output ONLY a JSON array (i
     "title": "notice title",
     "buyer": "the contracting organisation",
     "country": "${b.country}",
-    "url": "the canonical public notice URL",
+    "url": "the canonical OFFICIAL notice URL, or null (see URL RULES)",
+    "source": "the exact URL of the page you actually READ to find this notice (the search result, portal listing or aggregator page you opened) — this is your evidence, so it must be a real page you retrieved",
     "closing": "the submission deadline as YYYY-MM-DD (omit if genuinely unknown)",
     "value": "contract value if stated, e.g. £20,000 (omit if unknown)",
     "summary": "one sentence on the requirement"
   }
 ]
-No commentary outside the JSON block. If you genuinely find nothing relevant, return [].`;
+No commentary outside the JSON block. If you genuinely find nothing relevant, return []. Do not list an opportunity you have not actually seen on a page — every item needs a real "source".`;
 }
 
 // Pull the JSON array out of Claude's final text (it emits planning text between
@@ -186,13 +187,43 @@ async function searchMarket(client, marketName, { model, maxResults, maxSearches
     // web_fetch may not be enabled for this account — fall back to search only.
     log(`Web (${marketName}) web_fetch unavailable (${e.message}); retrying search-only`);
     try { message = await callSearchOnly(); }
-    catch (e2) { log(`Web search (${marketName}) failed: ${e2.message}`); return []; }
+    catch (e2) { log(`Web search (${marketName}) failed: ${e2.message}`); return { items: [], sourceUrls: new Set() }; }
   }
   try { recordClaudeCost({ model, response: message, feature: 'tender_web_search' }); } catch { /* non-fatal */ }
   const text = (message.content || []).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n');
   const items = extractArray(text);
   log(`Web (${marketName}): ${items.length} found`);
-  return items;
+  return { items, sourceUrls: extractSourceUrls(message) };
+}
+
+// Collect the URLs Claude actually retrieved this call — from web_search and
+// web_fetch tool-result blocks. These are the real pages behind the notices, so
+// we only trust a notice's "source" if it's one of them (or on the same host).
+function extractSourceUrls(message) {
+  const urls = new Set();
+  for (const b of (message.content || [])) {
+    if (!b || typeof b !== 'object') continue;
+    if (b.type === 'web_search_tool_result' || b.type === 'web_fetch_tool_result') {
+      const content = Array.isArray(b.content) ? b.content : (b.content ? [b.content] : []);
+      for (const c of content) { if (c && typeof c.url === 'string') urls.add(c.url); }
+    }
+  }
+  return urls;
+}
+
+function normUrl(u) {
+  try { const x = new URL(u); return `${x.host}${x.pathname}`.replace(/\/$/, '').toLowerCase(); }
+  catch { return null; }
+}
+
+// Keep a notice's reported source only if Claude really retrieved that page (or
+// one on the same host) — otherwise it can't be trusted as evidence.
+function verifySource(src, validNorms, validHosts) {
+  const s = (src || '').trim();
+  if (!/^https?:\/\//i.test(s)) return null;
+  let u; try { u = new URL(s); } catch { return null; }
+  if (validNorms.has(normUrl(s)) || validHosts.has(u.host.toLowerCase())) return s;
+  return null;
 }
 
 async function fetch(source, { log = () => {}, stats = {} } = {}) {
@@ -211,8 +242,15 @@ async function fetch(source, { log = () => {}, stats = {} } = {}) {
   // then merge. Each market gets its own dedicated search budget so recall on
   // the small, below-threshold notices stays high.
   const raw = [];
+  const validNorms = new Set();
+  const validHosts = new Set();
   for (const m of markets) {
-    raw.push(...await searchMarket(client, m, { model, maxResults, maxSearches, maxFetches, log }));
+    const { items, sourceUrls } = await searchMarket(client, m, { model, maxResults, maxSearches, maxFetches, log });
+    raw.push(...items);
+    for (const u of sourceUrls) {
+      const n = normUrl(u); if (n) validNorms.add(n);
+      try { validHosts.add(new URL(u).host.toLowerCase()); } catch { /* skip */ }
+    }
   }
   stats.scanned = raw.length;
 
@@ -226,9 +264,11 @@ async function fetch(source, { log = () => {}, stats = {} } = {}) {
     if (seen.has(external_ref)) continue; // dedupe across market passes
     seen.add(external_ref);
     const { closing_at, needs_manual_check } = resolveClosing(item.closing);
+    const source_url = verifySource(item.source, validNorms, validHosts);
     const n = {
       external_ref,
       url,
+      source_url,
       title,
       buyer_name: (item.buyer || '').trim() || null,
       buyer_country: (item.country || '').trim() || cfg.country || null,
@@ -240,7 +280,7 @@ async function fetch(source, { log = () => {}, stats = {} } = {}) {
       value_max: parseAmount(item.value),
       currency: null,
       description: (item.summary || '').trim() || null,
-      raw_payload: { via: 'web_search', url },
+      raw_payload: { via: 'web_search', url, source: source_url },
       needs_manual_check,
     };
     // Keep the niche (match + maybe); drop obvious noise the same way the API
