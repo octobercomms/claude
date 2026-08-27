@@ -87,6 +87,11 @@ CRITICAL:
 - Only include opportunities that are OPEN now, with a submission deadline in the future (after today). Never include closed, awarded or expired notices.
 - Don't stop after one search — keep searching different service×sector combinations and portals until you've been genuinely thorough.
 
+URL RULES (important — a wrong link destroys trust):
+- The "url" must be the canonical notice page on the OFFICIAL government portal or the buyer's own procurement site (Find a Tender, Contracts Finder, Public Contracts Scotland, Sell2Wales, CanadaBuys, TED, SAM.gov, or the buyer's own page).
+- NEVER link to an aggregator or reseller page (Infobrokers, Tussell, BidStats, TenderSignal, Jorpex, GovBid, and similar). Use those only to DISCOVER an opportunity — then find and link the official source. Their per-tender ids often mismatch the notice.
+- Only include a "url" you are confident resolves to THIS exact notice (same title and buyer). If you cannot identify the exact official URL, set "url" to null — do NOT guess or approximate. A missing link is fine; a wrong one is not.
+
 Return up to ${maxResults} opportunities. When done, output ONLY a JSON array (in a \`\`\`json code block), one object per opportunity:
 [
   {
@@ -115,6 +120,17 @@ function extractArray(text) {
   const end = text.lastIndexOf(']');
   if (start !== -1 && end > start) { const v = tryParse(text.slice(start, end + 1)); if (v) return v; }
   return [];
+}
+
+// Aggregator / reseller hosts that gate the real source behind a signup — the
+// model can't see the notice there and its per-tender ids often mismatch, so we
+// never keep a link to one (the row falls back to a title+buyer web search).
+const AGGREGATOR_HOSTS = /(^|\.)(tendersignal|infobrokers|tussell|bidstats|jorpex|govbid|biddingo|merx)\./i;
+function cleanUrl(url) {
+  const u = (url || '').trim();
+  if (!/^https?:\/\//i.test(u)) return null;
+  try { if (AGGREGATOR_HOSTS.test(new URL(u).host)) return null; } catch { return null; }
+  return u;
 }
 
 // A stable external_ref from the notice URL, so the same opportunity found on
@@ -204,7 +220,7 @@ async function fetch(source, { log = () => {}, stats = {} } = {}) {
   const notices = [];
   for (const item of raw) {
     const title = (item.title || '').trim();
-    const url = (item.url || '').trim() || null;
+    const url = cleanUrl(item.url);
     const external_ref = refFromUrl(url, title);
     if (!title || !external_ref) continue;
     if (seen.has(external_ref)) continue; // dedupe across market passes
