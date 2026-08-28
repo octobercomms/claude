@@ -14,6 +14,7 @@ import NewCampaignModal from '../components/NewCampaignModal';
 import PressCampaignDetail from '../components/PressCampaignDetail';
 import ImportWizard from '../components/ImportWizard';
 import SequenceBuilder from '../components/SequenceBuilder';
+import SelectiveOutreachPanel from '../components/SelectiveOutreachPanel';
 import { csvEscape } from '../utils/csv';
 import { useTabParam } from '../hooks/useTabParam';
 import { roWrite } from '../utils/readOnly';
@@ -138,7 +139,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   const [client, setClient] = useState(null);
   // When embedded (inside Owned → Email), use a separate ?etab= key so we don't
   // fight the host page over ?tab=.
-  const [tab, setTab] = useTabParam(embedded ? 'campaigns' : 'overview', ['overview', 'campaigns', 'contacts', 'tasks', 'sending'], embedded ? 'etab' : 'tab');
+  const [tab, setTab] = useTabParam(embedded ? 'campaigns' : 'overview', ['overview', 'campaigns', 'contacts', 'tasks', 'sending', 'prospecting'], embedded ? 'etab' : 'tab');
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);
@@ -495,6 +496,8 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
             { groupLabel: 'Run' },
             { key: 'sending',   title: 'Send',  sub: 'From your domain, tracked', status: (stats?.emails_sent || 0) > 0 ? 'done' : 'todo' },
             { key: 'tasks',     title: 'Chase', sub: 'Replies & follow-ups',      status: 'todo' },
+            { groupLabel: 'Prospect' },
+            { key: 'prospecting', title: 'Selective', sub: 'AI-sourced, you approve each', status: 'todo' },
           ]} />
         </div>
       ) : (
@@ -504,7 +507,12 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
           { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,  active: tab === 'contacts',  onClick: () => setTab('contacts') },
           { key: 'tasks',     label: 'Tasks',                                           active: tab === 'tasks',     onClick: () => setTab('tasks') },
           { key: 'sending',   label: 'Sending',                                         active: tab === 'sending',   onClick: () => setTab('sending') },
+          { key: 'prospecting', label: 'Selective outreach',                            active: tab === 'prospecting', onClick: () => setTab('prospecting') },
         ]} />
+      )}
+
+      {tab === 'prospecting' && (
+        <SelectiveOutreachPanel clientId={id} />
       )}
 
       {tab === 'tasks' && (
