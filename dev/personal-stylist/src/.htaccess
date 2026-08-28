@@ -1,0 +1,4 @@
+# Defence-in-depth: never serve PHP source directly, even if this folder ends
+# up inside the web root on a flat deploy. (When public/ is the web root, this
+# folder is already outside it.)
+Require all denied

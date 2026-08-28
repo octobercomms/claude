@@ -1,0 +1,17 @@
+# Front controller: route everything that isn't a real file/dir to index.php.
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
+
+# Baseline security headers.
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Never serve dotfiles.
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
