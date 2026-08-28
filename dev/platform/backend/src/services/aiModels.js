@@ -50,6 +50,14 @@ const FEATURES = [
   { group: 'Tender agent', items: [
     { key: 'tender_score', label: 'Go/no-go qualifier', sensitive: false },
   ] },
+  { group: 'Selective outreach', items: [
+    // Research + scoring see only PUBLIC company data — safe on DeepSeek.
+    { key: 'outreach_research', label: 'Prospect research (web search)', sensitive: false },
+    { key: 'outreach_score', label: 'Prospect fit-gate', sensitive: false },
+    // Drafting sees the sender's identity + the conversation — keep on Claude.
+    { key: 'outreach_draft', label: 'Outbound message drafting', sensitive: true },
+    { key: 'outreach_reply', label: 'Reply drafting', sensitive: true },
+  ] },
   { group: 'Outreach & leads', items: [
     { key: 'outreach_write_sequence', label: 'Outreach sequences', sensitive: false },
     { key: 'outreach_refine_audience', label: 'Outreach audience refine', sensitive: false },

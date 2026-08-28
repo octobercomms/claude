@@ -152,4 +152,7 @@ product must enforce the guardrails so no tenant can turn it into a spam cannon.
   client (client-connected via SMTP/OAuth vs October-provisioned), and the
   warm-up/ESP choice.
 
-_Status: design agreed, not yet built. Author to review before code._
+_Status: **built** (all phases). Shipped as the `prospecting_*` module — see
+`docs/platform/outreach/README.md` for what landed and how it maps to the phases
+above. Sending goes live once a client's dedicated domain is authenticated
+(SPF/DKIM/DMARC) and its identity is marked verified._
