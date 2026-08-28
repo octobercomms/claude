@@ -12,12 +12,8 @@
 //            non-cultural) or not biddable (deadline gone, wrong scale/geography).
 
 const pool = require('../../db');
-const Anthropic = require('@anthropic-ai/sdk');
 const claude = require('../claude');
-const costLog = require('../costLog');
 const profile = require('./profile');
-
-const MODEL = 'claude-sonnet-4-6';
 
 function parseJson(text) {
   if (!text) return null;
@@ -53,15 +49,17 @@ Respond with ONLY a JSON object: {"verdict":"go|review|nogo","reason":"<= 14 wor
 }
 
 async function scoreNotice(notice, { profileMd } = {}) {
-  const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
-  const resp = await client.messages.create({
-    model: MODEL,
+  // Route through callClaude so this honours Settings → AI models (the go/no-go
+  // test only sees public tender data + October's own profile — no client data —
+  // so it's safe to run on DeepSeek to save money). Cost logging + model routing
+  // are handled inside callClaude.
+  const text = await claude.callClaude({
     max_tokens: 150,
-    system: claude.cacheableSystem(system(profileMd)),
-    messages: [{ role: 'user', content: `Qualify this tender:\n\n${noticeLine(notice)}` }],
+    system: system(profileMd),
+    user: `Qualify this tender:\n\n${noticeLine(notice)}`,
+    feature: 'tender_score',
   });
-  try { costLog.recordClaudeCost({ model: MODEL, response: resp, feature: 'tender_score' }); } catch { /* best effort */ }
-  const obj = parseJson(resp.content.find(b => b.type === 'text')?.text || '');
+  const obj = parseJson(text);
   const verdict = ['go', 'review', 'nogo'].includes(obj?.verdict) ? obj.verdict : 'review';
   const reason = String(obj?.reason || '').trim().slice(0, 200) || null;
   return { verdict, reason };

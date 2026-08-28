@@ -47,6 +47,9 @@ const FEATURES = [
     { key: 'local_seo_ranking_playbook', label: 'Local SEO playbook', sensitive: false },
     { key: 'local_seo_competitor_xray', label: 'Local SEO competitor x-ray', sensitive: false },
   ] },
+  { group: 'Tender agent', items: [
+    { key: 'tender_score', label: 'Go/no-go qualifier', sensitive: false },
+  ] },
   { group: 'Outreach & leads', items: [
     { key: 'outreach_write_sequence', label: 'Outreach sequences', sensitive: false },
     { key: 'outreach_refine_audience', label: 'Outreach audience refine', sensitive: false },
