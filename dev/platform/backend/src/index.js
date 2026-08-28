@@ -156,6 +156,9 @@ const pixelLimiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 app.use('/api/unsubscribe', require('./routes/unsubscribe'));
 // SES bounce/complaint webhook — mounted before auth so SNS can POST to it.
 app.use('/api/ses', require('./routes/sesWebhook'));
+// Public Selective Outreach opt-out — no auth, token-gated. Before auth so a
+// recipient can always unsubscribe (natural-language link + one-click header).
+app.use('/api/prospecting-optout', require('./routes/prospectingOptout'));
 // Public Growth Snapshot front door (embedded on octobercomms.com). No auth —
 // its own strict limiter + daily cap + SSRF guard live in the route/service.
 app.use('/api/public/snapshot', require('./routes/publicSnapshot'));
@@ -202,6 +205,7 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/security', require('./routes/security'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/tender', require('./routes/tender'));
+app.use('/api/prospecting', require('./routes/prospecting'));
 app.use('/api/outreach', require('./routes/outreach'));
 app.use('/api/press', require('./routes/press'));
 app.use('/api/pr', require('./routes/pr'));

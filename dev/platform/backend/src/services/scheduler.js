@@ -61,6 +61,26 @@ cron.schedule('35 6 * * 1', async () => { // weekly (Monday) — it's the only p
   } catch (e) { console.error('[Scheduler] Tender web search failed:', e.message); }
 });
 
+// Selective Outreach — dispatch approved messages that are due. Every 15 minutes
+// keeps sending human-paced (never round-the-clock bursts) while respecting each
+// campaign's daily cap. Nothing here sends anything that wasn't approved by a
+// human; the compliance gates all live in services/prospecting/send.js.
+cron.schedule('*/15 * * * *', async () => {
+  try {
+    const r = await require('./prospecting/send').dispatchDue({ log: (m) => console.log('[Scheduler]', m) });
+    if (r.sent) console.log(`[Scheduler] Outreach dispatch: ${r.sent} sent, ${r.deferred} held (cap)`);
+  } catch (e) { console.error('[Scheduler] Outreach dispatch failed:', e.message); }
+});
+// Selective Outreach — weekly auto-sourcing (Monday 07:15). It's the paid
+// web-search step, so it stays low-frequency like the tender search; everything
+// it finds lands in the approval queue for a human to approve or dismiss.
+cron.schedule('15 7 * * 1', async () => {
+  try {
+    const r = await require('./prospecting/research').sourceAllActive({ log: (m) => console.log('[Scheduler]', m) });
+    if (r.added) console.log(`[Scheduler] Outreach research: ${r.added} prospect(s) added across ${r.campaigns} campaign(s)`);
+  } catch (e) { console.error('[Scheduler] Outreach research failed:', e.message); }
+});
+
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
   console.log('[Scheduler] Running weekly reports...');
