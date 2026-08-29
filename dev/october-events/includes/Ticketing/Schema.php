@@ -20,6 +20,7 @@ final class Schema {
     public static function checkins(): string { global $wpdb; return $wpdb->prefix . 'oe_checkins'; }
     public static function promos(): string   { global $wpdb; return $wpdb->prefix . 'oe_promo_codes'; }
     public static function waitlist(): string  { global $wpdb; return $wpdb->prefix . 'oe_waitlist'; }
+    public static function abandoned(): string  { global $wpdb; return $wpdb->prefix . 'oe_abandoned_carts'; }
 
     public static function install(): void {
         global $wpdb;
@@ -121,6 +122,37 @@ final class Schema {
             PRIMARY KEY  (id),
             KEY event_id (event_id),
             KEY status (status)
+        ) {$charset};");
+
+        // Abandoned carts — a draft of an in-progress checkout, saved as the
+        // buyer types and updated in place (one row per attempt, keyed by
+        // session_key). Flipped to 'recovered' if the same email later pays.
+        // First-party conversion analytics only; auto-purged after retention.
+        $abandoned = self::abandoned();
+        dbDelta("CREATE TABLE {$abandoned} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            session_key VARCHAR(64) NOT NULL DEFAULT '',
+            event_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            email VARCHAR(190) NOT NULL DEFAULT '',
+            name VARCHAR(190) NOT NULL DEFAULT '',
+            cart LONGTEXT NULL,
+            attendee_names LONGTEXT NULL,
+            item_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+            promo_code VARCHAR(50) DEFAULT NULL,
+            subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+            discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+            total DECIMAL(10,2) NOT NULL DEFAULT 0,
+            currency VARCHAR(3) DEFAULT 'USD',
+            furthest_step VARCHAR(20) NOT NULL DEFAULT 'cart',
+            status VARCHAR(20) NOT NULL DEFAULT 'open',
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY session_key (session_key),
+            KEY event_id (event_id),
+            KEY email (email),
+            KEY status (status),
+            KEY updated_at (updated_at)
         ) {$charset};");
     }
 }

@@ -143,6 +143,13 @@ final class RestApi {
             'callback'            => [$this, 'waitlist_join'],
             'permission_callback' => '__return_true',
         ]);
+        // Cart-abandonment capture — the checkout front-end saves a draft of an
+        // in-progress order (conversion analytics only; no card data).
+        register_rest_route(self::NS, '/cart-abandonment', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'cart_abandonment'],
+            'permission_callback' => '__return_true',
+        ]);
 
         // Check-in PWA (PIN-gated, not WP-login gated).
         register_rest_route(self::NS, '/checkin-events', [
@@ -687,6 +694,30 @@ final class RestApi {
         if (! $id) {
             return new \WP_REST_Response(['error' => 'Could not join the waitlist.'], 400);
         }
+        return new \WP_REST_Response(['ok' => true], 200);
+    }
+
+    /**
+     * Save/update an in-progress checkout draft (cart abandonment). Public and
+     * best-effort — always returns 200 (a failed save must never disrupt the
+     * buyer's checkout). No card data is accepted or stored.
+     */
+    public function cart_abandonment(\WP_REST_Request $req): \WP_REST_Response {
+        // Generous limit — the front-end saves periodically as fields change.
+        if (! $this->rl('cart_abandon', 60)) {
+            return new \WP_REST_Response(['ok' => true], 200);
+        }
+        $cart = $req->get_param('cart');
+        \OE\Ticketing\Abandonment::capture([
+            'session_key'    => (string) $req->get_param('session_key'),
+            'event_id'       => absint($req->get_param('event_id')),
+            'email'          => (string) $req->get_param('email'),
+            'name'           => (string) $req->get_param('name'),
+            'cart'           => is_array($cart) ? $cart : [],
+            'attendee_names' => $this->attendee_names_param($req),
+            'promo_code'     => (string) $req->get_param('promo_code'),
+            'step'           => (string) $req->get_param('step'),
+        ]);
         return new \WP_REST_Response(['ok' => true], 200);
     }
 
@@ -1237,6 +1268,10 @@ final class RestApi {
         $buyer = ['email' => sanitize_email((string) ($meta['email'] ?? '')), 'name' => sanitize_text_field((string) ($meta['name'] ?? ''))];
 
         $order = \OE\Ticketing\Orders::create_cart($event_id, $lines, $buyer, $intent_id, $method, 'public', $promo, $attendees, $discount);
+        if (! is_wp_error($order) && $buyer['email'] !== '') {
+            // A completed purchase — clear any abandonment drafts for this buyer.
+            \OE\Ticketing\Abandonment::mark_recovered($buyer['email'], $event_id);
+        }
         return is_wp_error($order) ? null : $order;
     }
 

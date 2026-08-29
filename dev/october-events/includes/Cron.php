@@ -95,6 +95,9 @@ final class Cron {
         // Daily ticket sales report (if any sold today).
         $this->run_sales_report();
 
+        // Retention: drop abandoned-cart drafts past the retention window.
+        \OE\Ticketing\Abandonment::purge();
+
         // Monthly digest: hard-disabled for now (DIGEST_ENABLED). When re-enabled
         // it will run only when opted in, on the first Monday, once per month.
         if (self::DIGEST_ENABLED && (bool) Settings::get('digest_enabled', false) && self::is_first_monday()) {

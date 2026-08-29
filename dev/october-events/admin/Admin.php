@@ -218,6 +218,8 @@ final class Admin {
             TicketsAdmin::get_instance()->render_analytics();
         } elseif ($tab === 'failed') {
             TicketsAdmin::get_instance()->render_failed_payments();
+        } elseif ($tab === 'abandoned') {
+            TicketsAdmin::get_instance()->render_abandoned_carts();
         } elseif ($tab === 'transactions') {
             TicketsAdmin::get_instance()->render_transactions();
         } else {
@@ -236,6 +238,7 @@ final class Admin {
             'waitlist' => [__('Waitlist', 'october-events'),      admin_url('admin.php?page=oe-tickets&tab=waitlist')],
             'checkin'  => [__('Check-in log', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=checkin')],
             'failed'   => [__('Failed payments', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=failed')],
+            'abandoned' => [__('Abandoned carts', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=abandoned')],
         ];
         echo '<h2 class="nav-tab-wrapper">';
         foreach ($tabs as $key => $t) {
