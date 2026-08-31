@@ -98,9 +98,11 @@ against these vars and ports across once vendor selectors are dropped.
   Advice Hub), then chat questions (project type, property status, free-text
   scope/budget/timeline, optional file), then lead capture. Outcomes are
   configured per Studio (Qualified & Booking / Not Ready / Out of Scope tabs).
-- **Email gate** = currently a Brevo-hosted iframe embedded in the single
-  "Asset Drawer" popup (#848); unlocking sets a session flag and `?u=1`.
-  Recommend rebuilding it as an OCF-native gate (server-side, consistent).
+- **Email gate** = a Brevo-hosted iframe embedded in the single "Asset Drawer"
+  popup (#848); unlocking sets a session flag and `?u=1`. **Decision: keep the
+  Brevo iframe embed**, but make the form UID a **per-client setting** (today
+  it's hardcoded in popup #848) so each client points at their own Brevo form.
+  The `?u=1` session-unlock behaviour is reproduced by the plugin's own modal.
 
 ### Tracking
 GA4 (`G-V85R42JXZH`, plus a second ID to confirm) via **Site Kit**, site-wide,
@@ -153,13 +155,18 @@ readme.txt
 6. Tracking + server-side remind bar.
 7. Preset import/export + self-updater + `build-zip.sh`.
 
+## Decisions made
+- **Email gate:** keep the **Brevo iframe embed**, exposed as a per-client
+  setting (form UID) rather than hardcoded.
+- **Seed content:** ship the **architect demo set** (20 guides + landing copy,
+  finished copy) as the built-in dummy.
+- **Forms engine:** October Forms as a dependency (not forked).
+- **Render mode:** standalone full-page on plugin-owned routes.
+
 ## Open decisions
-- [ ] **Email gate:** OCF-native form (recommended) vs keep the Brevo iframe.
-- [ ] **Seed content:** ship the architect demo set (20 guides + copy) as the
-  built-in dummy (recommended — clients are architects/design studios) vs generic.
 - [ ] **Plugin slug** `october-serious-buyer` — confirm.
 - [ ] The `*_gated` "Image" third state — what it's for.
-- [ ] Rotate the exposed Brevo key.
+- [ ] Rotate the exposed Brevo key (operational, outside the build).
 
 ## Harvest
 Full source-of-truth notes from the live site are in `docs/oc-serious/harvest/`
