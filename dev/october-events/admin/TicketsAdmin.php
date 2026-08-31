@@ -822,16 +822,58 @@ final class TicketsAdmin {
 
     public function maybe_export_orders(): void {
         $type = isset($_GET['oe_export']) ? sanitize_key((string) $_GET['oe_export']) : '';
-        if (! in_array($type, ['orders', 'attendees'], true) || ! current_user_can('manage_options')) {
+        if (! in_array($type, ['orders', 'attendees', 'abandoned'], true) || ! current_user_can('manage_options')) {
             return;
         }
         check_admin_referer('oe_export');
         $event = isset($_GET['event']) ? absint($_GET['event']) : 0;
         if ($type === 'attendees') {
             $this->export_attendees($event);
+        } elseif ($type === 'abandoned') {
+            $this->export_abandoned($event);
         } else {
             $this->export_orders($event);
         }
+    }
+
+    /** One row per abandoned/in-progress checkout draft. Honours the event filter. */
+    private function export_abandoned(int $event): void {
+        $rows = \OE\Ticketing\Abandonment::recent(['limit' => 500, 'event_id' => $event]);
+        $out  = $this->csv_headers('abandoned-carts', $event);
+        fputcsv($out, ['Event', 'State', 'Email', 'Name', 'Tickets', 'Items', 'Total', 'Currency', 'Promo', 'Furthest step', 'Started', 'Last activity']);
+        foreach ($rows as $r) {
+            $items = [];
+            foreach ((array) $r->items as $li) {
+                $items[] = ((int) ($li['qty'] ?? 0)) . '× ' . (string) ($li['label'] ?? ($li['type_key'] ?? '?'));
+            }
+            fputcsv($out, [
+                get_the_title((int) $r->event_id),
+                $r->state,
+                $r->email,
+                $r->name,
+                implode('; ', $items),
+                $r->item_count,
+                $r->total,
+                $r->currency,
+                (string) ($r->promo_code ?? ''),
+                $r->furthest_step,
+                $r->created_at,
+                $r->updated_at,
+            ]);
+        }
+        fclose($out);
+        exit;
+    }
+
+    /**
+     * Abandoned carts — in-progress checkouts that didn't complete, with whatever
+     * the buyer entered, so conversion drop-off is visible. Data-only (no cards).
+     */
+    public function render_abandoned_carts(): void {
+        $event = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        $stats = \OE\Ticketing\Abandonment::stats();
+        $rows  = \OE\Ticketing\Abandonment::recent(['limit' => 300, 'event_id' => $event]);
+        require OE_DIR . 'admin/views/abandoned-carts.php';
     }
 
     /** One row per order (financial view). Honours the event filter. */

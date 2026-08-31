@@ -23,6 +23,9 @@
     // amount, and whether the buyer ticked the voluntary "add membership" opt-in.
     // (A member-only rate auto-includes membership for non-members — no opt-in.)
     joinInline: false, joinAmount: 0, optIn: false, optinBuilt: false,
+    // Cart-abandonment capture: a per-attempt key + a "purchase finished" flag
+    // so we stop saving (and don't re-open a recovered draft) once they're done.
+    abandonKey: '', completed: false,
   };
 
   function rest(path, body) {
@@ -56,6 +59,7 @@
     bindWaitlist();
     bindMemberEmail();
     bindJoinToggle();
+    bindAbandonCapture();
     updateSummary();
   }
 
@@ -253,6 +257,67 @@
     });
   }
 
+  /* ---- Cart abandonment capture ----
+     Saves a draft of the in-progress checkout (tickets, name, email, attendee
+     names, total) so the shop owner can see where buyers drop off. Data-only —
+     no card details, and the server flips the draft to "recovered" if this email
+     later completes. Best-effort: never blocks or errors the checkout. */
+  var abandonTimer = null;
+  function newSessionKey() {
+    try {
+      var k = window.sessionStorage.getItem('octAbandonKey_' + state.eventId);
+      if (k) { return k; }
+    } catch (e) { /* private mode — fall through */ }
+    var key = 'oa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    try { window.sessionStorage.setItem('octAbandonKey_' + state.eventId, key); } catch (e2) { /* ignore */ }
+    return key;
+  }
+  function abandonBody(step) {
+    return {
+      session_key: state.abandonKey,
+      event_id: state.eventId,
+      email: $('#oct-email').val() ? $('#oct-email').val().trim() : '',
+      name: $('#oct-name').val() ? $('#oct-name').val().trim() : '',
+      cart: cartParam(),
+      attendee_names: getAttendeeNames(),
+      promo_code: state.promoValid ? state.promoCode : '',
+      step: step || 'cart',
+    };
+  }
+  // Only worth saving once they've entered an email or picked a ticket.
+  function worthSaving(b) { return b.email !== '' || (b.cart && b.cart.length > 0); }
+  function captureAbandon(step) {
+    if (state.completed || !state.abandonKey) { return; }
+    var b = abandonBody(step);
+    if (!worthSaving(b)) { return; }
+    rest('/cart-abandonment', b);
+  }
+  function scheduleAbandon(step) {
+    if (state.completed) { return; }
+    clearTimeout(abandonTimer);
+    abandonTimer = setTimeout(function () { captureAbandon(step); }, 1200);
+  }
+  // Fire-and-forget on page exit (can't rely on an async XHR completing).
+  function beaconAbandon() {
+    if (state.completed || !state.abandonKey || !navigator.sendBeacon) { return; }
+    var b = abandonBody('exit');
+    if (!worthSaving(b)) { return; }
+    try {
+      navigator.sendBeacon(cfg.restUrl + '/cart-abandonment', new Blob([JSON.stringify(b)], { type: 'application/json' }));
+    } catch (e) { /* ignore */ }
+  }
+  function bindAbandonCapture() {
+    state.abandonKey = newSessionKey();
+    $('#oct-email, #oct-name').on('input', function () { scheduleAbandon('details'); });
+    // Attendee-name inputs are injected dynamically — capture via delegation.
+    $(document).on('input', '.oct-attendee-name', function () { scheduleAbandon('details'); });
+    // Save on exit and when the tab is hidden (mobile: pagehide is the reliable one).
+    $(window).on('pagehide', beaconAbandon);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') { beaconAbandon(); }
+    });
+  }
+
   /* ---- Summary ---- */
   function updateSummary() {
     var cart = readCart();
@@ -307,6 +372,7 @@
       $bnplEst.text('As low as ' + currencySymbol + (displayTotal / 4).toFixed(2) + ' × 4 interest-free payments');
     }
     updateAttendeeNames(cart);
+    scheduleAbandon('cart'); // persist the latest cart snapshot (debounced)
 
     // A free ticket that now carries a membership must go through the card (the $5
     // membership is the only charge) rather than the free "Complete Registration".
@@ -363,6 +429,7 @@
     // Free ticket + membership: the $5 membership is the only charge — take the
     // membership-only path (subscribe on-session, then issue the free ticket).
     if (joiningEffective() && state.total === 0) { handleMembershipOnly(name, email); return; }
+    captureAbandon('payment'); // record that they reached the pay step
     hideCardError(); setProcessing(true, '#oct-pay-card');
 
     rest('/ticket-intent', payload(name, email)).then(function (res) {
@@ -428,6 +495,7 @@
     if (!readCart().length) { fail('Please choose at least one ticket.'); return; }
     if (!checkTerms()) { fail('Please agree to the Terms & Conditions.'); return; }
     if (joiningEffective()) { fail('Pay-over-time isn’t available with the membership rate — choose the standard ticket, or pay by card.'); return; }
+    captureAbandon('payment'); // record that they reached the pay step
     setProcessing(true, '#oct-pay-installments');
     var body = payload(name, email);
     body.return_url = location.href.split('#')[0].split('?')[0];
@@ -445,6 +513,7 @@
   function handleBnplReturn() {
     var q = window.location.search || '';
     if (/[?&]oe_paid=1/.test(q)) {
+      state.completed = true; // paid via hosted BNPL — stop capture
       $('#oct-checkout-form').hide();
       $('#oct-success').show();
       var $links = $('#oct-ticket-links');
@@ -587,6 +656,7 @@
 
   /* ---- Success ---- */
   function showSuccess(tickets, joined) {
+    state.completed = true; // stop abandonment capture — this order is done
     $('#oct-checkout-form').hide();
     $('#oct-success').show();
     var $note = $('#oct-join-confirm');

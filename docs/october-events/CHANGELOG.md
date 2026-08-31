@@ -5,6 +5,32 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.87.0 — Abandoned-cart capture (see where checkouts drop off)
+
+New **Tickets → Abandoned carts** tab. As a shopper fills in the ticket
+checkout, the page quietly saves a draft of what they've entered — tickets and
+quantities, name, email, attendee names, promo code, and the running total —
+and how far they got (choosing tickets → entered details → reached payment →
+left the page). If they don't finish, it shows as an abandoned cart; if the same
+email later completes a purchase, the draft is automatically marked
+**recovered**. The tab shows headline numbers (abandoned count, value not
+converted, later-purchased, recovery rate, in-progress now) plus a table of
+recent drafts, with a CSV export.
+
+The point is to learn where conversion breaks down — e.g. lots of people
+reaching the pay step but not finishing, or the same ticket abandoned over and
+over.
+
+Notes:
+- **No card data is ever captured** — Stripe handles cards; this only stores
+  what's typed into our own form.
+- **First-party analytics only.** The captured contact details are for your
+  analysis; they are not marketed to. Drafts auto-purge after 90 days.
+- Capture is best-effort and never blocks or slows a real checkout. Saving is
+  debounced as fields change, with a final save when the buyer reaches payment
+  or leaves the page. Adds one DB table (`oe_abandoned_carts`; DB schema → 12,
+  auto-migrates on upgrade).
+
 ## 1.86.0 — Claude prompt caching + a model picker (lower AI cost, no retired model)
 
 Two changes to the AI features (AI Stories + the support chat):
