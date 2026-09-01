@@ -144,7 +144,12 @@
       addMsg('bot', escapeHtml(res.body.message));
       renderPackage(res.body.package);
       renderOptions(res.body.options);
-      if (res.body.done) { done = true; clearOptions(); input.placeholder = 'All set — submit your project on the right.'; }
+      if (res.body.done) {
+        done = true; clearOptions();
+        input.placeholder = 'That’s everything — thank you.';
+        // The email is the last thing we need, so submit automatically — no button click required.
+        if (res.body.hasEmail) { doSubmit(); }
+      }
       setBusy(false);
       if (!done) input.focus({ preventScroll: true });
       // If they clicked submit before giving an email, Archie asked for it; now
@@ -172,10 +177,10 @@
   // Submit — needs an email so the studio can reply. If none yet, the server
   // returns needEmail and Archie asks for it in the chat; once the person gives
   // it, the message handler above auto-retries this for them.
-  var pendingSubmit = false, submitOriginal = submitBtn.textContent;
+  var pendingSubmit = false, submitOriginal = submitBtn.textContent, submitted = false;
   function doSubmit() {
-    if (submitBtn.disabled) return;
-    submitBtn.disabled = true; submitOriginal = submitBtn.textContent; submitBtn.textContent = 'Saving…';
+    if (submitted) return;
+    submitBtn.disabled = true; submitOriginal = submitBtn.textContent; submitBtn.textContent = 'Sending…';
     post('submit', {}).then(function (res) {
       var d = res.body || {};
       if (d.needEmail) {
@@ -186,7 +191,7 @@
         return;
       }
       if (d.checkoutUrl) { window.location.href = d.checkoutUrl; return; }
-      pendingSubmit = false;
+      pendingSubmit = false; submitted = true;
       addMsg('bot', escapeHtml(d.message || 'Project saved.') + (d.ref ? ' <strong>(ref ' + d.ref + ')</strong>' : ''), 'note');
       submitBtn.textContent = 'Submitted ✓';
     }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = submitOriginal; });
