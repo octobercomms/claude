@@ -313,7 +313,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     let h = pressRelease.buildEmailHtml({
       release: releaseWithHero, pitch: cached.intro, sender,
       recipientName: contact.name, embedFull: release.embed_full_release !== false,
-      contactId: contact.id, clientId,
+      contactId: contact.id, clientId, campaignId,
     });
     h = rewriteLinksForTracking(h, sendId);
     if (sendId && process.env.PLATFORM_URL) {
