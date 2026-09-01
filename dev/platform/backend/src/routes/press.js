@@ -93,9 +93,11 @@ router.post('/clients/:clientId/releases', async (req, res) => {
       );
     }
     await dbClient.query('COMMIT');
-    // Seed intelligent, distinct subject lines from the release (best-effort —
-    // the campaign is already saved; a failure just leaves the title defaults).
-    pressRelease.applyGeneratedSubjects(rows[0].id).catch(e => console.warn('[press] subject seed failed:', e.message));
+    // Seed intelligent, distinct subject lines from the release BEFORE returning,
+    // so the campaign lands fully built (subjects ready). Tolerant — a failure
+    // just leaves the title defaults; the campaign is already saved.
+    try { await pressRelease.applyGeneratedSubjects(rows[0].id); }
+    catch (e) { console.warn('[press] subject seed failed:', e.message); }
     res.status(201).json({ ...rows[0], campaign_id: campaign.id });
   } catch (err) {
     await dbClient.query('ROLLBACK');
