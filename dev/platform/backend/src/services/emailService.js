@@ -899,6 +899,26 @@ async function sendIgDiscoveryDigest({ clientName, searchName, prospects }) {
   });
 }
 
+// Press interest alert — the 24/7 watcher spotted a journalist showing real
+// interest in a press campaign (repeat opens / a click). One email to the AM so
+// they can strike while it's warm. Sent at most once per journalist per campaign.
+async function sendPressInterestAlert({ clientName, contactName, outlet, score, reason }) {
+  if (!process.env.ALERT_EMAIL) return;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:20px;">
+      <h2 style="margin:0 0 6px;color:#1a1a1a;">A journalist is warming up 🔥</h2>
+      <p style="color:#444;margin:0 0 14px;"><strong>${escapeForTemplate(contactName)}</strong>${outlet ? ` at ${escapeForTemplate(outlet)}` : ''} is showing real interest in the <strong>${escapeForTemplate(clientName)}</strong> press campaign — ${escapeForTemplate(reason || 'high engagement')}.</p>
+      <p style="color:#666;font-size:13px;margin:0 0 4px;">They've been flagged <strong>warm</strong> and surfaced on ${escapeForTemplate(clientName)}'s coverage dashboard. A quick, personal follow-up now converts interest into coverage.</p>
+      <p style="color:#aaa;font-size:11px;margin-top:28px;">October Marketing Intelligence — press interest watch. Sent once per journalist per campaign.</p>
+    </div>`;
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject: `🔥 Warm journalist: ${contactName} — ${clientName}`,
+    html,
+  });
+}
+
 // Reel "swipe file" result — the transcript plus a Claude idea card, mailed back
 // to whoever pasted the URL.
 async function sendSwipeIdea({ to, clientName, url, platform, title, transcript, card }) {
@@ -1036,4 +1056,4 @@ async function sendCertExpiryAlert({ problems = [], alertDays = 14 }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest };
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert };

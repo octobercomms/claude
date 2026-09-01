@@ -51,7 +51,16 @@ router.get('/track/open/:sendId', pixelLimiter, async (req, res) => {
   // write when the signature is missing / wrong.
   if (verifyTrackSig({ sendId: req.params.sendId, kind: 'open', sig: req.query.s })) {
     try {
-      await pool.query('UPDATE outreach_sends SET opened_at = NOW() WHERE id = $1 AND opened_at IS NULL', [req.params.sendId]);
+      // Count every open (not just the first) + remember the most recent, so the
+      // interest watcher can read repeat-open behaviour.
+      await pool.query(
+        `UPDATE outreach_sends
+            SET opened_at = COALESCE(opened_at, NOW()), open_count = open_count + 1, last_opened_at = NOW()
+          WHERE id = $1`,
+        [req.params.sendId]
+      );
+      // Re-score interest for this journalist (fire-and-forget; press only).
+      require('../services/pressInterest').onEngagement(req.params.sendId).catch(() => {});
     } catch { /* always return the pixel */ }
   }
   res.set('Content-Type', 'image/gif');
@@ -99,6 +108,8 @@ router.get('/track/click/:sendId', clickLimiter, async (req, res) => {
       'UPDATE outreach_sends SET opened_at = COALESCE(opened_at, NOW()) WHERE id = $1',
       [req.params.sendId]
     );
+    // A click is the strongest interest signal — re-score now (press only).
+    require('../services/pressInterest').onEngagement(req.params.sendId, { clicked: true }).catch(() => {});
   } catch { /* always redirect regardless */ }
   res.redirect(302, url);
 });

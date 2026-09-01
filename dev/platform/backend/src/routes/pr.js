@@ -119,11 +119,13 @@ router.get('/clients/:clientId/journalists', async (req, res) => {
               COUNT(*) FILTER (WHERE l.status IN ('published','download')) AS published,
               COUNT(*) FILTER (WHERE l.status = 'pitched') AS pitched,
               COUNT(*) FILTER (WHERE l.status = 'declined') AS declined,
-              MAX(CASE WHEN l.status IN ('published','download') THEN COALESCE(l.issue_date, l.request_date) END) AS last_featured
+              MAX(CASE WHEN l.status IN ('published','download') THEN COALESCE(l.issue_date, l.request_date) END) AS last_featured,
+              occ.warm_at, occ.warm_reason, occ.interest_score
        FROM outreach_contacts c
        JOIN pr_editorial_log l ON l.contact_id = c.id AND l.client_id = $1 AND l.status NOT IN ('new','dismissed')
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
-       GROUP BY c.id, o.name, o.tier
+       LEFT JOIN outreach_contact_clients occ ON occ.contact_id = c.id AND occ.client_id = $1
+       GROUP BY c.id, o.name, o.tier, occ.warm_at, occ.warm_reason, occ.interest_score
        ORDER BY published DESC, total DESC
        LIMIT 200`,
       [req.params.clientId]
@@ -139,8 +141,37 @@ router.get('/clients/:clientId/journalists', async (req, res) => {
           last_featured: r.last_featured,
           strength: str.score, strength_label: str.label,
           gone_quiet: pr.isGoneQuiet(+r.published, ts),
+          warm: !!r.warm_at, warm_reason: r.warm_reason, interest_score: r.interest_score || 0,
         };
       }),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Warm journalists for a client — those the press interest watcher has flagged
+// as showing real interest (repeat opens / a click), regardless of whether they
+// already appear in the coverage log. Powers the client dashboard "showing
+// interest" strip so the client sees live buzz immediately.
+router.get('/clients/:clientId/warm-journalists', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT c.id, TRIM(CONCAT(COALESCE(c.first_name,''),' ',COALESCE(c.last_name,''))) AS name,
+              c.name AS full_name, o.name AS outlet, occ.warm_at, occ.warm_reason, occ.interest_score
+         FROM outreach_contact_clients occ
+         JOIN outreach_contacts c ON c.id = occ.contact_id
+         LEFT JOIN pr_outlets o ON o.id = c.outlet_id
+        WHERE occ.client_id = $1 AND occ.warm_at IS NOT NULL
+        ORDER BY occ.interest_score DESC, occ.warm_at DESC
+        LIMIT 100`,
+      [req.params.clientId]
+    );
+    res.json({
+      items: rows.map(r => ({
+        id: r.id,
+        name: (r.name || '').trim() || r.full_name || 'A journalist',
+        outlet: r.outlet || null,
+        warm_at: r.warm_at, warm_reason: r.warm_reason, interest_score: r.interest_score || 0,
+      })),
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
