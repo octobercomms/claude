@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.5.2
+Stable tag: 0.5.3
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,13 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.5.3 =
+* Archie now writes plain text only (no stray ** asterisks in replies).
+* Fixed the price-panel caption that still said "survey included where added" —
+  it now reads "survey & structural sourced separately".
+* Clearer finish: once Archie has your details it asks you to press "Save &
+  submit project" to send it, instead of implying it is already submitted.
 
 = 0.5.2 =
 * Client portal wrapper padding removed (was 24px/18px) so page-builder

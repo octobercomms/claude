@@ -87,7 +87,7 @@ class YAA_Shortcode {
 					<div class="ob-panel-foot">
 						<div class="redirect-banner" id="redirectBanner"><strong><?php esc_html_e( 'A better fit for a full commission', 'your-architect-archie' ); ?></strong><p><?php esc_html_e( 'A project this size or scope is usually best handled by Tiam Architects. You can still submit here, or request a consultation.', 'your-architect-archie' ); ?></p></div>
 						<div class="total-row"><span class="t-label"><?php esc_html_e( 'Total', 'your-architect-archie' ); ?></span><span class="t-amt" id="totalAmt">£0</span></div>
-						<p class="total-sub" id="totalSub"><?php esc_html_e( 'Fixed price · survey included where added', 'your-architect-archie' ); ?></p>
+						<p class="total-sub" id="totalSub"><?php esc_html_e( 'Fixed price · survey & structural sourced separately', 'your-architect-archie' ); ?></p>
 						<div class="quote-meta" id="quoteMeta" hidden>
 							<div><?php esc_html_e( 'Delivery in', 'your-architect-archie' ); ?> <strong id="mDelivery">3–7 working days</strong></div>
 							<div><span id="mRevisions">2 revisions included</span></div>
