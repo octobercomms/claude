@@ -93,6 +93,7 @@ export default function ClientPRPage() {
   const [pressReleases, setPressReleases] = useState([]);
   const [pressContacts, setPressContacts] = useState([]);
   const [openPressCampaign, setOpenPressCampaign] = useState(null); // campaign_id
+  const [pressAutoBuild, setPressAutoBuild] = useState(false); // auto-build audience on land (fresh campaigns only)
   const [showPressWizard, setShowPressWizard] = useState(false);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -539,8 +540,8 @@ export default function ClientPRPage() {
     // A press campaign open? Show its full send/preview/autopilot/results view.
     if (openPressCampaign) {
       return (
-        <PressCampaignDetail clientId={id} campaignId={openPressCampaign} contacts={pressContacts}
-          onExit={() => { setOpenPressCampaign(null); reloadPress(); }} />
+        <PressCampaignDetail clientId={id} campaignId={openPressCampaign} contacts={pressContacts} autoBuild={pressAutoBuild}
+          onExit={() => { setOpenPressCampaign(null); setPressAutoBuild(false); reloadPress(); }} />
       );
     }
     return (
@@ -561,7 +562,7 @@ export default function ClientPRPage() {
                 <thead><tr><th>Release</th><th>Created</th><th></th><th></th></tr></thead>
                 <tbody>
                   {pressReleases.map((r) => (
-                    <tr key={r.id} style={{ cursor: r.campaign_id ? 'pointer' : 'default' }} onClick={() => r.campaign_id && setOpenPressCampaign(r.campaign_id)}>
+                    <tr key={r.id} style={{ cursor: r.campaign_id ? 'pointer' : 'default' }} onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}>
                       <td>{r.title || '(untitled release)'}</td>
                       <td>{fmtDate(r.created_at)}</td>
                       <td style={{ textAlign: 'right' }}>{r.campaign_id ? <span className="chip chip-accent">open →</span> : <span className="chip">draft</span>}</td>
@@ -1094,7 +1095,8 @@ export default function ClientPRPage() {
           onCreated={(saved) => {
             setShowPressWizard(false);
             reloadPress();
-            if (saved?.campaign_id) { setTab('journalists'); setOpenPressCampaign(saved.campaign_id); }
+            // Fresh campaign → land on it and auto-build the audience.
+            if (saved?.campaign_id) { setTab('journalists'); setPressAutoBuild(true); setOpenPressCampaign(saved.campaign_id); }
           }}
         />
       )}

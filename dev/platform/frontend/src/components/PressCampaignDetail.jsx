@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
@@ -20,7 +20,7 @@ function AttrStat({ value, label, big }) {
   );
 }
 
-export default function PressCampaignDetail({ clientId, campaignId, contacts, onExit }) {
+export default function PressCampaignDetail({ clientId, campaignId, contacts, onExit, autoBuild = false }) {
   const toast = useToast();
   const { readOnly, user } = useAuth();
   const [release, setRelease] = useState(null);
@@ -103,6 +103,18 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
     } catch (e) { toast(e.message, 'error'); }
     finally { setAutopiloting(false); }
   }
+
+  // Freshly-created campaign: auto-build the audience the moment the release
+  // loads, so the AM lands on a finished page (subjects already seeded on the
+  // server at create) with nothing to click. Runs once.
+  const autoBuiltRef = useRef(false);
+  useEffect(() => {
+    if (autoBuild && release && !autoBuiltRef.current) {
+      autoBuiltRef.current = true;
+      runAutopilot();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoBuild, release]);
 
   async function doPasteImport() {
     if (!pasteText.trim() || !release) return;
