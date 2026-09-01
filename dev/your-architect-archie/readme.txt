@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.5.0
+Stable tag: 0.5.1
 License: GPLv2 or later
 
 Archie — the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,12 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.5.1 =
+* Fix the Delete button on a project (and the "Save draft" button) showing blank
+  until hover — a base button style was overriding their text colour.
+* Client portal now fills the width of its page container (was capped at 1000px),
+  so it can be used full-width in a page template.
 
 = 0.5.0 =
 * New pricing model: a SERVICE MENU instead of two fixed packages. Archie asks

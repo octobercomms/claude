@@ -726,7 +726,7 @@ class YAA_Projects_Admin {
 		.yaa-wf-block { border-top:1px solid var(--line); margin-top:16px; padding-top:16px; }
 		.yaa-wf-block h3 { margin:0 0 10px; color:var(--navy); font-size:1rem; }
 		.yaa-inline { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px; }
-		.yaa-btn.ghost { background:#fff; color:var(--navy); border:2px solid var(--line); }
+		.yaa-btn.ghost { background:#fff; color:var(--navy) !important; border:2px solid var(--line); }
 		.yaa-btn { border:0; cursor:pointer; font-family:inherit; font-size:.9rem; }
 		.yaa-input { width:100%; border:2px solid var(--line); border-radius:9px; padding:9px 12px; font-family:inherit; margin:4px 0 12px; }
 		.yaa-email-form label { font-weight:600; font-size:.85rem; color:var(--ink); }
@@ -750,7 +750,7 @@ class YAA_Projects_Admin {
 		.yaa-bulk-del[disabled] { opacity:.55; cursor:not-allowed; }
 		.yaa-bulk-hint { color:var(--muted); font-size:.82rem; }
 		.yaa-head-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
-		.yaa-btn.danger { background:#fff; color:#c0392b; border:2px solid #f0c9c4; }
+		.yaa-btn.danger { background:#fff; color:#c0392b !important; border:2px solid #f0c9c4; }
 		.yaa-btn.danger:hover { background:#c0392b; color:#fff !important; border-color:#c0392b; }
 		.yaa-upload { display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--bg); padding:12px; border-radius:10px; }
 		.yaa-upload .yaa-input { width:auto; flex:1; min-width:140px; margin:0; }
