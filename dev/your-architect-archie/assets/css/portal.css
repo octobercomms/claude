@@ -1,6 +1,6 @@
 /* Your Architect – Archie — client portal. Matches the site (navy + Plus Jakarta). */
 .yaa-portal { --navy:#253E94; --blue:#2f5fe0; --ink:#1a2233; --muted:#6b7488; --line:#e6e9f2; --bg:#f6f8fd;
-  font-family:'Plus Jakarta Sans',system-ui,sans-serif; color:var(--ink); max-width:1000px; margin:0 auto; padding:24px 18px; }
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif; color:var(--ink); max-width:100%; margin:0 auto; padding:0; }
 .yaa-portal * { box-sizing:border-box; }
 .yaa-portal .yp-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
 .yaa-portal .yp-brand { font-weight:800; font-size:1.3rem; color:var(--navy); }

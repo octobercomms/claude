@@ -63,8 +63,7 @@ class YAA_Portal {
 		ob_start();
 		?>
 		<div class="yaa-portal">
-			<header class="yp-head">
-				<div class="yp-brand">Your Architect</div>
+			<header class="yp-head" style="justify-content:flex-end">
 				<div class="yp-ref"><?php echo $project->ref ? 'Ref ' . esc_html( $project->ref ) : ''; ?></div>
 			</header>
 

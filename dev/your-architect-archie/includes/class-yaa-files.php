@@ -69,7 +69,11 @@ class YAA_Files {
 
 	/** upload_dir filter: redirect wp_handle_upload into the secure directory. */
 	public static function to_secure( $dirs ) {
-		$secure = self::secure_dir();
+		// IMPORTANT: build the path from the $dirs already passed in — do NOT call
+		// secure_dir()/wp_upload_dir() here, or this filter re-triggers itself and
+		// recurses infinitely (stack overflow). The directory + guard files are
+		// created by the secure_dir() call in store_uploaded() before this runs.
+		$secure = trailingslashit( $dirs['basedir'] ) . 'yaa-secure';
 		$dirs['path']   = $secure;
 		$dirs['url']    = '';       // no public URL — access is via the endpoint only.
 		$dirs['subdir'] = '';
@@ -146,10 +150,24 @@ class YAA_Files {
 		$label      = sanitize_text_field( wp_unslash( $_POST['label'] ?? '' ) );
 		$source     = sanitize_text_field( wp_unslash( $_POST['source'] ?? '' ) );
 
+		$err = '';
 		if ( $project_id && ! empty( $_FILES['file']['name'] ) ) {
-			self::store_uploaded( $project_id, 'file', $kind, $label, $source );
+			try {
+				$res = self::store_uploaded( $project_id, 'file', $kind, $label, $source );
+				if ( is_wp_error( $res ) ) {
+					$err = $res->get_error_message();
+				}
+			} catch ( \Throwable $e ) {
+				$err = $e->getMessage();
+				error_log( 'YAA file upload failed: ' . $e->getMessage() ); // phpcs:ignore
+			}
 		}
-		wp_safe_redirect( add_query_arg( array( 'page' => YAA_Projects_Admin::SLUG, 'project' => $project_id ), admin_url( 'admin.php' ) ) . '#files' );
+		$args = array( 'page' => YAA_Projects_Admin::SLUG, 'project' => $project_id );
+		if ( '' !== $err ) {
+			set_transient( 'yaa_upload_err_' . get_current_user_id(), $err, 120 );
+			$args['notice'] = 'file_failed';
+		}
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) . '#files' );
 		exit;
 	}
 
