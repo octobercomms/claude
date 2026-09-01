@@ -90,4 +90,49 @@ Only include ids from the list. If none fit, return [].`;
   return { suggestions, candidates: pool_.length };
 }
 
-module.exports = { proposeAudience, candidatePool };
+// Suggest which AUDIENCE SEGMENTS (tags) fit this story — the scalable way to
+// build a press list of hundreds/thousands, versus hand-picking a few dozen
+// names. Claude chooses from the tags that actually exist in the media
+// database, so selecting them resolves to real contacts.
+async function suggestTags({ releaseId }) {
+  const { rows: relRows } = await pool.query(
+    `SELECT pr.*, c.name AS client_name, c.briefing_field
+       FROM outreach_press_releases pr JOIN clients c ON c.id = pr.client_id WHERE pr.id = $1`,
+    [releaseId]
+  );
+  if (!relRows.length) throw new Error('Press release not found');
+  const release = relRows[0];
+
+  const { rows: tagRows } = await pool.query(
+    `SELECT t AS tag, COUNT(*)::int AS count
+       FROM outreach_contacts c CROSS JOIN LATERAL UNNEST(c.tags) t
+      WHERE c.kind IN ('media','industry') AND c.email IS NOT NULL AND c.email <> ''
+        AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
+      GROUP BY t ORDER BY count DESC LIMIT 200`
+  );
+  if (!tagRows.length) return { suggested_tags: [], tags_available: 0 };
+
+  const storyText = (release.body_html || release.summary || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1500);
+  const tagList = tagRows.map(t => `${t.tag} (${t.count})`).join(', ');
+  const system = 'You choose which journalist audience segments (tags) to pitch a story to, for a press release distribution. British English.';
+  const user = `Choose the audience tags whose journalists are the right fit for THIS story, from the tags that exist in the media database below. Pick generously enough to reach a real press list (usually hundreds to thousands of journalists), but stay relevant — don't include clearly unrelated beats.
+
+CLIENT: ${release.client_name}
+STORY: ${release.title}
+${storyText}
+
+AVAILABLE TAGS — "name (journalist count)":
+${tagList}
+
+Return ONLY a JSON array of tag names, copied exactly as written above (without the counts).`;
+  const text = await claude.callClaude({ max_tokens: 400, system, user, feature: 'press_audience', clientId: release.client_id });
+  let arr = [];
+  const fence = text.match(/```json\s*([\s\S]*?)```/i) || text.match(/```\s*(\[[\s\S]*?\])\s*```/);
+  const bodyText = fence ? fence[1] : text.slice(text.indexOf('['), text.lastIndexOf(']') + 1);
+  try { const v = JSON.parse(bodyText.trim()); if (Array.isArray(v)) arr = v; } catch { /* none */ }
+  const valid = new Set(tagRows.map(t => t.tag));
+  const suggested = arr.map(s => String(s).trim()).filter(t => valid.has(t));
+  return { suggested_tags: suggested, tags_available: tagRows.length };
+}
+
+module.exports = { proposeAudience, candidatePool, suggestTags };

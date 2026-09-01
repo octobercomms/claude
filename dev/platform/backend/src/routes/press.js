@@ -149,23 +149,54 @@ router.post('/media/sweep', async (req, res) => {
   } catch (err) { res.status(502).json({ error: err.message }); }
 });
 
-// One-paste autopilot — Claude reads the story + client brief and proposes the
-// best-fit journalists from the media database (with a reason each). Returns a
-// review bundle; nothing sends until the AM approves. Per-recipient drafts are
-// generated on preview/send (deep, personalised).
+// One-paste autopilot — Claude reads the story + client brief and picks the
+// AUDIENCE SEGMENTS (tags) that fit, so the list scales to hundreds/thousands.
+// Returns the suggested tags; the UI resolves them to real recipients.
 router.post('/releases/:id/autopilot', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT client_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
     assertClientAccess(req, rows[0].client_id);
-    const out = await require('../services/pressAutopilot').proposeAudience({
-      releaseId: req.params.id, limit: Math.min(parseInt(req.body?.limit, 10) || 60, 150),
-    });
+    const out = await require('../services/pressAutopilot').suggestTags({ releaseId: req.params.id });
     res.json(out);
   } catch (err) {
     console.error('[press] autopilot failed:', err.message);
     res.status(502).json({ error: err.message });
   }
+});
+
+// All audience tags in the media library, with journalist counts — the chips the
+// AM clicks to build a list. Global (kind media/industry, contactable).
+router.get('/tags', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT t AS tag, COUNT(*)::int AS count
+         FROM outreach_contacts c CROSS JOIN LATERAL UNNEST(c.tags) t
+        WHERE c.kind IN ('media','industry') AND c.email IS NOT NULL AND c.email <> ''
+          AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
+        GROUP BY t ORDER BY count DESC, t ASC LIMIT 300`
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Resolve selected tags → the recipients (ANY-of / overlap). Returns the total,
+// every matching contact id (for send), and a sample for display.
+router.get('/audience', async (req, res) => {
+  const tags = String(req.query.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+  if (!tags.length) return res.json({ total: 0, ids: [], sample: [] });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, email, company, contact_type, tags
+         FROM outreach_contacts c
+        WHERE c.kind IN ('media','industry') AND c.email IS NOT NULL AND c.email <> ''
+          AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
+          AND c.tags && $1::text[]
+        ORDER BY c.name LIMIT 20000`,
+      [tags]
+    );
+    res.json({ total: rows.length, ids: rows.map(r => r.id), sample: rows.slice(0, 200) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Paste-and-sort import — Claude extracts contacts from whatever's pasted,
