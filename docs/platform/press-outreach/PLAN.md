@@ -70,6 +70,49 @@ named feature so it's model-routable in Settings → AI models and cost-logged.
 
 ---
 
+## The one-paste autopilot (the front door)
+
+Paste the URL and walk away — Claude runs the whole setup like an account exec,
+in the background (minutes is fine), then hands over a review screen. Decision:
+**full setup → one-click approve → sends on pacing** (nothing sends unreviewed,
+but approval is a single action, not per-email).
+
+The autopilot pass, per release:
+1. **Reads the release** and loads what it already knows — October, the client,
+   the client's briefing/brand.
+2. **Sources the audience** from the whole journalist DB — who fits THIS story by
+   beat / outlet / coverage history — with a visible reason per pick.
+3. **Writes every email deeply personal.** The non-negotiable quality bar:
+   *super relevant and personal, never a generic AI version with a name swapped
+   in.* Each pitch references something true about that journalist's actual
+   recent coverage. Runs on **Opus**, researches each recipient. Personalisation
+   depth is a first-class quality gate, not a nice-to-have.
+4. **Sets the sequence + timings.**
+5. **Review screen**: suggested recipients (+ why), every drafted email, all
+   editable; one-click approve → sends on pacing.
+
+## The 24/7 watcher — the exec that never sleeps
+
+- Continuously watches opens/clicks and **alerts the AM when a journalist shows
+  real interest** — read as a signal blend (default: 3+ opens, OR any link click,
+  OR two opens within an hour), with a per-client threshold slider. Not a single
+  static "10 opens".
+- Standout journalists are flagged **"warm"** and pushed to the **client
+  dashboard coverage/PR area** (decision) so the client sees live interest
+  immediately.
+- Needs repeat-open counting (Phase 4) + an interest-scoring pass + the
+  client-coverage handoff.
+
+## Preview / test / import / export — everywhere
+
+Consistent affordances across the flow:
+- **Preview**: wizard body, each journalist's email, whole-campaign at a glance,
+  the audience list.
+- **Test-send**: from the campaign, from a single journalist's draft, and a
+  "send me all N as a test batch".
+- **Import**: paste-and-sort on the campaign audience AND the master contacts list.
+- **Export**: the audience, send results/analytics (CSV), the media list.
+
 ## Phased build
 
 ### Phase 1 — Make the press flow usable
@@ -103,12 +146,16 @@ Maps: #5, #15, #21, #22 + deliverability additions.
   whole send).
 - Bounce/complaint hardening; **send-window / timezone** (business hours, not 3am).
 
-### Phase 4 — Analytics & lists
-Maps: #16, #17, #18, #19, #20.
+### Phase 4 — Analytics, lists & the 24/7 watcher
+Maps: #16, #17, #18, #19, #20 + the interest watcher.
 - Campaign dashboard: **open %/#, click %/#**; sortable **who-opened-how-many /
   who-clicked-what** table.
 - **Repeat-open counting** (add `outreach_opens` events or an `open_count`).
 - **Unsubscribes** list and **spam / do-not-contact** list, with manual add.
+- **Interest watcher**: score engagement continuously; **alert the AM** on real
+  interest; flag journalists **"warm"** and push them to the **client dashboard
+  coverage/PR area**. Per-client threshold slider (default: 3+ opens / any click /
+  two opens within an hour).
 
 ### Phase 5 — Claude, keeper of the media DB
 Smart import + hygiene.
@@ -147,4 +194,12 @@ The always-on researcher.
 - Media DB freshness: % contacts verified/active, moves caught, dead records
   retired — trending up with zero manual effort.
 
-_Status: plan agreed (decisions locked). Building in phases; each phase ships._
+### Phase 7 — The one-paste autopilot (capstone)
+Depends on Phase 3 (global targeting) + deep per-recipient personalisation.
+- Background orchestration: read release → source audience (with reasons) →
+  research + write each email on Opus → set timings → review screen → one-click
+  approve → send on pacing. See "The one-paste autopilot" above. The felt
+  centrepiece; built once its dependencies land so the magic is real, not shallow.
+
+_Status: plan agreed (decisions locked, incl. one-paste autopilot + 24/7 warm
+watcher → client dashboard). Building in phases; each phase ships. Phase 1 done._
