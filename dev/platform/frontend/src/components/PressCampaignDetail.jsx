@@ -52,6 +52,9 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasting, setPasting] = useState(false);
+  // One-paste autopilot.
+  const [suggestions, setSuggestions] = useState(null);
+  const [autopiloting, setAutopiloting] = useState(false);
 
   useEffect(() => {
     setLoadError(null);
@@ -86,6 +89,19 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  }
+
+  async function runAutopilot() {
+    if (!release) return;
+    setAutopiloting(true);
+    try {
+      const r = await api.post(`/press/releases/${release.id}/autopilot`, {});
+      setSuggestions(r.suggestions || []);
+      // Pre-select all suggestions so it's a one-click approve to send.
+      setSelected(prev => { const n = new Set(prev); (r.suggestions || []).forEach(su => n.add(su.contact_id)); return n; });
+      toast(`Autopilot picked ${r.suggestions?.length || 0} journalists from ${r.candidates} in your database.`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setAutopiloting(false); }
   }
 
   async function doPasteImport() {
@@ -287,7 +303,32 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
       {view === 'setup' && (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 18 }}>
         <div>
-          <div className="h3">Pick journalists</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="h3">Pick journalists</div>
+            <button {...roWrite(readOnly, { onClick: runAutopilot, disabled: autopiloting })} className="btn btn-primary btn-sm">
+              {autopiloting ? '✨ Building…' : '✨ Auto-build audience'}
+            </button>
+          </div>
+          {suggestions && (
+            <div style={{ marginBottom: 10, padding: 10, border: '1px solid var(--accent)', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                ✨ Autopilot picked {suggestions.length} for this story — review &amp; send
+              </div>
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                {!suggestions.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No strong matches found — add journalists or search the library below.</div>}
+                {suggestions.map(su => (
+                  <label key={su.contact_id} className="row center" style={{ gap: 8, padding: '6px 4px', borderTop: 'var(--border-w) solid rgba(0,0,0,0.06)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selected.has(su.contact_id)} onChange={() => toggle(su.contact_id)} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>{su.name || '(no name)'}{su.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {su.company}</span>}{su.on_client_list ? <span className="chip" style={{ marginLeft: 6 }}>on list</span> : null}</div>
+                      {su.reason ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{su.reason}</div> : null}
+                    </div>
+                    <button onClick={(e) => { e.preventDefault(); preview(su.contact_id); }} type="button" className="btn btn-secondary btn-sm">preview</button>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           <input value={filter} onChange={e => setFilter(e.target.value)}
             placeholder="filter by name, outlet or beat…"
             className="input" style={{ marginBottom: 10 }} />

@@ -131,6 +131,25 @@ router.get('/campaigns/:id/release', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// One-paste autopilot — Claude reads the story + client brief and proposes the
+// best-fit journalists from the media database (with a reason each). Returns a
+// review bundle; nothing sends until the AM approves. Per-recipient drafts are
+// generated on preview/send (deep, personalised).
+router.post('/releases/:id/autopilot', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rows[0].client_id);
+    const out = await require('../services/pressAutopilot').proposeAudience({
+      releaseId: req.params.id, limit: Math.min(parseInt(req.body?.limit, 10) || 60, 150),
+    });
+    res.json(out);
+  } catch (err) {
+    console.error('[press] autopilot failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // Paste-and-sort import — Claude extracts contacts from whatever's pasted,
 // dedupes/merges into the media library, and attaches them to this client (and
 // the campaign, if given). Returns a summary the UI can show + undo from.
