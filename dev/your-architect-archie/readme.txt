@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.5.5
+Stable tag: 0.5.6
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,13 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.5.6 =
+* Fixed the "I need advice" path showing the full service menu under unrelated
+  questions (e.g. when Archie asked for your email or name). Archie now flags the
+  advice/contact path so those open questions no longer get service chips.
+* Admin file upload no longer white-screens on failure: a failed upload now shows
+  the reason as an admin notice instead of a critical error, and is caught + logged.
 
 = 0.5.5 =
 * Removed the duplicate "Your Architect" wordmark inside the client portal (the

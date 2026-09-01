@@ -105,7 +105,7 @@ class YAA_Archie {
 			'',
 			'THE INFORMATION TO COLLECT (ask in this order, and SKIP anything that clearly does not apply):',
 			'1) the property address (already asked in the opener);',
-			'2) WHICH SERVICE they need — offer the menu above in plain words as tappable options, plus "I\'m not sure / I need advice". Help them pick if unsure. Set the `service` field. ' . $advice,
+			'2) WHICH SERVICE they need — offer the menu above in plain words as tappable options, plus "I\'m not sure / I need advice". Help them pick if unsure. Set the `service` field. ' . $advice . ' The MOMENT they choose the advice path (or clearly want to talk to someone rather than pick a service), set advice=true and STAY in advice mode: offer a free 15-minute call or to take their email so the team can get back to them, and do NOT present the service menu again. Asking for their email or their name are open questions — never offer tappable options for those.',
 			'3) briefly, what the work physically is (a rear/side extension, loft, garage, outbuilding, internal work, a new home) — for our notes; set projectType if clear. Keep it to one light question, do not labour it.',
 			'4) the relevant add-ons for their service (see the add-ons list): for Full planning, whether we submit & manage the application; the optional 3D visualisation; and the site visit ONLY if they are in London / the M25.',
 			'5) "Do you have existing plans of your property drawn up?" — plain words for a measured survey (an accurate set of drawings of the property as it is today, which we need before designing). If YES → survey=false. If NO or "I\'d like the pro to help" → survey=true and reassure: "' . $survey_help . '"',
@@ -171,6 +171,7 @@ class YAA_Archie {
 					'properties' => array(
 						'address'     => array( 'type' => 'string' ),
 						'service'     => array( 'type' => 'string', 'enum' => $service_keys, 'description' => 'the base service the homeowner needs, chosen from the service menu' ),
+						'advice'      => array( 'type' => 'boolean', 'description' => 'true if the person is unsure what they need or wants advice / to talk to someone rather than pick a service from the menu' ),
 						'projectType' => array( 'type' => 'string', 'enum' => array( 'extension', 'loft', 'garage', 'outbuilding', 'internal', 'newdwelling' ), 'description' => 'optional context — what the work physically is' ),
 						'storeys'     => array( 'type' => 'string', 'description' => 'for a rear/side extension: single, two, or unsure' ),
 						'submitApp'   => array( 'type' => 'boolean', 'description' => 'true if they want us to submit & manage the planning application (planning service only)' ),
@@ -194,7 +195,7 @@ class YAA_Archie {
 	}
 
 	/** Fields the tool may write into state (`replies` is deliberately excluded — it drives the UI, not the record). */
-	private static $allowed = array( 'address', 'service', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
+	private static $allowed = array( 'address', 'service', 'advice', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
 
 	/**
 	 * Run one conversational turn.
@@ -319,6 +320,13 @@ class YAA_Archie {
 		$has      = function ( $k ) use ( $s ) {
 			return array_key_exists( $k, $s );
 		};
+
+		// Advice / contact-capture path (or once we already hold an email): the
+		// remaining questions are open (call vs email, the email, their name), so
+		// never fall back to the service menu here.
+		if ( ! empty( $s['advice'] ) || ! empty( $s['email'] ) ) {
+			return array();
+		}
 
 		// 1) Which service? — labels straight from the editable menu, plus an advice path.
 		if ( ! $svc ) {

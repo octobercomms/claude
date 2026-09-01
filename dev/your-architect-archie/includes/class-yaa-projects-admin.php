@@ -461,6 +461,11 @@ class YAA_Projects_Admin {
 			'sent'         => array( 'ok', 'Email sent to the client.' ),
 			'send_failed'  => array( 'err', 'Could not send — check the recipient and email settings.' ),
 		);
+		if ( 'file_failed' === $notice ) {
+			$why = get_transient( 'yaa_upload_err_' . get_current_user_id() );
+			delete_transient( 'yaa_upload_err_' . get_current_user_id() );
+			$notices['file_failed'] = array( 'err', 'Upload failed: ' . ( $why ? $why : 'check the file type/size and your server error log.' ) );
+		}
 		$post_url = admin_url( 'admin-post.php' );
 		ob_start();
 		?>
