@@ -30,7 +30,11 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
   }
 
   async function doFetch(seedUrl) {
-    const u = (seedUrl ?? url).trim();
+    // Called both programmatically (doFetch(urlString)) and straight from the
+    // Fetch button's onClick, which passes a click event — only treat a string
+    // argument as a seed URL, otherwise fall back to the input value.
+    const seed = typeof seedUrl === 'string' ? seedUrl : undefined;
+    const u = (seed ?? url).trim();
     if (!u) return;
     setFetching(true);
     try {
