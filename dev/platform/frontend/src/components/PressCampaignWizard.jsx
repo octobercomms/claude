@@ -40,6 +40,10 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
     try {
       const p = await api.post('/press/parse', { url: u });
       setParsed(p);
+      // Skip the review step — build the campaign straight away and land the AM
+      // on the finished page to edit everything there. If create fails, the
+      // parsed preview + Create button below remain as a fallback.
+      await save(p);
     } catch (e) {
       toast(`Could not fetch: ${e.message}`, 'error');
     } finally {
@@ -54,12 +58,13 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
     // eslint-disable-next-line
   }, [initialUrl]);
 
-  async function save() {
-    if (!parsed) return;
+  async function save(fromParsed) {
+    const body = (fromParsed && !fromParsed.nativeEvent) ? fromParsed : parsed;
+    if (!body) return;
     setSaving(true);
     try {
-      const saved = await api.post(`/press/clients/${clientId}/releases`, parsed);
-      toast('Press campaign created.', 'success');
+      const saved = await api.post(`/press/clients/${clientId}/releases`, body);
+      toast('Building your campaign…', 'success');
       onCreated?.(saved);
     } catch (e) {
       toast(`Save failed: ${e.message}`, 'error');
@@ -83,7 +88,7 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
           <input value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && doFetch()}
             placeholder="https://downloadfor.press/press-releases/your-release-slug/"
             className="input" style={{ flex: 1 }} />
-          <button {...roWrite(readOnly, { onClick: doFetch, disabled: fetching || !url.trim() })} className="btn btn-primary">{fetching ? 'Fetching…' : 'Fetch'}</button>
+          <button {...roWrite(readOnly, { onClick: doFetch, disabled: fetching || saving || !url.trim() })} className="btn btn-primary">{(fetching || saving) ? 'Building…' : 'Fetch & build'}</button>
         </div>
 
         {parsed && (
