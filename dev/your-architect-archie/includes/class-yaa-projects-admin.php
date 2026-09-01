@@ -123,6 +123,9 @@ class YAA_Projects_Admin {
 		$pid = (int) ( $_POST['project_id'] ?? 0 );
 		$eid = (int) ( $_POST['email_id'] ?? 0 );
 		$res = YAA_Email::send( $eid );
+		if ( is_wp_error( $res ) ) {
+			set_transient( 'yaa_send_err_' . get_current_user_id(), $res->get_error_message(), 120 );
+		}
 		self::back( $pid, is_wp_error( $res ) ? 'send_failed' : 'sent' );
 	}
 
@@ -465,6 +468,13 @@ class YAA_Projects_Admin {
 			$why = get_transient( 'yaa_upload_err_' . get_current_user_id() );
 			delete_transient( 'yaa_upload_err_' . get_current_user_id() );
 			$notices['file_failed'] = array( 'err', 'Upload failed: ' . ( $why ? $why : 'check the file type/size and your server error log.' ) );
+		}
+		if ( 'send_failed' === $notice ) {
+			$why = get_transient( 'yaa_send_err_' . get_current_user_id() );
+			delete_transient( 'yaa_send_err_' . get_current_user_id() );
+			if ( $why ) {
+				$notices['send_failed'] = array( 'err', 'Could not send: ' . $why . ' — set up an email service (Brevo API key in Settings, or an SMTP plugin).' );
+			}
 		}
 		$post_url = admin_url( 'admin-post.php' );
 		ob_start();

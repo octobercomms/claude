@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.5.7
+Stable tag: 0.5.8
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,11 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.5.8 =
+* The "Could not send" confirmation-email error now shows the actual reason
+  (e.g. wp_mail failure) plus a hint to set up an email service, instead of a
+  generic message.
 
 = 0.5.7 =
 * Fixed the critical error when uploading a document/drawing in the admin. The
