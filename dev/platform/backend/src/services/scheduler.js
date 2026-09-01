@@ -81,6 +81,16 @@ cron.schedule('15 7 * * 1', async () => {
   } catch (e) { console.error('[Scheduler] Outreach research failed:', e.message); }
 });
 
+// Media-database account exec — weekly byline/outlet research to keep the
+// journalist DB true (moves applied, quiet contacts flagged for archiving). It's
+// the paid web-search step, so it's weekly and bounded per run.
+cron.schedule('20 5 * * 0', async () => {
+  try {
+    const r = await require('./pressMediaResearch').sweep({ limit: 25, log: (m) => console.log('[Scheduler]', m) });
+    if (r.checked) console.log(`[Scheduler] Media DB sweep: ${r.checked} checked, ${r.moved} moves, ${r.quiet} gone quiet`);
+  } catch (e) { console.error('[Scheduler] Media DB sweep failed:', e.message); }
+});
+
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
   console.log('[Scheduler] Running weekly reports...');

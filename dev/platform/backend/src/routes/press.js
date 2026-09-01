@@ -131,6 +131,19 @@ router.get('/campaigns/:id/release', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Run the media-database research sweep on demand (the weekly cron does this
+// automatically). Keeps the journalist DB fresh — moves applied, quiet contacts
+// flagged for archiving.
+router.post('/media/sweep', async (req, res) => {
+  try {
+    const out = await require('../services/pressMediaResearch').sweep({
+      limit: Math.min(parseInt(req.body?.limit, 10) || 15, 40),
+      log: (m) => console.log('[press]', m),
+    });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: err.message }); }
+});
+
 // One-paste autopilot — Claude reads the story + client brief and proposes the
 // best-fit journalists from the media database (with a reason each). Returns a
 // review bundle; nothing sends until the AM approves. Per-recipient drafts are
