@@ -122,7 +122,12 @@ router.get('/campaigns/:id/release', async (req, res) => {
     if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
       return res.status(403).json({ error: 'Not authorised for this client' });
     }
-    res.json(rows[0]);
+    // Include every step (subject + timing) so the UI can render + edit all four.
+    const { rows: steps } = await pool.query(
+      'SELECT step_number, subject, delay_days FROM outreach_sequences WHERE campaign_id = $1 ORDER BY step_number',
+      [req.params.id]
+    );
+    res.json({ ...rows[0], steps });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -243,15 +248,98 @@ router.patch('/releases/:id', async (req, res) => {
       );
     }
 
+    // Edit ANY step's subject and/or timing. steps = [{ step_number, subject, delay_days }].
+    // The release step (1) and each follow-up (2..4) are all editable now.
+    if (Array.isArray(req.body?.steps)) {
+      for (const s of req.body.steps) {
+        const n = parseInt(s.step_number, 10);
+        if (!n) continue;
+        const sets = [];
+        const params = [];
+        if (typeof s.subject === 'string' && s.subject.trim()) { params.push(s.subject.trim().slice(0, 250)); sets.push(`subject = $${params.length}`); }
+        if (s.delay_days != null && Number.isFinite(Number(s.delay_days))) { params.push(Math.max(0, Math.round(Number(s.delay_days)))); sets.push(`delay_days = $${params.length}`); }
+        if (!sets.length) continue;
+        params.push(release.campaign_id, n);
+        await pool.query(`UPDATE outreach_sequences SET ${sets.join(', ')} WHERE campaign_id = $${params.length - 1} AND step_number = $${params.length}`, params);
+      }
+    }
+
     const { rows: out } = await pool.query(
       `SELECT r.*, (SELECT subject FROM outreach_sequences WHERE campaign_id = r.campaign_id AND step_number = 1) AS subject
          FROM outreach_press_releases r WHERE r.id = $1`,
       [req.params.id]
     );
-    res.json(out[0]);
+    const { rows: steps } = await pool.query(
+      'SELECT step_number, subject, delay_days FROM outreach_sequences WHERE campaign_id = $1 ORDER BY step_number',
+      [release.campaign_id]
+    );
+    res.json({ ...out[0], steps });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
+});
+
+// Send ONE faithful test copy of the email to an address (defaults to the
+// signed-in user). Renders the real press template + a real journalist's
+// personalised pitch, marks the subject [TEST], and does NOT track or enqueue.
+router.post('/releases/:id/test', async (req, res) => {
+  const email = (req.body?.email || '').trim();
+  const stepNumber = parseInt(req.body?.step_number, 10) || 1;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'A valid test email address is required.' });
+  try {
+    const { rows: relRows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
+    const release = relRows[0];
+    assertClientAccess(req, release.client_id);
+
+    // Pick a journalist to personalise for: the one requested, else any contact
+    // attached to this client (so the test shows real personalisation).
+    let contactId = req.body?.contact_id || null;
+    if (!contactId) {
+      const { rows: c } = await pool.query(
+        `SELECT oc.id FROM outreach_contacts oc
+           JOIN outreach_contact_clients occ ON occ.contact_id = oc.id
+          WHERE occ.client_id = $1 AND oc.email IS NOT NULL LIMIT 1`,
+        [release.client_id]
+      );
+      contactId = c[0]?.id || null;
+    }
+    if (!contactId) return res.status(400).json({ error: 'Add at least one journalist to this client before sending a test, so the pitch can be personalised.' });
+    const { rows: contactRows } = await pool.query('SELECT * FROM outreach_contacts WHERE id = $1', [contactId]);
+    if (!contactRows.length) return res.status(404).json({ error: 'Contact not found' });
+
+    const { rows: clientRows } = await pool.query('SELECT outreach_sending FROM clients WHERE id = $1', [release.client_id]);
+    await outreachSender.sendPressTest({
+      release, contact: contactRows[0], toAddress: email,
+      sending: clientRows[0]?.outreach_sending || null, clientId: release.client_id, stepNumber,
+    });
+    res.json({ ok: true, sent_to: email });
+  } catch (err) {
+    console.error('[press] test send failed:', err.message);
+    res.status(err.status || 502).json({ error: err.message });
+  }
+});
+
+// Save an AM's manual edits to a specific journalist's generated email (the
+// pitch intro and/or the follow-up array), so "edit all emails" works at the
+// recipient level. Overwrites the cached copy the sender reads at send time.
+router.put('/releases/:id/emails/:contactId', async (req, res) => {
+  try {
+    const { rows: relRows } = await pool.query('SELECT client_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, relRows[0].client_id);
+    const sets = [];
+    const params = [req.params.id, req.params.contactId];
+    if (typeof req.body?.intro === 'string') { params.push(req.body.intro); sets.push(`intro = $${params.length}`); }
+    if (Array.isArray(req.body?.follow_ups)) { params.push(JSON.stringify(req.body.follow_ups)); sets.push(`follow_ups = $${params.length}`); }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update.' });
+    const { rowCount } = await pool.query(
+      `UPDATE press_release_emails SET ${sets.join(', ')}, generated_at = NOW()
+        WHERE press_release_id = $1 AND contact_id = $2`, params
+    );
+    if (!rowCount) return res.status(404).json({ error: 'No generated email for this journalist yet — preview it first.' });
+    res.json({ ok: true });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Send the release to a list of journalists. Behind the scenes we
@@ -312,10 +400,10 @@ router.post('/releases/:id/send', async (req, res) => {
       }
     }
 
-    // Kick the sender so step 1 goes out immediately rather than
-    // waiting for the next cron tick.
-    outreachSender.processPending?.().catch(err => console.error('[press] kick failed:', err.message));
-
+    // Step 1 sends become due immediately (delay_days 0) and are dispatched by
+    // the outreach-send cron on its next tick (≤3 min), which also applies the
+    // per-mailbox caps, warm-up and pacing. There is no synchronous blast here
+    // by design — that's what keeps large sends paced and deliverable.
     res.json({ campaign_id: campaignId, queued });
   } catch (err) {
     console.error('[press] send failed:', err.message);

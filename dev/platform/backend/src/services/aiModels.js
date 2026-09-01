@@ -16,6 +16,18 @@ const MODELS = {
 };
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
 
+// Per-feature default model, used when the AM hasn't set an explicit override in
+// Settings → AI models. Lets specific features opt into a smarter default than
+// the global Sonnet — press personalisation and media-database reasoning want
+// Opus for genuinely intelligent writing/thinking. The AM can still override.
+const FEATURE_DEFAULTS = {
+  press_pitch: 'claude-opus-4-8',
+  press_followups: 'claude-opus-4-8',
+  press_import_sort: 'claude-opus-4-8',
+  media_db_hygiene: 'claude-opus-4-8',
+  media_db_research: 'claude-opus-4-8',
+};
+
 // Routable features, grouped for the UI. `sensitive: true` = this feature sends
 // real client/customer data (metrics, contacts, message content) to the model,
 // so DeepSeek carries a warning for it.
@@ -58,6 +70,16 @@ const FEATURES = [
     { key: 'outreach_draft', label: 'Outbound message drafting', sensitive: true },
     { key: 'outreach_reply', label: 'Reply drafting', sensitive: true },
   ] },
+  { group: 'Press outreach', items: [
+    // Personalised journalist pitches + follow-ups, and the media-database
+    // brains. Default to Opus (see FEATURE_DEFAULTS) for genuinely intelligent
+    // writing/thinking; the AM can still route them down for cost.
+    { key: 'press_pitch', label: 'Journalist pitch writing', sensitive: true },
+    { key: 'press_followups', label: 'Follow-up writing', sensitive: true },
+    { key: 'press_import_sort', label: 'Paste-and-sort contact import', sensitive: true },
+    { key: 'media_db_hygiene', label: 'Media DB dedupe/merge', sensitive: true },
+    { key: 'media_db_research', label: 'Media DB research (bylines/RSS)', sensitive: false },
+  ] },
   { group: 'Outreach & leads', items: [
     { key: 'outreach_write_sequence', label: 'Outreach sequences', sensitive: false },
     { key: 'outreach_refine_audience', label: 'Outreach audience refine', sensitive: false },
@@ -87,7 +109,9 @@ function clearCache() { _cache = { at: 0, map: {} }; }
 async function resolveModel(feature) {
   const map = await getMap();
   const id = map[feature];
-  return MODELS[id] ? id : DEFAULT_MODEL;
+  if (MODELS[id]) return id;                                   // AM override wins
+  if (MODELS[FEATURE_DEFAULTS[feature]]) return FEATURE_DEFAULTS[feature]; // per-feature default
+  return DEFAULT_MODEL;                                        // global default
 }
 
-module.exports = { MODELS, DEFAULT_MODEL, FEATURES, FEATURE_KEYS, getMap, clearCache, resolveModel };
+module.exports = { MODELS, DEFAULT_MODEL, FEATURE_DEFAULTS, FEATURES, FEATURE_KEYS, getMap, clearCache, resolveModel };

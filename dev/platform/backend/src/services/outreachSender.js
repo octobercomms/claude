@@ -347,6 +347,41 @@ async function sendTest(campaign, step, sending, toAddress) {
   return deliver({ from, to: toAddress, replyTo, subject, text, html: htmlBody(text) });
 }
 
+// Send ONE faithful test copy of a press email to an arbitrary address, exactly
+// as a journalist would receive it (real template + personalised pitch), but
+// with a [TEST] subject, no tracking pixel, and no send row. `stepNumber` picks
+// which email in the sequence (1 = the release, 2+ = a follow-up). `contact` is
+// the journalist whose personalised copy to render (so the AM tests the real
+// thing); `toAddress` is where the test lands (usually the AM's own inbox).
+async function sendPressTest({ release, contact, toAddress, sending, clientId, stepNumber = 1 }) {
+  const pool = require('../db');
+  const { from, replyTo } = await senderFields(sending);
+  const pressRelease = require('./pressRelease');
+  const cached = await pressRelease.getOrGenerateEmails({ pressReleaseId: release.id, contactId: contact.id, force: false });
+  let subject, html, text;
+  if (stepNumber <= 1) {
+    const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
+    const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
+    // Prefer the AM-edited step-1 subject; fall back to the release title.
+    const { rows: seqRows } = await pool.query(
+      'SELECT subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number = 1 LIMIT 1', [release.campaign_id]);
+    subject = seqRows[0]?.subject || release.title;
+    html = pressRelease.buildEmailHtml({
+      release: releaseWithHero, pitch: cached.intro, sender,
+      recipientName: contact.name, embedFull: release.embed_full_release !== false,
+      contactId: contact.id, clientId,
+    });
+    text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
+  } else {
+    const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
+    const fu = followUps[stepNumber - 2] || { subject: `Re: ${release.title}`, body: '' };
+    subject = fu.subject || `Re: ${release.title}`;
+    text = fu.body || '';
+    html = htmlBody(text, null, contact.id, clientId);
+  }
+  return deliver({ from, to: toAddress, replyTo, subject: `[TEST] ${subject}`, text, html });
+}
+
 // Build the HTML+text exactly as the sender would for this step + sample
 // contact, but without delivering. Used by the wizard's "Preview as
 // contact" button so the AM can sanity-check a step's substitutions,
@@ -357,4 +392,4 @@ function previewStep(step, sample) {
   return { subject, text, html: htmlBody(text) };
 }
 
-module.exports = { sendOutreachEmail, sendTest, previewStep, fillTemplate, unsubscribeUrl };
+module.exports = { sendOutreachEmail, sendTest, sendPressTest, previewStep, fillTemplate, unsubscribeUrl };

@@ -18,6 +18,16 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
   const [parsed, setParsed] = useState(null);
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showBodyHtml, setShowBodyHtml] = useState(false); // false = rendered preview
+
+  // Wrap the release body in a light, email-like document so the preview reads
+  // as a formatted press release, not raw HTML.
+  function bodyPreviewDoc(html) {
+    return `<!doctype html><html><head><meta charset="utf-8"><style>
+      body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;line-height:1.6;font-size:14px;margin:0;padding:16px;max-width:600px}
+      h1,h2,h3{line-height:1.25}img{max-width:100%;height:auto;border-radius:6px}a{color:#1558d6}
+    </style></head><body>${html || '<p style="color:#888">No body content.</p>'}</body></html>`;
+  }
 
   async function doFetch(seedUrl) {
     const u = (seedUrl ?? url).trim();
@@ -80,9 +90,20 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
             <label className="field-label" style={{ marginTop: 8 }}>Dateline</label>
             <input value={parsed.dateline || ''} onChange={e => setParsed({ ...parsed, dateline: e.target.value })}
               placeholder="London, 28 May 2026" className="input" />
-            <label className="field-label" style={{ marginTop: 8 }}>Body (HTML)</label>
-            <textarea rows={8} value={parsed.body_html || ''} onChange={e => setParsed({ ...parsed, body_html: e.target.value })}
-              className="input" style={{ minHeight: 160, fontFamily: 'monospace', fontSize: 12 }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <label className="field-label" style={{ margin: 0 }}>Body</label>
+              <button type="button" onClick={() => setShowBodyHtml(v => !v)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 11 }}>
+                {showBodyHtml ? 'Show formatted preview' : 'Edit HTML'}
+              </button>
+            </div>
+            {showBodyHtml ? (
+              <textarea rows={8} value={parsed.body_html || ''} onChange={e => setParsed({ ...parsed, body_html: e.target.value })}
+                className="input" style={{ minHeight: 160, fontFamily: 'monospace', fontSize: 12 }} />
+            ) : (
+              <iframe title="Release preview" srcDoc={bodyPreviewDoc(parsed.body_html)} sandbox=""
+                style={{ width: '100%', height: 220, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} />
+            )}
             <label className="field-label" style={{ marginTop: 8 }}>Press contact</label>
             <textarea rows={2} value={parsed.contact_block || ''} onChange={e => setParsed({ ...parsed, contact_block: e.target.value })} className="input" style={{ minHeight: 50 }} />
             <label className="field-label" style={{ marginTop: 8 }}>Notes to editors / boilerplate</label>

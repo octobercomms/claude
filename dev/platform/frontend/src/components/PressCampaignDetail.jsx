@@ -21,7 +21,7 @@ function AttrStat({ value, label, big }) {
 
 export default function PressCampaignDetail({ clientId, campaignId, contacts, onExit }) {
   const toast = useToast();
-  const { readOnly } = useAuth();
+  const { readOnly, user } = useAuth();
   const [release, setRelease] = useState(null);
   const [attribution, setAttribution] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -32,6 +32,16 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   const [filter, setFilter] = useState('');
   const [tagFilter, setTagFilter] = useState(new Set());
   const [allTags, setAllTags] = useState([]);
+  // Phase 1: editable sequence (all steps' subject + timing), test-send, and
+  // per-recipient email editing.
+  const [steps, setSteps] = useState([]);
+  const [savingSteps, setSavingSteps] = useState(false);
+  const [testEmail, setTestEmail] = useState(user?.email || '');
+  const [testStep, setTestStep] = useState(1);
+  const [testing, setTesting] = useState(false);
+  const [editFollowUps, setEditFollowUps] = useState(null); // local copy while editing
+  const [editIntro, setEditIntro] = useState(null);
+  const [savingEmail, setSavingEmail] = useState(false);
 
   useEffect(() => {
     setLoadError(null);
@@ -39,6 +49,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
     api.get(`/press/campaigns/${campaignId}/release`)
       .then(rel => {
         setRelease(rel);
+        setSteps(Array.isArray(rel.steps) ? rel.steps : []);
         // Backlink attribution (E4) — best-effort; hidden if it errors.
         api.get(`/press/releases/${rel.id}/backlink-attribution`)
           .then(setAttribution)
@@ -71,18 +82,67 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
     if (!release) return;
     setPreviewing(contactId);
     setPreviewData(null);
+    setEditIntro(null);
+    setEditFollowUps(null);
     try {
       const p = await api.post(`/press/releases/${release.id}/preview`, { contact_id: contactId, force });
       setPreviewData(p);
+      setEditIntro(p.pitch || '');
+      setEditFollowUps(Array.isArray(p.follow_ups) ? p.follow_ups.map(f => ({ ...f })) : []);
     } catch (e) {
       toast(`Preview failed: ${e.message}`, 'error');
       setPreviewing(null);
     }
   }
 
+  // Save the AM's edits to a step's subject / timing across the whole sequence.
+  async function saveSteps() {
+    if (!release) return;
+    setSavingSteps(true);
+    try {
+      await api.patch(`/press/releases/${release.id}`, {
+        steps: steps.map(s => ({ step_number: s.step_number, subject: s.subject, delay_days: s.delay_days })),
+      });
+      toast('Sequence saved.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSavingSteps(false); }
+  }
+  function setStepField(stepNumber, field, value) {
+    setSteps(prev => prev.map(s => s.step_number === stepNumber ? { ...s, [field]: value } : s));
+  }
+
+  // Send one faithful [TEST] copy to an address (personalised for a real
+  // journalist so it shows the true thing).
+  async function sendTest() {
+    if (!release || !testEmail.trim()) return;
+    setTesting(true);
+    try {
+      const body = { email: testEmail.trim(), step_number: testStep };
+      if (previewing) body.contact_id = previewing; // personalise for whoever's previewed
+      const r = await api.post(`/press/releases/${release.id}/test`, body);
+      toast(`Test sent to ${r.sent_to}.`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setTesting(false); }
+  }
+
+  // Persist the AM's manual edits to THIS journalist's generated email.
+  async function saveRecipientEmail() {
+    if (!release || !previewing) return;
+    setSavingEmail(true);
+    try {
+      await api.put(`/press/releases/${release.id}/emails/${previewing}`, {
+        intro: editIntro, follow_ups: editFollowUps,
+      });
+      toast('Saved this journalist’s email.', 'success');
+      preview(previewing, false); // re-render the iframe with the saved copy
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSavingEmail(false); }
+  }
+
   async function send() {
     if (!selected.size || !release) return;
-    if (!confirm(`Send to ${selected.size} journalist${selected.size === 1 ? '' : 's'}? Three follow-ups will queue automatically.`)) return;
+    const fuCount = Math.max(0, steps.length - 1);
+    if (!confirm(`Send to ${selected.size} journalist${selected.size === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your set timings, and stop automatically if they reply.`)) return;
     setSending(true);
     try {
       const r = await api.post(`/press/releases/${release.id}/send`, { contact_ids: Array.from(selected) });
@@ -221,28 +281,37 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
         <div>
           <div className="h3">Preview {previewData?.contact ? `· ${previewData.contact.name || previewData.contact.email}` : ''}</div>
 
-          {/* Editable first-email subject + embed toggle. Persists via
-              PATCH /press/releases/:id; re-previews so the change is
-              visible in the iframe immediately. */}
+          {/* Sequence & timing — every step's subject + follow-up delays are
+              editable, plus the embed toggle and a real test-send. Persists via
+              PATCH /press/releases/:id. */}
           {release && (
             <div style={{ marginBottom: 12, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                First email — subject
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                Sequence &amp; timing
               </div>
-              <input
-                value={release.subject ?? release.title ?? ''}
-                onChange={e => setRelease(r => ({ ...r, subject: e.target.value }))}
-                onBlur={async (e) => {
-                  const next = e.target.value.trim();
-                  if (!next || next === (release.subject ?? release.title)) return;
-                  try {
-                    await api.patch(`/press/releases/${release.id}`, { subject: next });
-                    if (previewing) preview(previewing, true);
-                  } catch (err) { toast(err.message, 'error'); }
-                }}
-                style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }}
-              />
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              {steps.map(s => (
+                <div key={s.step_number} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', minWidth: 54 }}>
+                      {s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`}
+                    </span>
+                    {s.step_number === 1 ? (
+                      <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>sends immediately</span>
+                    ) : (
+                      <span style={{ fontSize: 11, color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        after
+                        <input type="number" min="1" value={s.delay_days ?? ''} onChange={e => setStepField(s.step_number, 'delay_days', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                          style={{ width: 46, padding: '2px 5px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                        days
+                      </span>
+                    )}
+                  </div>
+                  <input value={s.subject ?? ''} onChange={e => setStepField(s.step_number, 'subject', e.target.value)}
+                    placeholder="Subject line — use {{first_name}} to personalise"
+                    style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                </div>
+              ))}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={release.embed_full_release !== false}
@@ -255,11 +324,32 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
                     } catch (err) { toast(err.message, 'error'); }
                   }}
                 />
-                <span>
-                  <strong>Embed the full release in the first email.</strong>{' '}
-                  <span style={{ color: 'var(--text-subtle)' }}>Off = pitch + link only (the old behaviour).</span>
-                </span>
+                <span><strong>Embed the full release in the first email.</strong>{' '}
+                  <span style={{ color: 'var(--text-subtle)' }}>Off = pitch + link only.</span></span>
               </label>
+              <div style={{ marginTop: 10 }}>
+                <button {...roWrite(readOnly, { onClick: saveSteps, disabled: savingSteps })} className="btn btn-secondary btn-sm">
+                  {savingSteps ? 'Saving…' : 'Save subjects & timing'}
+                </button>
+              </div>
+
+              {/* Test send */}
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Send a test</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com"
+                    className="input" style={{ flex: 1, minWidth: 160 }} />
+                  <select value={testStep} onChange={e => setTestStep(parseInt(e.target.value, 10))} className="input" style={{ width: 130 }}>
+                    {steps.map(s => <option key={s.step_number} value={s.step_number}>{s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`}</option>)}
+                  </select>
+                  <button {...roWrite(readOnly, { onClick: sendTest, disabled: testing || !testEmail.trim() })} className="btn btn-secondary btn-sm">
+                    {testing ? 'Sending…' : 'Send test'}
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                  Personalised for {previewing ? 'the previewed journalist' : 'a sample journalist on this client'}. Subject is prefixed [TEST]; not tracked.
+                </div>
+              </div>
             </div>
           )}
 
@@ -271,18 +361,40 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
                 <div className="field-label">Initial email — personal pitch{release?.embed_full_release !== false ? ' + embedded release' : ' + release link'}</div>
                 <button onClick={() => preview(previewing, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 11 }}>regenerate</button>
               </div>
-              <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} sandbox="" />
-              {previewData.follow_ups?.length > 0 && (
-                <div style={{ marginTop: 14 }}>
-                  <div className="field-label">Follow-ups · day 5 / 10 / 16 if no reply</div>
-                  {previewData.follow_ups.map((fu, i) => (
-                    <div key={i} style={{ marginTop: 8, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-                      <div style={{ fontWeight: 700, fontSize: 12 }}>{i + 1}. {fu.subject}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{fu.body}</div>
-                    </div>
-                  ))}
+              <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 420, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} sandbox="" />
+
+              {/* Editable pitch for THIS journalist. */}
+              <div style={{ marginTop: 12 }}>
+                <div className="field-label">Edit this journalist’s pitch</div>
+                <textarea value={editIntro ?? ''} onChange={e => setEditIntro(e.target.value)} rows={5}
+                  className="input" style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13 }} />
+              </div>
+
+              {/* Editable follow-ups for THIS journalist, with real timings. */}
+              {Array.isArray(editFollowUps) && editFollowUps.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div className="field-label">Follow-ups (stop automatically if they reply)</div>
+                  {editFollowUps.map((fu, i) => {
+                    const step = steps.find(s => s.step_number === i + 2);
+                    return (
+                      <div key={i} style={{ marginTop: 8, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 4 }}>
+                          Follow-up {i + 1}{step?.delay_days != null ? ` · after ${step.delay_days} days` : ''}
+                        </div>
+                        <input value={fu.subject ?? ''} onChange={e => setEditFollowUps(prev => prev.map((f, j) => j === i ? { ...f, subject: e.target.value } : f))}
+                          placeholder="Subject" className="input" style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, fontWeight: 600, marginBottom: 6 }} />
+                        <textarea value={fu.body ?? ''} onChange={e => setEditFollowUps(prev => prev.map((f, j) => j === i ? { ...f, body: e.target.value } : f))}
+                          rows={3} className="input" style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 12 }} />
+                      </div>
+                    );
+                  })}
                 </div>
               )}
+              <div style={{ marginTop: 10 }}>
+                <button {...roWrite(readOnly, { onClick: saveRecipientEmail, disabled: savingEmail })} className="btn btn-primary btn-sm">
+                  {savingEmail ? 'Saving…' : 'Save this journalist’s email'}
+                </button>
+              </div>
             </div>
           )}
         </div>
