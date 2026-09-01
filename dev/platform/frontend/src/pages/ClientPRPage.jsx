@@ -7,6 +7,8 @@ import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import SuiteOverview from '../components/SuiteOverview';
 import OverviewChat from '../components/OverviewChat';
 import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
+import PressCampaignWizard from '../components/PressCampaignWizard';
+import PressCampaignDetail from '../components/PressCampaignDetail';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 
@@ -86,6 +88,12 @@ export default function ClientPRPage() {
   const [log, setLog] = useState([]);
   const [journalists, setJournalists] = useState([]);
   const [warmJournalists, setWarmJournalists] = useState([]);
+  // Press campaigns live here in Earned → Pitch (the front door). The full
+  // send/preview/autopilot/results view is the PressCampaignDetail component.
+  const [pressReleases, setPressReleases] = useState([]);
+  const [pressContacts, setPressContacts] = useState([]);
+  const [openPressCampaign, setOpenPressCampaign] = useState(null); // campaign_id
+  const [showPressWizard, setShowPressWizard] = useState(false);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState(null); // null | {id?, ...form}
@@ -300,7 +308,12 @@ export default function ClientPRPage() {
       api.get(`/pr/clients/${id}/editorial-log`).then((r) => setLog(r.items || [])),
       api.get(`/pr/clients/${id}/journalists`).then((r) => setJournalists(r.items || [])),
       api.get(`/pr/clients/${id}/warm-journalists`).then((r) => setWarmJournalists(r.items || [])).catch(() => {}),
+      api.get(`/press/clients/${id}/releases`).then((r) => setPressReleases(Array.isArray(r) ? r : (r.items || []))).catch(() => {}),
+      api.get(`/outreach/contacts?client_id=${id}`).then((r) => setPressContacts(Array.isArray(r) ? r : (r.items || r.contacts || []))).catch(() => {}),
     ]).catch((e) => toast(e.message, 'error')).finally(() => setLoading(false));
+  }
+  function reloadPress() {
+    api.get(`/press/clients/${id}/releases`).then((r) => setPressReleases(Array.isArray(r) ? r : (r.items || []))).catch(() => {});
   }
   useEffect(() => { loadData(); }, [id]);
   // ESC closes whichever modal is open. Skip while a save is mid-flight so
@@ -513,8 +526,43 @@ export default function ClientPRPage() {
         </div>
   );
 
-  const renderPitch = () => (
+  const renderPitch = () => {
+    // A press campaign open? Show its full send/preview/autopilot/results view.
+    if (openPressCampaign) {
+      return (
+        <PressCampaignDetail clientId={id} campaignId={openPressCampaign} contacts={pressContacts}
+          onExit={() => { setOpenPressCampaign(null); reloadPress(); }} />
+      );
+    }
+    return (
         <div>
+          {/* Press campaigns — the front door: pitch a release to journalists. */}
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+              <div>
+                <h3 className="h3 mb-2">Press campaigns</h3>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>Pitch a release to journalists — paste a URL, ✨ auto-build the audience, personalise every email, then send and watch who’s interested.</p>
+              </div>
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => setShowPressWizard(true) })}>+ New press campaign</button>
+            </div>
+            {!pressReleases.length ? (
+              <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>No press campaigns yet — start one from a downloadfor.press URL.</p>
+            ) : (
+              <table className="table">
+                <thead><tr><th>Release</th><th>Created</th><th></th></tr></thead>
+                <tbody>
+                  {pressReleases.map((r) => (
+                    <tr key={r.id} style={{ cursor: r.campaign_id ? 'pointer' : 'default' }} onClick={() => r.campaign_id && setOpenPressCampaign(r.campaign_id)}>
+                      <td>{r.title || '(untitled release)'}</td>
+                      <td>{fmtDate(r.created_at)}</td>
+                      <td style={{ textAlign: 'right' }}>{r.campaign_id ? <span className="chip chip-accent">open →</span> : <span className="chip">draft</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
             <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your contacts' beats and your relationship history to build a targeted list.</p>
@@ -608,7 +656,8 @@ export default function ClientPRPage() {
             </table>
           </div>
         </div>
-  );
+    );
+  };
 
   const renderTrack = () => (
         <div>
@@ -1023,6 +1072,18 @@ export default function ClientPRPage() {
 
       {urlModal && (
         <CoverageFromUrlModal clientId={id} onClose={() => setUrlModal(false)} onSaved={() => { loadData(); }} />
+      )}
+
+      {showPressWizard && (
+        <PressCampaignWizard
+          clientId={id}
+          onClose={() => setShowPressWizard(false)}
+          onCreated={(saved) => {
+            setShowPressWizard(false);
+            reloadPress();
+            if (saved?.campaign_id) { setTab('journalists'); setOpenPressCampaign(saved.campaign_id); }
+          }}
+        />
       )}
     </div>
   );
