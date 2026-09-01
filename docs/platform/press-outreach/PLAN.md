@@ -201,5 +201,9 @@ Depends on Phase 3 (global targeting) + deep per-recipient personalisation.
   approve → send on pacing. See "The one-paste autopilot" above. The felt
   centrepiece; built once its dependencies land so the magic is real, not shallow.
 
-_Status: plan agreed (decisions locked, incl. one-paste autopilot + 24/7 warm
-watcher → client dashboard). Building in phases; each phase ships. Phase 1 done._
+_Status: **all phases built.** Phase 1 (usable flow) + Phase 4 (analytics + 24/7
+watcher) merged to main; Phases 2 (open-aware follow-ups), 3 (thousands-scale
+targeting/stagger/per-day dedupe), 5 (paste-and-sort import + merge), 6 (byline
+account-exec autopilot), 7 (one-paste autopilot) and the preference-centre
+opt-out follow. Live send/tracking/model behaviour validates on deploy (can't be
+exercised in the build sandbox)._

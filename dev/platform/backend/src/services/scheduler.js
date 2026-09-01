@@ -81,6 +81,16 @@ cron.schedule('15 7 * * 1', async () => {
   } catch (e) { console.error('[Scheduler] Outreach research failed:', e.message); }
 });
 
+// Media-database account exec — weekly byline/outlet research to keep the
+// journalist DB true (moves applied, quiet contacts flagged for archiving). It's
+// the paid web-search step, so it's weekly and bounded per run.
+cron.schedule('20 5 * * 0', async () => {
+  try {
+    const r = await require('./pressMediaResearch').sweep({ limit: 25, log: (m) => console.log('[Scheduler]', m) });
+    if (r.checked) console.log(`[Scheduler] Media DB sweep: ${r.checked} checked, ${r.moved} moves, ${r.quiet} gone quiet`);
+  } catch (e) { console.error('[Scheduler] Media DB sweep failed:', e.message); }
+});
+
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
   console.log('[Scheduler] Running weekly reports...');
@@ -736,7 +746,7 @@ async function runOutreachSends() {
             seq.subject, seq.body,
             con.id AS con_id, con.name, con.email, con.company,
             con.bounced_at, con.status AS contact_status,
-            cam.client_id,
+            cam.client_id, cam.kind,
             cl.outreach_sending,
             m.unsubscribed_at
        FROM outreach_sends s
@@ -774,6 +784,28 @@ async function runOutreachSends() {
     if (replied.length) {
       await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
       continue;
+    }
+    // One press email per person per day. If this journalist already received a
+    // DIFFERENT release today, hold this one for that person only (reschedule to
+    // tomorrow morning) rather than sending two press emails in a day. The rest
+    // of the campaign's recipients are unaffected. (Daniel's #22.)
+    if (row.kind === 'press_release') {
+      const { rows: dupe } = await pool.query(
+        `SELECT 1 FROM outreach_sends s2
+           JOIN outreach_campaigns c2 ON c2.id = s2.campaign_id
+          WHERE s2.contact_id = $1 AND c2.kind = 'press_release'
+            AND s2.campaign_id <> $2 AND s2.status = 'sent'
+            AND s2.sent_at >= date_trunc('day', NOW())
+          LIMIT 1`,
+        [row.contact_id, row.campaign_id]
+      );
+      if (dupe.length) {
+        await pool.query(
+          "UPDATE outreach_sends SET scheduled_at = date_trunc('day', NOW()) + interval '1 day' + interval '9 hours' WHERE id = $1",
+          [row.send_id]
+        );
+        continue;
+      }
     }
     // Claim the row so overlapping runs can't double-send it.
     const claim = await pool.query(

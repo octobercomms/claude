@@ -24,6 +24,7 @@ const FEATURE_DEFAULTS = {
   press_pitch: 'claude-opus-4-8',
   press_followups: 'claude-opus-4-8',
   press_import_sort: 'claude-opus-4-8',
+  press_audience: 'claude-opus-4-8',
   media_db_hygiene: 'claude-opus-4-8',
   media_db_research: 'claude-opus-4-8',
 };
@@ -77,6 +78,7 @@ const FEATURES = [
     { key: 'press_pitch', label: 'Journalist pitch writing', sensitive: true },
     { key: 'press_followups', label: 'Follow-up writing', sensitive: true },
     { key: 'press_import_sort', label: 'Paste-and-sort contact import', sensitive: true },
+    { key: 'press_audience', label: 'Autopilot audience selection', sensitive: false },
     { key: 'media_db_hygiene', label: 'Media DB dedupe/merge', sensitive: true },
     { key: 'media_db_research', label: 'Media DB research (bylines/RSS)', sensitive: false },
   ] },

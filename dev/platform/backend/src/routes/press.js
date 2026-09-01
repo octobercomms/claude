@@ -131,6 +131,86 @@ router.get('/campaigns/:id/release', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Run the media-database research sweep on demand (the weekly cron does this
+// automatically). Keeps the journalist DB fresh — moves applied, quiet contacts
+// flagged for archiving.
+router.post('/media/sweep', async (req, res) => {
+  try {
+    const out = await require('../services/pressMediaResearch').sweep({
+      limit: Math.min(parseInt(req.body?.limit, 10) || 15, 40),
+      log: (m) => console.log('[press]', m),
+    });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: err.message }); }
+});
+
+// One-paste autopilot — Claude reads the story + client brief and proposes the
+// best-fit journalists from the media database (with a reason each). Returns a
+// review bundle; nothing sends until the AM approves. Per-recipient drafts are
+// generated on preview/send (deep, personalised).
+router.post('/releases/:id/autopilot', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rows[0].client_id);
+    const out = await require('../services/pressAutopilot').proposeAudience({
+      releaseId: req.params.id, limit: Math.min(parseInt(req.body?.limit, 10) || 60, 150),
+    });
+    res.json(out);
+  } catch (err) {
+    console.error('[press] autopilot failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Paste-and-sort import — Claude extracts contacts from whatever's pasted,
+// dedupes/merges into the media library, and attaches them to this client (and
+// the campaign, if given). Returns a summary the UI can show + undo from.
+router.post('/clients/:clientId/import-smart', async (req, res) => {
+  const text = (req.body?.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'Paste some names to sort.' });
+  try {
+    const out = await require('../services/pressImport').smartImport({
+      text, clientId: req.params.clientId, campaignId: req.body?.campaign_id || null,
+    });
+    res.json(out);
+  } catch (err) {
+    console.error('[press] smart import failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Global journalist search — draw the audience from the WHOLE media library, not
+// just contacts already attached to this client (Daniel's #15). Filters: free
+// text (name/outlet/email), tag, beat, location, outlet. Excludes suppressed /
+// bounced / emailless. The send route auto-attaches whoever is picked.
+router.get('/journalists', async (req, res) => {
+  const { search, tag, beat, outlet, location } = req.query;
+  const where = [
+    `oc.kind IN ('media','industry')`,
+    `oc.email IS NOT NULL AND oc.email <> ''`,
+    `(oc.status IS NULL OR oc.status <> 'do_not_contact')`,
+    `oc.bounced_at IS NULL`,
+  ];
+  const params = [];
+  const like = (v) => { params.push(`%${v}%`); return `$${params.length}`; };
+  if (search) { const p = like(search); where.push(`(oc.name ILIKE ${p} OR oc.email ILIKE ${p} OR oc.company ILIKE ${p})`); }
+  if (tag) { params.push(tag); where.push(`$${params.length} = ANY(oc.tags)`); }
+  if (beat) { where.push(`oc.contact_type ILIKE ${like(beat)}`); }
+  if (location) { where.push(`oc.location ILIKE ${like(location)}`); }
+  if (outlet) { where.push(`oc.company ILIKE ${like(outlet)}`); }
+  try {
+    const { rows } = await pool.query(
+      `SELECT oc.id, oc.name, oc.email, oc.company, oc.contact_type, oc.title, oc.location, oc.tags
+         FROM outreach_contacts oc
+        WHERE ${where.join(' AND ')}
+        ORDER BY oc.name LIMIT 300`,
+      params
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/clients/:clientId/releases', async (req, res) => {
   try {
     const { rows } = await pool.query(

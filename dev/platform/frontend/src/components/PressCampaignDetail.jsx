@@ -44,6 +44,17 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   const [editIntro, setEditIntro] = useState(null);
   const [savingEmail, setSavingEmail] = useState(false);
   const [view, setView] = useState('setup'); // setup | results
+  // Global targeting: search the whole media library, not just client-linked.
+  const [globalQuery, setGlobalQuery] = useState('');
+  const [globalResults, setGlobalResults] = useState(null);
+  const [searchingGlobal, setSearchingGlobal] = useState(false);
+  // Paste-and-sort import.
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [pasting, setPasting] = useState(false);
+  // One-paste autopilot.
+  const [suggestions, setSuggestions] = useState(null);
+  const [autopiloting, setAutopiloting] = useState(false);
 
   useEffect(() => {
     setLoadError(null);
@@ -78,6 +89,42 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  }
+
+  async function runAutopilot() {
+    if (!release) return;
+    setAutopiloting(true);
+    try {
+      const r = await api.post(`/press/releases/${release.id}/autopilot`, {});
+      setSuggestions(r.suggestions || []);
+      // Pre-select all suggestions so it's a one-click approve to send.
+      setSelected(prev => { const n = new Set(prev); (r.suggestions || []).forEach(su => n.add(su.contact_id)); return n; });
+      toast(`Autopilot picked ${r.suggestions?.length || 0} journalists from ${r.candidates} in your database.`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setAutopiloting(false); }
+  }
+
+  async function doPasteImport() {
+    if (!pasteText.trim() || !release) return;
+    setPasting(true);
+    try {
+      const r = await api.post(`/press/clients/${clientId}/import-smart`, { text: pasteText, campaign_id: release.campaign_id });
+      toast(`Sorted: ${r.added} added, ${r.updated} updated${r.skipped ? `, ${r.skipped} skipped` : ''}.`, 'success');
+      // Pre-select everything just imported so it's ready to send.
+      setSelected(prev => { const n = new Set(prev); (r.items || []).forEach(it => it.id && n.add(it.id)); return n; });
+      setPasteText(''); setShowPaste(false);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPasting(false); }
+  }
+
+  async function searchGlobal() {
+    if (!globalQuery.trim()) return;
+    setSearchingGlobal(true);
+    try {
+      const r = await api.get(`/press/journalists?search=${encodeURIComponent(globalQuery.trim())}`);
+      setGlobalResults(r.items || []);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSearchingGlobal(false); }
   }
 
   async function preview(contactId, force = false) {
@@ -256,7 +303,32 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
       {view === 'setup' && (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 18 }}>
         <div>
-          <div className="h3">Pick journalists</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="h3">Pick journalists</div>
+            <button {...roWrite(readOnly, { onClick: runAutopilot, disabled: autopiloting })} className="btn btn-primary btn-sm">
+              {autopiloting ? '✨ Building…' : '✨ Auto-build audience'}
+            </button>
+          </div>
+          {suggestions && (
+            <div style={{ marginBottom: 10, padding: 10, border: '1px solid var(--accent)', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                ✨ Autopilot picked {suggestions.length} for this story — review &amp; send
+              </div>
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                {!suggestions.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No strong matches found — add journalists or search the library below.</div>}
+                {suggestions.map(su => (
+                  <label key={su.contact_id} className="row center" style={{ gap: 8, padding: '6px 4px', borderTop: 'var(--border-w) solid rgba(0,0,0,0.06)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selected.has(su.contact_id)} onChange={() => toggle(su.contact_id)} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>{su.name || '(no name)'}{su.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {su.company}</span>}{su.on_client_list ? <span className="chip" style={{ marginLeft: 6 }}>on list</span> : null}</div>
+                      {su.reason ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{su.reason}</div> : null}
+                    </div>
+                    <button onClick={(e) => { e.preventDefault(); preview(su.contact_id); }} type="button" className="btn btn-secondary btn-sm">preview</button>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           <input value={filter} onChange={e => setFilter(e.target.value)}
             placeholder="filter by name, outlet or beat…"
             className="input" style={{ marginBottom: 10 }} />
@@ -280,6 +352,46 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
               </div>
             ))}
           </div>
+          {/* Global targeting — reach journalists across the whole media library,
+              not only those already on this client. Picked ones are auto-attached
+              on send. */}
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Add from the full media library</div>
+              <button className="btn btn-link btn-sm" onClick={() => setShowPaste(v => !v)}>{showPaste ? 'close paste' : '📋 paste a list'}</button>
+            </div>
+            {showPaste && (
+              <div style={{ marginBottom: 8 }}>
+                <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={4} className="input"
+                  placeholder="Paste anything — a spreadsheet, email signatures, 'Jane Doe, arts editor, The Times, jane@thetimes.co.uk'. Claude sorts, de-dupes and adds them to your list + this campaign." style={{ width: '100%', boxSizing: 'border-box', fontSize: 12 }} />
+                <button {...roWrite(readOnly, { onClick: doPasteImport, disabled: pasting || !pasteText.trim() })} className="btn btn-primary btn-sm" style={{ marginTop: 6 }}>
+                  {pasting ? 'Sorting…' : 'Sort & add'}
+                </button>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input value={globalQuery} onChange={e => setGlobalQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchGlobal()}
+                placeholder="search all journalists by name, outlet or email…" className="input" style={{ flex: 1 }} />
+              <button className="btn btn-secondary btn-sm" onClick={searchGlobal} disabled={searchingGlobal}>{searchingGlobal ? '…' : 'Search'}</button>
+            </div>
+            {globalResults && (
+              <div style={{ maxHeight: 220, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginTop: 8 }}>
+                {!globalResults.length && <div style={{ padding: 12, color: 'var(--text-subtle)', fontSize: 12 }}>No journalists found.</div>}
+                {globalResults.map(c => (
+                  <label key={c.id} className="row center" style={{ gap: 10, padding: '7px 10px', borderTop: 'var(--border-w) solid var(--accent-soft)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {c.name || '(no name)'}{c.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {c.company}</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{c.email}{c.contact_type ? ` · ${c.contact_type}` : ''}{c.location ? ` · ${c.location}` : ''}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selected.size} selected</div>
             <button {...roWrite(readOnly, { onClick: send, disabled: !selected.size || sending })} className="btn btn-primary">
@@ -296,8 +408,11 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
               PATCH /press/releases/:id. */}
           {release && (
             <div style={{ marginBottom: 12, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
                 Sequence &amp; timing
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 8 }}>
+                If they’ve opened, the follow-up sends. If they haven’t opened yet, we resend the original with this new subject to catch their eye. Replies stop the chase.
               </div>
               {steps.map(s => (
                 <div key={s.step_number} style={{ marginBottom: 8 }}>

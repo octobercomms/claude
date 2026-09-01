@@ -196,7 +196,7 @@ function splitOnBoilerplate(html) {
 // pitch, so the journalist can read the whole thing without leaving
 // the email. When false, we fall back to the original short shape
 // (pitch + link + hero).
-function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, contactId, clientId }) {
+function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, contactId, clientId, campaignId }) {
   const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const pitchHtml = (pitch || '').split('\n').map(p => p.trim()).filter(Boolean)
     .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(p)}</p>`)
@@ -237,11 +237,13 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
   if (contactId) {
     try {
       const { unsubscribeUrl } = require('./outreachSender');
-      const link = unsubscribeUrl(contactId, clientId);
+      let link = unsubscribeUrl(contactId, clientId);
+      // Carry the campaign so the preference centre can offer "just this story".
+      if (link && campaignId) link += `&cm=${campaignId}`;
       if (link) {
         unsubFooter = `<div style="margin-top:32px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#888;line-height:1.5;">` +
-          `If this isn't relevant to your beat, no hard feelings — ` +
-          `<a href="${escapeHtml(link)}" style="color:#888;">unsubscribe</a> and I won't email you about future releases.` +
+          `If this isn't relevant to your beat, no hard feelings — you can ` +
+          `<a href="${escapeHtml(link)}" style="color:#888;">update your details or unsubscribe here</a>.` +
           `</div>`;
       }
     } catch {}
