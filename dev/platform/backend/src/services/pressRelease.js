@@ -21,14 +21,15 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const pool = require('../db');
-const Anthropic = require('@anthropic-ai/sdk');
+const claude = require('./claude');
 const { assertPublicHttpUrl } = require('../utils/urlSafety');
 
-const MODEL = 'claude-sonnet-4-6';
-
-function claudeClient() {
-  return new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
-}
+// Press personalisation runs through callClaude so it's model-routable in
+// Settings → AI models and cost-logged. It DEFAULTS to Opus (see aiModels
+// FEATURE_DEFAULTS) — the pitch and follow-ups are the writing that has to be
+// genuinely intelligent and personal, so they get the best model unless the AM
+// deliberately routes them down for cost.
+const PRESS_SYSTEM = 'You are a senior PR consultant at October Communications writing personal, high-quality journalist pitches. British English. Direct, human, never marketing-speak.';
 
 // Fetch a downloadfor.press URL (or any public press page) and pull out
 // the structured content. downloadfor.press is WordPress + Elementor so
@@ -303,11 +304,10 @@ Journalist:
 
 Return ONLY the email body paragraphs (no greeting, no sign-off, no Subject:). British English.`;
 
-  const res = await claudeClient().messages.create({
-    model: MODEL, max_tokens: 500,
-    messages: [{ role: 'user', content: prompt }],
-  });
-  return res.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  return (await claude.callClaude({
+    max_tokens: 500, system: PRESS_SYSTEM, user: prompt,
+    feature: 'press_pitch', clientId: release.client_id || null,
+  })).trim();
 }
 
 // Three follow-ups on a 5 / 10 / 16-day cadence. Each is a separate
@@ -342,11 +342,10 @@ Journalist:
 
 Return ONLY a JSON array of three objects: [{ "subject": "...", "body": "..." }, ...]. Subjects under 60 characters. British English. No preamble.`;
 
-  const res = await claudeClient().messages.create({
-    model: MODEL, max_tokens: 1500,
-    messages: [{ role: 'user', content: prompt }],
-  });
-  const text = res.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  const text = (await claude.callClaude({
+    max_tokens: 1500, system: PRESS_SYSTEM, user: prompt,
+    feature: 'press_followups', clientId: release.client_id || null,
+  })).trim();
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
   try { return JSON.parse(cleaned); }
   catch { throw new Error('Claude returned malformed follow-up JSON'); }
