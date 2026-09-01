@@ -85,6 +85,7 @@ export default function ClientPRPage() {
   const [stats, setStats] = useState(null);
   const [log, setLog] = useState([]);
   const [journalists, setJournalists] = useState([]);
+  const [warmJournalists, setWarmJournalists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState(null); // null | {id?, ...form}
@@ -298,6 +299,7 @@ export default function ClientPRPage() {
       api.get(`/pr/clients/${id}/stats`).then(setStats),
       api.get(`/pr/clients/${id}/editorial-log`).then((r) => setLog(r.items || [])),
       api.get(`/pr/clients/${id}/journalists`).then((r) => setJournalists(r.items || [])),
+      api.get(`/pr/clients/${id}/warm-journalists`).then((r) => setWarmJournalists(r.items || [])).catch(() => {}),
     ]).catch((e) => toast(e.message, 'error')).finally(() => setLoading(false));
   }
   useEffect(() => { loadData(); }, [id]);
@@ -317,6 +319,7 @@ export default function ClientPRPage() {
   useEffect(() => { loadThanks(); loadMonitor(); loadReleases(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
 
   const quietCount = journalists.filter((j) => j.gone_quiet).length;
+  const warmCount = warmJournalists.length;
   const awaitingSignoff = releases.filter((r) => r.status === 'in_review').length;
 
   async function doImport(e, combined) {
@@ -554,7 +557,7 @@ export default function ClientPRPage() {
                     <td>{j.published}</td>
                     <td>{j.hit_rate == null ? '—' : Math.round(j.hit_rate * 100) + '%'}</td>
                     <td>{fmtDate(j.last_featured)}</td>
-                    <td><span className="chip chip-accent">{j.strength} · {j.strength_label}</span>{j.gone_quiet ? <span className="chip" style={{ marginLeft: 6 }}>quiet</span> : null}</td>
+                    <td><span className="chip chip-accent">{j.strength} · {j.strength_label}</span>{j.warm ? <span className="chip" style={{ marginLeft: 6, background: '#fff2e8', color: '#c2410c' }} title={j.warm_reason || 'engaging with a live campaign'}>🔥 warm</span> : null}{j.gone_quiet ? <span className="chip" style={{ marginLeft: 6 }}>quiet</span> : null}</td>
                   </tr>
                 ))}
                 {!journalists.length && <tr><td colSpan={7} style={{ color: 'var(--text-subtle)', padding: 24 }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
@@ -905,10 +908,27 @@ export default function ClientPRPage() {
             ]}
             actions={<a className="btn btn-secondary" href={`/api/pr/clients/${id}/overview-report.pdf`} download>📄 Export Overview PDF</a>}
           />
+          {warmCount ? (
+            <div className="card" style={{ borderColor: '#f0a868', background: '#fff8f2' }}>
+              <h3 className="h3 mb-2">🔥 Showing interest</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 10px' }}>
+                {warmCount} journalist{warmCount === 1 ? ' is' : 's are'} engaging with your press outreach right now — a great moment for a personal follow-up.
+              </p>
+              <div className="task-row">
+                {warmJournalists.slice(0, 8).map((w) => (
+                  <span key={w.id} className="chip" style={{ background: '#fff2e8', color: '#c2410c' }}>
+                    {w.name}{w.outlet ? ` · ${w.outlet}` : ''}{w.warm_reason ? ` — ${w.warm_reason}` : ''}
+                  </span>
+                ))}
+                {warmCount > 8 ? <span style={{ fontSize: 12, color: 'var(--text-subtle)', alignSelf: 'center' }}>+{warmCount - 8} more</span> : null}
+              </div>
+            </div>
+          ) : null}
           <div className="card">
             <h3 className="h3 mb-2">Needs attention</h3>
-            {(queue.length || thanks.length || awaitingSignoff || quietCount) ? (
+            {(queue.length || thanks.length || awaitingSignoff || quietCount || warmCount) ? (
               <div className="task-row">
+                {warmCount ? <button className="task-chip" onClick={() => setTab('journalists')}>🔥 <span><span className="n">{warmCount}</span> journalist{warmCount === 1 ? '' : 's'} showing interest</span></button> : null}
                 {queue.length ? <button className="task-chip" onClick={() => setTab('coverage')}>🔎 <span><span className="n">{queue.length}</span> coverage item{queue.length === 1 ? '' : 's'} to confirm</span></button> : null}
                 {thanks.length ? <button className="task-chip" onClick={() => setTab('journalists')}>🟡 <span><span className="n">{thanks.length}</span> thank-you{thanks.length === 1 ? '' : 's'} waiting</span></button> : null}
                 {awaitingSignoff ? <button className="task-chip" onClick={() => setTab('press')}>✍️ <span><span className="n">{awaitingSignoff}</span> release{awaitingSignoff === 1 ? '' : 's'} awaiting sign-off</span></button> : null}

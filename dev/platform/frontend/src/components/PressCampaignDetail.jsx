@@ -3,6 +3,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
+import PressCampaignAnalytics from './PressCampaignAnalytics';
 // Detail view for a single press_release campaign. Opened when the AM
 // clicks a press-flavoured campaign in the Campaigns tab. Two
 // halves: pick journalists on the left (grouped by their beat /
@@ -42,6 +43,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   const [editFollowUps, setEditFollowUps] = useState(null); // local copy while editing
   const [editIntro, setEditIntro] = useState(null);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [view, setView] = useState('setup'); // setup | results
 
   useEffect(() => {
     setLoadError(null);
@@ -244,6 +246,14 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
         </div>
       )}
 
+      <div style={{ display: 'flex', gap: 6, marginTop: 16, borderBottom: 'var(--border-w) solid var(--card-border)', paddingBottom: 8 }}>
+        <button className={`btn btn-sm ${view === 'setup' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('setup')}>Set up &amp; send</button>
+        <button className={`btn btn-sm ${view === 'results' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('results')}>Results &amp; interest</button>
+      </div>
+
+      {view === 'results' && <PressCampaignAnalytics clientId={clientId} release={release} />}
+
+      {view === 'setup' && (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 18 }}>
         <div>
           <div className="h3">Pick journalists</div>
@@ -399,6 +409,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

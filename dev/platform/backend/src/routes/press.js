@@ -156,6 +156,95 @@ router.delete('/releases/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Per-client "what counts as warm" threshold (the slider). GET returns the
+// effective config (defaults merged); PUT saves an override.
+router.get('/clients/:clientId/warm-config', async (req, res) => {
+  try {
+    const pressInterest = require('../services/pressInterest');
+    const cfg = await pressInterest.config(req.params.clientId);
+    res.json(cfg);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.put('/clients/:clientId/warm-config', async (req, res) => {
+  const b = req.body || {};
+  const cfg = {};
+  if (b.min_opens != null) cfg.min_opens = Math.max(1, parseInt(b.min_opens, 10) || 3);
+  if (typeof b.any_click === 'boolean') cfg.any_click = b.any_click;
+  try {
+    await pool.query('UPDATE clients SET press_warm_config = $1 WHERE id = $2', [JSON.stringify(cfg), req.params.clientId]);
+    res.json(cfg);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Suppression lists for a client's press outreach: who has unsubscribed (per
+// this client) and who is globally do-not-contact ("spam"/opted out everywhere).
+router.get('/clients/:clientId/suppression', async (req, res) => {
+  try {
+    const { rows: unsub } = await pool.query(
+      `SELECT oc.id, oc.name, oc.email, oc.company, occ.unsubscribed_at
+         FROM outreach_contact_clients occ JOIN outreach_contacts oc ON oc.id = occ.contact_id
+        WHERE occ.client_id = $1 AND occ.unsubscribed_at IS NOT NULL
+        ORDER BY occ.unsubscribed_at DESC LIMIT 500`,
+      [req.params.clientId]
+    );
+    const { rows: dnc } = await pool.query(
+      `SELECT id, name, email, company FROM outreach_contacts
+        WHERE status = 'do_not_contact' OR bounced_at IS NOT NULL
+        ORDER BY name LIMIT 500`
+    );
+    res.json({ unsubscribed: unsub, do_not_contact: dnc });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Campaign analytics — opens/clicks per journalist (repeat-open counts, what they
+// clicked, warm flag + interest score) plus rolled-up rates. The client sorts the
+// table however they like. Powers the "24/7 watcher" view.
+router.get('/releases/:id/analytics', async (req, res) => {
+  try {
+    const { rows: relRows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
+    const release = relRows[0];
+    assertClientAccess(req, release.client_id);
+    if (!release.campaign_id) return res.json({ totals: { recipients: 0 }, recipients: [] });
+
+    const { rows } = await pool.query(
+      `SELECT oc.id AS contact_id, oc.name, oc.email, oc.company,
+              COALESCE(SUM(s.open_count), 0)::int AS opens,
+              BOOL_OR(s.opened_at IS NOT NULL) AS opened,
+              MAX(s.last_opened_at) AS last_opened_at,
+              COUNT(*) FILTER (WHERE s.status = 'sent')::int AS sent_count,
+              BOOL_OR(s.replied_at IS NOT NULL) AS replied,
+              BOOL_OR(s.bounced_at IS NOT NULL) AS bounced,
+              (SELECT COUNT(*) FROM outreach_clicks cl JOIN outreach_sends s2 ON s2.id = cl.send_id
+                WHERE s2.campaign_id = $1 AND s2.contact_id = oc.id)::int AS clicks,
+              (SELECT array_agg(DISTINCT cl.url) FROM outreach_clicks cl JOIN outreach_sends s2 ON s2.id = cl.send_id
+                WHERE s2.campaign_id = $1 AND s2.contact_id = oc.id) AS clicked_urls,
+              occ.warm_at, occ.warm_reason, occ.interest_score
+         FROM outreach_sends s
+         JOIN outreach_contacts oc ON oc.id = s.contact_id
+         LEFT JOIN outreach_contact_clients occ ON occ.contact_id = oc.id AND occ.client_id = $2
+        WHERE s.campaign_id = $1
+        GROUP BY oc.id, oc.name, oc.email, oc.company, occ.warm_at, occ.warm_reason, occ.interest_score
+        ORDER BY occ.interest_score DESC NULLS LAST, opens DESC`,
+      [release.campaign_id, release.client_id]
+    );
+
+    const recipients = rows.length;
+    const opened = rows.filter(r => r.opened).length;
+    const clicked = rows.filter(r => r.clicks > 0).length;
+    const replied = rows.filter(r => r.replied).length;
+    const warm = rows.filter(r => r.warm_at).length;
+    const pct = (n) => (recipients ? Math.round((n / recipients) * 100) : 0);
+    res.json({
+      totals: {
+        recipients, opened, clicked, replied, warm,
+        open_rate: pct(opened), click_rate: pct(clicked), reply_rate: pct(replied),
+      },
+      recipients: rows,
+    });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 // Phase E4b — workspace-wide PR-ROI leaderboard. Launched press campaigns
 // across the caller's visible clients, ranked by referring domains earned
 // per recipient. Scoped to visibleClientIds so it respects tenant access.
