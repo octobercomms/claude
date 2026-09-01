@@ -315,6 +315,15 @@ export default function ClientPRPage() {
   function reloadPress() {
     api.get(`/press/clients/${id}/releases`).then((r) => setPressReleases(Array.isArray(r) ? r : (r.items || []))).catch(() => {});
   }
+  async function deletePressCampaign(r) {
+    if (!confirm(`Delete the press campaign "${r.title || 'untitled'}"? This removes the release, its sequence and all queued sends. Emails already sent aren't recalled.`)) return;
+    try {
+      await api.delete(`/press/releases/${r.id}`);
+      toast('Campaign deleted.', 'success');
+      if (openPressCampaign && r.campaign_id === openPressCampaign) setOpenPressCampaign(null);
+      reloadPress();
+    } catch (e) { toast(e.message, 'error'); }
+  }
   useEffect(() => { loadData(); }, [id]);
   // ESC closes whichever modal is open. Skip while a save is mid-flight so
   // the AM can't accidentally cancel an in-progress request.
@@ -549,13 +558,17 @@ export default function ClientPRPage() {
               <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>No press campaigns yet — start one from a downloadfor.press URL.</p>
             ) : (
               <table className="table">
-                <thead><tr><th>Release</th><th>Created</th><th></th></tr></thead>
+                <thead><tr><th>Release</th><th>Created</th><th></th><th></th></tr></thead>
                 <tbody>
                   {pressReleases.map((r) => (
                     <tr key={r.id} style={{ cursor: r.campaign_id ? 'pointer' : 'default' }} onClick={() => r.campaign_id && setOpenPressCampaign(r.campaign_id)}>
                       <td>{r.title || '(untitled release)'}</td>
                       <td>{fmtDate(r.created_at)}</td>
                       <td style={{ textAlign: 'right' }}>{r.campaign_id ? <span className="chip chip-accent">open →</span> : <span className="chip">draft</span>}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button className="btn btn-danger btn-sm" title="Delete campaign"
+                          {...roWrite(readOnly, { onClick: (e) => { e.stopPropagation(); deletePressCampaign(r); } })}>Delete</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

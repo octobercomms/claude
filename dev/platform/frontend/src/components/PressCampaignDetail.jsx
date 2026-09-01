@@ -159,6 +159,18 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   function setStepField(stepNumber, field, value) {
     setSteps(prev => prev.map(s => s.step_number === stepNumber ? { ...s, [field]: value } : s));
   }
+  const [suggesting, setSuggesting] = useState(false);
+  // Read the release and generate 4 distinct, enticing subject lines as bait.
+  async function suggestSubjects() {
+    if (!release) return;
+    setSuggesting(true);
+    try {
+      const r = await api.post(`/press/releases/${release.id}/subjects`, {});
+      if (Array.isArray(r.steps) && r.steps.length) setSteps(r.steps);
+      toast('Fresh subject lines drafted from the release — edit or save.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSuggesting(false); }
+  }
 
   // Send one faithful [TEST] copy to an address (personalised for a real
   // journalist so it shows the true thing).
@@ -414,6 +426,9 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
               <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 8 }}>
                 If they’ve opened, the follow-up sends. If they haven’t opened yet, we resend the original with this new subject to catch their eye. Replies stop the chase.
               </div>
+              <button {...roWrite(readOnly, { onClick: suggestSubjects, disabled: suggesting })} className="btn btn-secondary btn-sm" style={{ marginBottom: 8 }}>
+                {suggesting ? '✨ Reading the release…' : '✨ Suggest subject lines'}
+              </button>
               {steps.map(s => (
                 <div key={s.step_number} style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>

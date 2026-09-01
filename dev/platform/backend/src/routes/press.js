@@ -93,6 +93,9 @@ router.post('/clients/:clientId/releases', async (req, res) => {
       );
     }
     await dbClient.query('COMMIT');
+    // Seed intelligent, distinct subject lines from the release (best-effort —
+    // the campaign is already saved; a failure just leaves the title defaults).
+    pressRelease.applyGeneratedSubjects(rows[0].id).catch(e => console.warn('[press] subject seed failed:', e.message));
     res.status(201).json({ ...rows[0], campaign_id: campaign.id });
   } catch (err) {
     await dbClient.query('ROLLBACK');
@@ -229,11 +232,52 @@ router.get('/releases/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Delete a press campaign entirely — the release, its backing campaign, the
+// sequence, every queued/sent record, the cached per-recipient emails and its
+// interest alerts. Cancels nothing to "unsend" (sent mail is sent) but removes
+// all pending sends so nothing further goes out.
 router.delete('/releases/:id', async (req, res) => {
+  const dbClient = await pool.connect();
   try {
-    await pool.query('DELETE FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    const { rows } = await dbClient.query('SELECT client_id, campaign_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rows[0].client_id);
+    const campaignId = rows[0].campaign_id;
+    await dbClient.query('BEGIN');
+    if (campaignId) {
+      await dbClient.query('DELETE FROM outreach_sends WHERE campaign_id = $1', [campaignId]);
+      await dbClient.query('DELETE FROM outreach_campaign_contacts WHERE campaign_id = $1', [campaignId]);
+      await dbClient.query('DELETE FROM outreach_sequences WHERE campaign_id = $1', [campaignId]);
+      await dbClient.query('DELETE FROM press_interest_alerts WHERE campaign_id = $1', [campaignId]).catch(() => {});
+    }
+    await dbClient.query('DELETE FROM press_release_emails WHERE press_release_id = $1', [req.params.id]);
+    await dbClient.query('DELETE FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (campaignId) await dbClient.query('DELETE FROM outreach_campaigns WHERE id = $1', [campaignId]);
+    await dbClient.query('COMMIT');
     res.status(204).end();
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    await dbClient.query('ROLLBACK').catch(() => {});
+    res.status(err.status || 500).json({ error: err.message });
+  } finally { dbClient.release(); }
+});
+
+// (Re)generate 4 intelligent, distinct subject lines from the release and set
+// them on the sequence steps — the "bait" for the initial send + follow-ups.
+router.post('/releases/:id/subjects', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rows[0].client_id);
+    const subjects = await pressRelease.applyGeneratedSubjects(req.params.id);
+    const { rows: steps } = await pool.query(
+      'SELECT step_number, subject, delay_days FROM outreach_sequences WHERE campaign_id = (SELECT campaign_id FROM outreach_press_releases WHERE id = $1) ORDER BY step_number',
+      [req.params.id]
+    );
+    res.json({ subjects, steps });
+  } catch (err) {
+    console.error('[press] subject generation failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
 });
 
 // Per-client "what counts as warm" threshold (the slider). GET returns the
