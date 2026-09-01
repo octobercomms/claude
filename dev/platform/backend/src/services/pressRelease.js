@@ -434,6 +434,54 @@ async function createReleaseWithCampaign(clientId, { title, body_html, source_ur
   }
 }
 
+// Four DISTINCT, enticing subject lines from the release — each leading with a
+// different genuinely newsworthy hook, so the four sends (initial + the
+// resend-to-unopeners follow-ups) each try a fresh angle to grab attention.
+// This is the "bait" the AM uses to earn the open. Runs on Opus (press_pitch).
+async function generateSubjectLines({ release }) {
+  const releaseText = (release.body_html || release.summary || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1800);
+  const user = `Read this press release and write FOUR different email subject lines to pitch it to journalists. We send them in sequence to try to earn the open, so each must lead with a DIFFERENT genuinely enticing hook — a distinct newsworthy angle or the single most interesting fact from the release, not four rewordings of one idea.
+
+Rules:
+- Under 65 characters each.
+- Specific and concrete — use the real names, numbers, and the actual story. No vague teasers, no clickbait, no "Press release:" prefix.
+- Order them strongest-first.
+- British English.
+
+HEADLINE: ${release.title}
+RELEASE:
+"""
+${releaseText}
+"""
+
+Return ONLY a JSON array of exactly 4 strings.`;
+  const text = await claude.callClaude({ max_tokens: 400, system: PRESS_SYSTEM, user, feature: 'press_pitch', clientId: release.client_id || null });
+  let arr = [];
+  const fence = text.match(/```json\s*([\s\S]*?)```/i) || text.match(/```\s*(\[[\s\S]*?\])\s*```/);
+  const body = fence ? fence[1] : text.slice(text.indexOf('['), text.lastIndexOf(']') + 1);
+  try { const v = JSON.parse(body.trim()); if (Array.isArray(v)) arr = v; } catch { /* none */ }
+  return arr.filter(s => typeof s === 'string').map(s => s.trim().replace(/^["']|["']$/g, '').slice(0, 250)).filter(Boolean).slice(0, 4);
+}
+
+// Generate the subjects and write them onto the campaign's step rows (step 1 =
+// initial, 2-4 = follow-ups). Best-effort — a failure leaves existing subjects.
+async function applyGeneratedSubjects(pressReleaseId) {
+  const { rows } = await pool.query(
+    'SELECT pr.*, c.name AS client_name FROM outreach_press_releases pr LEFT JOIN clients c ON c.id = pr.client_id WHERE pr.id = $1',
+    [pressReleaseId]
+  );
+  if (!rows.length || !rows[0].campaign_id) return [];
+  const release = rows[0];
+  const subjects = await generateSubjectLines({ release });
+  for (let i = 0; i < subjects.length; i++) {
+    await pool.query(
+      'UPDATE outreach_sequences SET subject = $1 WHERE campaign_id = $2 AND step_number = $3',
+      [subjects[i], release.campaign_id, i + 1]
+    );
+  }
+  return subjects;
+}
+
 module.exports = {
   fetchAndParse,
   buildEmailHtml,
@@ -441,4 +489,6 @@ module.exports = {
   generateFollowUps,
   getOrGenerateEmails,
   createReleaseWithCampaign,
+  generateSubjectLines,
+  applyGeneratedSubjects,
 };
