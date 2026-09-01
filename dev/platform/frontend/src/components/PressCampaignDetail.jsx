@@ -296,8 +296,11 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
               PATCH /press/releases/:id. */}
           {release && (
             <div style={{ marginBottom: 12, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
                 Sequence &amp; timing
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 8 }}>
+                If they’ve opened, the follow-up sends. If they haven’t opened yet, we resend the original with this new subject to catch their eye. Replies stop the chase.
               </div>
               {steps.map(s => (
                 <div key={s.step_number} style={{ marginBottom: 8 }}>

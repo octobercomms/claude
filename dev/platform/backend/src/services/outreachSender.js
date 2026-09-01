@@ -305,35 +305,56 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
   );
   const editedSubject = seqRows[0]?.subject;
 
-  let subject, html, text;
-  if (kind === 'release') {
-    subject = editedSubject || release.title;
+  // Render the full release email (pitch + optional embed), tracked. Shared by
+  // the initial send AND the "resend to an unopener" follow-up path.
+  function renderRelease(subjectLine) {
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
-    html = pressRelease.buildEmailHtml({
-      release: releaseWithHero,
-      pitch: cached.intro,
-      sender,
-      recipientName: contact.name,
-      // embed_full_release is set per-release, defaults true (migration 038).
-      embedFull: release.embed_full_release !== false,
-      contactId: contact.id,
-      clientId,
+    let h = pressRelease.buildEmailHtml({
+      release: releaseWithHero, pitch: cached.intro, sender,
+      recipientName: contact.name, embedFull: release.embed_full_release !== false,
+      contactId: contact.id, clientId,
     });
-    html = rewriteLinksForTracking(html, sendId);
-    // Append the open pixel — buildEmailHtml doesn't know about send_id.
+    h = rewriteLinksForTracking(h, sendId);
     if (sendId && process.env.PLATFORM_URL) {
       const sig = signTrackToken({ sendId, kind: 'open' });
-      html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${sendId}?s=${sig}" width="1" height="1" alt="" style="display:none">`;
+      h += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${sendId}?s=${sig}" width="1" height="1" alt="" style="display:none">`;
     }
-    text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
+    return { subject: subjectLine, html: h, text: (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}` };
+  }
+
+  let subject, html, text;
+  if (kind === 'release') {
+    ({ subject, html, text } = renderRelease(editedSubject || release.title));
   } else {
-    const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
-    const idx = Math.max(0, Math.min(followupIndex - 1, followUps.length - 1));
-    const fu = followUps[idx] || { subject: `Re: ${release.title}`, body: '' };
-    subject = fu.subject || `Re: ${release.title}`;
-    text = fu.body || '';
-    html = htmlBody(text, sendId, contact.id, clientId);
+    // Open-aware follow-up. If the journalist has ALREADY OPENED an earlier email
+    // in this campaign, send the real next-stage follow-up. If they've NOT opened
+    // anything yet, there's no point sending a "just following up" — instead
+    // RESEND the original pitch with a fresh subject line (this step's edited
+    // subject) to try to catch their attention. (Daniel's #10/#11.)
+    const stepNo = followupIndex + 1; // sequence step_number for this follow-up
+    const { rows: openedRows } = await pool.query(
+      `SELECT 1 FROM outreach_sends WHERE campaign_id = $1 AND contact_id = $2 AND opened_at IS NOT NULL LIMIT 1`,
+      [campaignId, contact.id]
+    );
+    const hasOpened = openedRows.length > 0;
+    const { rows: stepRows } = await pool.query(
+      'SELECT subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number = $2 LIMIT 1',
+      [campaignId, stepNo]
+    );
+    const stepSubject = stepRows[0]?.subject;
+
+    if (!hasOpened) {
+      // Resend the release with a new subject.
+      ({ subject, html, text } = renderRelease(stepSubject || `Re: ${release.title}`));
+    } else {
+      const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
+      const idx = Math.max(0, Math.min(followupIndex - 1, followUps.length - 1));
+      const fu = followUps[idx] || { subject: `Re: ${release.title}`, body: '' };
+      subject = stepSubject || fu.subject || `Re: ${release.title}`;
+      text = fu.body || '';
+      html = htmlBody(text, sendId, contact.id, clientId);
+    }
   }
   const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
   return deliver({ from, to: contact.email, replyTo, subject, text, html, headers, contactId: contact.id });
