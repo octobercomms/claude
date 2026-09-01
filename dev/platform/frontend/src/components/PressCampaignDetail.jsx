@@ -44,6 +44,10 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   const [editIntro, setEditIntro] = useState(null);
   const [savingEmail, setSavingEmail] = useState(false);
   const [view, setView] = useState('setup'); // setup | results
+  // Global targeting: search the whole media library, not just client-linked.
+  const [globalQuery, setGlobalQuery] = useState('');
+  const [globalResults, setGlobalResults] = useState(null);
+  const [searchingGlobal, setSearchingGlobal] = useState(false);
 
   useEffect(() => {
     setLoadError(null);
@@ -78,6 +82,16 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  }
+
+  async function searchGlobal() {
+    if (!globalQuery.trim()) return;
+    setSearchingGlobal(true);
+    try {
+      const r = await api.get(`/press/journalists?search=${encodeURIComponent(globalQuery.trim())}`);
+      setGlobalResults(r.items || []);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSearchingGlobal(false); }
   }
 
   async function preview(contactId, force = false) {
@@ -280,6 +294,34 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
               </div>
             ))}
           </div>
+          {/* Global targeting — reach journalists across the whole media library,
+              not only those already on this client. Picked ones are auto-attached
+              on send. */}
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Add from the full media library</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input value={globalQuery} onChange={e => setGlobalQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchGlobal()}
+                placeholder="search all journalists by name, outlet or email…" className="input" style={{ flex: 1 }} />
+              <button className="btn btn-secondary btn-sm" onClick={searchGlobal} disabled={searchingGlobal}>{searchingGlobal ? '…' : 'Search'}</button>
+            </div>
+            {globalResults && (
+              <div style={{ maxHeight: 220, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginTop: 8 }}>
+                {!globalResults.length && <div style={{ padding: 12, color: 'var(--text-subtle)', fontSize: 12 }}>No journalists found.</div>}
+                {globalResults.map(c => (
+                  <label key={c.id} className="row center" style={{ gap: 10, padding: '7px 10px', borderTop: 'var(--border-w) solid var(--accent-soft)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {c.name || '(no name)'}{c.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {c.company}</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{c.email}{c.contact_type ? ` · ${c.contact_type}` : ''}{c.location ? ` · ${c.location}` : ''}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selected.size} selected</div>
             <button {...roWrite(readOnly, { onClick: send, disabled: !selected.size || sending })} className="btn btn-primary">

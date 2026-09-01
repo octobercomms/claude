@@ -131,6 +131,37 @@ router.get('/campaigns/:id/release', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Global journalist search — draw the audience from the WHOLE media library, not
+// just contacts already attached to this client (Daniel's #15). Filters: free
+// text (name/outlet/email), tag, beat, location, outlet. Excludes suppressed /
+// bounced / emailless. The send route auto-attaches whoever is picked.
+router.get('/journalists', async (req, res) => {
+  const { search, tag, beat, outlet, location } = req.query;
+  const where = [
+    `oc.kind IN ('media','industry')`,
+    `oc.email IS NOT NULL AND oc.email <> ''`,
+    `(oc.status IS NULL OR oc.status <> 'do_not_contact')`,
+    `oc.bounced_at IS NULL`,
+  ];
+  const params = [];
+  const like = (v) => { params.push(`%${v}%`); return `$${params.length}`; };
+  if (search) { const p = like(search); where.push(`(oc.name ILIKE ${p} OR oc.email ILIKE ${p} OR oc.company ILIKE ${p})`); }
+  if (tag) { params.push(tag); where.push(`$${params.length} = ANY(oc.tags)`); }
+  if (beat) { where.push(`oc.contact_type ILIKE ${like(beat)}`); }
+  if (location) { where.push(`oc.location ILIKE ${like(location)}`); }
+  if (outlet) { where.push(`oc.company ILIKE ${like(outlet)}`); }
+  try {
+    const { rows } = await pool.query(
+      `SELECT oc.id, oc.name, oc.email, oc.company, oc.contact_type, oc.title, oc.location, oc.tags
+         FROM outreach_contacts oc
+        WHERE ${where.join(' AND ')}
+        ORDER BY oc.name LIMIT 300`,
+      params
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/clients/:clientId/releases', async (req, res) => {
   try {
     const { rows } = await pool.query(
