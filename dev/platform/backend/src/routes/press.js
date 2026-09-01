@@ -131,6 +131,23 @@ router.get('/campaigns/:id/release', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Paste-and-sort import — Claude extracts contacts from whatever's pasted,
+// dedupes/merges into the media library, and attaches them to this client (and
+// the campaign, if given). Returns a summary the UI can show + undo from.
+router.post('/clients/:clientId/import-smart', async (req, res) => {
+  const text = (req.body?.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'Paste some names to sort.' });
+  try {
+    const out = await require('../services/pressImport').smartImport({
+      text, clientId: req.params.clientId, campaignId: req.body?.campaign_id || null,
+    });
+    res.json(out);
+  } catch (err) {
+    console.error('[press] smart import failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // Global journalist search — draw the audience from the WHOLE media library, not
 // just contacts already attached to this client (Daniel's #15). Filters: free
 // text (name/outlet/email), tag, beat, location, outlet. Excludes suppressed /

@@ -48,6 +48,10 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   const [globalQuery, setGlobalQuery] = useState('');
   const [globalResults, setGlobalResults] = useState(null);
   const [searchingGlobal, setSearchingGlobal] = useState(false);
+  // Paste-and-sort import.
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [pasting, setPasting] = useState(false);
 
   useEffect(() => {
     setLoadError(null);
@@ -82,6 +86,19 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  }
+
+  async function doPasteImport() {
+    if (!pasteText.trim() || !release) return;
+    setPasting(true);
+    try {
+      const r = await api.post(`/press/clients/${clientId}/import-smart`, { text: pasteText, campaign_id: release.campaign_id });
+      toast(`Sorted: ${r.added} added, ${r.updated} updated${r.skipped ? `, ${r.skipped} skipped` : ''}.`, 'success');
+      // Pre-select everything just imported so it's ready to send.
+      setSelected(prev => { const n = new Set(prev); (r.items || []).forEach(it => it.id && n.add(it.id)); return n; });
+      setPasteText(''); setShowPaste(false);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPasting(false); }
   }
 
   async function searchGlobal() {
@@ -298,7 +315,19 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
               not only those already on this client. Picked ones are auto-attached
               on send. */}
           <div style={{ marginTop: 12, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Add from the full media library</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Add from the full media library</div>
+              <button className="btn btn-link btn-sm" onClick={() => setShowPaste(v => !v)}>{showPaste ? 'close paste' : '📋 paste a list'}</button>
+            </div>
+            {showPaste && (
+              <div style={{ marginBottom: 8 }}>
+                <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={4} className="input"
+                  placeholder="Paste anything — a spreadsheet, email signatures, 'Jane Doe, arts editor, The Times, jane@thetimes.co.uk'. Claude sorts, de-dupes and adds them to your list + this campaign." style={{ width: '100%', boxSizing: 'border-box', fontSize: 12 }} />
+                <button {...roWrite(readOnly, { onClick: doPasteImport, disabled: pasting || !pasteText.trim() })} className="btn btn-primary btn-sm" style={{ marginTop: 6 }}>
+                  {pasting ? 'Sorting…' : 'Sort & add'}
+                </button>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 6 }}>
               <input value={globalQuery} onChange={e => setGlobalQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchGlobal()}
                 placeholder="search all journalists by name, outlet or email…" className="input" style={{ flex: 1 }} />
