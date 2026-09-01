@@ -86,9 +86,9 @@ class YAA_Rest {
 	private static function meta() {
 		$t = YAA_Pricing::table();
 		return array(
-			'delivery'     => $t['delivery_days'],
-			'revisions'    => (int) $t['revisions_included'],
-			'validityDays' => (int) $t['quote_validity_days'],
+			'delivery'     => $t['meta']['delivery'],
+			'revisions'    => (int) $t['meta']['revisions'],
+			'validityDays' => (int) $t['meta']['validityDays'],
 		);
 	}
 

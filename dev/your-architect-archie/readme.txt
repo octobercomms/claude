@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.5.6
+Stable tag: 0.5.7
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,16 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.5.7 =
+* Fixed the critical error when uploading a document/drawing in the admin. The
+  secure-uploads directory filter called wp_upload_dir() from inside the
+  upload_dir filter, causing infinite recursion (stack overflow). It now builds
+  the path from the data already provided.
+* Fixed a follow-on fatal in 0.5.6 (the upload error handler called a logging
+  method that did not exist).
+* Stopped a warning flood: the REST meta endpoint still read the old pricing keys
+  (delivery_days etc.) renamed in 0.5.0; it now reads the current structure.
 
 = 0.5.6 =
 * Fixed the "I need advice" path showing the full service menu under unrelated

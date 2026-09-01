@@ -69,7 +69,11 @@ class YAA_Files {
 
 	/** upload_dir filter: redirect wp_handle_upload into the secure directory. */
 	public static function to_secure( $dirs ) {
-		$secure = self::secure_dir();
+		// IMPORTANT: build the path from the $dirs already passed in — do NOT call
+		// secure_dir()/wp_upload_dir() here, or this filter re-triggers itself and
+		// recurses infinitely (stack overflow). The directory + guard files are
+		// created by the secure_dir() call in store_uploaded() before this runs.
+		$secure = trailingslashit( $dirs['basedir'] ) . 'yaa-secure';
 		$dirs['path']   = $secure;
 		$dirs['url']    = '';       // no public URL — access is via the endpoint only.
 		$dirs['subdir'] = '';
@@ -155,9 +159,7 @@ class YAA_Files {
 				}
 			} catch ( \Throwable $e ) {
 				$err = $e->getMessage();
-				if ( class_exists( 'YAA_Log' ) ) {
-					YAA_Log::error( 'file upload failed: ' . $e->getMessage() );
-				}
+				error_log( 'YAA file upload failed: ' . $e->getMessage() ); // phpcs:ignore
 			}
 		}
 		$args = array( 'page' => YAA_Projects_Admin::SLUG, 'project' => $project_id );
