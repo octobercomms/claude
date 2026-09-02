@@ -73,6 +73,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [refetching, setRefetching] = useState(false);
   const [showHtmlEdit, setShowHtmlEdit] = useState(false);
   const [bodyHtmlDraft, setBodyHtmlDraft] = useState('');
+  const [boilerplateDraft, setBoilerplateDraft] = useState('');
   const [savingBody, setSavingBody] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -232,13 +233,13 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     if (!w) { toast('Allow pop-ups to open the preview in a new tab.', 'info'); URL.revokeObjectURL(url); return; }
     setTimeout(() => URL.revokeObjectURL(url), 120000);
   }
-  function openHtmlEdit() { setBodyHtmlDraft(release?.body_html || ''); setShowHtmlEdit(v => !v); }
+  function openHtmlEdit() { setBodyHtmlDraft(release?.body_html || ''); setBoilerplateDraft(release?.boilerplate || ''); setShowHtmlEdit(v => !v); }
   async function saveReleaseHtml() {
     if (!release) return;
     setSavingBody(true);
     try {
-      await api.patch(`/press/releases/${release.id}`, { body_html: bodyHtmlDraft });
-      setRelease(r => ({ ...r, body_html: bodyHtmlDraft }));
+      await api.patch(`/press/releases/${release.id}`, { body_html: bodyHtmlDraft, boilerplate: boilerplateDraft });
+      setRelease(r => ({ ...r, body_html: bodyHtmlDraft, boilerplate: boilerplateDraft }));
       if (previewing) preview(previewing, true);
       toast('Release content saved.', 'success');
       setShowHtmlEdit(false);
@@ -643,9 +644,13 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
             {showHtmlEdit && (
               <div style={{ marginBottom: 12, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-                <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 6 }}>Edit the embedded release content directly — remove anything weird, fix a caption, delete a stray duplicate. Saved for the whole campaign; previews regenerate.</div>
+                <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 6 }}>Edit the embedded release directly — remove anything weird, fix a caption, delete a stray duplicate. Saved for the whole campaign; previews regenerate.</div>
+                <label className="field-label" style={{ marginTop: 2 }}>Release body (HTML)</label>
                 <textarea value={bodyHtmlDraft} onChange={e => setBodyHtmlDraft(e.target.value)} rows={12} className="input"
                   style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: 12 }} />
+                <label className="field-label" style={{ marginTop: 8 }}>Notes to editors / boilerplate (HTML)</label>
+                <textarea value={boilerplateDraft} onChange={e => setBoilerplateDraft(e.target.value)} rows={8} className="input"
+                  placeholder="The 'Notes to editors' / About section below the release." style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: 12 }} />
                 <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
                   <button {...roWrite(readOnly, { onClick: saveReleaseHtml, disabled: savingBody })} className="btn btn-primary btn-sm">{savingBody ? 'Saving…' : 'Save release content'}</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => setShowHtmlEdit(false)}>Cancel</button>

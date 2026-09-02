@@ -569,6 +569,11 @@ router.patch('/releases/:id', async (req, res) => {
       params.push(req.body.body_html.replace(/<[^>]+>/g, ' ').slice(0, 200000));
       updates.push(`body = $${params.length}`);
     }
+    // The "Notes to editors" / About block lives separately (below the body).
+    if (typeof req.body?.boilerplate === 'string') {
+      params.push(req.body.boilerplate.slice(0, 100000) || null);
+      updates.push(`boilerplate = $${params.length}`);
+    }
     if (updates.length) {
       params.push(req.params.id);
       await pool.query(`UPDATE outreach_press_releases SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
