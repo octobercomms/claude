@@ -195,7 +195,7 @@ const SECTIONS = [
       '**Build** — the content pipeline: **Find → Brief → Draft → Publish → Promote** (Claude-written briefs and drafts for a target keyword).',
       '**Localise** — the local-SEO toolkit (competition gap, schema audit, buyer-intent keywords, competitor X-ray, GBP ranking playbook, ranking outliers, GBP posts).',
       '**Convert** — page conversion: **CRO** (a Microsoft Clarity funnel audit with ticked-off fixes) and **Forms** (October Forms funnel data).',
-      '**Email** — cold-outreach, as a **Build → Run** rail: **Find** your contact list (Hunter + Serper + library) → **Write** the sequence (Claude) → **Send** from your own domain (tracked) → **Chase** replies & follow-up tasks. Replies hit the IMAP inbox, get classified by Claude, and auto-unsubscribe matches. (Keys + SPF/DKIM/DMARC setup live in Settings.)',
+      '**Email** — cold-outreach, as a **Build → Run** rail: **Find** your lead list (Hunter + Serper + library) → **Write** the sequence (Claude) → **Send** from your own domain (tracked) → **Chase** replies & follow-up tasks. Replies hit the IMAP inbox, get classified by Claude, and auto-unsubscribe matches. (Keys + SPF/DKIM/DMARC setup live in Settings.)',
     ],
   },
   {
@@ -218,7 +218,7 @@ const SECTIONS = [
       'Three sections, each grouped into labelled bentos: **Connections · Workspace · Account**.',
       '**Connections** — **Spend** (Costs & usage: latest balance / monthly spend per provider, colour-coded, auto-refreshed nightly at 02:00) · **Marketing data** (Ad platforms · E-commerce · SEO) · **AI & outreach** (AI models · Email sending · Outreach finders) · **Platform** (Integrations · Other).',
       'For Anthropic **spend tracking**, add an `ANTHROPIC_ADMIN_KEY` alongside the Claude key — it\'s the only provider that exposes an actual £/$ figure. Providers without a balance API (Replicate, Ideogram, Serper) are estimated from a manual checkpoint you enter.',
-      '**Workspace** — **Library** (Contacts · Publications · Tags — reusable across clients) and **Templates & tools** (Strategy templates · PR Gmail add-on).',
+      '**Workspace** — **Library** (Journalists · Publications · Tags — reusable across clients) and **Templates & tools** (Strategy templates · PR Gmail add-on).',
       '**Account** — **Access**: Users & access (add users, set role, assign clients — viewers see only what you tick) and Security. Change **your own password** from the sidebar footer on any page.',
     ],
   },

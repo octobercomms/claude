@@ -600,7 +600,7 @@ export default function ClientPRPage() {
 
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your contacts' beats and your relationship history to build a targeted list.</p>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your journalists' beats and your relationship history to build a targeted list.</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
               <label className="field" style={{ flex: 1, minWidth: 240 }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
               <button className="btn btn-primary" {...roWrite(readOnly, { onClick: findTargets, disabled: pitchLoading })}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
@@ -1052,7 +1052,7 @@ export default function ClientPRPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <label className="field"><span className="field-label">Story title</span><input className="input" value={f.story_title} onChange={(e) => setF('story_title', e.target.value)} /></label>
               <label className="field"><span className="field-label">Status</span><select className="input" value={f.status} onChange={(e) => setF('status', e.target.value)}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-              <label className="field"><span className="field-label">Press contact</span><input className="input" value={f.press_contact} onChange={(e) => setF('press_contact', e.target.value)} placeholder="Journalist name" /></label>
+              <label className="field"><span className="field-label">Journalist</span><input className="input" value={f.press_contact} onChange={(e) => setF('press_contact', e.target.value)} placeholder="Journalist name" /></label>
               <label className="field"><span className="field-label">Publication</span><input className="input" value={f.publication} onChange={(e) => setF('publication', e.target.value)} /></label>
               <label className="field"><span className="field-label">Country</span><input className="input" value={f.country} onChange={(e) => setF('country', e.target.value)} /></label>
               <label className="field"><span className="field-label">Issue date</span><input className="input" type="date" value={f.issue_date} onChange={(e) => setF('issue_date', e.target.value)} /></label>

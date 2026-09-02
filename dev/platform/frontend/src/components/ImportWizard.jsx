@@ -57,7 +57,9 @@ export default function ImportWizard({
   allowClients = false,
   defaultClientIds = [],
   clientIdForAttach = null,
+  entityLabel = 'contact',
 }) {
+  const plural = `${entityLabel}s`;
   const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
   const [rawRows, setRawRows] = useState(null);
@@ -196,7 +198,7 @@ export default function ImportWizard({
         <div style={header}>
           <div>
             <div style={eyebrow}>Step {step} of 3</div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Import contacts</h2>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Import {plural}</h2>
           </div>
           <button onClick={onClose} style={closeBtn}>×</button>
         </div>
@@ -207,7 +209,7 @@ export default function ImportWizard({
           <div>
             <p style={hint}>
               Pick a CSV file. The first row should be column headers (email, name, company,
-              etc). We'll let you map each column to the right contact field on the next step.
+              etc). We'll let you map each column to the right {entityLabel} field on the next step.
             </p>
             <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onPickFile} />
             <div style={{ marginTop: 14 }}>
@@ -220,7 +222,7 @@ export default function ImportWizard({
         {step === 2 && (
           <div>
             <p style={hint}>
-              {rawRows?.totalRows} rows detected. Map each column to one of our contact fields.
+              {rawRows?.totalRows} rows detected. Map each column to one of our {entityLabel} fields.
               Anything mapped to "ignore" is dropped on import. <strong>Email</strong> is required.
             </p>
             <div style={{ overflowX: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginTop: 10 }}>
@@ -271,11 +273,11 @@ export default function ImportWizard({
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                   {kindColumnMapped
                     ? <>Used for rows with no value in your <strong>Type</strong> column.</>
-                    : <>You haven't mapped a <strong>Type</strong> column, so <strong>every</strong> contact will be imported as this. Pick carefully.</>}
+                    : <>You haven't mapped a <strong>Type</strong> column, so <strong>every</strong> {entityLabel} will be imported as this. Pick carefully.</>}
                 </span>
               </div>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                Apply these tags to every imported contact
+                Apply these tags to every imported {entityLabel}
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
                 {Array.from(tags).map(t => (
@@ -309,7 +311,7 @@ export default function ImportWizard({
                   Also attach to (optional)
                 </div>
                 {!clients.length
-                  ? <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No clients to choose — contacts will land in the library only.</div>
+                  ? <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No clients to choose — {plural} will land in the library only.</div>
                   : (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {clients.map(c => (
@@ -343,7 +345,7 @@ export default function ImportWizard({
           <div>
             <p style={hint}>Here's what's about to be imported. Click Import to send it.</p>
             <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 14, fontSize: 13, lineHeight: 1.8, marginTop: 10 }}>
-              <div><strong>{builtRows.length}</strong> contacts with a valid email</div>
+              <div><strong>{builtRows.length}</strong> {plural} with a valid email</div>
               <div>Importing as: <strong>{kindColumnMapped ? `per your Type column (fallback ${KIND_LABEL[defaultKind] || '—'})` : KIND_LABEL[defaultKind] || '—'}</strong></div>
               <div>Library: <strong>add new or merge tags into existing</strong> (re-imports are safe)</div>
               {clientIdForAttach && <div>Attach to: <strong>this client</strong></div>}
@@ -359,7 +361,7 @@ export default function ImportWizard({
               <button onClick={() => setStep(2)} style={ghostBtn} disabled={importing}>← Back</button>
               <div style={{ flex: 1 }} />
               <button onClick={runImport} disabled={importing} style={importing ? { ...btn, opacity: 0.6 } : btn}>
-                {importing ? 'Importing…' : `Import ${builtRows.length} contact${builtRows.length === 1 ? '' : 's'}`}
+                {importing ? 'Importing…' : `Import ${builtRows.length} ${entityLabel}${builtRows.length === 1 ? '' : 's'}`}
               </button>
             </div>
           </div>
@@ -368,7 +370,7 @@ export default function ImportWizard({
         {step === 3 && result && (
           <div>
             <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 13 }}>
-              ✓ Imported {result.inserted} new contact{result.inserted === 1 ? '' : 's'}, merged tags into {result.reused} existing.
+              ✓ Imported {result.inserted} new {entityLabel}{result.inserted === 1 ? '' : 's'}, merged tags into {result.reused} existing.
               {clientIdForAttach && ` Attached to this client.`}
               {allowClients && attachClients.size > 0 && ` Attached to ${attachClients.size} client${attachClients.size === 1 ? '' : 's'}.`}
             </div>

@@ -11,8 +11,9 @@ const KIND_OPTIONS = [
 ];
 function fmtDate(d) { if (!d) return '—'; const t = new Date(d); return isNaN(t) ? d : t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
-export default function EditContactModal({ contact, onClose, onSaved }) {
+export default function EditContactModal({ contact, onClose, onSaved, entityLabel = 'contact' }) {
   const toast = useToast();
+  const Cap = entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1);
   const isPress = (contact.kind || 'media') !== 'prospect';
   const [form, setForm] = useState(() => ({
     first_name: contact.first_name || '',
@@ -70,7 +71,7 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
     try {
       const combinedName = [form.first_name, form.last_name].filter(Boolean).join(' ') || null;
       const updated = await api.put(`/outreach/contacts/${contact.id}`, { ...form, name: combinedName, role: form.title });
-      toast('Contact saved', 'success');
+      toast(`${Cap} saved`, 'success');
       onSaved(updated);
       onClose();
     } catch (err) { toast(err.message, 'error'); }
@@ -88,7 +89,7 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
     <div className="modal-backdrop" onClick={onClose}>
       <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal modal-wide">
         <div className="modal-head">
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{contact.name || contact.email || 'Contact'}</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{contact.name || contact.email || Cap}</h2>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button type="button" onClick={onClose} className="modal-close">×</button>
           </div>
@@ -108,17 +109,18 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
         </div>
 
         {tab === 'coverage' ? (
-          <CoveragePanel profile={pressProfile} err={pressErr} />
+          <CoveragePanel profile={pressProfile} err={pressErr} entityLabel={entityLabel} />
         ) : tab === 'activity' ? (
           <ActivityPanel
             contact={contact}
             activity={activity}
             err={activityErr}
+            entityLabel={entityLabel}
             onReloadActivity={() => setActivity(null)}
           />
         ) : (
         <div className="grid">
-          <Section title="Contact Details">
+          <Section title={`${Cap} Details`}>
             <Field label="First Name">
               <input className="input" value={form.first_name} onChange={e => update('first_name', e.target.value)} />
             </Field>
@@ -174,7 +176,7 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
         <div className="row end">
           <button type="button" onClick={onClose} className="btn btn-secondary">{tab === 'activity' ? 'Close' : 'Cancel'}</button>
           {tab !== 'activity' && (
-            <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save Contact'}</button>
+            <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : `Save ${Cap}`}</button>
           )}
         </div>
       </form>
@@ -185,7 +187,7 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
 // Mautic-style engagement timeline. Loads sends + opens + clicks + replies
 // for this contact and renders them top-down newest-first with a stat row
 // across the top.
-function ActivityPanel({ contact, activity, err, onReloadActivity }) {
+function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel = 'contact' }) {
   const toast = useToast();
   const [working, setWorking] = useState(null);
   if (err) {
@@ -218,7 +220,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
     setWorking('bounce');
     try {
       await api.post(`/outreach/contacts/${contact.id}/clear-bounce`, {});
-      toast('Bounce cleared — contact is sendable again', 'success');
+      toast(`Bounce cleared — ${entityLabel} is sendable again`, 'success');
       onReloadActivity();
     } catch (e) { toast(e.message, 'error'); }
     finally { setWorking(null); }
@@ -239,7 +241,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
             <strong>Hard bounce</strong> · {fmtTime(bounce.bounced_at)}
             {bounce.reason && <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 4 }}>{bounce.reason}</div>}
             <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 4 }}>
-              This contact is suppressed across every client until cleared.
+              This {entityLabel} is suppressed across every client until cleared.
             </div>
           </div>
           <button onClick={clearBounce} disabled={working === 'bounce'} style={resubBtn}>
@@ -264,7 +266,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
 
       {!events.length && (
         <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13, textAlign: 'center' }}>
-          No emails sent to this contact yet.
+          No emails sent to this {entityLabel} yet.
         </div>
       )}
 
@@ -348,7 +350,7 @@ function Field({ label, children, full }) {
 // Coverage panel for press contacts — folds in what the old
 // JournalistProfilePage used to show, so the modal is the full profile and
 // there's no separate page to navigate to. Loads from /pr/contacts/:id.
-function CoveragePanel({ profile, err }) {
+function CoveragePanel({ profile, err, entityLabel = 'contact' }) {
   if (err) return <div style={{ padding: 20, color: 'var(--negative)', fontSize: 13 }}>Couldn't load coverage: {err}</div>;
   if (!profile) return <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>;
   const coverage = profile.coverage || [];
@@ -373,7 +375,7 @@ function CoveragePanel({ profile, err }) {
         )}
       </div>
       {coverage.length === 0 ? (
-        <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>No coverage logged for this contact yet.</p>
+        <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>No coverage logged for this {entityLabel} yet.</p>
       ) : (
         <table className="table" style={{ width: '100%', fontSize: 13 }}>
           <thead><tr><th>Client</th><th>Publication</th><th>Status</th><th>Date</th><th>Story</th></tr></thead>
