@@ -114,12 +114,13 @@ router.get('/campaigns/:id/release', async (req, res) => {
     // Include the step-1 subject so the campaign detail UI can render it
     // in an editable input. Defaults to release.title at creation time.
     const { rows } = await pool.query(
-      `SELECT pr.*, (
+      `SELECT pr.*, cl.press_signature, (
          SELECT subject FROM outreach_sequences
           WHERE campaign_id = pr.campaign_id AND step_number = 1
         ) AS subject
          FROM outreach_press_releases pr
          JOIN outreach_campaigns c ON c.id = pr.campaign_id
+         JOIN clients cl ON cl.id = pr.client_id
         WHERE pr.campaign_id = $1`,
       [req.params.id]
     );
@@ -333,6 +334,23 @@ router.put('/clients/:clientId/warm-config', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Per-client press signature/footer — the block appended to every pitch and
+// follow-up so the emails read as personal mail the AM signs off. GET returns
+// the current value; PUT saves it (empty string clears it).
+router.get('/clients/:clientId/press-signature', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT press_signature FROM clients WHERE id = $1', [req.params.clientId]);
+    res.json({ signature: rows[0]?.press_signature || '' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.put('/clients/:clientId/press-signature', async (req, res) => {
+  const sig = typeof req.body?.signature === 'string' ? req.body.signature.slice(0, 2000) : '';
+  try {
+    await pool.query('UPDATE clients SET press_signature = $1 WHERE id = $2', [sig || null, req.params.clientId]);
+    res.json({ signature: sig });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Suppression lists for a client's press outreach: who has unsubscribed (per
 // this client) and who is globally do-not-contact ("spam"/opted out everywhere).
 router.get('/clients/:clientId/suppression', async (req, res) => {
@@ -445,6 +463,7 @@ router.post('/releases/:id/preview', async (req, res) => {
     // surface it as hero_image so buildEmailHtml can render it.
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: req.user.username === 'daniel' ? 'Daniel Nelson' : req.user.username, first_name: (req.user.username || 'Daniel').split(' ')[0], company: 'October Communications' };
+    const signature = await pressRelease.clientSignature(release.client_id);
     const html = pressRelease.buildEmailHtml({
       release: releaseWithHero,
       pitch: cached.intro,
@@ -453,10 +472,29 @@ router.post('/releases/:id/preview', async (req, res) => {
       embedFull: release.embed_full_release !== false,
       contactId: contact_id,
       clientId: release.client_id,
+      signature,
     });
+
+    // Follow-up subjects are owned by the sequence (steps 2-4), not the cached
+    // per-recipient draft — so the preview shows the SAME subject the sequence
+    // panel edits, and the AM edits only the body here (no duplicate subject).
+    const { rows: fuSteps } = await pool.query(
+      'SELECT step_number, subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number > 1 ORDER BY step_number',
+      [release.campaign_id]
+    );
+    const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
+    const follow_ups_html = followUps.map((fu, i) => pressRelease.buildFollowUpHtml({
+      release: releaseWithHero, body: fu.body, sender, recipientName: contactRows[0].name,
+      contactId: contact_id, clientId: release.client_id, signature,
+    }));
+    // Merge the authoritative sequence subject onto each follow-up for display.
+    const followUpsOut = followUps.map((fu, i) => ({
+      ...fu, subject: fuSteps[i]?.subject || fu.subject || null,
+    }));
+
     res.json({
-      html, pitch: cached.intro, follow_ups: cached.follow_ups, generated_at: cached.generated_at,
-      contact: contactRows[0],
+      html, pitch: cached.intro, follow_ups: followUpsOut, follow_ups_html,
+      generated_at: cached.generated_at, contact: contactRows[0],
     });
   } catch (err) {
     console.error('[press] preview failed:', err.message);
@@ -479,6 +517,19 @@ router.patch('/releases/:id', async (req, res) => {
     if (typeof req.body?.embed_full_release === 'boolean') {
       params.push(req.body.embed_full_release);
       updates.push(`embed_full_release = $${params.length}`);
+    }
+    // Persist the chosen audience so closing/reopening the campaign restores it.
+    if (Array.isArray(req.body?.selected_tags)) {
+      params.push(req.body.selected_tags.map(t => String(t)).slice(0, 300));
+      updates.push(`selected_tags = $${params.length}::text[]`);
+    }
+    if (Array.isArray(req.body?.extra_contacts)) {
+      // Store a lean shape — enough to rehydrate the chips without re-querying.
+      const lean = req.body.extra_contacts.slice(0, 5000).map(c => ({
+        id: c.id, name: c.name || null, email: c.email || null, company: c.company || null,
+      })).filter(c => c.id);
+      params.push(JSON.stringify(lean));
+      updates.push(`extra_contacts = $${params.length}::jsonb`);
     }
     if (updates.length) {
       params.push(req.params.id);
@@ -586,6 +637,60 @@ router.put('/releases/:id/emails/:contactId', async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'No generated email for this journalist yet — preview it first.' });
     res.json({ ok: true });
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Claude sanity-check on the whole campaign before sending — audience size +
+// fit, the four subject lines, the follow-up cadence — and a plain verdict on
+// whether it looks like a good campaign. Read-only; costs one Opus call.
+router.post('/releases/:id/review', async (req, res) => {
+  try {
+    const { rows: relRows } = await pool.query(
+      `SELECT pr.*, c.name AS client_name, c.briefing_field
+         FROM outreach_press_releases pr JOIN clients c ON c.id = pr.client_id WHERE pr.id = $1`,
+      [req.params.id]
+    );
+    if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
+    const release = relRows[0];
+    assertClientAccess(req, release.client_id);
+
+    const tags = Array.isArray(req.body?.tags) ? req.body.tags.map(String) : (release.selected_tags || []);
+    const recipientCount = Number.isFinite(Number(req.body?.recipient_count)) ? Number(req.body.recipient_count) : null;
+    const { rows: steps } = await pool.query(
+      'SELECT step_number, subject, delay_days FROM outreach_sequences WHERE campaign_id = $1 ORDER BY step_number',
+      [release.campaign_id]
+    );
+    const storyText = (release.body_html || release.summary || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1800);
+    const seq = steps.map(s => `${s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`} (day ${s.delay_days}): ${s.subject || '(no subject)'}`).join('\n');
+
+    const claude = require('../services/claude');
+    const system = 'You are a senior PR account director reviewing a press campaign before it goes out. Be candid and specific — you would rather flag a real problem than rubber-stamp. British English.';
+    const user = `Review this press campaign and judge whether it looks ready to send. Consider: does the audience fit the story and is it a sensible size (not so broad it looks like spam, not so tiny it won't land coverage)? Are the four subject lines distinct, specific and enticing? Is the follow-up cadence reasonable?
+
+STORY HEADLINE: ${release.title}
+STORY: ${storyText}
+CLIENT: ${release.client_name}
+
+AUDIENCE: ${recipientCount != null ? `${recipientCount} journalists` : 'unknown size'}${tags.length ? `, from segments: ${tags.join(', ')}` : ' (no tags selected)'}
+
+SEQUENCE (subject line per step):
+${seq || '(no steps)'}
+
+Return ONLY JSON:
+{
+  "rating": "good" | "ok" | "concerns",
+  "verdict": "<one or two sentences, plain English, on whether this is a good campaign to send>",
+  "checks": [ { "label": "<short area, e.g. Audience fit>", "status": "good" | "warn", "note": "<= 16 words" } ]
+}`;
+    const text = await claude.callClaude({ max_tokens: 800, system, user, feature: 'press_audience', clientId: release.client_id });
+    let out = { rating: 'ok', verdict: '', checks: [] };
+    const fence = text.match(/```json\s*([\s\S]*?)```/i) || text.match(/```\s*(\{[\s\S]*?\})\s*```/);
+    const body = fence ? fence[1] : text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
+    try { const v = JSON.parse(body.trim()); if (v && typeof v === 'object') out = v; } catch { out.verdict = text.trim().slice(0, 400); }
+    res.json(out);
+  } catch (err) {
+    console.error('[press] review failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
 });
 
 // Send the release to a list of journalists. Behind the scenes we
