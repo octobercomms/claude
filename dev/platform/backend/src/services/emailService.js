@@ -1002,6 +1002,54 @@ async function sendVisibilityAlerts(groups = []) {
   });
 }
 
+// Weekly media-desk digest — what the standing account exec queued this week.
+// One skimmable email; only sent when there's something to act on.
+async function sendMediaDeskDigest({ to, counts, quietSample = [], moveSample = [] }) {
+  if (!to?.length || !counts?.total) return;
+  const platformUrl = process.env.PLATFORM_URL || 'https://platform.octobercomms.com';
+  const hub = `${platformUrl}/settings?tab=tasks`;
+
+  const row = (emoji, label, n, detail) => n > 0 ? `
+    <tr>
+      <td style="padding:8px 12px;font-size:20px;width:34px">${emoji}</td>
+      <td style="padding:8px 12px;font-size:22px;font-weight:700;color:#1a1a1a;width:48px">${n}</td>
+      <td style="padding:8px 12px;font-size:13px;color:#333">${label}${detail ? `<div style="color:#888;font-size:12px;margin-top:2px">${detail}</div>` : ''}</td>
+    </tr>` : '';
+
+  const suggDetail = counts.newSuggestions
+    ? `${counts.newRss} from feeds · ${counts.newScout} from web search`
+    : '';
+  const quietDetail = quietSample.length ? quietSample.slice(0, 6).join(', ') : '';
+  const moveDetail = moveSample.length
+    ? moveSample.map((m) => `${m.name} (${m.from || '—'} → ${m.to || '—'})`).join('; ')
+    : '';
+  const emailDetail = [counts.bounced ? `${counts.bounced} bounced` : '', counts.guessed ? `${counts.guessed} unconfirmed` : ''].filter(Boolean).join(' · ');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; padding: 20px;">
+      <h2 style="color:#1a1a1a;margin:0 0 4px">Media desk — ${counts.total} thing${counts.total === 1 ? '' : 's'} to review</h2>
+      <p style="color:#666;font-size:13px;margin:0 0 16px">Your journalist database kept itself clean and current this week. Here's what's waiting for a quick decision.</p>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #eee;border-radius:8px;overflow:hidden">
+        ${row('🔭', 'New journalists to review', counts.newSuggestions, suggDetail)}
+        ${row('🔀', 'Possible outlet moves', counts.moves, moveDetail)}
+        ${row('👥', 'Duplicate records to merge', counts.dupeClusters, '')}
+        ${row('📉', 'Gone quiet (no byline in 6 months)', counts.goneQuiet, quietDetail)}
+        ${row('✉️', 'Email addresses to fix', counts.bounced + counts.guessed, emailDetail)}
+      </table>
+      <p style="margin:20px 0">
+        <a href="${hub}" style="background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:600">Review in OMI →</a>
+      </p>
+      <p style="color:#aaa;font-size:11px;margin-top:28px">October Marketing Intelligence — media desk digest. You only get this when there's something to review; nothing is added, merged, or archived without your say-so.</p>
+    </div>`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to,
+    subject: `Media desk — ${counts.total} to review (${counts.newSuggestions} new, ${counts.goneQuiet} quiet, ${counts.dupeClusters + counts.moves} to tidy)`,
+    html,
+  });
+}
+
 // TLS certificate expiry alert. Sent by the daily cron ONLY when a watched
 // domain's served cert is within the alert window or the host is unreachable —
 // so it's silent in steady state and loud before an expiry can take a site
@@ -1056,4 +1104,4 @@ async function sendCertExpiryAlert({ problems = [], alertDays = 14 }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert };
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest };

@@ -116,6 +116,17 @@ cron.schedule('0 5 * * *', async () => {
   } catch (e) { console.error('[Scheduler] RSS mine failed:', e.message); }
 });
 
+// Monday 08:00 — weekly media-desk digest. One email rolling up everything the
+// discovery + maintenance jobs queued (new journalists, gone-quiet, dupes,
+// moves, bad emails) so the AM is told what's waiting instead of remembering to
+// check. Sends only when there's something to act on.
+cron.schedule('0 8 * * 1', async () => {
+  try {
+    const r = await require('./mediaDeskDigest').runWeekly({ log: (m) => console.log('[Scheduler]', m) });
+    if (r.sent) console.log(`[Scheduler] Media desk digest sent: ${r.counts.total} items`);
+  } catch (e) { console.error('[Scheduler] Media desk digest failed:', e.message); }
+});
+
 // Sunday 06:30 — Journalist Discovery Scout. Finds NEW journalists for each
 // press-active client's beats and queues them for review (nothing is added to
 // the media DB without a human approving). Paid web-search step, so weekly.

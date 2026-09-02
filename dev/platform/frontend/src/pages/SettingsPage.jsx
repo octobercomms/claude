@@ -1637,6 +1637,7 @@ function JournalistTasks() {
   const [scoutClientId, setScoutClientId] = useState('');
   const [scoutBusy, setScoutBusy] = useState(false);
   const [mineBusy, setMineBusy] = useState(false);
+  const [digestBusy, setDigestBusy] = useState(false);
   const [selSugg, setSelSugg] = useState(() => new Set());
   // Archive review
   const [archiveReview, setArchiveReview] = useState([]);
@@ -1704,6 +1705,16 @@ function JournalistTasks() {
       loadArchiveReview();
     } catch (e) { toast(e.message, 'error'); }
     finally { setMineBusy(false); }
+  }
+  async function sendDigestNow() {
+    setDigestBusy(true);
+    try {
+      const r = await api.post('/pr/digest/send-now', {});
+      if (r.sent) toast(`Digest emailed — ${r.counts.total} item${r.counts.total === 1 ? '' : 's'} this week.`, 'success');
+      else if (!r.counts?.total) toast('Nothing to review this week — no digest sent.', 'info');
+      else toast('Digest built, but no alert email is configured to send it to.', 'info');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setDigestBusy(false); }
   }
   async function approveSuggestion(sid) {
     try {
@@ -1777,6 +1788,15 @@ function JournalistTasks() {
   return (
     <div className="stack stack-lg">
       {err && <div style={{ padding: 8, background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 12, borderRadius: 'var(--r-sm)' }}>{err}</div>}
+
+      <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', background: 'var(--surface-raised, #fafafa)' }}>
+        <div className="body-sm text-muted" style={{ flex: 1, minWidth: 220 }}>
+          📬 Every Monday you get a digest of everything below — new journalists, gone-quiet, duplicates, moves, bad emails — so you never have to remember to check. Preview it now:
+        </div>
+        <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: sendDigestNow, disabled: digestBusy })}>
+          {digestBusy ? 'Sending…' : '📬 Email me this week’s digest'}
+        </button>
+      </div>
 
       {/* Find new journalists */}
       <div className="card">
