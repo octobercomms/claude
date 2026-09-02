@@ -8,6 +8,8 @@
 // works ("happy to be asked to review").
 
 const Anthropic = require('@anthropic-ai/sdk');
+const axios = require('axios');
+const cheerio = require('cheerio');
 const db = require('../db');
 const pr = require('./pr');
 let aiModels; try { aiModels = require('./aiModels'); } catch { aiModels = null; }
@@ -21,15 +23,23 @@ const SYSTEM = `You are the media-desk assistant for October, a PR & communicati
 2. Check what already exists — use search_database before proposing anything, so you never create duplicates (and so you can reference existing ids).
 3. PROPOSE concrete changes by calling propose_actions. You do NOT save anything yourself — the account manager approves your proposals, then the system applies them.
 
+When the account manager pastes a LINK to a directory or listing page (e.g. a Feedspot "best architecture RSS feeds" page, an awards list, a "top 50 magazines" article), use fetch_page to READ that page, then extract the individual publications from its links and text — each publication's name, its own website, and its RSS feed URL if the page lists one — and propose an add_publication for each. Use the rss_url field when the page gives you the feed directly (skip a lookup); otherwise leave it out and the system will find the feed. Ignore the directory site's own nav/social/advert links.
+
 Rules:
 - Always finish your turn by calling propose_actions (with an empty actions list if there's genuinely nothing to change, plus a short reply explaining).
 - Never claim you've added, saved, tagged, or updated anything — you only propose. Say "I'll propose…", not "I've added…".
 - Be specific and British English. Prefer a publication's own website over social/Wikipedia/directory pages.
-- If something is ambiguous (which client? which of two people?), ask in the reply and propose what you can.`;
+- If something is ambiguous (which client? which of two people?), ask in the reply and propose what you can.
+- A directory can list many publications — it's fine to propose 30-50 at once; the AM approves them in one click.`;
 
 function makeTools() {
   return [
     { type: 'web_search_20250305', name: 'web_search', max_uses: 6 },
+    {
+      name: 'fetch_page',
+      description: 'Fetch and read a specific web page the account manager pasted (a directory/listing like a Feedspot RSS page, an awards list, a "top magazines" article). Returns the page title, text, and its outbound links with anchor text and a feed hint. Use this to extract the publications and RSS feeds listed on that page.',
+      input_schema: { type: 'object', properties: { url: { type: 'string', description: 'The page URL to read.' } }, required: ['url'] },
+    },
     {
       name: 'search_database',
       description: 'Search the existing media database for publications and journalists by name or outlet, to avoid duplicates and to fetch ids. Returns matching publications and contacts.',
@@ -51,6 +61,7 @@ function makeTools() {
                 type: { type: 'string', enum: ['add_publication', 'add_journalist', 'tag_contact'] },
                 name: { type: 'string', description: 'Publication name (add_publication) or journalist full name (add_journalist).' },
                 url: { type: 'string', description: 'add_publication: the official website URL you found.' },
+                rss_url: { type: 'string', description: 'add_publication: the RSS/Atom feed URL, if the page gave it directly. Omit to have the system find it.' },
                 outlet: { type: 'string', description: 'add_journalist: the publication they write for.' },
                 email: { type: 'string', description: 'add_journalist: their email if known (else omit).' },
                 beats: { type: 'array', items: { type: 'string' }, description: 'add_journalist: 2-5 beat tags.' },
@@ -68,6 +79,54 @@ function makeTools() {
       },
     },
   ];
+}
+
+const UA = 'Mozilla/5.0 (compatible; OMI-MediaBot/1.0; +https://platform.octobercomms.com)';
+
+// SSRF guard: only public http(s) hosts.
+function safeUrl(u) {
+  let x; try { x = new URL(String(u || '').trim()); } catch { return null; }
+  if (!/^https?:$/.test(x.protocol)) return null;
+  const h = x.hostname.toLowerCase();
+  if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal')) return null;
+  if (/^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h)) return null;
+  return x.href;
+}
+
+// Fetch a page the AM pasted (e.g. a Feedspot / directory listing) and return its
+// title, a chunk of text, and its outbound links with anchor text — so Claude can
+// read the page itself and extract the publications + feed URLs listed on it.
+async function fetchPage(url) {
+  const safe = safeUrl(url);
+  if (!safe) return { error: 'That URL is not a fetchable public web page.' };
+  let data;
+  try {
+    const r = await axios.get(safe, {
+      timeout: 15000, maxContentLength: 4 * 1024 * 1024, maxRedirects: 4,
+      headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml,*/*;q=0.8' },
+      validateStatus: (s) => s >= 200 && s < 400,
+    });
+    data = r.data;
+  } catch (e) { return { error: `Could not fetch the page: ${e.message}` }; }
+  if (typeof data !== 'string') return { error: 'That URL did not return an HTML page.' };
+
+  const $ = cheerio.load(data);
+  const title = ($('title').first().text() || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const links = [];
+  const seen = new Set();
+  $('a[href]').each((_, el) => {
+    if (links.length >= 300) return;
+    let href = $(el).attr('href') || '';
+    try { href = new URL(href, safe).href.split('#')[0]; } catch { return; }
+    if (!/^https?:/.test(href) || seen.has(href)) return;
+    seen.add(href);
+    const text = ($(el).text() || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    const isFeed = /(rss|feed|atom|\.xml)(\/|$|\?)/i.test(href) || /rss|feed/i.test(text);
+    links.push({ text, href, feed: isFeed || undefined });
+  });
+  $('script, style, noscript').remove();
+  const text = ($('body').text() || '').replace(/\s+/g, ' ').trim().slice(0, 5000);
+  return { title, text, links };
 }
 
 // The one client tool we resolve ourselves: a quick look at the DB.
@@ -92,7 +151,7 @@ function textOf(resp) {
 }
 
 // Run one user turn. history is [{role,content(string)}]. Returns { reply, actions }.
-async function runMessage({ history = [], message, maxSteps = 5 } = {}) {
+async function runMessage({ history = [], message, maxSteps = 6 } = {}) {
   const key = process.env.CLAUDE_API_KEY;
   if (!key) return { reply: 'The assistant needs a Claude API key configured.', actions: [] };
   const client = new Anthropic({ apiKey: key });
@@ -116,13 +175,15 @@ async function runMessage({ history = [], message, maxSteps = 5 } = {}) {
     if (propose) {
       return { reply: String(propose.input?.reply || textOf(resp) || 'Here’s what I propose.'), actions: normaliseActions(propose.input?.actions) };
     }
-    const dbCalls = toolUses.filter((t) => t.name === 'search_database');
-    if (dbCalls.length) {
+    const clientCalls = toolUses.filter((t) => t.name === 'search_database' || t.name === 'fetch_page');
+    if (clientCalls.length) {
       messages.push({ role: 'assistant', content: resp.content });
       const results = [];
-      for (const c of dbCalls) {
-        let out; try { out = await searchDatabase(c.input?.query); } catch (e) { out = { error: e.message }; }
-        results.push({ type: 'tool_result', tool_use_id: c.id, content: JSON.stringify(out).slice(0, 6000) });
+      for (const c of clientCalls) {
+        let out;
+        try { out = c.name === 'fetch_page' ? await fetchPage(c.input?.url) : await searchDatabase(c.input?.query); }
+        catch (e) { out = { error: e.message }; }
+        results.push({ type: 'tool_result', tool_use_id: c.id, content: JSON.stringify(out).slice(0, 14000) });
       }
       messages.push({ role: 'user', content: results });
       continue;
@@ -138,13 +199,14 @@ async function runMessage({ history = [], message, maxSteps = 5 } = {}) {
 function normaliseActions(actions) {
   if (!Array.isArray(actions)) return [];
   const out = [];
-  for (const a of actions.slice(0, 40)) {
+  for (const a of actions.slice(0, 60)) {
     const type = String(a?.type || '');
     if (!['add_publication', 'add_journalist', 'tag_contact'].includes(type)) continue;
     out.push({
       type,
       name: a.name ? String(a.name).slice(0, 200) : undefined,
       url: a.url ? String(a.url).slice(0, 400) : undefined,
+      rss_url: a.rss_url ? String(a.rss_url).slice(0, 400) : undefined,
       outlet: a.outlet ? String(a.outlet).slice(0, 200) : undefined,
       email: a.email ? String(a.email).slice(0, 200) : undefined,
       beats: Array.isArray(a.beats) ? a.beats.map((s) => String(s).trim().toLowerCase()).filter(Boolean).slice(0, 6) : undefined,
@@ -175,7 +237,14 @@ async function applyActions(actions = []) {
         if (!outletId) { results.push({ ...a, ok: false, detail: 'no name' }); continue; }
         if (a.url) await db.query('UPDATE pr_outlets SET url = COALESCE(url, $2) WHERE id = $1', [outletId, a.url]);
         let rss = null;
-        if (rssDiscover?.findForOutlet) { try { rss = (await rssDiscover.findForOutlet(outletId)).rss_status; } catch { /* keep going */ } }
+        if (a.rss_url) {
+          // The page gave us the feed directly — store it; nightly ingest will
+          // flag it 'error' if it turns out not to be a valid feed.
+          await db.query(`UPDATE pr_outlets SET rss_url = $2, rss_status = 'found', rss_checked_at = NOW() WHERE id = $1`, [outletId, a.rss_url]);
+          rss = 'found';
+        } else if (rssDiscover?.findForOutlet) {
+          try { rss = (await rssDiscover.findForOutlet(outletId)).rss_status; } catch { /* keep going */ }
+        }
         results.push({ ...a, ok: true, detail: `publication saved${rss ? ` · feed ${rss}` : ''}`, outlet_id: outletId });
       } else if (a.type === 'add_journalist') {
         const outletId = a.outlet ? await pr.resolveOutlet(a.outlet) : null;
