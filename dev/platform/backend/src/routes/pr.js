@@ -25,6 +25,7 @@ const rssMine = require('../services/rssMine');
 const contactDedup = require('../services/contactDedup');
 const beatLearner = require('../services/beatLearner');
 const journalistMatch = require('../services/journalistMatch');
+const outletResolve = require('../services/outletResolve');
 const overviewReport = require('../services/overviewReport');
 const earnedOverviewReport = require('../services/earnedOverviewReport');
 const prCoverageExtract = require('../services/prCoverageExtract');
@@ -942,11 +943,24 @@ router.post('/outlets/:outletId/find-rss', requireAdmin, async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
-// Sweep — find feeds for all publications not yet resolved.
+// Sweep — find feeds for all publications not yet resolved (those that already
+// have a website/domain on file). Batched; run repeatedly / nightly for the rest.
 router.post('/outlets/find-rss/sweep', requireAdmin, async (req, res) => {
   try {
-    const out = await rssDiscover.sweep({ log: (m) => console.log('[RSS]', m) });
+    const limit = Math.min(Number(req.body?.limit) || 200, 500);
+    const out = await rssDiscover.sweep({ limit, log: (m) => console.log('[RSS]', m) });
     res.json(out); // { checked, found, none }
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Find missing WEBSITES via web search, then their feeds — for outlets with no
+// url/domain on file (the real reason "find all feeds" comes back near-empty).
+// Small synchronous batch for immediate feedback; the nightly job does the bulk.
+router.post('/outlets/resolve-websites/sweep', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.body?.limit) || 25, 50);
+    const out = await outletResolve.sweepMissing({ limit, log: (m) => console.log('[RSS]', m) });
+    res.json(out); // { checked, websites, feeds }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

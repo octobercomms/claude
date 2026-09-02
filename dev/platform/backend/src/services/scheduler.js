@@ -91,6 +91,19 @@ cron.schedule('20 5 * * 0', async () => {
   } catch (e) { console.error('[Scheduler] Media DB sweep failed:', e.message); }
 });
 
+// Daily 02:30 — build feed coverage. Two steps, bounded so the backlog clears
+// over several nights: (1) discover feeds for outlets whose website we already
+// know (pure HTTP, cheap — big batch); (2) for outlets with NO website on file,
+// find it via web search then find its feed (cheap model, smaller batch). This
+// is what turns "1 of 2000 have feeds" into real coverage without a giant job.
+cron.schedule('30 2 * * *', async () => {
+  try {
+    const disc = await require('./rssDiscover').sweep({ limit: 400, log: (m) => console.log('[Scheduler]', m) });
+    const res = await require('./outletResolve').sweepMissing({ limit: 150, log: (m) => console.log('[Scheduler]', m) });
+    console.log(`[Scheduler] Feed coverage: discover ${disc.found}/${disc.checked} feeds; resolve ${res.websites} websites, ${res.feeds} feeds from ${res.checked} unknown-site outlets`);
+  } catch (e) { console.error('[Scheduler] Feed coverage sweep failed:', e.message); }
+});
+
 // Daily 04:15 — ingest publication RSS feeds. Pure HTTP (no LLM), so it can run
 // every day: new articles land in pr_outlet_articles and bylines get matched to
 // journalists, powering "latest articles" + (later) discovery and inactivity.

@@ -885,7 +885,21 @@ function PublicationsPanel() {
       const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
       const res = await api.get(path);
       setOutlets(res.items || []);
-      alert(`Feed sweep: checked ${r.checked}, found ${r.found}.`);
+      alert(`Feed sweep: checked ${r.checked}, found ${r.found}. (Only checks publications that already have a website on file — use “Find missing websites” for the rest.)`);
+    } catch (e) { setErr(e.message); }
+    finally { setRssBusy(null); }
+  }
+  // The real unlock: for publications with NO website on file, find it via web
+  // search, then its feed. Small batch per click; the nightly job does the bulk.
+  async function resolveWebsites() {
+    setRssBusy('resolve');
+    try {
+      const r = await api.post('/pr/outlets/resolve-websites/sweep', {});
+      setErr(null);
+      const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
+      const res = await api.get(path);
+      setOutlets(res.items || []);
+      alert(`Checked ${r.checked} publications with no website on file: found ${r.websites} websites, ${r.feeds} feeds. This runs automatically every night too — click again to do more now.`);
     } catch (e) { setErr(e.message); }
     finally { setRssBusy(null); }
   }
@@ -995,9 +1009,13 @@ function PublicationsPanel() {
             title="Find duplicate publications, merge them, dismiss false-positive suggestions — same Cleanup Centre as Journalists.">
             🧹 Cleanup Centre
           </Link>
+          <button onClick={resolveWebsites} disabled={rssBusy === 'resolve'} className="btn btn-primary btn-sm"
+            title="For publications with no website on file, find the site via web search AND its RSS feed in one pass. Runs a batch now; the rest happen automatically every night.">
+            {rssBusy === 'resolve' ? 'Finding websites…' : '🔎 Find missing websites + feeds'}
+          </button>
           <button onClick={sweepRss} disabled={rssBusy === 'sweep'} className="btn btn-secondary btn-sm"
-            title="Find RSS feeds for every publication that doesn't have one yet (uses each outlet's website/domain)">
-            {rssBusy === 'sweep' ? 'Finding feeds…' : '🛰 Find all feeds'}
+            title="Find RSS feeds for publications that already have a website/domain on file">
+            {rssBusy === 'sweep' ? 'Finding feeds…' : '🛰 Find feeds (known sites)'}
           </button>
           <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary btn-sm"
             title={outlets?.length ? `Download ${outlets.length.toLocaleString()} publication${outlets.length === 1 ? '' : 's'}` : 'Nothing to export'}>
