@@ -71,6 +71,9 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [testing, setTesting] = useState(false);
   const [tested, setTested] = useState(false);
   const [refetching, setRefetching] = useState(false);
+  const [showHtmlEdit, setShowHtmlEdit] = useState(false);
+  const [bodyHtmlDraft, setBodyHtmlDraft] = useState('');
+  const [savingBody, setSavingBody] = useState(false);
   const [sending, setSending] = useState(false);
 
   // Preview / edit one recipient's email.
@@ -228,6 +231,19 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     const w = window.open(url, '_blank');
     if (!w) { toast('Allow pop-ups to open the preview in a new tab.', 'info'); URL.revokeObjectURL(url); return; }
     setTimeout(() => URL.revokeObjectURL(url), 120000);
+  }
+  function openHtmlEdit() { setBodyHtmlDraft(release?.body_html || ''); setShowHtmlEdit(v => !v); }
+  async function saveReleaseHtml() {
+    if (!release) return;
+    setSavingBody(true);
+    try {
+      await api.patch(`/press/releases/${release.id}`, { body_html: bodyHtmlDraft });
+      setRelease(r => ({ ...r, body_html: bodyHtmlDraft }));
+      if (previewing) preview(previewing, true);
+      toast('Release content saved.', 'success');
+      setShowHtmlEdit(false);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSavingBody(false); }
   }
   async function doRefetch() {
     if (!release) return;
@@ -622,7 +638,20 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               )}
               {previewing && <button className="btn btn-link btn-sm" onClick={() => preview(previewing, true)}>↻ regenerate</button>}
               <button {...roWrite(readOnly, { onClick: doRefetch, disabled: refetching })} className="btn btn-link btn-sm" title="Re-pull the release from its source page (fixes duplicated/stale embedded content)">{refetching ? 're-fetching…' : '⟳ re-fetch release'}</button>
+              <button className="btn btn-link btn-sm" onClick={openHtmlEdit} title="Hand-edit the embedded release HTML to fix anything the scrape got wrong">{showHtmlEdit ? '✕ close HTML' : '✎ edit release HTML'}</button>
             </div>
+
+            {showHtmlEdit && (
+              <div style={{ marginBottom: 12, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 6 }}>Edit the embedded release content directly — remove anything weird, fix a caption, delete a stray duplicate. Saved for the whole campaign; previews regenerate.</div>
+                <textarea value={bodyHtmlDraft} onChange={e => setBodyHtmlDraft(e.target.value)} rows={12} className="input"
+                  style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: 12 }} />
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <button {...roWrite(readOnly, { onClick: saveReleaseHtml, disabled: savingBody })} className="btn btn-primary btn-sm">{savingBody ? 'Saving…' : 'Save release content'}</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowHtmlEdit(false)}>Cancel</button>
+                </div>
+              </div>
+            )}
 
             {!previewing && <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: 20, border: '1px dashed var(--card-border)', borderRadius: 'var(--r-sm)' }}>Pick a journalist above to preview and edit the personalised pitch + follow-ups.</div>}
             {previewing && !previewData && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Generating pitch + follow-ups…</div>}

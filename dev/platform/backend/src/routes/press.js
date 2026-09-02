@@ -560,6 +560,15 @@ router.patch('/releases/:id', async (req, res) => {
       params.push(JSON.stringify(lean));
       updates.push(`extra_contacts = $${params.length}::jsonb`);
     }
+    // Hand-edited embedded release HTML — the escape hatch for fixing anything
+    // the scrape got wrong. Kept as-is (trusted AM content); also refreshes the
+    // plain-text body used for personalisation.
+    if (typeof req.body?.body_html === 'string') {
+      params.push(req.body.body_html.slice(0, 200000));
+      updates.push(`body_html = $${params.length}`);
+      params.push(req.body.body_html.replace(/<[^>]+>/g, ' ').slice(0, 200000));
+      updates.push(`body = $${params.length}`);
+    }
     if (updates.length) {
       params.push(req.params.id);
       await pool.query(`UPDATE outreach_press_releases SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
