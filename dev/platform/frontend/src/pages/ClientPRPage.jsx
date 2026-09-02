@@ -92,6 +92,10 @@ export default function ClientPRPage() {
   const [suggestions, setSuggestions] = useState([]);
   const [scoutBusy, setScoutBusy] = useState(false);
   const [selSugg, setSelSugg] = useState(() => new Set());
+  const [matchText, setMatchText] = useState('');
+  const [matchItems, setMatchItems] = useState([]);
+  const [matchTerms, setMatchTerms] = useState([]);
+  const [matchBusy, setMatchBusy] = useState(false);
   // Press campaigns live here in Earned → Pitch (the front door). The full
   // send/preview/autopilot/results view is the PressCampaignDetail component.
   const [pressReleases, setPressReleases] = useState([]);
@@ -341,6 +345,17 @@ export default function ClientPRPage() {
   }
   function loadSuggestions() {
     api.get(`/pr/clients/${id}/journalist-suggestions`).then((r) => setSuggestions(r.items || [])).catch(() => {});
+  }
+  async function runMatch() {
+    if (matchText.trim().length < 20) { toast('Paste the release or a sentence about the story first.', 'error'); return; }
+    setMatchBusy(true);
+    try {
+      const r = await api.post('/pr/match-journalists', { text: matchText, client_id: id, limit: 40 });
+      setMatchTerms(r.terms || []);
+      setMatchItems(r.items || []);
+      if (!(r.items || []).length) toast('No strong matches yet — the more the feeds learn, the better this gets.', 'info');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setMatchBusy(false); }
   }
   async function runScout() {
     setScoutBusy(true);
@@ -675,6 +690,49 @@ export default function ClientPRPage() {
                     </tbody>
                   </table>
                 ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{pitchResult.note || 'No strong matches found.'}</p>}
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+            <h3 className="h3 mb-2">🎯 Best contacts for a story</h3>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginTop: 0, marginBottom: 8 }}>
+              Paste the release (or describe the story). OMI ranks journalists by what they actually write about — from their real recent articles, not just old tags — and who’s covered {client?.name || 'this client'} before.
+            </p>
+            <textarea className="input" rows={4} value={matchText} onChange={(e) => setMatchText(e.target.value)} placeholder="Paste your press release or a sentence about the story…" style={{ marginBottom: 8 }} />
+            <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: runMatch, disabled: matchBusy })}>
+              {matchBusy ? 'Matching…' : '🎯 Find best contacts'}
+            </button>
+            {matchTerms.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Matched on: {matchTerms.map((t, i) => <span key={i} className="chip" style={{ fontSize: 10, marginRight: 4 }}>{t}</span>)}</div>
+                {matchItems.length === 0 ? (
+                  <p className="body-sm text-muted" style={{ margin: 0 }}>No strong matches on file yet — this sharpens as the feeds learn more journalists.</p>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="table" style={{ width: '100%' }}>
+                      <thead><tr><th>Journalist</th><th>Outlet</th><th>Why</th><th style={{ width: 60 }}>Fit</th></tr></thead>
+                      <tbody>
+                        {matchItems.map((m) => (
+                          <tr key={m.id}>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>{m.name}</div>
+                              <div style={{ fontSize: 11, color: m.verification_status === 'guessed' ? 'var(--danger, #c62828)' : 'var(--text-subtle)' }}>
+                                {m.email}{m.verification_status === 'guessed' ? ' · guess' : ''}
+                              </div>
+                            </td>
+                            <td style={{ fontSize: 12 }}>{m.outlet || '—'}{m.tier ? ` · T${m.tier}` : ''}</td>
+                            <td style={{ fontSize: 12 }}>
+                              {(m.matched || []).slice(0, 4).join(', ')}
+                              {m.covered_client && <span className="chip" style={{ fontSize: 9, marginLeft: 6 }}>covered before</span>}
+                            </td>
+                            <td><span className="chip">{m.score}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>

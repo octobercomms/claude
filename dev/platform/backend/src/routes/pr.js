@@ -23,6 +23,8 @@ const rssDiscover = require('../services/rssDiscover');
 const rssIngest = require('../services/rssIngest');
 const rssMine = require('../services/rssMine');
 const contactDedup = require('../services/contactDedup');
+const beatLearner = require('../services/beatLearner');
+const journalistMatch = require('../services/journalistMatch');
 const overviewReport = require('../services/overviewReport');
 const earnedOverviewReport = require('../services/earnedOverviewReport');
 const prCoverageExtract = require('../services/prCoverageExtract');
@@ -816,6 +818,30 @@ router.get('/needs-attention', requireAdmin, async (req, res) => {
     ]);
     res.json({ bounced: bounced.rows, guessed: guessed.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Best-contacts matcher ─────────────────────────────────────────────────────
+// Rank journalists for a press release / pitch by what they actually write
+// about (beats + coverage topics + article-learned auto_topics + recent
+// headlines), weighted by recency and prior coverage of the client.
+router.post('/match-journalists', async (req, res) => {
+  try {
+    const text = String(req.body?.text || '').trim();
+    if (text.length < 20) return res.status(400).json({ error: 'Paste the release or a description of the story (at least a sentence).' });
+    const out = await journalistMatch.matchForText(text, {
+      visibleClientIds: req.visibleClientIds ?? null,
+      clientId: req.body?.client_id || null,
+      limit: Math.min(Number(req.body?.limit) || 40, 100),
+    });
+    res.json(out); // { terms, items }
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Learn one journalist's topics from their attributed articles now (on-demand;
+// the nightly job does this across everyone with fresh bylines).
+router.post('/contacts/:contactId/learn-topics', async (req, res) => {
+  try { res.json(await beatLearner.learnContact(req.params.contactId)); }
+  catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // Preview the weekly media-desk digest on demand — build the counts, and email

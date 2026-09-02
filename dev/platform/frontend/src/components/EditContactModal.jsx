@@ -373,6 +373,14 @@ function CoveragePanel({ profile, err, entityLabel = 'contact' }) {
             </div>
           </div>
         )}
+        {Array.isArray(profile.auto_topics) && profile.auto_topics.length > 0 && (
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Writes about <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from recent articles</span></div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {profile.auto_topics.map((t, i) => <span key={i} className="chip" style={{ fontSize: 11 }}>{t}</span>)}
+            </div>
+          </div>
+        )}
       </div>
       {Array.isArray(profile.latest_articles) && profile.latest_articles.length > 0 && (
         <div style={{ marginBottom: 16 }}>

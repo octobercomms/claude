@@ -30,6 +30,8 @@ const FEATURE_DEFAULTS = {
   // Bulk byline classification is simple, high-volume work — cheapest Claude by
   // default; the AM can drop it to DeepSeek in Settings for near-zero cost.
   press_byline_mining: 'claude-haiku-4-5',
+  // Beat learning is the same shape — high volume, cheap, headlines only.
+  press_beat_learn: 'claude-haiku-4-5',
 };
 
 // Routable features, grouped for the UI. `sensitive: true` = this feature sends
@@ -88,6 +90,13 @@ const FEATURES = [
     // Public byline names + article titles only — no client data — so it's
     // cheap and safe on DeepSeek. Defaults to Haiku (see FEATURE_DEFAULTS).
     { key: 'press_byline_mining', label: 'RSS byline mining (new journalists)', sensitive: false },
+    // Nightly beat learning — summarise a journalist's real article titles into
+    // the topics they cover. Public headlines only; cheap + DeepSeek-safe.
+    { key: 'press_beat_learn', label: 'Beat learning (from articles)', sensitive: false },
+    // "Best contacts for this release" — extracts topics from the release to
+    // match against journalists. The release text can be embargoed/client
+    // material, so this defaults to Claude (DeepSeek carries the usual warning).
+    { key: 'press_match', label: 'Best-contacts matcher', sensitive: true },
   ] },
   { group: 'Outreach & leads', items: [
     { key: 'outreach_write_sequence', label: 'Outreach sequences', sensitive: false },
