@@ -130,8 +130,11 @@ async function fetchAndParse(url) {
 
   // Split body into [main, boilerplate]. Boilerplate = everything from
   // the first "Notes to editors" / "About <brand>" / "About <person>"
-  // heading onward.
-  const bodyHtml = cleanBodyHtml(bodyEl.html() || '', url);
+  // heading onward. First, cut everything from "Download media assets"
+  // onward — that download-links footer is the last real section, and on
+  // downloadfor.press it is immediately followed by a SECOND copy of the whole
+  // release (the responsive duplicate). Cutting there removes both in one go.
+  const bodyHtml = truncateAtDownloadAssets(cleanBodyHtml(bodyEl.html() || '', url));
   const split = splitOnBoilerplate(bodyHtml);
 
   return {
@@ -202,6 +205,34 @@ function cleanBodyHtml(html, baseUrl) {
   return $('root').html() || '';
 }
 
+// Cut everything from the first "Download media assets" block onward. On
+// downloadfor.press that download-links footer is the end of the real content,
+// and it is immediately followed by a second, full copy of the release (the
+// page's responsive duplicate) — so truncating here removes the download chrome
+// AND the duplicate in one pass. Safe no-op if the marker isn't present.
+// Used at parse time and defensively at render time (so already-saved releases
+// are fixed without a re-fetch).
+function truncateAtDownloadAssets(html) {
+  if (!html) return html;
+  let $;
+  try { $ = cheerio.load(`<root>${html}</root>`); } catch { return html; }
+  const root = $('root');
+  const marker = /download\s+media\s+assets/i;
+  let cut = null;
+  // The cleaned body is flattened to top-level blocks, so a heading/paragraph
+  // beginning "Download media assets" is a direct child. Match the first such
+  // short block (a heading, not a paragraph that merely mentions the phrase).
+  root.children().each((_, el) => {
+    if (cut) return;
+    const t = $(el).text().replace(/\s+/g, ' ').trim();
+    if (marker.test(t) && t.length < 120) cut = el;
+  });
+  if (!cut) return html; // marker absent — leave the body untouched
+  $(cut).nextAll().remove();
+  $(cut).remove();
+  return root.html() || '';
+}
+
 // Boilerplate splitter: find the first "Notes to editors" / "About …"
 // heading and treat everything from that point as the boilerplate
 // section. The main body is everything before.
@@ -248,7 +279,9 @@ function signatureBlock(signature) {
 function renderEmbeddedRelease(release) {
   if (!release.body_html) return '';
   let $;
-  try { $ = cheerio.load(`<root>${release.body_html}</root>`); }
+  // Defensive truncation so releases parsed before this fix are cleaned at
+  // render time too, without needing a re-fetch.
+  try { $ = cheerio.load(`<root>${truncateAtDownloadAssets(release.body_html)}</root>`); }
   catch { return release.body_html; }
   const root = $('root');
   const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -369,7 +402,7 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
       <div style="font-size:15px;line-height:1.65;color:#1a1a1a;margin-top:${hero ? '16' : '0'}px;">
         ${renderEmbeddedRelease(release)}
       </div>
-      ${release.boilerplate ? `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e2de;font-size:13px;line-height:1.55;color:#1a1a1a;">${release.boilerplate}</div>` : ''}
+      ${release.boilerplate ? `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e2de;font-size:13px;line-height:1.55;color:#1a1a1a;">${truncateAtDownloadAssets(release.boilerplate)}</div>` : ''}
     </div>` : '';
 
   // Unsubscribe footer — required by UK PECR / CAN-SPAM and increasingly
