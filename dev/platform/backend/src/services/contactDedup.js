@@ -38,7 +38,7 @@ function normaliseName(s) {
  * Visibility-scoped: an admin sees everything; a per-client user sees only
  * contacts attached to their visible clients (matches the library list rule).
  */
-async function scanContactDuplicates(visibleClientIds) {
+async function scanContactDuplicates(visibleClientIds, { kinds = null } = {}) {
   const params = [];
   let visibilityWhere = '';
   if (visibleClientIds !== null) {
@@ -49,6 +49,13 @@ async function scanContactDuplicates(visibleClientIds) {
                   WHERE m.contact_id = c.id AND m.client_id = ANY($${params.length}::uuid[]))
     )`;
   }
+  // Optional kind filter — the journalists hub scans only press contacts
+  // ('media'/'industry'), the leads side scans everything (kinds=null).
+  let kindWhere = '';
+  if (Array.isArray(kinds) && kinds.length) {
+    params.push(kinds);
+    kindWhere = `AND c.kind = ANY($${params.length}::text[])`;
+  }
   // Pull everything once, cluster in JS. With ~20k library size that's a
   // handful of MB — cheaper than two correlated scans on the DB.
   const { rows } = await db.query(
@@ -58,7 +65,7 @@ async function scanContactDuplicates(visibleClientIds) {
             (SELECT COUNT(*) FROM outreach_contact_clients m WHERE m.contact_id = c.id) AS client_count
        FROM outreach_contacts c
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
-      WHERE c.merged_into IS NULL ${visibilityWhere}`,
+      WHERE c.merged_into IS NULL ${visibilityWhere} ${kindWhere}`,
     params
   );
 
@@ -383,4 +390,11 @@ async function scanCoverageMatchups(visibleClientIds) {
   return clusters;
 }
 
-module.exports = { scanContactDuplicates, scanCoverageMatchups, mergeContacts, suggestCanonical, normaliseName };
+// Stable signature for a cluster — the sorted member ids joined. Used to
+// remember "these aren't duplicates" dismissals so the scan/digest stops
+// re-surfacing the same set.
+function clusterKey(cluster) {
+  return (cluster.members || []).map((m) => m.id).sort().join('|');
+}
+
+module.exports = { scanContactDuplicates, scanCoverageMatchups, mergeContacts, suggestCanonical, normaliseName, clusterKey };

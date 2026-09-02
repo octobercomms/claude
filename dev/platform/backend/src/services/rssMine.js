@@ -202,4 +202,47 @@ async function flagInactive({ months = 6, log = () => {} } = {}) {
   return { flagged: rowCount };
 }
 
-module.exports = { looksLikePerson, unknownBylines, outletClients, classify, mineOutlet, mineAll, flagInactive };
+// Moved-outlet detection — a journalist we ALREADY know, appearing in a feed
+// under a DIFFERENT outlet than the one on their record, is a likely job move.
+// We queue it for review (never auto-repoint): approving updates their outlet.
+// Guards keep out the obvious false positives — a namesake already recorded at
+// the destination outlet, and any move we've already applied or dismissed.
+async function detectMoves({ months = 6, log = () => {} } = {}) {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT ON (c.id, a.outlet_id)
+            c.id AS contact_id, c.outlet_id AS from_outlet_id, a.outlet_id AS to_outlet_id,
+            a.title, a.url
+       FROM pr_outlet_articles a
+       JOIN outreach_contacts c
+         ON c.kind IN ('media','industry') AND c.merged_into IS NULL
+        AND c.outlet_id IS NOT NULL AND c.outlet_id <> a.outlet_id
+        AND lower(btrim(c.name)) = lower(btrim(a.author_name))
+      WHERE a.contact_id IS NULL
+        AND a.author_name IS NOT NULL AND btrim(a.author_name) <> ''
+        AND a.published_at > NOW() - ($1 || ' months')::interval
+        AND NOT EXISTS (
+              SELECT 1 FROM outreach_contacts x
+               WHERE x.merged_into IS NULL AND x.outlet_id = a.outlet_id
+                 AND lower(btrim(x.name)) = lower(btrim(a.author_name)))
+        AND NOT EXISTS (
+              SELECT 1 FROM pr_contact_moves mv
+               WHERE mv.contact_id = c.id AND mv.to_outlet_id = a.outlet_id
+                 AND mv.status IN ('dismissed','applied'))
+      ORDER BY c.id, a.outlet_id, a.published_at DESC`,
+    [String(months)]
+  );
+  let queued = 0;
+  for (const r of rows) {
+    const ins = await pool.query(
+      `INSERT INTO pr_contact_moves (contact_id, from_outlet_id, to_outlet_id, article_title, article_url)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (contact_id, to_outlet_id) WHERE status = 'new' DO NOTHING`,
+      [r.contact_id, r.from_outlet_id, r.to_outlet_id, r.title, r.url]
+    );
+    queued += ins.rowCount;
+  }
+  log(`rssMine.detectMoves: ${queued} possible outlet move(s) queued`);
+  return { queued };
+}
+
+module.exports = { looksLikePerson, unknownBylines, outletClients, classify, mineOutlet, mineAll, flagInactive, detectMoves };

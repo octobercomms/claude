@@ -108,9 +108,11 @@ cron.schedule('15 4 * * *', async () => {
 // first — nothing is added to the DB or archived without a human.
 cron.schedule('0 5 * * *', async () => {
   try {
-    const mine = await require('./rssMine').mineAll({ log: (m) => console.log('[Scheduler]', m) });
-    const quiet = await require('./rssMine').flagInactive({ log: (m) => console.log('[Scheduler]', m) });
-    console.log(`[Scheduler] RSS mine: ${mine.outlets} outlets, ${mine.queued} new suggestion(s); ${quiet.flagged} gone-quiet flagged`);
+    const rssMine = require('./rssMine');
+    const mine = await rssMine.mineAll({ log: (m) => console.log('[Scheduler]', m) });
+    const quiet = await rssMine.flagInactive({ log: (m) => console.log('[Scheduler]', m) });
+    const moves = await rssMine.detectMoves({ log: (m) => console.log('[Scheduler]', m) });
+    console.log(`[Scheduler] RSS mine: ${mine.outlets} outlets, ${mine.queued} new suggestion(s); ${quiet.flagged} gone-quiet; ${moves.queued} possible move(s)`);
   } catch (e) { console.error('[Scheduler] RSS mine failed:', e.message); }
 });
 
