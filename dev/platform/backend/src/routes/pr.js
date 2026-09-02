@@ -509,7 +509,7 @@ router.get('/journalist-suggestions', async (req, res) => {
       where.push(`s.client_id = ANY($${params.length}::uuid[])`);
     }
     const { rows } = await db.query(
-      `SELECT s.id, s.name, s.outlet, s.beat, s.email, s.why, s.source_url, s.created_at,
+      `SELECT s.id, s.name, s.outlet, s.beat, s.email, s.guessed_email, s.why, s.source_url, s.created_at,
               s.client_id, cl.name AS client_name
          FROM pr_journalist_suggestions s
          JOIN clients cl ON cl.id = s.client_id
@@ -525,7 +525,7 @@ router.get('/journalist-suggestions', async (req, res) => {
 router.get('/clients/:clientId/journalist-suggestions', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, name, outlet, beat, email, why, source_url, created_at
+      `SELECT id, name, outlet, beat, email, guessed_email, why, source_url, created_at
          FROM pr_journalist_suggestions
         WHERE client_id = $1 AND status = 'new'
         ORDER BY created_at DESC LIMIT 200`,
@@ -559,11 +559,15 @@ router.post('/journalist-suggestions/:suggestionId/approve', async (req, res) =>
       const first = sp[0] || '';
       const last = sp.slice(1).join(' ');
       const beats = s.beat ? JSON.stringify([s.beat]) : JSON.stringify([]);
+      // No confirmed email → fall back to the guessed one, flagged 'guessed' so
+      // it's never treated as verified (shown red; verify before big sends).
+      const email = s.email || s.guessed_email || null;
+      const vstatus = (!s.email && s.guessed_email) ? 'guessed' : 'pending';
       const { rows } = await db.query(
         `INSERT INTO outreach_contacts
-           (first_name, last_name, name, email, outlet_id, kind, beats, enrichment_note, source)
-         VALUES ($1,$2,$3,$4,$5,'media',$6,$7,'scout') RETURNING id`,
-        [first, last, s.name, s.email, outletId, beats, s.why || '']
+           (first_name, last_name, name, email, outlet_id, kind, beats, enrichment_note, source, verification_status)
+         VALUES ($1,$2,$3,$4,$5,'media',$6,$7,'scout',$8) RETURNING id`,
+        [first, last, s.name, email, outletId, beats, s.why || '', vstatus]
       );
       contactId = rows[0].id;
     }
@@ -631,12 +635,14 @@ router.post('/clients/:clientId/journalist-suggestions/bulk', async (req, res) =
       }
       if (!contactId) {
         const sp = String(s.name || '').trim().split(/\s+/);
+        const email = s.email || s.guessed_email || null;
+        const vstatus = (!s.email && s.guessed_email) ? 'guessed' : 'pending';
         const { rows } = await db.query(
           `INSERT INTO outreach_contacts
-             (first_name, last_name, name, email, outlet_id, kind, beats, enrichment_note, source)
-           VALUES ($1,$2,$3,$4,$5,'media',$6,$7,'scout') RETURNING id`,
-          [sp[0] || '', sp.slice(1).join(' '), s.name, s.email, outletId,
-           s.beat ? JSON.stringify([s.beat]) : JSON.stringify([]), s.why || '']
+             (first_name, last_name, name, email, outlet_id, kind, beats, enrichment_note, source, verification_status)
+           VALUES ($1,$2,$3,$4,$5,'media',$6,$7,'scout',$8) RETURNING id`,
+          [sp[0] || '', sp.slice(1).join(' '), s.name, email, outletId,
+           s.beat ? JSON.stringify([s.beat]) : JSON.stringify([]), s.why || '', vstatus]
         );
         contactId = rows[0].id;
       }
