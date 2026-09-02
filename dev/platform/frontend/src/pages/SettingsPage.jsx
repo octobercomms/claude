@@ -864,6 +864,31 @@ function PublicationsPanel() {
   const [outletSearch, setOutletSearch] = useState('');
   const [selected, setSelected] = useState(() => new Set());
   const [openOutlet, setOpenOutlet] = useState(null);
+  const [rssBusy, setRssBusy] = useState(null); // outlet id being resolved, or 'sweep'
+
+  // Auto-discover one publication's RSS feed.
+  async function findRss(o) {
+    setRssBusy(o.id);
+    try {
+      const r = await api.post(`/pr/outlets/${o.id}/find-rss`, {});
+      setOutlets((list) => list.map((x) => (x.id === o.id ? { ...x, rss_status: r.rss_status, rss_url: r.rss_url || null } : x)));
+    } catch (e) { setErr(e.message); }
+    finally { setRssBusy(null); }
+  }
+  // Sweep every unresolved publication for a feed.
+  async function sweepRss() {
+    setRssBusy('sweep');
+    try {
+      const r = await api.post('/pr/outlets/find-rss/sweep', {});
+      setErr(null);
+      // Reload to reflect the newly-found feeds.
+      const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
+      const res = await api.get(path);
+      setOutlets(res.items || []);
+      alert(`Feed sweep: checked ${r.checked}, found ${r.found}.`);
+    } catch (e) { setErr(e.message); }
+    finally { setRssBusy(null); }
+  }
 
   // Reload on every search-term change. Server-side ILIKE means the user
   // finds zero-coverage outlets (Vogue.nl etc.) that fall outside the
@@ -970,6 +995,10 @@ function PublicationsPanel() {
             title="Find duplicate publications, merge them, dismiss false-positive suggestions — same Cleanup Centre as Journalists.">
             🧹 Cleanup Centre
           </Link>
+          <button onClick={sweepRss} disabled={rssBusy === 'sweep'} className="btn btn-secondary btn-sm"
+            title="Find RSS feeds for every publication that doesn't have one yet (uses each outlet's website/domain)">
+            {rssBusy === 'sweep' ? 'Finding feeds…' : '🛰 Find all feeds'}
+          </button>
           <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary btn-sm"
             title={outlets?.length ? `Download ${outlets.length.toLocaleString()} publication${outlets.length === 1 ? '' : 's'}` : 'Nothing to export'}>
             ↓ Export CSV
@@ -1003,6 +1032,7 @@ function PublicationsPanel() {
                 <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="Select all visible" />
               </th>
               <th>Publication</th>
+              <th style={{ width: 60, textAlign: 'center' }} title="RSS feed">RSS</th>
               <th style={{ textAlign: 'right' }}>Coverage</th>
               <th style={{ textAlign: 'right' }}>Journalists</th>
               <th style={{ width: 150 }}>Tier</th>
@@ -1016,6 +1046,14 @@ function PublicationsPanel() {
                   </td>
                   <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer' }}>
                     <span style={{ color: 'var(--text)', fontWeight: 500 }}>{o.name}</span>
+                  </td>
+                  <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                    {rssBusy === o.id ? <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>…</span>
+                      : o.rss_status === 'found' && o.rss_url
+                        ? <a href={o.rss_url} target="_blank" rel="noopener noreferrer" title={`Feed: ${o.rss_url}`} style={{ color: '#e8871e', textDecoration: 'none', fontSize: 15 }}>🛰</a>
+                        : o.rss_status === 'none'
+                          ? <button onClick={() => findRss(o)} title="No feed found — click to try again" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14 }}>—</button>
+                          : <button onClick={() => findRss(o)} title="Find this publication's RSS feed" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14 }}>＋</button>}
                   </td>
                   <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.coverage}</td>
                   <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.contacts || 0}</td>
