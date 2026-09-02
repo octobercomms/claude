@@ -68,11 +68,11 @@ function CampaignSequence({ campaign, onCampaignChange }) {
   }
 
   async function launch() {
-    if (!window.confirm('Launch this campaign? Emails will start sending to all of this client’s contacts.')) return;
+    if (!window.confirm('Launch this campaign? Emails will start sending to all of this client’s leads.')) return;
     setBusy(true);
     try {
       const res = await api.post(`/outreach/campaigns/${campaign.id}/launch`, {});
-      toast(`Campaign launched — ${res.enrolled} contact${res.enrolled === 1 ? '' : 's'} enrolled`, 'success');
+      toast(`Campaign launched — ${res.enrolled} lead${res.enrolled === 1 ? '' : 's'} enrolled`, 'success');
       if (onCampaignChange) onCampaignChange();
     } catch (err) { toast(err.message, 'error'); }
     finally { setBusy(false); }
@@ -212,7 +212,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   }
 
   async function deleteContact(cid) {
-    if (!window.confirm('Remove this contact from this client? The contact stays in the workspace library and is unaffected for any other client they’re attached to.')) return;
+    if (!window.confirm('Remove this lead from this client? The lead stays in the workspace library and is unaffected for any other client they’re attached to.')) return;
     try {
       await api.delete(`/outreach/clients/${id}/contacts/${cid}`);
       setContacts(p => p.filter(x => x.id !== cid));
@@ -395,7 +395,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
       const { contacts: added } = await api.post('/outreach/contacts/bulk', { client_id: id, contacts: picked });
       setContacts(p => [...added, ...p]);
       setFoundContacts([]); setSelected(new Set()); setSearched(false); setShowFinder(false);
-      toast(`Added ${added.length} contact${added.length === 1 ? '' : 's'}`, 'success');
+      toast(`Added ${added.length} lead${added.length === 1 ? '' : 's'}`, 'success');
     } catch (err) { toast(err.message, 'error'); }
   }
 
@@ -436,13 +436,13 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
     else setSelectedContacts(new Set(filteredContacts.map(c => c.id)));
   }
   async function handleBulkDelete() {
-    if (!window.confirm(`Delete ${selectedContacts.size} selected contact${selectedContacts.size === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete ${selectedContacts.size} selected lead${selectedContacts.size === 1 ? '' : 's'}? This cannot be undone.`)) return;
     const ids = [...selectedContacts];
     try {
       await api.post('/outreach/contacts/bulk-delete', { client_id: id, ids });
       setContacts(p => p.filter(c => !selectedContacts.has(c.id)));
       setSelectedContacts(new Set());
-      toast(`Deleted ${ids.length} contact${ids.length === 1 ? '' : 's'}`, 'success');
+      toast(`Deleted ${ids.length} lead${ids.length === 1 ? '' : 's'}`, 'success');
     } catch (err) { toast(err.message, 'error'); }
   }
 
@@ -490,7 +490,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         <div className="stepper-block">
           <ProcessRail numbered wrap grouped activeKey={tab} onStep={setTab} steps={[
             { groupLabel: 'Your list' },
-            { key: 'contacts',  title: 'Find',  sub: 'Your contact list',        status: contacts.length ? 'done' : 'todo' },
+            { key: 'contacts',  title: 'Find',  sub: 'Your lead list',           status: contacts.length ? 'done' : 'todo' },
             { key: 'campaigns', title: 'Write', sub: 'The email sequence',        status: outreachCampaigns.length ? 'done' : 'todo' },
             { key: 'sending',   title: 'Send',  sub: 'From your domain, tracked', status: (stats?.emails_sent || 0) > 0 ? 'done' : 'todo' },
             { key: 'tasks',     title: 'Chase', sub: 'Replies & follow-ups',      status: 'todo' },
@@ -502,7 +502,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         <SuiteTabs tabs={[
           { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
           { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined, active: tab === 'campaigns', onClick: () => setTab('campaigns') },
-          { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,  active: tab === 'contacts',  onClick: () => setTab('contacts') },
+          { key: 'contacts',  label: 'Leads',  badge: contacts.length || undefined,  active: tab === 'contacts',  onClick: () => setTab('contacts') },
           { key: 'tasks',     label: 'Tasks',                                           active: tab === 'tasks',     onClick: () => setTab('tasks') },
           { key: 'sending',   label: 'Sending',                                         active: tab === 'sending',   onClick: () => setTab('sending') },
           { key: 'prospecting', label: 'Selective outreach',                            active: tab === 'prospecting', onClick: () => setTab('prospecting') },
@@ -521,11 +521,11 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         <div className="stack stack-lg">
         <SuiteOverview
           tagline="Win new clients from your own domain."
-          description="Two ways to prospect: run cold outreach from your own contact list, or let AI source and fit-score prospects for you to approve one by one. Claude drafts every sequence; replies classify themselves."
+          description="Two ways to prospect: run cold outreach from your own lead list, or let AI source and fit-score prospects for you to approve one by one. Claude drafts every sequence; replies classify themselves."
           ctaLabel="Browse campaigns"
           onCta={() => setTab('campaigns')}
           status={[
-            { label: 'Contacts', value: `${contacts.length}`, ok: contacts.length > 0 },
+            { label: 'Leads', value: `${contacts.length}`, ok: contacts.length > 0 },
             { label: 'Campaigns', value: `${outreachCampaigns.length}`, ok: outreachCampaigns.length > 0 },
             { label: 'Emails sent', value: `${stats?.emails_sent ?? 0}`, ok: (stats?.emails_sent || 0) > 0 },
           ]}
@@ -536,7 +536,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
             { label: 'Classify', detail: 'Replies + bounces routed' },
           ]}
           capabilities={[
-            { tag: 'Contacts',   title: 'Find the right people',       cta: 'Open contacts', onClick: () => setTab('contacts'), body: 'Hunter + Serper discovery, CSV import, or pull from the shared workspace library — tagged and deduped.' },
+            { tag: 'Leads',      title: 'Find the right people',       cta: 'Open leads', onClick: () => setTab('contacts'), body: 'Hunter + Serper discovery, CSV import, or pull from the shared workspace library — tagged and deduped.' },
             { tag: 'Campaigns',  title: 'Claude drafts the sequence',  cta: 'Open campaigns', onClick: () => setTab('campaigns'), body: 'Initial, follow-up and final nudge — personalised per recipient from the contact + brand brief, then launched and tracked.' },
             { tag: 'Tasks',      title: 'Work the multichannel steps', cta: 'Open tasks', onClick: () => setTab('tasks'), body: 'LinkedIn and manual steps land in a daily queue; tick one off and the prospect advances automatically.' },
             { tag: 'Sending',    title: 'Land in the inbox',           cta: 'Open sending', onClick: () => setTab('sending'), body: 'Rotate multiple sender mailboxes with warm-up and daily caps; SPF / DKIM / DMARC kept on rails, replies auto-classified.' },
@@ -548,7 +548,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
           {/* Stats cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
             {[
-              ['Active Contacts', stats?.active_contacts],
+              ['Active Leads', stats?.active_contacts],
               ['Active Campaigns', stats?.active_campaigns],
               ['Emails Sent', stats?.emails_sent],
               ['Replies', stats?.replies],
@@ -626,8 +626,8 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
       {tab === 'contacts' && (
         <div>
           <div className="row wrap" style={{ gap: 8 }}>
-            <button onClick={() => setShowAddContact(v => !v)} className="btn btn-primary">{showAddContact ? 'Cancel' : '+ Add contact'}</button>
-            <button onClick={() => setShowFinder(v => !v)} className="btn btn-secondary">{showFinder ? 'Close finder' : '⌕ Find contacts'}</button>
+            <button onClick={() => setShowAddContact(v => !v)} className="btn btn-primary">{showAddContact ? 'Cancel' : '+ Add lead'}</button>
+            <button onClick={() => setShowFinder(v => !v)} className="btn btn-secondary">{showFinder ? 'Close finder' : '⌕ Find leads'}</button>
             <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
             <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
             <VerifyAllButton clientId={id} onDone={() => { /* parent refresh via badge in place */ }} disabled={contacts.length === 0} />
@@ -654,7 +654,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                 <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
                   {icpScraping || scrapeRun
                     ? `Crawling ${scrapeRun?.sites_done || 0}/${scrapeRun?.sites_total || 0} sites · ${scrapeRun?.found_count || 0} contacts so far`
-                    : 'Finds sites for this audience and scrapes contacts from each — no per-lookup cost.'}
+                    : 'Finds sites for this audience and scrapes leads from each — no per-lookup cost.'}
                 </span>
               </div>
               {deepProviders.length > 0 && (
@@ -700,10 +700,10 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                 <button onClick={() => runScrape(scrapeUrlInput, false)} disabled={finding} className="btn btn-primary" title="Just this page">{finding ? '…' : 'Scrape page'}</button>
                 <button onClick={() => runScrape(scrapeUrlInput, true)} disabled={finding} className="btn btn-secondary" title="This page plus its Contact / About / Team pages">{finding ? '…' : 'Scrape site'}</button>
               </div>
-              <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0' }}>Free — reads the page and pulls any contacts on it. No per-lookup cost; use Hunter/Icypeas as a fallback for email guessing.</p>
+              <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0' }}>Free — reads the page and pulls any leads on it. No per-lookup cost; use Hunter/Icypeas as a fallback for email guessing.</p>
               {findError && <p style={{ color: 'var(--negative)', fontSize: 12, margin: '8px 0 0' }}>{findError}</p>}
               {searched && foundContacts.length === 0 && !findError && (
-                <p style={{ color: 'var(--text-subtle)', fontSize: 12, margin: '8px 0 0' }}>No contacts found.</p>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 12, margin: '8px 0 0' }}>No leads found.</p>
               )}
               {foundContacts.length > 0 && (
                 <div style={{ marginTop: 12 }}>
@@ -748,7 +748,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                   required={f === 'email'}
                   onChange={e => setNewContact(p => ({ ...p, [f]: e.target.value }))} />
               ))}
-              <button type="submit" className="btn btn-primary" style={{ gridColumn: '1 / -1', justifySelf: 'start' }}>Add contact</button>
+              <button type="submit" className="btn btn-primary" style={{ gridColumn: '1 / -1', justifySelf: 'start' }}>Add lead</button>
             </form>
           )}
 
@@ -784,7 +784,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
               <tbody>
                 {filteredContacts.length === 0 ? (
                   <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>
-                    {contacts.length === 0 ? 'No contacts yet — add manually, find new, or import a CSV.' : 'No contacts match these filters.'}
+                    {contacts.length === 0 ? 'No leads yet — add manually, find new, or import a CSV.' : 'No leads match these filters.'}
                   </td></tr>
                 ) : filteredContacts.map(c => (
                   <tr key={c.id}>
@@ -809,7 +809,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
             </table>
           </div>
           <p style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>
-            Showing {filteredContacts.length} of {contacts.length} contact{contacts.length === 1 ? '' : 's'}.
+            Showing {filteredContacts.length} of {contacts.length} lead{contacts.length === 1 ? '' : 's'}.
           </p>
         </div>
       )}
@@ -817,6 +817,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
       {editingContact && (
         <EditContactModal
           contact={editingContact}
+          entityLabel="lead"
           onClose={() => setEditingContact(null)}
           onSaved={onContactUpdated}
         />
@@ -825,6 +826,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
       <ImportWizard
         open={showImport}
         onClose={() => setShowImport(false)}
+        entityLabel="lead"
         clientIdForAttach={id}
         onImported={async () => {
           try {
@@ -869,7 +871,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
           </div>
           <div className="card" style={{ marginTop: 12 }}>
             <table className="table">
-              <thead><tr>{['Campaign', 'Brand', 'Status', 'Contacts', 'Sent / Total', 'Created', ''].map(h => <th key={h} >{h}</th>)}</tr></thead>
+              <thead><tr>{['Campaign', 'Brand', 'Status', 'Leads', 'Sent / Total', 'Created', ''].map(h => <th key={h} >{h}</th>)}</tr></thead>
               <tbody>
                 {outreachCampaigns.length === 0 ? (
                   <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>No campaigns yet — click “+ New campaign” to start the wizard.</td></tr>
@@ -941,7 +943,7 @@ function VerifyAllButton({ clientId, onDone, disabled }) {
   const toast = useToast();
   const [busy, setBusy] = React.useState(false);
   async function run() {
-    if (!confirm('Verify every contact for this client? Uses Hunter credits for any unverified or stale rows.')) return;
+    if (!confirm('Verify every lead for this client? Uses Hunter credits for any unverified or stale rows.')) return;
     setBusy(true);
     try {
       const r = await api.post(`/outreach/clients/${clientId}/contacts/verify-all`, {});

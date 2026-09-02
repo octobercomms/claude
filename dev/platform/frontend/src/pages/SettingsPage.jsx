@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
-import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
 import EditContactModal from '../components/EditContactModal';
 import ManageUsersPage from './ManageUsersPage';
@@ -326,7 +325,7 @@ const SECTIONS = [
     { k: 'other', label: 'Other' },
   ] },
   { key: 'workspace', label: 'Workspace', subs: [
-    { k: 'contacts', label: 'Contacts' },
+    { k: 'contacts', label: 'Journalists' },
     { k: 'publications', label: 'Publications' },
     { k: 'praddon', label: 'PR Gmail add-on' },
     { k: 'tags', label: 'Tags' },
@@ -877,8 +876,8 @@ function PublicationsPanel() {
 
   async function deleteOutlet(o) {
     const tail = o.coverage || o.contacts
-      ? `${o.coverage || 0} coverage entr${o.coverage === 1 ? 'y' : 'ies'} and ${o.contacts || 0} contact${o.contacts === 1 ? '' : 's'} will be detached (kept, but their Publication field becomes blank).`
-      : 'No coverage or contacts attached.';
+      ? `${o.coverage || 0} coverage entr${o.coverage === 1 ? 'y' : 'ies'} and ${o.contacts || 0} journalist${o.contacts === 1 ? '' : 's'} will be detached (kept, but their Publication field becomes blank).`
+      : 'No coverage or journalists attached.';
     if (!confirm(`Delete "${o.name}"?\n\n${tail}\n\nCannot be undone.`)) return;
     try {
       await api.delete(`/pr/outlets/${o.id}`);
@@ -912,7 +911,7 @@ function PublicationsPanel() {
       const o = (outlets || []).find((x) => x.id === id);
       return { coverage: acc.coverage + (o?.coverage || 0), contacts: acc.contacts + (o?.contacts || 0) };
     }, { coverage: 0, contacts: 0 });
-    if (!confirm(`Delete ${selected.size} publication${selected.size === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} contacts will be detached (kept; their Publication becomes blank).\n\nCannot be undone.`)) return;
+    if (!confirm(`Delete ${selected.size} publication${selected.size === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} journalists will be detached (kept; their Publication becomes blank).\n\nCannot be undone.`)) return;
     try {
       await api.post('/pr/outlets/bulk-delete', { ids: Array.from(selected) });
       setOutlets((list) => list.filter((x) => !selected.has(x.id)));
@@ -925,7 +924,7 @@ function PublicationsPanel() {
       coverage: acc.coverage + (o.coverage || 0),
       contacts: acc.contacts + (o.contacts || 0),
     }), { coverage: 0, contacts: 0 });
-    if (!confirm(`Delete ALL ${visibleOutlets.length} matching publication${visibleOutlets.length === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} contacts will be detached.\n\nCannot be undone.`)) return;
+    if (!confirm(`Delete ALL ${visibleOutlets.length} matching publication${visibleOutlets.length === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} journalists will be detached.\n\nCannot be undone.`)) return;
     try {
       const ids = visibleOutlets.map((o) => o.id);
       await api.post('/pr/outlets/bulk-delete', { ids });
@@ -956,12 +955,12 @@ function PublicationsPanel() {
           <p className="body-sm text-muted">
             The outlets behind your coverage, shared across all clients. Set a <strong>tier</strong> — T1 premium
             titles, T2 broad, T3 blogs/microbloggers — to prioritise targeting and reporting. (Tier is the
-            publication's; a contact inherits it.)
+            publication's; a journalist inherits it.)
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Link to="/contacts/cleanup?tab=pubdupes" className="btn btn-secondary btn-sm"
-            title="Find duplicate publications, merge them, dismiss false-positive suggestions — same Cleanup Centre as Contacts.">
+            title="Find duplicate publications, merge them, dismiss false-positive suggestions — same Cleanup Centre as Journalists.">
             🧹 Cleanup Centre
           </Link>
           <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary btn-sm"
@@ -998,7 +997,7 @@ function PublicationsPanel() {
               </th>
               <th>Publication</th>
               <th style={{ textAlign: 'right' }}>Coverage</th>
-              <th style={{ textAlign: 'right' }}>Contacts</th>
+              <th style={{ textAlign: 'right' }}>Journalists</th>
               <th style={{ width: 150 }}>Tier</th>
               <th style={{ width: 28 }}></th>
             </tr></thead>
@@ -1197,7 +1196,7 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
           <button type="button" onClick={deleteOutlet}
             className="btn btn-sm"
             style={{ background: 'var(--negative)', color: '#fff', border: 'none' }}
-            title="Hard-delete this publication. Coverage and contacts pointing at it stay (their Publication becomes blank).">
+            title="Hard-delete this publication. Coverage and journalists pointing at it stay (their Publication becomes blank).">
             Delete publication
           </button>
           <div style={{ flex: 1 }} />
@@ -1582,12 +1581,10 @@ function InfoRow({ label, value }) {
 // every contact with the count + names of the clients they're attached to.
 function ContactsLibrary() {
   const { readOnly } = useAuth();
-  const toast = useToast();
   const [rows, setRows] = useState(null);
   const [clients, setClients] = useState([]);
   const [tags, setTags] = useState([]);
   const [search, setSearch] = useState('');
-  const [kindFilter, setKindFilter] = useState('all'); // all | press | prospect
   const [archiveReview, setArchiveReview] = useState([]);
 
   function loadArchiveReview() { api.get('/pr/archive-review').then((r) => setArchiveReview(r.items || [])).catch(() => {}); }
@@ -1644,10 +1641,6 @@ function ContactsLibrary() {
   // unbounded match count so the "delete all matching" button is
   // honest about how much it's about to wipe.
   const [total, setTotal] = useState(0);
-  // Audit: private (prospect/industry) contacts sitting on more than one client.
-  const [audit, setAudit] = useState(null);
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [auditBusy, setAuditBusy] = useState(false);
 
   const PAGE = 200;
   function buildFilterParams() {
@@ -1656,8 +1649,9 @@ function ContactsLibrary() {
     p.set('include_count', '1');
     p.set('limit', String(PAGE));
     if (search.trim()) p.set('search', search.trim());
-    if (kindFilter === 'press') p.set('kind', 'media');
-    else if (kindFilter === 'prospect') p.set('kind', 'prospect,industry');
+    // This library is the shared journalist/press list only. Leads live
+    // per-client in Owned → Email, never in this workspace-wide view.
+    p.set('kind', 'media');
     if (activeTags.size) p.set('tags_all', Array.from(activeTags).join(','));
     return p;
   }
@@ -1677,10 +1671,8 @@ function ContactsLibrary() {
   // Filter parts sent to the server for the by-filter delete — same
   // shape as the list endpoint expects.
   function filterBody() {
-    const o = {};
+    const o = { kind: ['media'] };
     if (search.trim()) o.search = search.trim();
-    if (kindFilter === 'press') o.kind = ['media'];
-    else if (kindFilter === 'prospect') o.kind = ['prospect', 'industry'];
     if (activeTags.size) o.tags_all = Array.from(activeTags);
     return o;
   }
@@ -1709,7 +1701,7 @@ function ContactsLibrary() {
     }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, activeTags, kindFilter]);
+  }, [search, activeTags]);
 
   async function reload() {
     try {
@@ -1720,30 +1712,6 @@ function ContactsLibrary() {
       // Tags may have changed (bulk-tag adds new ones) — refresh chips too.
       api.get('/outreach/tags').then(setTags).catch(() => {});
     } catch (e) { setErr(e.message); }
-  }
-
-  async function runAudit() {
-    setAuditBusy(true);
-    try {
-      const r = await api.get('/outreach/contacts/private-multiclient');
-      setAudit(r);
-      setAuditOpen(true);
-    } catch (e) { setErr(e.message); }
-    finally { setAuditBusy(false); }
-  }
-
-  // Keep each offending contact on its original client (or its earliest
-  // attachment) and detach the rest, cancelling those clients' pending sends.
-  async function fixAudit() {
-    if (!window.confirm(`Keep each of these ${audit?.count || ''} contacts on a single client and detach them from the others? Pending sends for the detached clients are cancelled. This can't be undone.`)) return;
-    setAuditBusy(true);
-    try {
-      const r = await api.post('/outreach/contacts/private-multiclient/resolve', {});
-      toast(`Fixed ${r.fixed} contact${r.fixed === 1 ? '' : 's'} — ${r.detached} stray attachment${r.detached === 1 ? '' : 's'} removed.`, 'success');
-      setAudit({ count: 0, contacts: [] });
-      reload();
-    } catch (e) { setErr(e.message); }
-    finally { setAuditBusy(false); }
   }
 
   async function exportCsv() {
@@ -1771,9 +1739,9 @@ function ContactsLibrary() {
     const filterDesc = (search.trim() ? `matching "${search.trim()}"` : '') +
       (activeTags.size ? ` tagged ${Array.from(activeTags).join(' + ')}` : '') ||
       'in the entire library';
-    if (!confirm(`Delete all ${total.toLocaleString()} contacts ${filterDesc.trim()} from the library? This removes them from every client they were attached to and CANNOT be undone.`)) return;
+    if (!confirm(`Delete all ${total.toLocaleString()} journalists ${filterDesc.trim()} from the library? This removes them from every client they were attached to and CANNOT be undone.`)) return;
     if (total > 100) {
-      const typed = prompt(`This will delete ${total.toLocaleString()} contacts. Type DELETE to confirm.`);
+      const typed = prompt(`This will delete ${total.toLocaleString()} journalists. Type DELETE to confirm.`);
       if (typed !== 'DELETE') return;
     }
     try {
@@ -1781,7 +1749,7 @@ function ContactsLibrary() {
         ...filterBody(),
         expected_count: total,
       });
-      setInfo(`Deleted ${res.deleted.toLocaleString()} contact${res.deleted === 1 ? '' : 's'}.`);
+      setInfo(`Deleted ${res.deleted.toLocaleString()} journalist${res.deleted === 1 ? '' : 's'}.`);
       await reload();
     } catch (e) { setErr(e.message); }
   }
@@ -1821,7 +1789,7 @@ function ContactsLibrary() {
 
   async function destroyContacts() {
     if (!selected.size) return;
-    if (!confirm(`Delete ${selected.size} contact${selected.size === 1 ? '' : 's'} from the library entirely? This also removes them from every client they were attached to.`)) return;
+    if (!confirm(`Delete ${selected.size} journalist${selected.size === 1 ? '' : 's'} from the library entirely? This also removes them from every client they were attached to.`)) return;
     try {
       await api.post('/outreach/contacts/bulk-delete', { ids: Array.from(selected) });
       await reload();
@@ -1831,7 +1799,7 @@ function ContactsLibrary() {
   }
 
   async function destroyOne(contactId) {
-    if (!confirm('Delete this contact from the library entirely? This removes them from every client they were attached to.')) return;
+    if (!confirm('Delete this journalist from the library entirely? This removes them from every client they were attached to.')) return;
     try {
       await api.delete(`/outreach/contacts/${contactId}`);
       await reload();
@@ -1857,7 +1825,7 @@ function ContactsLibrary() {
       setBulkTagsOpen(false);
       setBulkTagsToAdd(new Set());
       await reload();
-      setInfo(`Tagged ${selected.size} contact${selected.size === 1 ? '' : 's'}.`);
+      setInfo(`Tagged ${selected.size} journalist${selected.size === 1 ? '' : 's'}.`);
     } catch (e) { setErr(e.message); }
   }
 
@@ -1870,6 +1838,7 @@ function ContactsLibrary() {
       <ImportWizard
         open={importOpen}
         onClose={() => setImportOpen(false)}
+        entityLabel="journalist"
         allowClients
         onImported={async () => {
           await reload();
@@ -1878,6 +1847,7 @@ function ContactsLibrary() {
       {openContact && (
         <EditContactModal
           contact={openContact}
+          entityLabel="journalist"
           onClose={() => setOpenContact(null)}
           onSaved={async () => { await reload(); }}
         />
@@ -1892,9 +1862,9 @@ function ContactsLibrary() {
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-            <CardTitle>Contacts</CardTitle>
+            <CardTitle>Journalists</CardTitle>
             <p className="body-sm text-muted">
-              One workspace-wide list of contacts. Each contact can be attached to as many clients
+              One workspace-wide list of journalists. Each journalist can be attached to as many clients
               as you like — a journalist who unsubscribes from one client's emails stays subscribed
               to the others.
             </p>
@@ -1905,7 +1875,7 @@ function ContactsLibrary() {
               🧹 Cleanup Centre
             </Link>
             <button onClick={exportCsv} disabled={!total} className="btn btn-secondary btn-sm"
-              title={total ? `Download ${total.toLocaleString()} contact${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
+              title={total ? `Download ${total.toLocaleString()} journalist${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
               ↓ Export CSV
             </button>
             <button onClick={() => setImportOpen(true)} className="btn btn-primary btn-sm">↑ Import CSV</button>
@@ -1914,7 +1884,7 @@ function ContactsLibrary() {
 
         {archiveReview.length > 0 && (
           <div className="card" style={{ marginTop: 12, borderLeft: '3px solid var(--accent)' }}>
-            <div className="h3 mb-2">📉 {archiveReview.length} contact{archiveReview.length === 1 ? '' : 's'} look inactive — archive?</div>
+            <div className="h3 mb-2">📉 {archiveReview.length} journalist{archiveReview.length === 1 ? '' : 's'} look inactive — archive?</div>
             <p className="body-sm text-muted" style={{ marginBottom: 10 }}>No coverage in 12 months and no recent byline found online. People move on — archive the ones who've left (reversible), keep the rest.</p>
             <div style={{ maxHeight: 220, overflow: 'auto' }}>
               {archiveReview.slice(0, 50).map((c) => (
@@ -1968,57 +1938,6 @@ function ContactsLibrary() {
             </div>
           </div>
         )}
-
-        {/* Isolation audit: private (prospect/industry) contacts on >1 client */}
-        <div className="card" style={{ marginTop: 12, background: 'var(--surface-raised)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>Isolation audit</div>
-              <div className="body-sm text-muted">
-                Private contacts (prospects + industry) should live on one client only. Find any that are still attached to several.
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {audit && (
-                <span className="body-sm" style={{ color: audit.count ? 'var(--warning)' : 'var(--positive)', fontWeight: 600 }}>
-                  {audit.count ? `${audit.count} on multiple clients` : '✓ All clean'}
-                </span>
-              )}
-              <button className="btn btn-secondary btn-sm" onClick={runAudit} disabled={auditBusy}>
-                {auditBusy ? '…' : (audit ? 'Re-check' : 'Run audit')}
-              </button>
-              {audit?.count > 0 && (
-                <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: fixAudit, disabled: auditBusy })}>
-                  Fix all — keep each on its original client
-                </button>
-              )}
-            </div>
-          </div>
-          {auditOpen && audit?.count > 0 && (
-            <div style={{ marginTop: 10, maxHeight: 260, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-              {audit.contacts.map((c) => {
-                const origin = c.clients.find((cl) => cl.id === c.origin_client_id);
-                const keep = origin || c.clients[0];
-                return (
-                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 10px', borderTop: '1px solid #f4f4f4' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name || '(unnamed)'} <span className="chip chip-neutral" style={{ fontSize: 10 }}>{c.kind}</span></div>
-                      <div className="body-xs text-muted">{c.email} · on {c.clients.map((cl) => cl.name).join(', ')}</div>
-                    </div>
-                    <div className="body-xs" style={{ whiteSpace: 'nowrap', color: 'var(--text-subtle)' }}>keep on <strong>{keep?.name || '—'}</strong></div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
-          {[['all', 'All'], ['press', 'Press'], ['prospect', 'Prospects']].map(([v, l]) => (
-            <button key={v} onClick={() => setKindFilter(v)}
-              className={'btn btn-sm ' + (kindFilter === v ? 'btn-primary' : 'btn-secondary')}>{l}</button>
-          ))}
-        </div>
 
         <div style={{ marginTop: 14 }}>
           <input
@@ -2082,8 +2001,8 @@ function ContactsLibrary() {
         {filtered && !filtered.length && (
           <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 13 }}>
             {search.trim() || activeTags.size
-              ? 'No contacts match this filter.'
-              : `No contacts yet. Use ↑ Import CSV above, or add some from a client's Contacts tab — they'll show up here automatically.`}
+              ? 'No journalists match this filter.'
+              : `No journalists yet. Use ↑ Import CSV above, or add them from a client's Earned → Pitch — they'll show up here automatically.`}
           </div>
         )}
 
@@ -2117,7 +2036,7 @@ function ContactsLibrary() {
             {bulkTagsOpen && (
               <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
-                  Add tags to the {selected.size} selected contact{selected.size === 1 ? '' : 's'}:
+                  Add tags to the {selected.size} selected journalist{selected.size === 1 ? '' : 's'}:
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
                   {Array.from(bulkTagsToAdd).map(t => (
@@ -2153,7 +2072,7 @@ function ContactsLibrary() {
 
             {attachOpen && (
               <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Attach the {selected.size} selected journalist{selected.size === 1 ? '' : 's'} to:</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {clients.map(c => (
                     <button key={c.id} onClick={() => attachTo(c.id)} className="btn btn-secondary btn-sm">
@@ -2172,7 +2091,7 @@ function ContactsLibrary() {
                   </th>
                   <th style={{ textAlign: 'left' }}>Name</th>
                   <th style={{ textAlign: 'left' }}>Email</th>
-                  <th style={{ textAlign: 'left' }}>{kindFilter === 'press' ? 'Publication' : kindFilter === 'prospect' ? 'Company' : 'Publication / company'}</th>
+                  <th style={{ textAlign: 'left' }}>Publication</th>
                   <th style={{ textAlign: 'left' }}>Beat</th>
                   <th style={{ textAlign: 'left' }}>Tags</th>
                   <th style={{ textAlign: 'left' }}>Attached to</th>
@@ -2278,7 +2197,7 @@ function TagsManager() {
     setBusy(true); setErr(null);
     try {
       const r = await api.post('/outreach/tags/rename', { from: tag, to: next });
-      setInfo(`Renamed "${tag}" → "${r.to}" on ${r.updated.toLocaleString()} contact${r.updated === 1 ? '' : 's'}.`);
+      setInfo(`Renamed "${tag}" → "${r.to}" on ${r.updated.toLocaleString()} journalist${r.updated === 1 ? '' : 's'}.`);
       await reload();
     } catch (e) { setErr(e.message); }
     finally { setBusy(false); }
@@ -2300,7 +2219,7 @@ function TagsManager() {
   async function applyPlan() {
     if (!plan || !selectedOps.size) return;
     const ops = plan.operations.filter((_, i) => selectedOps.has(i));
-    if (!confirm(`Apply ${ops.length} cleanup operation${ops.length === 1 ? '' : 's'}? This rewrites tags on contacts and can't be undone in one click.`)) return;
+    if (!confirm(`Apply ${ops.length} cleanup operation${ops.length === 1 ? '' : 's'}? This rewrites tags on journalists and can't be undone in one click.`)) return;
     setApplying(true); setErr(null);
     try {
       const r = await api.post('/outreach/tags/apply-plan', { operations: ops });
@@ -2317,11 +2236,11 @@ function TagsManager() {
   }
 
   async function deleteTag(tag, count) {
-    if (!confirm(`Remove the tag "${tag}" from ${count.toLocaleString()} contact${count === 1 ? '' : 's'}? The contacts themselves stay; only the tag is stripped.`)) return;
+    if (!confirm(`Remove the tag "${tag}" from ${count.toLocaleString()} journalist${count === 1 ? '' : 's'}? The journalists themselves stay; only the tag is stripped.`)) return;
     setBusy(true); setErr(null);
     try {
       const r = await api.post('/outreach/tags/delete', { tag });
-      setInfo(`Removed "${tag}" from ${r.updated.toLocaleString()} contact${r.updated === 1 ? '' : 's'}.`);
+      setInfo(`Removed "${tag}" from ${r.updated.toLocaleString()} journalist${r.updated === 1 ? '' : 's'}.`);
       await reload();
     } catch (e) { setErr(e.message); }
     finally { setBusy(false); }
@@ -2341,8 +2260,8 @@ function TagsManager() {
           <div>
             <CardTitle>Tags</CardTitle>
             <p className="body-sm text-muted">
-              Every tag in the workspace. Rename merges contacts already on the new name; delete strips
-              the tag from every contact (the contacts themselves stay). Use this to clean up junk from
+              Every tag in the workspace. Rename merges journalists already on the new name; delete strips
+              the tag from every journalist (the journalists themselves stay). Use this to clean up junk from
               old CSV imports.
             </p>
           </div>
@@ -2360,7 +2279,7 @@ function TagsManager() {
               <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-subtle)' }}>×</button>
             </div>
             <p className="body-sm text-muted" style={{ marginBottom: 12  }}>
-              Untick anything you disagree with, then apply. Each operation rewrites tags on contacts and can't be undone in one click.
+              Untick anything you disagree with, then apply. Each operation rewrites tags on journalists and can't be undone in one click.
             </p>
             <div style={{ maxHeight: 380, overflowY: 'auto', borderTop: '1px solid #eee' }}>
               {plan.operations.map((op, i) => {
@@ -2427,7 +2346,7 @@ function TagsManager() {
               <thead>
                 <tr>
                   <th >Tag</th>
-                  <th style={{ width: 120, textAlign: 'right'  }}>Contacts</th>
+                  <th style={{ width: 120, textAlign: 'right'  }}>Journalists</th>
                   <th style={{ width: 200, textAlign: 'right'  }}></th>
                 </tr>
               </thead>
@@ -2551,7 +2470,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         <div style={tidyStyles.header}>
           <div>
             <div style={tidyStyles.eyebrow}>Tidy with Claude</div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Contact data cleanup</h2>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Journalist data cleanup</h2>
           </div>
           <button onClick={onClose} style={tidyStyles.closeBtn}>×</button>
         </div>
@@ -2561,16 +2480,16 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         {phase === 'idle' && (
           <div>
             <p style={tidyStyles.hint}>
-              Claude will look at the contacts matching your current filter and propose fixes:
+              Claude will look at the journalists matching your current filter and propose fixes:
               capitalisation, missing company derived from email domain, lowercase emails, URL
               schemes, name splits, and similar. You review each suggestion before anything
               changes — every applied change writes an audit row so you can see what happened
               later.
             </p>
             <div style={tidyStyles.summary}>
-              <div><strong>{(totalInFilter || 0).toLocaleString()}</strong> contacts will be analysed</div>
+              <div><strong>{(totalInFilter || 0).toLocaleString()}</strong> journalists will be analysed</div>
               <div style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 4 }}>
-                Runs in the background — you can close this modal and come back. Roughly ~$1 per 500 contacts in Claude API spend.
+                Runs in the background — you can close this modal and come back. Roughly ~$1 per 500 journalists in Claude API spend.
               </div>
             </div>
             <div style={tidyStyles.footer}>
@@ -2584,7 +2503,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         {phase === 'analysing' && (
           <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: 13, marginBottom: 10 }}>
-              Claude is reading the contacts in batches of 40 — {progress.processed.toLocaleString()} of {(progress.total || totalInFilter || 0).toLocaleString()} done.
+              Claude is reading the journalists in batches of 40 — {progress.processed.toLocaleString()} of {(progress.total || totalInFilter || 0).toLocaleString()} done.
             </div>
             <div style={{ background: 'var(--surface-raised)', borderRadius: 999, height: 8, overflow: 'hidden', margin: '8px auto 12px', maxWidth: 420 }}>
               <div style={{
@@ -2603,10 +2522,10 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         {phase === 'review' && result && (
           <div>
             <div style={tidyStyles.summary}>
-              <div>Analysed <strong>{result.analysed.toLocaleString()}</strong> contact{result.analysed === 1 ? '' : 's'} — Claude proposes <strong>{result.suggestions.length}</strong> change{result.suggestions.length === 1 ? '' : 's'} across <strong>{grouped.length}</strong> record{grouped.length === 1 ? '' : 's'}.</div>
+              <div>Analysed <strong>{result.analysed.toLocaleString()}</strong> journalist{result.analysed === 1 ? '' : 's'} — Claude proposes <strong>{result.suggestions.length}</strong> change{result.suggestions.length === 1 ? '' : 's'} across <strong>{grouped.length}</strong> record{grouped.length === 1 ? '' : 's'}.</div>
               {result.capped && (
                 <div style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 4 }}>
-                  Hit the 500-contact cap — re-run with a narrower filter to cover the rest.
+                  Hit the 500-journalist cap — re-run with a narrower filter to cover the rest.
                 </div>
               )}
             </div>
@@ -2672,7 +2591,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         {phase === 'done' && (
           <div>
             <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-md)', color: 'var(--positive)', fontSize: 13 }}>
-              ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The contact audit history records what changed, by whom, and why.
+              ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The journalist audit history records what changed, by whom, and why.
             </div>
             <div style={tidyStyles.footer}>
               <div style={{ flex: 1 }} />
@@ -2698,7 +2617,7 @@ function groupByContact(suggestions) {
 function contactLabel(s) {
   // Use whichever identifying field appears first in the bundle's
   // metadata so the AM can recognise the row at a glance.
-  return s.contact_email || s.contact_name || `Contact ${s.id.slice(0, 8)}…`;
+  return s.contact_email || s.contact_name || `Journalist ${s.id.slice(0, 8)}…`;
 }
 
 const tidyStyles = {
@@ -2727,7 +2646,7 @@ function OpSummary({ op }) {
   if (op.type === 'rename') return <span>Rename {chip(op.from)} → {chip(op.to)}</span>;
   if (op.type === 'merge') return <span>Merge {op.from.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}{chip(t)}</React.Fragment>)} → {chip(op.into)}</span>;
   if (op.type === 'delete') return <span>Delete {chip(op.tag)} everywhere</span>;
-  if (op.type === 'add_parent') return <span>Add parent {chip(op.parent)} to every contact tagged {chip(op.child)}</span>;
+  if (op.type === 'add_parent') return <span>Add parent {chip(op.parent)} to every journalist tagged {chip(op.child)}</span>;
   return <span>{op.type}</span>;
 }
 

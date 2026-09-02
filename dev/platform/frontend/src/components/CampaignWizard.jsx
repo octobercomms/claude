@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 const STEPS = [
   { key: 1, label: 'Campaign' },
   { key: 2, label: 'Audience' },
-  { key: 3, label: 'Contacts' },
+  { key: 3, label: 'Leads' },
   { key: 4, label: 'Emails' },
   { key: 5, label: 'Launch' },
 ];
@@ -327,7 +327,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
       });
       setFoundContacts(prev => mergeUniqueByEmail([...prev, ...(res.contacts || [])]));
       setBatchIdx(i => i + 1);
-      toast(`Found ${res.contacts.length} contact${res.contacts.length === 1 ? '' : 's'} across ${nextBatch.length} domains`, 'success');
+      toast(`Found ${res.contacts.length} lead${res.contacts.length === 1 ? '' : 's'} across ${nextBatch.length} domains`, 'success');
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -346,13 +346,13 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
     const new_contacts = foundContacts.filter((_, i) => selectedFound.has(i));
     const contact_ids = [...selectedExisting];
     if (new_contacts.length === 0 && contact_ids.length === 0) {
-      toast('Select at least one contact first', 'error');
+      toast('Select at least one lead first', 'error');
       return;
     }
     setSaving(true);
     try {
       const res = await api.post(`/outreach/campaigns/${campaign.id}/contacts/add`, { new_contacts, contact_ids });
-      toast(`Added ${res.added} contact${res.added === 1 ? '' : 's'} to the campaign`, 'success');
+      toast(`Added ${res.added} lead${res.added === 1 ? '' : 's'} to the campaign`, 'success');
       onNext();
     } catch (err) {
       toast(err.message, 'error');
@@ -365,11 +365,11 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
 
   return (
     <div className="card">
-      <H>Find Contacts</H>
+      <H>Find Leads</H>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button onClick={() => setMode('find')} className={`btn btn-sm ${mode === 'find' ? 'btn-primary' : 'btn-secondary'}`}>Find new contacts</button>
-        <button onClick={() => setMode('existing')} className={`btn btn-sm ${mode === 'existing' ? 'btn-primary' : 'btn-secondary'}`}>Existing contacts</button>
+        <button onClick={() => setMode('find')} className={`btn btn-sm ${mode === 'find' ? 'btn-primary' : 'btn-secondary'}`}>Find new leads</button>
+        <button onClick={() => setMode('existing')} className={`btn btn-sm ${mode === 'existing' ? 'btn-primary' : 'btn-secondary'}`}>Existing leads</button>
       </div>
 
       {mode === 'find' && (
@@ -387,7 +387,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
             <ResultsTable rows={foundContacts} selected={selectedFound} onToggle={toggleFound} />
           )}
           {foundContacts.length === 0 && batchIdx === 0 && (
-            <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Click “Search next” above to start finding contacts at the refined-audience domains.</p>
+            <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Click “Search next” above to start finding leads at the refined-audience domains.</p>
           )}
         </div>
       )}
@@ -397,13 +397,13 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 12 }}>
             <input className="input" placeholder="Search name / email / company" value={filter.search}
               onChange={e => setFilter(f => ({ ...f, search: e.target.value }))} />
-            <input className="input" placeholder="Contact type — e.g. architect" value={filter.contact_type}
+            <input className="input" placeholder="Lead type — e.g. architect" value={filter.contact_type}
               onChange={e => setFilter(f => ({ ...f, contact_type: e.target.value }))} />
             <input className="input" placeholder="Location keyword" value={filter.location}
               onChange={e => setFilter(f => ({ ...f, location: e.target.value }))} />
           </div>
           {existing.length === 0 ? (
-            <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No contacts match these filters.</p>
+            <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No leads match these filters.</p>
           ) : (
             <ExistingTable rows={existing} selected={selectedExisting} onToggle={toggleExisting} />
           )}
@@ -519,7 +519,7 @@ function StepEmails({ campaign, onBack, onNext }) {
               {savingStep === stp.id ? 'Saving…' : 'Save step'}
             </button>
             <button onClick={() => openPreview(stp)} className="btn btn-secondary" title="See how this step looks to a recipient">
-              Preview as contact
+              Preview as lead
             </button>
             <button {...roWrite(readOnly, { onClick: () => sendTest(stp), disabled: testingStep === stp.id, title: 'Send a [TEST]-prefixed copy of this step to an email of your choice' })} className="btn btn-secondary">
               {testingStep === stp.id ? 'Sending…' : 'Send test to me'}
@@ -588,11 +588,11 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
 
   async function launch() {
     if (report?.blockers?.length) return;   // belt-and-braces; button is disabled anyway
-    if (!window.confirm('Launch this campaign? The first email will start sending immediately to all enrolled contacts.')) return;
+    if (!window.confirm('Launch this campaign? The first email will start sending immediately to all enrolled leads.')) return;
     setBusy(true);
     try {
       const res = await api.post(`/outreach/campaigns/${campaign.id}/launch`, {});
-      toast(`Launched — ${res.enrolled} contact${res.enrolled === 1 ? '' : 's'} enrolled`, 'success');
+      toast(`Launched — ${res.enrolled} lead${res.enrolled === 1 ? '' : 's'} enrolled`, 'success');
       if (onCampaignChange) onCampaignChange();
       onExit();
     } catch (err) {
@@ -615,7 +615,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
         <Summary label="Type" value={campaign.campaign_type === 'press_release' ? 'Press Release' : 'Outreach'} />
         <Summary label="From" value={campaign.from_email ? `${campaign.from_name || ''} <${campaign.from_email}>` : '—'} />
         <Summary label="Reply-To" value={campaign.reply_to || '—'} />
-        <Summary label="Contacts enrolled" value={String(campaign.contact_count || 0)} />
+        <Summary label="Leads enrolled" value={String(campaign.contact_count || 0)} />
       </div>
 
       {loading && <div style={{ marginTop: 18, color: 'var(--text-subtle)', fontSize: 13 }}>Running readiness checks…</div>}

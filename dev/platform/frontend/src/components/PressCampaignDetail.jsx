@@ -476,7 +476,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <div style={{ marginTop: 12 }}>
               <input value={tagSearch} onChange={e => setTagSearch(e.target.value)} placeholder="filter tags…" className="input" style={{ marginBottom: 8, maxWidth: 260 }} />
               <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                {!visibleTags.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No tags found. Tag your media contacts, or add journalists individually below.</div>}
+                {!visibleTags.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No tags found. Tag your journalists, or add journalists individually below.</div>}
                 {visibleTags.map(t => <TagChip key={t.tag} tag={t.tag} count={t.count} on={selTags.has(t.tag)} />)}
               </div>
             </div>
