@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
 import EditContactModal from '../components/EditContactModal';
 import ManageUsersPage from './ManageUsersPage';
@@ -1581,6 +1582,12 @@ function InfoRow({ label, value }) {
 // every contact with the count + names of the clients they're attached to.
 function ContactsLibrary() {
   const { readOnly } = useAuth();
+  const toast = useToast();
+  // Discovery hub — find new journalists per client, review across all clients.
+  const [suggestions, setSuggestions] = useState([]);
+  const [scoutClientId, setScoutClientId] = useState('');
+  const [scoutBusy, setScoutBusy] = useState(false);
+  const [selSugg, setSelSugg] = useState(() => new Set());
   const [rows, setRows] = useState(null);
   const [clients, setClients] = useState([]);
   const [tags, setTags] = useState([]);
@@ -1687,7 +1694,55 @@ function ContactsLibrary() {
     }).catch(e => setErr(e.message));
     loadArchiveReview();
     loadNudges();
+    loadSuggestions();
   }, []);
+
+  function loadSuggestions() {
+    api.get('/pr/journalist-suggestions').then((r) => setSuggestions(r.items || [])).catch(() => {});
+  }
+  async function runScout() {
+    if (!scoutClientId) { toast('Pick a client to scout for.', 'error'); return; }
+    setScoutBusy(true);
+    try {
+      const r = await api.post(`/pr/clients/${scoutClientId}/scout-journalists`, {});
+      toast(r.added ? `Found ${r.found}, added ${r.added} new to review.` : `Scanned the web — nothing new to add right now (checked ${r.found}).`, r.added ? 'success' : 'info');
+      loadSuggestions();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setScoutBusy(false); }
+  }
+  async function approveSuggestion(sid) {
+    try {
+      await api.post(`/pr/journalist-suggestions/${sid}/approve`, {});
+      setSuggestions((p) => p.filter((s) => s.id !== sid));
+      setSelSugg((p) => { const n = new Set(p); n.delete(sid); return n; });
+      toast('Added to the journalist list.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function dismissSuggestion(sid) {
+    try {
+      await api.post(`/pr/journalist-suggestions/${sid}/dismiss`, {});
+      setSuggestions((p) => p.filter((s) => s.id !== sid));
+      setSelSugg((p) => { const n = new Set(p); n.delete(sid); return n; });
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function bulkSuggestions(action) {
+    // Group selected ids by client so we can hit each client's bulk endpoint.
+    const byClient = {};
+    for (const s of suggestions) if (selSugg.has(s.id)) (byClient[s.client_id] ||= []).push(s.id);
+    try {
+      let done = 0;
+      for (const [cid, ids] of Object.entries(byClient)) {
+        const r = await api.post(`/pr/clients/${cid}/journalist-suggestions/bulk`, { action, ids });
+        done += r.done || 0;
+      }
+      setSuggestions((p) => p.filter((s) => !selSugg.has(s.id)));
+      setSelSugg(new Set());
+      toast(`${action === 'approve' ? 'Added' : 'Dismissed'} ${done}.`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  function toggleSugg(sid) {
+    setSelSugg((p) => { const n = new Set(p); n.has(sid) ? n.delete(sid) : n.add(sid); return n; });
+  }
 
   // Refetch the list when filter changes, debounced.
   useEffect(() => {
@@ -1938,6 +1993,67 @@ function ContactsLibrary() {
             </div>
           </div>
         )}
+
+        {/* Discovery hub — build the list: find new journalists per client and
+            review finds from every client in one place. */}
+        <div className="card" style={{ marginTop: 12, background: 'var(--surface-raised)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 240, flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>🔭 Find new journalists</div>
+              <div className="body-sm text-muted" style={{ marginBottom: 8 }}>
+                Claude researches the web for journalists who cover a client’s beats and aren’t on the list yet. Nothing’s added until you approve it.
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <select className="input" style={{ maxWidth: 260 }} value={scoutClientId} onChange={(e) => setScoutClientId(e.target.value)}>
+                  <option value="">Choose a client…</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: runScout, disabled: scoutBusy || !scoutClientId })}>
+                  {scoutBusy ? 'Scanning…' : '✦ Find new journalists'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {suggestions.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
+                {selSugg.size > 0 && <>
+                  <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => bulkSuggestions('dismiss')}>Dismiss selected</button>
+                </>}
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ width: '100%' }}>
+                  <thead><tr><th style={{ width: 28 }}></th><th>Journalist</th><th>Client</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 120 }}></th></tr></thead>
+                  <tbody>
+                    {suggestions.map((s) => (
+                      <tr key={s.id}>
+                        <td><input type="checkbox" checked={selSugg.has(s.id)} onChange={() => toggleSugg(s.id)} /></td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{s.name}</div>
+                          {s.email ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div> : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
+                        </td>
+                        <td style={{ fontSize: 12 }}>{s.client_name}</td>
+                        <td>{s.outlet || '—'}</td>
+                        <td style={{ fontSize: 12 }}>{s.beat || '—'}</td>
+                        <td style={{ fontSize: 12 }}>
+                          {s.why || '—'}
+                          {s.source_url && <> · <a href={s.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></>}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => approveSuggestion(s.id) })}>Add</button>
+                          <button className="btn btn-secondary btn-sm" style={{ marginLeft: 4 }} onClick={() => dismissSuggestion(s.id)} title="Dismiss">✕</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div style={{ marginTop: 14 }}>
           <input

@@ -498,6 +498,29 @@ router.post('/clients/:clientId/scout-journalists', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Workspace-wide review queue (Settings → Journalists hub): every pending
+// suggestion across the clients the caller can see, tagged with its client.
+router.get('/journalist-suggestions', async (req, res) => {
+  try {
+    const where = [`s.status = 'new'`];
+    const params = [];
+    if (req.visibleClientIds !== null && req.visibleClientIds !== undefined) {
+      params.push(req.visibleClientIds);
+      where.push(`s.client_id = ANY($${params.length}::uuid[])`);
+    }
+    const { rows } = await db.query(
+      `SELECT s.id, s.name, s.outlet, s.beat, s.email, s.why, s.source_url, s.created_at,
+              s.client_id, cl.name AS client_name
+         FROM pr_journalist_suggestions s
+         JOIN clients cl ON cl.id = s.client_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY s.created_at DESC LIMIT 300`,
+      params
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // The review queue: journalists the scout proposed, awaiting a decision.
 router.get('/clients/:clientId/journalist-suggestions', async (req, res) => {
   try {
