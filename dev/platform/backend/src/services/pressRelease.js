@@ -233,7 +233,9 @@ function signatureBlock(signature) {
   if (!sig) return '';
   const looksHtml = /<[a-z][\s\S]*>/i.test(sig);
   const inner = looksHtml ? sig : escapeHtml(sig).replace(/\n/g, '<br>');
-  return `<div style="margin:14px 0 0;font-size:13px;color:#444;line-height:1.5;">${inner}</div>`;
+  // Capped to the 600px column and marked .oc-sig so the head <style> forces any
+  // pasted logo/table down to width (#6 — a wide signature was widening the email).
+  return `<div class="oc-sig" style="margin:14px 0 0;max-width:600px;font-size:13px;color:#444;line-height:1.5;overflow:hidden;">${inner}</div>`;
 }
 
 // The full release, cleaned for embedding in the email so it mirrors how Daniel
@@ -266,27 +268,69 @@ function renderEmbeddedRelease(release) {
     }
   });
 
+  // De-duplicate repeated block-level TEXT across the whole subtree — the page
+  // emits the release twice (mobile + desktop) so the same paragraphs recur;
+  // remove any block whose text already appeared (#9). Also strip "Download
+  // media/hi-res assets" capture chrome (#8).
+  const seen = new Set();
+  root.find('p,h1,h2,h3,h4,li,figcaption,blockquote').each((_, el) => {
+    const t = norm($(el).text());
+    if (!t) return;
+    if (/download\s+(the\s+)?(media|hi.?res|press)?\s*(assets|images|kit)/.test(t) && t.length < 140) {
+      const fig = $(el).closest('figure'); (fig.length ? fig : $(el)).remove(); return;
+    }
+    if (t.length >= 25) { if (seen.has(t)) { $(el).remove(); return; } seen.add(t); }
+  });
+  // ...and drop any image whose src already appeared (the duplicated half's
+  // images), so a de-duped body doesn't leave doubled pictures behind.
+  const seenImg = new Set();
+  root.find('img').each((_, el) => {
+    const src = $(el).attr('src'); if (!src) return;
+    if (seenImg.has(src)) { const fig = $(el).closest('figure'); (fig.length ? fig : $(el)).remove(); return; }
+    seenImg.add(src);
+  });
+
   // Constrain every remaining image + style captions (#1, #5).
   root.find('img').each((_, el) => {
-    $(el).attr('style', 'display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:3px;margin:10px 0;');
+    $(el).attr('style', 'display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:4px;margin:0;');
     $(el).removeAttr('width'); $(el).removeAttr('height');
   });
-  root.find('figure').each((_, el) => $(el).attr('style', 'margin:14px 0;'));
-  root.find('figcaption').each((_, el) => $(el).attr('style', 'font-size:12px;color:#666;line-height:1.4;margin:6px 0 14px;'));
+  root.find('figure').each((_, el) => $(el).attr('style', 'margin:0;'));
+  root.find('figcaption').each((_, el) => $(el).attr('style', 'font-size:12px;color:#666;line-height:1.4;margin:6px 0 0;text-align:center;'));
+  // Drop empty paragraphs left behind after de-duplication.
+  root.find('p').each((_, el) => { if (!$(el).text().trim() && !$(el).find('img').length) $(el).remove(); });
 
-  // Remove "Download media/hi-res assets" capture chrome (#8) and de-duplicate
-  // block-level content the page emitted twice for responsive layouts (#9).
-  const seen = new Set();
-  root.children().each((_, el) => {
-    const t = norm($(el).text());
-    if (/download\s+(the\s+)?(media|hi.?res|press)?\s*(assets|images|kit)/.test(t) && t.length < 140 && !$(el).find('img').length) { $(el).remove(); return; }
-    if (t.length >= 30) {
-      if (seen.has(t)) { $(el).remove(); return; }
-      seen.add(t);
-    }
-  });
+  // Lay consecutive image blocks side-by-side, two per row (#8).
+  pairAdjacentImages($, root);
 
   return root.html() || '';
+}
+
+// Group runs of adjacent image blocks (a <figure>, a lone <img>, or a <p> that
+// only wraps an image) into 2-column tables so images that sit side-by-side on
+// the release page don't stack in the email (#8). Single images stay full width.
+function pairAdjacentImages($, root) {
+  const isImgBlock = (el) => {
+    if (!el || el.type !== 'tag') return false;
+    const tag = el.tagName;
+    if (tag === 'figure' || tag === 'img') return true;
+    if (tag === 'p') { const $el = $(el); return $el.find('img').length === 1 && !$el.text().trim(); }
+    return false;
+  };
+  const kids = root.children().toArray();
+  for (let i = 0; i < kids.length - 1; i++) {
+    const a = kids[i], b = kids[i + 1];
+    if (isImgBlock(a) && isImgBlock(b)) {
+      const cell = 'valign="top" style="width:50%;vertical-align:top;';
+      const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;border-collapse:collapse;"><tr>`
+        + `<td ${cell}padding-right:6px;">${$.html(a)}</td>`
+        + `<td ${cell}padding-left:6px;">${$.html(b)}</td>`
+        + `</tr></table>`;
+      $(a).replaceWith(table);
+      $(b).remove();
+      i++; // consume b; the next pair starts after it
+    }
+  }
 }
 
 function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, contactId, clientId, campaignId, signature }) {
@@ -297,31 +341,32 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
     ? `<div style="margin:0 0 14px;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title)}" style="display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:3px;" /></div>`
     : '';
 
-  // A single, clear call to action linking to the release page — mirrors the
-  // "Download Hi-Res Images" button on Daniel's own sends (#10).
+  // A single, clear pill call-to-action, opening the release page in a new tab
+  // (#4, #5). Mirrors the "Download Hi-Res Images" button on Daniel's own sends.
   const downloadBtn = release.source_url ? `
     <div style="margin:20px 0 4px;">
-      <a href="${escapeHtml(release.source_url)}" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 20px;border-radius:6px;">Download hi-res images &amp; full release &rarr;</a>
+      <a href="${escapeHtml(release.source_url)}" target="_blank" rel="noopener" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 26px;border-radius:999px;">Download hi-res images &amp; full release &rarr;</a>
     </div>` : '';
 
-  // Sign-off directly under the personal note, so the intro reads as a complete
-  // email signed by the AM (#2), followed by the configurable footer.
+  // Sign-off directly under the personal note (#2). Just the full name + company
+  // (+ footer) — the standalone first-name line was redundant and came through
+  // lower-cased from the username (#3).
   const signOff = sender ? `
-    <p style="margin:22px 0 0;font-size:15px;color:#1a1a1a;">${escapeHtml(sender.first_name || sender.name || 'Daniel')}</p>
-    <p style="margin:12px 0 0;font-size:13px;color:#444;line-height:1.5;">
-      <strong style="color:#1a1a1a;">${escapeHtml(sender.name || 'Daniel Nelson')}</strong><br>
+    <p style="margin:22px 0 0;font-size:15px;color:#1a1a1a;line-height:1.5;">
+      <strong>${escapeHtml(sender.name || 'Daniel Nelson')}</strong><br>
       ${escapeHtml(sender.company || 'October Communications')}
     </p>
     ${signatureBlock(signature)}` : signatureBlock(signature);
   const greeting = recipientName ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(recipientName.split(' ')[0])},</p>` : '';
 
-  // Embedded release — a light card under the note, headline + hero once, the
-  // cleaned body, then "Notes to editors" in black (not grey) (#7).
+  // Embedded release — a light card under the note: the headline FIRST, large
+  // and centred with breathing room (#7), then the hero, the cleaned body, and
+  // "Notes to editors" in black (#7-prev).
   const embeddedBody = (embedFull && release.body_html) ? `
-    <div style="margin:24px 0 8px;background:#f6f6f4;border-radius:8px;padding:22px;">
+    <div style="margin:24px 0 8px;background:#f6f6f4;border-radius:8px;padding:24px 20px;">
+      ${release.title ? `<h1 style="margin:0 0 18px;font-size:28px;line-height:1.25;color:#1a1a1a;font-weight:800;text-align:center;padding:0 5%;">${escapeHtml(release.title)}</h1>` : ''}
       ${hero}
-      ${release.title ? `<h2 style="margin:${hero ? '4' : '0'}px 0 14px;font-size:19px;line-height:1.3;color:#1a1a1a;font-weight:700;">${escapeHtml(release.title)}</h2>` : ''}
-      <div style="font-size:15px;line-height:1.65;color:#1a1a1a;">
+      <div style="font-size:15px;line-height:1.65;color:#1a1a1a;margin-top:${hero ? '16' : '0'}px;">
         ${renderEmbeddedRelease(release)}
       </div>
       ${release.boilerplate ? `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e2de;font-size:13px;line-height:1.55;color:#1a1a1a;">${release.boilerplate}</div>` : ''}
@@ -350,23 +395,31 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
   // (embedded card, or just the hero when the AM turns embedding off).
   const releaseSection = embedFull && release.body_html ? embeddedBody : hero;
 
-  return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(release.title)}</title></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:24px 12px;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;">
-        <tr><td style="padding:0 4px;">
+  return emailShell(release.title, `
           ${greeting}
           ${pitchHtml}
           ${signOff}
           ${downloadBtn}
           ${releaseSection}
-          ${unsubFooter}
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
+          ${unsubFooter}`);
+}
+
+// One 600px-wide, centred shell for every press email. A head <style> forces
+// EVERY image and table down to the column width — the reliable belt-and-braces
+// fix for a runaway width, including a pasted HTML signature (#1, #6).
+function emailShell(title, inner) {
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title || '')}</title>
+<style>
+  body{margin:0;padding:0;background:#ffffff;}
+  .oc-wrap{max-width:600px;margin:0 auto;padding:24px 16px;box-sizing:border-box;font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;}
+  .oc-wrap img{max-width:100% !important;height:auto !important;}
+  .oc-wrap table{max-width:100% !important;}
+  .oc-sig img{max-width:100% !important;height:auto !important;}
+</style></head>
+<body>
+  <div class="oc-wrap">${inner}
+  </div>
 </body></html>`;
 }
 
@@ -384,9 +437,8 @@ function buildFollowUpHtml({ release, body, sender, recipientName, includeHero =
     ? `<div style="margin:16px 0 6px;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title || '')}" style="display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:3px;" /></div>`
     : '';
   const signatureHtml = sender ? `
-    <p style="margin:22px 0 0;font-size:15px;color:#1a1a1a;">${escapeHtml(sender.first_name || sender.name || 'Daniel')}</p>
-    <p style="margin:12px 0 0;font-size:13px;color:#444;line-height:1.5;">
-      <strong style="color:#1a1a1a;">${escapeHtml(sender.name || 'Daniel Nelson')}</strong><br>
+    <p style="margin:22px 0 0;font-size:15px;color:#1a1a1a;line-height:1.5;">
+      <strong>${escapeHtml(sender.name || 'Daniel Nelson')}</strong><br>
       ${escapeHtml(sender.company || 'October Communications')}
     </p>
     ${signatureBlock(signature)}` : signatureBlock(signature);
@@ -404,23 +456,12 @@ function buildFollowUpHtml({ release, body, sender, recipientName, includeHero =
       }
     } catch {}
   }
-  return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(release.title || '')}</title></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:24px 12px;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;">
-        <tr><td style="padding:0 4px;">
+  return emailShell(release.title, `
           ${greeting}
           ${bodyHtml}
           ${hero}
           ${signatureHtml}
-          ${unsubFooter}
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
+          ${unsubFooter}`);
 }
 
 // Personal pitch — 3-5 sentences. Opens with one specific point from
@@ -434,7 +475,7 @@ async function generatePitch({ release, journalist, brandBriefing, sender }) {
 
 The email body must:
  - Open with one specific point from the release that connects to THIS journalist's beat. Lead with the angle, not the brand.
- - Be 3-5 short sentences. Total under 110 words.
+ - Be 3-5 short sentences, total under 110 words, BROKEN INTO 2-3 short paragraphs with a blank line between them (never one dense block).
  - Mention a concrete asset / interview / data offer once.
  - Close with "Press release 👉 <URL>" — the platform will append this automatically, so DON'T write it yourself.
  - No greeting line (the platform adds "Firstname,"), no sign-off (the platform adds the sender).
