@@ -151,11 +151,12 @@ async function findForOutlet(outletId) {
 // outlets with no url/domain (nothing to work from).
 async function sweep({ limit = 60, log = () => {} } = {}) {
   const { rows } = await pool.query(
-    `SELECT id FROM pr_outlets
-      WHERE merged_into IS NULL
-        AND rss_status = 'unknown'
-        AND (url IS NOT NULL OR (domain IS NOT NULL AND domain <> ''))
-      ORDER BY rss_checked_at NULLS FIRST
+    `SELECT o.id FROM pr_outlets o
+      WHERE o.merged_into IS NULL
+        AND o.rss_status = 'unknown'
+        AND (o.url IS NOT NULL OR (o.domain IS NOT NULL AND o.domain <> ''))
+      ORDER BY (SELECT COUNT(*) FROM pr_editorial_log l WHERE l.outlet_id = o.id) DESC,
+               o.rss_checked_at NULLS FIRST
       LIMIT $1`,
     [limit]
   );
