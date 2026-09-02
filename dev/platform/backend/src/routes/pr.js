@@ -19,6 +19,7 @@ const { getSetting } = require('../utils/settings');
 const prEngage = require('../services/prEngage');
 const prLinkCheck = require('../services/prLinkCheck');
 const journalistScout = require('../services/journalistScout');
+const rssDiscover = require('../services/rssDiscover');
 const overviewReport = require('../services/overviewReport');
 const earnedOverviewReport = require('../services/earnedOverviewReport');
 const prCoverageExtract = require('../services/prCoverageExtract');
@@ -775,7 +776,7 @@ router.get('/outlets', requireAdmin, async (req, res) => {
     // rather than a second LEFT JOIN because it doesn't multiply the row
     // count against the coverage join.
     const { rows } = await db.query(
-      `SELECT o.id, o.name, o.tier, o.domain, o.region,
+      `SELECT o.id, o.name, o.tier, o.domain, o.region, o.url, o.rss_url, o.rss_status,
               COUNT(l.id)::int AS coverage,
               (SELECT COUNT(*)::int FROM outreach_contacts c
                 WHERE c.outlet_id = o.id AND c.merged_into IS NULL) AS contacts
@@ -788,6 +789,25 @@ router.get('/outlets', requireAdmin, async (req, res) => {
       params
     );
     res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Publication feeds (RSS) ──────────────────────────────────────────────────
+// (Manual url / rss_url edits go through the existing PATCH /outlets/:outletId.)
+
+// Auto-discover the RSS feed for one publication.
+router.post('/outlets/:outletId/find-rss', requireAdmin, async (req, res) => {
+  try {
+    const out = await rssDiscover.findForOutlet(req.params.outletId);
+    res.json(out); // { rss_status, rss_url? }
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Sweep — find feeds for all publications not yet resolved.
+router.post('/outlets/find-rss/sweep', requireAdmin, async (req, res) => {
+  try {
+    const out = await rssDiscover.sweep({ log: (m) => console.log('[RSS]', m) });
+    res.json(out); // { checked, found, none }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -817,7 +837,14 @@ router.patch('/outlets/:outletId', async (req, res) => {
     const b = req.body || {};
     const sets = []; const vals = []; let n = 1;
     const set = (c, v) => { sets.push(`${c} = $${n++}`); vals.push(v); };
-    ['summary', 'tier', 'region', 'notes', 'domain'].forEach((k) => { if (typeof b[k] === 'string') set(k, b[k]); });
+    ['summary', 'tier', 'region', 'notes', 'domain', 'url'].forEach((k) => { if (typeof b[k] === 'string') set(k, b[k]); });
+    // Setting the RSS feed by hand marks it found; clearing it resets to unknown.
+    if (typeof b.rss_url === 'string') {
+      const v = b.rss_url.trim() || null;
+      set('rss_url', v);
+      set('rss_status', v ? 'found' : 'unknown');
+      sets.push('rss_checked_at = NOW()');
+    }
     if (typeof b.name === 'string' && b.name.trim()) {
       // Keep canonical_name in lockstep with name — they were diverging when
       // the dedup workflow merged outlets, and the AM kept seeing the old
