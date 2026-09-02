@@ -286,20 +286,10 @@ function renderEmbeddedRelease(release) {
   const root = $('root');
   const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const titleNorm = norm(release.title);
-  const heroSrc = release.hero_image;
 
   // Drop a leading heading that only repeats the release title (#4).
   const firstHeading = root.find('h1,h2,h3').first();
   if (firstHeading.length && titleNorm && norm(firstHeading.text()) === titleNorm) firstHeading.remove();
-
-  // Drop images that repeat the hero we render once ourselves (#4).
-  root.find('img').each((_, el) => {
-    const src = $(el).attr('src');
-    if (heroSrc && src && src === heroSrc) {
-      const fig = $(el).closest('figure');
-      (fig.length ? fig : $(el)).remove();
-    }
-  });
 
   // De-duplicate repeated block-level TEXT across the whole subtree — the page
   // emits the release twice (mobile + desktop) so the same paragraphs recur;
@@ -323,45 +313,105 @@ function renderEmbeddedRelease(release) {
     seenImg.add(src);
   });
 
-  // Constrain every remaining image + style captions (#1, #5).
-  root.find('img').each((_, el) => {
-    $(el).attr('style', 'display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:4px;margin:0;');
-    $(el).removeAttr('width'); $(el).removeAttr('height');
-  });
-  root.find('figure').each((_, el) => $(el).attr('style', 'margin:0;'));
-  root.find('figcaption').each((_, el) => $(el).attr('style', 'font-size:12px;color:#666;line-height:1.4;margin:6px 0 0;text-align:center;'));
   // Drop empty paragraphs left behind after de-duplication.
   root.find('p').each((_, el) => { if (!$(el).text().trim() && !$(el).find('img').length) $(el).remove(); });
 
-  // Lay consecutive image blocks side-by-side, two per row (#8).
-  pairAdjacentImages($, root);
+  // Lay out images + their captions like the website: 2-up grid, each caption
+  // small and directly under its own image (#8, #2), and drop the aggregate
+  // "all captions" dump the page leaves at the end (#1).
+  layoutImagesAndCaptions($, root);
 
   return root.html() || '';
 }
 
-// Group runs of adjacent image blocks (a <figure>, a lone <img>, or a <p> that
-// only wraps an image) into 2-column tables so images that sit side-by-side on
-// the release page don't stack in the email (#8). Single images stay full width.
-function pairAdjacentImages($, root) {
-  const isImgBlock = (el) => {
-    if (!el || el.type !== 'tag') return false;
-    const tag = el.tagName;
-    if (tag === 'figure' || tag === 'img') return true;
-    if (tag === 'p') { const $el = $(el); return $el.find('img').length === 1 && !$el.text().trim(); }
-    return false;
-  };
+// --- image + caption layout ------------------------------------------------
+// Captions on downloadfor.press are credit lines like "Image: <who>". They come
+// through as ordinary paragraphs (so they render at body size), sometimes one
+// per image, sometimes two credits combined in one block after an image pair,
+// and there's an aggregate block of every credit at the very end. We normalise
+// all of that into: images paired 2-up, each caption small + grey + centred
+// directly under its image.
+function isImgBlock($, el) {
+  if (!el || el.type !== 'tag') return false;
+  const tag = el.tagName;
+  if (tag === 'figure' || tag === 'img') return true;
+  if (tag === 'p') { const $el = $(el); return $el.find('img').length >= 1 && !$el.text().trim(); }
+  return false;
+}
+function isCaptionBlock($, el) {
+  if (!el || el.type !== 'tag') return false;
+  if (!['p', 'div', 'figcaption'].includes(el.tagName)) return false;
+  if ($(el).find('img').length) return false;
+  return /image\s*:/i.test($(el).text());
+}
+// Split a caption block's text into individual "Image: …" credits, dropping any
+// leading prefix (e.g. a stray dateline) before the first credit.
+function captionParts(text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  const idx = [];
+  const re = /image\s*:/gi; let m;
+  while ((m = re.exec(t))) idx.push(m.index);
+  if (!idx.length) return t ? [t] : [];
+  return idx.map((start, i) => t.slice(start, i + 1 < idx.length ? idx[i + 1] : t.length).trim()).filter(Boolean);
+}
+function captionHtml(text) {
+  if (!text) return '';
+  return `<div style="font-size:11px;line-height:1.35;color:#8a8a8a;font-style:italic;margin:6px 0 0;text-align:center;">${escapeHtml(text)}</div>`;
+}
+// Return just the <img> for a block (unwrapping figure / p), consistently styled.
+function imgOnly($, el) {
+  const $el = $(el);
+  const img = el.tagName === 'img' ? $el : $el.find('img').first();
+  if (!img.length) return '';
+  img.attr('style', 'display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:4px;margin:0;');
+  img.removeAttr('width'); img.removeAttr('height');
+  return $.html(img);
+}
+function figCaptionText($, el) {
+  if (el.tagName !== 'figure') return '';
+  const fc = $(el).find('figcaption').first();
+  return fc.length ? fc.text().replace(/\s+/g, ' ').trim() : '';
+}
+
+function layoutImagesAndCaptions($, root) {
+  // First, remove the aggregate credits dump — a caption block carrying 3+
+  // "Image:" credits (the page lists every photo credit again at the end).
+  root.children().each((_, el) => {
+    if (isCaptionBlock($, el) && ($(el).text().match(/image\s*:/gi) || []).length >= 3) $(el).remove();
+  });
+
   const kids = root.children().toArray();
-  for (let i = 0; i < kids.length - 1; i++) {
-    const a = kids[i], b = kids[i + 1];
-    if (isImgBlock(a) && isImgBlock(b)) {
-      const cell = 'valign="top" style="width:50%;vertical-align:top;';
+  for (let i = 0; i < kids.length; i++) {
+    const a = kids[i];
+    if (!isImgBlock($, a)) continue;
+
+    // A caption may sit between this image and the next (interleaved layout),
+    // or after the pair (grouped layout) — collect from both positions.
+    let j = i + 1;
+    let capA = figCaptionText($, a);
+    if (!capA && isCaptionBlock($, kids[j])) { capA = captionParts($(kids[j]).text())[0] || ''; $(kids[j]).remove(); j++; }
+
+    const b = kids[j];
+    if (isImgBlock($, b)) {
+      let k = j + 1;
+      let capB = figCaptionText($, b);
+      if (isCaptionBlock($, kids[k])) {
+        const parts = captionParts($(kids[k]).text());
+        if (!capA && !capB && parts.length >= 2) { capA = parts[0]; capB = parts[1]; }
+        else if (!capB) { capB = parts[0] || ''; }
+        $(kids[k]).remove(); k++;
+      }
+      const cell = (imgHtml, cap, pad) =>
+        `<td valign="top" style="width:50%;vertical-align:top;padding:0 ${pad};">${imgHtml}${captionHtml(cap)}</td>`;
       const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;border-collapse:collapse;"><tr>`
-        + `<td ${cell}padding-right:6px;">${$.html(a)}</td>`
-        + `<td ${cell}padding-left:6px;">${$.html(b)}</td>`
+        + cell(imgOnly($, a), capA, '6px 0 0') + cell(imgOnly($, b), capB, '0 0 6px')
         + `</tr></table>`;
-      $(a).replaceWith(table);
-      $(b).remove();
-      i++; // consume b; the next pair starts after it
+      $(a).replaceWith(table); $(b).remove();
+      i = k - 1;
+    } else {
+      // Single image, full width, caption (if any) directly under it.
+      $(a).replaceWith(`<div style="margin:14px 0;">${imgOnly($, a)}${captionHtml(capA)}</div>`);
+      i = j - 1;
     }
   }
 }
@@ -393,13 +443,13 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
   const greeting = recipientName ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(recipientName.split(' ')[0])},</p>` : '';
 
   // Embedded release — a light card under the note: the headline FIRST, large
-  // and centred with breathing room (#7), then the hero, the cleaned body, and
-  // "Notes to editors" in black (#7-prev).
+  // and centred with breathing room (#7), then the body itself (whose own lead
+  // images pair 2-up at the top, mirroring the website — no separate hero that
+  // would force them to stack), and "Notes to editors" in black.
   const embeddedBody = (embedFull && release.body_html) ? `
     <div style="margin:24px 0 8px;background:#f6f6f4;border-radius:8px;padding:24px 20px;">
       ${release.title ? `<h1 style="margin:0 0 18px;font-size:28px;line-height:1.25;color:#1a1a1a;font-weight:800;text-align:center;padding:0 5%;">${escapeHtml(release.title)}</h1>` : ''}
-      ${hero}
-      <div style="font-size:15px;line-height:1.65;color:#1a1a1a;margin-top:${hero ? '16' : '0'}px;">
+      <div style="font-size:15px;line-height:1.65;color:#1a1a1a;">
         ${renderEmbeddedRelease(release)}
       </div>
       ${release.boilerplate ? `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e2de;font-size:13px;line-height:1.55;color:#1a1a1a;">${truncateAtDownloadAssets(release.boilerplate)}</div>` : ''}
