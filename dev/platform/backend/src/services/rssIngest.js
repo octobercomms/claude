@@ -8,7 +8,8 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const pool = require('../db');
 
-const UA = 'Mozilla/5.0 (compatible; OMI-MediaBot/1.0; +https://platform.octobercomms.com)';
+// Browser UA — a bare bot UA gets 403'd by Cloudflare/WAFs on many news sites.
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 // Find the first descendant whose LOCAL tag name (ignoring any namespace
 // prefix like dc: / atom:) is one of `names`, and return its text or an attr.
