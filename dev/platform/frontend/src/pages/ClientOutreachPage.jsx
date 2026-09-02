@@ -150,7 +150,6 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   const [showNewCampaign, setShowNewCampaign] = useState(false);
   const [newCampaign, setNewCampaign] = useState({ name: '', audience_description: '' });
   const [showFinder, setShowFinder] = useState(false);
-  const [showLibrary, setShowLibrary] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [findDomain, setFindDomain] = useState('');
   const [scrapeUrlInput, setScrapeUrlInput] = useState('');
@@ -183,7 +182,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   useEffect(() => {
     Promise.all([
       api.get(`/clients/${id}`),
-      api.get(`/outreach/contacts?client_id=${id}`),
+      api.get(`/outreach/contacts?client_id=${id}&kind=prospect`),
       api.get(`/outreach/campaigns?client_id=${id}`),
       api.get(`/outreach/stats?client_id=${id}`).catch(() => null),
       api.get(`/outreach/system-status`).catch(() => []),
@@ -628,7 +627,6 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         <div>
           <div className="row wrap" style={{ gap: 8 }}>
             <button onClick={() => setShowAddContact(v => !v)} className="btn btn-primary">{showAddContact ? 'Cancel' : '+ Add contact'}</button>
-            <button onClick={() => setShowLibrary(v => !v)} className="btn btn-secondary">{showLibrary ? 'Close library' : '+ Add from library'}</button>
             <button onClick={() => setShowFinder(v => !v)} className="btn btn-secondary">{showFinder ? 'Close finder' : '⌕ Find contacts'}</button>
             <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
             <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
@@ -637,15 +635,6 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
               <button onClick={handleBulkDelete} className="btn btn-danger">Delete {selectedContacts.size} selected</button>
             )}
           </div>
-          {showLibrary && (
-            <LibraryPicker clientId={id} onAttached={async () => {
-              setShowLibrary(false);
-              try {
-                const fresh = await api.get(`/outreach/contacts?client_id=${id}`);
-                setContacts(fresh);
-              } catch (err) { toast(err.message, 'error'); }
-            }} />
-          )}
           {showFinder && (
             <div className="card" style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Find companies by audience (Serper)</div>
@@ -839,7 +828,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         clientIdForAttach={id}
         onImported={async () => {
           try {
-            const fresh = await api.get(`/outreach/contacts?client_id=${id}`);
+            const fresh = await api.get(`/outreach/contacts?client_id=${id}&kind=prospect`);
             setContacts(fresh);
           } catch (err) { toast(err.message, 'error'); }
         }}
@@ -943,130 +932,6 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
 // design tokens (--accent, --border-w, etc) so this page picks up the
 // suite-email accent automatically and matches every other page's
 // border / radius / padding.
-
-// Picker that lists workspace contacts not already attached to this client,
-// filterable by tag, with multi-select + attach.
-function LibraryPicker({ clientId, onAttached }) {
-  const [rows, setRows] = useState(null);
-  const [tags, setTags] = useState([]);
-  const [search, setSearch] = useState('');
-  const [activeTags, setActiveTags] = useState(() => new Set());
-  const [selected, setSelected] = useState(() => new Set());
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-
-  useEffect(() => {
-    Promise.all([
-      api.get(`/outreach/contacts/library?not_attached_to=${clientId}`),
-      api.get('/outreach/tags'),
-    ]).then(([rs, ts]) => { setRows(rs); setTags(ts); })
-      .catch(e => setErr(e.message));
-  }, [clientId]);
-
-  function toggleTag(t) {
-    setActiveTags(prev => {
-      const next = new Set(prev);
-      if (next.has(t)) next.delete(t); else next.add(t);
-      return next;
-    });
-  }
-  function toggleRow(idV) {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(idV)) next.delete(idV); else next.add(idV);
-      return next;
-    });
-  }
-
-  const filtered = rows ? rows.filter(r => {
-    if (activeTags.size) {
-      const have = new Set(r.tags || []);
-      for (const t of activeTags) if (!have.has(t)) return false;
-    }
-    if (!search) return true;
-    const sLower = search.toLowerCase();
-    return (r.name || '').toLowerCase().includes(sLower)
-        || (r.email || '').toLowerCase().includes(sLower)
-        || (r.company || '').toLowerCase().includes(sLower);
-  }) : null;
-
-  async function attach() {
-    if (!selected.size) return;
-    setBusy(true);
-    try {
-      await api.post(`/outreach/clients/${clientId}/contacts/attach`, { contact_ids: Array.from(selected) });
-      onAttached();
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="card" style={{ marginTop: 12 }}>
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Add from library</div>
-      <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 10 }}>
-        Pick contacts from the workspace library to attach to this client. They keep existing for
-        every other client they’re already on — adding here doesn’t remove them from anywhere.
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name, email or outlet…" className="input" style={{ flex: '1 1 200px' }} />
-      </div>
-      {!!tags.length && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
-          {tags.slice(0, 20).map(t => (
-            <button key={t.tag} onClick={() => toggleTag(t.tag)}
-              style={{
-                padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 11,
-                border: '1px solid ' + (activeTags.has(t.tag) ? 'var(--text)' : 'var(--accent-soft)'),
-                background: activeTags.has(t.tag) ? 'var(--text)' : 'var(--surface)',
-                color: activeTags.has(t.tag) ? 'var(--surface)' : 'var(--text-muted)',
-                cursor: 'pointer',
-              }}>
-              {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {err && <div style={{ padding: 8, background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 12, borderRadius: 'var(--r-sm)' }}>{err}</div>}
-      {!filtered && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>}
-      {filtered && !filtered.length && (
-        <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
-          No contacts in the library aren't already attached. Add some via Settings → Contacts library.
-        </div>
-      )}
-
-      {filtered && !!filtered.length && (
-        <>
-          <div style={{ maxHeight: 360, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-            {filtered.map(r => (
-              <label key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 10px', borderTop: '1px solid #f4f4f4', cursor: 'pointer' }}>
-                <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{r.name || '(unnamed)'} {r.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>· {r.company}</span>}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{r.email}</div>
-                </div>
-                {(r.tags || []).slice(0, 4).map(t => (
-                  <span key={t} style={{ fontSize: 10, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)', padding: '1px 6px', color: 'var(--text-muted)' }}>{t}</span>
-                ))}
-              </label>
-            ))}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selected.size} selected</div>
-            <button onClick={attach} disabled={!selected.size || busy} className="btn btn-primary">
-              {busy ? 'Attaching…' : `Add ${selected.size || ''} to this client`}
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 // Bulk verify — hits the server's verify-all endpoint which walks
 // every contact attached to any campaign on this client and runs the
