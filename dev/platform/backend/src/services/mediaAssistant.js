@@ -23,14 +23,14 @@ const SYSTEM = `You are the media-desk assistant for October, a PR & communicati
 2. Check what already exists — use search_database before proposing anything, so you never create duplicates (and so you can reference existing ids).
 3. PROPOSE concrete changes by calling propose_actions. You do NOT save anything yourself — the account manager approves your proposals, then the system applies them.
 
-When the account manager pastes a LINK to a directory or listing page (e.g. a Feedspot "best architecture RSS feeds" page, an awards list, a "top 50 magazines" article), use fetch_page to READ that page, then extract the individual publications from its links and text — each publication's name, its own website, and its RSS feed URL if the page lists one — and propose an add_publication for each. Use the rss_url field when the page gives you the feed directly (skip a lookup); otherwise leave it out and the system will find the feed. Ignore the directory site's own nav/social/advert links.
+When the account manager pastes a LINK to a directory or listing page (e.g. a Feedspot "best architecture RSS feeds" page, an awards list, a "top 100 magazines" article), use fetch_page to READ that page, then extract EVERY relevant publication from its links — each publication's name, its own website, and its RSS feed URL if the page lists one — and propose an add_publication for each. Extract ALL of them, not just the famous few. On a Feedspot-style page each entry has both a site link and a matching feed link (feed: true) — pair them by publication and put the feed in rss_url. Only use an rss_url that sits on the publication's OWN domain (e.g. archdaily.com/feed) — never a feedspot.com, feedspot tracking, or other aggregator URL; if the only feed link is on the directory's own domain, omit rss_url and the system will find the native feed. Ignore the directory site's own nav/social/advert links.
 
 Rules:
 - Proposing IS calling the propose_actions tool. NEVER say "I'll propose…" or "I'll now add…" as prose and stop — that does nothing and frustrates the user. If you have the details, put them in a propose_actions call THIS turn. Always finish by calling propose_actions (empty actions + a short reply only if there's genuinely nothing to change).
 - Never claim you've added, saved, tagged, or updated anything — the user approves your proposal first.
 - Be specific and British English. Prefer a publication's own website over social/Wikipedia/directory pages.
 - If something is ambiguous (which client? which of two people?), ask in the reply and propose what you can.
-- A directory can list many publications — propose up to 40 in one call (the user approves them in one click). If there are more, propose the first 40 and say how many remain so they can ask for the rest.`;
+- A directory can list 100+ publications — extract them ALL. Propose up to 60 in ONE call (the user approves in one click); do NOT ask "shall I continue?" — just propose the batch and, if more than 60 remain, say how many so the user can ask for the next batch. Never stop at a handful of "the most authoritative" ones.`;
 
 function makeTools() {
   return [
@@ -115,7 +115,7 @@ async function fetchPage(url) {
   const links = [];
   const seen = new Set();
   $('a[href]').each((_, el) => {
-    if (links.length >= 300) return;
+    if (links.length >= 800) return; // directory pages can list 100+ publications × site+feed links
     let href = $(el).attr('href') || '';
     try { href = new URL(href, safe).href.split('#')[0]; } catch { return; }
     if (!/^https?:/.test(href) || seen.has(href)) return;
@@ -125,7 +125,7 @@ async function fetchPage(url) {
     links.push({ text, href, feed: isFeed || undefined });
   });
   $('script, style, noscript').remove();
-  const text = ($('body').text() || '').replace(/\s+/g, ' ').trim().slice(0, 5000);
+  const text = ($('body').text() || '').replace(/\s+/g, ' ').trim().slice(0, 3000);
   return { title, text, links };
 }
 
@@ -201,7 +201,7 @@ async function runMessage({ history = [], message, maxSteps = 6 } = {}) {
         let out;
         try { out = c.name === 'fetch_page' ? await fetchPage(c.input?.url) : await searchDatabase(c.input?.query); }
         catch (e) { out = { error: e.message }; }
-        results.push({ type: 'tool_result', tool_use_id: c.id, content: JSON.stringify(out).slice(0, 14000) });
+        results.push({ type: 'tool_result', tool_use_id: c.id, content: JSON.stringify(out).slice(0, 90000) });
       }
       messages.push({ role: 'user', content: results });
       continue;
@@ -225,7 +225,9 @@ function normaliseActions(actions) {
       type,
       name: a.name ? String(a.name).slice(0, 200) : undefined,
       url: a.url ? String(a.url).slice(0, 400) : undefined,
-      rss_url: a.rss_url ? String(a.rss_url).slice(0, 400) : undefined,
+      // Never trust an aggregator/tracking feed URL — let the system find the
+      // publication's native feed instead.
+      rss_url: (a.rss_url && !/feedspot\.com|feedspot|\/follow\//i.test(String(a.rss_url))) ? String(a.rss_url).slice(0, 400) : undefined,
       outlet: a.outlet ? String(a.outlet).slice(0, 200) : undefined,
       email: a.email ? String(a.email).slice(0, 200) : undefined,
       beats: Array.isArray(a.beats) ? a.beats.map((s) => String(s).trim().toLowerCase()).filter(Boolean).slice(0, 6) : undefined,
