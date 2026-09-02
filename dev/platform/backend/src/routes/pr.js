@@ -845,6 +845,15 @@ router.post('/contacts/:contactId/learn-topics', async (req, res) => {
   catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// Embed a batch of journalist profiles now so semantic matching lights up
+// without waiting for the nightly job (e.g. right after adding the OpenAI key).
+router.post('/embeddings/backfill', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.body?.limit) || 500, 2000);
+    res.json(await require('../services/journalistEmbed').embedBatch({ limit, log: (m) => console.log('[Embed]', m) }));
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // Preview the weekly media-desk digest on demand — build the counts, and email
 // it now if ALERT_EMAIL is set. Lets the AM see exactly what Monday will bring.
 router.get('/digest/preview', requireAdmin, async (req, res) => {

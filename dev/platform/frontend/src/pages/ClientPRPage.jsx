@@ -95,6 +95,7 @@ export default function ClientPRPage() {
   const [matchText, setMatchText] = useState('');
   const [matchItems, setMatchItems] = useState([]);
   const [matchTerms, setMatchTerms] = useState([]);
+  const [matchMode, setMatchMode] = useState(null);
   const [matchBusy, setMatchBusy] = useState(false);
   // Press campaigns live here in Earned → Pitch (the front door). The full
   // send/preview/autopilot/results view is the PressCampaignDetail component.
@@ -352,6 +353,7 @@ export default function ClientPRPage() {
     try {
       const r = await api.post('/pr/match-journalists', { text: matchText, client_id: id, limit: 40 });
       setMatchTerms(r.terms || []);
+      setMatchMode(r.mode || null);
       setMatchItems(r.items || []);
       if (!(r.items || []).length) toast('No strong matches yet — the more the feeds learn, the better this gets.', 'info');
     } catch (e) { toast(e.message, 'error'); }
@@ -705,7 +707,12 @@ export default function ClientPRPage() {
             </button>
             {matchTerms.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Matched on: {matchTerms.map((t, i) => <span key={i} className="chip" style={{ fontSize: 10, marginRight: 4 }}>{t}</span>)}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  {matchMode === 'semantic'
+                    ? <span title="Ranked by meaning — understands related topics even when the exact words differ.">🧠 Semantic match · </span>
+                    : <span title="Ranked by shared topic/word overlap. Add an OpenAI key in Settings to enable meaning-based matching.">Keyword match · </span>}
+                  key themes: {matchTerms.map((t, i) => <span key={i} className="chip" style={{ fontSize: 10, marginRight: 4 }}>{t}</span>)}
+                </div>
                 {matchItems.length === 0 ? (
                   <p className="body-sm text-muted" style={{ margin: 0 }}>No strong matches on file yet — this sharpens as the feeds learn more journalists.</p>
                 ) : (
@@ -726,7 +733,7 @@ export default function ClientPRPage() {
                               {(m.matched || []).slice(0, 4).join(', ')}
                               {m.covered_client && <span className="chip" style={{ fontSize: 9, marginLeft: 6 }}>covered before</span>}
                             </td>
-                            <td><span className="chip">{m.score}</span></td>
+                            <td><span className="chip">{m.fit != null ? `${m.fit}%` : m.score}</span></td>
                           </tr>
                         ))}
                       </tbody>

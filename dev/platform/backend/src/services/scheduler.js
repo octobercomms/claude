@@ -140,6 +140,16 @@ cron.schedule('30 5 * * *', async () => {
   } catch (e) { console.error('[Scheduler] Beat learning failed:', e.message); }
 });
 
+// Daily 06:00 — embed journalists whose topic profile changed, so the matcher
+// can rank by meaning (semantic search). No-ops without an OpenAI key. Runs
+// after beat learning so freshly-learned topics get embedded the same night.
+cron.schedule('0 6 * * *', async () => {
+  try {
+    const r = await require('./journalistEmbed').embedBatch({ log: (m) => console.log('[Scheduler]', m) });
+    if (r.embedded) console.log(`[Scheduler] Embeddings: ${r.embedded} journalist profiles`);
+  } catch (e) { console.error('[Scheduler] Embeddings failed:', e.message); }
+});
+
 // Monday 08:00 — weekly media-desk digest. One email rolling up everything the
 // discovery + maintenance jobs queued (new journalists, gone-quiet, dupes,
 // moves, bad emails) so the AM is told what's waiting instead of remembering to
