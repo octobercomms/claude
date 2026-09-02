@@ -21,6 +21,7 @@ const prLinkCheck = require('../services/prLinkCheck');
 const journalistScout = require('../services/journalistScout');
 const rssDiscover = require('../services/rssDiscover');
 const rssIngest = require('../services/rssIngest');
+const rssMine = require('../services/rssMine');
 const overviewReport = require('../services/overviewReport');
 const earnedOverviewReport = require('../services/earnedOverviewReport');
 const prCoverageExtract = require('../services/prCoverageExtract');
@@ -511,7 +512,7 @@ router.get('/journalist-suggestions', async (req, res) => {
       where.push(`s.client_id = ANY($${params.length}::uuid[])`);
     }
     const { rows } = await db.query(
-      `SELECT s.id, s.name, s.outlet, s.beat, s.email, s.guessed_email, s.why, s.source_url, s.created_at,
+      `SELECT s.id, s.name, s.outlet, s.beat, s.email, s.guessed_email, s.why, s.source_url, s.source, s.created_at,
               s.client_id, cl.name AS client_name
          FROM pr_journalist_suggestions s
          JOIN clients cl ON cl.id = s.client_id
@@ -527,7 +528,7 @@ router.get('/journalist-suggestions', async (req, res) => {
 router.get('/clients/:clientId/journalist-suggestions', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, name, outlet, beat, email, guessed_email, why, source_url, created_at
+      `SELECT id, name, outlet, beat, email, guessed_email, why, source_url, source, created_at
          FROM pr_journalist_suggestions
         WHERE client_id = $1 AND status = 'new'
         ORDER BY created_at DESC LIMIT 200`,
@@ -818,6 +819,26 @@ router.post('/outlets/:outletId/ingest', requireAdmin, async (req, res) => {
     const out = await rssIngest.ingestOutlet(req.params.outletId, { log: (m) => console.log('[RSS]', m) });
     res.json(out); // { inserted, matched }
   } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Mine one publication's feed now — surface brand-new journalists from its
+// unmatched bylines into the review queue (Phase 3, on-demand).
+router.post('/outlets/:outletId/mine', requireAdmin, async (req, res) => {
+  try {
+    const out = await rssMine.mineOutlet(req.params.outletId, { log: (m) => console.log('[RSS]', m) });
+    res.json(out); // { candidates, queued }
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Sweep — mine every feed for new journalists AND flag gone-quiet ones. This is
+// what the nightly scheduler runs; exposed here as a manual "process feeds now".
+router.post('/feeds/mine', requireAdmin, async (req, res) => {
+  try {
+    const log = (m) => console.log('[RSS]', m);
+    const mined = await rssMine.mineAll({ log });
+    const quiet = await rssMine.flagInactive({ log });
+    res.json({ ...mined, ...quiet }); // { outlets, candidates, queued, flagged }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/outlets/:outletId', async (req, res) => {

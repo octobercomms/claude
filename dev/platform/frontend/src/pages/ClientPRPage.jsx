@@ -708,7 +708,10 @@ export default function ClientPRPage() {
                       <tr key={s.id}>
                         <td><input type="checkbox" checked={selSugg.has(s.id)} onChange={() => toggleSugg(s.id)} /></td>
                         <td>
-                          <div style={{ fontWeight: 600 }}>{s.name}</div>
+                          <div style={{ fontWeight: 600 }}>
+                            {s.name}
+                            {s.source === 'rss' && <span className="chip" style={{ fontSize: 9, marginLeft: 6 }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
+                          </div>
                           {s.email
                             ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div>
                             : s.guessed_email
