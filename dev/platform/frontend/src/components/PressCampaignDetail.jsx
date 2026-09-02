@@ -67,9 +67,10 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [signature, setSignature] = useState('');
   const [savingSig, setSavingSig] = useState(false);
   const [testEmail, setTestEmail] = useState(user?.email || '');
-  const [testStep, setTestStep] = useState(1);
+  const [testSteps, setTestSteps] = useState(() => new Set([1]));
   const [testing, setTesting] = useState(false);
   const [tested, setTested] = useState(false);
+  const [refetching, setRefetching] = useState(false);
   const [sending, setSending] = useState(false);
 
   // Preview / edit one recipient's email.
@@ -220,9 +221,26 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     : '';
   function openInNewTab() {
     if (!shownHtml) return;
-    const w = window.open('', '_blank');
-    if (!w) { toast('Allow pop-ups to open the preview in a new tab.', 'info'); return; }
-    w.document.open(); w.document.write(shownHtml); w.document.close();
+    // Open via a blob URL (not document.write) so the tab has a real URL —
+    // the AM can then view source, save the page, or share the link.
+    const blob = new Blob([shownHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) { toast('Allow pop-ups to open the preview in a new tab.', 'info'); URL.revokeObjectURL(url); return; }
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  }
+  async function doRefetch() {
+    if (!release) return;
+    if (!confirm('Re-fetch this release from its source page? Refreshes the embedded content (fixes duplicated or stale scrapes) and keeps your audience, subjects and edits.')) return;
+    setRefetching(true);
+    try {
+      await api.post(`/press/releases/${release.id}/refetch`, {});
+      const rel = await api.get(`/press/campaigns/${campaignId}/release`);
+      setRelease(r => ({ ...r, body_html: rel.body_html, images: rel.images, boilerplate: rel.boilerplate, dateline: rel.dateline }));
+      if (previewing) preview(previewing, true);
+      toast('Release re-fetched from source.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setRefetching(false); }
   }
 
   async function saveSteps() {
@@ -257,14 +275,20 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     } catch (e) { toast(e.message, 'error'); }
     finally { setSavingSig(false); }
   }
+  function toggleTestStep(n) {
+    setTestSteps(prev => { const s = new Set(prev); if (s.has(n)) s.delete(n); else s.add(n); return s; });
+  }
   async function sendTest() {
-    if (!release || !testEmail.trim()) return;
+    const chosen = Array.from(testSteps).sort((a, b) => a - b);
+    if (!release || !testEmail.trim() || !chosen.length) return;
     setTesting(true);
     try {
-      const body = { email: testEmail.trim(), step_number: testStep };
-      if (previewing) body.contact_id = previewing;
-      const r = await api.post(`/press/releases/${release.id}/test`, body);
-      toast(`Test sent to ${r.sent_to}.`, 'success');
+      for (const sn of chosen) {
+        const body = { email: testEmail.trim(), step_number: sn };
+        if (previewing) body.contact_id = previewing;
+        await api.post(`/press/releases/${release.id}/test`, body);
+      }
+      toast(`Sent ${chosen.length} test email${chosen.length === 1 ? '' : 's'} to ${testEmail.trim()}.`, 'success');
       setTested(true);
     } catch (e) { toast(e.message, 'error'); }
     finally { setTesting(false); }
@@ -529,9 +553,9 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             {/* Configurable footer / signature */}
             <div style={{ marginTop: 14, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Your footer</div>
-              <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 6 }}>Appears under your sign-off on every pitch <em>and</em> follow-up — phone, title, socials, address, whatever you sign off with.</div>
-              <textarea value={signature} onChange={e => setSignature(e.target.value)} rows={4} className="input"
-                placeholder={"e.g.\nOctober Communications · +44 20 1234 5678\noctobercomms.com · @octobercomms"} style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, fontFamily: 'inherit' }} />
+              <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 6 }}>Appears under your sign-off on every pitch <em>and</em> follow-up. Plain text works, or paste <strong>HTML</strong> for a logo, GIF or table layout — it’s rendered as-is.</div>
+              <textarea value={signature} onChange={e => setSignature(e.target.value)} rows={5} className="input"
+                placeholder={"Plain text, e.g.\nOctober Communications · +44 20 1234 5678\noctobercomms.com · @octobercomms\n\n…or paste your HTML signature (with <img>/<table>)."} style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, fontFamily: /<[a-z][\s\S]*>/i.test(signature) ? 'monospace' : 'inherit' }} />
               <button {...roWrite(readOnly, { onClick: saveSignature, disabled: savingSig })} className="btn btn-secondary btn-sm" style={{ marginTop: 6 }}>{savingSig ? 'Saving…' : 'Save footer'}</button>
             </div>
 
@@ -554,13 +578,22 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', maxWidth: 520 }}>
               <input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com" className="input" style={{ flex: 1, minWidth: 200 }} />
-              <select value={testStep} onChange={e => setTestStep(parseInt(e.target.value, 10))} className="input" style={{ width: 150 }}>
-                {steps.map(s => <option key={s.step_number} value={s.step_number}>{s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`}</option>)}
-              </select>
-              <button {...roWrite(readOnly, { onClick: sendTest, disabled: testing || !testEmail.trim() })} className="btn btn-primary btn-sm">{testing ? 'Sending…' : 'Send test'}</button>
+              <button {...roWrite(readOnly, { onClick: sendTest, disabled: testing || !testEmail.trim() || !testSteps.size })} className="btn btn-primary btn-sm">{testing ? 'Sending…' : `Send ${testSteps.size || 0} test${testSteps.size === 1 ? '' : 's'}`}</button>
             </div>
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {steps.map(s => {
+                const on = testSteps.has(s.step_number);
+                return (
+                  <label key={s.step_number} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 'var(--r-sm)', cursor: 'pointer',
+                    border: `1px solid ${on ? 'var(--accent)' : 'var(--card-border)'}`, background: on ? 'var(--accent-soft)' : 'var(--surface)', fontSize: 12 }}>
+                    <input type="checkbox" checked={on} onChange={() => toggleTestStep(s.step_number)} />
+                    {s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`}
+                  </label>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 8 }}>Tick every email you want to check — they’ll all send in one click.</div>
             {tested && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--success, #1a9d5a)', fontWeight: 600 }}>✓ Test sent. Check your inbox, then move on.</div>}
-            <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 12 }}>Tip: send yourself the release <em>and</em> a follow-up so you can see both.</div>
 
             <NavRow>
               <button className="btn btn-primary btn-sm" onClick={goNext}>Next: preview emails ›</button>
@@ -588,6 +621,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 </span>
               )}
               {previewing && <button className="btn btn-link btn-sm" onClick={() => preview(previewing, true)}>↻ regenerate</button>}
+              <button {...roWrite(readOnly, { onClick: doRefetch, disabled: refetching })} className="btn btn-link btn-sm" title="Re-pull the release from its source page (fixes duplicated/stale embedded content)">{refetching ? 're-fetching…' : '⟳ re-fetch release'}</button>
             </div>
 
             {!previewing && <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: 20, border: '1px dashed var(--card-border)', borderRadius: 'var(--r-sm)' }}>Pick a journalist above to preview and edit the personalised pitch + follow-ups.</div>}

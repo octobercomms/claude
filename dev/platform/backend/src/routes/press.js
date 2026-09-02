@@ -107,6 +107,35 @@ router.post('/clients/:clientId/releases', async (req, res) => {
   }
 });
 
+// Re-fetch + re-parse a release from its source URL, updating the stored body,
+// boilerplate, images and dateline in place. Lets an existing campaign pick up
+// parser improvements (e.g. the mobile/desktop de-duplication) without losing
+// its audience, subjects or edits.
+router.post('/releases/:id/refetch', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    const release = rows[0];
+    assertClientAccess(req, release.client_id);
+    if (!release.source_url) return res.status(400).json({ error: 'This release has no source URL to re-fetch.' });
+    const parsed = await pressRelease.fetchAndParse(release.source_url);
+    await pool.query(
+      `UPDATE outreach_press_releases
+          SET body_html = $1, body = $2, summary = $3, boilerplate = $4, images = $5,
+              dateline = COALESCE($6, dateline), contact_block = COALESCE($7, contact_block), fetched_at = NOW()
+        WHERE id = $8`,
+      [parsed.body_html, (parsed.body_html || '').replace(/<[^>]+>/g, ' '),
+       (parsed.summary || '').slice(0, 280), parsed.boilerplate || null,
+       JSON.stringify(parsed.images || []), parsed.dateline || null,
+       parsed.contact_block || null, req.params.id]
+    );
+    res.json({ ok: true, images: parsed.images?.length || 0 });
+  } catch (err) {
+    console.error('[press] refetch failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // Resolve a press release by its backing campaign id — used by the
 // Campaigns tab when the AM clicks a press_release campaign.
 router.get('/campaigns/:id/release', async (req, res) => {
