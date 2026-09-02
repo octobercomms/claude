@@ -142,12 +142,14 @@ router.get('/lookup', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Capture an unknown sender as a press (media) or commercial contact.
+// Capture an unknown sender from the Gmail add-on. This is a PR tool, so
+// everyone it captures joins the shared press list (kind='media'). A
+// 'commercial' pick is preserved as a tag — not the 'industry' kind, which
+// is now a client's private business contact, not press.
 router.post('/contacts', async (req, res) => {
   try {
     const b = req.body || {};
-    const segment = b.segment === 'media' ? 'media' : 'commercial';
-    const kind = segment === 'media' ? 'media' : 'industry'; // unified contacts kind
+    const kind = 'media'; // add-on always captures into the press list
     const email = String(b.email || '').trim().toLowerCase();
     const name = String(b.name || '').trim();
     const sp = name.split(/\s+/);
@@ -160,17 +162,18 @@ router.post('/contacts', async (req, res) => {
       if (found) return res.json({ id: found.id, segment: found.kind === 'industry' ? 'commercial' : found.kind, matched: true });
     }
 
-    const outletId = segment === 'media' && b.publication ? await pr.resolveOutlet(b.publication) : null;
+    const outletId = b.publication ? await pr.resolveOutlet(b.publication) : null;
     const tags = String(b.tags || '').split(/[\s,;]+/).map((t) => t.trim().toLowerCase()).filter(Boolean);
+    // Keep the commercial/press distinction as a tag so nothing's lost.
+    if (b.segment !== 'media' && !tags.includes('commercial')) tags.push('commercial');
     const finalEmail = REAL_EMAIL(email) ? email : `noemail+${crypto.createHash('md5').update(name.toLowerCase() || String(Date.now())).digest('hex')}@import.local`;
 
     const { rows } = await db.query(
       `INSERT INTO outreach_contacts (first_name, last_name, name, email, outlet_id, kind, beats, notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-      [first, last, name, finalEmail, outletId, kind, JSON.stringify(kind === 'media' ? tags : []),
-       kind === 'industry' && tags.length ? `Tags: ${tags.join(', ')}` : '']
+      [first, last, name, finalEmail, outletId, kind, JSON.stringify(tags), '']
     );
-    res.status(201).json({ id: rows[0].id, segment, created: true });
+    res.status(201).json({ id: rows[0].id, segment: 'media', created: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 

@@ -504,6 +504,85 @@ router.get('/contacts/library/export.csv', async (req, res) => {
   }
 });
 
+// ── Audit: private contacts (prospect / industry) on more than one client ──
+// After the press/business split a client's private contact should live on
+// exactly one client. Rows from the shared-library era can still sit on
+// several. This lists the offenders; the resolve endpoint keeps each on one
+// client (its origin if still attached, else the earliest attachment) and
+// detaches the rest. 'media' (the shared press list) is intentionally excluded.
+function privateMultiClientWhere(req) {
+  const where = [
+    `c.merged_into IS NULL`,
+    `c.kind IN ('prospect','industry')`,
+    `(SELECT COUNT(*) FROM outreach_contact_clients m WHERE m.contact_id = c.id) > 1`,
+  ];
+  const params = [];
+  if (req.visibleClientIds !== null && req.visibleClientIds !== undefined) {
+    params.push(req.visibleClientIds);
+    where.push(`EXISTS (SELECT 1 FROM outreach_contact_clients m
+                         WHERE m.contact_id = c.id AND m.client_id = ANY($${params.length}::uuid[]))`);
+  }
+  return { whereSql: `WHERE ${where.join(' AND ')}`, params };
+}
+
+router.get('/contacts/private-multiclient', async (req, res) => {
+  try {
+    const { whereSql, params } = privateMultiClientWhere(req);
+    const { rows } = await pool.query(
+      `SELECT c.id, c.name, c.email, c.kind, c.client_id AS origin_client_id,
+              COALESCE(json_agg(json_build_object('id', cl.id, 'name', cl.name)
+                       ORDER BY m.added_at) FILTER (WHERE cl.id IS NOT NULL), '[]') AS clients
+         FROM outreach_contacts c
+         JOIN outreach_contact_clients m ON m.contact_id = c.id
+         JOIN clients cl ON cl.id = m.client_id
+         ${whereSql}
+        GROUP BY c.id
+        ORDER BY c.name NULLS LAST
+        LIMIT 1000`,
+      params
+    );
+    res.json({ count: rows.length, contacts: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Keep each offending private contact on one client and detach the rest.
+router.post('/contacts/private-multiclient/resolve', async (req, res) => {
+  try {
+    const { whereSql, params } = privateMultiClientWhere(req);
+    const { rows: offenders } = await pool.query(
+      `SELECT c.id, c.client_id AS origin_client_id FROM outreach_contacts c ${whereSql}`,
+      params
+    );
+    let fixed = 0, detached = 0;
+    for (const o of offenders) {
+      const { rows: mem } = await pool.query(
+        'SELECT client_id FROM outreach_contact_clients WHERE contact_id = $1 ORDER BY added_at ASC',
+        [o.id]
+      );
+      if (mem.length <= 1) continue;
+      const memIds = mem.map(r => r.client_id);
+      const keep = (o.origin_client_id && memIds.includes(o.origin_client_id)) ? o.origin_client_id : memIds[0];
+      for (const cid of memIds.filter(id => id !== keep)) {
+        // Mirror the per-client detach: cancel that client's pending sends first.
+        await pool.query(
+          `UPDATE outreach_sends s SET status = 'cancelled'
+             FROM outreach_campaigns cp
+            WHERE s.campaign_id = cp.id AND cp.client_id = $1
+              AND s.contact_id = $2 AND s.status = 'pending'`,
+          [cid, o.id]
+        );
+        await pool.query(
+          'DELETE FROM outreach_contact_clients WHERE contact_id = $1 AND client_id = $2',
+          [o.id, cid]
+        );
+        detached++;
+      }
+      fixed++;
+    }
+    res.json({ fixed, detached });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 function csvEscape(v) {
   const s = v == null ? '' : String(v);
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

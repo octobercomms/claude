@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
 import EditContactModal from '../components/EditContactModal';
 import ManageUsersPage from './ManageUsersPage';
@@ -1581,6 +1582,7 @@ function InfoRow({ label, value }) {
 // every contact with the count + names of the clients they're attached to.
 function ContactsLibrary() {
   const { readOnly } = useAuth();
+  const toast = useToast();
   const [rows, setRows] = useState(null);
   const [clients, setClients] = useState([]);
   const [tags, setTags] = useState([]);
@@ -1642,6 +1644,10 @@ function ContactsLibrary() {
   // unbounded match count so the "delete all matching" button is
   // honest about how much it's about to wipe.
   const [total, setTotal] = useState(0);
+  // Audit: private (prospect/industry) contacts sitting on more than one client.
+  const [audit, setAudit] = useState(null);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditBusy, setAuditBusy] = useState(false);
 
   const PAGE = 200;
   function buildFilterParams() {
@@ -1714,6 +1720,30 @@ function ContactsLibrary() {
       // Tags may have changed (bulk-tag adds new ones) — refresh chips too.
       api.get('/outreach/tags').then(setTags).catch(() => {});
     } catch (e) { setErr(e.message); }
+  }
+
+  async function runAudit() {
+    setAuditBusy(true);
+    try {
+      const r = await api.get('/outreach/contacts/private-multiclient');
+      setAudit(r);
+      setAuditOpen(true);
+    } catch (e) { setErr(e.message); }
+    finally { setAuditBusy(false); }
+  }
+
+  // Keep each offending contact on its original client (or its earliest
+  // attachment) and detach the rest, cancelling those clients' pending sends.
+  async function fixAudit() {
+    if (!window.confirm(`Keep each of these ${audit?.count || ''} contacts on a single client and detach them from the others? Pending sends for the detached clients are cancelled. This can't be undone.`)) return;
+    setAuditBusy(true);
+    try {
+      const r = await api.post('/outreach/contacts/private-multiclient/resolve', {});
+      toast(`Fixed ${r.fixed} contact${r.fixed === 1 ? '' : 's'} — ${r.detached} stray attachment${r.detached === 1 ? '' : 's'} removed.`, 'success');
+      setAudit({ count: 0, contacts: [] });
+      reload();
+    } catch (e) { setErr(e.message); }
+    finally { setAuditBusy(false); }
   }
 
   async function exportCsv() {
@@ -1938,6 +1968,50 @@ function ContactsLibrary() {
             </div>
           </div>
         )}
+
+        {/* Isolation audit: private (prospect/industry) contacts on >1 client */}
+        <div className="card" style={{ marginTop: 12, background: 'var(--surface-raised)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>Isolation audit</div>
+              <div className="body-sm text-muted">
+                Private contacts (prospects + industry) should live on one client only. Find any that are still attached to several.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {audit && (
+                <span className="body-sm" style={{ color: audit.count ? 'var(--warning)' : 'var(--positive)', fontWeight: 600 }}>
+                  {audit.count ? `${audit.count} on multiple clients` : '✓ All clean'}
+                </span>
+              )}
+              <button className="btn btn-secondary btn-sm" onClick={runAudit} disabled={auditBusy}>
+                {auditBusy ? '…' : (audit ? 'Re-check' : 'Run audit')}
+              </button>
+              {audit?.count > 0 && (
+                <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: fixAudit, disabled: auditBusy })}>
+                  Fix all — keep each on its original client
+                </button>
+              )}
+            </div>
+          </div>
+          {auditOpen && audit?.count > 0 && (
+            <div style={{ marginTop: 10, maxHeight: 260, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+              {audit.contacts.map((c) => {
+                const origin = c.clients.find((cl) => cl.id === c.origin_client_id);
+                const keep = origin || c.clients[0];
+                return (
+                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 10px', borderTop: '1px solid #f4f4f4' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name || '(unnamed)'} <span className="chip chip-neutral" style={{ fontSize: 10 }}>{c.kind}</span></div>
+                      <div className="body-xs text-muted">{c.email} · on {c.clients.map((cl) => cl.name).join(', ')}</div>
+                    </div>
+                    <div className="body-xs" style={{ whiteSpace: 'nowrap', color: 'var(--text-subtle)' }}>keep on <strong>{keep?.name || '—'}</strong></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
           {[['all', 'All'], ['press', 'Press'], ['prospect', 'Prospects']].map(([v, l]) => (
