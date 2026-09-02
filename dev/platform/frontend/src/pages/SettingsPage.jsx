@@ -330,6 +330,7 @@ const SECTIONS = [
     { k: 'publications', label: 'Publications' },
     { k: 'tags', label: 'Tags' },
     { k: 'tasks', label: 'Tasks' },
+    { k: 'assistant', label: 'Assistant' },
   ] },
   { key: 'tools', label: 'Tools', subs: [
     { k: 'strategy', label: 'Strategy templates' },
@@ -356,7 +357,7 @@ const SECTION_GROUPS = {
   ],
   database: [
     { label: 'Library', subs: ['contacts', 'publications', 'tags'] },
-    { label: 'Work',    subs: ['tasks'] },
+    { label: 'Work',    subs: ['tasks', 'assistant'] },
   ],
   account: [
     { label: 'Access', subs: ['users', 'security'] },
@@ -601,6 +602,7 @@ export default function SettingsPage() {
       {tab === 'integrations' && <IntegrationsPage embedded />}
       {tab === 'contacts' && <ContactsLibrary />}
       {tab === 'tasks' && <JournalistTasks />}
+      {tab === 'assistant' && <MediaAssistant />}
       {tab === 'publications' && <PublicationsPanel />}
       {tab === 'tags' && <TagsManager />}
       {tab === 'users' && <ManageUsersPage embedded />}
@@ -1642,6 +1644,108 @@ function InfoRow({ label, value }) {
 // Workspace-wide contact library. The same contact (one row here) can be
 // attached to many clients via outreach_contact_clients; this view shows
 // every contact with the count + names of the clients they're attached to.
+// Database → Assistant — a chat where you dump websites, contacts, or notes and
+// Claude researches them and proposes database changes to approve. It never
+// writes on its own; every proposal is reviewed before it's applied.
+function MediaAssistant() {
+  const { readOnly } = useAuth();
+  const toast = useToast();
+  const [messages, setMessages] = useState([]);      // {role, content}
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [actions, setActions] = useState([]);        // proposed, awaiting approval
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState(null);
+
+  async function send() {
+    const text = input.trim();
+    if (text.length < 2) return;
+    const history = messages;
+    setMessages((m) => [...m, { role: 'user', content: text }]);
+    setInput(''); setBusy(true); setActions([]); setApplied(null);
+    try {
+      const r = await api.post('/pr/assistant/message', { history, message: text });
+      setMessages((m) => [...m, { role: 'assistant', content: r.reply || '(no reply)' }]);
+      setActions(Array.isArray(r.actions) ? r.actions : []);
+    } catch (e) { setMessages((m) => [...m, { role: 'assistant', content: `Error: ${e.message}` }]); }
+    finally { setBusy(false); }
+  }
+  async function apply() {
+    setApplying(true);
+    try {
+      const r = await api.post('/pr/assistant/apply', { actions });
+      setApplied(r.results || []);
+      setActions([]);
+      const ok = (r.results || []).filter((x) => x.ok).length;
+      toast(`Applied ${ok} of ${(r.results || []).length} change${(r.results || []).length === 1 ? '' : 's'}.`, ok ? 'success' : 'info');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setApplying(false); }
+  }
+
+  const actionLabel = (a) => {
+    if (a.type === 'add_publication') return `Add publication “${a.name}”${a.url ? ` (${a.url})` : ''}`;
+    if (a.type === 'add_journalist') return `Add journalist “${a.name}”${a.outlet ? ` at ${a.outlet}` : ''}${a.email ? ` · ${a.email}` : ''}${a.client_name ? ` → ${a.client_name}` : ''}`;
+    if (a.type === 'tag_contact') return `Tag ${a.contact_name || a.contact_id} with ${(a.tags || []).join(', ')}`;
+    return a.type;
+  };
+
+  return (
+    <div className="stack stack-lg">
+      <div className="card">
+        <div className="h3 mb-2">💬 Media-desk assistant</div>
+        <p className="body-sm text-muted" style={{ marginTop: 0 }}>
+          Paste websites, journalist names, or notes — e.g. “add these three sites: …”, “here’s a journalist: Jane Smith at Dezeen, covers hospitality”, or “tag everyone at Vogue as luxury”. Claude researches it and <strong>proposes changes for you to approve</strong>. Nothing is saved until you say so.
+        </p>
+
+        {messages.length > 0 && (
+          <div style={{ maxHeight: 340, overflow: 'auto', border: '1px solid var(--card-border, #eee)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{ marginBottom: 8, textAlign: m.role === 'user' ? 'right' : 'left' }}>
+                <span style={{ display: 'inline-block', maxWidth: '85%', padding: '7px 11px', borderRadius: 10, fontSize: 13, whiteSpace: 'pre-wrap',
+                  background: m.role === 'user' ? 'var(--accent, #2d6cdf)' : 'var(--surface-raised, #f4f4f5)',
+                  color: m.role === 'user' ? '#fff' : 'var(--text)' }}>{m.content}</span>
+              </div>
+            ))}
+            {busy && <div className="body-sm text-muted">Researching…</div>}
+          </div>
+        )}
+
+        {actions.length > 0 && (
+          <div style={{ border: '1px solid var(--accent, #2d6cdf)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Proposed changes — review before applying</div>
+            {actions.map((a, i) => (
+              <div key={i} style={{ fontSize: 13, padding: '4px 0', borderTop: i ? '1px solid #f2f2f2' : 'none' }}>
+                • {actionLabel(a)}{a.why ? <span className="text-muted" style={{ fontSize: 11 }}> — {a.why}</span> : null}
+              </div>
+            ))}
+            <div style={{ marginTop: 8 }}>
+              <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: apply, disabled: applying })}>{applying ? 'Applying…' : `Approve & apply ${actions.length}`}</button>{' '}
+              <button className="btn btn-secondary btn-sm" onClick={() => setActions([])}>Discard</button>
+            </div>
+          </div>
+        )}
+
+        {applied && (
+          <div style={{ marginBottom: 10, fontSize: 13 }}>
+            {applied.map((r, i) => (
+              <div key={i} style={{ color: r.ok ? 'var(--positive, #157a3f)' : 'var(--danger, #c62828)' }}>
+                {r.ok ? '✓' : '✕'} {actionLabel(r)} — {r.detail}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <textarea className="input" rows={2} value={input} onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
+            placeholder="Dump websites, contacts, or notes…  (⌘/Ctrl+Enter to send)" style={{ flex: 1 }} />
+          <button className="btn btn-primary" {...roWrite(readOnly, { onClick: send, disabled: busy || input.trim().length < 2 })}>{busy ? '…' : 'Send'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Database → Tasks — the account exec's action queue for the journalist list:
 // find new journalists, archive the ones who've gone quiet, and stay in touch
 // with the key ones. Moved out of the Journalists list so that tab stays clean.
@@ -1723,6 +1827,16 @@ function JournalistTasks() {
       loadArchiveReview();
     } catch (e) { toast(e.message, 'error'); }
     finally { setMineBusy(false); }
+  }
+  const [embedBusy, setEmbedBusy] = useState(false);
+  async function embedNow() {
+    setEmbedBusy(true);
+    try {
+      const r = await api.post('/pr/embeddings/backfill', {});
+      if (r.skipped === 'no-key') toast('Add an OpenAI key in Settings → AI to enable semantic matching.', 'info');
+      else toast(r.embedded ? `Embedded ${r.embedded} journalist profile${r.embedded === 1 ? '' : 's'} for semantic matching. Run again for more.` : 'Everyone with a topic profile is already embedded.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setEmbedBusy(false); }
   }
   async function sendDigestNow() {
     setDigestBusy(true);
@@ -1811,9 +1925,15 @@ function JournalistTasks() {
         <div className="body-sm text-muted" style={{ flex: 1, minWidth: 220 }}>
           📬 Every Monday you get a digest of everything below — new journalists, gone-quiet, duplicates, moves, bad emails — so you never have to remember to check. Preview it now:
         </div>
-        <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: sendDigestNow, disabled: digestBusy })}>
-          {digestBusy ? 'Sending…' : '📬 Email me this week’s digest'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: embedNow, disabled: embedBusy })}
+            title="Build 'meaning fingerprints' for journalists with a topic profile, so the best-contacts matcher can rank by meaning. Runs nightly too.">
+            {embedBusy ? 'Embedding…' : '🧠 Enable semantic matching'}
+          </button>
+          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: sendDigestNow, disabled: digestBusy })}>
+            {digestBusy ? 'Sending…' : '📬 Email me this week’s digest'}
+          </button>
+        </div>
       </div>
 
       {/* Find new journalists */}

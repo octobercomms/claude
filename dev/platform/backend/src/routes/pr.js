@@ -26,6 +26,7 @@ const contactDedup = require('../services/contactDedup');
 const beatLearner = require('../services/beatLearner');
 const journalistMatch = require('../services/journalistMatch');
 const outletResolve = require('../services/outletResolve');
+const mediaAssistant = require('../services/mediaAssistant');
 const overviewReport = require('../services/overviewReport');
 const earnedOverviewReport = require('../services/earnedOverviewReport');
 const prCoverageExtract = require('../services/prCoverageExtract');
@@ -843,6 +844,31 @@ router.post('/match-journalists', async (req, res) => {
 router.post('/contacts/:contactId/learn-topics', async (req, res) => {
   try { res.json(await beatLearner.learnContact(req.params.contactId)); }
   catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Embed a batch of journalist profiles now so semantic matching lights up
+// without waiting for the nightly job (e.g. right after adding the OpenAI key).
+router.post('/embeddings/backfill', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.body?.limit) || 500, 2000);
+    res.json(await require('../services/journalistEmbed').embedBatch({ limit, log: (m) => console.log('[Embed]', m) }));
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ── Media-desk assistant (research + propose DB changes; review-first) ─────────
+router.post('/assistant/message', requireAdmin, async (req, res) => {
+  try {
+    const message = String(req.body?.message || '').trim();
+    if (!message) return res.status(400).json({ error: 'Say something to the assistant.' });
+    const history = Array.isArray(req.body?.history) ? req.body.history.slice(-12) : [];
+    res.json(await mediaAssistant.runMessage({ history, message }));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/assistant/apply', requireAdmin, async (req, res) => {
+  try {
+    const actions = Array.isArray(req.body?.actions) ? req.body.actions : [];
+    res.json({ results: await mediaAssistant.applyActions(actions) });
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // Preview the weekly media-desk digest on demand — build the counts, and email
