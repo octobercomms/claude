@@ -1639,22 +1639,27 @@ function JournalistTasks() {
       setSelSugg((p) => { const n = new Set(p); n.delete(sid); return n; });
     } catch (e) { toast(e.message, 'error'); }
   }
-  async function bulkSuggestions(action) {
+  async function bulkSuggestions(action, all = false) {
+    // Group by client (cross-client queue) so each hits its client's endpoint.
+    const pick = all ? new Set(suggestions.map((s) => s.id)) : selSugg;
     const byClient = {};
-    for (const s of suggestions) if (selSugg.has(s.id)) (byClient[s.client_id] ||= []).push(s.id);
+    for (const s of suggestions) if (pick.has(s.id)) (byClient[s.client_id] ||= []).push(s.id);
     try {
       let done = 0;
       for (const [cid, ids] of Object.entries(byClient)) {
         const r = await api.post(`/pr/clients/${cid}/journalist-suggestions/bulk`, { action, ids });
         done += r.done || 0;
       }
-      setSuggestions((p) => p.filter((s) => !selSugg.has(s.id)));
+      setSuggestions((p) => p.filter((s) => !pick.has(s.id)));
       setSelSugg(new Set());
       toast(`${action === 'approve' ? 'Added' : 'Dismissed'} ${done}.`, 'success');
     } catch (e) { toast(e.message, 'error'); }
   }
   function toggleSugg(sid) {
     setSelSugg((p) => { const n = new Set(p); n.has(sid) ? n.delete(sid) : n.add(sid); return n; });
+  }
+  function toggleAllSugg() {
+    setSelSugg((p) => p.size === suggestions.length ? new Set() : new Set(suggestions.map((s) => s.id)));
   }
 
   function loadArchiveReview() { api.get('/pr/archive-review').then((r) => setArchiveReview(r.items || [])).catch(() => {}); }
@@ -1715,6 +1720,7 @@ function JournalistTasks() {
           <div style={{ marginTop: 14 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
+              <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve', true) })}>Add all {suggestions.length}</button>
               {selSugg.size > 0 && <>
                 <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected</button>
                 <button className="btn btn-secondary btn-sm" onClick={() => bulkSuggestions('dismiss')}>Dismiss selected</button>
@@ -1722,14 +1728,18 @@ function JournalistTasks() {
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table className="table" style={{ width: '100%' }}>
-                <thead><tr><th style={{ width: 28 }}></th><th>Journalist</th><th>Client</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 120 }}></th></tr></thead>
+                <thead><tr><th style={{ width: 28 }}><input type="checkbox" checked={selSugg.size === suggestions.length} onChange={toggleAllSugg} /></th><th>Journalist</th><th>Client</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 120 }}></th></tr></thead>
                 <tbody>
                   {suggestions.map((s) => (
                     <tr key={s.id}>
                       <td><input type="checkbox" checked={selSugg.has(s.id)} onChange={() => toggleSugg(s.id)} /></td>
                       <td>
                         <div style={{ fontWeight: 600 }}>{s.name}</div>
-                        {s.email ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div> : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
+                        {s.email
+                          ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div>
+                          : s.guessed_email
+                            ? <div style={{ fontSize: 11, color: 'var(--danger, #c62828)', fontWeight: 600 }} title="Guessed from this outlet's email pattern — NOT confirmed">{s.guessed_email} <span style={{ fontWeight: 400 }}>· guess</span></div>
+                            : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
                       </td>
                       <td style={{ fontSize: 12 }}>{s.client_name}</td>
                       <td>{s.outlet || '—'}</td>

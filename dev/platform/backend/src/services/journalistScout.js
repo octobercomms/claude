@@ -90,9 +90,9 @@ Rules:
 - Do NOT propose generic "editorial@" inboxes as people. If you can't find a real personal email, leave email null — never guess one.
 - Each must have ONE specific, true reason they fit: a recent relevant article they wrote (with its outlet).
 - Provenance is required: "source_url" must be a real page you actually read (ideally the byline/article).
-- Aim for range across outlets and tiers, not five people at one publication.
+- Cast a WIDE net: aim for as many genuinely-relevant new names as you can, spread across MANY outlets and tiers (national, trade, regional, specialist, newsletters) — not a handful at one publication. Search several angles (each beat, each adjacent beat, each key outlet's masthead, "who covers X" round-ups) to surface volume.
 
-Return up to ${maxResults} journalists. Output ONLY a JSON array (in a \`\`\`json code block):
+Return up to ${maxResults} journalists — get as close to that number as you honestly can. Output ONLY a JSON array (in a \`\`\`json code block):
 [
   {
     "name": "journalist full name",
@@ -118,8 +118,67 @@ function extractArray(text) {
 
 function normEmail(e) { return String(e || '').toLowerCase().trim() || null; }
 
+// ── Email guessing ───────────────────────────────────────────────────────────
+// A found journalist often has no public email. Rather than leave it blank, we
+// infer the address from the pattern the outlet's OTHER contacts use
+// (first.last@domain, flast@domain, …). The guess is stored separately and shown
+// in red as UNCONFIRMED — never treated as a verified address.
+function localPatterns(name, local) {
+  const parts = String(name).toLowerCase().replace(/[^a-z\s'-]/g, '').split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return [];
+  const first = parts[0], last = parts[parts.length - 1];
+  const fi = first[0], li = last[0];
+  const forms = {
+    'first.last': `${first}.${last}`, 'firstlast': `${first}${last}`,
+    'flast': `${fi}${last}`, 'first_last': `${first}_${last}`,
+    'fi.last': `${fi}.${last}`, 'first': `${first}`, 'lastfirst': `${last}${first}`,
+    'last.first': `${last}.${first}`,
+  };
+  return Object.entries(forms).filter(([, v]) => v === local).map(([k]) => k);
+}
+function applyPattern(pat, domain, name) {
+  const parts = String(name).toLowerCase().replace(/[^a-z\s'-]/g, '').split(/\s+/).filter(Boolean);
+  if (parts.length < 2 || !domain) return null;
+  const first = parts[0], last = parts[parts.length - 1];
+  const fi = first[0], li = last[0];
+  const forms = {
+    'first.last': `${first}.${last}`, 'firstlast': `${first}${last}`,
+    'flast': `${fi}${last}`, 'first_last': `${first}_${last}`,
+    'fi.last': `${fi}.${last}`, 'first': `${first}`, 'lastfirst': `${last}${first}`,
+    'last.first': `${last}.${first}`,
+  };
+  const local = forms[pat];
+  return local ? `${local}@${domain}` : null;
+}
+async function guessEmail(name, outlet) {
+  if (!name || !outlet) return null;
+  const { rows } = await pool.query(
+    `SELECT c.name, c.email FROM outreach_contacts c
+       LEFT JOIN pr_outlets o ON o.id = c.outlet_id
+      WHERE c.kind IN ('media','industry')
+        AND c.email IS NOT NULL AND c.email <> '' AND c.email NOT LIKE '%@import.local'
+        AND (lower(o.name) = lower($1) OR lower(c.company) = lower($1))
+      LIMIT 40`,
+    [outlet]
+  );
+  if (!rows.length) return null;
+  const patTally = {}; const domTally = {};
+  for (const r of rows) {
+    const [local, domain] = String(r.email).toLowerCase().split('@');
+    if (!local || !domain) continue;
+    domTally[domain] = (domTally[domain] || 0) + 1;
+    for (const p of localPatterns(r.name, local)) patTally[p] = (patTally[p] || 0) + 1;
+  }
+  const domain = Object.entries(domTally).sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (!domain) return null;
+  // Prefer the dominant recognised pattern; fall back to first.last on the
+  // dominant domain (the most common corporate default).
+  const pat = Object.entries(patTally).sort((a, b) => b[1] - a[1])[0]?.[0] || 'first.last';
+  return applyPattern(pat, domain, name);
+}
+
 // Ask Claude for journalist candidates. Returns normalised objects (no writes).
-async function findCandidates(ctx, { maxResults = 12, maxSearches = 8, log = () => {} } = {}) {
+async function findCandidates(ctx, { maxResults = 25, maxSearches = 12, log = () => {} } = {}) {
   const key = process.env.CLAUDE_API_KEY;
   if (!key) { log('journalistScout: CLAUDE_API_KEY not set'); return []; }
   const m = await model();
@@ -181,7 +240,7 @@ async function isKnown(clientId, c) {
 
 // Full discovery pass for one client: find candidates, drop known/dupes, queue
 // the rest as 'new' for review. Returns { found, added }.
-async function scoutClient(clientId, { maxResults = 12, log = () => {} } = {}) {
+async function scoutClient(clientId, { maxResults = 25, log = () => {} } = {}) {
   const ctx = await buildContext(clientId);
   if (!ctx) throw new Error('Client not found');
 
@@ -189,11 +248,13 @@ async function scoutClient(clientId, { maxResults = 12, log = () => {} } = {}) {
   let added = 0;
   for (const c of candidates) {
     if (await isKnown(clientId, c)) continue;
+    // No confirmed email → try to guess one from the outlet's known pattern.
+    const guessed = c.email ? null : await guessEmail(c.name, c.outlet);
     await pool.query(
       `INSERT INTO pr_journalist_suggestions
-         (client_id, name, outlet, beat, email, why, source_url, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'new')`,
-      [clientId, c.name, c.outlet, c.beat, c.email, c.why, c.source_url]
+         (client_id, name, outlet, beat, email, guessed_email, why, source_url, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'new')`,
+      [clientId, c.name, c.outlet, c.beat, c.email, guessed, c.why, c.source_url]
     );
     added++;
   }

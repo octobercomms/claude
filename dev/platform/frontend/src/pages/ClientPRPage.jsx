@@ -367,12 +367,13 @@ export default function ClientPRPage() {
       setSelSugg((prev) => { const n = new Set(prev); n.delete(sid); return n; });
     } catch (e) { toast(e.message, 'error'); }
   }
-  async function bulkSuggestions(action) {
-    const ids = [...selSugg];
+  async function bulkSuggestions(action, idList) {
+    const ids = idList || [...selSugg];
     if (!ids.length) return;
     try {
       const r = await api.post(`/pr/clients/${id}/journalist-suggestions/bulk`, { action, ids });
-      setSuggestions((prev) => prev.filter((s) => !selSugg.has(s.id)));
+      const set = new Set(ids);
+      setSuggestions((prev) => prev.filter((s) => !set.has(s.id)));
       setSelSugg(new Set());
       if (action === 'approve') api.get(`/pr/clients/${id}/journalists`).then((r) => setJournalists(r.items || [])).catch(() => {});
       toast(`${action === 'approve' ? 'Added' : 'Dismissed'} ${r.done}.`, 'success');
@@ -380,6 +381,9 @@ export default function ClientPRPage() {
   }
   function toggleSugg(sid) {
     setSelSugg((prev) => { const n = new Set(prev); n.has(sid) ? n.delete(sid) : n.add(sid); return n; });
+  }
+  function toggleAllSugg() {
+    setSelSugg((prev) => prev.size === suggestions.length ? new Set() : new Set(suggestions.map((s) => s.id)));
   }
   function reloadPress() {
     api.get(`/press/clients/${id}/releases`).then((r) => setPressReleases(Array.isArray(r) ? r : (r.items || []))).catch(() => {});
@@ -691,20 +695,25 @@ export default function ClientPRPage() {
               <>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
+                  <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve', suggestions.map((s) => s.id)) })}>Add all {suggestions.length}</button>
                   {selSugg.size > 0 && <>
                     <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => bulkSuggestions('dismiss')}>Dismiss selected</button>
                   </>}
                 </div>
                 <table className="table">
-                  <thead><tr><th style={{ width: 28 }}></th><th>Journalist</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 150 }}></th></tr></thead>
+                  <thead><tr><th style={{ width: 28 }}><input type="checkbox" checked={selSugg.size === suggestions.length} onChange={toggleAllSugg} /></th><th>Journalist</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 150 }}></th></tr></thead>
                   <tbody>
                     {suggestions.map((s) => (
                       <tr key={s.id}>
                         <td><input type="checkbox" checked={selSugg.has(s.id)} onChange={() => toggleSugg(s.id)} /></td>
                         <td>
                           <div style={{ fontWeight: 600 }}>{s.name}</div>
-                          {s.email ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div> : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
+                          {s.email
+                            ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div>
+                            : s.guessed_email
+                              ? <div style={{ fontSize: 11, color: 'var(--danger, #c62828)', fontWeight: 600 }} title="Guessed from this outlet's email pattern — NOT confirmed">{s.guessed_email} <span style={{ fontWeight: 400 }}>· guess</span></div>
+                              : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
                         </td>
                         <td>{s.outlet || '—'}</td>
                         <td style={{ fontSize: 12 }}>{s.beat || '—'}</td>
