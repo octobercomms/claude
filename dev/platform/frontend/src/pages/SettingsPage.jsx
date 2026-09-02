@@ -1655,6 +1655,7 @@ function MediaAssistant() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [actions, setActions] = useState([]);        // proposed, awaiting approval
+  const [sel, setSel] = useState(() => new Set());   // which proposed actions are ticked
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(null);
 
@@ -1663,20 +1664,25 @@ function MediaAssistant() {
     if (text.length < 2) return;
     const history = messages;
     setMessages((m) => [...m, { role: 'user', content: text }]);
-    setInput(''); setBusy(true); setActions([]); setApplied(null);
+    setInput(''); setBusy(true); setActions([]); setSel(new Set()); setApplied(null);
     try {
       const r = await api.post('/pr/assistant/message', { history, message: text });
       setMessages((m) => [...m, { role: 'assistant', content: r.reply || '(no reply)' }]);
-      setActions(Array.isArray(r.actions) ? r.actions : []);
+      const list = Array.isArray(r.actions) ? r.actions : [];
+      setActions(list);
+      setSel(new Set(list.map((_, i) => i)));   // everything ticked by default
     } catch (e) { setMessages((m) => [...m, { role: 'assistant', content: `Error: ${e.message}` }]); }
     finally { setBusy(false); }
   }
+  function toggleAction(i) { setSel((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; }); }
   async function apply() {
+    const chosen = actions.filter((_, i) => sel.has(i));
+    if (!chosen.length) { toast('Tick at least one change to apply.', 'info'); return; }
     setApplying(true);
     try {
-      const r = await api.post('/pr/assistant/apply', { actions });
+      const r = await api.post('/pr/assistant/apply', { actions: chosen });
       setApplied(r.results || []);
-      setActions([]);
+      setActions([]); setSel(new Set());
       const ok = (r.results || []).filter((x) => x.ok).length;
       toast(`Applied ${ok} of ${(r.results || []).length} change${(r.results || []).length === 1 ? '' : 's'}.`, ok ? 'success' : 'info');
     } catch (e) { toast(e.message, 'error'); }
@@ -1713,15 +1719,21 @@ function MediaAssistant() {
 
         {actions.length > 0 && (
           <div style={{ border: '1px solid var(--accent, #2d6cdf)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Proposed changes — review before applying</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>Proposed changes — untick anything you don’t want</div>
+              <button className="btn btn-secondary btn-sm" onClick={() => setSel(sel.size === actions.length ? new Set() : new Set(actions.map((_, i) => i)))}>
+                {sel.size === actions.length ? 'Untick all' : 'Tick all'}
+              </button>
+            </div>
             {actions.map((a, i) => (
-              <div key={i} style={{ fontSize: 13, padding: '4px 0', borderTop: i ? '1px solid #f2f2f2' : 'none' }}>
-                • {actionLabel(a)}{a.why ? <span className="text-muted" style={{ fontSize: 11 }}> — {a.why}</span> : null}
-              </div>
+              <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, padding: '5px 0', borderTop: i ? '1px solid #f2f2f2' : 'none', cursor: 'pointer', opacity: sel.has(i) ? 1 : 0.5 }}>
+                <input type="checkbox" checked={sel.has(i)} onChange={() => toggleAction(i)} style={{ marginTop: 2 }} />
+                <span>{actionLabel(a)}{a.why ? <span className="text-muted" style={{ fontSize: 11 }}> — {a.why}</span> : null}</span>
+              </label>
             ))}
             <div style={{ marginTop: 8 }}>
-              <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: apply, disabled: applying })}>{applying ? 'Applying…' : `Approve & apply ${actions.length}`}</button>{' '}
-              <button className="btn btn-secondary btn-sm" onClick={() => setActions([])}>Discard</button>
+              <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: apply, disabled: applying || sel.size === 0 })}>{applying ? 'Applying…' : `Approve & apply ${sel.size}`}</button>{' '}
+              <button className="btn btn-secondary btn-sm" onClick={() => { setActions([]); setSel(new Set()); }}>Discard all</button>
             </div>
           </div>
         )}
