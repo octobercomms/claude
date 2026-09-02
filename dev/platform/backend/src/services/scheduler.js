@@ -116,6 +116,17 @@ cron.schedule('0 5 * * *', async () => {
   } catch (e) { console.error('[Scheduler] RSS mine failed:', e.message); }
 });
 
+// Daily 05:30 — beat learning. Reads the fresh articles the pipeline attributed
+// to journalists and distils what they write about into auto_topics, powering
+// the best-contacts matcher. Only re-reads people with NEW bylines since last
+// time, so cost tracks activity not DB size. Cheap model (Haiku/DeepSeek).
+cron.schedule('30 5 * * *', async () => {
+  try {
+    const r = await require('./beatLearner').learnAll({ log: (m) => console.log('[Scheduler]', m) });
+    if (r.considered) console.log(`[Scheduler] Beat learning: ${r.learned}/${r.considered} journalists profiled from new bylines`);
+  } catch (e) { console.error('[Scheduler] Beat learning failed:', e.message); }
+});
+
 // Monday 08:00 — weekly media-desk digest. One email rolling up everything the
 // discovery + maintenance jobs queued (new journalists, gone-quiet, dupes,
 // moves, bad emails) so the AM is told what's waiting instead of remembering to

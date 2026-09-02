@@ -130,6 +130,15 @@ export default function JournalistProfilePage() {
         </div>
       </div>
 
+      {Array.isArray(c.auto_topics) && c.auto_topics.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 className="h3 mb-2">Writes about <span className="body-sm text-muted">· learned from their recent articles</span></h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {c.auto_topics.map((t, i) => <span key={i} className="chip">{t}</span>)}
+          </div>
+        </div>
+      )}
+
       {Array.isArray(c.latest_articles) && c.latest_articles.length > 0 && (
         <>
           <h3 className="h3 mb-2">Latest articles <span className="body-sm text-muted">· from their outlet's feed</span></h3>
