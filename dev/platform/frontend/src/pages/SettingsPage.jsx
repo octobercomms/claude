@@ -325,12 +325,17 @@ const SECTIONS = [
     { k: 'integrations', label: 'Integrations' },
     { k: 'other', label: 'Other' },
   ] },
-  { key: 'workspace', label: 'Workspace', subs: [
+  { key: 'database', label: 'Database', subs: [
     { k: 'contacts', label: 'Journalists' },
     { k: 'publications', label: 'Publications' },
-    { k: 'praddon', label: 'PR Gmail add-on' },
     { k: 'tags', label: 'Tags' },
+    { k: 'tasks', label: 'Tasks' },
+  ] },
+  { key: 'tools', label: 'Tools', subs: [
     { k: 'strategy', label: 'Strategy templates' },
+    { k: 'praddon', label: 'PR Gmail add-on' },
+  ] },
+  { key: 'bizdev', label: 'Biz dev', subs: [
     { k: 'leads', label: 'Leads' },
     { k: 'tenders', label: 'Tenders' },
   ] },
@@ -349,9 +354,9 @@ const SECTION_GROUPS = {
     { label: 'AI & outreach',  subs: ['ai', 'email', 'outreach'] },
     { label: 'Platform',       subs: ['integrations', 'other'] },
   ],
-  workspace: [
-    { label: 'Library',           subs: ['contacts', 'publications', 'tags'] },
-    { label: 'Templates & tools', subs: ['strategy', 'praddon', 'leads', 'tenders'] },
+  database: [
+    { label: 'Library', subs: ['contacts', 'publications', 'tags'] },
+    { label: 'Work',    subs: ['tasks'] },
   ],
   account: [
     { label: 'Access', subs: ['users', 'security'] },
@@ -595,6 +600,7 @@ export default function SettingsPage() {
 
       {tab === 'integrations' && <IntegrationsPage embedded />}
       {tab === 'contacts' && <ContactsLibrary />}
+      {tab === 'tasks' && <JournalistTasks />}
       {tab === 'publications' && <PublicationsPanel />}
       {tab === 'tags' && <TagsManager />}
       {tab === 'users' && <ManageUsersPage embedded />}
@@ -1580,19 +1586,76 @@ function InfoRow({ label, value }) {
 // Workspace-wide contact library. The same contact (one row here) can be
 // attached to many clients via outreach_contact_clients; this view shows
 // every contact with the count + names of the clients they're attached to.
-function ContactsLibrary() {
+// Database → Tasks — the account exec's action queue for the journalist list:
+// find new journalists, archive the ones who've gone quiet, and stay in touch
+// with the key ones. Moved out of the Journalists list so that tab stays clean.
+function JournalistTasks() {
   const { readOnly } = useAuth();
   const toast = useToast();
-  // Discovery hub — find new journalists per client, review across all clients.
+  const [clients, setClients] = useState([]);
+  const [err, setErr] = useState(null);
+  // Discovery
   const [suggestions, setSuggestions] = useState([]);
   const [scoutClientId, setScoutClientId] = useState('');
   const [scoutBusy, setScoutBusy] = useState(false);
   const [selSugg, setSelSugg] = useState(() => new Set());
-  const [rows, setRows] = useState(null);
-  const [clients, setClients] = useState([]);
-  const [tags, setTags] = useState([]);
-  const [search, setSearch] = useState('');
+  // Archive review
   const [archiveReview, setArchiveReview] = useState([]);
+  // Stay in touch
+  const [nudges, setNudges] = useState([]);
+  const [nudgeDraft, setNudgeDraft] = useState(null);
+  const [nudgeBusy, setNudgeBusy] = useState(false);
+
+  useEffect(() => {
+    api.get('/clients').then(setClients).catch(() => {});
+    loadSuggestions();
+    loadArchiveReview();
+    loadNudges();
+  }, []);
+
+  function loadSuggestions() { api.get('/pr/journalist-suggestions').then((r) => setSuggestions(r.items || [])).catch(() => {}); }
+  async function runScout() {
+    if (!scoutClientId) { toast('Pick a client to scout for.', 'error'); return; }
+    setScoutBusy(true);
+    try {
+      const r = await api.post(`/pr/clients/${scoutClientId}/scout-journalists`, {});
+      toast(r.added ? `Found ${r.found}, added ${r.added} new to review.` : `Scanned the web — nothing new to add right now (checked ${r.found}).`, r.added ? 'success' : 'info');
+      loadSuggestions();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setScoutBusy(false); }
+  }
+  async function approveSuggestion(sid) {
+    try {
+      await api.post(`/pr/journalist-suggestions/${sid}/approve`, {});
+      setSuggestions((p) => p.filter((s) => s.id !== sid));
+      setSelSugg((p) => { const n = new Set(p); n.delete(sid); return n; });
+      toast('Added to the journalist list.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function dismissSuggestion(sid) {
+    try {
+      await api.post(`/pr/journalist-suggestions/${sid}/dismiss`, {});
+      setSuggestions((p) => p.filter((s) => s.id !== sid));
+      setSelSugg((p) => { const n = new Set(p); n.delete(sid); return n; });
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function bulkSuggestions(action) {
+    const byClient = {};
+    for (const s of suggestions) if (selSugg.has(s.id)) (byClient[s.client_id] ||= []).push(s.id);
+    try {
+      let done = 0;
+      for (const [cid, ids] of Object.entries(byClient)) {
+        const r = await api.post(`/pr/clients/${cid}/journalist-suggestions/bulk`, { action, ids });
+        done += r.done || 0;
+      }
+      setSuggestions((p) => p.filter((s) => !selSugg.has(s.id)));
+      setSelSugg(new Set());
+      toast(`${action === 'approve' ? 'Added' : 'Dismissed'} ${done}.`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  function toggleSugg(sid) {
+    setSelSugg((p) => { const n = new Set(p); n.has(sid) ? n.delete(sid) : n.add(sid); return n; });
+  }
 
   function loadArchiveReview() { api.get('/pr/archive-review').then((r) => setArchiveReview(r.items || [])).catch(() => {}); }
   async function resolveArchive(cid, action) {
@@ -1600,9 +1663,6 @@ function ContactsLibrary() {
     catch (e) { setErr(e.message); }
   }
 
-  const [nudges, setNudges] = useState([]);
-  const [nudgeDraft, setNudgeDraft] = useState(null); // { id, name, to, subject, body }
-  const [nudgeBusy, setNudgeBusy] = useState(false);
   function loadNudges() { api.get('/pr/engagement').then((r) => setNudges(r.items || [])).catch(() => {}); }
   async function openNudge(n) {
     setNudgeDraft({ id: n.id, name: n.name, loading: true });
@@ -1627,6 +1687,147 @@ function ContactsLibrary() {
     try { await api.post(`/pr/engagement/${id}/dismiss`, {}); setNudges((list) => list.filter((n) => n.id !== id)); if (nudgeDraft && nudgeDraft.id === id) setNudgeDraft(null); }
     catch (e) { setErr(e.message); }
   }
+
+  return (
+    <div className="stack stack-lg">
+      {err && <div style={{ padding: 8, background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 12, borderRadius: 'var(--r-sm)' }}>{err}</div>}
+
+      {/* Find new journalists */}
+      <div className="card">
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 240, flex: 1 }}>
+            <div className="h3 mb-2">🔭 Find new journalists</div>
+            <div className="body-sm text-muted" style={{ marginBottom: 8 }}>
+              Claude researches the web for journalists who cover a client’s beats and aren’t on the list yet. Nothing’s added until you approve it.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <select className="input" style={{ maxWidth: 260 }} value={scoutClientId} onChange={(e) => setScoutClientId(e.target.value)}>
+                <option value="">Choose a client…</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: runScout, disabled: scoutBusy || !scoutClientId })}>
+                {scoutBusy ? 'Scanning…' : '✦ Find new journalists'}
+              </button>
+            </div>
+          </div>
+        </div>
+        {suggestions.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
+              {selSugg.size > 0 && <>
+                <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => bulkSuggestions('dismiss')}>Dismiss selected</button>
+              </>}
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table" style={{ width: '100%' }}>
+                <thead><tr><th style={{ width: 28 }}></th><th>Journalist</th><th>Client</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 120 }}></th></tr></thead>
+                <tbody>
+                  {suggestions.map((s) => (
+                    <tr key={s.id}>
+                      <td><input type="checkbox" checked={selSugg.has(s.id)} onChange={() => toggleSugg(s.id)} /></td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{s.name}</div>
+                        {s.email ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div> : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
+                      </td>
+                      <td style={{ fontSize: 12 }}>{s.client_name}</td>
+                      <td>{s.outlet || '—'}</td>
+                      <td style={{ fontSize: 12 }}>{s.beat || '—'}</td>
+                      <td style={{ fontSize: 12 }}>
+                        {s.why || '—'}
+                        {s.source_url && <> · <a href={s.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></>}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => approveSuggestion(s.id) })}>Add</button>
+                        <button className="btn btn-secondary btn-sm" style={{ marginLeft: 4 }} onClick={() => dismissSuggestion(s.id)} title="Dismiss">✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Inactive → archive */}
+      <div className="card">
+        <div className="h3 mb-2">📉 Inactive journalists {archiveReview.length ? `· ${archiveReview.length}` : ''}</div>
+        {archiveReview.length === 0 ? (
+          <p className="body-sm text-muted" style={{ margin: 0 }}>Nothing to review — the overnight sweep hasn’t flagged anyone as gone quiet.</p>
+        ) : (
+          <>
+            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>No coverage in 12 months and no recent byline found online. People move on — archive the ones who've left (reversible), keep the rest.</p>
+            <div style={{ maxHeight: 320, overflow: 'auto' }}>
+              {archiveReview.slice(0, 100).map((c) => (
+                <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                  <div style={{ fontSize: 13 }}><strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''}</div>
+                  <div style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'archive')}>Archive</button>{' '}
+                    <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'unarchive')}>Keep</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Stay in touch */}
+      <div className="card">
+        <div className="h3 mb-2">💬 Stay in touch {nudges.length ? `· ${nudges.length}` : ''}</div>
+        {nudges.length === 0 ? (
+          <p className="body-sm text-muted" style={{ margin: 0 }}>No fresh articles from your key journalists to react to right now.</p>
+        ) : (
+          <>
+            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>Read it, then send a genuine note. Claude drafts one specific to the article — you approve and send. (Tier-1 / strong-relationship journalists only.)</p>
+            <div style={{ maxHeight: 360, overflow: 'auto' }}>
+              {nudges.slice(0, 50).map((n) => (
+                <div key={n.id} style={{ padding: '8px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 13, flex: 1, minWidth: 200 }}>
+                      <strong>{n.name || '—'}</strong>{n.outlet ? ` · ${n.outlet}` : ''}<br />
+                      <a href={n.article_url} target="_blank" rel="noreferrer">{(n.article_title || n.article_url).slice(0, 90)}</a>
+                      {n.article_date ? <span className="text-muted"> · {n.article_date}</span> : null}
+                    </div>
+                    <div style={{ whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => openNudge(n)}>Draft note</button>{' '}
+                      <button className="btn btn-secondary btn-sm" onClick={() => dismissNudge(n.id)}>Dismiss</button>
+                    </div>
+                  </div>
+                  {nudgeDraft && nudgeDraft.id === n.id && (
+                    <div style={{ marginTop: 8, paddingLeft: 4 }}>
+                      {nudgeDraft.loading ? <p className="body-sm text-muted">Drafting…</p> : (
+                        <>
+                          {!nudgeDraft.to && <div className="body-sm" style={{ color: 'var(--negative)', marginBottom: 6 }}>No real email on file — can't send.</div>}
+                          <input className="input" style={{ marginBottom: 6 }} value={nudgeDraft.subject} onChange={(e) => setNudgeDraft((d) => ({ ...d, subject: e.target.value }))} placeholder="Subject" />
+                          <textarea className="input" rows={5} style={{ marginBottom: 6 }} value={nudgeDraft.body} onChange={(e) => setNudgeDraft((d) => ({ ...d, body: e.target.value }))} />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: sendNudge, disabled: nudgeBusy || !nudgeDraft.to || !nudgeDraft.subject || !nudgeDraft.body })}>{nudgeBusy ? 'Sending…' : 'Send'}</button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setNudgeDraft(null)}>Cancel</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ContactsLibrary() {
+  const { readOnly } = useAuth();
+  const toast = useToast();
+  const [rows, setRows] = useState(null);
+  const [clients, setClients] = useState([]);
+  const [tags, setTags] = useState([]);
+  const [search, setSearch] = useState('');
   const [activeTags, setActiveTags] = useState(() => new Set());
   const [selected, setSelected] = useState(() => new Set());
   const [err, setErr] = useState(null);
@@ -1692,57 +1893,7 @@ function ContactsLibrary() {
       setClients(cs);
       setTags(ts);
     }).catch(e => setErr(e.message));
-    loadArchiveReview();
-    loadNudges();
-    loadSuggestions();
   }, []);
-
-  function loadSuggestions() {
-    api.get('/pr/journalist-suggestions').then((r) => setSuggestions(r.items || [])).catch(() => {});
-  }
-  async function runScout() {
-    if (!scoutClientId) { toast('Pick a client to scout for.', 'error'); return; }
-    setScoutBusy(true);
-    try {
-      const r = await api.post(`/pr/clients/${scoutClientId}/scout-journalists`, {});
-      toast(r.added ? `Found ${r.found}, added ${r.added} new to review.` : `Scanned the web — nothing new to add right now (checked ${r.found}).`, r.added ? 'success' : 'info');
-      loadSuggestions();
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setScoutBusy(false); }
-  }
-  async function approveSuggestion(sid) {
-    try {
-      await api.post(`/pr/journalist-suggestions/${sid}/approve`, {});
-      setSuggestions((p) => p.filter((s) => s.id !== sid));
-      setSelSugg((p) => { const n = new Set(p); n.delete(sid); return n; });
-      toast('Added to the journalist list.', 'success');
-    } catch (e) { toast(e.message, 'error'); }
-  }
-  async function dismissSuggestion(sid) {
-    try {
-      await api.post(`/pr/journalist-suggestions/${sid}/dismiss`, {});
-      setSuggestions((p) => p.filter((s) => s.id !== sid));
-      setSelSugg((p) => { const n = new Set(p); n.delete(sid); return n; });
-    } catch (e) { toast(e.message, 'error'); }
-  }
-  async function bulkSuggestions(action) {
-    // Group selected ids by client so we can hit each client's bulk endpoint.
-    const byClient = {};
-    for (const s of suggestions) if (selSugg.has(s.id)) (byClient[s.client_id] ||= []).push(s.id);
-    try {
-      let done = 0;
-      for (const [cid, ids] of Object.entries(byClient)) {
-        const r = await api.post(`/pr/clients/${cid}/journalist-suggestions/bulk`, { action, ids });
-        done += r.done || 0;
-      }
-      setSuggestions((p) => p.filter((s) => !selSugg.has(s.id)));
-      setSelSugg(new Set());
-      toast(`${action === 'approve' ? 'Added' : 'Dismissed'} ${done}.`, 'success');
-    } catch (e) { toast(e.message, 'error'); }
-  }
-  function toggleSugg(sid) {
-    setSelSugg((p) => { const n = new Set(p); n.has(sid) ? n.delete(sid) : n.add(sid); return n; });
-  }
 
   // Refetch the list when filter changes, debounced.
   useEffect(() => {
@@ -1937,123 +2088,6 @@ function ContactsLibrary() {
           </div>
         </div>
 
-        {archiveReview.length > 0 && (
-          <div className="card" style={{ marginTop: 12, borderLeft: '3px solid var(--accent)' }}>
-            <div className="h3 mb-2">📉 {archiveReview.length} journalist{archiveReview.length === 1 ? '' : 's'} look inactive — archive?</div>
-            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>No coverage in 12 months and no recent byline found online. People move on — archive the ones who've left (reversible), keep the rest.</p>
-            <div style={{ maxHeight: 220, overflow: 'auto' }}>
-              {archiveReview.slice(0, 50).map((c) => (
-                <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
-                  <div style={{ fontSize: 13 }}><strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''}</div>
-                  <div style={{ whiteSpace: 'nowrap' }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'archive')}>Archive</button>{' '}
-                    <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'unarchive')}>Keep</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {nudges.length > 0 && (
-          <div className="card" style={{ marginTop: 12, borderLeft: '3px solid var(--accent)' }}>
-            <div className="h3 mb-2">💬 Stay in touch — {nudges.length} fresh article{nudges.length === 1 ? '' : 's'} from your key journalists</div>
-            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>Read it, then send a genuine note. Claude drafts one specific to the article — you approve and send. (Tier-1 / strong-relationship journalists only.)</p>
-            <div style={{ maxHeight: 320, overflow: 'auto' }}>
-              {nudges.slice(0, 50).map((n) => (
-                <div key={n.id} style={{ padding: '8px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                    <div style={{ fontSize: 13, flex: 1, minWidth: 200 }}>
-                      <strong>{n.name || '—'}</strong>{n.outlet ? ` · ${n.outlet}` : ''}<br />
-                      <a href={n.article_url} target="_blank" rel="noreferrer">{(n.article_title || n.article_url).slice(0, 90)}</a>
-                      {n.article_date ? <span className="text-muted"> · {n.article_date}</span> : null}
-                    </div>
-                    <div style={{ whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => openNudge(n)}>Draft note</button>{' '}
-                      <button className="btn btn-secondary btn-sm" onClick={() => dismissNudge(n.id)}>Dismiss</button>
-                    </div>
-                  </div>
-                  {nudgeDraft && nudgeDraft.id === n.id && (
-                    <div style={{ marginTop: 8, paddingLeft: 4 }}>
-                      {nudgeDraft.loading ? <p className="body-sm text-muted">Drafting…</p> : (
-                        <>
-                          {!nudgeDraft.to && <div className="body-sm" style={{ color: 'var(--negative)', marginBottom: 6 }}>No real email on file — can't send.</div>}
-                          <input className="input" style={{ marginBottom: 6 }} value={nudgeDraft.subject} onChange={(e) => setNudgeDraft((d) => ({ ...d, subject: e.target.value }))} placeholder="Subject" />
-                          <textarea className="input" rows={5} style={{ marginBottom: 6 }} value={nudgeDraft.body} onChange={(e) => setNudgeDraft((d) => ({ ...d, body: e.target.value }))} />
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: sendNudge, disabled: nudgeBusy || !nudgeDraft.to || !nudgeDraft.subject || !nudgeDraft.body })}>{nudgeBusy ? 'Sending…' : 'Send'}</button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => setNudgeDraft(null)}>Cancel</button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Discovery hub — build the list: find new journalists per client and
-            review finds from every client in one place. */}
-        <div className="card" style={{ marginTop: 12, background: 'var(--surface-raised)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 240, flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>🔭 Find new journalists</div>
-              <div className="body-sm text-muted" style={{ marginBottom: 8 }}>
-                Claude researches the web for journalists who cover a client’s beats and aren’t on the list yet. Nothing’s added until you approve it.
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <select className="input" style={{ maxWidth: 260 }} value={scoutClientId} onChange={(e) => setScoutClientId(e.target.value)}>
-                  <option value="">Choose a client…</option>
-                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: runScout, disabled: scoutBusy || !scoutClientId })}>
-                  {scoutBusy ? 'Scanning…' : '✦ Find new journalists'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {suggestions.length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
-                {selSugg.size > 0 && <>
-                  <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected</button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => bulkSuggestions('dismiss')}>Dismiss selected</button>
-                </>}
-              </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ width: '100%' }}>
-                  <thead><tr><th style={{ width: 28 }}></th><th>Journalist</th><th>Client</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 120 }}></th></tr></thead>
-                  <tbody>
-                    {suggestions.map((s) => (
-                      <tr key={s.id}>
-                        <td><input type="checkbox" checked={selSugg.has(s.id)} onChange={() => toggleSugg(s.id)} /></td>
-                        <td>
-                          <div style={{ fontWeight: 600 }}>{s.name}</div>
-                          {s.email ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div> : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
-                        </td>
-                        <td style={{ fontSize: 12 }}>{s.client_name}</td>
-                        <td>{s.outlet || '—'}</td>
-                        <td style={{ fontSize: 12 }}>{s.beat || '—'}</td>
-                        <td style={{ fontSize: 12 }}>
-                          {s.why || '—'}
-                          {s.source_url && <> · <a href={s.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></>}
-                        </td>
-                        <td style={{ whiteSpace: 'nowrap' }}>
-                          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => approveSuggestion(s.id) })}>Add</button>
-                          <button className="btn btn-secondary btn-sm" style={{ marginLeft: 4 }} onClick={() => dismissSuggestion(s.id)} title="Dismiss">✕</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
 
         <div style={{ marginTop: 14 }}>
           <input
