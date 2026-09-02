@@ -18,6 +18,7 @@ const prArchive = require('../services/prArchive');
 const { getSetting } = require('../utils/settings');
 const prEngage = require('../services/prEngage');
 const prLinkCheck = require('../services/prLinkCheck');
+const journalistScout = require('../services/journalistScout');
 const overviewReport = require('../services/overviewReport');
 const earnedOverviewReport = require('../services/earnedOverviewReport');
 const prCoverageExtract = require('../services/prCoverageExtract');
@@ -38,6 +39,19 @@ router.param('id', async (req, res, next, id) => {
     const { rows } = await db.query('SELECT client_id FROM pr_editorial_log WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Entry not found' });
     try { assertClientAccess(req, rows[0].client_id); } catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
+    next();
+  } catch (err) { next(err); }
+});
+
+// Resolve a journalist suggestion's client and enforce access for
+// /journalist-suggestions/:suggestionId routes (distinct param name so it
+// doesn't collide with the editorial-log :id handler above).
+router.param('suggestionId', async (req, res, next, id) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM pr_journalist_suggestions WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Suggestion not found' });
+    try { assertClientAccess(req, rows[0].client_id); } catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
+    req.suggestion = rows[0];
     next();
   } catch (err) { next(err); }
 });
@@ -467,6 +481,153 @@ router.patch('/clients/:clientId/review-queue/bulk', async (req, res) => {
       [status, req.params.clientId, ids.map(String)]
     );
     res.json({ updated: rowCount });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ── Journalist Discovery Scout ───────────────────────────────────────────────
+// Find NEW journalists for a client's beats (nothing added to the media DB until
+// a human approves each suggestion).
+
+// On-demand run — researches the web and queues fresh suggestions for review.
+router.post('/clients/:clientId/scout-journalists', async (req, res) => {
+  try {
+    const out = await journalistScout.scoutClient(req.params.clientId, {
+      log: (m) => console.log('[JournalistScout]', m),
+    });
+    res.json(out); // { found, added }
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// The review queue: journalists the scout proposed, awaiting a decision.
+router.get('/clients/:clientId/journalist-suggestions', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, name, outlet, beat, email, why, source_url, created_at
+         FROM pr_journalist_suggestions
+        WHERE client_id = $1 AND status = 'new'
+        ORDER BY created_at DESC LIMIT 200`,
+      [req.params.clientId]
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Approve one suggestion → create (or reuse) the media contact, attach it to
+// this client, and mark the suggestion added. Idempotent-ish: an existing media
+// contact with the same email is reused rather than duplicated.
+router.post('/journalist-suggestions/:suggestionId/approve', async (req, res) => {
+  try {
+    const s = req.suggestion;
+    if (s.status === 'added') return res.json({ ok: true, contact_id: s.contact_id, already: true });
+
+    const outletId = s.outlet ? await pr.resolveOutlet(s.outlet) : null;
+
+    // Reuse an existing media contact by email; else create a fresh one.
+    let contactId = null;
+    if (s.email) {
+      const { rows } = await db.query(
+        `SELECT id FROM outreach_contacts WHERE lower(email) = lower($1) AND kind IN ('media','industry') LIMIT 1`,
+        [s.email]
+      );
+      if (rows.length) contactId = rows[0].id;
+    }
+    if (!contactId) {
+      const sp = String(s.name || '').trim().split(/\s+/);
+      const first = sp[0] || '';
+      const last = sp.slice(1).join(' ');
+      const beats = s.beat ? JSON.stringify([s.beat]) : JSON.stringify([]);
+      const { rows } = await db.query(
+        `INSERT INTO outreach_contacts
+           (first_name, last_name, name, email, outlet_id, kind, beats, enrichment_note, source)
+         VALUES ($1,$2,$3,$4,$5,'media',$6,$7,'scout') RETURNING id`,
+        [first, last, s.name, s.email, outletId, beats, s.why || '']
+      );
+      contactId = rows[0].id;
+    }
+
+    // Attach to this client (idempotent via the composite PK).
+    await db.query(
+      `INSERT INTO outreach_contact_clients (contact_id, client_id)
+       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [contactId, s.client_id]
+    );
+    await db.query(
+      `UPDATE pr_journalist_suggestions SET status = 'added', contact_id = $1, reviewed_at = NOW() WHERE id = $2`,
+      [contactId, s.id]
+    );
+    res.json({ ok: true, contact_id: contactId });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Dismiss one suggestion → parked so the scout won't re-surface the same person.
+router.post('/journalist-suggestions/:suggestionId/dismiss', async (req, res) => {
+  try {
+    const { rowCount } = await db.query(
+      `UPDATE pr_journalist_suggestions SET status = 'dismissed', reviewed_at = NOW()
+        WHERE id = $1 AND status = 'new'`,
+      [req.suggestion.id]
+    );
+    res.json({ dismissed: rowCount });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Bulk triage: approve or dismiss a set of suggestions for this client.
+router.post('/clients/:clientId/journalist-suggestions/bulk', async (req, res) => {
+  try {
+    const action = String(req.body?.action || '');
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(Boolean).map(String) : [];
+    if (!['approve', 'dismiss'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
+    if (!ids.length) return res.json({ done: 0 });
+
+    if (action === 'dismiss') {
+      const { rowCount } = await db.query(
+        `UPDATE pr_journalist_suggestions SET status = 'dismissed', reviewed_at = NOW()
+          WHERE client_id = $1 AND status = 'new' AND id = ANY($2::uuid[])`,
+        [req.params.clientId, ids]
+      );
+      return res.json({ done: rowCount });
+    }
+    // approve: reuse the single-approve path per id so dedupe/attach logic stays
+    // in one place.
+    let done = 0;
+    for (const id of ids) {
+      const { rows: srows } = await db.query(
+        `SELECT * FROM pr_journalist_suggestions WHERE id = $1 AND client_id = $2 AND status = 'new'`,
+        [id, req.params.clientId]
+      );
+      const s = srows[0];
+      if (!s) continue;
+      const outletId = s.outlet ? await pr.resolveOutlet(s.outlet) : null;
+      let contactId = null;
+      if (s.email) {
+        const { rows } = await db.query(
+          `SELECT id FROM outreach_contacts WHERE lower(email) = lower($1) AND kind IN ('media','industry') LIMIT 1`,
+          [s.email]
+        );
+        if (rows.length) contactId = rows[0].id;
+      }
+      if (!contactId) {
+        const sp = String(s.name || '').trim().split(/\s+/);
+        const { rows } = await db.query(
+          `INSERT INTO outreach_contacts
+             (first_name, last_name, name, email, outlet_id, kind, beats, enrichment_note, source)
+           VALUES ($1,$2,$3,$4,$5,'media',$6,$7,'scout') RETURNING id`,
+          [sp[0] || '', sp.slice(1).join(' '), s.name, s.email, outletId,
+           s.beat ? JSON.stringify([s.beat]) : JSON.stringify([]), s.why || '']
+        );
+        contactId = rows[0].id;
+      }
+      await db.query(
+        `INSERT INTO outreach_contact_clients (contact_id, client_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [contactId, s.client_id]
+      );
+      await db.query(
+        `UPDATE pr_journalist_suggestions SET status = 'added', contact_id = $1, reviewed_at = NOW() WHERE id = $2`,
+        [contactId, s.id]
+      );
+      done++;
+    }
+    res.json({ done });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
