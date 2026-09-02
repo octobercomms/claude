@@ -28,6 +28,7 @@ When the account manager pastes a LINK to a directory or listing page (e.g. a Fe
 Rules:
 - Proposing IS calling the propose_actions tool. NEVER say "I'll propose…" or "I'll now add…" as prose and stop — that does nothing and frustrates the user. If you have the details, put them in a propose_actions call THIS turn. Always finish by calling propose_actions (empty actions + a short reply only if there's genuinely nothing to change).
 - Never claim you've added, saved, tagged, or updated anything — the user approves your proposal first.
+- tag_contact is for individual JOURNALISTS only — never propose it for a publication/outlet. If a directory entry (a publication) is already in the database, just mention it by NAME in your reply; propose no action for it. Never propose an action whose only label is a raw id — always use the real name.
 - Be specific and British English. Prefer a publication's own website over social/Wikipedia/directory pages.
 - If something is ambiguous (which client? which of two people?), ask in the reply and propose what you can.
 - A directory can list 100+ publications — extract them ALL. Propose up to 60 in ONE call (the user approves in one click); do NOT ask "shall I continue?" — just propose the batch and, if more than 60 remain, say how many so the user can ask for the next batch. Never stop at a handful of "the most authoritative" ones.`;
@@ -165,7 +166,11 @@ async function runMessage({ history = [], message, maxSteps = 6 } = {}) {
   ];
 
   const recordCost = (resp) => { if (costLog?.recordClaudeCost) { try { costLog.recordClaudeCost({ model, response: resp, feature: 'media_assistant' }); } catch { /* best effort */ } } };
-  const done = (propose, resp) => ({ reply: String(propose.input?.reply || textOf(resp) || 'Here’s what I propose.'), actions: normaliseActions(propose.input?.actions) });
+  const done = async (propose, resp) => {
+    const actions = normaliseActions(propose.input?.actions);
+    await enrichActions(actions);
+    return { reply: String(propose.input?.reply || textOf(resp) || 'Here’s what I propose.'), actions };
+  };
 
   // Force the model to emit a structured proposal now (used when it narrates
   // "I'll propose…" instead of calling the tool, or when steps run out). Only the
@@ -179,7 +184,7 @@ async function runMessage({ history = [], message, maxSteps = 6 } = {}) {
     } catch (e) { return { reply: `I found the details but couldn’t assemble the proposal: ${e.message}`, actions: [] }; }
     recordCost(resp);
     const propose = (resp.content || []).find((b) => b.type === 'tool_use' && b.name === 'propose_actions');
-    return propose ? done(propose, resp) : { reply: 'I couldn’t settle on concrete changes — try narrowing it down.', actions: [] };
+    return propose ? await done(propose, resp) : { reply: 'I couldn’t settle on concrete changes — try narrowing it down.', actions: [] };
   }
 
   for (let step = 0; step < maxSteps; step++) {
@@ -191,7 +196,7 @@ async function runMessage({ history = [], message, maxSteps = 6 } = {}) {
 
     const toolUses = (resp.content || []).filter((b) => b.type === 'tool_use');
     const propose = toolUses.find((t) => t.name === 'propose_actions');
-    if (propose) return done(propose, resp);
+    if (propose) return await done(propose, resp);
 
     const clientCalls = toolUses.filter((t) => t.name === 'search_database' || t.name === 'fetch_page');
     if (clientCalls.length) {
@@ -239,6 +244,23 @@ function normaliseActions(actions) {
     });
   }
   return out;
+}
+
+// Make every proposed action human-readable before it reaches the review UI —
+// never show a raw id. Resolves a tag_contact's contact_id to a real name.
+async function enrichActions(actions) {
+  for (const a of (Array.isArray(actions) ? actions : [])) {
+    if (a.type === 'tag_contact' && a.contact_id && !a.contact_name) {
+      try {
+        const { rows } = await db.query(
+          `SELECT TRIM(CONCAT(first_name,' ',last_name)) AS name FROM outreach_contacts WHERE id = $1 AND merged_into IS NULL`,
+          [a.contact_id]
+        );
+        if (rows[0]?.name) a.contact_name = rows[0].name;
+      } catch { /* leave as-is */ }
+    }
+  }
+  return actions;
 }
 
 async function resolveClientId(name) {
