@@ -818,6 +818,17 @@ router.get('/needs-attention', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Preview the weekly media-desk digest on demand — build the counts, and email
+// it now if ALERT_EMAIL is set. Lets the AM see exactly what Monday will bring.
+router.get('/digest/preview', requireAdmin, async (req, res) => {
+  try { res.json(await require('../services/mediaDeskDigest').buildDigest()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/digest/send-now', requireAdmin, async (req, res) => {
+  try { res.json(await require('../services/mediaDeskDigest').runWeekly({ log: (m) => console.log('[Digest]', m) })); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // ── Journalist moves (outlet changes spotted in the feeds) ────────────────────
 router.get('/contact-moves', requireAdmin, async (req, res) => {
   try {
