@@ -521,21 +521,29 @@ function emailShell(title, inner) {
 // greeting, the short body, at most one image, then the AM's sign-off +
 // configurable footer and the unsubscribe line. Same shell as the pitch so a
 // chase reads like a real human wrote it — which is what earns the reply.
-function buildFollowUpHtml({ release, body, sender, recipientName, includeHero = false, contactId, clientId, campaignId, signature }) {
+function buildFollowUpHtml({ release, body, sender, recipientName, includeHero = true, contactId, clientId, campaignId, signature }) {
   const greeting = recipientName
     ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(recipientName.split(' ')[0])},</p>` : '';
   const bodyHtml = (body || '').split('\n').map(p => p.trim()).filter(Boolean)
     .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(p)}</p>`)
     .join('');
-  const hero = includeHero && release.hero_image
-    ? `<div style="margin:16px 0 6px;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title || '')}" style="display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:3px;" /></div>`
-    : '';
+  // A link back to the release so the follow-up stands alone — the journalist
+  // may not have opened anything before, and this gives them the full story.
+  const readLink = release.source_url ? `
+    <div style="margin:18px 0 0;">
+      <a href="${escapeHtml(release.source_url)}" target="_blank" rel="noopener" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 22px;border-radius:999px;">Read the release &rarr;</a>
+    </div>` : '';
   const signatureHtml = sender ? `
     <p style="margin:22px 0 0;font-size:15px;color:#1a1a1a;line-height:1.5;">
       <strong>${escapeHtml(sender.name || 'Daniel Nelson')}</strong><br>
       ${escapeHtml(sender.company || 'October Communications')}
     </p>
     ${signatureBlock(signature)}` : signatureBlock(signature);
+  // Hero image at the FOOT of the email — below the sign-off — as a reminder of
+  // what the story is (Daniel's preferred placement for a chase).
+  const heroFooter = includeHero && release.hero_image
+    ? `<div style="margin:22px 0 0;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title || '')}" style="display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:3px;" /></div>`
+    : '';
   let unsubFooter = '';
   if (contactId) {
     try {
@@ -553,8 +561,9 @@ function buildFollowUpHtml({ release, body, sender, recipientName, includeHero =
   return emailShell(release.title, `
           ${greeting}
           ${bodyHtml}
-          ${hero}
+          ${readLink}
           ${signatureHtml}
+          ${heroFooter}
           ${unsubFooter}`);
 }
 
@@ -603,16 +612,23 @@ async function generateFollowUps({ release, journalist, brandBriefing, sender })
   const senderName = sender?.first_name || sender?.name?.split(' ')[0] || 'Daniel';
   const releaseText = (release.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1200);
 
-  const prompt = `You're writing three follow-up pitch emails to chase a journalist who hasn't replied. Each one is short (under 80 words), personal, and uses a DIFFERENT angle — never "just bumping this up".
+  const prompt = `You're writing three follow-up pitch emails to chase a journalist who hasn't replied. Each one is short, personal, and uses a DIFFERENT angle — never "just bumping this up".
 
-Day 5: a gentle nudge with one new piece of value not in the original — a quote, an asset, a stat.
-Day 10: re-frame the story with an alternative angle relevant to the journalist's beat.
-Day 16: a no-pressure closing email — "happy to circle back if useful later".
+CRITICAL: the journalist may NOT have read the first email, so EACH follow-up must READ AS A STANDALONE PITCH. In the first sentence, re-anchor what the story is in plain terms (who + the one-line hook) so it makes sense cold — without sounding like a template. Then add the new angle. Don't assume they remember anything.
+
+Day 5: re-anchor the story, then add one new piece of value not in the original — a fresh quote, an asset, a stat.
+Day 10: re-anchor the story, then re-frame it with an alternative angle relevant to the journalist's beat.
+Day 16: the closing email. Re-anchor the story briefly, then — because a busy journalist often won't write a full reply — offer an easy way to respond. End with EXACTLY this options block (keep the numbers and line breaks):
+
+Even a one-line reply helps me plan — just hit reply with a number:
+1 — I need more time
+2 — Not right for me at the moment
+3 — I'm going to feature it
 
 Each email body must:
- - Be 2-4 short sentences. No greeting (the platform adds "Firstname,"). No sign-off.
- - Not repeat the headline.
- - Be plain text (the platform wraps each in HTML).
+ - Be 3-5 short sentences (the Day 16 one can be a touch longer to fit the options).
+ - No greeting (the platform adds "Firstname,"). No sign-off (the platform adds the sender + a "Read the release" link + the image).
+ - Be plain text with blank lines between paragraphs (the platform wraps each line in HTML). For the Day 16 options block, put each numbered option on its own line.
 
 Brand: ${brandBriefing || '(no briefing supplied)'}
 Sender: ${senderName} at October Communications
