@@ -91,6 +91,16 @@ cron.schedule('20 5 * * 0', async () => {
   } catch (e) { console.error('[Scheduler] Media DB sweep failed:', e.message); }
 });
 
+// Sunday 06:30 — Journalist Discovery Scout. Finds NEW journalists for each
+// press-active client's beats and queues them for review (nothing is added to
+// the media DB without a human approving). Paid web-search step, so weekly.
+cron.schedule('30 6 * * 0', async () => {
+  try {
+    const r = await require('./journalistScout').scoutAllActive({ log: (m) => console.log('[Scheduler]', m) });
+    console.log(`[Scheduler] Journalist scout: ${r.clients} client(s), ${r.added} new suggestion(s) queued`);
+  } catch (e) { console.error('[Scheduler] Journalist scout failed:', e.message); }
+});
+
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
   console.log('[Scheduler] Running weekly reports...');

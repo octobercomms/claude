@@ -88,6 +88,10 @@ export default function ClientPRPage() {
   const [log, setLog] = useState([]);
   const [journalists, setJournalists] = useState([]);
   const [warmJournalists, setWarmJournalists] = useState([]);
+  // Journalist Discovery Scout — new journalists proposed for review.
+  const [suggestions, setSuggestions] = useState([]);
+  const [scoutBusy, setScoutBusy] = useState(false);
+  const [selSugg, setSelSugg] = useState(() => new Set());
   // Press campaigns live here in Earned → Pitch (the front door). The full
   // send/preview/autopilot/results view is the PressCampaignDetail component.
   const [pressReleases, setPressReleases] = useState([]);
@@ -332,7 +336,50 @@ export default function ClientPRPage() {
       api.get(`/pr/clients/${id}/warm-journalists`).then((r) => setWarmJournalists(r.items || [])).catch(() => {}),
       api.get(`/press/clients/${id}/releases`).then((r) => setPressReleases(Array.isArray(r) ? r : (r.items || []))).catch(() => {}),
       api.get(`/outreach/contacts?client_id=${id}&kind=media`).then((r) => setPressContacts(Array.isArray(r) ? r : (r.items || r.contacts || []))).catch(() => {}),
+      api.get(`/pr/clients/${id}/journalist-suggestions`).then((r) => setSuggestions(r.items || [])).catch(() => {}),
     ]).catch((e) => toast(e.message, 'error')).finally(() => setLoading(false));
+  }
+  function loadSuggestions() {
+    api.get(`/pr/clients/${id}/journalist-suggestions`).then((r) => setSuggestions(r.items || [])).catch(() => {});
+  }
+  async function runScout() {
+    setScoutBusy(true);
+    try {
+      const r = await api.post(`/pr/clients/${id}/scout-journalists`, {});
+      toast(r.added ? `Found ${r.found}, added ${r.added} new to review.` : `Scanned the web — nothing new to add right now (checked ${r.found}).`, r.added ? 'success' : 'info');
+      loadSuggestions();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setScoutBusy(false); }
+  }
+  async function approveSuggestion(sid) {
+    try {
+      await api.post(`/pr/journalist-suggestions/${sid}/approve`, {});
+      setSuggestions((prev) => prev.filter((s) => s.id !== sid));
+      setSelSugg((prev) => { const n = new Set(prev); n.delete(sid); return n; });
+      api.get(`/pr/clients/${id}/journalists`).then((r) => setJournalists(r.items || [])).catch(() => {});
+      toast('Added to your journalists.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function dismissSuggestion(sid) {
+    try {
+      await api.post(`/pr/journalist-suggestions/${sid}/dismiss`, {});
+      setSuggestions((prev) => prev.filter((s) => s.id !== sid));
+      setSelSugg((prev) => { const n = new Set(prev); n.delete(sid); return n; });
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function bulkSuggestions(action) {
+    const ids = [...selSugg];
+    if (!ids.length) return;
+    try {
+      const r = await api.post(`/pr/clients/${id}/journalist-suggestions/bulk`, { action, ids });
+      setSuggestions((prev) => prev.filter((s) => !selSugg.has(s.id)));
+      setSelSugg(new Set());
+      if (action === 'approve') api.get(`/pr/clients/${id}/journalists`).then((r) => setJournalists(r.items || [])).catch(() => {});
+      toast(`${action === 'approve' ? 'Added' : 'Dismissed'} ${r.done}.`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  function toggleSugg(sid) {
+    setSelSugg((prev) => { const n = new Set(prev); n.has(sid) ? n.delete(sid) : n.add(sid); return n; });
   }
   function reloadPress() {
     api.get(`/press/clients/${id}/releases`).then((r) => setPressReleases(Array.isArray(r) ? r : (r.items || []))).catch(() => {});
@@ -625,6 +672,55 @@ export default function ClientPRPage() {
                   </table>
                 ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{pitchResult.note || 'No strong matches found.'}</p>}
               </div>
+            )}
+          </div>
+
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: suggestions.length ? 12 : 0 }}>
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <h3 className="h3 mb-2">🔭 Find new journalists</h3>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>
+                  Claude researches the web for journalists who cover {client?.name || 'this client'}’s beats and aren’t on your list yet. Nothing’s added until you approve it.
+                </p>
+              </div>
+              <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runScout, disabled: scoutBusy })}>
+                {scoutBusy ? 'Scanning…' : '✦ Find new journalists'}
+              </button>
+            </div>
+            {suggestions.length > 0 && (
+              <>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
+                  {selSugg.size > 0 && <>
+                    <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => bulkSuggestions('dismiss')}>Dismiss selected</button>
+                  </>}
+                </div>
+                <table className="table">
+                  <thead><tr><th style={{ width: 28 }}></th><th>Journalist</th><th>Outlet</th><th>Beat</th><th>Why</th><th style={{ width: 150 }}></th></tr></thead>
+                  <tbody>
+                    {suggestions.map((s) => (
+                      <tr key={s.id}>
+                        <td><input type="checkbox" checked={selSugg.has(s.id)} onChange={() => toggleSugg(s.id)} /></td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{s.name}</div>
+                          {s.email ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div> : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
+                        </td>
+                        <td>{s.outlet || '—'}</td>
+                        <td style={{ fontSize: 12 }}>{s.beat || '—'}</td>
+                        <td style={{ fontSize: 12 }}>
+                          {s.why || '—'}
+                          {s.source_url && <> · <a href={s.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></>}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => approveSuggestion(s.id) })}>Add</button>
+                          <button className="btn btn-secondary btn-sm" style={{ marginLeft: 4 }} onClick={() => dismissSuggestion(s.id)} title="Dismiss">✕</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             )}
           </div>
 
