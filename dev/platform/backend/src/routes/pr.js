@@ -22,6 +22,7 @@ const journalistScout = require('../services/journalistScout');
 const rssDiscover = require('../services/rssDiscover');
 const rssIngest = require('../services/rssIngest');
 const rssMine = require('../services/rssMine');
+const contactDedup = require('../services/contactDedup');
 const overviewReport = require('../services/overviewReport');
 const earnedOverviewReport = require('../services/earnedOverviewReport');
 const prCoverageExtract = require('../services/prCoverageExtract');
@@ -755,6 +756,105 @@ router.post('/dedup/outlets/dismiss', requireAdmin, async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// ── Journalist dedupe (reuses the contact dedup engine, scoped to press) ──────
+// Scan for likely-duplicate journalists, drop any cluster the AM already marked
+// "not duplicates", and attach a suggested canonical for each.
+router.get('/dedup/journalists/scan', requireAdmin, async (req, res) => {
+  try {
+    const clusters = await contactDedup.scanContactDuplicates(req.visibleClientIds ?? null, { kinds: ['media', 'industry'] });
+    const { rows: dis } = await db.query('SELECT cluster_key FROM pr_contact_dedup_dismissed');
+    const dismissed = new Set(dis.map((r) => r.cluster_key));
+    const out = clusters
+      .filter((c) => !dismissed.has(contactDedup.clusterKey(c)))
+      .map((c) => ({ ...c, cluster_key: contactDedup.clusterKey(c), suggested: contactDedup.suggestCanonical(c) }));
+    res.json({ clusters: out });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/dedup/journalists/merge', requireAdmin, async (req, res) => {
+  try {
+    const { canonical_id, member_ids } = req.body || {};
+    if (!canonical_id || !Array.isArray(member_ids) || !member_ids.length) {
+      return res.status(400).json({ error: 'canonical_id and member_ids required' });
+    }
+    const merged = await contactDedup.mergeContacts(canonical_id, member_ids);
+    res.json({ merged });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// "Not duplicates" — remember this cluster so the scan/digest stops nagging.
+router.post('/dedup/journalists/dismiss', requireAdmin, async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.member_ids) ? req.body.member_ids.filter(Boolean).map(String) : [];
+    if (ids.length < 2) return res.status(400).json({ error: 'member_ids must contain at least 2 ids' });
+    const key = ids.slice().sort().join('|');
+    await db.query('INSERT INTO pr_contact_dedup_dismissed (cluster_key) VALUES ($1) ON CONFLICT DO NOTHING', [key]);
+    res.json({ dismissed: 1 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Deliverability attention — journalists whose email hard-bounced (kept out of
+// sends already, but the AM should replace/repair the address) or is only a
+// guessed/unconfirmed guess. The maintenance an account exec does to keep the
+// list actually reachable.
+router.get('/needs-attention', requireAdmin, async (req, res) => {
+  try {
+    const [bounced, guessed] = await Promise.all([
+      db.query(
+        `SELECT c.id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, c.email, o.name AS outlet, c.bounce_reason, c.bounced_at
+           FROM outreach_contacts c LEFT JOIN pr_outlets o ON o.id = c.outlet_id
+          WHERE c.kind IN ('media','industry') AND c.merged_into IS NULL AND c.bounced_at IS NOT NULL
+          ORDER BY c.bounced_at DESC LIMIT 200`
+      ),
+      db.query(
+        `SELECT c.id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, c.email, o.name AS outlet
+           FROM outreach_contacts c LEFT JOIN pr_outlets o ON o.id = c.outlet_id
+          WHERE c.kind IN ('media','industry') AND c.merged_into IS NULL
+            AND c.verification_status = 'guessed' AND c.bounced_at IS NULL
+          ORDER BY c.updated_at DESC NULLS LAST LIMIT 200`
+      ),
+    ]);
+    res.json({ bounced: bounced.rows, guessed: guessed.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Journalist moves (outlet changes spotted in the feeds) ────────────────────
+router.get('/contact-moves', requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT mv.id, mv.contact_id, mv.article_title, mv.article_url, mv.created_at,
+              TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name,
+              fo.name AS from_outlet, mv.to_outlet_id, to_.name AS to_outlet
+         FROM pr_contact_moves mv
+         JOIN outreach_contacts c ON c.id = mv.contact_id AND c.merged_into IS NULL
+         LEFT JOIN pr_outlets fo ON fo.id = mv.from_outlet_id
+         LEFT JOIN pr_outlets to_ ON to_.id = mv.to_outlet_id
+        WHERE mv.status = 'new'
+        ORDER BY mv.created_at DESC LIMIT 200`
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Approve a move → repoint the journalist onto the new outlet.
+router.post('/contact-moves/:moveId/apply', requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await db.query(`SELECT * FROM pr_contact_moves WHERE id = $1 AND status = 'new'`, [req.params.moveId]);
+    if (!rows.length) return res.status(404).json({ error: 'Move not found' });
+    const mv = rows[0];
+    await db.query('UPDATE outreach_contacts SET outlet_id = $1, updated_at = NOW() WHERE id = $2', [mv.to_outlet_id, mv.contact_id]);
+    await db.query(`UPDATE pr_contact_moves SET status = 'applied', reviewed_at = NOW() WHERE id = $1`, [mv.id]);
+    res.json({ applied: 1 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post('/contact-moves/:moveId/dismiss', requireAdmin, async (req, res) => {
+  try {
+    const { rowCount } = await db.query(`UPDATE pr_contact_moves SET status = 'dismissed', reviewed_at = NOW() WHERE id = $1 AND status = 'new'`, [req.params.moveId]);
+    res.json({ dismissed: rowCount });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // ── Profiles (global media DB; :outletId/:contactId avoid the editorial-log :id hook) ──
 // Publications list (admin) — for the Settings → Publications tab. Tier + how
 // much coverage each has, most-covered first.
@@ -837,7 +937,8 @@ router.post('/feeds/mine', requireAdmin, async (req, res) => {
     const log = (m) => console.log('[RSS]', m);
     const mined = await rssMine.mineAll({ log });
     const quiet = await rssMine.flagInactive({ log });
-    res.json({ ...mined, ...quiet }); // { outlets, candidates, queued, flagged }
+    const moves = await rssMine.detectMoves({ log });
+    res.json({ ...mined, ...quiet, moves: moves.queued }); // { outlets, candidates, queued, flagged, moves }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

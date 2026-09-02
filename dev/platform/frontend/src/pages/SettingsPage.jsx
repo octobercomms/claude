@@ -1644,13 +1644,42 @@ function JournalistTasks() {
   const [nudges, setNudges] = useState([]);
   const [nudgeDraft, setNudgeDraft] = useState(null);
   const [nudgeBusy, setNudgeBusy] = useState(false);
+  // Maintenance — dedupe, moves, deliverability
+  const [dupes, setDupes] = useState([]);
+  const [moves, setMoves] = useState([]);
+  const [attention, setAttention] = useState({ bounced: [], guessed: [] });
 
   useEffect(() => {
     api.get('/clients').then(setClients).catch(() => {});
     loadSuggestions();
     loadArchiveReview();
     loadNudges();
+    loadDupes();
+    loadMoves();
+    loadAttention();
   }, []);
+
+  function loadDupes() { api.get('/pr/dedup/journalists/scan').then((r) => setDupes(r.clusters || [])).catch(() => {}); }
+  function loadMoves() { api.get('/pr/contact-moves').then((r) => setMoves(r.items || [])).catch(() => {}); }
+  function loadAttention() { api.get('/pr/needs-attention').then((r) => setAttention({ bounced: r.bounced || [], guessed: r.guessed || [] })).catch(() => {}); }
+  async function mergeDupe(cluster, canonicalId) {
+    const memberIds = cluster.members.map((m) => m.id).filter((id) => id !== canonicalId);
+    try {
+      await api.post('/pr/dedup/journalists/merge', { canonical_id: canonicalId, member_ids: memberIds });
+      setDupes((p) => p.filter((c) => c.cluster_key !== cluster.cluster_key));
+      toast(`Merged ${memberIds.length + 1} into one.`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function dismissDupe(cluster) {
+    try {
+      await api.post('/pr/dedup/journalists/dismiss', { member_ids: cluster.members.map((m) => m.id) });
+      setDupes((p) => p.filter((c) => c.cluster_key !== cluster.cluster_key));
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function resolveMove(id, action) {
+    try { await api.post(`/pr/contact-moves/${id}/${action}`, {}); setMoves((p) => p.filter((m) => m.id !== id)); if (action === 'apply') toast('Outlet updated.', 'success'); }
+    catch (e) { toast(e.message, 'error'); }
+  }
 
   function loadSuggestions() { api.get('/pr/journalist-suggestions').then((r) => setSuggestions(r.items || [])).catch(() => {}); }
   async function runScout() {
@@ -1885,6 +1914,90 @@ function JournalistTasks() {
           </>
         )}
       </div>
+
+      {/* Possible outlet moves */}
+      {moves.length > 0 && (
+        <div className="card">
+          <div className="h3 mb-2">🔀 Possible outlet moves · {moves.length}</div>
+          <p className="body-sm text-muted" style={{ marginBottom: 10 }}>Spotted in the feeds: a journalist you know is now bylined at a different outlet. Apply to move them, or dismiss if it's a namesake.</p>
+          <div style={{ maxHeight: 320, overflow: 'auto' }}>
+            {moves.map((m) => (
+              <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                <div style={{ fontSize: 13 }}>
+                  <strong>{m.name || '—'}</strong> · {m.from_outlet || '—'} <span className="text-muted">→</span> <strong>{m.to_outlet || '—'}</strong>
+                  {m.article_url && <> · <a href={m.article_url} target="_blank" rel="noreferrer">{(m.article_title || 'byline').slice(0, 60)} ↗</a></>}
+                </div>
+                <div style={{ whiteSpace: 'nowrap' }}>
+                  <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => resolveMove(m.id, 'apply') })}>Apply move</button>{' '}
+                  <button className="btn btn-secondary btn-sm" onClick={() => resolveMove(m.id, 'dismiss')}>Dismiss</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate journalists */}
+      {dupes.length > 0 && (
+        <div className="card">
+          <div className="h3 mb-2">👥 Duplicate journalists · {dupes.length}</div>
+          <p className="body-sm text-muted" style={{ marginBottom: 10 }}>Likely the same person imported twice. Merge keeps all coverage and client links on one record; the suggested keeper has the most history.</p>
+          <div style={{ maxHeight: 380, overflow: 'auto' }}>
+            {dupes.map((c) => (
+              <div key={c.cluster_key} style={{ padding: '8px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                <div className="body-sm text-muted" style={{ marginBottom: 4 }}>{c.method === 'exact_email' ? 'Same email' : c.method === 'name_and_outlet' ? 'Same name & outlet' : 'Same name & domain'}</div>
+                {c.members.map((m) => (
+                  <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '2px 0' }}>
+                    <div style={{ fontSize: 13 }}>
+                      {m.id === c.suggested && <span className="chip" style={{ fontSize: 9, marginRight: 6 }}>keep</span>}
+                      <strong>{m.name}</strong>{m.email ? ` · ${m.email}` : ''}{m.outlet ? ` · ${m.outlet}` : ''}
+                      <span className="text-muted" style={{ fontSize: 11 }}> · {m.coverage} coverage · {m.clients} client{m.clients === 1 ? '' : 's'}</span>
+                    </div>
+                    <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => mergeDupe(c, m.id) })} title="Merge the others into this record">Keep this</button>
+                  </div>
+                ))}
+                <div style={{ marginTop: 4 }}>
+                  <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => mergeDupe(c, c.suggested) })}>Merge (keep suggested)</button>{' '}
+                  <button className="btn btn-secondary btn-sm" onClick={() => dismissDupe(c)}>Not duplicates</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Deliverability attention */}
+      {(attention.bounced.length > 0 || attention.guessed.length > 0) && (
+        <div className="card">
+          <div className="h3 mb-2">✉️ Email attention {attention.bounced.length + attention.guessed.length ? `· ${attention.bounced.length + attention.guessed.length}` : ''}</div>
+          {attention.bounced.length > 0 && (
+            <>
+              <div className="body-sm" style={{ fontWeight: 600, marginBottom: 4 }}>Bounced — kept out of sends until fixed ({attention.bounced.length})</div>
+              <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 12 }}>
+                {attention.bounced.slice(0, 100).map((c) => (
+                  <div key={c.id} style={{ fontSize: 13, padding: '4px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                    <strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''} · <span style={{ color: 'var(--danger, #c62828)' }}>{c.email}</span>
+                    {c.bounce_reason && <span className="text-muted" style={{ fontSize: 11 }}> · {String(c.bounce_reason).slice(0, 50)}</span>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {attention.guessed.length > 0 && (
+            <>
+              <div className="body-sm" style={{ fontWeight: 600, marginBottom: 4 }}>Unconfirmed (guessed) addresses ({attention.guessed.length})</div>
+              <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 6 }}>Guessed from the outlet's pattern — worth confirming before a big send.</p>
+              <div style={{ maxHeight: 200, overflow: 'auto' }}>
+                {attention.guessed.slice(0, 100).map((c) => (
+                  <div key={c.id} style={{ fontSize: 13, padding: '4px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                    <strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''} · <span style={{ color: 'var(--danger, #c62828)' }}>{c.email}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
