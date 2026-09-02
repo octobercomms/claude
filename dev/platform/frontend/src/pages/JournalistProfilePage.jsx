@@ -130,6 +130,20 @@ export default function JournalistProfilePage() {
         </div>
       </div>
 
+      {Array.isArray(c.latest_articles) && c.latest_articles.length > 0 && (
+        <>
+          <h3 className="h3 mb-2">Latest articles <span className="body-sm text-muted">· from their outlet's feed</span></h3>
+          <div className="card" style={{ marginBottom: 16 }}>
+            {c.latest_articles.map((a, i) => (
+              <div key={i} style={{ padding: '7px 0', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 13 }}>
+                {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{(a.title || a.url).slice(0, 110)}</a> : (a.title || '—')}
+                {a.published_at && <span className="text-muted" style={{ fontSize: 11 }}> · {fmtDate(a.published_at)}</span>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <h3 className="h3 mb-2">Coverage history ({c.coverage?.length || 0})</h3>
       <div className="card">
         <table className="table">

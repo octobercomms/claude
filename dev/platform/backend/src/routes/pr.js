@@ -20,6 +20,7 @@ const prEngage = require('../services/prEngage');
 const prLinkCheck = require('../services/prLinkCheck');
 const journalistScout = require('../services/journalistScout');
 const rssDiscover = require('../services/rssDiscover');
+const rssIngest = require('../services/rssIngest');
 const overviewReport = require('../services/overviewReport');
 const earnedOverviewReport = require('../services/earnedOverviewReport');
 const prCoverageExtract = require('../services/prCoverageExtract');
@@ -811,6 +812,14 @@ router.post('/outlets/find-rss/sweep', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Ingest one publication's feed now (on-demand). The scheduler does this daily.
+router.post('/outlets/:outletId/ingest', requireAdmin, async (req, res) => {
+  try {
+    const out = await rssIngest.ingestOutlet(req.params.outletId, { log: (m) => console.log('[RSS]', m) });
+    res.json(out); // { inserted, matched }
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 router.get('/outlets/:outletId', async (req, res) => {
   try {
     const o = await db.query('SELECT * FROM pr_outlets WHERE id = $1', [req.params.outletId]);
@@ -907,7 +916,13 @@ router.get('/contacts/:contactId', async (req, res) => {
        WHERE l.contact_id = $1 ORDER BY COALESCE(l.issue_date, l.request_date) DESC NULLS LAST LIMIT 200`,
       [req.params.contactId]
     );
-    res.json({ ...c.rows[0], outlet, coverage: coverage.rows });
+    // Latest articles ingested from their outlet's RSS feed (Phase 2+).
+    const articles = await db.query(
+      `SELECT title, url, published_at FROM pr_outlet_articles
+        WHERE contact_id = $1 ORDER BY published_at DESC NULLS LAST LIMIT 15`,
+      [req.params.contactId]
+    );
+    res.json({ ...c.rows[0], outlet, coverage: coverage.rows, latest_articles: articles.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

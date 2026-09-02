@@ -91,6 +91,16 @@ cron.schedule('20 5 * * 0', async () => {
   } catch (e) { console.error('[Scheduler] Media DB sweep failed:', e.message); }
 });
 
+// Daily 04:15 — ingest publication RSS feeds. Pure HTTP (no LLM), so it can run
+// every day: new articles land in pr_outlet_articles and bylines get matched to
+// journalists, powering "latest articles" + (later) discovery and inactivity.
+cron.schedule('15 4 * * *', async () => {
+  try {
+    const r = await require('./rssIngest').ingestAll({ log: (m) => console.log('[Scheduler]', m) });
+    if (r.feeds) console.log(`[Scheduler] RSS ingest: ${r.feeds} feeds, ${r.inserted} new articles, ${r.matched} byline matches`);
+  } catch (e) { console.error('[Scheduler] RSS ingest failed:', e.message); }
+});
+
 // Sunday 06:30 — Journalist Discovery Scout. Finds NEW journalists for each
 // press-active client's beats and queues them for review (nothing is added to
 // the media DB without a human approving). Paid web-search step, so weekly.
