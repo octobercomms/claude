@@ -413,7 +413,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
   return (
     <div>
-      <button onClick={onExit} className="btn btn-secondary btn-sm">← Back to campaigns</button>
+      <button onClick={onExit} className="btn btn-secondary btn-sm" style={{ marginBottom: 16 }}>← Back to campaigns</button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
@@ -455,7 +455,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 <div className="h3">1 · Who — the audience</div>
                 <p style={{ color: 'var(--text-subtle)', fontSize: 12, margin: '2px 0 0' }}>Click tags to add whole segments of your media database. Your selection is saved automatically.</p>
               </div>
-              <button {...roWrite(readOnly, { onClick: runAutopilot, disabled: autopiloting })} className="btn btn-primary btn-sm">
+              <button {...roWrite(readOnly, { onClick: runAutopilot, disabled: autopiloting })} className="btn btn-secondary btn-sm">
                 {autopiloting ? '✨ Choosing…' : '✨ Suggest audience'}
               </button>
             </div>
@@ -496,7 +496,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 <div style={{ marginBottom: 8 }}>
                   <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={3} className="input"
                     placeholder="Paste anything — a spreadsheet, signatures, 'Jane Doe, arts editor, The Times, jane@…'. Claude sorts + de-dupes into your DB and adds them here." style={{ width: '100%', boxSizing: 'border-box', fontSize: 12 }} />
-                  <button {...roWrite(readOnly, { onClick: doPasteImport, disabled: pasting || !pasteText.trim() })} className="btn btn-primary btn-sm" style={{ marginTop: 6 }}>{pasting ? 'Sorting…' : 'Sort & add'}</button>
+                  <button {...roWrite(readOnly, { onClick: doPasteImport, disabled: pasting || !pasteText.trim() })} className="btn btn-secondary btn-sm" style={{ marginTop: 6 }}>{pasting ? 'Sorting…' : 'Sort & add'}</button>
                 </div>
               )}
               <div style={{ display: 'flex', gap: 6 }}>
@@ -566,6 +566,11 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 onChange={async e => { const next = e.target.checked; setRelease(r => ({ ...r, embed_full_release: next })); try { await api.patch(`/press/releases/${release.id}`, { embed_full_release: next }); if (previewing) preview(previewing, true); } catch (err) { toast(err.message, 'error'); } }} />
               <span><strong>Embed the full release in the first email.</strong> <span style={{ color: 'var(--text-subtle)' }}>Off = pitch + link only. Follow-ups are always short, personal emails.</span></span>
             </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={release.followup_hero !== false}
+                onChange={async e => { const next = e.target.checked; setRelease(r => ({ ...r, followup_hero: next })); try { await api.patch(`/press/releases/${release.id}`, { followup_hero: next }); if (previewing) preview(previewing, true); } catch (err) { toast(err.message, 'error'); } }} />
+              <span><strong>Add the hero image at the foot of follow-ups.</strong> <span style={{ color: 'var(--text-subtle)' }}>Sits below your sign-off as a reminder of the story. Follow-ups always link to the release and read as standalone pitches; the last one offers a quick 1/2/3 reply.</span></span>
+            </label>
 
             {/* Configurable footer / signature */}
             <div style={{ marginTop: 14, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)' }}>
@@ -595,7 +600,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', maxWidth: 520 }}>
               <input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com" className="input" style={{ flex: 1, minWidth: 200 }} />
-              <button {...roWrite(readOnly, { onClick: sendTest, disabled: testing || !testEmail.trim() || !testSteps.size })} className="btn btn-primary btn-sm">{testing ? 'Sending…' : `Send ${testSteps.size || 0} test${testSteps.size === 1 ? '' : 's'}`}</button>
+              <button {...roWrite(readOnly, { onClick: sendTest, disabled: testing || !testEmail.trim() || !testSteps.size })} className="btn btn-secondary btn-sm">{testing ? 'Sending…' : `Send ${testSteps.size || 0} test${testSteps.size === 1 ? '' : 's'}`}</button>
             </div>
             <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {steps.map(s => {
@@ -652,7 +657,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 <textarea value={boilerplateDraft} onChange={e => setBoilerplateDraft(e.target.value)} rows={8} className="input"
                   placeholder="The 'Notes to editors' / About section below the release." style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: 12 }} />
                 <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                  <button {...roWrite(readOnly, { onClick: saveReleaseHtml, disabled: savingBody })} className="btn btn-primary btn-sm">{savingBody ? 'Saving…' : 'Save release content'}</button>
+                  <button {...roWrite(readOnly, { onClick: saveReleaseHtml, disabled: savingBody })} className="btn btn-secondary btn-sm">{savingBody ? 'Saving…' : 'Save release content'}</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => setShowHtmlEdit(false)}>Cancel</button>
                 </div>
               </div>
@@ -698,7 +703,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                         rows={5} className="input" style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 14 }} />
                     </div>
                   )}
-                  <button {...roWrite(readOnly, { onClick: saveRecipientEmail, disabled: savingEmail })} className="btn btn-primary btn-sm" style={{ marginTop: 8 }}>{savingEmail ? 'Saving…' : 'Save this email'}</button>
+                  <button {...roWrite(readOnly, { onClick: saveRecipientEmail, disabled: savingEmail })} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>{savingEmail ? 'Saving…' : 'Save this email'}</button>
                 </div>
               </div>
             )}

@@ -359,6 +359,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
       html = pressRelease.buildFollowUpHtml({
         release: releaseWithHero, body: text, sender, recipientName: contact.name,
         contactId: contact.id, clientId, campaignId, signature,
+        includeHero: release.followup_hero !== false,
       });
       html = rewriteLinksForTracking(html, sendId);
       if (sendId && process.env.PLATFORM_URL) {
@@ -418,6 +419,7 @@ async function sendPressTest({ release, contact, toAddress, sending, clientId, s
     html = pressRelease.buildFollowUpHtml({
       release: releaseWithHero, body: text, sender, recipientName: contact.name,
       contactId: contact.id, clientId, signature,
+      includeHero: release.followup_hero !== false,
     });
   }
   return deliver({ from, to: toAddress, replyTo, subject: `[TEST] ${subject}`, text, html });
