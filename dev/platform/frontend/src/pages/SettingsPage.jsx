@@ -891,17 +891,22 @@ function PublicationsPanel() {
     } catch (e) { setErr(e.message); }
     finally { setRssBusy(null); }
   }
-  // The real unlock: for publications with NO website on file, find it via web
-  // search, then its feed. Small batch per click; the nightly job does the bulk.
+  // One button that progresses EVERY unresolved publication: first find feeds for
+  // the ones that already have a website (fast, cheap), then find the website AND
+  // feed for the ones with none (web search). A batch per click; the nightly job
+  // does the bulk.
   async function resolveWebsites() {
     setRssBusy('resolve');
     try {
-      const r = await api.post('/pr/outlets/resolve-websites/sweep', {});
+      const known = await api.post('/pr/outlets/find-rss/sweep', { limit: 60 });
+      const missing = await api.post('/pr/outlets/resolve-websites/sweep', { limit: 20 });
       setErr(null);
       const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
       const res = await api.get(path);
       setOutlets(res.items || []);
-      alert(`Checked ${r.checked} publications with no website on file: found ${r.websites} websites, ${r.feeds} feeds. This runs automatically every night too — click again to do more now.`);
+      const feedsFromKnown = known.found || 0;
+      const totalFeeds = feedsFromKnown + (missing.feeds || 0);
+      alert(`Found ${totalFeeds} feed${totalFeeds === 1 ? '' : 's'} this pass (${feedsFromKnown} from publications that had a website, ${missing.feeds || 0} + ${missing.websites || 0} new websites from ${missing.checked || 0} that had none). This also runs automatically every night — click again to do another batch now.`);
     } catch (e) { setErr(e.message); }
     finally { setRssBusy(null); }
   }
@@ -1012,12 +1017,8 @@ function PublicationsPanel() {
             🧹 Cleanup Centre
           </Link>
           <button onClick={resolveWebsites} disabled={rssBusy === 'resolve'} className="btn btn-primary btn-sm"
-            title="For publications with no website on file, find the site via web search AND its RSS feed in one pass. Runs a batch now; the rest happen automatically every night.">
-            {rssBusy === 'resolve' ? 'Finding websites…' : '🔎 Find missing websites + feeds'}
-          </button>
-          <button onClick={sweepRss} disabled={rssBusy === 'sweep'} className="btn btn-secondary btn-sm"
-            title="Find RSS feeds for publications that already have a website/domain on file">
-            {rssBusy === 'sweep' ? 'Finding feeds…' : '🛰 Find feeds (known sites)'}
+            title="One click for every publication: finds feeds for those that already have a website, and finds the website AND feed (via web search) for those with none. A batch per click; the rest run automatically every night.">
+            {rssBusy === 'resolve' ? 'Finding feeds…' : '🔎 Find websites + feeds'}
           </button>
           <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary btn-sm"
             title={outlets?.length ? `Download ${outlets.length.toLocaleString()} publication${outlets.length === 1 ? '' : 's'}` : 'Nothing to export'}>
