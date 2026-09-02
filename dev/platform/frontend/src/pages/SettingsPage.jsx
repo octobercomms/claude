@@ -1683,7 +1683,7 @@ function MediaAssistant() {
   }
 
   const actionLabel = (a) => {
-    if (a.type === 'add_publication') return `Add publication “${a.name}”${a.url ? ` (${a.url})` : ''}`;
+    if (a.type === 'add_publication') return `Add publication “${a.name}”${a.url ? ` (${a.url})` : ''}${a.rss_url ? ' · feed ✓' : ''}`;
     if (a.type === 'add_journalist') return `Add journalist “${a.name}”${a.outlet ? ` at ${a.outlet}` : ''}${a.email ? ` · ${a.email}` : ''}${a.client_name ? ` → ${a.client_name}` : ''}`;
     if (a.type === 'tag_contact') return `Tag ${a.contact_name || a.contact_id} with ${(a.tags || []).join(', ')}`;
     return a.type;
