@@ -9,9 +9,7 @@ import OutreachTasksPanel from '../components/OutreachTasksPanel';
 import { useToast } from '../context/ToastContext';
 import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
-import PressCampaignWizard from '../components/PressCampaignWizard';
 import NewCampaignModal from '../components/NewCampaignModal';
-import PressCampaignDetail from '../components/PressCampaignDetail';
 import ImportWizard from '../components/ImportWizard';
 import SequenceBuilder from '../components/SequenceBuilder';
 import SelectiveOutreachPanel from '../components/SelectiveOutreachPanel';
@@ -149,8 +147,6 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContact, setNewContact] = useState({ name: '', email: '', company: '', role: '', website: '' });
   const [showAddCampaign, setShowAddCampaign] = useState(false);
-  const [showPressWizard, setShowPressWizard] = useState(false);
-  const [pressInitialUrl, setPressInitialUrl] = useState('');
   const [showNewCampaign, setShowNewCampaign] = useState(false);
   const [newCampaign, setNewCampaign] = useState({ name: '', audience_description: '' });
   const [showFinder, setShowFinder] = useState(false);
@@ -472,7 +468,11 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
 
   if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
-  const recentCampaigns = campaigns.slice(0, 5);
+  // Owned → Email is business outreach only. Press campaigns live in
+  // Earned → Pitch — filter any out of the list, counts and rail here so
+  // they never surface in this suite.
+  const outreachCampaigns = campaigns.filter(c => c.kind !== 'press_release' && c.campaign_type !== 'press_release');
+  const recentCampaigns = outreachCampaigns.slice(0, 5);
 
   return (
     <div className="suite-email">
@@ -490,14 +490,13 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         // match every other suite group. ✓ derives from real state.
         <div className="stepper-block">
           <ProcessRail numbered wrap grouped activeKey={tab} onStep={setTab} steps={[
-            { groupLabel: 'Build' },
+            { groupLabel: 'Your list' },
             { key: 'contacts',  title: 'Find',  sub: 'Your contact list',        status: contacts.length ? 'done' : 'todo' },
-            { key: 'campaigns', title: 'Write', sub: 'The email sequence',        status: campaigns.length ? 'done' : 'todo' },
-            { groupLabel: 'Run' },
+            { key: 'campaigns', title: 'Write', sub: 'The email sequence',        status: outreachCampaigns.length ? 'done' : 'todo' },
             { key: 'sending',   title: 'Send',  sub: 'From your domain, tracked', status: (stats?.emails_sent || 0) > 0 ? 'done' : 'todo' },
             { key: 'tasks',     title: 'Chase', sub: 'Replies & follow-ups',      status: 'todo' },
-            { groupLabel: 'Prospect' },
-            { key: 'prospecting', title: 'Selective', sub: 'AI-sourced, you approve each', status: 'todo' },
+            { groupLabel: 'AI-sourced' },
+            { key: 'prospecting', title: 'Selective', sub: 'AI finds them, you approve each', status: 'todo' },
           ]} />
         </div>
       ) : (
@@ -522,13 +521,13 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
       {!embedded && tab === 'overview' && (
         <div className="stack stack-lg">
         <SuiteOverview
-          tagline="Run cold outreach from your own domain."
-          description="Find the contacts, let Claude draft the multichannel sequence, send from your own mailboxes, and let replies classify themselves. Press releases ship from the same flow."
+          tagline="Win new clients from your own domain."
+          description="Two ways to prospect: run cold outreach from your own contact list, or let AI source and fit-score prospects for you to approve one by one. Claude drafts every sequence; replies classify themselves."
           ctaLabel="Browse campaigns"
           onCta={() => setTab('campaigns')}
           status={[
             { label: 'Contacts', value: `${contacts.length}`, ok: contacts.length > 0 },
-            { label: 'Campaigns', value: `${campaigns.length}`, ok: campaigns.length > 0 },
+            { label: 'Campaigns', value: `${outreachCampaigns.length}`, ok: outreachCampaigns.length > 0 },
             { label: 'Emails sent', value: `${stats?.emails_sent ?? 0}`, ok: (stats?.emails_sent || 0) > 0 },
           ]}
           flow={[
@@ -542,6 +541,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
             { tag: 'Campaigns',  title: 'Claude drafts the sequence',  cta: 'Open campaigns', onClick: () => setTab('campaigns'), body: 'Initial, follow-up and final nudge — personalised per recipient from the contact + brand brief, then launched and tracked.' },
             { tag: 'Tasks',      title: 'Work the multichannel steps', cta: 'Open tasks', onClick: () => setTab('tasks'), body: 'LinkedIn and manual steps land in a daily queue; tick one off and the prospect advances automatically.' },
             { tag: 'Sending',    title: 'Land in the inbox',           cta: 'Open sending', onClick: () => setTab('sending'), body: 'Rotate multiple sender mailboxes with warm-up and daily caps; SPF / DKIM / DMARC kept on rails, replies auto-classified.' },
+            { tag: 'Selective',  title: 'Let AI source the prospects', cta: 'Open selective', onClick: () => setTab('prospecting'), body: 'AI researches and fit-scores prospects and drafts each message — you approve every prospect and every send. Runs from a separate sending identity.' },
           ]}
         />
 
@@ -846,29 +846,13 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
       />
 
 
-      {tab === 'campaigns' && wizardCampaignId && (() => {
-        const c = campaigns.find(x => x.id === wizardCampaignId);
-        // Only the new `kind` column triggers the press view. The legacy
-        // `campaign_type` field was used in older flows and many of those
-        // campaigns never had an actual press_release row created — so
-        // honouring it here used to send the AM into a permanent
-        // "Loading release..." state.
-        if (c?.kind === 'press_release') {
-          return (
-            <PressCampaignDetail
-              clientId={id} campaignId={wizardCampaignId} contacts={contacts}
-              onExit={() => { setWizardCampaignId(null); refreshCampaigns(); }}
-            />
-          );
-        }
-        return (
-          <CampaignWizard
-            clientId={id} campaignId={wizardCampaignId}
-            onExit={() => { setWizardCampaignId(null); refreshCampaigns(); }}
-            onCampaignChange={refreshCampaigns}
-          />
-        );
-      })()}
+      {tab === 'campaigns' && wizardCampaignId && (
+        <CampaignWizard
+          clientId={id} campaignId={wizardCampaignId}
+          onExit={() => { setWizardCampaignId(null); refreshCampaigns(); }}
+          onCampaignChange={refreshCampaigns}
+        />
+      )}
 
       {showNewCampaign && (
         <NewCampaignModal
@@ -880,25 +864,11 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
             setTab('campaigns');
             setWizardCampaignId(c.id);
           }}
-          onPickPress={(url) => {
+          onPickSelective={() => {
+            // Selective runs on its own engine/sending identity — hand off to
+            // that lane's tab, where the AM names the campaign and sets the ICP.
             setShowNewCampaign(false);
-            setPressInitialUrl(url);
-            setTab('campaigns');
-            setShowPressWizard(true);
-          }}
-        />
-      )}
-
-      {tab === 'campaigns' && showPressWizard && (
-        <PressCampaignWizard
-          clientId={id}
-          initialUrl={pressInitialUrl}
-          onClose={() => { setShowPressWizard(false); setPressInitialUrl(''); }}
-          onCreated={(release) => {
-            setShowPressWizard(false);
-            setPressInitialUrl('');
-            refreshCampaigns();
-            if (release?.campaign_id) setWizardCampaignId(release.campaign_id);
+            setTab('prospecting');
           }}
         />
       )}
@@ -910,18 +880,17 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
           </div>
           <div className="card" style={{ marginTop: 12 }}>
             <table className="table">
-              <thead><tr>{['Campaign', 'Brand', 'Type', 'Status', 'Contacts', 'Sent / Total', 'Created', ''].map(h => <th key={h} >{h}</th>)}</tr></thead>
+              <thead><tr>{['Campaign', 'Brand', 'Status', 'Contacts', 'Sent / Total', 'Created', ''].map(h => <th key={h} >{h}</th>)}</tr></thead>
               <tbody>
-                {campaigns.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>No campaigns yet — click “+ New campaign” to start the wizard.</td></tr>
-                ) : campaigns.map(c => (
+                {outreachCampaigns.length === 0 ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>No campaigns yet — click “+ New campaign” to start the wizard.</td></tr>
+                ) : outreachCampaigns.map(c => (
                   <tr key={c.id}>
                     <td >
                       <div style={{ fontWeight: 600 }}>{c.name}</div>
                       {c.audience_description && <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{c.audience_description.slice(0, 80)}{c.audience_description.length > 80 ? '…' : ''}</div>}
                     </td>
                     <td >{c.brand || '—'}</td>
-                    <td >{(c.kind === 'press_release' || c.campaign_type === 'press_release') ? <span className="chip chip-neutral" style={{ background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid #f0d260' }}>Press</span> : 'Outreach'}</td>
                     <td ><span className="chip chip-neutral">{c.status}</span></td>
                     <td >{c.contact_count || 0}</td>
                     <td >{(c.sent_count || 0)} / {(c.contact_count || 0)}</td>
