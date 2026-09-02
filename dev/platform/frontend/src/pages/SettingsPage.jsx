@@ -1636,6 +1636,7 @@ function JournalistTasks() {
   const [suggestions, setSuggestions] = useState([]);
   const [scoutClientId, setScoutClientId] = useState('');
   const [scoutBusy, setScoutBusy] = useState(false);
+  const [mineBusy, setMineBusy] = useState(false);
   const [selSugg, setSelSugg] = useState(() => new Set());
   // Archive review
   const [archiveReview, setArchiveReview] = useState([]);
@@ -1661,6 +1662,19 @@ function JournalistTasks() {
       loadSuggestions();
     } catch (e) { toast(e.message, 'error'); }
     finally { setScoutBusy(false); }
+  }
+  async function mineFeeds() {
+    setMineBusy(true);
+    try {
+      const r = await api.post('/pr/feeds/mine', {});
+      const bits = [];
+      if (r.queued) bits.push(`${r.queued} new journalist${r.queued === 1 ? '' : 's'} from ${r.outlets} feed${r.outlets === 1 ? '' : 's'}`);
+      if (r.flagged) bits.push(`${r.flagged} flagged gone-quiet`);
+      toast(bits.length ? bits.join(' · ') : 'Feeds processed — nothing new to review right now.', bits.length ? 'success' : 'info');
+      loadSuggestions();
+      loadArchiveReview();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setMineBusy(false); }
   }
   async function approveSuggestion(sid) {
     try {
@@ -1741,7 +1755,7 @@ function JournalistTasks() {
           <div style={{ minWidth: 240, flex: 1 }}>
             <div className="h3 mb-2">🔭 Find new journalists</div>
             <div className="body-sm text-muted" style={{ marginBottom: 8 }}>
-              Claude researches the web for journalists who cover a client’s beats and aren’t on the list yet. Nothing’s added until you approve it.
+              Two ways in: <strong>scout the web</strong> for journalists who cover a client’s beats, or <strong>mine your RSS feeds</strong> for new bylines already appearing at outlets you track. Nothing’s added until you approve it.
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <select className="input" style={{ maxWidth: 260 }} value={scoutClientId} onChange={(e) => setScoutClientId(e.target.value)}>
@@ -1750,6 +1764,9 @@ function JournalistTasks() {
               </select>
               <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: runScout, disabled: scoutBusy || !scoutClientId })}>
                 {scoutBusy ? 'Scanning…' : '✦ Find new journalists'}
+              </button>
+              <button className="btn btn-secondary btn-sm" title="Classify new bylines from every publication's RSS feed into review suggestions, and flag journalists who've gone quiet. Runs nightly too." {...roWrite(readOnly, { onClick: mineFeeds, disabled: mineBusy })}>
+                {mineBusy ? 'Mining feeds…' : '🛰 Mine feeds now'}
               </button>
             </div>
           </div>
@@ -1772,7 +1789,10 @@ function JournalistTasks() {
                     <tr key={s.id}>
                       <td><input type="checkbox" checked={selSugg.has(s.id)} onChange={() => toggleSugg(s.id)} /></td>
                       <td>
-                        <div style={{ fontWeight: 600 }}>{s.name}</div>
+                        <div style={{ fontWeight: 600 }}>
+                          {s.name}
+                          {s.source === 'rss' && <span className="chip" style={{ fontSize: 9, marginLeft: 6 }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
+                        </div>
                         {s.email
                           ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div>
                           : s.guessed_email

@@ -276,4 +276,4 @@ async function scoutAllActive({ log = () => {} } = {}) {
   return { clients: rows.length, added: total };
 }
 
-module.exports = { buildContext, findCandidates, scoutClient, scoutAllActive, extractArray };
+module.exports = { buildContext, findCandidates, scoutClient, scoutAllActive, extractArray, guessEmail, isKnown };

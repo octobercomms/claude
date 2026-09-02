@@ -27,6 +27,9 @@ const FEATURE_DEFAULTS = {
   press_audience: 'claude-opus-4-8',
   media_db_hygiene: 'claude-opus-4-8',
   media_db_research: 'claude-opus-4-8',
+  // Bulk byline classification is simple, high-volume work — cheapest Claude by
+  // default; the AM can drop it to DeepSeek in Settings for near-zero cost.
+  press_byline_mining: 'claude-haiku-4-5',
 };
 
 // Routable features, grouped for the UI. `sensitive: true` = this feature sends
@@ -81,6 +84,10 @@ const FEATURES = [
     { key: 'press_audience', label: 'Autopilot audience selection', sensitive: false },
     { key: 'media_db_hygiene', label: 'Media DB dedupe/merge', sensitive: true },
     { key: 'media_db_research', label: 'Media DB research (bylines/RSS)', sensitive: false },
+    // Bulk classification of raw RSS bylines into real new-journalist names.
+    // Public byline names + article titles only — no client data — so it's
+    // cheap and safe on DeepSeek. Defaults to Haiku (see FEATURE_DEFAULTS).
+    { key: 'press_byline_mining', label: 'RSS byline mining (new journalists)', sensitive: false },
   ] },
   { group: 'Outreach & leads', items: [
     { key: 'outreach_write_sequence', label: 'Outreach sequences', sensitive: false },

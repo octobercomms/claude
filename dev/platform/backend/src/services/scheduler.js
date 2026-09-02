@@ -101,6 +101,19 @@ cron.schedule('15 4 * * *', async () => {
   } catch (e) { console.error('[Scheduler] RSS ingest failed:', e.message); }
 });
 
+// Daily 05:00 — mine the freshly-ingested feeds. Runs 45 min after ingest so
+// pr_outlet_articles is up to date: (1) classify unmatched bylines into brand-new
+// journalist suggestions (cheap model, review-gated), and (2) flag journalists
+// whose most recent feed article is >6 months old as gone-quiet. Both are review-
+// first — nothing is added to the DB or archived without a human.
+cron.schedule('0 5 * * *', async () => {
+  try {
+    const mine = await require('./rssMine').mineAll({ log: (m) => console.log('[Scheduler]', m) });
+    const quiet = await require('./rssMine').flagInactive({ log: (m) => console.log('[Scheduler]', m) });
+    console.log(`[Scheduler] RSS mine: ${mine.outlets} outlets, ${mine.queued} new suggestion(s); ${quiet.flagged} gone-quiet flagged`);
+  } catch (e) { console.error('[Scheduler] RSS mine failed:', e.message); }
+});
+
 // Sunday 06:30 — Journalist Discovery Scout. Finds NEW journalists for each
 // press-active client's beats and queues them for review (nothing is added to
 // the media DB without a human approving). Paid web-search step, so weekly.
