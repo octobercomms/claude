@@ -13,15 +13,41 @@ try { cheerio = require('cheerio'); } catch (e) { cheerio = null; }
 
 const windowDays = (cadence) => (cadence === 'weekly' ? 7 : 1);
 
+// Normalise a story URL for dedupe: drop the scheme, www, query string,
+// fragment, trailing slash and a trailing /amp — so tracking-param, AMP and
+// http/https variants of the same article collapse to one key.
+function normUrl(u) {
+  try {
+    const x = new URL(u);
+    const host = x.hostname.replace(/^www\./i, '').toLowerCase();
+    const path = x.pathname.replace(/\/amp\/?$/i, '').replace(/\/+$/, '').toLowerCase();
+    return host + path;
+  } catch { return String(u || '').trim().toLowerCase().replace(/[?#].*$/, '').replace(/\/+$/, ''); }
+}
+// Normalise a headline for dedupe (case/punctuation-insensitive).
+function normTitle(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+
 async function ingest(clientId, hit, source) {
   const url = (hit.link || '').trim();
   if (!url) return 0;
-  const exists = (await db.query('SELECT 1 FROM pr_editorial_log WHERE client_id = $1 AND story_url = $2 LIMIT 1', [clientId, url])).rows.length;
-  if (exists) return 0;
+  const nu = normUrl(url);
+  const nt = normTitle(hit.title);
 
   let outletName = (hit.source || '').trim();
   if (!outletName) { try { outletName = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { /* ignore */ } }
   const outletId = outletName ? await pr.resolveOutlet(outletName) : null;
+
+  // De-dupe against EVERY existing entry for this client (any status — already
+  // logged coverage, confirmed placements, or items still in the review queue),
+  // not just an exact URL match. A hit is a duplicate when its normalised URL
+  // already exists, or the same normalised headline is already logged for the
+  // same outlet (catches syndicated re-hosts and re-runs of the same search).
+  const { rows: existing } = await db.query(
+    'SELECT story_url, story_title, outlet_id FROM pr_editorial_log WHERE client_id = $1', [clientId]);
+  const dup = existing.some((e) =>
+    (e.story_url && normUrl(e.story_url) === nu) ||
+    (nt && normTitle(e.story_title) === nt && outletId && e.outlet_id === outletId));
+  if (dup) return 0;
 
   let date = null;
   if (hit.date) { const t = new Date(hit.date); if (!isNaN(t)) date = t.toISOString().slice(0, 10); }

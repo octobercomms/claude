@@ -1,0 +1,70 @@
+name: Auto-merge Claude PRs
+
+# Merges PRs opened from Claude's working branches (claude/*) automatically once
+# they are mergeable and every check on the head commit is green. Scoped to
+# claude/* only, so PRs you or a teammate open are never touched.
+#
+# IMPORTANT — the post-merge deploy:
+# GitHub does NOT run further workflows for pushes made with the default
+# GITHUB_TOKEN (loop protection). platform-deploy.yml runs `on: push` to main,
+# so if this workflow merges with GITHUB_TOKEN the deploy will NOT auto-trigger.
+# To keep deploy-on-merge working, add a repo secret AUTO_MERGE_TOKEN — a
+# fine-grained PAT with Contents: Read/Write and Pull requests: Read/Write on
+# this repo. The merge is then attributed to that token and the push fires the
+# deploy like a normal human merge. Without the secret it still merges, but you
+# would need to re-run the deploy manually.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  check_suite:
+    types: [completed]
+  schedule:
+    - cron: '*/30 * * * *'   # safety net for any missed events
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-merge-claude
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge green claude/* PRs
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN || github.token }}
+          HAS_PAT: ${{ secrets.AUTO_MERGE_TOKEN != '' }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "$HAS_PAT" != "true" ]; then
+            echo "::warning::AUTO_MERGE_TOKEN is not set — merging with GITHUB_TOKEN, so the post-merge deploy will NOT auto-trigger. Add the PAT secret to restore deploy-on-merge."
+          fi
+
+          # Open PRs from claude/* branches that are not drafts.
+          prs=$(gh pr list --repo "$REPO" --state open --json number,headRefName,isDraft \
+            --jq '.[] | select(.isDraft==false) | select(.headRefName|startswith("claude/")) | .number')
+          if [ -z "$prs" ]; then echo "No open Claude PRs."; exit 0; fi
+
+          for pr in $prs; do
+            # Ready = GitHub says it is mergeable AND every check on the head
+            # commit concluded success/neutral/skipped (empty rollup = no checks
+            # = ready). A pending/in-progress check has no conclusion, so it
+            # falls back to PENDING and blocks the merge until it finishes.
+            ready=$(gh pr view "$pr" --repo "$REPO" --json mergeable,statusCheckRollup --jq '
+              (.mergeable == "MERGEABLE")
+              and ([.statusCheckRollup[]? | (.conclusion // .state // "PENDING")]
+                   | all(. as $c | ["SUCCESS","NEUTRAL","SKIPPED"] | index($c) != null))')
+            if [ "$ready" = "true" ]; then
+              echo "PR #$pr is green + mergeable — merging."
+              gh pr merge "$pr" --repo "$REPO" --merge \
+                || echo "::warning::merge of #$pr failed; will retry on the next event."
+            else
+              echo "PR #$pr not ready yet (conflict or checks pending) — skipping."
+            fi
+          done

@@ -121,6 +121,8 @@ export default function ClientPRPage() {
   const [searches, setSearches] = useState([]);
   const [serperOn, setSerperOn] = useState(true);
   const [queue, setQueue] = useState([]);
+  const [queueSel, setQueueSel] = useState(() => new Set()); // bulk-select in the review queue
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [newSearch, setNewSearch] = useState({ query: '', src_serper: true, src_alerts: false, alerts_rss: '', cadence: 'daily' });
   const [thanks, setThanks] = useState([]);
   const [thankDraft, setThankDraft] = useState(null); // null | { entryId, to, subject, body, tone, confidence, edited }
@@ -259,7 +261,7 @@ export default function ClientPRPage() {
 
   function loadMonitor() {
     api.get(`/pr/clients/${id}/searches`).then((r) => { setSearches(r.items || []); setSerperOn(r.serper_configured !== false); }).catch(() => {});
-    api.get(`/pr/clients/${id}/review-queue`).then((r) => setQueue(r.items || [])).catch(() => {});
+    api.get(`/pr/clients/${id}/review-queue`).then((r) => { setQueue(r.items || []); setQueueSel(new Set()); }).catch(() => {});
   }
   useEffect(() => { if (tab === 'coverage') loadMonitor(); }, [tab, id]);
 
@@ -283,6 +285,25 @@ export default function ClientPRPage() {
   async function deleteSearch(sid) {
     if (!window.confirm('Delete this search?')) return;
     try { await api.delete(`/pr/searches/${sid}`); loadMonitor(); } catch (e) { toast(e.message, 'error'); }
+  }
+  function toggleQueueSel(entryId) {
+    setQueueSel((prev) => { const n = new Set(prev); if (n.has(entryId)) n.delete(entryId); else n.add(entryId); return n; });
+  }
+  function toggleQueueSelAll() {
+    setQueueSel((prev) => (prev.size === queue.length ? new Set() : new Set(queue.map((r) => r.id))));
+  }
+  async function bulkReview(status) {
+    const ids = Array.from(queueSel);
+    if (!ids.length) return;
+    const verb = status === 'published' ? 'Confirm' : 'Dismiss';
+    if (!window.confirm(`${verb} ${ids.length} item${ids.length === 1 ? '' : 's'}?${status === 'published' ? ' (Bulk confirm logs them as published without emailing the client per item.)' : ''}`)) return;
+    setBulkBusy(true);
+    try {
+      const r = await api.patch(`/pr/clients/${id}/review-queue/bulk`, { ids, status });
+      toast(`${verb === 'Confirm' ? 'Confirmed' : 'Dismissed'} ${r.updated} item${r.updated === 1 ? '' : 's'}.`, 'success');
+      loadMonitor(); loadData();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBulkBusy(false); }
   }
   async function reviewItem(entryId, status) {
     try { await api.patch(`/pr/editorial-log/${entryId}`, { status }); loadMonitor(); loadData(); }
@@ -794,7 +815,8 @@ export default function ClientPRPage() {
                       </td>
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}
-                        <button className="btn btn-danger btn-sm" onClick={() => deleteEntry(r)}>Delete</button>
+                        <button type="button" title="Delete this coverage entry" aria-label="Delete" onClick={() => deleteEntry(r)}
+                          style={{ border: 'none', background: 'none', color: 'var(--danger, #c0392b)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '4px 6px', borderRadius: 4 }}>✕</button>
                       </td>
                     </tr>
                   ));
@@ -838,12 +860,25 @@ export default function ClientPRPage() {
               </tbody>
             </table>
 
-            <h3 className="h3 mb-2">Review queue {queue.length ? `(${queue.length})` : ''}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+              <h3 className="h3" style={{ margin: 0 }}>Review queue {queue.length ? `(${queue.length})` : ''}</h3>
+              {queueSel.size > 0 && (
+                <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>{queueSel.size} selected</span>
+                  <button className="btn btn-primary btn-sm" disabled={bulkBusy} onClick={() => bulkReview('published')}>✓ Confirm selected</button>
+                  <button className="btn btn-secondary btn-sm" disabled={bulkBusy} onClick={() => bulkReview('dismissed')}>Dismiss selected</button>
+                </span>
+              )}
+            </div>
             <table className="table">
-              <thead><tr><th>Publication</th><th>Story</th><th>Date</th><th>Source</th><th></th></tr></thead>
+              <thead><tr>
+                <th style={{ width: 28 }}><input type="checkbox" title="Select all" checked={queue.length > 0 && queueSel.size === queue.length} onChange={toggleQueueSelAll} /></th>
+                <th>Publication</th><th>Story</th><th>Date</th><th>Source</th><th></th>
+              </tr></thead>
               <tbody>
                 {queue.map((r) => (
-                  <tr key={r.id}>
+                  <tr key={r.id} style={queueSel.has(r.id) ? { background: 'var(--accent-soft)' } : undefined}>
+                    <td><input type="checkbox" checked={queueSel.has(r.id)} onChange={() => toggleQueueSel(r.id)} /></td>
                     <td>{r.outlet || '—'}</td>
                     <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 70)}</a> : (r.story_title || '—')}</td>
                     <td>{fmtDate(r.issue_date)}</td>
@@ -854,7 +889,7 @@ export default function ClientPRPage() {
                     </td>
                   </tr>
                 ))}
-                {!queue.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>Nothing awaiting review. Run a search or wait for the scheduled check.</td></tr>}
+                {!queue.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>Nothing awaiting review. Run a search or wait for the scheduled check.</td></tr>}
               </tbody>
             </table>
           </div>

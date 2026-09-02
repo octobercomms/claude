@@ -451,6 +451,25 @@ router.get('/clients/:clientId/review-queue', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Bulk-triage the review queue: confirm (status='published') or dismiss a set of
+// found items in one go. Unlike the single-item PATCH this does NOT fire a
+// per-item "you've been featured" client alert — bulk triage would otherwise
+// blast the client one email per row; confirm items individually to notify.
+router.patch('/clients/:clientId/review-queue/bulk', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const status = String(b.status || '');
+    if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const ids = Array.isArray(b.ids) ? b.ids.filter(Boolean) : [];
+    if (!ids.length) return res.json({ updated: 0 });
+    const { rowCount } = await db.query(
+      `UPDATE pr_editorial_log SET status = $1 WHERE client_id = $2 AND status = 'new' AND id = ANY($3::uuid[])`,
+      [status, req.params.clientId, ids.map(String)]
+    );
+    res.json({ updated: rowCount });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // Get (or create) the client's public coverage-portal token.
 router.get('/clients/:clientId/portal', async (req, res) => {
   try {
