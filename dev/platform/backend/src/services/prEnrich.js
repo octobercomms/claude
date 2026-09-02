@@ -69,7 +69,7 @@ async function runEnrichmentBatch({ limit = 150 } = {}) {
   const { rows } = await db.query(
     `SELECT c.id
      FROM outreach_contacts c
-     WHERE c.kind IN ('media','industry')
+     WHERE c.kind = 'media'
        AND EXISTS (SELECT 1 FROM pr_editorial_log l WHERE l.contact_id = c.id AND l.story_title <> '')
        AND (c.last_enriched_at IS NULL OR c.last_enriched_at < NOW() - ($2 || ' days')::interval)
      ORDER BY c.last_enriched_at ASC NULLS FIRST

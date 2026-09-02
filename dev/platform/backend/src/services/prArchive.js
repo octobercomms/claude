@@ -50,7 +50,7 @@ async function findStale(limit = 80) {
     `SELECT c.id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, o.name AS outlet
        FROM outreach_contacts c
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
-      WHERE c.kind IN ('media','industry') AND c.availability_status = 'active'
+      WHERE c.kind = 'media' AND c.availability_status = 'active'
         AND (c.last_byline_check IS NULL OR c.last_byline_check < NOW() - INTERVAL '90 days')
         AND NOT EXISTS (
           SELECT 1 FROM pr_editorial_log l

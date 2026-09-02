@@ -1650,8 +1650,8 @@ function ContactsLibrary() {
     p.set('include_count', '1');
     p.set('limit', String(PAGE));
     if (search.trim()) p.set('search', search.trim());
-    if (kindFilter === 'press') p.set('kind', 'media,industry');
-    else if (kindFilter === 'prospect') p.set('kind', 'prospect');
+    if (kindFilter === 'press') p.set('kind', 'media');
+    else if (kindFilter === 'prospect') p.set('kind', 'prospect,industry');
     if (activeTags.size) p.set('tags_all', Array.from(activeTags).join(','));
     return p;
   }
@@ -1673,8 +1673,8 @@ function ContactsLibrary() {
   function filterBody() {
     const o = {};
     if (search.trim()) o.search = search.trim();
-    if (kindFilter === 'press') o.kind = ['media', 'industry'];
-    else if (kindFilter === 'prospect') o.kind = ['prospect'];
+    if (kindFilter === 'press') o.kind = ['media'];
+    else if (kindFilter === 'prospect') o.kind = ['prospect', 'industry'];
     if (activeTags.size) o.tags_all = Array.from(activeTags);
     return o;
   }

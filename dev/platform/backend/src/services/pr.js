@@ -126,7 +126,7 @@ async function resolveContact(name, outletId) {
   const found = await db.query(
     `SELECT id FROM outreach_contacts
      WHERE lower(first_name) = lower($1) AND lower(last_name) = lower($2)
-       AND kind IN ('media','industry') LIMIT 1`,
+       AND kind = 'media' LIMIT 1`,
     [first, last]
   );
   if (found.rows.length) return found.rows[0].id;

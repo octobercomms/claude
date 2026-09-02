@@ -269,10 +269,11 @@ router.get('/system-status', async (_req, res) => {
 // only returns contacts the AM has explicitly attached to the client.
 //
 // `kind` walls the two worlds apart: the business-outreach surfaces ask for
-// kind=prospect (a client's own private contacts), the press surfaces ask for
-// kind=media,industry (the shared media list). Defaulting to 'prospect' is
-// fail-closed — a caller that forgets can never leak journalists into a
-// client's business list.
+// the private per-client kinds (prospect + industry), the press surfaces ask
+// for kind=media (the shared media list). Only 'media' is the shared press
+// list; 'prospect' and 'industry' are a client's own private contacts.
+// Defaulting to the business kinds is fail-closed — a caller that forgets can
+// never leak journalists into a client's business list.
 router.get('/contacts', async (req, res) => {
   const { client_id, contact_type, location, search, exclude_campaign, tag, tags_all, tags_any, kind } = req.query;
   if (!client_id) return res.status(400).json({ error: 'client_id required' });
@@ -281,7 +282,7 @@ router.get('/contacts', async (req, res) => {
     const params = [client_id];
     const kinds = kind
       ? (Array.isArray(kind) ? kind : String(kind).split(',').map(s => s.trim()).filter(Boolean))
-      : ['prospect'];
+      : ['prospect', 'industry'];
     if (kinds.length) { params.push(kinds); where.push(`c.kind = ANY($${params.length})`); }
     if (contact_type) { params.push(contact_type); where.push(`c.contact_type = $${params.length}`); }
     if (location) { params.push(`%${location.toLowerCase()}%`); where.push(`LOWER(COALESCE(c.location, '')) LIKE $${params.length}`); }
@@ -919,10 +920,11 @@ router.post('/clients/:clientId/contacts/attach', async (req, res) => {
     return res.status(400).json({ error: 'contact_ids array required' });
   }
   try {
-    // Prospect isolation: a client's private business contact belongs to
-    // exactly one client and must never be attached to another. Media /
-    // industry (the shared press list) may live on many clients, so the
-    // guard only blocks prospects already attached to a *different* client.
+    // Per-client isolation: a client's private business contact (prospect or
+    // industry) belongs to exactly one client and must never be attached to
+    // another. Only 'media' (the shared press list) may live on many clients,
+    // so the guard blocks any non-media contact already on a *different*
+    // client.
     const { rows: meta } = await pool.query(
       `SELECT c.id, c.kind,
               EXISTS (SELECT 1 FROM outreach_contact_clients m
@@ -931,7 +933,7 @@ router.post('/clients/:clientId/contacts/attach', async (req, res) => {
         WHERE c.id = ANY($1::uuid[])`,
       [contact_ids, req.params.clientId]
     );
-    const blocked = new Set(meta.filter(r => r.kind === 'prospect' && r.on_other_client).map(r => r.id));
+    const blocked = new Set(meta.filter(r => r.kind !== 'media' && r.on_other_client).map(r => r.id));
     let attached = 0;
     for (const cid of contact_ids) {
       if (blocked.has(cid)) continue;

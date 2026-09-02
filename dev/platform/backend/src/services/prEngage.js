@@ -43,7 +43,7 @@ async function priorityJournalists(limit = 60) {
        FROM outreach_contacts c
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
        LEFT JOIN pr_editorial_log l ON l.contact_id = c.id
-      WHERE c.kind IN ('media','industry') AND c.availability_status = 'active'
+      WHERE c.kind = 'media' AND c.availability_status = 'active'
         AND c.email <> '' AND c.email NOT LIKE '%@import.local'
       GROUP BY c.id, o.name, o.tier
       HAVING o.tier = '1' OR COUNT(*) FILTER (WHERE l.status IN ('published','download')) >= 2

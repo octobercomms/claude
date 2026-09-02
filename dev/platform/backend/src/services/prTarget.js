@@ -67,7 +67,7 @@ async function findTargets({ clientId, url, brief }) {
        FROM outreach_contacts c
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
        LEFT JOIN pr_editorial_log l ON l.contact_id = c.id AND l.client_id = $2
-      WHERE c.kind IN ('media','industry') AND c.availability_status = 'active'
+      WHERE c.kind = 'media' AND c.availability_status = 'active'
         AND (
           lower(COALESCE(c.enrichment_note,'')) ILIKE ANY($1)
           OR lower(c.beats::text) ILIKE ANY($1)

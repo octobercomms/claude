@@ -331,7 +331,7 @@ export default function ClientPRPage() {
       api.get(`/pr/clients/${id}/journalists`).then((r) => setJournalists(r.items || [])),
       api.get(`/pr/clients/${id}/warm-journalists`).then((r) => setWarmJournalists(r.items || [])).catch(() => {}),
       api.get(`/press/clients/${id}/releases`).then((r) => setPressReleases(Array.isArray(r) ? r : (r.items || []))).catch(() => {}),
-      api.get(`/outreach/contacts?client_id=${id}&kind=media,industry`).then((r) => setPressContacts(Array.isArray(r) ? r : (r.items || r.contacts || []))).catch(() => {}),
+      api.get(`/outreach/contacts?client_id=${id}&kind=media`).then((r) => setPressContacts(Array.isArray(r) ? r : (r.items || r.contacts || []))).catch(() => {}),
     ]).catch((e) => toast(e.message, 'error')).finally(() => setLoading(false));
   }
   function reloadPress() {

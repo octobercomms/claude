@@ -27,7 +27,7 @@ async function candidatePool(clientId, cap = 250) {
             (occ.contact_id IS NOT NULL) AS on_client_list
        FROM outreach_contacts oc
        LEFT JOIN outreach_contact_clients occ ON occ.contact_id = oc.id AND occ.client_id = $1 AND occ.unsubscribed_at IS NULL
-      WHERE oc.kind IN ('media','industry')
+      WHERE oc.kind = 'media'
         AND oc.email IS NOT NULL AND oc.email <> ''
         AND (oc.status IS NULL OR oc.status <> 'do_not_contact')
         AND oc.bounced_at IS NULL
@@ -106,7 +106,7 @@ async function suggestTags({ releaseId }) {
   const { rows: tagRows } = await pool.query(
     `SELECT t AS tag, COUNT(*)::int AS count
        FROM outreach_contacts c CROSS JOIN LATERAL UNNEST(c.tags) t
-      WHERE c.kind IN ('media','industry') AND c.email IS NOT NULL AND c.email <> ''
+      WHERE c.kind = 'media' AND c.email IS NOT NULL AND c.email <> ''
         AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
       GROUP BY t ORDER BY count DESC LIMIT 200`
   );

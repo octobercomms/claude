@@ -182,7 +182,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   useEffect(() => {
     Promise.all([
       api.get(`/clients/${id}`),
-      api.get(`/outreach/contacts?client_id=${id}&kind=prospect`),
+      api.get(`/outreach/contacts?client_id=${id}&kind=prospect,industry`),
       api.get(`/outreach/campaigns?client_id=${id}`),
       api.get(`/outreach/stats?client_id=${id}`).catch(() => null),
       api.get(`/outreach/system-status`).catch(() => []),
@@ -828,7 +828,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         clientIdForAttach={id}
         onImported={async () => {
           try {
-            const fresh = await api.get(`/outreach/contacts?client_id=${id}&kind=prospect`);
+            const fresh = await api.get(`/outreach/contacts?client_id=${id}&kind=prospect,industry`);
             setContacts(fresh);
           } catch (err) { toast(err.message, 'error'); }
         }}
