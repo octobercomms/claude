@@ -374,6 +374,19 @@ function CoveragePanel({ profile, err, entityLabel = 'contact' }) {
           </div>
         )}
       </div>
+      {Array.isArray(profile.latest_articles) && profile.latest_articles.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Latest articles <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from their outlet's feed</span></div>
+          <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflow: 'auto' }}>
+            {profile.latest_articles.map((a, i) => (
+              <div key={i} style={{ padding: '7px 10px', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 13 }}>
+                {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{(a.title || a.url).slice(0, 100)}</a> : (a.title || '—')}
+                {a.published_at && <span style={{ color: 'var(--text-subtle)', fontSize: 11 }}> · {fmtDate(a.published_at)}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {coverage.length === 0 ? (
         <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>No coverage logged for this {entityLabel} yet.</p>
       ) : (
