@@ -29,7 +29,27 @@ const { assertPublicHttpUrl } = require('../utils/urlSafety');
 // FEATURE_DEFAULTS) — the pitch and follow-ups are the writing that has to be
 // genuinely intelligent and personal, so they get the best model unless the AM
 // deliberately routes them down for cost.
-const PRESS_SYSTEM = 'You are a senior PR consultant at October Communications writing personal, high-quality journalist pitches. British English. Direct, human, never marketing-speak.';
+const PRESS_SYSTEM = 'You are a senior PR consultant at October Communications writing personal, high-quality journalist pitches. Direct, human, never marketing-speak. Match the spelling and date conventions of the release you are given.';
+
+// Decide whether a release is written in US or British English so the generated
+// pitch mirrors it — Daniel works across both markets, and a US release must not
+// come back with British spelling or "8 November" dates (his #3). Heuristic on
+// the release's own dateline + text; defaults to British for October's base.
+function detectLocale(release) {
+  const text = `${release.dateline || ''} ${(release.body_html || release.summary || '').replace(/<[^>]+>/g, ' ')}`.toLowerCase();
+  const usHits = (text.match(/\b(color|honor|favor|organiz|realiz|center|theater|traveler|defense|\d{1,2}\/\d{1,2}\/\d{2,4}|[a-z]+ \d{1,2}, \d{4})\b/g) || []).length
+    + (/\b(new york|los angeles|chicago|san francisco|miami|boston|washington|texas|california|usa|u\.s\.)\b/.test(text) ? 2 : 0);
+  const ukHits = (text.match(/\b(colour|honour|favour|organis|realis|centre|theatre|traveller|defence|\d{1,2} (january|february|march|april|may|june|july|august|september|october|november|december))\b/g) || []).length
+    + (/\b(london|manchester|edinburgh|uk|united kingdom|britain)\b/.test(text) ? 2 : 0);
+  return usHits > ukHits ? 'US' : 'UK';
+}
+
+// The instruction we hand Claude so its writing matches the release's market.
+function localeGuide(release) {
+  return detectLocale(release) === 'US'
+    ? 'Write in US English — American spelling (color, organize, center) and US date format (e.g. "November 8, 2026" / month-day-year). Mirror the release; never convert its spelling or dates to British.'
+    : 'Write in British English — British spelling (colour, organise, centre) and UK date format (e.g. "8 November 2026" / day-month-year). Mirror the release; never convert its spelling or dates to American.';
+}
 
 // Fetch a downloadfor.press URL (or any public press page) and pull out
 // the structured content. downloadfor.press is WordPress + Elementor so
@@ -58,6 +78,12 @@ async function fetchAndParse(url) {
   $('[data-elementor-type="footer"]').remove();
   $('form, .elementor-form, .gform_wrapper, [class*="form-fields"]').remove();
   $('script, style, noscript, iframe').remove();
+
+  // downloadfor.press (Elementor) emits the SAME content twice — a desktop copy
+  // and a mobile copy — using responsive-visibility classes, so a naive scrape
+  // embeds the whole release twice (Daniel's #9). Keep the desktop copy and drop
+  // anything Elementor hides on desktop (i.e. the mobile/tablet duplicates).
+  $('.elementor-hidden-desktop, .elementor-hidden-widescreen, .elementor-hidden-laptop').remove();
 
   // og: tags are reliable; use them as the source of truth for title +
   // hero image. Fall back to the H1 + first img on the page.
@@ -151,7 +177,7 @@ function extractDateline($, bodyEl) {
 // in-app — Claude reads the plain text version.
 function cleanBodyHtml(html, baseUrl) {
   const $ = cheerio.load(`<root>${html}</root>`);
-  const allowed = new Set(['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'a', 'img', 'blockquote']);
+  const allowed = new Set(['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'a', 'img', 'blockquote', 'figure', 'figcaption']);
   $('root *').each((_, el) => {
     const tag = el.tagName?.toLowerCase();
     if (!allowed.has(tag)) {
@@ -198,13 +224,69 @@ function splitOnBoilerplate(html) {
 // (pitch + link + hero).
 const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// Render an AM-configured signature/footer block (plain text with line breaks)
-// so pitches + follow-ups end with a real, personal footer the AM controls.
+// Render an AM-configured signature/footer block. Daniel signs off with a logo
+// image / gif and a small table, so this is treated as trusted HTML (it's the
+// AM's own footer for their own client) — a plain-text footer still works, its
+// line breaks are turned into <br>. HTML is detected by a tag heuristic.
 function signatureBlock(signature) {
   const sig = String(signature || '').trim();
   if (!sig) return '';
-  const html = escapeHtml(sig).replace(/\n/g, '<br>');
-  return `<div style="margin:14px 0 0;font-size:13px;color:#666;line-height:1.5;">${html}</div>`;
+  const looksHtml = /<[a-z][\s\S]*>/i.test(sig);
+  const inner = looksHtml ? sig : escapeHtml(sig).replace(/\n/g, '<br>');
+  return `<div style="margin:14px 0 0;font-size:13px;color:#444;line-height:1.5;">${inner}</div>`;
+}
+
+// The full release, cleaned for embedding in the email so it mirrors how Daniel
+// sends it (a branded card under the personal note), and fixes the scrape
+// artefacts he flagged:
+//  * a leading heading/hero that just repeats what we render ourselves (#4)
+//  * the whole release duplicated by the page's mobile+desktop markup (#9)
+//  * "Download media assets" capture chrome we replace with our own button (#8)
+//  * runaway image widths (#1) and unstyled captions (#5)
+function renderEmbeddedRelease(release) {
+  if (!release.body_html) return '';
+  let $;
+  try { $ = cheerio.load(`<root>${release.body_html}</root>`); }
+  catch { return release.body_html; }
+  const root = $('root');
+  const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const titleNorm = norm(release.title);
+  const heroSrc = release.hero_image;
+
+  // Drop a leading heading that only repeats the release title (#4).
+  const firstHeading = root.find('h1,h2,h3').first();
+  if (firstHeading.length && titleNorm && norm(firstHeading.text()) === titleNorm) firstHeading.remove();
+
+  // Drop images that repeat the hero we render once ourselves (#4).
+  root.find('img').each((_, el) => {
+    const src = $(el).attr('src');
+    if (heroSrc && src && src === heroSrc) {
+      const fig = $(el).closest('figure');
+      (fig.length ? fig : $(el)).remove();
+    }
+  });
+
+  // Constrain every remaining image + style captions (#1, #5).
+  root.find('img').each((_, el) => {
+    $(el).attr('style', 'display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:3px;margin:10px 0;');
+    $(el).removeAttr('width'); $(el).removeAttr('height');
+  });
+  root.find('figure').each((_, el) => $(el).attr('style', 'margin:14px 0;'));
+  root.find('figcaption').each((_, el) => $(el).attr('style', 'font-size:12px;color:#666;line-height:1.4;margin:6px 0 14px;'));
+
+  // Remove "Download media/hi-res assets" capture chrome (#8) and de-duplicate
+  // block-level content the page emitted twice for responsive layouts (#9).
+  const seen = new Set();
+  root.children().each((_, el) => {
+    const t = norm($(el).text());
+    if (/download\s+(the\s+)?(media|hi.?res|press)?\s*(assets|images|kit)/.test(t) && t.length < 140 && !$(el).find('img').length) { $(el).remove(); return; }
+    if (t.length >= 30) {
+      if (seen.has(t)) { $(el).remove(); return; }
+      seen.add(t);
+    }
+  });
+
+  return root.html() || '';
 }
 
 function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, contactId, clientId, campaignId, signature }) {
@@ -212,34 +294,38 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
     .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(p)}</p>`)
     .join('');
   const hero = includeHero && release.hero_image
-    ? `<div style="margin:18px 0 6px;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title)}" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:2px;" /></div>`
+    ? `<div style="margin:0 0 14px;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title)}" style="display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:3px;" /></div>`
     : '';
-  const releaseLink = `<p style="margin:18px 0 0;font-size:15px;line-height:1.6;color:#1a1a1a;"><strong>Press release</strong> 👉 <a href="${escapeHtml(release.source_url)}" style="color:#1a1a1a;">${escapeHtml(release.source_url)}</a></p>`;
 
-  // Embedded-release block — divider, headline as a heading, hero, then
-  // the cleaned body HTML (which already preserves paragraphs, lists,
-  // inline images). cleanBodyHtml + the parser pass keep this safe to
-  // splice into the email shell without re-sanitising.
-  const embeddedBody = (embedFull && release.body_html) ? `
-    <div style="margin:22px 0 8px;border-top:1px solid #e6e6e6;padding-top:22px;">
-      ${release.title ? `<h2 style="margin:0 0 14px;font-size:20px;line-height:1.3;color:#1a1a1a;font-weight:700;">${escapeHtml(release.title)}</h2>` : ''}
-      ${hero}
-      <div style="font-size:15px;line-height:1.65;color:#1a1a1a;">
-        ${release.body_html}
-      </div>
-      ${release.boilerplate ? `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #f0f0f0;font-size:12px;line-height:1.5;color:#666;">${release.boilerplate}</div>` : ''}
-    </div>
-    <p style="margin:18px 0 0;font-size:13px;color:#666;line-height:1.5;">View the original release: <a href="${escapeHtml(release.source_url)}" style="color:#1a4f9c;">${escapeHtml(release.source_url)}</a></p>
-  ` : '';
+  // A single, clear call to action linking to the release page — mirrors the
+  // "Download Hi-Res Images" button on Daniel's own sends (#10).
+  const downloadBtn = release.source_url ? `
+    <div style="margin:20px 0 4px;">
+      <a href="${escapeHtml(release.source_url)}" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 20px;border-radius:6px;">Download hi-res images &amp; full release &rarr;</a>
+    </div>` : '';
 
-  const signatureHtml = sender ? `
-    <p style="margin:24px 0 0;font-size:15px;color:#1a1a1a;">${escapeHtml(sender.first_name || sender.name || 'Daniel')}</p>
-    <p style="margin:14px 0 0;font-size:13px;color:#666;line-height:1.5;">
+  // Sign-off directly under the personal note, so the intro reads as a complete
+  // email signed by the AM (#2), followed by the configurable footer.
+  const signOff = sender ? `
+    <p style="margin:22px 0 0;font-size:15px;color:#1a1a1a;">${escapeHtml(sender.first_name || sender.name || 'Daniel')}</p>
+    <p style="margin:12px 0 0;font-size:13px;color:#444;line-height:1.5;">
       <strong style="color:#1a1a1a;">${escapeHtml(sender.name || 'Daniel Nelson')}</strong><br>
       ${escapeHtml(sender.company || 'October Communications')}
     </p>
-    ${signatureBlock(signature)}` : '';
+    ${signatureBlock(signature)}` : signatureBlock(signature);
   const greeting = recipientName ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(recipientName.split(' ')[0])},</p>` : '';
+
+  // Embedded release — a light card under the note, headline + hero once, the
+  // cleaned body, then "Notes to editors" in black (not grey) (#7).
+  const embeddedBody = (embedFull && release.body_html) ? `
+    <div style="margin:24px 0 8px;background:#f6f6f4;border-radius:8px;padding:22px;">
+      ${hero}
+      ${release.title ? `<h2 style="margin:${hero ? '4' : '0'}px 0 14px;font-size:19px;line-height:1.3;color:#1a1a1a;font-weight:700;">${escapeHtml(release.title)}</h2>` : ''}
+      <div style="font-size:15px;line-height:1.65;color:#1a1a1a;">
+        ${renderEmbeddedRelease(release)}
+      </div>
+      ${release.boilerplate ? `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e2de;font-size:13px;line-height:1.55;color:#1a1a1a;">${release.boilerplate}</div>` : ''}
+    </div>` : '';
 
   // Unsubscribe footer — required by UK PECR / CAN-SPAM and increasingly
   // by Gmail + Yahoo for sender reputation. Stateless HMAC-signed URL,
@@ -260,23 +346,22 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
     } catch {}
   }
 
-  // Layout: pitch first, then either the embedded release or the
-  // legacy link+hero pair, then signature + unsub.
-  const releaseSection = embedFull && release.body_html
-    ? embeddedBody
-    : `${releaseLink}${hero}`;
+  // Layout: personal note → sign-off → download button → the release
+  // (embedded card, or just the hero when the AM turns embedding off).
+  const releaseSection = embedFull && release.body_html ? embeddedBody : hero;
 
   return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>${escapeHtml(release.title)}</title></head>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(release.title)}</title></head>
 <body style="margin:0;padding:0;background:#ffffff;font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:24px 12px;">
     <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;padding:0 24px;">
-        <tr><td>
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;">
+        <tr><td style="padding:0 4px;">
           ${greeting}
           ${pitchHtml}
+          ${signOff}
+          ${downloadBtn}
           ${releaseSection}
-          ${signatureHtml}
           ${unsubFooter}
         </td></tr>
       </table>
@@ -296,15 +381,15 @@ function buildFollowUpHtml({ release, body, sender, recipientName, includeHero =
     .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(p)}</p>`)
     .join('');
   const hero = includeHero && release.hero_image
-    ? `<div style="margin:16px 0 6px;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title || '')}" style="display:block;width:100%;max-width:520px;height:auto;border:0;border-radius:2px;" /></div>`
+    ? `<div style="margin:16px 0 6px;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title || '')}" style="display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:3px;" /></div>`
     : '';
   const signatureHtml = sender ? `
-    <p style="margin:24px 0 0;font-size:15px;color:#1a1a1a;">${escapeHtml(sender.first_name || sender.name || 'Daniel')}</p>
-    <p style="margin:14px 0 0;font-size:13px;color:#666;line-height:1.5;">
+    <p style="margin:22px 0 0;font-size:15px;color:#1a1a1a;">${escapeHtml(sender.first_name || sender.name || 'Daniel')}</p>
+    <p style="margin:12px 0 0;font-size:13px;color:#444;line-height:1.5;">
       <strong style="color:#1a1a1a;">${escapeHtml(sender.name || 'Daniel Nelson')}</strong><br>
       ${escapeHtml(sender.company || 'October Communications')}
     </p>
-    ${signatureBlock(signature)}` : '';
+    ${signatureBlock(signature)}` : signatureBlock(signature);
   let unsubFooter = '';
   if (contactId) {
     try {
@@ -320,12 +405,12 @@ function buildFollowUpHtml({ release, body, sender, recipientName, includeHero =
     } catch {}
   }
   return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>${escapeHtml(release.title || '')}</title></head>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(release.title || '')}</title></head>
 <body style="margin:0;padding:0;background:#ffffff;font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:24px 12px;">
     <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;padding:0 24px;">
-        <tr><td>
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;">
+        <tr><td style="padding:0 4px;">
           ${greeting}
           ${bodyHtml}
           ${hero}
@@ -368,7 +453,7 @@ Journalist:
  - Beat: ${journalist.contact_type || journalist.role || '(unknown)'}
  - Location: ${journalist.location || '(unknown)'}
 
-Return ONLY the email body paragraphs (no greeting, no sign-off, no Subject:). British English.`;
+Return ONLY the email body paragraphs (no greeting, no sign-off, no Subject:). ${localeGuide(release)}`;
 
   return (await claude.callClaude({
     max_tokens: 500, system: PRESS_SYSTEM, user: prompt,
@@ -406,7 +491,7 @@ Journalist:
  - Outlet: ${journalist.company || '(unknown)'}
  - Beat: ${journalist.contact_type || journalist.role || '(unknown)'}
 
-Return ONLY a JSON array of three objects: [{ "subject": "...", "body": "..." }, ...]. Subjects under 60 characters. British English. No preamble.`;
+Return ONLY a JSON array of three objects: [{ "subject": "...", "body": "..." }, ...]. Subjects under 60 characters. ${localeGuide(release)} No preamble.`;
 
   const text = (await claude.callClaude({
     max_tokens: 1500, system: PRESS_SYSTEM, user: prompt,
@@ -510,7 +595,7 @@ Rules:
 - Under 65 characters each.
 - Specific and concrete — use the real names, numbers, and the actual story. No vague teasers, no clickbait, no "Press release:" prefix.
 - Order them strongest-first.
-- British English.
+- ${localeGuide(release)}
 
 HEADLINE: ${release.title}
 RELEASE:
