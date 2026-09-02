@@ -107,7 +107,7 @@ function bylineOlderThan(byline, ms) {
 async function sweep({ limit = 15, log = () => {} } = {}) {
   const { rows } = await pool.query(
     `SELECT id, name, company FROM outreach_contacts
-      WHERE kind IN ('media','industry') AND name IS NOT NULL AND name <> ''
+      WHERE kind = 'media' AND name IS NOT NULL AND name <> ''
         AND (status IS NULL OR status <> 'do_not_contact')
         AND (last_byline_check IS NULL OR last_byline_check < NOW() - INTERVAL '45 days')
       ORDER BY last_byline_check NULLS FIRST

@@ -615,7 +615,7 @@ router.get('/outlets/:outletId', async (req, res) => {
       [req.params.outletId]
     );
     const journos = await db.query(
-      "SELECT id, TRIM(CONCAT(first_name,' ',last_name)) AS name FROM outreach_contacts WHERE outlet_id = $1 AND kind IN ('media','industry') ORDER BY last_name LIMIT 100",
+      "SELECT id, TRIM(CONCAT(first_name,' ',last_name)) AS name FROM outreach_contacts WHERE outlet_id = $1 AND kind = 'media' ORDER BY last_name LIMIT 100",
       [req.params.outletId]
     );
     res.json({ ...o.rows[0], coverage: coverage.rows, journalists: journos.rows });

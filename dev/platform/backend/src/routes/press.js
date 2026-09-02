@@ -202,7 +202,7 @@ router.get('/tags', async (_req, res) => {
     const { rows } = await pool.query(
       `SELECT t AS tag, COUNT(*)::int AS count
          FROM outreach_contacts c CROSS JOIN LATERAL UNNEST(c.tags) t
-        WHERE c.kind IN ('media','industry') AND c.email IS NOT NULL AND c.email <> ''
+        WHERE c.kind = 'media' AND c.email IS NOT NULL AND c.email <> ''
           AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
         GROUP BY t ORDER BY count DESC, t ASC LIMIT 300`
     );
@@ -219,7 +219,7 @@ router.get('/audience', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT id, name, email, company, contact_type, tags
          FROM outreach_contacts c
-        WHERE c.kind IN ('media','industry') AND c.email IS NOT NULL AND c.email <> ''
+        WHERE c.kind = 'media' AND c.email IS NOT NULL AND c.email <> ''
           AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
           AND c.tags && $1::text[]
         ORDER BY c.name LIMIT 20000`,
@@ -253,7 +253,7 @@ router.post('/clients/:clientId/import-smart', async (req, res) => {
 router.get('/journalists', async (req, res) => {
   const { search, tag, beat, outlet, location } = req.query;
   const where = [
-    `oc.kind IN ('media','industry')`,
+    `oc.kind = 'media'`,
     `oc.email IS NOT NULL AND oc.email <> ''`,
     `(oc.status IS NULL OR oc.status <> 'do_not_contact')`,
     `oc.bounced_at IS NULL`,

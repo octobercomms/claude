@@ -311,7 +311,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
 
   useEffect(() => {
     if (mode !== 'existing') return;
-    const params = new URLSearchParams({ client_id: clientId, exclude_campaign: campaign.id, kind: 'prospect' });
+    const params = new URLSearchParams({ client_id: clientId, exclude_campaign: campaign.id, kind: 'prospect,industry' });
     if (filter.contact_type) params.set('contact_type', filter.contact_type);
     if (filter.location) params.set('location', filter.location);
     if (filter.search) params.set('search', filter.search);
