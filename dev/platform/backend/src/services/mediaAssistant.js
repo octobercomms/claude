@@ -26,11 +26,11 @@ const SYSTEM = `You are the media-desk assistant for October, a PR & communicati
 When the account manager pastes a LINK to a directory or listing page (e.g. a Feedspot "best architecture RSS feeds" page, an awards list, a "top 50 magazines" article), use fetch_page to READ that page, then extract the individual publications from its links and text — each publication's name, its own website, and its RSS feed URL if the page lists one — and propose an add_publication for each. Use the rss_url field when the page gives you the feed directly (skip a lookup); otherwise leave it out and the system will find the feed. Ignore the directory site's own nav/social/advert links.
 
 Rules:
-- Always finish your turn by calling propose_actions (with an empty actions list if there's genuinely nothing to change, plus a short reply explaining).
-- Never claim you've added, saved, tagged, or updated anything — you only propose. Say "I'll propose…", not "I've added…".
+- Proposing IS calling the propose_actions tool. NEVER say "I'll propose…" or "I'll now add…" as prose and stop — that does nothing and frustrates the user. If you have the details, put them in a propose_actions call THIS turn. Always finish by calling propose_actions (empty actions + a short reply only if there's genuinely nothing to change).
+- Never claim you've added, saved, tagged, or updated anything — the user approves your proposal first.
 - Be specific and British English. Prefer a publication's own website over social/Wikipedia/directory pages.
 - If something is ambiguous (which client? which of two people?), ask in the reply and propose what you can.
-- A directory can list many publications — it's fine to propose 30-50 at once; the AM approves them in one click.`;
+- A directory can list many publications — propose up to 40 in one call (the user approves them in one click). If there are more, propose the first 40 and say how many remain so they can ask for the rest.`;
 
 function makeTools() {
   return [
@@ -157,24 +157,42 @@ async function runMessage({ history = [], message, maxSteps = 6 } = {}) {
   const client = new Anthropic({ apiKey: key });
   const model = (aiModels ? await aiModels.resolveModel('media_db_research') : null) || 'claude-sonnet-4-6';
   const tools = makeTools();
+  const proposeTool = tools.find((t) => t.name === 'propose_actions');
 
   const messages = [
     ...history.slice(-12).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') })),
     { role: 'user', content: String(message || '') },
   ];
 
+  const recordCost = (resp) => { if (costLog?.recordClaudeCost) { try { costLog.recordClaudeCost({ model, response: resp, feature: 'media_assistant' }); } catch { /* best effort */ } } };
+  const done = (propose, resp) => ({ reply: String(propose.input?.reply || textOf(resp) || 'Here’s what I propose.'), actions: normaliseActions(propose.input?.actions) });
+
+  // Force the model to emit a structured proposal now (used when it narrates
+  // "I'll propose…" instead of calling the tool, or when steps run out). Only the
+  // propose_actions tool is offered, so it MUST return actions. Big max_tokens so
+  // a long list (e.g. a directory of publications) isn't truncated mid-call.
+  async function forceProposal() {
+    messages.push({ role: 'user', content: 'Now call propose_actions with the concrete changes based on what you found. Do not reply with prose — the proposal only happens by calling the tool. Propose at most 40 items; if there are more, say so in the reply.' });
+    let resp;
+    try {
+      resp = await client.messages.create({ model, max_tokens: 8000, system: SYSTEM, tools: [proposeTool], tool_choice: { type: 'tool', name: 'propose_actions' }, messages });
+    } catch (e) { return { reply: `I found the details but couldn’t assemble the proposal: ${e.message}`, actions: [] }; }
+    recordCost(resp);
+    const propose = (resp.content || []).find((b) => b.type === 'tool_use' && b.name === 'propose_actions');
+    return propose ? done(propose, resp) : { reply: 'I couldn’t settle on concrete changes — try narrowing it down.', actions: [] };
+  }
+
   for (let step = 0; step < maxSteps; step++) {
     let resp;
     try {
-      resp = await client.messages.create({ model, max_tokens: 2000, system: SYSTEM, tools, messages });
+      resp = await client.messages.create({ model, max_tokens: 8000, system: SYSTEM, tools, messages });
     } catch (e) { return { reply: `Research failed: ${e.message}`, actions: [] }; }
-    if (costLog?.recordClaudeCost) { try { costLog.recordClaudeCost({ model, response: resp, feature: 'media_assistant' }); } catch { /* best effort */ } }
+    recordCost(resp);
 
     const toolUses = (resp.content || []).filter((b) => b.type === 'tool_use');
     const propose = toolUses.find((t) => t.name === 'propose_actions');
-    if (propose) {
-      return { reply: String(propose.input?.reply || textOf(resp) || 'Here’s what I propose.'), actions: normaliseActions(propose.input?.actions) };
-    }
+    if (propose) return done(propose, resp);
+
     const clientCalls = toolUses.filter((t) => t.name === 'search_database' || t.name === 'fetch_page');
     if (clientCalls.length) {
       messages.push({ role: 'assistant', content: resp.content });
@@ -188,12 +206,13 @@ async function runMessage({ history = [], message, maxSteps = 6 } = {}) {
       messages.push({ role: 'user', content: results });
       continue;
     }
-    // web_search runs server-side within the call; if we only got text back and
-    // no propose, return it as a plain reply.
-    const t = textOf(resp);
-    if (t) return { reply: t, actions: [] };
+    // The model replied with prose and no tool call — the "I'll propose…" trap.
+    // Push its text, then force a real proposal instead of returning the narration.
+    messages.push({ role: 'assistant', content: resp.content });
+    return await forceProposal();
   }
-  return { reply: 'I looked into that but couldn’t settle on concrete changes — can you give me a bit more detail?', actions: [] };
+  // Ran out of research steps — force a final proposal from what we have.
+  return await forceProposal();
 }
 
 function normaliseActions(actions) {
