@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 // → save. Saving creates both the press_release row and a backing
 // campaign (kind='press_release') in one shot.
 //
-// `initialUrl` lets the unified NewCampaignModal launch this with the
+// `initialUrl` lets the caller (Earned → Pitch) launch this with the
 // URL already filled in — we auto-fetch on mount so the AM lands
 // directly on the parsed preview.
 export default function PressCampaignWizard({ clientId, initialUrl = '', onClose, onCreated }) {

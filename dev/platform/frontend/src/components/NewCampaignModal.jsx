@@ -1,18 +1,21 @@
-// Unified "+ New campaign" entry point. One button on the Email page
-// opens this; the campaign-type dropdown picks the flow:
-//   outreach      — creates the campaign and opens CampaignWizard
-//   press_release — collects the URL, hands off to PressCampaignWizard
-//                   with the URL pre-fetched
+// Unified "+ New campaign" entry point for Owned → Email. One button opens
+// this; the lane picker chooses which prospecting engine to start:
+//   bulk      — cold email from your own contact list. Creates the campaign
+//               and opens CampaignWizard.
+//   selective — AI sources + fit-scores prospects, you approve each. Hands off
+//               to the Selective tab (its own engine + sending identity) where
+//               the AM names the campaign and sets the ICP.
+//
+// Press releases are NOT started here — they live in Earned → Pitch.
 
 import React, { useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
-export default function NewCampaignModal({ clientId, onClose, onCreated, onPickPress }) {
+export default function NewCampaignModal({ clientId, onClose, onCreated, onPickSelective }) {
   const toast = useToast();
   const [name, setName] = useState('');
-  const [type, setType] = useState('outreach');
-  const [pressUrl, setPressUrl] = useState('');
+  const [lane, setLane] = useState('bulk');
   const [busy, setBusy] = useState(false);
 
   async function submit(e) {
@@ -20,15 +23,9 @@ export default function NewCampaignModal({ clientId, onClose, onCreated, onPickP
     if (busy) return;
     setBusy(true);
     try {
-      if (type === 'press_release') {
-        if (!pressUrl.trim()) {
-          toast('Press release URL is required.', 'error');
-          setBusy(false); return;
-        }
-        // Hand off to the press wizard with the URL — it'll auto-fetch
-        // the parsed preview and save creates both the release row +
-        // the press_release campaign.
-        onPickPress?.(pressUrl.trim());
+      if (lane === 'selective') {
+        // Selective is a separate engine — hand off to its lane.
+        onPickSelective?.();
         return;
       }
       const c = await api.post('/outreach/campaigns', {
@@ -53,14 +50,14 @@ export default function NewCampaignModal({ clientId, onClose, onCreated, onPickP
         </div>
 
         <div className="field">
-          <label className="field-label">Campaign type</label>
-          <select className="input" value={type} onChange={e => setType(e.target.value)}>
-            <option value="outreach">Outreach — cold email sequence</option>
-            <option value="press_release">Press release — pitch journalists</option>
+          <label className="field-label">How do you want to prospect?</label>
+          <select className="input" value={lane} onChange={e => setLane(e.target.value)}>
+            <option value="bulk">Bulk outreach — cold email from your list</option>
+            <option value="selective">Selective — AI sources them, you approve each</option>
           </select>
         </div>
 
-        {type === 'outreach' && (
+        {lane === 'bulk' && (
           <div className="field">
             <label className="field-label">Campaign name</label>
             <input className="input" value={name} onChange={e => setName(e.target.value)}
@@ -68,22 +65,18 @@ export default function NewCampaignModal({ clientId, onClose, onCreated, onPickP
           </div>
         )}
 
-        {type === 'press_release' && (
-          <div className="field">
-            <label className="field-label">Press release URL</label>
-            <input className="input" value={pressUrl} onChange={e => setPressUrl(e.target.value)}
-              placeholder="https://downloadfor.press/press-releases/your-release-slug/"
-              autoFocus />
-            <p className="body-xs text-muted mt-2">
-              We'll fetch the page, preview the parsed release, and stage a 4-step pitch sequence on save.
-            </p>
-          </div>
+        {lane === 'selective' && (
+          <p className="body-xs text-muted mt-2">
+            AI researches and fit-scores prospects and drafts each message — you approve every prospect and every send.
+            It runs from a dedicated sending identity, separate from your main email. We'll take you to the Selective
+            lane to name the campaign and set the ICP.
+          </p>
         )}
 
         <div className="row end mt-5">
           <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? '…' : (type === 'press_release' ? 'Continue →' : 'Create campaign')}
+            {busy ? '…' : (lane === 'selective' ? 'Continue →' : 'Create campaign')}
           </button>
         </div>
       </form>
