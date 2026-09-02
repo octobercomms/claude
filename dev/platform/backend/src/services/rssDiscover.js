@@ -7,11 +7,28 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const pool = require('../db');
 
-const UA = 'Mozilla/5.0 (compatible; OMI-MediaBot/1.0; +https://platform.octobercomms.com)';
+// A real browser UA — a bare bot UA gets 403'd by Cloudflare/WAFs on a lot of
+// news sites, which was making us miss feeds that exist.
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const COMMON_PATHS = [
-  '/feed', '/rss', '/feed.xml', '/rss.xml', '/atom.xml', '/index.xml',
-  '/feeds/posts/default', '/?feed=rss2', '/blog/feed', '/news/feed', '/feed/',
+  // WordPress (most of the interiors/architecture titles) + Ghost + common CMSs.
+  '/feed', '/feed/', '/rss', '/rss/', '/feed.xml', '/rss.xml', '/atom.xml', '/index.xml',
+  '/feed/rss', '/feed/rss/', '/feed/atom/', '/?feed=rss2', '/?feed=atom',
+  '/feeds/posts/default', '/rss/all.xml', '/feeds/all.rss', '/feeds/all.atom.xml',
+  '/blog/feed', '/blog/feed/', '/blog/rss', '/news/feed', '/news/feed/', '/news/rss',
+  '/articles/feed', '/en/feed', '/en/rss', '/latest/rss', '/all/feed',
 ];
+
+// Google News RSS builds a working feed of a publication's recent articles from
+// Google's index — a last-resort fallback so a site with no discoverable native
+// feed still gets one. (Trade-off: Google News items carry the headline + link
+// but no author byline, so these power "latest articles" and outlet activity,
+// not byline-matching. Native feeds are always tried first.)
+function googleNewsFeed(host) {
+  const h = String(host || '').replace(/^www\./, '');
+  if (!h || !h.includes('.')) return null;
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(`site:${h}`)}&hl=en-GB&gl=GB&ceid=GB:en`;
+}
 
 function normBase(outlet) {
   let u = (outlet.url || '').trim();
@@ -54,17 +71,28 @@ async function discover(outlet) {
   if (!base) return null;
   const origin = (() => { try { return new URL(base).origin; } catch { return base; } })();
 
-  // 1) Homepage <link rel="alternate" type="application/rss+xml|atom+xml">.
+  // 1) Homepage <link> pointing at a feed — any <link> whose type or href looks
+  //    like a feed (not just rel="alternate"; some sites use rel="feed" or none).
   try {
     const r = await get(base);
     const $ = cheerio.load(r.data || '');
     const links = [];
-    $('link[rel="alternate"]').each((_, el) => {
+    $('link').each((_, el) => {
       const type = ($(el).attr('type') || '').toLowerCase();
+      const rel = ($(el).attr('rel') || '').toLowerCase();
       const href = $(el).attr('href');
-      if (href && (type.includes('rss') || type.includes('atom') || type.includes('xml'))) links.push(href);
+      if (!href) return;
+      const looksFeed = type.includes('rss') || type.includes('atom') || (type.includes('xml') && (rel.includes('alternate') || rel.includes('feed')))
+        || rel.includes('feed') || /(rss|atom|feed)(\.xml)?(\/|$|\?)/i.test(href);
+      if (looksFeed) links.push(href);
     });
-    for (const href of links) {
+    // <a> tags that link to a feed (common on sites without a <link> tag).
+    $('a[href]').each((_, el) => {
+      if (links.length > 20) return;
+      const href = $(el).attr('href') || '';
+      if (/(\/feed|\/rss|atom\.xml|\/feed\.xml|rss\.xml)(\/|$|\?)/i.test(href)) links.push(href);
+    });
+    for (const href of [...new Set(links)]) {
       let abs;
       try { abs = new URL(href, base).href; } catch { continue; }
       if (await validateFeed(abs)) return { url: base, rss_url: abs };
@@ -76,6 +104,23 @@ async function discover(outlet) {
     const cand = origin + p;
     if (await validateFeed(cand)) return { url: base, rss_url: cand };
   }
+
+  // 3) A feeds.<domain> subdomain (some publishers host feeds there).
+  try {
+    const host = new URL(origin).hostname.replace(/^www\./, '');
+    for (const cand of [`https://feeds.${host}/`, `https://feeds.${host}/rss`]) {
+      if (await validateFeed(cand)) return { url: base, rss_url: cand };
+    }
+  } catch { /* ignore */ }
+
+  // 4) Last resort — a Google News RSS feed for the domain. Always available for
+  //    a real publication; powers "latest articles" even with no native feed.
+  try {
+    const host = new URL(origin).hostname;
+    const gn = googleNewsFeed(host);
+    if (gn && await validateFeed(gn)) return { url: base, rss_url: gn };
+  } catch { /* ignore */ }
+
   return null;
 }
 
