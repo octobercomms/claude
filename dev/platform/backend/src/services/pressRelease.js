@@ -618,7 +618,7 @@ CRITICAL: the journalist may NOT have read the first email, so EACH follow-up mu
 
 Day 5: re-anchor the story, then add one new piece of value not in the original — a fresh quote, an asset, a stat.
 Day 10: re-anchor the story, then re-frame it with an alternative angle relevant to the journalist's beat.
-Day 16: the closing email. Re-anchor the story briefly, then — because a busy journalist often won't write a full reply — offer an easy way to respond. End with EXACTLY this options block (keep the numbers and line breaks):
+Day 16: the closing email. This is a PITCH, not an apology. Do NOT open by apologising, do NOT say things like "I'll stop filling your inbox", "sorry to keep chasing", or "no worries if not". Instead: re-anchor the story in the first sentence (who + the one-line hook + why it's a fit for their beat), remind them of one concrete reason it's worth covering (an asset, a date, an angle), and THEN — because a busy journalist often won't write a full reply — make it effortless to respond with the numbered options below. End with EXACTLY this options block (keep the numbers and line breaks):
 
 Even a one-line reply helps me plan — just hit reply with a number:
 1 — I need more time
@@ -649,8 +649,36 @@ Return ONLY a JSON array of three objects: [{ "subject": "...", "body": "..." },
     feature: 'press_followups', clientId: release.client_id || null,
   })).trim();
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
-  try { return JSON.parse(cleaned); }
+  let followUps;
+  try { followUps = JSON.parse(cleaned); }
   catch { throw new Error('Claude returned malformed follow-up JSON'); }
+
+  // Deterministically guarantee the closing (last) follow-up offers the
+  // 1/2/3 reply options — the model doesn't always include the block, and a
+  // closing email without an easy reply path is the thing Daniel relies on.
+  if (Array.isArray(followUps) && followUps.length) {
+    const last = followUps[followUps.length - 1];
+    if (last && typeof last.body === 'string' && !hasReplyOptions(last.body)) {
+      last.body = `${last.body.replace(/\s+$/, '')}\n\n${REPLY_OPTIONS_BLOCK}`;
+    }
+  }
+  return followUps;
+}
+
+// The exact reply-options block appended to the closing follow-up.
+const REPLY_OPTIONS_BLOCK = `Even a one-line reply helps me plan — just hit reply with a number:
+1 — I need more time
+2 — Not right for me at the moment
+3 — I'm going to feature it`;
+
+// True if the body already carries the numbered reply options (in any of the
+// obvious forms the model might emit), so we don't double it up.
+function hasReplyOptions(body) {
+  const t = String(body);
+  const hasOne = /(^|\n)\s*1\s*[—\-–.):]/.test(t);
+  const hasTwo = /(^|\n)\s*2\s*[—\-–.):]/.test(t);
+  const hasThree = /(^|\n)\s*3\s*[—\-–.):]/.test(t);
+  return hasOne && hasTwo && hasThree;
 }
 
 // Cache the pitch + follow-ups per (release × journalist) so re-opening
