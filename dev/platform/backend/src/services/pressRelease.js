@@ -354,9 +354,12 @@ function captionParts(text) {
   if (!idx.length) return t ? [t] : [];
   return idx.map((start, i) => t.slice(start, i + 1 < idx.length ? idx[i + 1] : t.length).trim()).filter(Boolean);
 }
-function captionHtml(text) {
-  if (!text) return '';
-  return `<div style="font-size:11px;line-height:1.35;color:#8a8a8a;font-style:italic;margin:6px 0 0;text-align:center;">${escapeHtml(text)}</div>`;
+// Captions are intentionally dropped from the embedded release — the scraped
+// "Image: …" credit lines are the noisiest part of the source and Daniel would
+// rather show the photos clean. The layout still detects + removes the caption
+// blocks (so they don't fall through as body text); this just renders nothing.
+function captionHtml(_text) {
+  return '';
 }
 // Return just the <img> for a block (unwrapping figure / p), consistently styled.
 function imgOnly($, el) {
@@ -414,6 +417,14 @@ function layoutImagesAndCaptions($, root) {
       i = j - 1;
     }
   }
+
+  // Final sweep: drop any leftover credit line that wasn't next to an image, so
+  // no "Image: …" text falls through into the body. Only removes blocks that
+  // START with a credit (optionally after a short dateline prefix) — real prose
+  // that merely contains the word "image:" mid-sentence is left alone.
+  root.children().each((_, el) => {
+    if (isCaptionBlock($, el) && /^.{0,40}?image\s*:/i.test($(el).text().replace(/\s+/g, ' ').trim())) $(el).remove();
+  });
 }
 
 function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, contactId, clientId, campaignId, signature }) {
