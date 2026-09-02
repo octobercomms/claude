@@ -295,6 +295,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
   // pressRelease at module load time on installs that aren't using
   // the press feature.
   const pressRelease = require('./pressRelease');
+  const signature = await pressRelease.clientSignature(clientId);
 
   // Step 1's subject lives on the outreach_sequences row so the AM can
   // edit it independently of the release title. Fall back to the
@@ -313,7 +314,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     let h = pressRelease.buildEmailHtml({
       release: releaseWithHero, pitch: cached.intro, sender,
       recipientName: contact.name, embedFull: release.embed_full_release !== false,
-      contactId: contact.id, clientId, campaignId,
+      contactId: contact.id, clientId, campaignId, signature,
     });
     h = rewriteLinksForTracking(h, sendId);
     if (sendId && process.env.PLATFORM_URL) {
@@ -353,7 +354,17 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
       const fu = followUps[idx] || { subject: `Re: ${release.title}`, body: '' };
       subject = stepSubject || fu.subject || `Re: ${release.title}`;
       text = fu.body || '';
-      html = htmlBody(text, sendId, contact.id, clientId);
+      const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
+      const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
+      html = pressRelease.buildFollowUpHtml({
+        release: releaseWithHero, body: text, sender, recipientName: contact.name,
+        contactId: contact.id, clientId, campaignId, signature,
+      });
+      html = rewriteLinksForTracking(html, sendId);
+      if (sendId && process.env.PLATFORM_URL) {
+        const sig = signTrackToken({ sendId, kind: 'open' });
+        html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${sendId}?s=${sig}" width="1" height="1" alt="" style="display:none">`;
+      }
     }
   }
   const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
@@ -379,10 +390,11 @@ async function sendPressTest({ release, contact, toAddress, sending, clientId, s
   const { from, replyTo } = await senderFields(sending);
   const pressRelease = require('./pressRelease');
   const cached = await pressRelease.getOrGenerateEmails({ pressReleaseId: release.id, contactId: contact.id, force: false });
+  const signature = await pressRelease.clientSignature(clientId);
+  const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
   let subject, html, text;
   if (stepNumber <= 1) {
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
-    const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
     // Prefer the AM-edited step-1 subject; fall back to the release title.
     const { rows: seqRows } = await pool.query(
       'SELECT subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number = 1 LIMIT 1', [release.campaign_id]);
@@ -390,15 +402,23 @@ async function sendPressTest({ release, contact, toAddress, sending, clientId, s
     html = pressRelease.buildEmailHtml({
       release: releaseWithHero, pitch: cached.intro, sender,
       recipientName: contact.name, embedFull: release.embed_full_release !== false,
-      contactId: contact.id, clientId,
+      contactId: contact.id, clientId, signature,
     });
     text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
   } else {
+    const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
+    // Follow-up subjects live on the sequence rows (steps 2-4); prefer those so
+    // the test matches what a journalist actually receives, not a cached draft.
+    const { rows: seqRows } = await pool.query(
+      'SELECT subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number = $2 LIMIT 1', [release.campaign_id, stepNumber]);
     const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
     const fu = followUps[stepNumber - 2] || { subject: `Re: ${release.title}`, body: '' };
-    subject = fu.subject || `Re: ${release.title}`;
+    subject = seqRows[0]?.subject || fu.subject || `Re: ${release.title}`;
     text = fu.body || '';
-    html = htmlBody(text, null, contact.id, clientId);
+    html = pressRelease.buildFollowUpHtml({
+      release: releaseWithHero, body: text, sender, recipientName: contact.name,
+      contactId: contact.id, clientId, signature,
+    });
   }
   return deliver({ from, to: toAddress, replyTo, subject: `[TEST] ${subject}`, text, html });
 }

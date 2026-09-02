@@ -196,8 +196,18 @@ function splitOnBoilerplate(html) {
 // pitch, so the journalist can read the whole thing without leaving
 // the email. When false, we fall back to the original short shape
 // (pitch + link + hero).
-function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, contactId, clientId, campaignId }) {
-  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Render an AM-configured signature/footer block (plain text with line breaks)
+// so pitches + follow-ups end with a real, personal footer the AM controls.
+function signatureBlock(signature) {
+  const sig = String(signature || '').trim();
+  if (!sig) return '';
+  const html = escapeHtml(sig).replace(/\n/g, '<br>');
+  return `<div style="margin:14px 0 0;font-size:13px;color:#666;line-height:1.5;">${html}</div>`;
+}
+
+function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, contactId, clientId, campaignId, signature }) {
   const pitchHtml = (pitch || '').split('\n').map(p => p.trim()).filter(Boolean)
     .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(p)}</p>`)
     .join('');
@@ -222,12 +232,13 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
     <p style="margin:18px 0 0;font-size:13px;color:#666;line-height:1.5;">View the original release: <a href="${escapeHtml(release.source_url)}" style="color:#1a4f9c;">${escapeHtml(release.source_url)}</a></p>
   ` : '';
 
-  const signature = sender ? `
+  const signatureHtml = sender ? `
     <p style="margin:24px 0 0;font-size:15px;color:#1a1a1a;">${escapeHtml(sender.first_name || sender.name || 'Daniel')}</p>
     <p style="margin:14px 0 0;font-size:13px;color:#666;line-height:1.5;">
       <strong style="color:#1a1a1a;">${escapeHtml(sender.name || 'Daniel Nelson')}</strong><br>
       ${escapeHtml(sender.company || 'October Communications')}
-    </p>` : '';
+    </p>
+    ${signatureBlock(signature)}` : '';
   const greeting = recipientName ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(recipientName.split(' ')[0])},</p>` : '';
 
   // Unsubscribe footer — required by UK PECR / CAN-SPAM and increasingly
@@ -265,7 +276,60 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
           ${greeting}
           ${pitchHtml}
           ${releaseSection}
-          ${signature}
+          ${signatureHtml}
+          ${unsubFooter}
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+// A follow-up rendered as a PERSONAL email, not a press blast: "Firstname,"
+// greeting, the short body, at most one image, then the AM's sign-off +
+// configurable footer and the unsubscribe line. Same shell as the pitch so a
+// chase reads like a real human wrote it — which is what earns the reply.
+function buildFollowUpHtml({ release, body, sender, recipientName, includeHero = false, contactId, clientId, campaignId, signature }) {
+  const greeting = recipientName
+    ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(recipientName.split(' ')[0])},</p>` : '';
+  const bodyHtml = (body || '').split('\n').map(p => p.trim()).filter(Boolean)
+    .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(p)}</p>`)
+    .join('');
+  const hero = includeHero && release.hero_image
+    ? `<div style="margin:16px 0 6px;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title || '')}" style="display:block;width:100%;max-width:520px;height:auto;border:0;border-radius:2px;" /></div>`
+    : '';
+  const signatureHtml = sender ? `
+    <p style="margin:24px 0 0;font-size:15px;color:#1a1a1a;">${escapeHtml(sender.first_name || sender.name || 'Daniel')}</p>
+    <p style="margin:14px 0 0;font-size:13px;color:#666;line-height:1.5;">
+      <strong style="color:#1a1a1a;">${escapeHtml(sender.name || 'Daniel Nelson')}</strong><br>
+      ${escapeHtml(sender.company || 'October Communications')}
+    </p>
+    ${signatureBlock(signature)}` : '';
+  let unsubFooter = '';
+  if (contactId) {
+    try {
+      const { unsubscribeUrl } = require('./outreachSender');
+      let link = unsubscribeUrl(contactId, clientId);
+      if (link && campaignId) link += `&cm=${campaignId}`;
+      if (link) {
+        unsubFooter = `<div style="margin-top:32px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#888;line-height:1.5;">` +
+          `If this isn't relevant to your beat, no hard feelings — you can ` +
+          `<a href="${escapeHtml(link)}" style="color:#888;">update your details or unsubscribe here</a>.` +
+          `</div>`;
+      }
+    } catch {}
+  }
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>${escapeHtml(release.title || '')}</title></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;padding:0 24px;">
+        <tr><td>
+          ${greeting}
+          ${bodyHtml}
+          ${hero}
+          ${signatureHtml}
           ${unsubFooter}
         </td></tr>
       </table>
@@ -482,9 +546,20 @@ async function applyGeneratedSubjects(pressReleaseId) {
   return subjects;
 }
 
+// Load the AM-configured press signature/footer for a client (nullable).
+async function clientSignature(clientId) {
+  if (!clientId) return null;
+  try {
+    const { rows } = await pool.query('SELECT press_signature FROM clients WHERE id = $1', [clientId]);
+    return rows[0]?.press_signature || null;
+  } catch { return null; }
+}
+
 module.exports = {
   fetchAndParse,
   buildEmailHtml,
+  buildFollowUpHtml,
+  clientSignature,
   generatePitch,
   generateFollowUps,
   getOrGenerateEmails,

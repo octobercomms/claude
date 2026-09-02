@@ -112,27 +112,54 @@ async function suggestTags({ releaseId }) {
   );
   if (!tagRows.length) return { suggested_tags: [], tags_available: 0 };
 
-  const storyText = (release.body_html || release.summary || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1500);
+  const storyText = (release.body_html || release.summary || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2200);
   const tagList = tagRows.map(t => `${t.tag} (${t.count})`).join(', ');
-  const system = 'You choose which journalist audience segments (tags) to pitch a story to, for a press release distribution. British English.';
-  const user = `Choose the audience tags whose journalists are the right fit for THIS story, from the tags that exist in the media database below. Pick generously enough to reach a real press list (usually hundreds to thousands of journalists), but stay relevant — don't include clearly unrelated beats.
+  const system = 'You are a senior PR account exec choosing the RIGHT audience segments (tags) to pitch a specific story to. British English. A precise, relevant list wins coverage; a bloated one burns the sender\'s reputation and annoys journalists.';
+  const user = `Pick the audience tags whose journalists would genuinely cover THIS specific story, from the tags in the media database below.
+
+Be precise, not broad. Rules:
+ - Only pick a tag if a journalist who carries it would plausibly write about THIS story — judged from the story text, not the client's general industry.
+ - Do NOT add adjacent or "might-be-interested" beats just to grow the number. For an art event in New York, that means arts / culture / events / local New York press — NOT "fashion" or "hotels" unless the story is actually about those.
+ - Prefer a focused list (typically 2-6 tags) that still reaches a real press list. Quality of match beats raw reach.
+ - Every tag you return must be justified by something concrete IN THE STORY.
 
 CLIENT: ${release.client_name}
-STORY: ${release.title}
+STORY HEADLINE: ${release.title}
+STORY:
+"""
 ${storyText}
+"""
 
 AVAILABLE TAGS — "name (journalist count)":
 ${tagList}
 
-Return ONLY a JSON array of tag names, copied exactly as written above (without the counts).`;
-  const text = await claude.callClaude({ max_tokens: 400, system, user, feature: 'press_audience', clientId: release.client_id });
+Return ONLY a JSON array, strongest fit first:
+[{ "tag": "<tag name copied EXACTLY as written above, without the count>", "reason": "<= 14 words: what in THIS story makes this beat a fit>" }]
+Only use tags from the list. If none fit, return [].`;
+  const text = await claude.callClaude({ max_tokens: 700, system, user, feature: 'press_audience', clientId: release.client_id });
   let arr = [];
   const fence = text.match(/```json\s*([\s\S]*?)```/i) || text.match(/```\s*(\[[\s\S]*?\])\s*```/);
   const bodyText = fence ? fence[1] : text.slice(text.indexOf('['), text.lastIndexOf(']') + 1);
   try { const v = JSON.parse(bodyText.trim()); if (Array.isArray(v)) arr = v; } catch { /* none */ }
-  const valid = new Set(tagRows.map(t => t.tag));
-  const suggested = arr.map(s => String(s).trim()).filter(t => valid.has(t));
-  return { suggested_tags: suggested, tags_available: tagRows.length };
+  const byTag = new Map(tagRows.map(t => [t.tag, t.count]));
+  const seen = new Set();
+  const suggestions = [];
+  for (const item of arr) {
+    // Tolerate both the new {tag,reason} shape and a bare string.
+    const tag = String((item && typeof item === 'object') ? item.tag : item || '').trim();
+    if (!byTag.has(tag) || seen.has(tag)) continue;
+    seen.add(tag);
+    suggestions.push({
+      tag,
+      count: byTag.get(tag),
+      reason: String((item && item.reason) || '').trim().slice(0, 160) || null,
+    });
+  }
+  return {
+    suggestions,
+    suggested_tags: suggestions.map(s => s.tag), // back-compat
+    tags_available: tagRows.length,
+  };
 }
 
 module.exports = { proposeAudience, candidatePool, suggestTags };
