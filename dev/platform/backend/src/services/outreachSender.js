@@ -185,6 +185,46 @@ async function deliver({ from, to, replyTo, subject, text, html, headers, contac
   return { providerMessageId: info.messageId, provider: 'smtp' };
 }
 
+// Compute the effective sender identity a client's emails will go out as,
+// mirroring the precedence in sendOutreachEmail: an active mailbox wins, else
+// the legacy per-client single-sender config (clients.outreach_sending), else
+// the platform default. Read-only — used to SHOW the AM who a send is from
+// before it goes out. `source: 'default'` means nothing is configured and the
+// platform fallback address is being used.
+async function resolveSender(clientId) {
+  const pool = require('../db');
+  let mailboxes = [];
+  if (clientId) {
+    const { rows } = await pool.query(
+      `SELECT from_name, from_email, reply_to FROM outreach_mailboxes
+        WHERE client_id = $1 AND active = TRUE AND warm_up_status NOT IN ('paused','error')
+        ORDER BY COALESCE(last_used_at, '1970-01-01'::timestamptz) ASC`,
+      [clientId]
+    );
+    mailboxes = rows;
+  }
+  if (mailboxes.length) {
+    const m = mailboxes[0];
+    return {
+      source: 'mailbox', configured: true, mailbox_count: mailboxes.length,
+      from_name: m.from_name || 'October Communications',
+      from_email: m.from_email || null,
+      reply_to: m.reply_to || m.from_email || null,
+    };
+  }
+  let cfg = {};
+  if (clientId) {
+    const { rows } = await pool.query('SELECT outreach_sending FROM clients WHERE id = $1', [clientId]);
+    cfg = rows[0]?.outreach_sending || {};
+  }
+  const sf = await senderFields(cfg);
+  const configured = !!(cfg && cfg.from_email);
+  return {
+    source: configured ? 'legacy' : 'default', configured, mailbox_count: 0,
+    from_name: sf.fromName, from_email: sf.fromEmail || null, reply_to: sf.replyTo || null,
+  };
+}
+
 async function sendOutreachEmail({ send, contact, step, sending, clientId }) {
   if (!contact.email) throw new Error('Contact has no email address.');
 
@@ -447,4 +487,4 @@ function previewStep(step, sample) {
   return { subject, text, html: htmlBody(text) };
 }
 
-module.exports = { sendOutreachEmail, sendTest, sendPressTest, previewStep, fillTemplate, unsubscribeUrl };
+module.exports = { sendOutreachEmail, sendTest, sendPressTest, previewStep, fillTemplate, unsubscribeUrl, resolveSender };

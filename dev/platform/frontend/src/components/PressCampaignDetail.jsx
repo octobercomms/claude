@@ -90,6 +90,11 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [review, setReview] = useState(null);
   const [reviewing, setReviewing] = useState(false);
 
+  // Effective sender identity (mailbox / legacy config / platform default), so
+  // the AM can see who a release goes out as before sending — and is warned if
+  // it's still defaulting to the platform address.
+  const [sender, setSender] = useState(null);
+
   const hydratedRef = useRef(false);
 
   useEffect(() => {
@@ -112,6 +117,13 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   }, [campaignId]);
 
   useEffect(() => { api.get('/press/tags').then(setPressTags).catch(() => setPressTags([])); }, []);
+
+  // Who this client's emails go out as. Re-checked when the setup view is shown
+  // so setting a sender in another tab reflects here without a full reload.
+  useEffect(() => {
+    if (!clientId) return;
+    api.get(`/press/clients/${clientId}/sender`).then(setSender).catch(() => setSender(null));
+  }, [clientId, view]);
 
   // Resolve selected tags → recipients whenever the tag selection changes.
   useEffect(() => {
@@ -334,6 +346,18 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   async function send() {
     if (!totalRecipients || !release) return;
     const fuCount = Math.max(0, steps.length - 1);
+    // Never let a release go out from an unconfigured (platform-default) sender
+    // without an explicit, informed OK — this is what caused a blind send from
+    // reports@ that nobody monitored.
+    if (sender && sender.source === 'default') {
+      const ok = confirm(
+        `Heads up — no sender is set for this client, so emails will go FROM the platform default address:\n\n`
+        + `From: ${sender.from_name || 'October Communications'} <${sender.from_email || '—'}>\n`
+        + `Reply-To: ${sender.reply_to || '—'}\n\n`
+        + `Set a proper From/Reply-To (or a mailbox) in Owned → Email → Send first. Send anyway?`
+      );
+      if (!ok) return;
+    }
     if (!confirm(`Send to ${totalRecipients} journalist${totalRecipients === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop automatically if they reply.`)) return;
     setSending(true);
     try {
@@ -459,6 +483,21 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 {autopiloting ? '✨ Choosing…' : '✨ Suggest audience'}
               </button>
             </div>
+
+            {sender && (
+              <div style={{
+                marginTop: 12, padding: '9px 12px', borderRadius: 'var(--r-sm)', fontSize: 12.5,
+                display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+                border: `1px solid ${sender.source === 'default' ? '#e0b400' : 'var(--card-border)'}`,
+                background: sender.source === 'default' ? 'var(--warning-soft, #fff8e1)' : 'var(--surface-raised)',
+              }}>
+                <span style={{ fontWeight: 700 }}>{sender.source === 'default' ? '⚠ Sending as (not set — platform default):' : 'Sending as:'}</span>
+                <span>{sender.from_name}{sender.from_email ? ` <${sender.from_email}>` : ''}</span>
+                {sender.reply_to && <span style={{ color: 'var(--text-subtle)' }}>· replies → {sender.reply_to}</span>}
+                {sender.source === 'mailbox' && <span className="chip">{sender.mailbox_count} mailbox{sender.mailbox_count === 1 ? '' : 'es'}</span>}
+                {sender.source === 'default' && <span style={{ color: 'var(--text-muted)' }}>Set a From / Reply-To in <strong>Owned → Email → Send</strong>.</span>}
+              </div>
+            )}
 
             {suggestions && suggestions.length > 0 && (
               <div style={{ marginTop: 12, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
@@ -726,6 +765,16 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               { ok: done.test, label: 'Test email sent', detail: done.test ? 'you’ve seen a real copy' : 'recommended — go back to step 3', hard: false },
               { ok: done.preview, label: 'Previewed a journalist’s email', detail: done.preview ? 'you’ve reviewed the personalised pitch' : 'recommended — go back to step 4', hard: false },
               { ok: !!signature.trim(), label: 'Footer added', detail: signature.trim() ? 'appears on every email' : 'optional — add one in step 2', hard: false },
+              {
+                ok: !!(sender && sender.source !== 'default'),
+                label: 'Sender set',
+                detail: sender
+                  ? (sender.source === 'default'
+                      ? `⚠ defaulting to ${sender.from_name} <${sender.from_email || '—'}> — set a From/Reply-To in Owned → Email → Send`
+                      : `from ${sender.from_name}${sender.from_email ? ` <${sender.from_email}>` : ''}${sender.reply_to ? ` · replies → ${sender.reply_to}` : ''}`)
+                  : 'checking…',
+                hard: false,
+              },
             ].map((c, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderTop: i ? 'var(--border-w) solid var(--card-border)' : 'none' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 11, flexShrink: 0, marginTop: 1,
