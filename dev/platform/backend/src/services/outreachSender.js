@@ -284,11 +284,23 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
   );
   if (!relRows.length) throw new Error('Press release for this campaign not found');
   const release = relRows[0];
-  const { rows: emailRows } = await pool.query(
+  let { rows: emailRows } = await pool.query(
     'SELECT * FROM press_release_emails WHERE press_release_id = $1 AND contact_id = $2',
     [release.id, contact.id]
   );
-  if (!emailRows.length) throw new Error('No cached press email for this contact');
+  if (!emailRows.length) {
+    // Press emails are generated lazily at dispatch (not up-front at send
+    // time), so a large list can queue instantly. Generate this recipient's
+    // intro + follow-ups now, on the paced send cron.
+    await require('./pressRelease').getOrGenerateEmails({
+      pressReleaseId: release.id, contactId: contact.id, force: false,
+    });
+    ({ rows: emailRows } = await pool.query(
+      'SELECT * FROM press_release_emails WHERE press_release_id = $1 AND contact_id = $2',
+      [release.id, contact.id]
+    ));
+  }
+  if (!emailRows.length) throw new Error('Could not generate the press email for this contact');
   const cached = emailRows[0];
 
   // Lazy require so the outreach sender doesn't depend on cheerio /

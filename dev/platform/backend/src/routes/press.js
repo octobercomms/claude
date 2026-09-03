@@ -758,46 +758,47 @@ router.post('/releases/:id/send', async (req, res) => {
     if (!campaignId) return res.status(400).json({ error: 'Release has no campaign — re-save the release.' });
     await pool.query("UPDATE outreach_campaigns SET status = 'active', launched_at = COALESCE(launched_at, NOW()) WHERE id = $1", [campaignId]);
 
-    const { rows: seqRows } = await pool.query(
-      'SELECT * FROM outreach_sequences WHERE campaign_id = $1 ORDER BY step_number ASC',
-      [campaignId]
+    // Everything below is set-based so even a 2,000-recipient list queues in
+    // milliseconds. Crucially we do NOT generate the per-recipient emails here
+    // — that happens lazily at dispatch time (see outreachSender's press path),
+    // paced by the send cron. Generating up-front meant ~1 AI call per recipient
+    // inside this request, which timed out large sends and stuck the UI on
+    // "Queueing…".
+    const { rows: valid } = await pool.query(
+      'SELECT id FROM outreach_contacts WHERE id = ANY($1::uuid[])',
+      [contact_ids]
+    );
+    const ids = valid.map((r) => r.id);
+    if (!ids.length) return res.status(400).json({ error: 'None of those contacts exist.' });
+
+    // Attach to the release's client + the campaign (idempotent) so the
+    // unsubscribe + per-client lists stay consistent.
+    await pool.query(
+      `INSERT INTO outreach_contact_clients (contact_id, client_id)
+       SELECT id, $2 FROM unnest($1::uuid[]) AS t(id) ON CONFLICT DO NOTHING`,
+      [ids, release.client_id]
+    );
+    await pool.query(
+      `INSERT INTO outreach_campaign_contacts (campaign_id, contact_id)
+       SELECT $1, id FROM unnest($2::uuid[]) AS t(id) ON CONFLICT DO NOTHING`,
+      [campaignId, ids]
     );
 
-    let queued = 0;
-    for (const contactId of contact_ids) {
-      const { rows: contactRows } = await pool.query('SELECT * FROM outreach_contacts WHERE id = $1', [contactId]);
-      if (!contactRows.length) continue;
-
-      // Contacts are workspace-wide now — make sure this one is attached
-      // to the release's client (the AM explicitly picked them, so trust
-      // the intent) so the unsubscribe + per-client lists stay consistent.
-      await pool.query(
-        `INSERT INTO outreach_contact_clients (contact_id, client_id)
-         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [contactId, release.client_id]
-      );
-
-      // Make sure intro + follow-ups are cached (cheap if they already are).
-      await pressRelease.getOrGenerateEmails({
-        pressReleaseId: req.params.id, contactId, force: false,
-      });
-
-      await pool.query(
-        'INSERT INTO outreach_campaign_contacts (campaign_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-        [campaignId, contactId]
-      );
-
-      const now = Date.now();
-      for (const seq of seqRows) {
-        const sendAt = new Date(now + seq.delay_days * 86400_000);
-        await pool.query(
-          `INSERT INTO outreach_sends (campaign_id, contact_id, sequence_id, status, scheduled_at)
-           VALUES ($1, $2, $3, 'pending', $4)`,
-          [campaignId, contactId, seq.id, sendAt]
-        );
-        queued++;
-      }
-    }
+    // One pending send per (recipient × sequence step). NOT EXISTS makes a
+    // re-send — or a retry after a previous attempt timed out mid-way — top up
+    // only the missing rows instead of double-queueing anyone.
+    const { rowCount: queued } = await pool.query(
+      `INSERT INTO outreach_sends (campaign_id, contact_id, sequence_id, status, scheduled_at)
+       SELECT $1, c.id, s.id, 'pending', NOW() + make_interval(days => s.delay_days)
+         FROM unnest($2::uuid[]) AS c(id)
+         CROSS JOIN outreach_sequences s
+        WHERE s.campaign_id = $1
+          AND NOT EXISTS (
+            SELECT 1 FROM outreach_sends os
+             WHERE os.campaign_id = $1 AND os.contact_id = c.id AND os.sequence_id = s.id
+          )`,
+      [campaignId, ids]
+    );
 
     // Step 1 sends become due immediately (delay_days 0) and are dispatched by
     // the outreach-send cron on its next tick (≤3 min), which also applies the
