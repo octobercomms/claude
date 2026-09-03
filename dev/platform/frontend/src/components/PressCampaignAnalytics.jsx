@@ -3,6 +3,14 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { csvEscape } from '../utils/csv';
 
+// A tracked click URL → a short, human label (the host, minus www), so a row
+// reads "clicked: downloadfor.press · octobercomms.com" instead of a run-on of
+// full URLs that looks like one broken link. Falls back to the raw string.
+function linkLabel(u) {
+  try { return new URL(u).hostname.replace(/^www\./, ''); }
+  catch { return String(u || '').replace(/^https?:\/\//, '').split('/')[0] || u; }
+}
+
 // Results + the 24/7 watcher view for a press campaign: open/click rates, a
 // sortable per-journalist table (repeat-open counts, what they clicked, warm
 // flag), the warm threshold, and the suppression lists. Reads
@@ -128,7 +136,18 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                 <td style={{ padding: '6px 8px' }}>
                   <div style={{ fontWeight: 600 }}>{r.name || r.email}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{r.company || ''}{r.company && r.email ? ' · ' : ''}{r.email}</div>
-                  {r.clicked_urls?.length ? <div style={{ fontSize: 11, color: 'var(--accent)' }}>clicked: {r.clicked_urls.slice(0, 2).join(', ')}{r.clicked_urls.length > 2 ? '…' : ''}</div> : null}
+                  {r.clicked_urls?.length ? (
+                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>
+                      clicked{' '}
+                      {r.clicked_urls.slice(0, 3).map((u, i) => (
+                        <React.Fragment key={i}>
+                          {i ? <span> · </span> : null}
+                          <a href={u} target="_blank" rel="noreferrer" title={u} style={{ color: 'var(--accent)' }}>{linkLabel(u)}</a>
+                        </React.Fragment>
+                      ))}
+                      {r.clicked_urls.length > 3 ? <span> +{r.clicked_urls.length - 3} more</span> : null}
+                    </div>
+                  ) : null}
                 </td>
                 <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: r.opens >= 3 ? 700 : 400 }}>{r.opens || 0}</td>
                 <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: r.clicks ? 700 : 400, color: r.clicks ? 'var(--accent)' : 'inherit' }}>{r.clicks || 0}</td>

@@ -744,6 +744,15 @@ Return ONLY JSON:
 // Send the release to a list of journalists. Behind the scenes we
 // create one outreach_campaign per release so the follow-ups + replies
 // flow through the existing outreach_sends + scheduler pipeline.
+// The effective sender identity for this client — what a release will go out
+// as. The press build flow shows this up front and flags when it's defaulting
+// to the platform address so the AM never sends blind. See outreachSender.
+router.get('/clients/:clientId/sender', async (req, res) => {
+  try {
+    res.json(await outreachSender.resolveSender(req.params.clientId));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/releases/:id/send', async (req, res) => {
   const { contact_ids } = req.body || {};
   if (!Array.isArray(contact_ids) || !contact_ids.length) return res.status(400).json({ error: 'contact_ids required' });
