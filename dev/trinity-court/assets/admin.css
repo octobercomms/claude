@@ -1,0 +1,7 @@
+/* Trinity Court Projects — admin polish */
+.post-type-tcp_project .column-tcp_ref { width: 48px; }
+.post-type-tcp_project .column-tcp_status,
+.post-type-tcp_project .column-tcp_priority { width: 120px; }
+.post-type-tcp_project .column-tcp_cost,
+.post-type-tcp_project .column-tcp_votes { width: 90px; }
+#tcp_details .dashicons-thumbs-up { color: #68353a; }
