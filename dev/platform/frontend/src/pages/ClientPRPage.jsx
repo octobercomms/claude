@@ -969,9 +969,9 @@ export default function ClientPRPage() {
                   );
                   return sorted.map((r) => (
                     <tr key={r.id}>
-                      <td title={r.outlet || ''}>{r.outlet || '—'}</td>
+                      <td title={r.outlet || ''}>{r.outlet_id && r.outlet ? <Link to={`/media/outlet/${r.outlet_id}`}>{r.outlet}</Link> : (r.outlet || '—')}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{r.country || '—'}</td>
-                      <td title={r.journalist || ''}>{r.journalist || '—'}</td>
+                      <td title={r.journalist || ''}>{r.contact_id && r.journalist ? <Link to={`/media/journalist/${r.contact_id}`}>{r.journalist}</Link> : (r.journalist || '—')}</td>
                       <td style={{ whiteSpace: 'nowrap' }}><StatusPill status={r.status} label={r.status_label || r.status} /></td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.issue_date)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.request_date)}</td>
