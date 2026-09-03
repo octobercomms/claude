@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
@@ -7,6 +7,7 @@ import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import SuiteOverview from '../components/SuiteOverview';
 import OverviewChat from '../components/OverviewChat';
 import CoverageFromUrlModal from '../components/CoverageFromUrlModal';
+import ProfileModal from '../components/ProfileModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
 import PressCampaignDetail from '../components/PressCampaignDetail';
 import { roWrite } from '../utils/readOnly';
@@ -86,6 +87,8 @@ export default function ClientPRPage() {
   const [buildOpen, setBuildOpen] = useState(() => new Set(['pitch']));
   const [stats, setStats] = useState(null);
   const [log, setLog] = useState([]);
+  // Journalist / publication card opened in place from a table cell (no nav).
+  const [profileTarget, setProfileTarget] = useState(null);
   const [journalists, setJournalists] = useState([]);
   const [warmJournalists, setWarmJournalists] = useState([]);
   // Journalist Discovery Scout — new journalists proposed for review.
@@ -683,7 +686,7 @@ export default function ClientPRPage() {
                     <tbody>
                       {pitchResult.targets.map((t) => (
                         <tr key={t.id}>
-                          <td><Link to={`/media/journalist/${t.id}`}>{t.name}</Link>{t.strength_label ? <span className="chip" style={{ marginLeft: 6 }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 6 }}>no email</span>}</td>
+                          <td><button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'journalist', id: t.id })}>{t.name}</button>{t.strength_label ? <span className="chip" style={{ marginLeft: 6 }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 6 }}>no email</span>}</td>
                           <td>{t.outlet || '—'}</td>
                           <td>{t.tier ? `T${t.tier}` : '—'}</td>
                           <td style={{ fontSize: 13 }}>{t.reason}</td>
@@ -807,7 +810,7 @@ export default function ClientPRPage() {
               <tbody>
                 {journalists.map((j) => (
                   <tr key={j.id}>
-                    <td><Link to={`/media/journalist/${j.id}`}>{j.name}</Link></td>
+                    <td><button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'journalist', id: j.id })}>{j.name}</button></td>
                     <td>{j.outlet || '—'}</td>
                     <td>{j.tier ? <span className="chip">T{j.tier}</span> : '—'}</td>
                     <td>{j.published}</td>
@@ -969,9 +972,9 @@ export default function ClientPRPage() {
                   );
                   return sorted.map((r) => (
                     <tr key={r.id}>
-                      <td title={r.outlet || ''}>{r.outlet_id && r.outlet ? <Link to={`/media/outlet/${r.outlet_id}`}>{r.outlet}</Link> : (r.outlet || '—')}</td>
+                      <td title={r.outlet || ''}>{r.outlet_id && r.outlet ? <button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'outlet', id: r.outlet_id })}>{r.outlet}</button> : (r.outlet || '—')}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{r.country || '—'}</td>
-                      <td title={r.journalist || ''}>{r.contact_id && r.journalist ? <Link to={`/media/journalist/${r.contact_id}`}>{r.journalist}</Link> : (r.journalist || '—')}</td>
+                      <td title={r.journalist || ''}>{r.contact_id && r.journalist ? <button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'journalist', id: r.contact_id })}>{r.journalist}</button> : (r.journalist || '—')}</td>
                       <td style={{ whiteSpace: 'nowrap' }}><StatusPill status={r.status} label={r.status_label || r.status} /></td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.issue_date)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.request_date)}</td>
@@ -1295,6 +1298,8 @@ export default function ClientPRPage() {
       {urlModal && (
         <CoverageFromUrlModal clientId={id} onClose={() => setUrlModal(false)} onSaved={() => { loadData(); }} />
       )}
+
+      <ProfileModal target={profileTarget} onClose={() => setProfileTarget(null)} onChanged={() => { loadData(); }} />
 
       {showPressWizard && (
         <PressCampaignWizard
