@@ -64,6 +64,32 @@ async function outletClients(outletId) {
   return rows.map((r) => r.client_id);
 }
 
+// A short description of what a client's world is about — used to keep feed
+// mining ON-BEAT (so a design client doesn't get an outlet's crime/weather/sport
+// reporters just because they share one contact there). Built from the client's
+// briefing plus the beats/tags of the journalists already attached to them.
+async function clientBeats(clientId) {
+  const cl = (await pool.query('SELECT name, briefing_field FROM clients WHERE id = $1', [clientId])).rows[0];
+  if (!cl) return '';
+  const { rows } = await pool.query(
+    `SELECT DISTINCT b FROM (
+        SELECT jsonb_array_elements_text(c.beats) AS b
+          FROM outreach_contacts c JOIN outreach_contact_clients m ON m.contact_id = c.id
+         WHERE m.client_id = $1 AND jsonb_typeof(c.beats) = 'array'
+        UNION
+        SELECT unnest(c.tags) AS b
+          FROM outreach_contacts c JOIN outreach_contact_clients m ON m.contact_id = c.id
+         WHERE m.client_id = $1 AND c.tags IS NOT NULL
+     ) t WHERE btrim(b) <> '' LIMIT 40`,
+    [clientId]
+  );
+  const beats = rows.map((r) => r.b);
+  const parts = [cl.name];
+  if (cl.briefing_field) parts.push(String(cl.briefing_field).slice(0, 300));
+  if (beats.length) parts.push(`Their journalists cover: ${beats.join(', ')}`);
+  return parts.join('. ');
+}
+
 // Distinct unknown bylines at this outlet within the last 12 months, each with
 // how many articles they filed and a sample (most-recent) title + url. The
 // count + recency are the "is this a real regular" signal for the model.
@@ -85,24 +111,29 @@ async function unknownBylines(outletId, { months = 12, cap = 40 } = {}) {
   return rows.filter((r) => looksLikePerson(r.author_name));
 }
 
-// Ask the cheap model to keep only real individual journalists and give each a
-// short beat. Returns [{ name, beat }]. Never throws — on any failure we fall
-// back to the code-filtered list with no beat (still review-gated).
-async function classify(outletName, candidates) {
+// Ask the cheap model to keep real individual journalists — and, when a client
+// context is given, keep ONLY the ones whose beat is relevant to that client.
+// Returns [{ name, beat }]. On failure: with no client context, fall back to the
+// code-filtered list; WITH a client context, return [] rather than flood the
+// client with unfiltered (possibly off-beat) names.
+async function classify(outletName, candidates, { clientContext = '' } = {}) {
   const list = candidates.map((c, i) => `${i + 1}. ${c.author_name} — recent: "${(c.sample_title || '').slice(0, 90)}"`).join('\n');
-  const user = `These are raw bylines scraped from ${outletName || 'a publication'}'s RSS feed. Keep ONLY the ones that are a single real individual journalist / writer. Drop anything that is a desk, team, agency, wire service, "staff", generic role, brand, or multiple authors.
+  const relevance = clientContext
+    ? `\n\nThese are being considered for a PR client. The client: ${clientContext}\nKeep ONLY journalists whose beat/subject is RELEVANT to this client's world. DROP anyone whose recent article is off-topic for them (e.g. crime, weather, sport, politics, showbiz for a design/architecture/interiors client). If none are relevant, return an empty array.`
+    : '';
+  const user = `These are raw bylines scraped from ${outletName || 'a publication'}'s RSS feed. Keep ONLY the ones that are a single real individual journalist / writer. Drop anything that is a desk, team, agency, wire service, "staff", generic role, brand, or multiple authors.${relevance}
 
 Bylines:
 ${list}
 
-Return ONLY a JSON array (in a \`\`\`json code block). For each real journalist you keep:
+Return ONLY a JSON array (in a \`\`\`json code block). For each journalist you keep:
 [{ "name": "their name exactly as written", "beat": "2-4 word beat guessed from their article, or null" }]
 No commentary outside the JSON.`;
   try {
     const text = await callClaude({
       feature: 'press_byline_mining',
       max_tokens: 1500,
-      system: 'You clean raw newspaper/website bylines into a list of real individual journalists. Be strict: when unsure whether a string is a person or a desk/agency, drop it. British English.',
+      system: 'You clean raw newspaper/website bylines into a list of real individual journalists, and judge whether each is on-beat for a given PR client. Be strict on both: drop desks/agencies, and drop journalists whose subject is unrelated to the client. British English.',
       user,
     });
     const arr = journalistScout.extractArray(text);
@@ -114,7 +145,8 @@ No commentary outside the JSON.`;
     const allowed = new Set(candidates.map((c) => c.author_name.toLowerCase()));
     return kept.filter((k) => allowed.has(k.name.toLowerCase()));
   } catch {
-    return candidates.map((c) => ({ name: c.author_name, beat: null }));
+    // Don't flood a specific client with unfiltered names on model failure.
+    return clientContext ? [] : candidates.map((c) => ({ name: c.author_name, beat: null }));
   }
 }
 
@@ -131,18 +163,24 @@ async function mineOutlet(outletId, { log = () => {} } = {}) {
   if (!bylines.length) return { candidates: 0, queued: 0 };
 
   const byName = new Map(bylines.map((b) => [b.author_name.toLowerCase(), b]));
-  const people = await classify(outletName, bylines);
 
-  let queued = 0;
-  for (const p of people) {
-    const src = byName.get(p.name.toLowerCase());
-    const cand = { name: p.name, outlet: outletName, email: null };
-    // A guessed (unconfirmed) email from the outlet's known pattern, shown red.
-    const guessed = await journalistScout.guessEmail(p.name, outletName);
-    for (const clientId of clientIds) {
+  // Classify PER CLIENT with that client's beats, so each client only gets
+  // journalists relevant to their world — not every new byline at the outlet.
+  let candidates = 0, queued = 0;
+  const PER_CLIENT_CAP = 12;
+  for (const clientId of clientIds) {
+    const ctx = await clientBeats(clientId);
+    const people = await classify(outletName, bylines, { clientContext: ctx });
+    candidates += people.length;
+    let addedForClient = 0;
+    for (const p of people) {
+      if (addedForClient >= PER_CLIENT_CAP) break;
+      const src = byName.get(p.name.toLowerCase());
+      const cand = { name: p.name, outlet: outletName, email: null };
       // Reuse the scout's dedupe: skip if already a media contact or an open/added
       // suggestion for this client. Keeps the feed miner and the web scout in sync.
       if (await journalistScout.isKnown(clientId, cand)) continue;
+      const guessed = await journalistScout.guessEmail(p.name, outletName);
       await pool.query(
         `INSERT INTO pr_journalist_suggestions
            (client_id, name, outlet, beat, email, guessed_email, why, source_url, status, source)
@@ -153,11 +191,11 @@ async function mineOutlet(outletId, { log = () => {} } = {}) {
           src?.sample_url || null,
         ]
       );
-      queued++;
+      queued++; addedForClient++;
     }
   }
-  log(`rssMine: outlet ${outletId} (${outletName}) — ${people.length} people, ${queued} queued across ${clientIds.length} client(s)`);
-  return { candidates: people.length, queued };
+  log(`rssMine: outlet ${outletId} (${outletName}) — ${queued} on-beat suggestion(s) across ${clientIds.length} client(s)`);
+  return { candidates, queued };
 }
 
 // Mine every outlet that has a working feed and unknown bylines. Bounded per run.
