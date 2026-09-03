@@ -108,6 +108,7 @@ router.get('/clients/:clientId/editorial-log', async (req, res) => {
               l.interview_date, l.story_url, l.notes_outcome, l.pitch_request,
               l.attachment_url, l.attachment_filename,
               l.link_status, l.link_status_code, l.link_checked_at, l.link_final_url,
+              l.outlet_id, l.contact_id,
               o.name AS outlet, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
        FROM pr_editorial_log l
        LEFT JOIN pr_outlets o ON o.id = l.outlet_id
@@ -126,6 +127,7 @@ router.get('/clients/:clientId/editorial-log', async (req, res) => {
         attachment_url: r.attachment_url, attachment_filename: r.attachment_filename,
         link_status: r.link_status, link_status_code: r.link_status_code,
         link_checked_at: r.link_checked_at, link_final_url: r.link_final_url,
+        outlet_id: r.outlet_id, contact_id: r.contact_id,
         outlet: r.outlet, journalist: (r.journalist || '').trim(),
       })),
     });
