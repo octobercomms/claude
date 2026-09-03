@@ -1,0 +1,519 @@
+/**
+ * Trinity Court Projects — front-end styles.
+ * Scoped to .tcp-app so it stays out of the theme's way.
+ */
+
+.tcp-app {
+	--tcp-accent: #68353a;
+	--tcp-accent-dark: #4e2429;
+	--tcp-ink: #1e1c1d;
+	--tcp-muted: #6b6668;
+	--tcp-line: #e4dedf;
+	--tcp-surface: #ffffff;
+	--tcp-canvas: #faf7f7;
+	--tcp-radius: 12px;
+	color: var(--tcp-ink);
+	font-family: inherit;
+	line-height: 1.5;
+	max-width: 980px;
+	margin: 0 auto;
+}
+
+.tcp-app *,
+.tcp-app *::before,
+.tcp-app *::after {
+	box-sizing: border-box;
+}
+
+/* Summary ---------------------------------------------------------------- */
+.tcp-summary {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 1px;
+	background: var(--tcp-line);
+	border: 1px solid var(--tcp-line);
+	border-radius: var(--tcp-radius);
+	overflow: hidden;
+	margin-bottom: 20px;
+}
+
+.tcp-stat {
+	background: var(--tcp-surface);
+	padding: 16px 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.tcp-stat-num {
+	font-size: 24px;
+	font-weight: 700;
+	color: var(--tcp-accent);
+	letter-spacing: -0.01em;
+}
+
+.tcp-stat-label {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--tcp-muted);
+}
+
+/* Toolbar ---------------------------------------------------------------- */
+.tcp-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 18px;
+}
+
+.tcp-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.tcp-filter {
+	border: 1px solid var(--tcp-line);
+	background: var(--tcp-surface);
+	color: var(--tcp-muted);
+	font: inherit;
+	font-size: 13px;
+	padding: 6px 12px;
+	border-radius: 999px;
+	cursor: pointer;
+	transition: all 0.12s ease;
+}
+
+.tcp-filter:hover {
+	border-color: var(--tcp-accent);
+	color: var(--tcp-accent);
+}
+
+.tcp-filter.is-active {
+	background: var(--tcp-accent);
+	border-color: var(--tcp-accent);
+	color: #fff;
+}
+
+.tcp-sort {
+	font-size: 13px;
+	color: var(--tcp-muted);
+}
+
+.tcp-sort-select {
+	font: inherit;
+	font-size: 13px;
+	padding: 5px 8px;
+	border: 1px solid var(--tcp-line);
+	border-radius: 8px;
+	background: var(--tcp-surface);
+	color: var(--tcp-ink);
+}
+
+/* Groups ----------------------------------------------------------------- */
+.tcp-group {
+	border: 1px solid var(--tcp-line);
+	border-radius: var(--tcp-radius);
+	background: var(--tcp-canvas);
+	padding: 16px;
+	margin-bottom: 20px;
+}
+
+.tcp-group-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.tcp-group-type {
+	display: inline-block;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-weight: 700;
+	color: #fff;
+	background: var(--tcp-accent);
+	padding: 2px 8px;
+	border-radius: 4px;
+	margin-bottom: 6px;
+}
+
+.tcp-group--sprint .tcp-group-type { background: #2b6cb0; }
+.tcp-group--mega .tcp-group-type { background: var(--tcp-accent-dark); }
+
+.tcp-group-title {
+	margin: 0;
+	font-size: 18px;
+	color: var(--tcp-ink);
+}
+
+.tcp-group-desc {
+	margin: 4px 0 0;
+	font-size: 13px;
+	color: var(--tcp-muted);
+}
+
+.tcp-group-stats {
+	text-align: right;
+	white-space: nowrap;
+}
+
+.tcp-group-meta {
+	display: block;
+	font-size: 12px;
+	color: var(--tcp-muted);
+}
+
+.tcp-group-cost {
+	font-size: 18px;
+	font-weight: 700;
+	color: var(--tcp-accent);
+}
+
+.tcp-progress {
+	height: 6px;
+	background: var(--tcp-line);
+	border-radius: 999px;
+	overflow: hidden;
+	margin-bottom: 14px;
+}
+
+.tcp-progress span {
+	display: block;
+	height: 100%;
+	background: #2f855a;
+	border-radius: 999px;
+	transition: width 0.3s ease;
+}
+
+/* Cards ------------------------------------------------------------------ */
+.tcp-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.tcp-card {
+	background: var(--tcp-surface);
+	border: 1px solid var(--tcp-line);
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+.tcp-card.is-open {
+	border-color: var(--tcp-accent);
+	box-shadow: 0 2px 14px rgba(104, 53, 58, 0.08);
+}
+
+.tcp-card-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 12px;
+	padding: 12px 14px;
+}
+
+.tcp-card-toggle {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: none;
+	border: 0;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	color: var(--tcp-ink);
+	padding: 0;
+	flex: 1 1 260px;
+	min-width: 0;
+}
+
+.tcp-ref {
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--tcp-muted);
+	background: var(--tcp-canvas);
+	border: 1px solid var(--tcp-line);
+	padding: 2px 7px;
+	border-radius: 6px;
+	flex: none;
+}
+
+.tcp-title {
+	font-weight: 600;
+	font-size: 15px;
+}
+
+.tcp-chevron {
+	margin-left: auto;
+	width: 8px;
+	height: 8px;
+	border-right: 2px solid var(--tcp-muted);
+	border-bottom: 2px solid var(--tcp-muted);
+	transform: rotate(45deg);
+	transition: transform 0.15s ease;
+	flex: none;
+}
+
+.tcp-card.is-open .tcp-chevron {
+	transform: rotate(-135deg);
+}
+
+.tcp-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+
+.tcp-cat {
+	font-size: 12px;
+	color: var(--tcp-muted);
+}
+
+.tcp-badge {
+	font-size: 11px;
+	font-weight: 600;
+	padding: 3px 9px;
+	border-radius: 999px;
+	color: #fff;
+	background: var(--c, #888);
+	white-space: nowrap;
+}
+
+.tcp-priority {
+	background: transparent;
+	color: var(--c, #888);
+	border: 1px solid var(--c, #888);
+}
+
+.tcp-card-meta {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 0 14px 12px;
+	flex-wrap: wrap;
+}
+
+.tcp-cost-tag {
+	font-size: 14px;
+}
+
+.tcp-cost-tag em {
+	color: var(--tcp-muted);
+	font-style: italic;
+}
+
+.tcp-cost-tag strong {
+	color: var(--tcp-accent);
+	font-size: 16px;
+}
+
+.tcp-cost-basis {
+	font-size: 11px;
+	color: var(--tcp-muted);
+	margin-left: 4px;
+}
+
+/* Vote button ------------------------------------------------------------ */
+.tcp-vote {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: var(--tcp-surface);
+	border: 1px solid var(--tcp-line);
+	border-radius: 999px;
+	padding: 5px 12px;
+	font: inherit;
+	font-size: 13px;
+	color: var(--tcp-muted);
+	cursor: pointer;
+	transition: all 0.12s ease;
+}
+
+.tcp-vote:hover {
+	border-color: var(--tcp-accent);
+	color: var(--tcp-accent);
+}
+
+.tcp-vote.is-voted {
+	background: var(--tcp-accent);
+	border-color: var(--tcp-accent);
+	color: #fff;
+}
+
+.tcp-vote-icon {
+	font-size: 11px;
+}
+
+.tcp-vote-count {
+	font-weight: 700;
+}
+
+/* Card body -------------------------------------------------------------- */
+.tcp-card-body {
+	padding: 4px 16px 18px;
+	border-top: 1px solid var(--tcp-line);
+	background: var(--tcp-canvas);
+}
+
+.tcp-card-body h4 {
+	margin: 16px 0 4px;
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--tcp-accent);
+}
+
+.tcp-prose {
+	font-size: 14px;
+	color: #302c2d;
+}
+
+.tcp-prose p {
+	margin: 0 0 8px;
+}
+
+.tcp-loc {
+	font-size: 13px;
+	color: var(--tcp-muted);
+	margin: 12px 0 0;
+}
+
+.tcp-updated {
+	font-size: 12px;
+	color: var(--tcp-muted);
+	margin: 8px 0 0;
+}
+
+/* Comments --------------------------------------------------------------- */
+.tcp-comments {
+	margin-top: 16px;
+	border-top: 1px solid var(--tcp-line);
+	padding-top: 12px;
+}
+
+.tcp-comments-toggle {
+	background: none;
+	border: 0;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--tcp-accent);
+	cursor: pointer;
+	padding: 0;
+}
+
+.tcp-comments-panel {
+	margin-top: 12px;
+}
+
+.tcp-comment {
+	background: var(--tcp-surface);
+	border: 1px solid var(--tcp-line);
+	border-radius: 8px;
+	padding: 10px 12px;
+	margin-bottom: 8px;
+}
+
+.tcp-comment-head {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 4px;
+}
+
+.tcp-comment-head .tcp-comment-author {
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.tcp-comment-date {
+	font-size: 12px;
+	color: var(--tcp-muted);
+}
+
+.tcp-comment-body {
+	font-size: 14px;
+}
+
+.tcp-comment-body p {
+	margin: 0 0 6px;
+}
+
+.tcp-no-comments,
+.tcp-loading {
+	font-size: 13px;
+	color: var(--tcp-muted);
+}
+
+.tcp-comment-form {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.tcp-comment-form input,
+.tcp-comment-form textarea {
+	font: inherit;
+	font-size: 14px;
+	padding: 8px 10px;
+	border: 1px solid var(--tcp-line);
+	border-radius: 8px;
+	background: var(--tcp-surface);
+	width: 100%;
+}
+
+.tcp-comment-submit {
+	align-self: flex-start;
+	background: var(--tcp-accent);
+	color: #fff;
+	border: 0;
+	border-radius: 8px;
+	padding: 8px 16px;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.tcp-comment-submit:hover {
+	background: var(--tcp-accent-dark);
+}
+
+.tcp-comment-note {
+	font-size: 13px;
+}
+
+.tcp-comment-note.is-ok { color: #2f855a; }
+.tcp-comment-note.is-error { color: #b23b3b; }
+
+/* Footer ----------------------------------------------------------------- */
+.tcp-disclaimer {
+	margin-top: 24px;
+	padding: 12px 14px;
+	background: var(--tcp-canvas);
+	border: 1px solid var(--tcp-line);
+	border-left: 3px solid var(--tcp-accent);
+	border-radius: 8px;
+	font-size: 12px;
+	color: var(--tcp-muted);
+}
+
+.tcp-empty {
+	color: var(--tcp-muted);
+	padding: 20px 0;
+}
+
+@media (max-width: 520px) {
+	.tcp-card-head { align-items: flex-start; }
+	.tcp-stat-num { font-size: 20px; }
+}
