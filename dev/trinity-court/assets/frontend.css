@@ -4,10 +4,11 @@
  */
 
 .tcp-app {
-	/* Accent defaults to the building burgundy; override per page with the
-	   shortcode's accent="" attribute, or site-wide by setting --tcp-accent
-	   in the theme. --tcp-accent-dark derives from it automatically. */
-	--tcp-accent: #68353a;
+	/* Accent picks up Elementor's global Primary colour automatically, falling
+	   back to the building burgundy if that variable is not set. Override per
+	   page with the shortcode's accent="" attribute, or site-wide by setting
+	   --tcp-accent in the theme. --tcp-accent-dark derives from it. */
+	--tcp-accent: var(--e-global-color-primary, #68353a);
 	--tcp-accent-dark: color-mix(in srgb, var(--tcp-accent) 80%, #000);
 	/* Text inherits the theme's colour and font so the tracker matches the
 	   site it is embedded in. */

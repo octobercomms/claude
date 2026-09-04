@@ -76,6 +76,20 @@ duplicating existing ones.
   moderation queue; comments from logged-in residents auto-approve. Manage them
   under Comments as usual.
 
+## Embedding and styling
+
+Put `[trinity_projects]` on a normal WordPress page. The theme's header, footer,
+page width and fonts wrap it automatically, so it looks like part of the site.
+
+- **Fonts and text colour** are inherited from the theme.
+- **Accent** (badges, buttons, totals) defaults to Elementor's global Primary
+  colour (`--e-global-color-primary`), so it matches the site brand out of the
+  box. Override it per page with `[trinity_projects accent="#123456"]` or
+  `[trinity_projects accent="var(--e-global-color-primary)"]`, or site-wide by
+  setting `--tcp-accent` in the theme's custom CSS.
+- **Dark themes:** card surfaces stay light by default. If the site is dark,
+  set `--tcp-surface`, `--tcp-canvas` and `--tcp-line` in custom CSS to suit.
+
 ## Shortcode options
 
 ```
