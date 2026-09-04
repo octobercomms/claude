@@ -4,19 +4,35 @@
  */
 
 .tcp-app {
+	/* Accent defaults to the building burgundy; override per page with the
+	   shortcode's accent="" attribute, or site-wide by setting --tcp-accent
+	   in the theme. --tcp-accent-dark derives from it automatically. */
 	--tcp-accent: #68353a;
-	--tcp-accent-dark: #4e2429;
-	--tcp-ink: #1e1c1d;
-	--tcp-muted: #6b6668;
-	--tcp-line: #e4dedf;
-	--tcp-surface: #ffffff;
-	--tcp-canvas: #faf7f7;
+	--tcp-accent-dark: color-mix(in srgb, var(--tcp-accent) 80%, #000);
+	/* Text inherits the theme's colour and font so the tracker matches the
+	   site it is embedded in. */
+	--tcp-ink: inherit;
+	--tcp-muted: color-mix(in srgb, currentColor 58%, transparent);
+	--tcp-line: color-mix(in srgb, currentColor 14%, transparent);
+	--tcp-surface: rgba(255, 255, 255, 0.5);
+	--tcp-canvas: color-mix(in srgb, var(--tcp-accent) 4%, transparent);
 	--tcp-radius: 12px;
 	color: var(--tcp-ink);
 	font-family: inherit;
 	line-height: 1.5;
 	max-width: 980px;
 	margin: 0 auto;
+}
+
+/* Fallback palette for browsers without color-mix() support. */
+@supports not (color: color-mix(in srgb, red, blue)) {
+	.tcp-app {
+		--tcp-accent-dark: #4e2429;
+		--tcp-muted: #6b6668;
+		--tcp-line: #e4dedf;
+		--tcp-surface: #ffffff;
+		--tcp-canvas: #faf7f7;
+	}
 }
 
 .tcp-app *,
@@ -98,6 +114,35 @@
 	color: #fff;
 }
 
+.tcp-tools-right {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+
+.tcp-downloads {
+	display: inline-flex;
+	gap: 8px;
+}
+
+.tcp-download {
+	font-size: 13px;
+	text-decoration: none;
+	color: var(--tcp-accent);
+	border: 1px solid var(--tcp-line);
+	border-radius: 8px;
+	padding: 6px 12px;
+	transition: all 0.12s ease;
+	white-space: nowrap;
+}
+
+.tcp-download:hover {
+	border-color: var(--tcp-accent);
+	background: var(--tcp-accent);
+	color: #fff;
+}
+
 .tcp-sort {
 	font-size: 13px;
 	color: var(--tcp-muted);
@@ -143,8 +188,10 @@
 	margin-bottom: 6px;
 }
 
+.tcp-group--epic .tcp-group-type { background: var(--tcp-accent-dark); }
+.tcp-group--initiative .tcp-group-type { background: #6b46c1; }
 .tcp-group--sprint .tcp-group-type { background: #2b6cb0; }
-.tcp-group--mega .tcp-group-type { background: var(--tcp-accent-dark); }
+.tcp-group--milestone .tcp-group-type { background: #1f9d8f; }
 
 .tcp-group-title {
 	margin: 0;
@@ -391,6 +438,37 @@
 	font-size: 12px;
 	color: var(--tcp-muted);
 	margin: 8px 0 0;
+}
+
+.tcp-docs {
+	list-style: none;
+	margin: 4px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.tcp-docs a {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	color: var(--tcp-accent);
+	text-decoration: none;
+	background: var(--tcp-surface);
+	border: 1px solid var(--tcp-line);
+	border-radius: 8px;
+	padding: 8px 12px;
+}
+
+.tcp-docs a:hover {
+	border-color: var(--tcp-accent);
+}
+
+.tcp-doc-size {
+	font-size: 12px;
+	color: var(--tcp-muted);
 }
 
 /* Comments --------------------------------------------------------------- */

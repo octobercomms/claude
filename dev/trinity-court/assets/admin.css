@@ -5,3 +5,8 @@
 .post-type-tcp_project .column-tcp_cost,
 .post-type-tcp_project .column-tcp_votes { width: 90px; }
 #tcp_details .dashicons-thumbs-up { color: #68353a; }
+.tcp-doc-list { margin: 6px 0 10px; padding: 0; list-style: none; }
+.tcp-doc-list li { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid #f0f0f1; }
+.tcp-doc-list li a { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcp-doc-list .dashicons-media-document { color: #68353a; }
+.tcp-doc-remove { color: #b32d2e; text-decoration: none; font-size: 16px; line-height: 1; }

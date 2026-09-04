@@ -23,8 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function tcp_seed_groups() {
 	return array(
-		'waste-bin-store'   => array( 'Waste & Bin Store Overhaul', 'mega' ),
-		'communal-refresh'  => array( 'Communal Areas Refresh', 'programme' ),
+		'waste-bin-store'   => array( 'Waste & Bin Store Overhaul', 'epic' ),
+		'communal-refresh'  => array( 'Communal Areas Refresh', 'initiative' ),
 		'fire-safety-sprint'=> array( 'Fire Safety', 'sprint' ),
 	);
 }
