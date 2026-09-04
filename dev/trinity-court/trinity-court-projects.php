@@ -3,7 +3,7 @@
  * Plugin Name:       Trinity Court Projects
  * Plugin URI:        https://trinitycourtmargate.co.uk/
  * Description:        Logs building improvement works for Trinity Court, tracks status, priority, quoted cost and a running total, groups works into programmes (epics / initiatives / sprints), attaches quote documents, exports to XLS and PDF, and lets residents vote and comment. Display anywhere with the [trinity_projects] shortcode.
- * Version:           1.1.1
+ * Version:           1.1.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            October Communications
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'TCP_VERSION', '1.1.1' );
+define( 'TCP_VERSION', '1.1.2' );
 define( 'TCP_FILE', __FILE__ );
 define( 'TCP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TCP_URL', plugin_dir_url( __FILE__ ) );
@@ -589,8 +589,9 @@ final class Trinity_Court_Projects {
 	 *   summary   "yes" (default) or "no"
 	 *   voting    "yes" (default) or "no"
 	 *   comments  "yes" (default) or "no"
-	 *   accent    a CSS colour to theme the tracker (defaults to the building
-	 *             burgundy). e.g. accent="#123456" to match the site brand.
+	 *   accent    a CSS colour to theme the tracker (defaults to Elementor's
+	 *             global primary). e.g. accent="#123456" to match the site brand.
+	 *   width     "full" to fill the page column; omit for the centred 980px cap.
 	 */
 	public function render_shortcode( $atts ) {
 		$atts = shortcode_atts(
@@ -600,6 +601,7 @@ final class Trinity_Court_Projects {
 				'voting'   => 'yes',
 				'comments' => 'yes',
 				'accent'   => '',
+				'width'    => '',
 			),
 			$atts,
 			'trinity_projects'
@@ -627,8 +629,13 @@ final class Trinity_Court_Projects {
 		$voting_on   = 'no' !== $atts['voting'];
 		$comments_on = 'no' !== $atts['comments'];
 
+		$classes = 'tcp-app';
+		if ( 'full' === $atts['width'] ) {
+			$classes .= ' tcp-app--full';
+		}
+
 		ob_start();
-		echo '<div class="tcp-app" data-view="' . esc_attr( $atts['view'] ) . '"' . $style . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $style pre-escaped above.
+		echo '<div class="' . esc_attr( $classes ) . '" data-view="' . esc_attr( $atts['view'] ) . '"' . $style . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $style pre-escaped above.
 
 		if ( 'no' !== $atts['summary'] ) {
 			echo $this->render_summary( $projects ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built with escaping inside.
