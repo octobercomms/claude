@@ -865,27 +865,27 @@ async function runOutreachSends() {
       await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
       continue;
     }
-    // One press email per person per day. If this journalist already received a
-    // DIFFERENT release today, hold this one for that person only (reschedule to
-    // tomorrow morning) rather than sending two press emails in a day. The rest
-    // of the campaign's recipients are unaffected. (Daniel's #22.)
-    if (row.kind === 'press_release') {
-      const { rows: dupe } = await pool.query(
-        `SELECT 1 FROM outreach_sends s2
-           JOIN outreach_campaigns c2 ON c2.id = s2.campaign_id
-          WHERE s2.contact_id = $1 AND c2.kind = 'press_release'
-            AND s2.campaign_id <> $2 AND s2.status = 'sent'
-            AND s2.sent_at >= date_trunc('day', NOW())
-          LIMIT 1`,
-        [row.contact_id, row.campaign_id]
+    // Global frequency cap: at most ONE email per recipient per rolling 24h,
+    // across every campaign and channel (press releases, prospecting — anything
+    // we send). If this contact already received an email from us in the last
+    // 24h, hold THIS send for that person only, rescheduled to 24h after their
+    // last email, rather than landing a second in their inbox. Only this
+    // recipient is delayed; the rest of the campaign is unaffected — so a second
+    // release to an overlapping list simply queues behind the first. (Daniel's
+    // #4; supersedes the earlier press-only same-day gate.)
+    const { rows: recent } = await pool.query(
+      `SELECT MAX(sent_at) AS last_sent FROM outreach_sends
+        WHERE contact_id = $1 AND status = 'sent'
+          AND sent_at >= NOW() - interval '24 hours'`,
+      [row.contact_id]
+    );
+    const lastSent = recent[0]?.last_sent;
+    if (lastSent) {
+      await pool.query(
+        "UPDATE outreach_sends SET scheduled_at = $2::timestamptz + interval '24 hours' WHERE id = $1",
+        [row.send_id, lastSent]
       );
-      if (dupe.length) {
-        await pool.query(
-          "UPDATE outreach_sends SET scheduled_at = date_trunc('day', NOW()) + interval '1 day' + interval '9 hours' WHERE id = $1",
-          [row.send_id]
-        );
-        continue;
-      }
+      continue;
     }
     // Claim the row so overlapping runs can't double-send it.
     const claim = await pool.query(

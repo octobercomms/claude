@@ -753,6 +753,33 @@ router.get('/clients/:clientId/sender', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Dry run before a send: of the chosen recipients, how many already have this
+// release queued/sent for this campaign (so a re-send won't touch them) and how
+// many are genuinely new. Lets the UI say "108 already emailed, 1,886 new" and
+// stops the AM worrying about double-sends. The actual send is idempotent
+// regardless (NOT EXISTS guard below) — this just makes that visible up front.
+router.post('/releases/:id/send-plan', async (req, res) => {
+  const { contact_ids } = req.body || {};
+  if (!Array.isArray(contact_ids) || !contact_ids.length) return res.json({ total: 0, already: 0, new: 0 });
+  try {
+    const { rows: relRows } = await pool.query('SELECT campaign_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
+    const campaignId = relRows[0].campaign_id;
+    const { rows: valid } = await pool.query('SELECT id FROM outreach_contacts WHERE id = ANY($1::uuid[])', [contact_ids]);
+    const ids = valid.map((r) => r.id);
+    let already = 0;
+    if (campaignId && ids.length) {
+      const { rows } = await pool.query(
+        `SELECT COUNT(DISTINCT contact_id)::int AS n FROM outreach_sends
+          WHERE campaign_id = $1 AND contact_id = ANY($2::uuid[])`,
+        [campaignId, ids]
+      );
+      already = rows[0]?.n || 0;
+    }
+    res.json({ total: ids.length, already, new: Math.max(0, ids.length - already) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/releases/:id/send', async (req, res) => {
   const { contact_ids } = req.body || {};
   if (!Array.isArray(contact_ids) || !contact_ids.length) return res.status(400).json({ error: 'contact_ids required' });

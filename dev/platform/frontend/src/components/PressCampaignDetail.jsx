@@ -94,6 +94,26 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   // the AM can see who a release goes out as before sending — and is warned if
   // it's still defaulting to the platform address.
   const [sender, setSender] = useState(null);
+  const [senderEdit, setSenderEdit] = useState(null); // null = closed; else {from_name, from_email, reply_to}
+  const [savingSender, setSavingSender] = useState(false);
+
+  function openSenderEdit() {
+    setSenderEdit({
+      from_name: sender?.source === 'default' ? '' : (sender?.from_name || ''),
+      from_email: sender?.source === 'default' ? '' : (sender?.from_email || ''),
+      reply_to: sender?.source === 'default' ? '' : (sender?.reply_to || ''),
+    });
+  }
+  async function saveSender() {
+    setSavingSender(true);
+    try {
+      await api.put(`/outreach/sending/${clientId}`, senderEdit);
+      const s = await api.get(`/press/clients/${clientId}/sender`).catch(() => null);
+      setSender(s);
+      setSenderEdit(null);
+      toast('Sender saved — this is who your emails go out as now.', 'success');
+    } catch (e) { toast(e.message, 'error'); } finally { setSavingSender(false); }
+  }
 
   const hydratedRef = useRef(false);
 
@@ -358,11 +378,28 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
       );
       if (!ok) return;
     }
-    if (!confirm(`Send to ${totalRecipients} journalist${totalRecipients === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop automatically if they reply.`)) return;
+    // Ask the server how many of these recipients already have this release in
+    // this campaign, so we can tell the AM exactly who's new vs. a repeat — and
+    // reassure them a re-send won't double up. Falls back to a plain confirm if
+    // the check fails.
+    let plan = null;
+    try { plan = await api.post(`/press/releases/${release.id}/send-plan`, { contact_ids: Array.from(combinedIds) }); }
+    catch { /* non-fatal — fall through to the simple confirm */ }
+    if (plan && plan.already > 0) {
+      if (plan.new === 0) {
+        alert(`All ${plan.already} of these recipients have already been sent this release in this campaign. There's no one new to send to.`);
+        return;
+      }
+      const msg = `${plan.already} of these ${plan.total} recipient${plan.total === 1 ? '' : 's'} were already emailed this release in this campaign — they will be skipped automatically (no duplicates).\n\n`
+        + `Send the release to the ${plan.new} new recipient${plan.new === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop if they reply.`;
+      if (!confirm(msg)) return;
+    } else if (!confirm(`Send to ${totalRecipients} journalist${totalRecipients === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop automatically if they reply.`)) {
+      return;
+    }
     setSending(true);
     try {
       const r = await api.post(`/press/releases/${release.id}/send`, { contact_ids: Array.from(combinedIds) });
-      toast(`Queued ${r.queued} emails.`, 'success');
+      toast(r.queued ? `Queued ${r.queued} emails.` : 'Nothing new to queue — everyone was already sent.', 'success');
     } catch (e) { toast(`Send failed: ${e.message}`, 'error'); }
     finally { setSending(false); }
   }
@@ -494,8 +531,28 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 <span style={{ fontWeight: 700 }}>{sender.source === 'default' ? '⚠ Sending as (not set — platform default):' : 'Sending as:'}</span>
                 <span>{sender.from_name}{sender.from_email ? ` <${sender.from_email}>` : ''}</span>
                 {sender.reply_to && <span style={{ color: 'var(--text-subtle)' }}>· replies → {sender.reply_to}</span>}
-                {sender.source === 'mailbox' && <span className="chip">{sender.mailbox_count} mailbox{sender.mailbox_count === 1 ? '' : 'es'}</span>}
-                {sender.source === 'default' && <span style={{ color: 'var(--text-muted)' }}>Set a From / Reply-To in <strong>Owned → Email → Send</strong>.</span>}
+                {sender.source === 'mailbox' && <span className="chip">{sender.mailbox_count} mailbox{sender.mailbox_count === 1 ? '' : 'es'} · managed in Owned → Email → Send</span>}
+                {sender.source !== 'mailbox' && !senderEdit && (
+                  <button {...roWrite(readOnly, { onClick: openSenderEdit })} className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}>
+                    {sender.source === 'default' ? 'Set sender →' : 'Change →'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {senderEdit && (
+              <div className="card" style={{ marginTop: 8, padding: 12, background: 'var(--surface-raised)' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Who these emails send from</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <label className="field"><span className="field-label">From name</span><input className="input" value={senderEdit.from_name} onChange={(e) => setSenderEdit((s) => ({ ...s, from_name: e.target.value }))} placeholder="October Communications" /></label>
+                  <label className="field"><span className="field-label">From email</span><input className="input" value={senderEdit.from_email} onChange={(e) => setSenderEdit((s) => ({ ...s, from_email: e.target.value }))} placeholder="press@yourdomain.com" /></label>
+                  <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Reply-To (where replies land)</span><input className="input" value={senderEdit.reply_to} onChange={(e) => setSenderEdit((s) => ({ ...s, reply_to: e.target.value }))} placeholder="hello@yourdomain.com" /></label>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 10px' }}>The From address must be on a domain you've verified for sending. Applies to every email for this client that isn't sent from a mailbox — including everything not yet sent in this campaign.</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" disabled={savingSender || !senderEdit.from_email.trim()} onClick={saveSender}>{savingSender ? 'Saving…' : 'Save sender'}</button>
+                  <button className="btn btn-secondary btn-sm" disabled={savingSender} onClick={() => setSenderEdit(null)}>Cancel</button>
+                </div>
               </div>
             )}
 
