@@ -24,6 +24,23 @@ transparency, voting, comments and grouping added later.
 | Programmes | Group projects into a Programme, Sprint or Mega-project. Each group shows its own cost subtotal and completion bar. |
 | Voting | Residents upvote works to signal where to start. One vote per person, toggleable. Logged-in residents tracked by account; visitors by a cookie. |
 | Comments | A discussion thread hidden inside each ticket, shown only when a resident opens it and expands "Discussion". Not shown in the always-visible list. |
+| Quote documents | Attach the actual quote (PDF, image or document) to a project via the WP media library. Residents open it from inside the ticket. |
+| Downloads | Export the full list to a formatted XLS (Excel/Numbers/Sheets) or a print-ready PDF, so residents and the managing agent can keep their own record. |
+
+## Programme types (the project hierarchy)
+
+"Sprint" is a time-box, not a size of work, so the group types now follow the
+recognised project hierarchy:
+
+| Type | Means | Example |
+|------|-------|---------|
+| **Epic** | A bundle of related works delivered together | Waste & Bin Store Overhaul |
+| **Initiative** | A large scheme spanning several epics | Communal Areas Refresh |
+| **Sprint** | A time-boxed batch committed to next | Fire Safety (do before winter) |
+| **Milestone** | A dated target the works roll up to | AGM, end of financial year |
+
+A project can sit in more than one, so a job can belong to an epic and also be
+pulled into the current sprint.
 
 ## Install
 
@@ -46,6 +63,13 @@ duplicating existing ones.
   cost basis and location; the lower box holds the proposed solution.
 - **Enter a quote:** open the project, put the figure in **Cost (£)** and set
   the basis. The running totals update on the front end automatically.
+- **Attach the quote document:** in the "Quote documents" box, click **Add
+  quote document**, upload or pick the file, and update. It shows inside the
+  ticket for residents to read.
+- **Download the list:** the toolbar on the residents' page has **Download XLS**
+  and **Download PDF**. XLS opens in Excel, Numbers or Google Sheets with a
+  summable cost column; PDF opens a print-ready A4 page and the browser's
+  Save-as-PDF.
 - **Group works:** assign a project to one or more Programmes (Projects >
   Programmes to create them and set the type: programme, sprint or mega-project).
 - **Moderate comments:** anonymous comments go to the normal WordPress
@@ -79,6 +103,18 @@ duplicating existing ones.
 - **Comments respect the not-official boundary.** The disclaimer renders under
   every list: this tracker is for visibility and informal input, not the
   official reporting channel.
+
+## Quote documents: a privacy caveat worth knowing
+
+Files in the WordPress media library have public URLs. Anyone with the link can
+open an attached quote even if the tracker page itself is login-gated, and the
+file can be indexed by search engines. For most quotes that is fine, and it is
+what "everyone can read the actual quote" asks for. If a particular quote holds
+contractor pricing the RTM would rather not have fully public, either keep it
+off the site, or move to a protected-download setup once the site is
+login-gated (serve files through PHP behind an auth check rather than as raw
+media URLs). The XLS and PDF exports only record whether a quote is on file,
+not its contents, so they do not leak anything.
 
 ## Notes for a future build
 

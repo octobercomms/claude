@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Trinity Court Projects
  * Plugin URI:        https://trinitycourtmargate.co.uk/
- * Description:        Logs building improvement works for Trinity Court, tracks status, priority, quoted cost and a running total, groups works into programmes (sprints / mega-projects), and lets residents vote and comment. Display anywhere with the [trinity_projects] shortcode.
- * Version:           1.0.0
+ * Description:        Logs building improvement works for Trinity Court, tracks status, priority, quoted cost and a running total, groups works into programmes (epics / initiatives / sprints), attaches quote documents, exports to XLS and PDF, and lets residents vote and comment. Display anywhere with the [trinity_projects] shortcode.
+ * Version:           1.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            October Communications
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'TCP_VERSION', '1.0.0' );
+define( 'TCP_VERSION', '1.1.0' );
 define( 'TCP_FILE', __FILE__ );
 define( 'TCP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TCP_URL', plugin_dir_url( __FILE__ ) );
@@ -69,6 +69,9 @@ final class Trinity_Court_Projects {
 		// Front end.
 		add_shortcode( 'trinity_projects', array( $this, 'render_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'front_assets' ) );
+
+		// Downloads (XLS / print-to-PDF).
+		add_action( 'template_redirect', array( $this, 'maybe_export' ) );
 
 		// AJAX: voting + comments.
 		add_action( 'wp_ajax_tcp_vote', array( $this, 'ajax_vote' ) );
@@ -130,13 +133,15 @@ final class Trinity_Court_Projects {
 	}
 
 	/**
-	 * Programme (group) types. slug => label.
+	 * Programme (group) types, using the recognised project hierarchy.
+	 * slug => label.
 	 */
 	public static function group_types() {
 		return array(
-			'programme' => 'Programme',
-			'sprint'    => 'Sprint',
-			'mega'      => 'Mega-project',
+			'epic'       => 'Epic',
+			'initiative' => 'Initiative',
+			'sprint'     => 'Sprint',
+			'milestone'  => 'Milestone',
 		);
 	}
 
@@ -255,6 +260,41 @@ final class Trinity_Court_Projects {
 			'normal',
 			'high'
 		);
+		add_meta_box(
+			'tcp_docs',
+			'Quote documents',
+			array( $this, 'render_docs_box' ),
+			self::CPT,
+			'side',
+			'default'
+		);
+	}
+
+	public function render_docs_box( $post ) {
+		$docs = get_post_meta( $post->ID, '_tcp_quote_docs', true );
+		if ( ! is_array( $docs ) ) {
+			$docs = array();
+		}
+		?>
+		<p class="description">Attach the actual quote(s) (PDF, image or document). Residents can open them from the project.</p>
+		<ul class="tcp-doc-list">
+			<?php foreach ( $docs as $att_id ) :
+				$att_id = (int) $att_id;
+				$url    = wp_get_attachment_url( $att_id );
+				if ( ! $url ) {
+					continue;
+				}
+				?>
+				<li data-id="<?php echo esc_attr( $att_id ); ?>">
+					<span class="dashicons dashicons-media-document"></span>
+					<a href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( get_the_title( $att_id ) ? get_the_title( $att_id ) : basename( $url ) ); ?></a>
+					<button type="button" class="button-link tcp-doc-remove" aria-label="Remove">&times;</button>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+		<input type="hidden" id="tcp_quote_docs" name="tcp_quote_docs" value="<?php echo esc_attr( implode( ',', array_map( 'intval', $docs ) ) ); ?>" />
+		<button type="button" class="button" id="tcp_add_doc">Add quote document</button>
+		<?php
 	}
 
 	public function render_meta_box( $post ) {
@@ -370,6 +410,16 @@ final class Trinity_Court_Projects {
 			delete_post_meta( $post_id, '_tcp_cost' );
 		}
 
+		// Quote documents: comma-separated attachment IDs.
+		if ( isset( $_POST['tcp_quote_docs'] ) ) {
+			$ids = array_filter( array_map( 'absint', explode( ',', sanitize_text_field( wp_unslash( $_POST['tcp_quote_docs'] ) ) ) ) );
+			if ( $ids ) {
+				update_post_meta( $post_id, '_tcp_quote_docs', array_values( $ids ) );
+			} else {
+				delete_post_meta( $post_id, '_tcp_quote_docs' );
+			}
+		}
+
 		foreach ( $fields as $key => $value ) {
 			update_post_meta( $post_id, $key, $value );
 		}
@@ -456,6 +506,10 @@ final class Trinity_Court_Projects {
 		$screen = get_current_screen();
 		if ( $screen && self::CPT === $screen->post_type ) {
 			wp_enqueue_style( 'tcp-admin', TCP_URL . 'assets/admin.css', array(), TCP_VERSION );
+			if ( in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) {
+				wp_enqueue_media();
+				wp_enqueue_script( 'tcp-admin', TCP_URL . 'assets/admin.js', array( 'jquery' ), TCP_VERSION, true );
+			}
 		}
 	}
 
@@ -472,7 +526,7 @@ final class Trinity_Court_Projects {
 					<option value="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $label ); ?></option>
 				<?php endforeach; ?>
 			</select>
-			<p>Programme (loose grouping), Sprint (a focused batch), or Mega-project (large multi-part scheme).</p>
+			<p>Epic (a bundle of related works delivered together), Initiative (a large scheme spanning several epics), Sprint (a time-boxed batch committed to next), or Milestone (a dated target the works roll up to).</p>
 		</div>
 		<?php
 	}
@@ -480,7 +534,7 @@ final class Trinity_Court_Projects {
 	public function group_edit_field( $term ) {
 		$type = get_term_meta( $term->term_id, 'tcp_group_type', true );
 		if ( '' === $type ) {
-			$type = 'programme';
+			$type = 'epic';
 		}
 		?>
 		<tr class="form-field">
@@ -535,6 +589,8 @@ final class Trinity_Court_Projects {
 	 *   summary   "yes" (default) or "no"
 	 *   voting    "yes" (default) or "no"
 	 *   comments  "yes" (default) or "no"
+	 *   accent    a CSS colour to theme the tracker (defaults to the building
+	 *             burgundy). e.g. accent="#123456" to match the site brand.
 	 */
 	public function render_shortcode( $atts ) {
 		$atts = shortcode_atts(
@@ -543,6 +599,7 @@ final class Trinity_Court_Projects {
 				'summary'  => 'yes',
 				'voting'   => 'yes',
 				'comments' => 'yes',
+				'accent'   => '',
 			),
 			$atts,
 			'trinity_projects'
@@ -550,6 +607,12 @@ final class Trinity_Court_Projects {
 
 		wp_enqueue_style( 'tcp-frontend' );
 		wp_enqueue_script( 'tcp-frontend' );
+
+		// Optional per-page accent override.
+		$style = '';
+		if ( '' !== $atts['accent'] && preg_match( '/^#?[0-9a-zA-Z(),.%\s]{3,40}$/', $atts['accent'] ) ) {
+			$style = ' style="--tcp-accent:' . esc_attr( $atts['accent'] ) . '"';
+		}
 
 		$projects = get_posts(
 			array(
@@ -565,7 +628,7 @@ final class Trinity_Court_Projects {
 		$comments_on = 'no' !== $atts['comments'];
 
 		ob_start();
-		echo '<div class="tcp-app" data-view="' . esc_attr( $atts['view'] ) . '">';
+		echo '<div class="tcp-app" data-view="' . esc_attr( $atts['view'] ) . '"' . $style . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $style pre-escaped above.
 
 		if ( 'no' !== $atts['summary'] ) {
 			echo $this->render_summary( $projects ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built with escaping inside.
@@ -666,16 +729,22 @@ final class Trinity_Court_Projects {
 					<button type="button" class="tcp-filter" data-filter="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $data[0] ); ?></button>
 				<?php endforeach; ?>
 			</div>
-			<label class="tcp-sort">
-				Sort:
-				<select class="tcp-sort-select">
-					<option value="ref">Reference</option>
-					<option value="priority">Priority</option>
-					<option value="votes">Most voted</option>
-					<option value="cost">Cost (high to low)</option>
-					<option value="status">Status</option>
-				</select>
-			</label>
+			<div class="tcp-tools-right">
+				<label class="tcp-sort">
+					Sort:
+					<select class="tcp-sort-select">
+						<option value="ref">Reference</option>
+						<option value="priority">Priority</option>
+						<option value="votes">Most voted</option>
+						<option value="cost">Cost (high to low)</option>
+						<option value="status">Status</option>
+					</select>
+				</label>
+				<span class="tcp-downloads">
+					<a class="tcp-download" href="<?php echo esc_url( add_query_arg( 'tcp_export', 'xls', home_url( '/' ) ) ); ?>">Download XLS</a>
+					<a class="tcp-download" href="<?php echo esc_url( add_query_arg( 'tcp_export', 'pdf', home_url( '/' ) ) ); ?>" target="_blank" rel="noopener">Download PDF</a>
+				</span>
+			</div>
 		</div>
 		<?php
 		return ob_get_clean();
@@ -734,7 +803,7 @@ final class Trinity_Court_Projects {
 
 	private function render_group_block( $group, $members, $voting_on, $comments_on ) {
 		$type       = get_term_meta( $group->term_id, 'tcp_group_type', true );
-		$type_label = isset( self::group_types()[ $type ] ) ? self::group_types()[ $type ] : 'Programme';
+		$type_label = isset( self::group_types()[ $type ] ) ? self::group_types()[ $type ] : 'Epic';
 		$total      = $this->sum_cost( $members );
 		$done       = 0;
 		foreach ( $members as $m ) {
@@ -852,6 +921,33 @@ final class Trinity_Court_Projects {
 				<?php if ( $location ) : ?>
 					<p class="tcp-loc"><strong>Location:</strong> <?php echo esc_html( $location ); ?></p>
 				<?php endif; ?>
+
+				<?php
+				$docs = get_post_meta( $id, '_tcp_quote_docs', true );
+				if ( is_array( $docs ) && $docs ) : ?>
+					<h4>Quote documents</h4>
+					<ul class="tcp-docs">
+						<?php foreach ( $docs as $att_id ) :
+							$att_id = (int) $att_id;
+							$url    = wp_get_attachment_url( $att_id );
+							if ( ! $url ) {
+								continue;
+							}
+							$name = get_the_title( $att_id ) ? get_the_title( $att_id ) : basename( wp_parse_url( $url, PHP_URL_PATH ) );
+							$path = get_attached_file( $att_id );
+							$size = ( $path && file_exists( $path ) ) ? filesize( $path ) : 0;
+							?>
+							<li>
+								<a href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener">
+									<span class="tcp-doc-icon" aria-hidden="true">📄</span>
+									<?php echo esc_html( $name ); ?>
+									<?php if ( $size ) : ?><span class="tcp-doc-size"><?php echo esc_html( size_format( $size ) ); ?></span><?php endif; ?>
+								</a>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+				<?php endif; ?>
+
 				<p class="tcp-updated">Last updated <?php echo esc_html( get_the_modified_date( 'j M Y', $project ) ); ?></p>
 
 				<?php if ( $comments_on ) : ?>
@@ -887,6 +983,218 @@ final class Trinity_Court_Projects {
 			}
 		}
 		return $sum;
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Exports (XLS + print-to-PDF)
+	 * ------------------------------------------------------------------- */
+
+	/**
+	 * Ordered rows for export, one per project, with resolved labels.
+	 */
+	private function export_rows() {
+		$projects = get_posts(
+			array(
+				'post_type'      => self::CPT,
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'orderby'        => 'menu_order title',
+				'order'          => 'ASC',
+			)
+		);
+		$rows = array();
+		foreach ( $projects as $p ) {
+			$cost   = get_post_meta( $p->ID, '_tcp_cost', true );
+			$groups = wp_get_post_terms( $p->ID, self::TAX_GRP, array( 'fields' => 'names' ) );
+			$cats   = wp_get_post_terms( $p->ID, self::TAX_CAT, array( 'fields' => 'names' ) );
+			$ctype  = get_post_meta( $p->ID, '_tcp_cost_type', true );
+			$docs   = get_post_meta( $p->ID, '_tcp_quote_docs', true );
+			$rows[] = array(
+				'ref'       => get_post_meta( $p->ID, '_tcp_ref', true ),
+				'title'     => get_the_title( $p ),
+				'category'  => ! is_wp_error( $cats ) && $cats ? implode( ', ', $cats ) : '',
+				'programme' => ! is_wp_error( $groups ) && $groups ? implode( ', ', $groups ) : '',
+				'priority'  => self::priority_label( get_post_meta( $p->ID, '_tcp_priority', true ) ),
+				'status'    => self::status_label( get_post_meta( $p->ID, '_tcp_status', true ) ),
+				'cost'      => ( '' === $cost ) ? null : (float) $cost,
+				'cost_type' => ( $ctype && isset( self::cost_types()[ $ctype ] ) ) ? self::cost_types()[ $ctype ] : '',
+				'location'  => get_post_meta( $p->ID, '_tcp_location', true ),
+				'votes'     => (int) get_post_meta( $p->ID, '_tcp_votes', true ),
+				'has_quote' => ( is_array( $docs ) && $docs ) ? 'Yes' : 'No',
+				'problem'   => wp_strip_all_tags( $p->post_content ),
+				'solution'  => get_post_meta( $p->ID, '_tcp_solution', true ),
+				'updated'   => get_the_modified_date( 'j M Y', $p ),
+			);
+		}
+		return $rows;
+	}
+
+	public function maybe_export() {
+		if ( empty( $_GET['tcp_export'] ) ) {
+			return;
+		}
+		$type = sanitize_key( wp_unslash( $_GET['tcp_export'] ) );
+		if ( 'xls' === $type ) {
+			$this->export_xls();
+		} elseif ( 'pdf' === $type ) {
+			$this->export_print();
+		}
+	}
+
+	private function export_columns() {
+		return array(
+			'ref'       => 'Ref',
+			'title'     => 'Project',
+			'category'  => 'Category',
+			'programme' => 'Programme',
+			'priority'  => 'Priority',
+			'status'    => 'Status',
+			'cost'      => 'Cost (£)',
+			'cost_type' => 'Cost basis',
+			'has_quote' => 'Quote on file',
+			'votes'     => 'Votes',
+			'location'  => 'Location',
+			'problem'   => 'Problem',
+			'solution'  => 'Proposed solution',
+			'updated'   => 'Last updated',
+		);
+	}
+
+	/**
+	 * Stream a formatted spreadsheet. An HTML table with the Excel MIME type
+	 * opens natively in Excel, Numbers and Google Sheets with header styling
+	 * intact, and needs no bundled library.
+	 */
+	private function export_xls() {
+		$rows    = $this->export_rows();
+		$cols    = $this->export_columns();
+		$total   = 0.0;
+		foreach ( $rows as $r ) {
+			$total += (float) $r['cost'];
+		}
+		$file = 'trinity-court-works-' . gmdate( 'Y-m-d' ) . '.xls';
+
+		nocache_headers();
+		header( 'Content-Type: application/vnd.ms-excel; charset=UTF-8' );
+		header( 'Content-Disposition: attachment; filename="' . $file . '"' );
+
+		echo "\xEF\xBB\xBF"; // UTF-8 BOM for Excel.
+		echo '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>';
+		echo '<table border="1" cellspacing="0" cellpadding="4">';
+		echo '<tr><td colspan="' . count( $cols ) . '" style="background:#68353a;color:#ffffff;font-size:15px;font-weight:bold">Trinity Court, Margate — Building improvement works (' . esc_html( gmdate( 'j F Y' ) ) . ')</td></tr>';
+		echo '<tr>';
+		foreach ( $cols as $label ) {
+			echo '<th style="background:#68353a;color:#ffffff;text-align:left">' . esc_html( $label ) . '</th>';
+		}
+		echo '</tr>';
+		foreach ( $rows as $r ) {
+			echo '<tr>';
+			foreach ( $cols as $key => $label ) {
+				$val = $r[ $key ];
+				if ( 'cost' === $key ) {
+					// Real figures stay numeric so Excel can sum them; blanks read as text.
+					if ( null === $val ) {
+						echo '<td>Awaiting quote</td>';
+					} else {
+						echo '<td>' . esc_html( number_format( (float) $val, 2, '.', '' ) ) . '</td>';
+					}
+				} else {
+					// Force text so long descriptions and refs are not reinterpreted.
+					echo '<td style="mso-number-format:\'\\@\'">' . esc_html( (string) $val ) . '</td>';
+				}
+			}
+			echo '</tr>';
+		}
+		echo '<tr><td colspan="6" style="font-weight:bold;text-align:right">Total costed</td>';
+		echo '<td style="font-weight:bold">' . esc_html( number_format( $total, 2, '.', '' ) ) . '</td>';
+		echo '<td colspan="' . ( count( $cols ) - 7 ) . '"></td></tr>';
+		echo '</table></body></html>';
+		exit;
+	}
+
+	/**
+	 * Render an A4 print-ready page and trigger the browser's Save-as-PDF.
+	 * Keeps formatting under our control without a PDF engine.
+	 */
+	private function export_print() {
+		$rows  = $this->export_rows();
+		$total = 0.0;
+		$done  = 0;
+		foreach ( $rows as $r ) {
+			$total += (float) $r['cost'];
+			if ( 'Completed' === $r['status'] ) {
+				$done++;
+			}
+		}
+		$count = count( $rows );
+
+		nocache_headers();
+		header( 'Content-Type: text/html; charset=UTF-8' );
+		?>
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trinity Court works — <?php echo esc_html( gmdate( 'j F Y' ) ); ?></title>
+<style>
+	* { box-sizing: border-box; }
+	body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1e1c1d; margin: 0; padding: 28px; font-size: 12px; }
+	.head { border-bottom: 3px solid #68353a; padding-bottom: 12px; margin-bottom: 16px; }
+	.head h1 { font-size: 20px; margin: 0 0 4px; color: #68353a; }
+	.head p { margin: 0; color: #666; font-size: 12px; }
+	.totals { margin: 0 0 16px; font-size: 13px; }
+	.totals strong { color: #68353a; }
+	table { width: 100%; border-collapse: collapse; }
+	th, td { border: 1px solid #ddd; padding: 6px 7px; text-align: left; vertical-align: top; }
+	th { background: #68353a; color: #fff; font-size: 11px; }
+	td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+	tr:nth-child(even) td { background: #faf7f7; }
+	.status { font-weight: bold; }
+	.awaiting { color: #888; font-style: italic; }
+	.foot { margin-top: 16px; font-size: 10px; color: #888; }
+	.print-btn { position: fixed; top: 14px; right: 14px; background: #68353a; color: #fff; border: 0; padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+	@media print { .print-btn { display: none; } body { padding: 0; } }
+	@page { size: A4 landscape; margin: 14mm; }
+</style>
+</head>
+<body>
+	<button class="print-btn" onclick="window.print()">Save as PDF</button>
+	<div class="head">
+		<h1>Trinity Court, Margate — Building improvement works</h1>
+		<p>Prepared <?php echo esc_html( gmdate( 'j F Y' ) ); ?> · <?php echo esc_html( $count ); ?> works logged · <?php echo esc_html( $done ); ?> completed</p>
+	</div>
+	<p class="totals">Total costed so far: <strong><?php echo esc_html( self::money( $total ) ); ?></strong>. Works without a figure are still awaiting a quote.</p>
+	<table>
+		<thead>
+			<tr>
+				<th>Ref</th><th>Project</th><th>Category</th><th>Programme</th>
+				<th>Priority</th><th>Status</th><th>Cost</th><th>Basis</th><th>Quote</th><th>Location</th>
+			</tr>
+		</thead>
+		<tbody>
+			<?php foreach ( $rows as $r ) : ?>
+				<tr>
+					<td><?php echo esc_html( $r['ref'] ); ?></td>
+					<td><?php echo esc_html( $r['title'] ); ?></td>
+					<td><?php echo esc_html( $r['category'] ); ?></td>
+					<td><?php echo esc_html( $r['programme'] ); ?></td>
+					<td><?php echo esc_html( $r['priority'] ); ?></td>
+					<td class="status"><?php echo esc_html( $r['status'] ); ?></td>
+					<td class="num"><?php echo ( null === $r['cost'] ) ? '<span class="awaiting">Awaiting</span>' : esc_html( self::money( $r['cost'] ) ); ?></td>
+					<td><?php echo esc_html( $r['cost_type'] ); ?></td>
+					<td><?php echo esc_html( $r['has_quote'] ); ?></td>
+					<td><?php echo esc_html( $r['location'] ); ?></td>
+				</tr>
+			<?php endforeach; ?>
+		</tbody>
+	</table>
+	<p class="foot">Trinity Court RTM. This record is for resident and managing-agent reference. It is not the official reporting channel; formal matters go to the managing agent directly.</p>
+	<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});</script>
+</body>
+</html>
+		<?php
+		exit;
 	}
 
 	/* ---------------------------------------------------------------------

@@ -4,7 +4,7 @@ Tags: projects, tracker, community, residents, rtm
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,15 @@ Shortcode attributes:
    quotes arrive.
 
 == Changelog ==
+
+= 1.1.0 =
+* Quote documents: attach the actual quote (PDF, image or doc) to each project
+  so residents can read it; shown inside the ticket.
+* Downloads: export the full list to a formatted XLS (opens in Excel, Numbers
+  or Google Sheets) and to a print-ready PDF, so residents and the managing
+  agent can keep their own record.
+* Programme types now follow the recognised project hierarchy: Epic,
+  Initiative, Sprint, Milestone (was programme / sprint / mega-project).
 
 = 1.0.0 =
 * Initial release: projects CPT, status/priority/cost tracking, running totals,
