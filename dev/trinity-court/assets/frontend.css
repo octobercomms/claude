@@ -25,6 +25,11 @@
 	margin: 0 auto;
 }
 
+/* Full-bleed: fills the content column it sits in. */
+.tcp-app.tcp-app--full {
+	max-width: 100%;
+}
+
 /* Fallback palette for browsers without color-mix() support. */
 @supports not (color: color-mix(in srgb, red, blue)) {
 	.tcp-app {

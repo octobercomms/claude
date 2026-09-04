@@ -98,6 +98,8 @@ page width and fonts wrap it automatically, so it looks like part of the site.
 [trinity_projects summary="no"]           // hide the running-total bar
 [trinity_projects voting="no"]            // hide voting
 [trinity_projects comments="no"]          // hide the discussion threads
+[trinity_projects width="full"]           // fill the page column (no 980px cap)
+[trinity_projects accent="#123456"]       // set the accent colour
 ```
 
 ## Decisions made (change if you disagree)
