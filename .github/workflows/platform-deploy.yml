@@ -52,7 +52,10 @@ jobs:
           script: |
             set -e
             bash /opt/october-source/dev/platform/update.sh
-          # 10-minute ceiling — frontend build + Shopify Remix build can
-          # legitimately take 2-3 min on a cold cache; everything above
-          # that is a stuck process.
-          command_timeout: 10m
+          # 30-minute ceiling. The frontend + Shopify Remix builds are only
+          # 2-3 min, but a cold `npm install` on the box has been seen to take
+          # ~7 min on a slow registry day — with the old 10m cap that tipped
+          # the whole run over the edge mid-build ("Run Command Timeout").
+          # 30m leaves generous headroom while still flagging a truly stuck
+          # process.
+          command_timeout: 30m
