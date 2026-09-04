@@ -5,6 +5,7 @@ import SuiteTabs from '../components/SuiteTabs';
 import RecordingsPage from './RecordingsPage';
 import ClientEditPage from './ClientEditPage';
 import ClientVisualisePage from './ClientVisualisePage';
+import TranscribePage from './TranscribePage';
 import { useTabParam } from '../hooks/useTabParam';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,13 +18,13 @@ export default function ClientVideoTab() {
   const { id } = useParams();
   const { readOnly, user } = useAuth();
   const canVisualise = !readOnly || !!user?.can_use_visualise;
-  const [tab, setTab] = useTabParam('record', ['record', 'edit', 'visualise']);
+  const [tab, setTab] = useTabParam('record', ['record', 'edit', 'visualise', 'transcribe']);
   const [client, setClient] = useState(null);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
   // Edit is agency-only; Visualise needs the grant — bounce a client off a deep link.
   useEffect(() => {
-    if (readOnly && tab === 'edit') setTab('record');
+    if (readOnly && (tab === 'edit' || tab === 'transcribe')) setTab('record');
     if (tab === 'visualise' && !canVisualise) setTab('record');
   }, [readOnly, canVisualise, tab, setTab]);
 
@@ -36,11 +37,13 @@ export default function ClientVideoTab() {
         { key: 'record', label: 'Record', active: tab === 'record', onClick: () => setTab('record') },
         ...(readOnly ? [] : [{ key: 'edit', label: 'Edit', fn: 'create', active: tab === 'edit', onClick: () => setTab('edit') }]),
         ...(canVisualise ? [{ key: 'visualise', label: 'Visualise', fn: 'create', active: tab === 'visualise', onClick: () => setTab('visualise') }] : []),
+        ...(readOnly ? [] : [{ key: 'transcribe', label: 'Transcribe', fn: 'create', active: tab === 'transcribe', onClick: () => setTab('transcribe') }]),
       ]} />
 
       {tab === 'record' && <RecordingsPage embedded clientId={id} onSendToEdit={() => setTab('edit')} />}
       {tab === 'edit' && !readOnly && <ClientEditPage embedded clientId={id} />}
       {tab === 'visualise' && canVisualise && <ClientVisualisePage embedded clientId={id} />}
+      {tab === 'transcribe' && !readOnly && <TranscribePage embedded clientId={id} />}
     </div>
   );
 }

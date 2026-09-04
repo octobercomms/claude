@@ -213,6 +213,7 @@ app.use('/api/pr-portal', require('./routes/prPortal')); // public, token-gated
 app.use('/api/pr-addon', require('./routes/prAddon')); // Gmail add-on, X-OMI-Key auth
 app.use('/api/sales-traffic', require('./routes/salesTraffic'));
 app.use('/api/recordings', require('./routes/recordings'));
+app.use('/api/transcripts', require('./routes/transcripts'));
 app.use('/api/strategist', require('./routes/strategist'));
 app.use('/api/october-forms', require('./routes/octoberForms'));
 app.use('/api/waitlist', require('./routes/waitlist'));
