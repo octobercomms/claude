@@ -4,7 +4,7 @@ Tags: projects, tracker, community, residents, rtm
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,11 @@ Shortcode attributes:
    quotes arrive.
 
 == Changelog ==
+
+= 1.1.3 =
+* Vote counts are now editable in the admin (Project tracking box), so votes
+  can be seeded, corrected or reset. Resident clicks adjust the count up and
+  down from whatever is set, preserving an offline baseline.
 
 = 1.1.2 =
 * Full-width option: [trinity_projects width="full"] makes the tracker fill the

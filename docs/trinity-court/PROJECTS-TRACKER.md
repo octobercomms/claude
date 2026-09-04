@@ -72,6 +72,10 @@ duplicating existing ones.
   Save-as-PDF.
 - **Group works:** assign a project to one or more Programmes (Projects >
   Programmes to create them and set the type: programme, sprint or mega-project).
+- **Change vote counts:** open the project; the **Resident votes** field in the
+  Project tracking box sets the count. Use it to seed votes gathered at a
+  meeting, correct a number, or reset to 0. Resident clicks on the site then
+  adjust up and down from whatever you set.
 - **Moderate comments:** anonymous comments go to the normal WordPress
   moderation queue; comments from logged-in residents auto-approve. Manage them
   under Comments as usual.

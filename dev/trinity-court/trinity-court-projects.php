@@ -3,7 +3,7 @@
  * Plugin Name:       Trinity Court Projects
  * Plugin URI:        https://trinitycourtmargate.co.uk/
  * Description:        Logs building improvement works for Trinity Court, tracks status, priority, quoted cost and a running total, groups works into programmes (epics / initiatives / sprints), attaches quote documents, exports to XLS and PDF, and lets residents vote and comment. Display anywhere with the [trinity_projects] shortcode.
- * Version:           1.1.2
+ * Version:           1.1.3
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            October Communications
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'TCP_VERSION', '1.1.2' );
+define( 'TCP_VERSION', '1.1.3' );
 define( 'TCP_FILE', __FILE__ );
 define( 'TCP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TCP_URL', plugin_dir_url( __FILE__ ) );
@@ -353,9 +353,11 @@ final class Trinity_Court_Projects {
 			<label for="tcp_location"><strong>Location / scope</strong></label><br />
 			<input type="text" id="tcp_location" name="tcp_location" value="<?php echo esc_attr( $location ); ?>" style="width:100%" />
 		</p>
-		<p style="color:#666;margin-top:12px;">
-			<span class="dashicons dashicons-thumbs-up" style="vertical-align:middle"></span>
-			<strong><?php echo esc_html( $votes ); ?></strong> resident vote<?php echo 1 === $votes ? '' : 's'; ?>
+		<hr />
+		<p>
+			<label for="tcp_votes"><strong>Resident votes</strong></label><br />
+			<input type="number" step="1" min="0" id="tcp_votes" name="tcp_votes" value="<?php echo esc_attr( $votes ); ?>" style="width:100%" />
+			<span class="description">Set or correct the count here (e.g. to add votes gathered at a meeting). Resident clicks on the site adjust this number up and down from whatever you set.</span>
 		</p>
 		<?php
 	}
@@ -408,6 +410,11 @@ final class Trinity_Court_Projects {
 			$fields['_tcp_cost'] = round( (float) wp_unslash( $_POST['tcp_cost'] ), 2 );
 		} else {
 			delete_post_meta( $post_id, '_tcp_cost' );
+		}
+
+		// Resident votes: admin-settable count.
+		if ( isset( $_POST['tcp_votes'] ) && '' !== trim( wp_unslash( $_POST['tcp_votes'] ) ) ) {
+			update_post_meta( $post_id, '_tcp_votes', max( 0, (int) wp_unslash( $_POST['tcp_votes'] ) ) );
 		}
 
 		// Quote documents: comma-separated attachment IDs.
@@ -1250,22 +1257,28 @@ final class Trinity_Court_Projects {
 			$voters = array();
 		}
 
-		$idx = array_search( $token, $voters, true );
+		// Adjust the stored count up or down by one, preserving any admin-set
+		// baseline (e.g. votes gathered offline) rather than recomputing from
+		// the voter list.
+		$count = (int) get_post_meta( $post_id, '_tcp_votes', true );
+		$idx   = array_search( $token, $voters, true );
 		if ( false !== $idx ) {
 			unset( $voters[ $idx ] );
 			$voted = false;
+			$count = max( 0, $count - 1 );
 		} else {
 			$voters[] = $token;
 			$voted    = true;
+			$count    = $count + 1;
 		}
 		$voters = array_values( $voters );
 
 		update_post_meta( $post_id, '_tcp_voters', $voters );
-		update_post_meta( $post_id, '_tcp_votes', count( $voters ) );
+		update_post_meta( $post_id, '_tcp_votes', $count );
 
 		wp_send_json_success(
 			array(
-				'votes' => count( $voters ),
+				'votes' => $count,
 				'voted' => $voted,
 			)
 		);
