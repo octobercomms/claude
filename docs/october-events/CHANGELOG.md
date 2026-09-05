@@ -5,6 +5,35 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.88.0 — Volunteers can cancel their own shift + staff alerts + a Delete action
+
+Three volunteer improvements:
+
+- **Self-service cancel link.** The volunteer confirmation (and reminder) email
+  now has a quiet "Can't make it? Cancel this shift" link. It carries a secret
+  per-signup token — no login — and lands on a confirmation page with a "Yes,
+  cancel my shift" button (the click only cancels on that button, so email
+  scanners pre-fetching the link can't cancel a shift by accident). Cancelling
+  frees the slot automatically. No more manual "please remove me" edits.
+
+- **Separate staff alert lists.** New Settings → Email & SMS → **Volunteer alerts
+  (staff)**: two comma-separated recipient lists — one notified when a volunteer
+  **signs up**, a different one when a volunteer **cancels** (the person who
+  staffs shifts often isn't the one who needs to know about drop-outs). Each
+  alert names the volunteer, opportunity and shift. Leave a box blank to send no
+  alert for that event. Nothing is sent to the volunteer for these — they're
+  internal.
+
+- **Delete a signup (silent).** The Volunteers admin screen now has a **Delete**
+  action alongside Confirm / Decline / No-show. Delete permanently removes the
+  signup, frees the slot, and — unlike **Decline**, which emails the volunteer —
+  sends them nothing. (Decline now says so on hover, to make the difference
+  clear.)
+
+Adds a `cancel_token` column and a `cancelled` status to the signups table (DB
+schema → 13, auto-migrates on upgrade). Existing signups made before this update
+won't have a cancel link in already-sent emails; new signups do.
+
 ## 1.87.0 — Abandoned-cart capture (see where checkouts drop off)
 
 New **Tickets → Abandoned carts** tab. As a shopper fills in the ticket

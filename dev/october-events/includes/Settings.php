@@ -133,6 +133,11 @@ final class Settings {
             'sms_enabled'      => false,
             'sms_sender'       => 'ADF',
             'reminder_offsets' => ['week', '48h', 'morning'],
+            // Internal alert recipients for volunteer activity — comma/newline
+            // separated. Signups and cancellations go to SEPARATE lists (often
+            // different people need to know each). Blank = no alert sent.
+            'volunteer_signup_alert_emails' => '',
+            'volunteer_cancel_alert_emails' => '',
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',

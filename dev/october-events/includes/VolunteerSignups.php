@@ -20,6 +20,10 @@ final class VolunteerSignups {
     public const STATUS_CONFIRMED = 'confirmed';
     public const STATUS_DECLINED  = 'declined';
     public const STATUS_NO_SHOW   = 'no_show';
+    // Set when a volunteer cancels their own shift via the link in their
+    // confirmation email. Like 'declined', it frees the slot (count_for_shift
+    // only counts pending+confirmed) but records that the VOLUNTEER pulled out.
+    public const STATUS_CANCELLED = 'cancelled';
 
     public static function table(): string {
         global $wpdb;
@@ -44,13 +48,15 @@ final class VolunteerSignups {
             checked_in TINYINT(1) NOT NULL DEFAULT 0,
             shift_start DATETIME NULL,
             reminders_sent TEXT NULL,
+            cancel_token VARCHAR(40) NULL,
             created_at DATETIME NOT NULL,
             PRIMARY KEY  (id),
             KEY opportunity_shift (opportunity_id, shift_id),
             KEY email (email),
             KEY account_id (account_id),
             KEY shift_start (shift_start),
-            KEY status (status)
+            KEY status (status),
+            KEY cancel_token (cancel_token)
         ) {$charset};");
     }
 
@@ -117,6 +123,16 @@ final class VolunteerSignups {
     public static function get(int $id): ?object {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare("SELECT * FROM " . self::table() . " WHERE id = %d", $id)) ?: null;
+    }
+
+    /** Find a signup by its (secret) cancel token, for the email cancel link. */
+    public static function by_cancel_token(string $token): ?object {
+        $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM " . self::table() . " WHERE cancel_token = %s", $token)) ?: null;
     }
 
     public static function insert(array $row): int {

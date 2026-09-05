@@ -11,6 +11,12 @@ function oe_vol_action_url(int $signup_id, string $status): string {
         'oe_volunteer_status_' . $signup_id
     );
 }
+function oe_vol_delete_url(int $signup_id): string {
+    return wp_nonce_url(
+        admin_url('admin-post.php?action=oe_volunteer_delete&id=' . $signup_id),
+        'oe_volunteer_delete_' . $signup_id
+    );
+}
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Volunteers', 'october-events'); ?>
@@ -74,8 +80,9 @@ function oe_vol_action_url(int $signup_id, string $status): string {
                         <td><?php echo esc_html($s->reminders_sent ?: '—'); ?></td>
                         <td>
                             <a class="button button-small button-primary" href="<?php echo esc_url(oe_vol_action_url((int) $s->id, 'confirmed')); ?>"><?php esc_html_e('Confirm', 'october-events'); ?></a>
-                            <a class="button button-small" href="<?php echo esc_url(oe_vol_action_url((int) $s->id, 'declined')); ?>"><?php esc_html_e('Decline', 'october-events'); ?></a>
+                            <a class="button button-small" href="<?php echo esc_url(oe_vol_action_url((int) $s->id, 'declined')); ?>" title="<?php esc_attr_e('Emails the volunteer to say the shift didn\'t go ahead.', 'october-events'); ?>"><?php esc_html_e('Decline', 'october-events'); ?></a>
                             <a class="button button-small" href="<?php echo esc_url(oe_vol_action_url((int) $s->id, 'no_show')); ?>"><?php esc_html_e('No-show', 'october-events'); ?></a>
+                            <a class="button button-small button-link-delete" href="<?php echo esc_url(oe_vol_delete_url((int) $s->id)); ?>" onclick="return confirm('<?php echo esc_js(__('Permanently remove this signup? This frees the slot and does NOT email the volunteer.', 'october-events')); ?>');" title="<?php esc_attr_e('Removes the signup silently — no email is sent.', 'october-events'); ?>"><?php esc_html_e('Delete', 'october-events'); ?></a>
                         </td>
                     </tr>
                 <?php endforeach; ?>

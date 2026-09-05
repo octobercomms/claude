@@ -526,6 +526,15 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('A confirmation always sends immediately on signup.', 'october-events'); ?></p>
         </div></details>
 
+        <details class="oe-acc" id="volunteer-alerts"><summary><?php esc_html_e('Volunteer alerts (staff)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Who on your team gets an email when a volunteer signs up, and when one cancels. These are two separate lists — the person who staffs shifts often isn\'t the one who needs to know about drop-outs. Enter one or more addresses separated by commas. Leave a box blank to send no alert for that event.', 'october-events'); ?></p>
+        <p><label><strong><?php esc_html_e('Notify on signup', 'october-events'); ?></strong><br>
+            <textarea name="volunteer_signup_alert_emails" rows="2" class="large-text" placeholder="name@example.com, another@example.com"><?php echo esc_textarea((string) ($cfg['volunteer_signup_alert_emails'] ?? '')); ?></textarea></label></p>
+        <p><label><strong><?php esc_html_e('Notify on cancellation', 'october-events'); ?></strong><br>
+            <textarea name="volunteer_cancel_alert_emails" rows="2" class="large-text" placeholder="name@example.com, another@example.com"><?php echo esc_textarea((string) ($cfg['volunteer_cancel_alert_emails'] ?? '')); ?></textarea></label></p>
+        <p class="description"><?php esc_html_e('Alerts name the volunteer, the opportunity and the shift. Volunteers can cancel their own shift from a link in their confirmation email — a cancellation here means they used it.', 'october-events'); ?></p>
+        </div></details>
+
         <?php endif; ?>
         <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional. Sends volunteer-reminder texts via AWS. Off until enabled and configured. US sending requires a registered 10DLC origination number.', 'october-events'); ?></p>

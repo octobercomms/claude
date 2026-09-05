@@ -270,8 +270,9 @@ final class Transactional {
         $opp   = (string) ($params['opportunity'] ?? '');
         $shift = (string) ($params['shift'] ?? '');
         $where = (string) ($params['location'] ?? '');
-        $url   = (string) ($params['url'] ?? '');
-        $ctx   = (string) ($params['context'] ?? '');
+        $url    = (string) ($params['url'] ?? '');
+        $cancel = (string) ($params['cancel_url'] ?? '');
+        $ctx    = (string) ($params['context'] ?? '');
         $brand = (string) Settings::get('brand_name', 'October Events');
         // Reuse the linked event's logo when there is one, else the brand logo.
         $oid   = (int) ($params['opportunity_id'] ?? 0);
@@ -312,6 +313,14 @@ final class Transactional {
             . $row(__('Location', 'october-events'), $where)
             . '</table></td></tr></table>'
             . ($url !== '' ? '<a href="' . esc_url($url) . '" style="display:inline-block;background:#111;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:11px 18px">' . esc_html__('View details', 'october-events') . '</a>' : '')
+            // Self-service cancel — shown for signup/confirmed/reminder emails,
+            // never on the "declined" email. A quiet secondary link.
+            . ($cancel !== '' && $trigger !== 'volunteer_declined'
+                ? '<p style="margin:16px 0 0;font-size:13px;color:#777">'
+                    . esc_html__('Can\'t make it?', 'october-events') . ' '
+                    . '<a href="' . esc_url($cancel) . '" style="color:#777;text-decoration:underline">' . esc_html__('Cancel this shift', 'october-events') . '</a>'
+                    . '</p>'
+                : '')
             . '</td></tr>'
             . '<tr><td style="padding:16px 22px;border-top:2px solid #111;font-size:12px;color:#777">'
             . esc_html($brand) . ' · <a href="' . $home . '" style="color:#777">' . $host . '</a> · ' . esc_html__('Questions? Just reply to this email.', 'october-events')

@@ -154,6 +154,10 @@ final class Plugin {
         // One-click unsubscribe (?oe_unsub=…&k=…) — exits if it handles the request.
         \OE\Mail\Unsubscribe::handle();
 
+        // Self-service volunteer shift cancel (?oe_vcancel=<id>&k=<token>) — exits
+        // if it handles the request.
+        \OE\Volunteers\Cancel::handle();
+
         // Campaign open pixel.
         $open = isset($_GET['oe_o']) ? sanitize_text_field(wp_unslash($_GET['oe_o'])) : '';
         if ($open !== '') {
