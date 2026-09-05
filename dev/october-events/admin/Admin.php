@@ -31,6 +31,7 @@ final class Admin {
         add_action('admin_post_oe_reject', [$this, 'handle_reject']);
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
         add_action('admin_post_oe_volunteer_delete', [$this, 'handle_volunteer_delete']);
+        add_action('admin_post_oe_preview_volunteer_email', [$this, 'handle_preview_volunteer_email']);
         add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
@@ -366,6 +367,26 @@ final class Admin {
         $id = $this->verify_action('oe_volunteer_delete');
         Volunteers::delete_signup($id);
         $this->redirect_back();
+    }
+
+    /**
+     * Render a volunteer email with sample data so staff can preview exactly
+     * what volunteers receive. Reflects the currently SAVED intro copy.
+     */
+    public function handle_preview_volunteer_email(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_preview_volunteer_email');
+        $key   = isset($_GET['type']) ? sanitize_key((string) $_GET['type']) : 'on_signup';
+        $valid = ['on_signup', 'reminder', 'confirmed', 'declined'];
+        if (! in_array($key, $valid, true)) {
+            $key = 'on_signup';
+        }
+        nocache_headers();
+        header('Content-Type: text/html; charset=utf-8');
+        echo \OE\Mail\Transactional::volunteer_preview_html($key); // phpcs:ignore WordPress.Security.EscapeOutput -- a complete, self-escaped HTML email document
+        exit;
     }
 
     public function handle_sync_partner_vol(): void {

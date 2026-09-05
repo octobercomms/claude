@@ -280,15 +280,18 @@ final class Transactional {
         $home  = esc_url(home_url('/'));
         $host  = esc_html((string) wp_parse_url($home, PHP_URL_HOST));
 
+        // The intro line is admin-editable per email (Settings → Email & SMS →
+        // Volunteer emails); falls back to the default copy below when blank.
         if ($trigger === 'volunteer_declined') {
-            $intro = esc_html__('Thanks for offering to help. This shift didn\'t go ahead for you this time — we hope to see you at another. Here\'s what you signed up for:', 'october-events');
+            $key = 'declined';
         } elseif ($trigger === 'volunteer_confirmed') {
-            $intro = esc_html__('Your volunteer shift is confirmed — thank you! Here are the details:', 'october-events');
+            $key = 'confirmed';
         } elseif ($ctx === 'on_signup') {
-            $intro = esc_html__('Thanks for volunteering — you\'re all set! Here are your shift details:', 'october-events');
+            $key = 'on_signup';
         } else {
-            $intro = esc_html__('Just a reminder — your volunteer shift is coming up. Here are the details:', 'october-events');
+            $key = 'reminder';
         }
+        $intro = nl2br(esc_html(self::volunteer_intro($key)));
 
         $head_left = $logo !== ''
             ? '<img src="' . esc_url($logo) . '" alt="' . esc_attr($brand) . '" style="max-height:46px;max-width:240px;display:block">'
@@ -326,6 +329,60 @@ final class Transactional {
             . esc_html($brand) . ' · <a href="' . $home . '" style="color:#777">' . $host . '</a> · ' . esc_html__('Questions? Just reply to this email.', 'october-events')
             . '</td></tr>'
             . '</table></td></tr></table></body></html>';
+    }
+
+    /**
+     * Default intro line for each volunteer email, keyed by
+     * on_signup | reminder | confirmed | declined. These are the fallbacks used
+     * when the admin hasn't set a custom line in Settings.
+     *
+     * @return array<string,string>
+     */
+    public static function volunteer_intro_defaults(): array {
+        return [
+            'on_signup' => __('Thanks for volunteering — you\'re all set! Here are your shift details:', 'october-events'),
+            'reminder'  => __('Just a reminder — your volunteer shift is coming up. Here are the details:', 'october-events'),
+            'confirmed' => __('Your volunteer shift is confirmed — thank you! Here are the details:', 'october-events'),
+            'declined'  => __('Thanks for offering to help. This shift didn\'t go ahead for you this time — we hope to see you at another. Here\'s what you signed up for:', 'october-events'),
+        ];
+    }
+
+    /** The intro line for a volunteer email: the admin override, or the default. */
+    public static function volunteer_intro(string $key): string {
+        $custom = (array) Settings::get('volunteer_email_intros', []);
+        $val    = trim((string) ($custom[$key] ?? ''));
+        if ($val !== '') {
+            return $val;
+        }
+        $defaults = self::volunteer_intro_defaults();
+        return (string) ($defaults[$key] ?? $defaults['reminder']);
+    }
+
+    /**
+     * Render one volunteer email with realistic sample data, for the admin
+     * "Preview" buttons. $key is on_signup|reminder|confirmed|declined.
+     */
+    public static function volunteer_preview_html(string $key): string {
+        $trigger = 'volunteer_reminder';
+        $ctx     = '';
+        if ($key === 'confirmed') {
+            $trigger = 'volunteer_confirmed';
+        } elseif ($key === 'declined') {
+            $trigger = 'volunteer_declined';
+        } elseif ($key === 'on_signup') {
+            $ctx = 'on_signup';
+        }
+        $params = [
+            'name'        => __('Sample Volunteer', 'october-events'),
+            'opportunity' => __('Architecture Tour: Metro Atlanta — Sylvan Circle', 'october-events'),
+            'shift'       => __('Sun Oct 4 — 10:00am–1:00pm', 'october-events'),
+            'location'    => __('49 26th St NW, Atlanta, GA 30309', 'october-events'),
+            'url'         => home_url('/'),
+            'context'     => $ctx,
+            // A dummy cancel link so the "Cancel this shift" line shows in preview.
+            'cancel_url'  => $key === 'declined' ? '' : home_url('/?oe_vcancel=0&k=preview'),
+        ];
+        return self::volunteer_email_html($trigger, $params);
     }
 
     private static function volunteer_body(string $trigger, string $hi, array $params): string {
