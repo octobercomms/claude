@@ -138,6 +138,11 @@ final class Settings {
             // different people need to know each). Blank = no alert sent.
             'volunteer_signup_alert_emails' => '',
             'volunteer_cancel_alert_emails' => '',
+            // Admin-editable intro line for each volunteer email, keyed by
+            // on_signup | reminder | confirmed | declined. Blank = use the
+            // built-in default copy. The rest of each email (shift details,
+            // buttons, footer) is generated automatically.
+            'volunteer_email_intros' => [],
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',

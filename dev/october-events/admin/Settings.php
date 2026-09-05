@@ -311,6 +311,7 @@ final class Settings {
             'reminder_offsets' => $offsets,
             'volunteer_signup_alert_emails' => self::parse_emails((string) ($in['volunteer_signup_alert_emails'] ?? '')),
             'volunteer_cancel_alert_emails' => self::parse_emails((string) ($in['volunteer_cancel_alert_emails'] ?? '')),
+            'volunteer_email_intros' => self::parse_volunteer_intros($in['volunteer_email_intros'] ?? []),
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => self::keep_secret($in['github_token'] ?? '', $existing['github_token'] ?? ''),
             'platform_origins' => self::parse_origins((string) ($in['platform_origins'] ?? '')),
@@ -446,5 +447,22 @@ final class Settings {
             }
         }
         return implode(', ', array_values($out));
+    }
+
+    /**
+     * Sanitize the admin-editable volunteer email intros. Only the known keys
+     * are kept; each is a short block of prose (line breaks allowed). An empty
+     * value means "use the built-in default".
+     *
+     * @param mixed $in
+     * @return array<string,string>
+     */
+    private static function parse_volunteer_intros($in): array {
+        $in  = is_array($in) ? $in : [];
+        $out = [];
+        foreach (['on_signup', 'reminder', 'confirmed', 'declined'] as $key) {
+            $out[$key] = sanitize_textarea_field((string) ($in[$key] ?? ''));
+        }
+        return $out;
     }
 }

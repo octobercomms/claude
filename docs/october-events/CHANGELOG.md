@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.89.0 — See and edit the volunteer emails (preview + editable wording)
+
+You can now see exactly what each volunteer email says, and change the wording,
+under **Settings → Email & SMS → Volunteer emails (confirmation & reminders)**.
+
+- **Preview.** Each of the four volunteer emails — signup confirmation, shift
+  reminder, "confirmed by staff", "declined by staff" — has a **Preview** button
+  that opens the full email (with sample shift details) in a new tab, so you can
+  see the whole thing, not just guess.
+- **Editable wording.** The intro line of each email is now an editable field.
+  Change it, or leave it blank to keep the built-in default (shown as the
+  placeholder). The rest of the email — the shift-details box, the View/Cancel
+  buttons and the footer — is still generated automatically so it always has the
+  right details and links.
+
+No data or schema change; this is settings + preview only.
+
 ## 1.88.0 — Volunteers can cancel their own shift + staff alerts + a Delete action
 
 Three volunteer improvements:

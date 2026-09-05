@@ -535,6 +535,29 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('Alerts name the volunteer, the opportunity and the shift. Volunteers can cancel their own shift from a link in their confirmation email — a cancellation here means they used it.', 'october-events'); ?></p>
         </div></details>
 
+        <details class="oe-acc" id="volunteer-emails"><summary><?php esc_html_e('Volunteer emails (confirmation & reminders)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('The wording your volunteers see. Edit the intro line of each email below, or leave it blank to use the default shown. The rest of the email — the shift details box, buttons and footer — is added automatically. Use Preview to see the whole email with sample details. (Save your changes before previewing to see them.)', 'october-events'); ?></p>
+        <?php
+        $vol_intros   = (array) ($cfg['volunteer_email_intros'] ?? []);
+        $vol_defaults = \OE\Mail\Transactional::volunteer_intro_defaults();
+        $vol_labels   = [
+            'on_signup' => __('Signup confirmation (sent immediately when someone signs up)', 'october-events'),
+            'reminder'  => __('Shift reminder (sent before the shift)', 'october-events'),
+            'confirmed' => __('Confirmed by staff (sent when you click “Confirm”)', 'october-events'),
+            'declined'  => __('Declined by staff (sent when you click “Decline”)', 'october-events'),
+        ];
+        foreach ($vol_labels as $vk => $vlabel) :
+            $preview = wp_nonce_url(admin_url('admin-post.php?action=oe_preview_volunteer_email&type=' . $vk), 'oe_preview_volunteer_email');
+        ?>
+        <p style="margin:14px 0 4px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <strong><?php echo esc_html($vlabel); ?></strong>
+            <a class="button button-small" href="<?php echo esc_url($preview); ?>" target="_blank" rel="noopener"><?php esc_html_e('Preview →', 'october-events'); ?></a>
+        </p>
+        <textarea name="volunteer_email_intros[<?php echo esc_attr($vk); ?>]" rows="2" class="large-text" placeholder="<?php echo esc_attr((string) ($vol_defaults[$vk] ?? '')); ?>"><?php echo esc_textarea((string) ($vol_intros[$vk] ?? '')); ?></textarea>
+        <?php endforeach; ?>
+        <p class="description" style="margin-top:10px"><?php esc_html_e('Previews open in a new tab and use sample shift details. The declined email never shows the cancel link.', 'october-events'); ?></p>
+        </div></details>
+
         <?php endif; ?>
         <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional. Sends volunteer-reminder texts via AWS. Off until enabled and configured. US sending requires a registered 10DLC origination number.', 'october-events'); ?></p>
