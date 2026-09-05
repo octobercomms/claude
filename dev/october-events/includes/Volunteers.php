@@ -843,9 +843,13 @@ final class Volunteers {
             'status'         => VolunteerSignups::STATUS_CONFIRMED,
             'shift_start'    => self::normalise_datetime((string) $shift['start']),
             'reminders_sent' => '',
+            // Secret token that lets the volunteer cancel this shift from the
+            // link in their confirmation email (no login).
+            'cancel_token'   => self::gen_cancel_token(),
         ]);
 
         AuditLog::record('volunteer_signup', $opportunity_id, 'volunteer', 'shift:' . $shift_id);
+        self::notify_staff('signup', $id);
 
         // Native contacts (the Brevo replacement).
         \OE\Mail\Contacts::capture($email, [
@@ -915,6 +919,112 @@ final class Volunteers {
     }
 
     /**
+     * The volunteer cancelled their own shift (via the link in their confirmation
+     * email). Frees the slot and alerts staff — but does NOT email the volunteer:
+     * they clicked cancel themselves and see an on-screen confirmation, so a
+     * "your cancellation is confirmed" email would be noise. Idempotent.
+     */
+    public static function cancel(int $signup_id): bool {
+        $s = VolunteerSignups::get($signup_id);
+        if (! $s) {
+            return false;
+        }
+        // Already cancelled/declined — treat as success (link clicked twice).
+        if (in_array($s->status, [VolunteerSignups::STATUS_CANCELLED, VolunteerSignups::STATUS_DECLINED], true)) {
+            return true;
+        }
+        VolunteerSignups::update($signup_id, ['status' => VolunteerSignups::STATUS_CANCELLED]);
+        AuditLog::record('volunteer_self_cancelled', (int) $s->opportunity_id, 'volunteer', 'shift:' . $s->shift_id);
+        self::sync_fully_booked((int) $s->opportunity_id); // a spot just freed
+        self::notify_staff('cancel', $signup_id);
+        return true;
+    }
+
+    /** A random, hard-to-guess token for the self-service cancel link. */
+    private static function gen_cancel_token(): string {
+        return bin2hex(random_bytes(16)); // 32 hex chars, fits VARCHAR(40)
+    }
+
+    /**
+     * Email the internal alert lists when a volunteer signs up or cancels.
+     * Signups and cancels have SEPARATE recipient lists (different people need
+     * to know each), each a comma/newline-separated list in Settings. Sends one
+     * plain, branded email per recipient; never touches the volunteer.
+     *
+     * @param string $event 'signup' | 'cancel'
+     */
+    private static function notify_staff(string $event, int $signup_id): void {
+        $key        = $event === 'cancel' ? 'volunteer_cancel_alert_emails' : 'volunteer_signup_alert_emails';
+        $recipients = self::alert_recipients((string) Settings::get($key, ''));
+        if (! $recipients) {
+            return;
+        }
+        $s = VolunteerSignups::get($signup_id);
+        if (! $s) {
+            return;
+        }
+        $p    = self::email_params($s);
+        $opp  = (string) ($p['opportunity'] ?? '');
+        $verb = $event === 'cancel' ? __('cancelled', 'october-events') : __('signed up', 'october-events');
+
+        /* translators: 1: volunteer name, 2: signed up/cancelled, 3: opportunity */
+        $subject = sprintf(__('Volunteer %2$s: %1$s — %3$s', 'october-events'), $s->name, $verb, $opp);
+
+        $lines = [
+            sprintf(__('%1$s has %2$s.', 'october-events'), $s->name, $verb),
+            '',
+            sprintf(__('Opportunity: %s', 'october-events'), $opp),
+            sprintf(__('Shift: %s', 'october-events'), (string) ($p['shift'] ?? '')),
+        ];
+        if (! empty($p['location'])) {
+            $lines[] = sprintf(__('Location: %s', 'october-events'), (string) $p['location']);
+        }
+        $lines[] = sprintf(__('Email: %s', 'october-events'), $s->email);
+        if (! empty($s->phone)) {
+            $lines[] = sprintf(__('Phone: %s', 'october-events'), (string) $s->phone);
+        }
+        $manage = admin_url('admin.php?page=oe-volunteers');
+        $lines[] = '';
+        $lines[] = sprintf(__('Manage signups: %s', 'october-events'), $manage);
+
+        $html = '';
+        foreach ($lines as $ln) {
+            $html .= $ln === '' ? '<br>' : '<p style="margin:0 0 6px">' . esc_html($ln) . '</p>';
+        }
+
+        foreach ($recipients as $to) {
+            \OE\Mail\Transactional::send('volunteer_alert', ['email' => $to, 'name' => ''], [], $subject, $html);
+        }
+    }
+
+    /**
+     * Parse a comma/newline-separated recipient string into unique valid emails.
+     *
+     * @return array<int,string>
+     */
+    private static function alert_recipients(string $raw): array {
+        $out = [];
+        foreach (preg_split('/[\r\n,]+/', $raw) ?: [] as $part) {
+            $email = sanitize_email(trim($part));
+            if ($email !== '' && is_email($email)) {
+                $out[strtolower($email)] = $email;
+            }
+        }
+        return array_values($out);
+    }
+
+    /** The public no-login URL a volunteer uses to cancel their own shift. */
+    public static function cancel_url(object $signup): string {
+        if (empty($signup->cancel_token)) {
+            return '';
+        }
+        return add_query_arg([
+            'oe_vcancel' => (int) $signup->id,
+            'k'          => (string) $signup->cancel_token,
+        ], home_url('/'));
+    }
+
+    /**
      * Admin/manual add of a volunteer to a shift (the management surface). Unlike
      * the public {@see signup()}, this bypasses the "signups open" gate and the
      * capacity cap so staff can always place someone, but still de-dupes the
@@ -953,9 +1063,11 @@ final class Volunteers {
             'status'         => VolunteerSignups::STATUS_CONFIRMED,
             'shift_start'    => self::normalise_datetime((string) $shift['start']),
             'reminders_sent' => '',
+            'cancel_token'   => self::gen_cancel_token(),
         ]);
 
         AuditLog::record('volunteer_signup_manual', $opportunity_id, 'volunteer', 'shift:' . $shift_id);
+        self::notify_staff('signup', $id);
         Reminders::on_signup($id);
         self::sync_fully_booked($opportunity_id);
         return $id;
@@ -1099,6 +1211,8 @@ final class Volunteers {
             'shift'          => $shift['label'] ?? '',
             'location'       => self::location($oid),
             'url'            => get_permalink($oid),
+            // Self-service cancel link for the confirmation/reminder email.
+            'cancel_url'     => self::cancel_url($signup),
         ];
     }
 

@@ -30,6 +30,7 @@ final class Admin {
         add_action('admin_post_oe_approve', [$this, 'handle_approve']);
         add_action('admin_post_oe_reject', [$this, 'handle_reject']);
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
+        add_action('admin_post_oe_volunteer_delete', [$this, 'handle_volunteer_delete']);
         add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
@@ -357,6 +358,13 @@ final class Admin {
         } elseif ($status === 'no_show') {
             Volunteers::mark_no_show($id);
         }
+        $this->redirect_back();
+    }
+
+    /** Permanently remove a signup row. No email/SMS is sent to the volunteer. */
+    public function handle_volunteer_delete(): void {
+        $id = $this->verify_action('oe_volunteer_delete');
+        Volunteers::delete_signup($id);
         $this->redirect_back();
     }
 

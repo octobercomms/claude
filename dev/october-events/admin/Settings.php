@@ -309,6 +309,8 @@ final class Settings {
             // Legacy sender name (no longer shown in the UI) — preserve what's stored.
             'sms_sender'       => sanitize_text_field((string) ($in['sms_sender'] ?? (Config::all()['sms_sender'] ?? 'ADF'))),
             'reminder_offsets' => $offsets,
+            'volunteer_signup_alert_emails' => self::parse_emails((string) ($in['volunteer_signup_alert_emails'] ?? '')),
+            'volunteer_cancel_alert_emails' => self::parse_emails((string) ($in['volunteer_cancel_alert_emails'] ?? '')),
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => self::keep_secret($in['github_token'] ?? '', $existing['github_token'] ?? ''),
             'platform_origins' => self::parse_origins((string) ($in['platform_origins'] ?? '')),
@@ -428,5 +430,21 @@ final class Settings {
             $out[] = $origin;
         }
         return array_values(array_unique($out));
+    }
+
+    /**
+     * Normalise a comma/newline-separated list of email addresses into a clean,
+     * de-duplicated, comma-separated string (dropping anything that isn't a
+     * valid address). Stored as a string; parsed back to a list when sending.
+     */
+    private static function parse_emails(string $raw): string {
+        $out = [];
+        foreach (preg_split('/[\r\n,]+/', $raw) ?: [] as $part) {
+            $email = sanitize_email(trim($part));
+            if ($email !== '' && is_email($email)) {
+                $out[strtolower($email)] = $email;
+            }
+        }
+        return implode(', ', array_values($out));
     }
 }
