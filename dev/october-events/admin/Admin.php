@@ -32,6 +32,7 @@ final class Admin {
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
         add_action('admin_post_oe_volunteer_delete', [$this, 'handle_volunteer_delete']);
         add_action('admin_post_oe_preview_volunteer_email', [$this, 'handle_preview_volunteer_email']);
+        add_action('admin_post_oe_volunteer_blast', [$this, 'handle_volunteer_blast']);
         add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
@@ -266,8 +267,115 @@ final class Admin {
             'order'          => 'ASC',
             'fields'         => 'ids',
         ]));
+
+        // Compose screen (tick opportunities → email/SMS blast).
+        if (isset($_GET['view']) && $_GET['view'] === 'compose') {
+            $compose_opps = [];
+            foreach ($ids as $id) {
+                $sum = Volunteers::opportunity_summary((int) $id);
+                if ((int) $sum['shifts'] === 0) {
+                    continue;
+                }
+                $compose_opps[] = [
+                    'id'        => (int) $id,
+                    'title'     => (string) $sum['title'],
+                    'confirmed' => max(0, (int) $sum['filled'] - (int) $sum['pending']),
+                    'pending'   => (int) $sum['pending'],
+                ];
+            }
+            $sms_ready   = \OE\Connectors\SmsConnector::is_ready();
+            $merge_tags  = Volunteers::message_merge_tags();
+            $sent_notice = get_transient('oe_vol_blast_' . get_current_user_id());
+            if ($sent_notice) {
+                delete_transient('oe_vol_blast_' . get_current_user_id());
+            }
+            require OE_DIR . 'admin/views/volunteer-message.php';
+            return;
+        }
+
         $dash = Volunteers::dashboard($ids);
         require OE_DIR . 'admin/views/volunteers.php';
+    }
+
+    /**
+     * Send a volunteer email or SMS blast to the volunteers of the ticked
+     * opportunities, with [tag] merge fields resolved per recipient. One message
+     * per person per opportunity (deduped within an opportunity).
+     */
+    public function handle_volunteer_blast(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_volunteer_blast');
+
+        $channel  = isset($_POST['channel']) ? sanitize_key((string) $_POST['channel']) : 'email';
+        $opp_ids  = array_map('intval', (array) ($_POST['opps'] ?? []));
+        $statuses = array_map('sanitize_key', (array) ($_POST['statuses'] ?? []));
+        $statuses = array_values(array_intersect($statuses, ['pending', 'confirmed']));
+        if (! $statuses) {
+            $statuses = ['pending', 'confirmed']; // default: everyone still active
+        }
+        $subject = sanitize_text_field(wp_unslash((string) ($_POST['subject'] ?? '')));
+        $body    = sanitize_textarea_field(wp_unslash((string) ($_POST['body'] ?? '')));
+
+        $back = admin_url('admin.php?page=oe-volunteers&view=compose');
+        $fail = static function (string $msg) use ($back): void {
+            set_transient('oe_vol_blast_' . get_current_user_id(), ['error' => $msg], 60);
+            wp_safe_redirect($back);
+            exit;
+        };
+
+        if (! $opp_ids) {
+            $fail(__('Pick at least one opportunity.', 'october-events'));
+        }
+        if ($body === '') {
+            $fail(__('Write a message first.', 'october-events'));
+        }
+        if ($channel === 'sms' && ! \OE\Connectors\SmsConnector::is_ready()) {
+            $fail(__('SMS isn’t configured yet (Settings → Email & SMS). No messages were sent.', 'october-events'));
+        }
+        if ($channel === 'email' && $subject === '') {
+            $fail(__('Add a subject for the email.', 'october-events'));
+        }
+
+        $sent = $skipped = $failed = 0;
+        $seen = []; // dedupe: one message per person per opportunity
+
+        foreach ($opp_ids as $oid) {
+            foreach (\OE\VolunteerSignups::for_opportunity($oid) as $s) {
+                if (! in_array($s->status, $statuses, true)) {
+                    continue;
+                }
+                if ($channel === 'sms') {
+                    $phone = trim((string) $s->phone);
+                    if ($phone === '') { $skipped++; continue; }
+                    $key = $oid . '|' . preg_replace('/\D+/', '', $phone);
+                    if (isset($seen[$key])) { continue; }
+                    $seen[$key] = true;
+                    $text = Volunteers::apply_merge($body, $s);
+                    if (\OE\Connectors\SmsConnector::send($phone, $text)) { $sent++; } else { $failed++; }
+                } else {
+                    $email = sanitize_email((string) $s->email);
+                    if ($email === '' || ! is_email($email)) { $skipped++; continue; }
+                    $key = $oid . '|' . strtolower($email);
+                    if (isset($seen[$key])) { continue; }
+                    $seen[$key] = true;
+                    $subj = Volunteers::apply_merge($subject, $s);
+                    $html = nl2br(esc_html(Volunteers::apply_merge($body, $s)));
+                    if (\OE\Mail\Transactional::send('volunteer_blast', ['email' => $email, 'name' => $s->name], [], $subj, $html)) { $sent++; } else { $failed++; }
+                }
+            }
+        }
+
+        \OE\AuditLog::record('volunteer_blast', 0, 'volunteer', $channel . ':' . $sent);
+        set_transient('oe_vol_blast_' . get_current_user_id(), [
+            'channel' => $channel,
+            'sent'    => $sent,
+            'skipped' => $skipped,
+            'failed'  => $failed,
+        ], 60);
+        wp_safe_redirect($back);
+        exit;
     }
 
 

@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.91.0 — Message volunteers (email & SMS blast with merge tags)
+
+A new **Message volunteers** screen (button on the Volunteers page) to send an
+email — or SMS — blast to the volunteers of the opportunities you tick.
+
+- **Pick recipients per send:** tick the opportunities, and choose which
+  statuses to include (Confirmed and/or Pending). Each opportunity shows its
+  confirmed/pending counts.
+- **Email or SMS:** email uses the branded template; SMS goes through the
+  plugin's existing AWS End User Messaging (the same engine as reminders). If
+  SMS isn't configured yet, the option is disabled with a link to set it up.
+- **Merge tags** resolved per recipient: `[name]`, `[volunteer-type]`,
+  `[event-location]`, `[opportunity]`, `[shift]` — e.g. "We're looking forward
+  to you volunteering as [volunteer-type] at [event-location]."
+- One message per person per opportunity (deduplicated). SMS recipients need a
+  phone number on file; others are skipped and counted. A summary reports how
+  many were sent / skipped / failed.
+
+No schema change. SMS sending requires AWS End User Messaging to be configured
+and a US 10DLC number registered.
+
 ## 1.90.0 — Volunteers dashboard overhaul (fill health, accordions, clash alerts)
 
 A rebuilt **Volunteers** admin screen that makes staffing status obvious at a
