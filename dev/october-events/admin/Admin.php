@@ -283,7 +283,7 @@ final class Admin {
                     'pending'   => (int) $sum['pending'],
                 ];
             }
-            $sms_ready   = \OE\Connectors\SmsConnector::is_ready();
+            $sms_ready   = \OE\Connectors\Sms::is_ready();
             $merge_tags  = Volunteers::message_merge_tags();
             $sent_notice = get_transient('oe_vol_blast_' . get_current_user_id());
             if ($sent_notice) {
@@ -331,7 +331,7 @@ final class Admin {
         if ($body === '') {
             $fail(__('Write a message first.', 'october-events'));
         }
-        if ($channel === 'sms' && ! \OE\Connectors\SmsConnector::is_ready()) {
+        if ($channel === 'sms' && ! \OE\Connectors\Sms::is_ready()) {
             $fail(__('SMS isn’t configured yet (Settings → Email & SMS). No messages were sent.', 'october-events'));
         }
         if ($channel === 'email' && $subject === '') {
@@ -353,7 +353,7 @@ final class Admin {
                     if (isset($seen[$key])) { continue; }
                     $seen[$key] = true;
                     $text = Volunteers::apply_merge($body, $s);
-                    if (\OE\Connectors\SmsConnector::send($phone, $text)) { $sent++; } else { $failed++; }
+                    if (\OE\Connectors\Sms::send($phone, $text)) { $sent++; } else { $failed++; }
                 } else {
                     $email = sanitize_email((string) $s->email);
                     if ($email === '' || ! is_email($email)) { $skipped++; continue; }

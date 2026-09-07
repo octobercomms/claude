@@ -332,11 +332,15 @@ final class Settings {
             'mail_from_email'   => sanitize_email((string) ($in['mail_from_email'] ?? '')),
             'mail_from_name'    => sanitize_text_field((string) ($in['mail_from_name'] ?? '')),
             'mail_footer_address' => sanitize_textarea_field((string) ($in['mail_footer_address'] ?? '')),
-            // SMS (AWS End User Messaging).
+            // SMS — provider choice + per-provider credentials.
+            'sms_provider'          => (($in['sms_provider'] ?? 'aws') === 'quo') ? 'quo' : 'aws',
             'aws_access_key_id'     => sanitize_text_field((string) ($in['aws_access_key_id'] ?? '')),
             'aws_secret_access_key' => self::keep_secret($in['aws_secret_access_key'] ?? '', $existing['aws_secret_access_key'] ?? ''),
             'sms_region'            => sanitize_text_field((string) ($in['sms_region'] ?? 'us-east-1')),
             'sms_origination'       => sanitize_text_field((string) ($in['sms_origination'] ?? '')),
+            // SMS — Quo (OpenPhone).
+            'quo_api_key'           => self::keep_secret($in['quo_api_key'] ?? '', $existing['quo_api_key'] ?? ''),
+            'quo_from_number'       => sanitize_text_field((string) ($in['quo_from_number'] ?? '')),
             // Platform + check-in links surfaced in wp-admin.
             'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
             'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),

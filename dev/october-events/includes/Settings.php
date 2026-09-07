@@ -30,6 +30,7 @@ final class Settings {
         'google_maps_key'        => 'OE_GOOGLE_MAPS_KEY',
         'ses_smtp_password'      => 'OE_SES_SMTP_PASSWORD',
         'aws_secret_access_key'  => 'OE_AWS_SECRET_ACCESS_KEY',
+        'quo_api_key'            => 'OE_QUO_API_KEY',
     ];
 
     public static function defaults(): array {
@@ -183,11 +184,17 @@ final class Settings {
             'mail_from_name'    => '',
             // Physical mailing address shown in campaign footers (CAN-SPAM).
             'mail_footer_address' => '',
+            // SMS provider: 'aws' (End User Messaging) or 'quo' (Quo/OpenPhone —
+            // sends from your Quo number so replies come back to your Quo inbox).
+            'sms_provider'          => 'aws',
             // SMS via AWS End User Messaging (off until configured). 10DLC needed in the US.
             'aws_access_key_id'     => '',
             'aws_secret_access_key' => '', // secret (or OE_AWS_SECRET_ACCESS_KEY)
             'sms_region'            => 'us-east-1',
             'sms_origination'       => '', // phone number (E.164), sender ID, or pool ARN
+            // Quo (OpenPhone) SMS: an API key + the workspace "from" number.
+            'quo_api_key'           => '', // secret (or OE_QUO_API_KEY)
+            'quo_from_number'       => '', // your Quo number, E.164 (e.g. +19548803278)
             // Public AI support chat — a floating widget that answers customers'
             // questions about their own (email-verified) orders and tickets.
             'support_chat_enabled'  => '0',

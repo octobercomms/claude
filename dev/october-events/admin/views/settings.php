@@ -560,12 +560,42 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
 
         <?php endif; ?>
         <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Optional. Sends volunteer-reminder texts via AWS. Off until enabled and configured. US sending requires a registered 10DLC origination number.', 'october-events'); ?></p>
-        <?php $aws_pw_const = \OE\Settings::secret_is_constant('aws_secret_access_key'); ?>
+        <p class="description"><?php esc_html_e('Optional. Sends volunteer texts (reminders + blasts). Off until enabled and configured. US sending requires a 10DLC-registered number either way.', 'october-events'); ?></p>
+        <?php
+        $aws_pw_const = \OE\Settings::secret_is_constant('aws_secret_access_key');
+        $quo_pw_const = \OE\Settings::secret_is_constant('quo_api_key');
+        $sms_provider = (($cfg['sms_provider'] ?? 'aws') === 'quo') ? 'quo' : 'aws';
+        ?>
         <table class="form-table" role="presentation"><tbody>
             <tr>
                 <th scope="row"><?php esc_html_e('Enable SMS', 'october-events'); ?></th>
                 <td><label><input type="checkbox" name="sms_enabled" value="1" <?php checked((bool) ($cfg['sms_enabled'] ?? false)); ?>> <?php esc_html_e('Send volunteer reminders by SMS', 'october-events'); ?></label></td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Provider', 'october-events'); ?></th>
+                <td>
+                    <label style="margin-right:16px"><input type="radio" name="sms_provider" value="quo" <?php checked($sms_provider, 'quo'); ?>> <?php esc_html_e('Quo (OpenPhone) — sends from your Quo number; replies go to your Quo inbox / Slack', 'october-events'); ?></label><br>
+                    <label><input type="radio" name="sms_provider" value="aws" <?php checked($sms_provider, 'aws'); ?>> <?php esc_html_e('AWS End User Messaging — cheapest, one-way (replies not received)', 'october-events'); ?></label>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('Quo (OpenPhone)', 'october-events'); ?></strong></th>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Quo API key', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="quo_api_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $quo_pw_const ? 'disabled placeholder="Set via OE_QUO_API_KEY constant"' : (trim((string) ($cfg['quo_api_key'] ?? '')) !== '' ? 'data-reveal="quo_api_key" placeholder="•••••••• saved — leave blank to keep"' : 'placeholder="Quo → Settings → API"'); ?>>
+                    <?php if (! $quo_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span>
+                <p class="description"><?php esc_html_e('Create it in Quo → Settings → API (Owner/Admin). Requires prepaid Quo credits.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Quo “from” number', 'october-events'); ?></label></th>
+                <td><input type="text" name="quo_from_number" value="<?php echo esc_attr((string) ($cfg['quo_from_number'] ?? '')); ?>" placeholder="+19548803278" class="regular-text">
+                    <p class="description"><?php esc_html_e('Your Quo workspace number in E.164 (with +1). Must be 10DLC-registered in Quo’s Trust Center for US sending.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('AWS End User Messaging', 'october-events'); ?></strong></th>
             </tr>
             <tr>
                 <th scope="row"><label><?php esc_html_e('AWS region', 'october-events'); ?></label></th>
