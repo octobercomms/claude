@@ -1243,6 +1243,55 @@ final class Volunteers {
         return $pct >= 50 ? 'amber' : 'red';
     }
 
+    /* ------------------------------------------------------------------ *
+     * Volunteer messaging (email/SMS blast) — merge fields
+     * ------------------------------------------------------------------ */
+
+    /** The merge tags available in a blast, as tag => human description. */
+    public static function message_merge_tags(): array {
+        return [
+            'name'           => __('the volunteer’s name', 'october-events'),
+            'volunteer-type' => __('their role (e.g. Docent)', 'october-events'),
+            'event-location' => __('the opportunity’s location', 'october-events'),
+            'opportunity'    => __('the opportunity title', 'october-events'),
+            'shift'          => __('their shift (date + time)', 'october-events'),
+        ];
+    }
+
+    /**
+     * Resolve the merge values for one signup. Includes friendly aliases so both
+     * [volunteer-type]/[role] and [event-location]/[location] work.
+     *
+     * @return array<string,string>
+     */
+    public static function message_merge_values(object $signup): array {
+        $oid   = (int) $signup->opportunity_id;
+        $shift = self::shift($oid, (string) $signup->shift_id);
+        $role  = (string) get_post_meta($oid, '_oe_role', true);
+        $loc   = self::location($oid);
+        $label = (string) ($shift['label'] ?? '');
+        return [
+            'name'           => (string) $signup->name,
+            'volunteer-type' => $role,
+            'role'           => $role,
+            'event-location' => $loc,
+            'location'       => $loc,
+            'opportunity'    => get_the_title($oid),
+            'shift'          => $label,
+            'date'           => $label,
+        ];
+    }
+
+    /** Substitute [tag] placeholders in a message for one signup. */
+    public static function apply_merge(string $text, object $signup): string {
+        $search = $replace = [];
+        foreach (self::message_merge_values($signup) as $tag => $val) {
+            $search[]  = '[' . $tag . ']';
+            $replace[] = $val;
+        }
+        return str_replace($search, $replace, $text);
+    }
+
     /**
      * Lightweight card for the opportunities list: capacity vs filled across all
      * shifts, plus how many signups still need a decision.
