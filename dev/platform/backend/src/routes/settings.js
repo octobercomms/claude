@@ -487,8 +487,9 @@ router.get('/usage/cost-log', async (req, res) => {
 // actually bill per active keyword, so the daily cap can be sized safely:
 //   - Rank checks: serp/google/organic/live/advanced at depth 50 (5 pages),
 //     every 4 days   (connectors/dataforseo.js checkRank + scheduler cron */4)
-//   - AI Overview:  serp/google/ai_overview/live/advanced at depth 10,
-//     weekly         (scheduler runWeeklyAIOChecks)
+//   - AI Overview:  serp/google/organic/live/advanced with
+//     load_async_ai_overview (AIO is returned inside the organic response,
+//     not a standalone endpoint), weekly  (scheduler runWeeklyAIOChecks)
 // Live-Advanced pricing: $0.002 first page + $0.0015 per extra page.
 const DFS_COST = {
   rankPerCheck: 0.002 + 4 * 0.0015,   // depth 50 → $0.008

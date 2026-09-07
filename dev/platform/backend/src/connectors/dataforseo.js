@@ -158,26 +158,50 @@ async function checkRank(keyword, matchDomain) {
   return { position: null, url: null, serp_features };
 }
 
+// AI Overview is NOT a standalone SERP endpoint — DataForSEO returns it inside
+// the organic SERP response as an `ai_overview` item (requesting
+// load_async_ai_overview makes it wait for the element to load). There is no
+// /serp/google/ai_overview/... path; calling one returns "40402 Invalid Path".
+// Pull the overview text + citation URLs out of that item defensively — the
+// text sits in nested items[].text/markdown and citations in references[]/url.
+function aiOverviewFromResult(r) {
+  const ai = (r?.items || []).find(i => i.type === 'ai_overview');
+  if (!ai) return { present: false, text: '', urls: [] };
+  const parts = [];
+  const urls = new Set();
+  const walk = (v, d) => {
+    if (!v || d > 6) return;
+    if (Array.isArray(v)) return v.forEach(x => walk(x, d + 1));
+    if (typeof v === 'object') {
+      if (typeof v.text === 'string' && v.text.trim()) parts.push(v.text.trim());
+      if (typeof v.markdown === 'string' && v.markdown.trim()) parts.push(v.markdown.trim());
+      if (typeof v.url === 'string' && /^https?:\/\//i.test(v.url)) urls.add(v.url);
+      Object.values(v).forEach(x => walk(x, d + 1));
+    }
+  };
+  walk(ai, 0);
+  return { present: true, text: [...new Set(parts)].join(' ').trim(), urls: [...urls] };
+}
+
 // One-shot AI Overview lookup for a single keyword. Returns whether AIO
 // appeared, whether the target domain was cited, and a short snippet. Used
 // by the AIO scheduler and the manual "check now" button.
 async function checkAIOverview(keyword, targetDomain) {
   const client = await getClient();
-  const { data } = await client.post('/serp/google/ai_overview/live/advanced', [{
+  const { data } = await client.post('/serp/google/organic/live/advanced', [{
     keyword: keyword.keyword,
     location_code: keyword.location_code || 2826,
     language_code: 'en',
+    device: 'desktop',
+    se_domain: 'google.co.uk',
+    load_async_ai_overview: true,   // wait for the AI Overview element to load
   }]);
-  if (!data.tasks?.[0]?.result?.[0]) return { present: false, brand_cited: false, snippet: null };
-  const r = data.tasks[0].result[0];
-  const ai = r.items?.find(i => i.type === 'ai_overview');
-  if (!ai) return { present: false, brand_cited: false, snippet: null };
+  const r = data.tasks?.[0]?.result?.[0];
+  const aio = r ? aiOverviewFromResult(r) : { present: false, text: '', urls: [] };
+  if (!aio.present) return { present: false, brand_cited: false, snippet: null };
   const dom = (targetDomain || '').replace(/^https?:\/\//, '').replace(/^www\./, '').toLowerCase();
-  const cited = !!dom && (
-    ai.text?.toLowerCase().includes(dom) ||
-    (ai.items || []).some(i => i.url?.toLowerCase().includes(dom))
-  );
-  return { present: true, brand_cited: cited, snippet: ai.text?.slice(0, 400) || null };
+  const cited = !!dom && (aio.text.toLowerCase().includes(dom) || aio.urls.some(u => u.toLowerCase().includes(dom)));
+  return { present: true, brand_cited: cited, snippet: aio.text.slice(0, 400) || null };
 }
 
 // Domain Intersection — keywords competitors rank for that the target
@@ -440,25 +464,25 @@ async function fetchLLMVisibility(domain, keywords = []) {
   const client = await getClient();
   // Use LLM Responses API to test brand presence in AI answers
   const prompts = keywords.length
-    ? keywords.slice(0, 5).map(kw => ({ keyword: kw, location_code: 2826, language_code: 'en' }))
-    : [{ keyword: domain, location_code: 2826, language_code: 'en' }];
+    ? keywords.slice(0, 5).map(kw => ({ keyword: kw, location_code: 2826, language_code: 'en', device: 'desktop', se_domain: 'google.co.uk', load_async_ai_overview: true }))
+    : [{ keyword: domain, location_code: 2826, language_code: 'en', device: 'desktop', se_domain: 'google.co.uk', load_async_ai_overview: true }];
 
-  const { data } = await client.post('/serp/google/ai_overview/live/advanced', prompts);
+  const { data } = await client.post('/serp/google/organic/live/advanced', prompts);
   if (!data.tasks?.length) return null;
 
   const results = [];
   for (const task of data.tasks) {
-    if (!task.result?.[0]) continue;
-    const r = task.result[0];
-    const aiOverview = r.items?.find(i => i.type === 'ai_overview');
-    if (!aiOverview) continue;
-    const mentioned = aiOverview.text?.toLowerCase().includes(domain.toLowerCase()) ||
-      aiOverview.items?.some(i => i.url?.includes(domain));
+    const r = task.result?.[0];
+    if (!r) continue;
+    const aio = aiOverviewFromResult(r);
+    if (!aio.present) continue;
+    const dl = domain.toLowerCase();
+    const mentioned = aio.text.toLowerCase().includes(dl) || aio.urls.some(u => u.toLowerCase().includes(dl));
     results.push({
       keyword: task.data?.keyword,
       has_ai_overview: true,
       brand_mentioned: !!mentioned,
-      snippet: aiOverview.text?.slice(0, 300),
+      snippet: aio.text.slice(0, 300),
     });
   }
 
