@@ -1,0 +1,232 @@
+<!-- ============================================================
+     OCTOBER TESTIMONIALS CAROUSEL
+     Paste this whole block into an Elementor "HTML" widget.
+     Edit the TESTIMONIALS list below to add your own quotes.
+     Adjust the colours/spacing in the :root variables.
+     ============================================================ -->
+
+<style>
+  .oc-tc {
+    --oc-accent: #111111;          /* text + arrow colour */
+    --oc-card-bg: #ffffff;
+    --oc-card-border: #111111;     /* thick border colour */
+    --oc-card-radius: 14px;
+    --oc-quote-colour: #1a1a1a;
+    --oc-meta-colour: #6b6b6b;
+    --oc-gap: 24px;                /* space between cards */
+    --oc-visible: 3;               /* cards on screen (desktop) */
+
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 8px 0;
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+  .oc-tc *, .oc-tc *::before, .oc-tc *::after { box-sizing: border-box; }
+
+  .oc-tc__viewport { overflow: hidden; }
+
+  .oc-tc__track {
+    display: flex;
+    gap: var(--oc-gap);
+    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+
+  .oc-tc__card {
+    flex: 0 0 calc((100% - (var(--oc-visible) - 1) * var(--oc-gap)) / var(--oc-visible));
+    background: var(--oc-card-bg);
+    border: 2px solid var(--oc-card-border);
+    border-radius: var(--oc-card-radius);
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-height: 100%;
+  }
+
+  .oc-tc__quote {
+    margin: 0;
+    font-size: 1.02rem;
+    line-height: 1.6;
+    color: var(--oc-quote-colour);
+    flex: 1 1 auto;
+  }
+  .oc-tc__quote::before { content: "\201C"; }
+  .oc-tc__quote::after  { content: "\201D"; }
+
+  .oc-tc__meta { margin-top: auto; }
+  .oc-tc__name { font-weight: 700; color: var(--oc-accent); }
+  .oc-tc__role { font-size: 0.88rem; color: var(--oc-meta-colour); margin-top: 2px; }
+
+  .oc-tc__controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 28px;
+  }
+  .oc-tc__btn {
+    width: 46px; height: 46px;
+    border: 2px solid var(--oc-card-border);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--oc-accent);
+    cursor: pointer;
+    font-size: 20px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
+  }
+  .oc-tc__btn:hover { background: var(--oc-accent); color: #fff; }
+  .oc-tc__btn:active { transform: scale(0.94); }
+  .oc-tc__btn:focus-visible { outline: 3px solid var(--oc-accent); outline-offset: 3px; }
+
+  .oc-tc__dots { display: flex; gap: 9px; }
+  .oc-tc__dot {
+    width: 9px; height: 9px; padding: 0;
+    border: none; border-radius: 50%;
+    background: #cfcfcf; cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .oc-tc__dot[aria-current="true"] { background: var(--oc-accent); transform: scale(1.25); }
+
+  /* Tablet: 2 up */
+  @media (max-width: 1024px) { .oc-tc { --oc-visible: 2; } }
+  /* Mobile: 1 up */
+  @media (max-width: 600px)  { .oc-tc { --oc-visible: 1; } .oc-tc__card { padding: 26px 22px; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .oc-tc__track { transition: none; }
+  }
+</style>
+
+<div class="oc-tc" role="region" aria-roledescription="carousel" aria-label="Client testimonials">
+  <div class="oc-tc__viewport">
+    <div class="oc-tc__track" id="ocTcTrack"></div>
+  </div>
+  <div class="oc-tc__controls">
+    <button class="oc-tc__btn" id="ocTcPrev" type="button" aria-label="Previous testimonials">&#8592;</button>
+    <div class="oc-tc__dots" id="ocTcDots"></div>
+    <button class="oc-tc__btn" id="ocTcNext" type="button" aria-label="Next testimonials">&#8594;</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  /* ---------- EDIT YOUR TESTIMONIALS HERE ---------- */
+  var TESTIMONIALS = [
+    { quote: "Design is one of the most powerful ways to tell stories, shape culture, create community and inspire the next generation of creators. Atlanta Design Festival is one of the leading global design platforms steeply engaged in this mission and I’m honored to be a part of the team helping shape-shift the future.", name: "LeKeith Taylor", role: "" },
+    { quote: "What I love about the Atlanta Design Festival is how it bridges the gap. It brings great design right to our front doors and invites incredible designers from across the country and around the world. Most importantly, it gets all these creators in one room to figure out how to make cities and public spaces work better for everyone.", name: "Katherine Dirga", role: "Director, Art in Transit, MARTA" },
+    { quote: "The Atlanta Design Festival is a fantastic and unique opportunity to bring together practitioners and policy makers to learn more about the crucial role that design plays in driving the Atlanta economy, from direct jobs in design roles to driving innovation across all sectors, attracting inward investment to raising Atlanta’s international profile. Hearing from those working in and researching design – from local businesses to international design experts – provides an excellent opportunity for us all to develop better ways to support economic and social development across Atlanta.", name: "Andrew Graves", role: "Ortus Economic Research" },
+    { quote: "I remember this grass roots effort started by Elayne and Bernard in 2007 and have enjoyed seeing it grow to the amazing celebratory festival it is. The festival has shown the power of design, creative thinking and imagination that is shaping our communities and environment in a positive and forward looking way. It inspires me each year.", name: "Todd Bertsch", role: "" },
+    { quote: "Atlanta Design Festival (ADF) is lighting the future of Atlanta—reimagining urgent challenges and unlocking new opportunities through the power of creative collaboration.", name: "EunSook Kwon, PhD", role: "Chair and Professor, School of Industrial Design, College of Design, Georgia Institute of Technology" },
+    { quote: "I envision the Atlanta Design Festival becoming a global cultural beacon, deeply rooted in community—where local voices, designers, and culture shape conversations that resonate in Atlanta and beyond, while remaining grounded in equity and belonging.", name: "Adriane V. Jefferson", role: "Executive Director, Mayor’s Office of Cultural Affairs, City of Atlanta" },
+    { quote: "A defining moment for me was the 2017 Atlanta Design Festival, when Elayne and Bernard took a chance and trusted us to document the entire festival. That opportunity became the catalyst for PALETTE’s growth and opened doors across Atlanta and beyond. I’m excited to continue being part of the festival’s future and to witness how it shapes Atlanta as a whole.", name: "Matthew Adeboye", role: "The Palette Group" }
+  ];
+
+  var AUTOPLAY_MS = 6500; /* set to 0 to turn autoplay off */
+  /* ------------------------------------------------- */
+
+  var root  = document.currentScript ? document.currentScript.closest('.oc-tc') : document.querySelector('.oc-tc');
+  if (!root) return;
+  var track = root.querySelector('#ocTcTrack');
+  var dotsWrap = root.querySelector('#ocTcDots');
+  var prevBtn = root.querySelector('#ocTcPrev');
+  var nextBtn = root.querySelector('#ocTcNext');
+
+  var index = 0;
+  var timer = null;
+
+  function visibleCount() {
+    return parseInt(getComputedStyle(root).getPropertyValue('--oc-visible'), 10) || 1;
+  }
+  function maxIndex() {
+    return Math.max(0, TESTIMONIALS.length - visibleCount());
+  }
+
+  /* Build cards */
+  TESTIMONIALS.forEach(function (t) {
+    var card = document.createElement('div');
+    card.className = 'oc-tc__card';
+    card.setAttribute('role', 'group');
+    card.setAttribute('aria-roledescription', 'testimonial');
+
+    var q = document.createElement('p');
+    q.className = 'oc-tc__quote';
+    q.textContent = t.quote;
+
+    var meta = document.createElement('div');
+    meta.className = 'oc-tc__meta';
+    var n = document.createElement('div'); n.className = 'oc-tc__name'; n.textContent = t.name || '';
+    var r = document.createElement('div'); r.className = 'oc-tc__role'; r.textContent = t.role || '';
+    meta.appendChild(n); if (t.role) meta.appendChild(r);
+
+    card.appendChild(q); card.appendChild(meta);
+    track.appendChild(card);
+  });
+
+  function buildDots() {
+    dotsWrap.innerHTML = '';
+    var pages = maxIndex() + 1;
+    for (var i = 0; i < pages; i++) {
+      var d = document.createElement('button');
+      d.type = 'button';
+      d.className = 'oc-tc__dot';
+      d.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+      (function (i) { d.addEventListener('click', function () { goTo(i); restart(); }); })(i);
+      dotsWrap.appendChild(d);
+    }
+  }
+
+  function update() {
+    var card = track.querySelector('.oc-tc__card');
+    if (!card) return;
+    var gap = parseInt(getComputedStyle(track).gap, 10) || 0;
+    var step = card.getBoundingClientRect().width + gap;
+    track.style.transform = 'translateX(' + (-index * step) + 'px)';
+    Array.prototype.forEach.call(dotsWrap.children, function (dot, i) {
+      dot.setAttribute('aria-current', i === index ? 'true' : 'false');
+    });
+  }
+
+  function goTo(i) {
+    var max = maxIndex();
+    index = i > max ? 0 : (i < 0 ? max : i);
+    update();
+  }
+  function next() { goTo(index + 1); }
+  function prev() { goTo(index - 1); }
+
+  function start() {
+    if (!AUTOPLAY_MS) return;
+    stop();
+    timer = setInterval(next, AUTOPLAY_MS);
+  }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+  function restart() { stop(); start(); }
+
+  nextBtn.addEventListener('click', function () { next(); restart(); });
+  prevBtn.addEventListener('click', function () { prev(); restart(); });
+
+  root.addEventListener('mouseenter', stop);
+  root.addEventListener('mouseleave', start);
+  root.addEventListener('focusin', stop);
+  root.addEventListener('focusout', start);
+
+  root.setAttribute('tabindex', '0');
+  root.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') { next(); restart(); }
+    if (e.key === 'ArrowLeft')  { prev(); restart(); }
+  });
+
+  var rt;
+  window.addEventListener('resize', function () {
+    clearTimeout(rt);
+    rt = setTimeout(function () { if (index > maxIndex()) index = maxIndex(); buildDots(); update(); }, 150);
+  });
+
+  buildDots();
+  update();
+  start();
+})();
+</script>
