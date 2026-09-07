@@ -153,3 +153,30 @@
 .oe-admin .widefat tbody tr:last-child td{ border-bottom:0; }
 .oe-admin .striped > tbody > :nth-child(odd){ background:#fff; } /* calmer than zebra — like the platform list */
 .oe-admin .widefat .row-actions a, .oe-admin .widefat td a.oe-rowlink{ font-weight:600; }
+
+/* ---- Volunteers dashboard (full-width, accordions, fill bars) ---- */
+.oe-admin.oe-vol{ margin-right:20px; }
+.oe-admin .oe-kpi .s .dot.red{ background:var(--oe-red); }
+.oe-admin details.oe-acc.oe-vol-opp > summary{ font-size:15px; }
+.oe-admin .oe-vol-title{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.oe-admin .oe-vol-title .description{ font-weight:400; font-size:13px; }
+.oe-admin .oe-vol-sum{ display:flex; align-items:center; gap:10px; font-weight:400; }
+.oe-admin .oe-vol-count{ font-size:13px; color:var(--oe-muted); font-weight:700; white-space:nowrap; }
+.oe-admin .oe-vol-count .description{ font-weight:400; }
+.oe-admin .oe-fillbar{ display:inline-block; height:8px; width:160px; max-width:34vw; border-radius:999px; background:var(--oe-sunken); overflow:hidden; vertical-align:middle; }
+.oe-admin .oe-fillbar > span{ display:block; height:100%; border-radius:999px; }
+.oe-admin .oe-fillbar.fill-green > span{ background:var(--oe-green); }
+.oe-admin .oe-fillbar.fill-amber > span{ background:var(--oe-amber); }
+.oe-admin .oe-fillbar.fill-red > span{ background:var(--oe-red); }
+.oe-admin .oe-vol-dot{ width:11px; height:11px; border-radius:50%; display:inline-block; }
+.oe-admin .oe-vol-dot.green{ background:var(--oe-green); }
+.oe-admin .oe-vol-dot.amber{ background:var(--oe-amber); }
+.oe-admin .oe-vol-dot.red{ background:var(--oe-red); }
+.oe-admin .oe-vol-shift{ margin:0 0 18px; }
+.oe-admin .oe-vol-shift-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 6px; }
+.oe-admin .oe-vol-table{ max-width:100%; }
+.oe-admin .oe-clash{ display:inline-block; margin-left:8px; font-size:11px; font-weight:800; color:var(--oe-red); white-space:nowrap; }
+.oe-admin .oe-clash-box{ margin:0 0 16px; padding:10px 14px; }
+.oe-admin .oe-clash-box ul{ margin:6px 0; }
+.oe-admin .oe-clash-box li{ margin:3px 0; }
+.oe-admin .oe-status-cancelled{ background:rgba(136,136,136,.14); color:var(--oe-subtle); border-color:var(--oe-line); }
