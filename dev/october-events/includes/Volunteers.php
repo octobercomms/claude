@@ -1090,6 +1090,160 @@ final class Volunteers {
     }
 
     /**
+     * Everything the Volunteers admin dashboard needs, in one pass (one signups
+     * query per opportunity): per-opportunity + per-shift fill, headline KPIs,
+     * and a cross-opportunity clash report (the same volunteer booked into more
+     * than one shift, flagging time overlaps).
+     *
+     * @param array<int,int> $ids opportunity post ids to include
+     * @return array<string,mixed>
+     */
+    public static function dashboard(array $ids): array {
+        $active = [VolunteerSignups::STATUS_PENDING, VolunteerSignups::STATUS_CONFIRMED];
+
+        $opps = [];
+        $tot_slots = $tot_filled = $tot_shifts = $live = $needing = 0;
+        $by_email = []; // email => [ {signup_id,name,email,opp_id,opp_title,shift_label,start_ts,end_ts} ]
+
+        foreach ($ids as $id) {
+            $id     = (int) $id;
+            $shifts = self::shifts($id);
+            if (! $shifts) {
+                continue;
+            }
+            $rows = VolunteerSignups::for_opportunity($id);
+            $by_shift = $active_by_shift = [];
+            foreach ($rows as $r) {
+                $by_shift[$r->shift_id][] = $r;
+                if (in_array($r->status, $active, true)) {
+                    $active_by_shift[$r->shift_id] = ($active_by_shift[$r->shift_id] ?? 0) + 1;
+                }
+            }
+
+            $title = get_the_title($id);
+            $opp_cap = $opp_filled = 0;
+            $shift_out = [];
+            foreach ($shifts as $sh) {
+                $cap = (int) $sh['capacity'];
+                $act = (int) ($active_by_shift[$sh['id']] ?? 0);
+                $opp_cap    += $cap;
+                $opp_filled += min($act, $cap);
+                $tot_shifts++;
+                $pct = $cap > 0 ? min(100, (int) round($act / $cap * 100)) : ($act > 0 ? 100 : 0);
+                if ($cap > 0 && $pct < 50) {
+                    $needing++;
+                }
+                $shift_out[] = [
+                    'id'       => $sh['id'],
+                    'label'    => $sh['label'],
+                    'start'    => $sh['start'],
+                    'end'      => $sh['end'],
+                    'capacity' => $cap,
+                    'active'   => $act,
+                    'left'     => max(0, $cap - $act),
+                    'pct'      => $pct,
+                    'signups'  => $by_shift[$sh['id']] ?? [],
+                ];
+
+                // Clash dataset — active signups with (optionally) a parseable interval.
+                $st = strtotime((string) $sh['start']) ?: null;
+                $en = strtotime((string) $sh['end']) ?: null;
+                foreach (($by_shift[$sh['id']] ?? []) as $r) {
+                    if (! in_array($r->status, $active, true)) {
+                        continue;
+                    }
+                    $key = strtolower(trim((string) $r->email));
+                    if ($key === '') {
+                        continue;
+                    }
+                    $by_email[$key][] = [
+                        'signup_id'   => (int) $r->id,
+                        'name'        => (string) $r->name,
+                        'email'       => (string) $r->email,
+                        'opp_id'      => $id,
+                        'opp_title'   => $title,
+                        'shift_label' => (string) $sh['label'],
+                        'start_ts'    => $st,
+                        'end_ts'      => $en,
+                    ];
+                }
+            }
+
+            $live++;
+            $tot_slots  += $opp_cap;
+            $tot_filled += $opp_filled;
+            $opps[] = [
+                'id'       => $id,
+                'title'    => $title,
+                'role'     => (string) get_post_meta($id, '_oe_role', true),
+                'location' => self::location($id),
+                'edit_url' => (string) get_edit_post_link($id),
+                'open'     => get_post_meta($id, '_oe_signups_open', true) !== '0',
+                'capacity' => $opp_cap,
+                'filled'   => $opp_filled,
+                'pct'      => $opp_cap > 0 ? (int) round($opp_filled / $opp_cap * 100) : 0,
+                'shifts'   => $shift_out,
+            ];
+        }
+
+        // Clashes: any volunteer (by email) active in more than one shift.
+        $clashes = [];
+        $clash_ids = [];
+        foreach ($by_email as $items) {
+            if (count($items) < 2) {
+                continue;
+            }
+            $overlap = false;
+            $n = count($items);
+            for ($i = 0; $i < $n; $i++) {
+                for ($j = $i + 1; $j < $n; $j++) {
+                    $a = $items[$i];
+                    $b = $items[$j];
+                    if ($a['start_ts'] && $a['end_ts'] && $b['start_ts'] && $b['end_ts']
+                        && $a['start_ts'] < $b['end_ts'] && $b['start_ts'] < $a['end_ts']) {
+                        $overlap = true;
+                        $clash_ids[$a['signup_id']] = true;
+                        $clash_ids[$b['signup_id']] = true;
+                    }
+                }
+            }
+            $clashes[] = [
+                'name'    => $items[0]['name'],
+                'email'   => $items[0]['email'],
+                'count'   => count($items),
+                'overlap' => $overlap,
+                'items'   => $items,
+            ];
+        }
+        // Time-overlaps first, then most shifts.
+        usort($clashes, static function ($a, $b) {
+            return ($b['overlap'] <=> $a['overlap']) ?: ($b['count'] <=> $a['count']);
+        });
+
+        return [
+            'kpis' => [
+                'opportunities' => $live,
+                'shifts'        => $tot_shifts,
+                'slots'         => $tot_slots,
+                'filled'        => $tot_filled,
+                'pct'           => $tot_slots > 0 ? (int) round($tot_filled / $tot_slots * 100) : 0,
+                'needing'       => $needing,
+            ],
+            'opportunities' => $opps,
+            'clashes'       => $clashes,
+            'clash_ids'     => $clash_ids,
+        ];
+    }
+
+    /** Fill-health colour token for a percentage: full=green, half=amber, low/empty=red. */
+    public static function fill_color(int $pct): string {
+        if ($pct >= 100) {
+            return 'green';
+        }
+        return $pct >= 50 ? 'amber' : 'red';
+    }
+
+    /**
      * Lightweight card for the opportunities list: capacity vs filled across all
      * shifts, plus how many signups still need a decision.
      *

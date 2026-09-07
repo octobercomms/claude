@@ -256,14 +256,17 @@ final class Admin {
 
     public function page_volunteers(): void {
         // Opportunities (the adopted `volunteer` CPT) with their shifts +
-        // signups pulled from the signups table.
-        $opportunities = get_posts([
+        // signups. The dashboard read model does per-opportunity fill, headline
+        // KPIs and cross-opportunity clash detection in one pass.
+        $ids = array_map('intval', get_posts([
             'post_type'      => Volunteers::slug(),
             'post_status'    => 'publish',
             'posts_per_page' => 200,
             'orderby'        => 'title',
             'order'          => 'ASC',
-        ]);
+            'fields'         => 'ids',
+        ]));
+        $dash = Volunteers::dashboard($ids);
         require OE_DIR . 'admin/views/volunteers.php';
     }
 

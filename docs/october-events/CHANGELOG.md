@@ -5,6 +5,29 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.90.0 — Volunteers dashboard overhaul (fill health, accordions, clash alerts)
+
+A rebuilt **Volunteers** admin screen that makes staffing status obvious at a
+glance:
+
+- **Stats bento** at the top: live opportunities (and total shifts), total
+  slots, filled (+ % of slots filled), and how many shifts are still under half
+  full and need volunteers.
+- **Fill health colours** on every opportunity and shift: a bar + dot that's
+  **green** when full, **amber** around half, **red** when under half/empty — so
+  you can immediately see which shifts still need people.
+- **Accordions** — each opportunity is collapsible, with a filled/capacity
+  count and health dot in the header, so you can scan and open only what you
+  need. Under-staffed opportunities open by default.
+- **Clash detection** — if the same volunteer (by email) is signed up for more
+  than one shift, it's flagged at the top; if two of their shifts **overlap in
+  time**, that's called out as a red "time clash" with a ⚠ badge on the rows, so
+  you can check they aren't double-booked in two places at once.
+- **Full-width** layout (the tables were previously capped narrow).
+
+Read-only/analytics only — no data or schema change. Confirm / Decline /
+No-show / Delete work exactly as before.
+
 ## 1.89.0 — See and edit the volunteer emails (preview + editable wording)
 
 You can now see exactly what each volunteer email says, and change the wording,
