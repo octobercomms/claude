@@ -5,6 +5,25 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.92.0 — Send volunteer SMS through Quo (use your own number, replies to Slack)
+
+Adds **Quo (OpenPhone)** as an SMS provider alongside AWS, so texts can send
+from your existing Quo workspace number instead of a new AWS number — which
+means **replies come back to your Quo inbox (and Slack)**, keeping the two-way
+conversation you already use.
+
+- **Settings → Email & SMS → SMS** now has a **Provider** choice: Quo or AWS.
+- **Quo:** paste a Quo API key (Quo → Settings → API) and your Quo “from”
+  number (E.164, e.g. +19548803278). Sends via `POST api.quo.com/v1/messages`.
+- All SMS (volunteer reminders and the message blast) now routes through the
+  chosen provider via a single façade, so switching is one setting.
+- The API key is stored encrypted at rest (or set `OE_QUO_API_KEY` in
+  wp-config). AWS remains available and unchanged.
+
+Note: US A2P still needs the number 10DLC-registered — with Quo that’s done in
+Quo’s Trust Center (usually already handled for an active Quo number), and Quo
+API sending uses prepaid Quo credits. No schema change.
+
 ## 1.91.0 — Message volunteers (email & SMS blast with merge tags)
 
 A new **Message volunteers** screen (button on the Volunteers page) to send an

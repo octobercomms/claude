@@ -61,9 +61,9 @@ final class Transactional {
         return wp_mail($email, $subject, $body, ['Content-Type: text/html; charset=UTF-8'], $attachments);
     }
 
-    /** SMS via AWS End User Messaging (no-op until configured in Settings). */
+    /** SMS via the configured provider (AWS or Quo; no-op until configured). */
     public static function send_sms(string $to, string $content): bool {
-        return \OE\Connectors\SmsConnector::send($to, $content);
+        return \OE\Connectors\Sms::send($to, $content);
     }
 
     /* ------------------------------------------------------------------ *
