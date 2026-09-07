@@ -2,23 +2,25 @@
      OCTOBER TESTIMONIALS CAROUSEL
      Paste this whole block into an Elementor "HTML" widget.
      Edit the TESTIMONIALS list below to add your own quotes.
+     Add a portrait by setting each entry's "photo" to an image URL.
      Adjust the colours/spacing in the :root variables.
      ============================================================ -->
 
 <style>
   .oc-tc {
-    --oc-accent: #111111;          /* text + arrow colour */
-    --oc-card-bg: #ffffff;
-    --oc-card-border: #111111;     /* thick border colour */
-    --oc-card-radius: 14px;
-    --oc-quote-colour: #1a1a1a;
-    --oc-meta-colour: #6b6b6b;
-    --oc-gap: 24px;                /* space between cards */
+    --oc-accent: #ffffff;          /* text + arrow colour */
+    --oc-card-bg: transparent;
+    --oc-card-border: #ffffff;     /* thick border colour */
+    --oc-card-radius: 0px;
+    --oc-quote-colour: #ffffff;
+    --oc-meta-colour: #ffffff;
+    --oc-gap: 25px;                /* space between cards */
     --oc-visible: 3;               /* cards on screen (desktop) */
+    --oc-avatar-size: 125px;       /* portrait diameter */
 
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 8px 0;
+    padding: 0;
     font-family: inherit;
     box-sizing: border-box;
   }
@@ -36,18 +38,18 @@
   .oc-tc__card {
     flex: 0 0 calc((100% - (var(--oc-visible) - 1) * var(--oc-gap)) / var(--oc-visible));
     background: var(--oc-card-bg);
-    border: 2px solid var(--oc-card-border);
+    border: 5px solid var(--oc-card-border);
     border-radius: var(--oc-card-radius);
-    padding: 32px 28px;
+    padding: 25px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 25px;
     min-height: 100%;
   }
 
   .oc-tc__quote {
     margin: 0;
-    font-size: 1.02rem;
+    font-size: 1em;
     line-height: 1.6;
     color: var(--oc-quote-colour);
     flex: 1 1 auto;
@@ -55,9 +57,26 @@
   .oc-tc__quote::before { content: "\201C"; }
   .oc-tc__quote::after  { content: "\201D"; }
 
-  .oc-tc__meta { margin-top: auto; }
+  /* Footer row: name/role on the left, portrait bottom-right */
+  .oc-tc__foot {
+    margin-top: auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .oc-tc__meta { min-width: 0; }
   .oc-tc__name { font-weight: 700; color: var(--oc-accent); }
   .oc-tc__role { font-size: 0.88rem; color: var(--oc-meta-colour); margin-top: 2px; }
+
+  .oc-tc__avatar {
+    flex: 0 0 var(--oc-avatar-size);
+    width: var(--oc-avatar-size);
+    height: var(--oc-avatar-size);
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+  }
 
   .oc-tc__controls {
     display: flex;
@@ -77,7 +96,7 @@
     display: inline-flex; align-items: center; justify-content: center;
     transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
   }
-  .oc-tc__btn:hover { background: var(--oc-accent); color: #fff; }
+  .oc-tc__btn:hover { background: var(--oc-accent); color: #000000; }
   .oc-tc__btn:active { transform: scale(0.94); }
   .oc-tc__btn:focus-visible { outline: 3px solid var(--oc-accent); outline-offset: 3px; }
 
@@ -85,15 +104,14 @@
   .oc-tc__dot {
     width: 9px; height: 9px; padding: 0;
     border: none; border-radius: 50%;
-    background: #cfcfcf; cursor: pointer;
+    background: #777777; cursor: pointer;
     transition: background 0.2s ease, transform 0.2s ease;
   }
   .oc-tc__dot[aria-current="true"] { background: var(--oc-accent); transform: scale(1.25); }
 
-  /* Tablet: 2 up */
-  @media (max-width: 1024px) { .oc-tc { --oc-visible: 2; } }
-  /* Mobile: 1 up */
-  @media (max-width: 600px)  { .oc-tc { --oc-visible: 1; } .oc-tc__card { padding: 26px 22px; } }
+  /* Tablet and mobile: 1 up */
+  @media (max-width: 1024px) { .oc-tc { --oc-visible: 1; } }
+  @media (max-width: 600px)  { .oc-tc { --oc-avatar-size: 96px; } }
 
   @media (prefers-reduced-motion: reduce) {
     .oc-tc__track { transition: none; }
@@ -113,15 +131,18 @@
 
 <script>
 (function () {
-  /* ---------- EDIT YOUR TESTIMONIALS HERE ---------- */
+  /* ---------- EDIT YOUR TESTIMONIALS HERE ----------
+     Add a portrait by setting "photo" to an image URL, e.g.
+     photo: "https://yoursite.com/wp-content/uploads/lekeith.jpg"
+     Leave photo as "" to show no portrait for that card.        */
   var TESTIMONIALS = [
-    { quote: "Design is one of the most powerful ways to tell stories, shape culture, create community and inspire the next generation of creators. Atlanta Design Festival is one of the leading global design platforms steeply engaged in this mission and I’m honored to be a part of the team helping shape-shift the future.", name: "LeKeith Taylor", role: "" },
-    { quote: "What I love about the Atlanta Design Festival is how it bridges the gap. It brings great design right to our front doors and invites incredible designers from across the country and around the world. Most importantly, it gets all these creators in one room to figure out how to make cities and public spaces work better for everyone.", name: "Katherine Dirga", role: "Director, Art in Transit, MARTA" },
-    { quote: "The Atlanta Design Festival is a fantastic and unique opportunity to bring together practitioners and policy makers to learn more about the crucial role that design plays in driving the Atlanta economy, from direct jobs in design roles to driving innovation across all sectors, attracting inward investment to raising Atlanta’s international profile. Hearing from those working in and researching design – from local businesses to international design experts – provides an excellent opportunity for us all to develop better ways to support economic and social development across Atlanta.", name: "Andrew Graves", role: "Ortus Economic Research" },
-    { quote: "I remember this grass roots effort started by Elayne and Bernard in 2007 and have enjoyed seeing it grow to the amazing celebratory festival it is. The festival has shown the power of design, creative thinking and imagination that is shaping our communities and environment in a positive and forward looking way. It inspires me each year.", name: "Todd Bertsch", role: "" },
-    { quote: "Atlanta Design Festival (ADF) is lighting the future of Atlanta—reimagining urgent challenges and unlocking new opportunities through the power of creative collaboration.", name: "EunSook Kwon, PhD", role: "Chair and Professor, School of Industrial Design, College of Design, Georgia Institute of Technology" },
-    { quote: "I envision the Atlanta Design Festival becoming a global cultural beacon, deeply rooted in community—where local voices, designers, and culture shape conversations that resonate in Atlanta and beyond, while remaining grounded in equity and belonging.", name: "Adriane V. Jefferson", role: "Executive Director, Mayor’s Office of Cultural Affairs, City of Atlanta" },
-    { quote: "A defining moment for me was the 2017 Atlanta Design Festival, when Elayne and Bernard took a chance and trusted us to document the entire festival. That opportunity became the catalyst for PALETTE’s growth and opened doors across Atlanta and beyond. I’m excited to continue being part of the festival’s future and to witness how it shapes Atlanta as a whole.", name: "Matthew Adeboye", role: "The Palette Group" }
+    { quote: "Design is one of the most powerful ways to tell stories, shape culture, create community and inspire the next generation of creators. Atlanta Design Festival is one of the leading global design platforms steeply engaged in this mission and I’m honored to be a part of the team helping shape-shift the future.", name: "LeKeith Taylor", role: "", photo: "" },
+    { quote: "What I love about the Atlanta Design Festival is how it bridges the gap. It brings great design right to our front doors and invites incredible designers from across the country and around the world. Most importantly, it gets all these creators in one room to figure out how to make cities and public spaces work better for everyone.", name: "Katherine Dirga", role: "Director, Art in Transit, MARTA", photo: "" },
+    { quote: "The Atlanta Design Festival is a fantastic and unique opportunity to bring together practitioners and policy makers to learn more about the crucial role that design plays in driving the Atlanta economy, from direct jobs in design roles to driving innovation across all sectors, attracting inward investment to raising Atlanta’s international profile. Hearing from those working in and researching design – from local businesses to international design experts – provides an excellent opportunity for us all to develop better ways to support economic and social development across Atlanta.", name: "Andrew Graves", role: "Ortus Economic Research", photo: "" },
+    { quote: "I remember this grass roots effort started by Elayne and Bernard in 2007 and have enjoyed seeing it grow to the amazing celebratory festival it is. The festival has shown the power of design, creative thinking and imagination that is shaping our communities and environment in a positive and forward looking way. It inspires me each year.", name: "Todd Bertsch", role: "", photo: "" },
+    { quote: "Atlanta Design Festival is lighting the future of Atlanta—reimagining urgent challenges and unlocking new opportunities through the power of creative collaboration.", name: "EunSook Kwon, PhD", role: "Chair and Professor, School of Industrial Design, College of Design, Georgia Institute of Technology", photo: "" },
+    { quote: "I envision the Atlanta Design Festival becoming a global cultural beacon, deeply rooted in community—where local voices, designers, and culture shape conversations that resonate in Atlanta and beyond, while remaining grounded in equity and belonging.", name: "Adriane V. Jefferson", role: "Executive Director, Mayor’s Office of Cultural Affairs, City of Atlanta", photo: "" },
+    { quote: "A defining moment for me was the 2017 Atlanta Design Festival, when Elayne and Bernard took a chance and trusted us to document the entire festival. That opportunity became the catalyst for PALETTE’s growth and opened doors across Atlanta and beyond. I’m excited to continue being part of the festival’s future and to witness how it shapes Atlanta as a whole.", name: "Matthew Adeboye", role: "The Palette Group", photo: "" }
   ];
 
   var AUTOPLAY_MS = 6500; /* set to 0 to turn autoplay off */
@@ -164,13 +185,26 @@
     q.className = 'oc-tc__quote';
     q.textContent = t.quote;
 
+    var foot = document.createElement('div');
+    foot.className = 'oc-tc__foot';
+
     var meta = document.createElement('div');
     meta.className = 'oc-tc__meta';
     var n = document.createElement('div'); n.className = 'oc-tc__name'; n.textContent = t.name || '';
     var r = document.createElement('div'); r.className = 'oc-tc__role'; r.textContent = t.role || '';
     meta.appendChild(n); if (t.role) meta.appendChild(r);
+    foot.appendChild(meta);
 
-    card.appendChild(q); card.appendChild(meta);
+    if (t.photo) {
+      var img = document.createElement('img');
+      img.className = 'oc-tc__avatar';
+      img.src = t.photo;
+      img.alt = t.name || '';
+      img.loading = 'lazy';
+      foot.appendChild(img);
+    }
+
+    card.appendChild(q); card.appendChild(foot);
     track.appendChild(card);
   });
 
