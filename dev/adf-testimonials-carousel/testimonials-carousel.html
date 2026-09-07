@@ -127,7 +127,16 @@
   var AUTOPLAY_MS = 6500; /* set to 0 to turn autoplay off */
   /* ------------------------------------------------- */
 
-  var root  = document.currentScript ? document.currentScript.closest('.oc-tc') : document.querySelector('.oc-tc');
+  var self = document.currentScript;
+  var root = null;
+  if (self) {
+    /* script may sit inside .oc-tc or as its sibling in the same widget */
+    root = self.closest('.oc-tc');
+    if (!root && self.previousElementSibling && self.previousElementSibling.classList.contains('oc-tc')) {
+      root = self.previousElementSibling;
+    }
+  }
+  if (!root) root = document.querySelector('.oc-tc');
   if (!root) return;
   var track = root.querySelector('#ocTcTrack');
   var dotsWrap = root.querySelector('#ocTcDots');
