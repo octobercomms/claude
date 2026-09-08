@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.93.0 — Brevo as an SMS provider (use an already-approved Brevo sender)
+
+Adds **Brevo** (transactional SMS) as a third SMS provider alongside Quo and
+AWS. This is the easiest path when the site already sends SMS through Brevo with
+an approved sender — no new carrier registration needed.
+
+- **Settings → Email & SMS → SMS → Provider** now offers **Brevo**, Quo, or AWS.
+- **Brevo:** paste a Brevo API key (Brevo → SMTP & API → API Keys) and your
+  approved **sender** (e.g. `atldsgnfest`, ≤11 alphanumeric chars, or a number).
+  Sends via `POST api.brevo.com/v3/transactionalSMS/send`.
+- Volunteer reminders and the message blast route through whichever provider is
+  selected — one setting switches everything.
+- The API key is stored encrypted at rest (or set `OE_BREVO_API_KEY` in
+  wp-config). No schema change.
+
 ## 1.92.0 — Send volunteer SMS through Quo (use your own number, replies to Slack)
 
 Adds **Quo (OpenPhone)** as an SMS provider alongside AWS, so texts can send

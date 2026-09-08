@@ -562,9 +562,10 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional. Sends volunteer texts (reminders + blasts). Off until enabled and configured. US sending requires a 10DLC-registered number either way.', 'october-events'); ?></p>
         <?php
-        $aws_pw_const = \OE\Settings::secret_is_constant('aws_secret_access_key');
-        $quo_pw_const = \OE\Settings::secret_is_constant('quo_api_key');
-        $sms_provider = (($cfg['sms_provider'] ?? 'aws') === 'quo') ? 'quo' : 'aws';
+        $aws_pw_const   = \OE\Settings::secret_is_constant('aws_secret_access_key');
+        $quo_pw_const   = \OE\Settings::secret_is_constant('quo_api_key');
+        $brevo_pw_const = \OE\Settings::secret_is_constant('brevo_api_key');
+        $sms_provider   = in_array(($cfg['sms_provider'] ?? 'aws'), ['brevo', 'quo', 'aws'], true) ? (string) $cfg['sms_provider'] : 'aws';
         ?>
         <table class="form-table" role="presentation"><tbody>
             <tr>
@@ -574,9 +575,26 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <tr>
                 <th scope="row"><?php esc_html_e('Provider', 'october-events'); ?></th>
                 <td>
-                    <label style="margin-right:16px"><input type="radio" name="sms_provider" value="quo" <?php checked($sms_provider, 'quo'); ?>> <?php esc_html_e('Quo (OpenPhone) — sends from your Quo number; replies go to your Quo inbox / Slack', 'october-events'); ?></label><br>
+                    <label><input type="radio" name="sms_provider" value="brevo" <?php checked($sms_provider, 'brevo'); ?>> <?php esc_html_e('Brevo — transactional SMS from your approved Brevo sender (easiest if already set up)', 'october-events'); ?></label><br>
+                    <label><input type="radio" name="sms_provider" value="quo" <?php checked($sms_provider, 'quo'); ?>> <?php esc_html_e('Quo (OpenPhone) — sends from your Quo number; replies go to your Quo inbox / Slack', 'october-events'); ?></label><br>
                     <label><input type="radio" name="sms_provider" value="aws" <?php checked($sms_provider, 'aws'); ?>> <?php esc_html_e('AWS End User Messaging — cheapest, one-way (replies not received)', 'october-events'); ?></label>
                 </td>
+            </tr>
+            <tr>
+                <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('Brevo', 'october-events'); ?></strong></th>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Brevo API key', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="brevo_api_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $brevo_pw_const ? 'disabled placeholder="Set via OE_BREVO_API_KEY constant"' : (trim((string) ($cfg['brevo_api_key'] ?? '')) !== '' ? 'data-reveal="brevo_api_key" placeholder="•••••••• saved — leave blank to keep"' : 'placeholder="Brevo → SMTP & API → API Keys"'); ?>>
+                    <?php if (! $brevo_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span>
+                <p class="description"><?php esc_html_e('Create it in Brevo → Settings → SMTP & API → API Keys.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Brevo SMS sender', 'october-events'); ?></label></th>
+                <td><input type="text" name="brevo_sms_sender" value="<?php echo esc_attr((string) ($cfg['brevo_sms_sender'] ?? '')); ?>" placeholder="atldsgnfest" class="regular-text" maxlength="15">
+                    <p class="description"><?php esc_html_e('Your approved Brevo sender — an alphanumeric name (≤11 chars, e.g. atldsgnfest) or a number.', 'october-events'); ?></p></td>
             </tr>
             <tr>
                 <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('Quo (OpenPhone)', 'october-events'); ?></strong></th>

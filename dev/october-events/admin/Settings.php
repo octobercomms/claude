@@ -333,7 +333,7 @@ final class Settings {
             'mail_from_name'    => sanitize_text_field((string) ($in['mail_from_name'] ?? '')),
             'mail_footer_address' => sanitize_textarea_field((string) ($in['mail_footer_address'] ?? '')),
             // SMS — provider choice + per-provider credentials.
-            'sms_provider'          => (($in['sms_provider'] ?? 'aws') === 'quo') ? 'quo' : 'aws',
+            'sms_provider'          => in_array(($in['sms_provider'] ?? 'aws'), ['brevo', 'quo', 'aws'], true) ? (string) $in['sms_provider'] : 'aws',
             'aws_access_key_id'     => sanitize_text_field((string) ($in['aws_access_key_id'] ?? '')),
             'aws_secret_access_key' => self::keep_secret($in['aws_secret_access_key'] ?? '', $existing['aws_secret_access_key'] ?? ''),
             'sms_region'            => sanitize_text_field((string) ($in['sms_region'] ?? 'us-east-1')),
@@ -341,6 +341,9 @@ final class Settings {
             // SMS — Quo (OpenPhone).
             'quo_api_key'           => self::keep_secret($in['quo_api_key'] ?? '', $existing['quo_api_key'] ?? ''),
             'quo_from_number'       => sanitize_text_field((string) ($in['quo_from_number'] ?? '')),
+            // SMS — Brevo.
+            'brevo_api_key'         => self::keep_secret($in['brevo_api_key'] ?? '', $existing['brevo_api_key'] ?? ''),
+            'brevo_sms_sender'      => sanitize_text_field((string) ($in['brevo_sms_sender'] ?? '')),
             // Platform + check-in links surfaced in wp-admin.
             'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
             'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),

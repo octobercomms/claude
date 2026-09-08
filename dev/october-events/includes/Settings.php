@@ -31,6 +31,7 @@ final class Settings {
         'ses_smtp_password'      => 'OE_SES_SMTP_PASSWORD',
         'aws_secret_access_key'  => 'OE_AWS_SECRET_ACCESS_KEY',
         'quo_api_key'            => 'OE_QUO_API_KEY',
+        'brevo_api_key'          => 'OE_BREVO_API_KEY',
     ];
 
     public static function defaults(): array {
@@ -184,8 +185,10 @@ final class Settings {
             'mail_from_name'    => '',
             // Physical mailing address shown in campaign footers (CAN-SPAM).
             'mail_footer_address' => '',
-            // SMS provider: 'aws' (End User Messaging) or 'quo' (Quo/OpenPhone —
-            // sends from your Quo number so replies come back to your Quo inbox).
+            // SMS provider: 'brevo' (transactional SMS — easiest if you already
+            // have an approved Brevo sender), 'quo' (Quo/OpenPhone — sends from
+            // your Quo number, replies to your Quo inbox), or 'aws' (End User
+            // Messaging — cheapest, one-way).
             'sms_provider'          => 'aws',
             // SMS via AWS End User Messaging (off until configured). 10DLC needed in the US.
             'aws_access_key_id'     => '',
@@ -195,6 +198,9 @@ final class Settings {
             // Quo (OpenPhone) SMS: an API key + the workspace "from" number.
             'quo_api_key'           => '', // secret (or OE_QUO_API_KEY)
             'quo_from_number'       => '', // your Quo number, E.164 (e.g. +19548803278)
+            // Brevo transactional SMS: an API key + an approved sender ID/number.
+            'brevo_api_key'         => '', // secret (or OE_BREVO_API_KEY)
+            'brevo_sms_sender'      => '', // e.g. "atldsgnfest" (≤11 alnum) or a number
             // Public AI support chat — a floating widget that answers customers'
             // questions about their own (email-verified) orders and tickets.
             'support_chat_enabled'  => '0',
