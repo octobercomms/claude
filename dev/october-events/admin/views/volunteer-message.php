@@ -114,7 +114,7 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
             <p><label>
                 <span class="oe-test-label-email"><?php esc_html_e('Test email address(es) — comma-separated', 'october-events'); ?></span>
                 <span class="oe-test-label-sms" hidden><?php esc_html_e('Test phone number(s) — comma-separated', 'october-events'); ?></span><br>
-                <input type="text" name="test_to" class="large-text" placeholder="you@example.com, colleague@example.com">
+                <input type="text" name="test_to" id="oe-test-to" class="large-text" placeholder="you@example.com, colleague@example.com">
             </label></p>
             <p>
                 <button type="submit" name="oe_do" value="test" class="button"><?php esc_html_e('Send test to me', 'october-events'); ?></button>
@@ -136,6 +136,8 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
         form.querySelectorAll('.oe-blast-smsnote').forEach(function(el){ el.hidden = !sms; });
         form.querySelectorAll('.oe-test-label-email').forEach(function(el){ el.hidden = sms; });
         form.querySelectorAll('.oe-test-label-sms').forEach(function(el){ el.hidden = !sms; });
+        var testTo = document.getElementById('oe-test-to');
+        if (testTo) { testTo.placeholder = sms ? '+14045551234, +14045555678' : 'you@example.com, colleague@example.com'; }
     }
     form.querySelectorAll('input[name="channel"]').forEach(function(r){ r.addEventListener('change', onChannel); });
     onChannel();
