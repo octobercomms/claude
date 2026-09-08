@@ -5,6 +5,12 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.95.1 — Test-send field: match the placeholder to the channel
+
+Small fix: on the volunteer test-send box, the input placeholder now switches to
+example phone numbers when SMS is selected (it previously always showed email
+examples, even though the label correctly said "phone number(s)").
+
 ## 1.95.0 — Send yourself a test volunteer email/SMS
 
 The **Message volunteers** screen now has a **"Send a test to yourself first"**
