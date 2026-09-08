@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.94.0 — Brevo for email sending (SMTP), alongside Amazon SES
+
+Adds **Brevo SMTP** as an outgoing-email transport option next to Amazon SES, so
+the plugin's emails (confirmations, reminders, the volunteer blast, tickets,
+campaigns) can send through Brevo — useful when the site already uses Brevo.
+
+- **Settings → Email & SMS → Email sending (Brevo SMTP):** enable it, then enter
+  your Brevo **SMTP login** (usually your account email) and an **SMTP key**
+  (Brevo → SMTP & API → SMTP — note: the SMTP key, not the API key).
+- Routes `wp_mail` through `smtp-relay.brevo.com` on `phpmailer_init`, the same
+  mechanism as SES, so suppression, logging and the From identity all still
+  apply. The From address/name + footer settings are shared across providers.
+- If both SES and Brevo are enabled, **SES takes precedence.** With neither on,
+  the site keeps its existing default transport.
+- The SMTP key is stored encrypted at rest (or set `OE_BREVO_SMTP_KEY` in
+  wp-config). No schema change.
+
 ## 1.93.0 — Brevo as an SMS provider (use an already-approved Brevo sender)
 
 Adds **Brevo** (transactional SMS) as a third SMS provider alongside Quo and

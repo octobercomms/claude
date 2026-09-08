@@ -329,6 +329,10 @@ final class Settings {
             'ses_region'        => sanitize_text_field((string) ($in['ses_region'] ?? 'us-east-1')),
             'ses_smtp_user'     => sanitize_text_field((string) ($in['ses_smtp_user'] ?? '')),
             'ses_smtp_password' => self::keep_secret($in['ses_smtp_password'] ?? '', $existing['ses_smtp_password'] ?? ''),
+            // Email — Brevo SMTP.
+            'brevo_email_enabled' => ! empty($in['brevo_email_enabled']),
+            'brevo_smtp_login'    => sanitize_text_field((string) ($in['brevo_smtp_login'] ?? '')),
+            'brevo_smtp_key'      => self::keep_secret($in['brevo_smtp_key'] ?? '', $existing['brevo_smtp_key'] ?? ''),
             'mail_from_email'   => sanitize_email((string) ($in['mail_from_email'] ?? '')),
             'mail_from_name'    => sanitize_text_field((string) ($in['mail_from_name'] ?? '')),
             'mail_footer_address' => sanitize_textarea_field((string) ($in['mail_footer_address'] ?? '')),

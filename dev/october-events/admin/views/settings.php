@@ -475,7 +475,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <tr>
                 <th scope="row"><label><?php esc_html_e('From address', 'october-events'); ?></label></th>
                 <td><input type="email" name="mail_from_email" value="<?php echo esc_attr((string) ($cfg['mail_from_email'] ?? '')); ?>" placeholder="hello@news.atlantadesignfestival.net" class="regular-text">
-                    <p class="description"><?php esc_html_e('Must be a verified SES sender/domain.', 'october-events'); ?></p></td>
+                    <p class="description"><?php esc_html_e('Must be a verified sender/domain in your email provider (SES or Brevo).', 'october-events'); ?></p></td>
             </tr>
             <tr>
                 <th scope="row"><label><?php esc_html_e('From name', 'october-events'); ?></label></th>
@@ -484,7 +484,31 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <tr>
                 <th scope="row"><label><?php esc_html_e('Footer postal address', 'october-events'); ?></label></th>
                 <td><textarea name="mail_footer_address" rows="2" class="large-text" placeholder="Atlanta Design Festival, 123 Example St, Atlanta, GA 30303"><?php echo esc_textarea((string) ($cfg['mail_footer_address'] ?? '')); ?></textarea>
-                    <p class="description"><?php esc_html_e('Shown in campaign footers (required by CAN-SPAM).', 'october-events'); ?></p></td>
+                    <p class="description"><?php esc_html_e('Shown in campaign footers (required by CAN-SPAM). Used with either provider.', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
+        </div></details>
+
+        <details class="oe-acc" id="email-brevo"><summary><?php esc_html_e('Email sending (Brevo SMTP)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Send the site’s email through Brevo instead of SES — handy if you already use Brevo. Off until enabled + configured; the From address/name and footer above apply to whichever provider is on. If both SES and Brevo are enabled, SES takes precedence.', 'october-events'); ?></p>
+        <?php $brevo_smtp_pw_const = \OE\Settings::secret_is_constant('brevo_smtp_key'); ?>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><?php esc_html_e('Enable Brevo email', 'october-events'); ?></th>
+                <td><label><input type="checkbox" name="brevo_email_enabled" value="1" <?php checked((bool) ($cfg['brevo_email_enabled'] ?? false)); ?>> <?php esc_html_e('Route outgoing email through Brevo SMTP', 'october-events'); ?></label></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Brevo SMTP login', 'october-events'); ?></label></th>
+                <td><input type="text" name="brevo_smtp_login" value="<?php echo esc_attr((string) ($cfg['brevo_smtp_login'] ?? '')); ?>" autocomplete="off" class="regular-text" placeholder="you@example.com">
+                    <p class="description"><?php esc_html_e('From Brevo → Settings → SMTP & API → SMTP (usually your account email).', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Brevo SMTP key', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="brevo_smtp_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $brevo_smtp_pw_const ? 'disabled placeholder="Set via OE_BREVO_SMTP_KEY constant"' : (trim((string) ($cfg['brevo_smtp_key'] ?? '')) !== '' ? 'data-reveal="brevo_smtp_key" placeholder="•••••••• saved — leave blank to keep"' : 'placeholder="Brevo → SMTP & API → SMTP → generate a key"'); ?>>
+                    <?php if (! $brevo_smtp_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span>
+                <p class="description"><?php esc_html_e('This is the SMTP key (not the API key). Generate it in Brevo → SMTP & API → SMTP.', 'october-events'); ?></p></td>
             </tr>
         </tbody></table>
         </div></details>
