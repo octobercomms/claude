@@ -20,6 +20,16 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
     <?php if (is_array($sent_notice)) : ?>
         <?php if (! empty($sent_notice['error'])) : ?>
             <div class="notice notice-error inline" style="margin:8px 0"><p><?php echo esc_html((string) $sent_notice['error']); ?></p></div>
+        <?php elseif (! empty($sent_notice['test'])) : ?>
+            <div class="notice notice-success inline" style="margin:8px 0"><p><?php
+                echo esc_html(sprintf(
+                    /* translators: 1: channel, 2: sent, 3: failed */
+                    __('Test sent: %2$d %1$s message(s), %3$d failed. Check your inbox/phone.', 'october-events'),
+                    (string) $sent_notice['channel'],
+                    (int) $sent_notice['sent'],
+                    (int) $sent_notice['failed']
+                ));
+            ?></p></div>
         <?php else : ?>
             <div class="notice notice-success inline" style="margin:8px 0"><p><?php
                 echo esc_html(sprintf(
@@ -98,8 +108,21 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
             </p>
         </div>
 
+        <div class="oe-panel">
+            <h3><?php esc_html_e('4. Send a test to yourself first', 'october-events'); ?></h3>
+            <p class="description"><?php esc_html_e('Send the message above to your own address/number so you can check how it looks. Merge tags are filled with sample details (a made-up volunteer + shift). This does NOT message any volunteers.', 'october-events'); ?></p>
+            <p><label>
+                <span class="oe-test-label-email"><?php esc_html_e('Test email address(es) — comma-separated', 'october-events'); ?></span>
+                <span class="oe-test-label-sms" hidden><?php esc_html_e('Test phone number(s) — comma-separated', 'october-events'); ?></span><br>
+                <input type="text" name="test_to" class="large-text" placeholder="you@example.com, colleague@example.com">
+            </label></p>
+            <p>
+                <button type="submit" name="oe_do" value="test" class="button"><?php esc_html_e('Send test to me', 'october-events'); ?></button>
+            </p>
+        </div>
+
         <p>
-            <button type="submit" class="button button-primary button-hero" onclick="return confirm('<?php echo esc_js(__('Send this message to the volunteers of the selected opportunities?', 'october-events')); ?>');"><?php esc_html_e('Send blast', 'october-events'); ?></button>
+            <button type="submit" name="oe_do" value="send" class="button button-primary button-hero" onclick="return confirm('<?php echo esc_js(__('Send this message to the volunteers of the selected opportunities?', 'october-events')); ?>');"><?php esc_html_e('Send blast', 'october-events'); ?></button>
         </p>
     </form>
 </div>
@@ -111,6 +134,8 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
         var sms = form.querySelector('input[name="channel"]:checked').value === 'sms';
         form.querySelectorAll('.oe-blast-subject').forEach(function(el){ el.hidden = sms; });
         form.querySelectorAll('.oe-blast-smsnote').forEach(function(el){ el.hidden = !sms; });
+        form.querySelectorAll('.oe-test-label-email').forEach(function(el){ el.hidden = sms; });
+        form.querySelectorAll('.oe-test-label-sms').forEach(function(el){ el.hidden = !sms; });
     }
     form.querySelectorAll('input[name="channel"]').forEach(function(r){ r.addEventListener('change', onChannel); });
     onChannel();

@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.95.0 — Send yourself a test volunteer email/SMS
+
+The **Message volunteers** screen now has a **"Send a test to yourself first"**
+box: enter one or more of your own addresses (or phone numbers for SMS,
+comma-separated) and it sends the exact message you've drafted — through the
+same email/SMS provider volunteers would get — with the merge tags filled with
+sample details. It does not message any volunteers. Handy for checking your
+Brevo email/SMS setup and how the message looks before a real blast.
+
 ## 1.94.0 — Brevo for email sending (SMTP), alongside Amazon SES
 
 Adds **Brevo SMTP** as an outgoing-email transport option next to Amazon SES, so

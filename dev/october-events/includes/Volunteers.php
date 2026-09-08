@@ -1284,12 +1284,40 @@ final class Volunteers {
 
     /** Substitute [tag] placeholders in a message for one signup. */
     public static function apply_merge(string $text, object $signup): string {
+        return self::apply_merge_values($text, self::message_merge_values($signup));
+    }
+
+    /**
+     * Substitute [tag] placeholders from a values map (tag => value).
+     *
+     * @param array<string,string> $values
+     */
+    public static function apply_merge_values(string $text, array $values): string {
         $search = $replace = [];
-        foreach (self::message_merge_values($signup) as $tag => $val) {
+        foreach ($values as $tag => $val) {
             $search[]  = '[' . $tag . ']';
-            $replace[] = $val;
+            $replace[] = (string) $val;
         }
         return str_replace($search, $replace, $text);
+    }
+
+    /**
+     * Sample merge values for a test send (no real signup) — so [tags] show
+     * something representative when the shop owner emails/texts themselves.
+     *
+     * @return array<string,string>
+     */
+    public static function sample_merge_values(): array {
+        return [
+            'name'           => __('Sample Volunteer', 'october-events'),
+            'volunteer-type' => __('Docent', 'october-events'),
+            'role'           => __('Docent', 'october-events'),
+            'event-location' => __('49 26th St NW, Atlanta, GA 30309', 'october-events'),
+            'location'       => __('49 26th St NW, Atlanta, GA 30309', 'october-events'),
+            'opportunity'    => __('Architecture Tour: Metro Atlanta — Sylvan Circle', 'october-events'),
+            'shift'          => __('Sun Oct 4 — 10:00am–1:00pm', 'october-events'),
+            'date'           => __('Sun Oct 4 — 10:00am–1:00pm', 'october-events'),
+        ];
     }
 
     /**
