@@ -308,6 +308,7 @@ final class Admin {
         }
         check_admin_referer('oe_volunteer_blast');
 
+        $mode     = (($_POST['oe_do'] ?? 'send') === 'test') ? 'test' : 'send';
         $channel  = isset($_POST['channel']) ? sanitize_key((string) $_POST['channel']) : 'email';
         $opp_ids  = array_map('intval', (array) ($_POST['opps'] ?? []));
         $statuses = array_map('sanitize_key', (array) ($_POST['statuses'] ?? []));
@@ -325,9 +326,7 @@ final class Admin {
             exit;
         };
 
-        if (! $opp_ids) {
-            $fail(__('Pick at least one opportunity.', 'october-events'));
-        }
+        // Shared validation (both a real blast and a test need these).
         if ($body === '') {
             $fail(__('Write a message first.', 'october-events'));
         }
@@ -336,6 +335,41 @@ final class Admin {
         }
         if ($channel === 'email' && $subject === '') {
             $fail(__('Add a subject for the email.', 'october-events'));
+        }
+
+        // Test send: to the comma/newline-separated addresses/numbers the user
+        // typed, with sample details filled into the merge tags.
+        if ($mode === 'test') {
+            $raw = (string) ($_POST['test_to'] ?? '');
+            $recipients = array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $raw) ?: [])));
+            if (! $recipients) {
+                $fail(__('Enter at least one test address or number.', 'october-events'));
+            }
+            $vals = Volunteers::sample_merge_values();
+            $subj = Volunteers::apply_merge_values($subject, $vals);
+            $tsent = $tfailed = 0;
+            foreach ($recipients as $r) {
+                if ($channel === 'sms') {
+                    if (\OE\Connectors\Sms::send($r, Volunteers::apply_merge_values($body, $vals))) { $tsent++; } else { $tfailed++; }
+                } else {
+                    if (! is_email($r)) { $tfailed++; continue; }
+                    $html = nl2br(esc_html(Volunteers::apply_merge_values($body, $vals)));
+                    if (\OE\Mail\Transactional::send('volunteer_blast', ['email' => $r, 'name' => ''], [], $subj, $html)) { $tsent++; } else { $tfailed++; }
+                }
+            }
+            set_transient('oe_vol_blast_' . get_current_user_id(), [
+                'test'    => true,
+                'channel' => $channel,
+                'sent'    => $tsent,
+                'skipped' => 0,
+                'failed'  => $tfailed,
+            ], 60);
+            wp_safe_redirect($back);
+            exit;
+        }
+
+        if (! $opp_ids) {
+            $fail(__('Pick at least one opportunity.', 'october-events'));
         }
 
         $sent = $skipped = $failed = 0;
