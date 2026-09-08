@@ -32,6 +32,7 @@ final class Settings {
         'aws_secret_access_key'  => 'OE_AWS_SECRET_ACCESS_KEY',
         'quo_api_key'            => 'OE_QUO_API_KEY',
         'brevo_api_key'          => 'OE_BREVO_API_KEY',
+        'brevo_smtp_key'         => 'OE_BREVO_SMTP_KEY',
     ];
 
     public static function defaults(): array {
@@ -181,6 +182,11 @@ final class Settings {
             'ses_region'        => 'us-east-1',
             'ses_smtp_user'     => '',
             'ses_smtp_password' => '', // secret (or OE_SES_SMTP_PASSWORD constant)
+            // Email — Brevo (Sendinblue) SMTP relay as the outgoing transport.
+            // Alternative to SES; off until enabled + configured. SES wins if both on.
+            'brevo_email_enabled' => false,
+            'brevo_smtp_login'    => '', // your Brevo SMTP login (usually the account email)
+            'brevo_smtp_key'      => '', // secret SMTP key (or OE_BREVO_SMTP_KEY constant)
             'mail_from_email'   => '',
             'mail_from_name'    => '',
             // Physical mailing address shown in campaign footers (CAN-SPAM).

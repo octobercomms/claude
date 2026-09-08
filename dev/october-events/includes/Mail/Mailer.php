@@ -51,32 +51,56 @@ final class Mailer {
         return $region !== '' && $user !== '' && $pass !== '';
     }
 
+    /** True when Brevo SMTP is enabled and has the credentials it needs. */
+    public static function brevo_active(): bool {
+        if (! Settings::get('brevo_email_enabled', false)) {
+            return false;
+        }
+        return (string) Settings::get('brevo_smtp_login', '') !== ''
+            && (string) Settings::get('brevo_smtp_key', '') !== '';
+    }
+
+    /** True when this plugin is actively managing the outgoing transport. */
+    public static function managed(): bool {
+        return self::ses_active() || self::brevo_active();
+    }
+
     public static function smtp_host(): string {
         $region = (string) Settings::get('ses_region', 'us-east-1');
         return 'email-smtp.' . $region . '.amazonaws.com';
     }
 
     /**
-     * Point PHPMailer at the SES SMTP endpoint. Only fires when SES is fully
-     * configured, so a half-set config can never break the site's mail.
+     * Point PHPMailer at the chosen SMTP endpoint. Only fires when a provider is
+     * fully configured, so a half-set config can never break the site's mail.
+     * SES takes precedence if both are somehow enabled.
      *
      * @param \PHPMailer\PHPMailer\PHPMailer $phpmailer
      */
     public static function configure_transport($phpmailer): void {
-        if (! self::ses_active()) {
+        if (self::ses_active()) {
+            $phpmailer->isSMTP();
+            $phpmailer->Host       = self::smtp_host();
+            $phpmailer->Port       = 587;
+            $phpmailer->SMTPAuth   = true;
+            $phpmailer->SMTPSecure = 'tls';
+            $phpmailer->Username   = (string) Settings::get('ses_smtp_user', '');
+            $phpmailer->Password   = (string) Settings::get('ses_smtp_password', '');
             return;
         }
-        $phpmailer->isSMTP();
-        $phpmailer->Host       = self::smtp_host();
-        $phpmailer->Port       = 587;
-        $phpmailer->SMTPAuth   = true;
-        $phpmailer->SMTPSecure = 'tls';
-        $phpmailer->Username   = (string) Settings::get('ses_smtp_user', '');
-        $phpmailer->Password   = (string) Settings::get('ses_smtp_password', '');
+        if (self::brevo_active()) {
+            $phpmailer->isSMTP();
+            $phpmailer->Host       = 'smtp-relay.brevo.com';
+            $phpmailer->Port       = 587;
+            $phpmailer->SMTPAuth   = true;
+            $phpmailer->SMTPSecure = 'tls';
+            $phpmailer->Username   = (string) Settings::get('brevo_smtp_login', '');
+            $phpmailer->Password   = (string) Settings::get('brevo_smtp_key', '');
+        }
     }
 
     public static function from_email($email) {
-        if (self::ses_active()) {
+        if (self::managed()) {
             $configured = (string) Settings::get('mail_from_email', '');
             if (is_email($configured)) {
                 return $configured;
@@ -86,7 +110,7 @@ final class Mailer {
     }
 
     public static function from_name($name) {
-        if (self::ses_active()) {
+        if (self::managed()) {
             $configured = (string) Settings::get('mail_from_name', '');
             if ($configured !== '') {
                 return $configured;
@@ -161,7 +185,10 @@ final class Mailer {
     }
 
     private static function driver_label(): string {
-        return self::ses_active() ? 'ses' : 'default';
+        if (self::ses_active()) {
+            return 'ses';
+        }
+        return self::brevo_active() ? 'brevo' : 'default';
     }
 
     /** Extract a bare email address from a "Name <email>" recipient string. */
@@ -180,11 +207,12 @@ final class Mailer {
         if (! is_email($to)) {
             return false;
         }
-        $brand = (string) Settings::get('brand_name', 'October Events');
+        $brand     = (string) Settings::get('brand_name', 'October Events');
+        $transport = self::ses_active() ? 'Amazon SES' : (self::brevo_active() ? 'Brevo (SMTP)' : 'site default');
         return wp_mail(
             $to,
             sprintf('[%s] Test email', $brand),
-            "This is a test email from October Events.\n\nTransport: " . (self::ses_active() ? 'Amazon SES' : 'site default') . ".\nIf you received it, outgoing mail is working."
+            "This is a test email from October Events.\n\nTransport: " . $transport . ".\nIf you received it, outgoing mail is working."
         );
     }
 }
