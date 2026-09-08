@@ -5,6 +5,25 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.96.0 — Volunteer reminders by both email AND SMS + editable/previewable SMS
+
+Reminders (and the signup confirmation) now reliably go out by **both email and
+SMS**, so volunteers see them.
+
+- **Dual channel:** the reminder engine already sent email always; its SMS now
+  fires whenever an SMS provider is configured (Settings → Email & SMS) and the
+  volunteer has a phone number — no longer gated on the old AWS-only "Enable
+  SMS" toggle, so it works with Brevo/Quo/AWS alike.
+- **Editable SMS text + preview:** new **Settings → Email & SMS → Volunteer SMS**
+  section to edit the *Signup confirmation* and *Shift reminder* texts (blank =
+  built-in default), with a live sample preview under each. Same `[merge]` tags
+  as email (`[name]`, `[volunteer-type]`, `[event-location]`, `[opportunity]`,
+  `[shift]`).
+- The **email** reminder/confirmation copy was already editable + previewable
+  (Volunteer emails section); this brings SMS to parity.
+
+No schema change.
+
 ## 1.95.1 — Test-send field: match the placeholder to the channel
 
 Small fix: on the volunteer test-send box, the input placeholder now switches to

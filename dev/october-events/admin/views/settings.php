@@ -582,6 +582,29 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description" style="margin-top:10px"><?php esc_html_e('Previews open in a new tab and use sample shift details. The declined email never shows the cancel link.', 'october-events'); ?></p>
         </div></details>
 
+        <details class="oe-acc" id="volunteer-sms"><summary><?php esc_html_e('Volunteer SMS (confirmation & reminders)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('The text messages volunteers receive (when SMS is set up below). Edit each, or leave blank to use the default shown. Reminders are sent by BOTH email and SMS so volunteers see them. Keep texts short — long messages split into several. Same [merge] tags as email.', 'october-events'); ?></p>
+        <?php
+        $sms_saved    = (array) ($cfg['volunteer_sms_templates'] ?? []);
+        $sms_defaults = \OE\Volunteers::sms_template_defaults();
+        $sms_labels   = [
+            'on_signup' => __('Signup confirmation (sent immediately)', 'october-events'),
+            'reminder'  => __('Shift reminder (sent before the shift)', 'october-events'),
+        ];
+        foreach ($sms_labels as $sk => $slabel) : ?>
+        <p style="margin:14px 0 4px"><strong><?php echo esc_html($slabel); ?></strong></p>
+        <textarea name="volunteer_sms_templates[<?php echo esc_attr($sk); ?>]" rows="3" class="large-text" placeholder="<?php echo esc_attr((string) ($sms_defaults[$sk] ?? '')); ?>"><?php echo esc_textarea((string) ($sms_saved[$sk] ?? '')); ?></textarea>
+        <p class="description" style="margin:4px 0 0"><strong><?php esc_html_e('Preview:', 'october-events'); ?></strong> <span style="color:var(--oe-ink)"><?php echo esc_html(\OE\Volunteers::sms_preview($sk)); ?></span></p>
+        <?php endforeach; ?>
+        <p class="description" style="margin-top:12px">
+            <strong><?php esc_html_e('Merge tags', 'october-events'); ?>:</strong>
+            <?php $sbits = [];
+            foreach (\OE\Volunteers::message_merge_tags() as $tag => $desc) { $sbits[] = '<code>[' . esc_html($tag) . ']</code>'; }
+            echo wp_kses_post(implode(' &nbsp;·&nbsp; ', $sbits)); ?>
+        </p>
+        <p class="description"><?php esc_html_e('Previews use sample details and reflect your saved text — save to update them.', 'october-events'); ?></p>
+        </div></details>
+
         <?php endif; ?>
         <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional. Sends volunteer texts (reminders + blasts). Off until enabled and configured. US sending requires a 10DLC-registered number either way.', 'october-events'); ?></p>

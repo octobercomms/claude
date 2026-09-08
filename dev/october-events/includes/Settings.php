@@ -146,6 +146,9 @@ final class Settings {
             // built-in default copy. The rest of each email (shift details,
             // buttons, footer) is generated automatically.
             'volunteer_email_intros' => [],
+            // Admin-editable SMS templates, keyed by on_signup | reminder.
+            // Blank = built-in default. Supports the same [merge] tags.
+            'volunteer_sms_templates' => [],
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',
