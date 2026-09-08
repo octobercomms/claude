@@ -1448,26 +1448,50 @@ final class Volunteers {
     }
 
     /**
-     * SMS body for a reminder/confirmation (kept short).
+     * SMS body for a reminder/confirmation — an admin-editable template (Settings
+     * → Volunteer SMS) with [merge] tags, falling back to the default copy. Kept
+     * short (long texts split into multiple SMS segments).
      */
     public static function sms_body(object $signup, string $context): string {
-        $p = self::email_params($signup);
-        if ($context === 'on_signup') {
-            return sprintf(
-                /* translators: 1: opportunity, 2: shift */
-                __('ADF: thanks %1$s! You are signed up to volunteer for %2$s (%3$s). Reply STOP to opt out.', 'october-events'),
-                $p['name'],
-                $p['opportunity'],
-                $p['shift']
-            );
+        $key = ($context === 'on_signup') ? 'on_signup' : 'reminder';
+        return self::apply_merge(self::sms_template($key), $signup);
+    }
+
+    /**
+     * Default SMS templates (with [merge] tags), keyed by on_signup | reminder.
+     *
+     * @return array<string,string>
+     */
+    public static function sms_template_defaults(): array {
+        $brand = (string) Settings::get('brand_name', 'October Events');
+        return [
+            'on_signup' => sprintf(
+                /* translators: %s: brand name */
+                __('%s: thanks [name]! You’re signed up to volunteer as [volunteer-type] for [opportunity] ([shift]). Reply STOP to opt out.', 'october-events'),
+                $brand
+            ),
+            'reminder'  => sprintf(
+                /* translators: %s: brand name */
+                __('%s reminder: your volunteer shift [opportunity] ([shift]) is coming up at [event-location]. See you there! Reply STOP to opt out.', 'october-events'),
+                $brand
+            ),
+        ];
+    }
+
+    /** The SMS template for a key: the admin override, or the default. */
+    public static function sms_template(string $key): string {
+        $custom = (array) Settings::get('volunteer_sms_templates', []);
+        $val    = trim((string) ($custom[$key] ?? ''));
+        if ($val !== '') {
+            return $val;
         }
-        return sprintf(
-            /* translators: 1: opportunity, 2: shift, 3: location */
-            __('ADF reminder: your volunteer shift "%1$s" (%2$s) is coming up at %3$s. See you there!', 'october-events'),
-            $p['opportunity'],
-            $p['shift'],
-            $p['location']
-        );
+        $defaults = self::sms_template_defaults();
+        return (string) ($defaults[$key] ?? $defaults['reminder']);
+    }
+
+    /** Sample-resolved SMS text for the settings preview. */
+    public static function sms_preview(string $key): string {
+        return self::apply_merge_values(self::sms_template($key), self::sample_merge_values());
     }
 
     /**

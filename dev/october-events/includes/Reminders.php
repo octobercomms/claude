@@ -87,8 +87,10 @@ final class Reminders {
             'name'  => $signup->name,
         ], $params, $subject);
 
-        // SMS (opt-in + enabled).
-        if (! empty($signup->sms_opt_in) && (bool) Settings::get('sms_enabled', false) && ! empty($signup->phone)) {
+        // SMS — sent alongside the email whenever an SMS provider is configured
+        // and the volunteer has a phone number, so they get the reminder both
+        // ways. (Provider = whatever is set under Settings → Email & SMS.)
+        if (! empty($signup->phone) && \OE\Connectors\Sms::is_ready()) {
             \OE\Mail\Transactional::send_sms(
                 (string) $signup->phone,
                 Volunteers::sms_body($signup, $context)
