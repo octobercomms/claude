@@ -118,11 +118,14 @@ class OCAD_Campaign {
 		global $wpdb;
 		$table = $wpdb->prefix . 'ocad_ads';
 
+		// Strip WebP conversion from GIFs so animated ads are served correctly.
+		$image_url = ocad_normalise_image_url( esc_url_raw( $image_url ) );
+
 		$existing = self::get_ad_for_format( $campaign_id, $format );
 		if ( $existing ) {
 			$wpdb->update(
 				$table,
-				array( 'image_url' => esc_url_raw( $image_url ), 'alt_text' => sanitize_text_field( $alt_text ) ),
+				array( 'image_url' => $image_url, 'alt_text' => sanitize_text_field( $alt_text ) ),
 				array( 'id' => $existing->id )
 			);
 			return $existing->id;
@@ -131,7 +134,7 @@ class OCAD_Campaign {
 		$wpdb->insert( $table, array(
 			'campaign_id' => $campaign_id,
 			'format'      => sanitize_key( $format ),
-			'image_url'   => esc_url_raw( $image_url ),
+			'image_url'   => $image_url,
 			'alt_text'    => sanitize_text_field( $alt_text ),
 		) );
 		return $wpdb->insert_id;
