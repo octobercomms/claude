@@ -718,10 +718,21 @@ final class Orders {
         global $wpdb;
         $o = Schema::orders();
         $t = Schema::tickets();
+        // Count active tickets per order in a derived table first, then join it
+        // one-to-one to orders. Joining orders → tickets directly and SUM(o.total)
+        // fans out — each order's total gets added once per ticket in it, badly
+        // inflating revenue — so revenue is summed from orders alone here.
         return $wpdb->get_results(
-            "SELECT o.event_id, COUNT(ti.id) AS tickets, COALESCE(SUM(o.total),0) AS revenue
-             FROM {$o} o LEFT JOIN {$t} ti ON ti.order_id = o.id AND ti.status='active'
-             WHERE o.status='paid' GROUP BY o.event_id ORDER BY revenue DESC"
+            "SELECT o.event_id,
+                    COALESCE(SUM(tc.n), 0) AS tickets,
+                    COALESCE(SUM(o.total), 0) AS revenue
+             FROM {$o} o
+             LEFT JOIN (
+                 SELECT order_id, COUNT(*) AS n FROM {$t} WHERE status='active' GROUP BY order_id
+             ) tc ON tc.order_id = o.id
+             WHERE o.status='paid'
+             GROUP BY o.event_id
+             ORDER BY revenue DESC"
         ) ?: [];
     }
 

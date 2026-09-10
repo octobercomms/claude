@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.97.0 — Fix inflated per-event revenue + mislabelled sales-report heading
+
+**Bug fix.** `Orders::event_summary()` joined orders → tickets and then summed
+`orders.total`, which fanned out: each order's total was added once *per ticket*
+in it, inflating per-event revenue by roughly the average tickets-per-order.
+This overstated the "Revenue" column on the **daily sales-report email**, the
+**Sales** admin screen, and figures the **AI assistant** quotes. Now revenue is
+summed from orders alone (ticket counts via a per-order derived table), so it
+matches the correct all-time revenue from `Orders::stats()`.
+
+Also: the daily sales-report email heading was hard-coded "ADF ticket sales —
+today" even on other sites (e.g. Architecture Tours). It now uses the site's own
+brand name.
+
+No schema change. (Ticket *counts* were already correct and are unchanged.)
+
 ## 1.96.0 — Volunteer reminders by both email AND SMS + editable/previewable SMS
 
 Reminders (and the signup confirmation) now reliably go out by **both email and
