@@ -245,11 +245,12 @@ final class Cron {
             return;
         }
         $currency = strtoupper((string) Settings::get('currency', 'usd'));
+        $brand    = (string) Settings::get('brand_name', 'October Events');
         $rows = '';
         foreach (\OE\Ticketing\Orders::event_summary() as $row) {
             $rows .= '<tr><td>' . esc_html(get_the_title((int) $row->event_id)) . '</td><td>' . (int) $row->tickets . '</td><td>' . esc_html($currency . ' ' . number_format((float) $row->revenue, 2)) . '</td></tr>';
         }
-        $html = '<h2>' . esc_html__('ADF ticket sales — today', 'october-events') . '</h2>'
+        $html = '<h2>' . esc_html(sprintf(/* translators: %s: brand name */ __('%s ticket sales — today', 'october-events'), $brand)) . '</h2>'
             . '<p>' . sprintf(/* translators: 1: tickets 2: revenue */ esc_html__('Today: %1$d tickets, %2$s.', 'october-events'), $stats['today_tickets'], esc_html($currency . ' ' . number_format($stats['today_revenue'], 2))) . '</p>'
             . '<p>' . sprintf(/* translators: 1: tickets 2: revenue */ esc_html__('All time: %1$d tickets, %2$s.', 'october-events'), $stats['tickets'], esc_html($currency . ' ' . number_format($stats['revenue'], 2))) . '</p>'
             . '<table border="1" cellpadding="6" cellspacing="0"><tr><th>Event</th><th>Tickets</th><th>Revenue</th></tr>' . $rows . '</table>';
