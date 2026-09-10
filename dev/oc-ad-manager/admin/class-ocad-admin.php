@@ -11,6 +11,7 @@ class OCAD_Admin {
 		add_action( 'admin_post_ocad_save_campaign', array( $this, 'handle_save_campaign' ) );
 		add_action( 'admin_post_ocad_delete_campaign', array( $this, 'handle_delete_campaign' ) );
 		add_action( 'admin_post_ocad_toggle_campaign', array( $this, 'handle_toggle_campaign' ) );
+		add_action( 'admin_post_ocad_duplicate_campaign', array( $this, 'handle_duplicate_campaign' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -143,8 +144,9 @@ class OCAD_Admin {
 							$ads = OCAD_Campaign::get_ads_for_campaign( $campaign->id );
 							$formats_present = wp_list_pluck( $ads, 'format' );
 							$is_active = $campaign->status === 'active';
-							$toggle_nonce = wp_create_nonce( 'ocad_toggle_' . $campaign->id );
-							$delete_nonce = wp_create_nonce( 'ocad_delete_' . $campaign->id );
+							$toggle_nonce    = wp_create_nonce( 'ocad_toggle_' . $campaign->id );
+							$delete_nonce    = wp_create_nonce( 'ocad_delete_' . $campaign->id );
+							$duplicate_nonce = wp_create_nonce( 'ocad_duplicate_' . $campaign->id );
 							$today = current_time( 'Y-m-d' );
 							$expired = $campaign->end_date && $campaign->end_date < $today;
 							$not_started = $campaign->start_date && $campaign->start_date > $today;
@@ -243,6 +245,15 @@ class OCAD_Admin {
 								   class="button button-small">
 									<?php esc_html_e( 'Report', 'oc-ad-manager' ); ?>
 								</a>
+
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+									<input type="hidden" name="action" value="ocad_duplicate_campaign">
+									<input type="hidden" name="campaign_id" value="<?php echo esc_attr( $campaign->id ); ?>">
+									<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( $duplicate_nonce ); ?>">
+									<button type="submit" class="button button-small">
+										<?php esc_html_e( 'Duplicate', 'oc-ad-manager' ); ?>
+									</button>
+								</form>
 
 								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
 									<input type="hidden" name="action" value="ocad_toggle_campaign">
@@ -604,6 +615,51 @@ class OCAD_Admin {
 
 		wp_safe_redirect( add_query_arg(
 			array( 'page' => 'oc-ad-manager', 'ocad_message' => 'toggled' ),
+			admin_url( 'admin.php' )
+		) );
+		exit;
+	}
+
+	public function handle_duplicate_campaign() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'oc-ad-manager' ) );
+		}
+
+		$campaign_id = absint( $_POST['campaign_id'] ?? 0 );
+		check_admin_referer( 'ocad_duplicate_' . $campaign_id );
+
+		$original = OCAD_Campaign::get( $campaign_id );
+		if ( ! $original ) {
+			wp_safe_redirect( add_query_arg(
+				array( 'page' => 'oc-ad-manager', 'ocad_message' => 'error' ),
+				admin_url( 'admin.php' )
+			) );
+			exit;
+		}
+
+		// Copy campaign — clear dates and set inactive so user can review before activating.
+		$new_id = OCAD_Campaign::create( array(
+			'name'                 => $original->name . ' (Copy)',
+			'client_name'          => $original->client_name,
+			'url'                  => $original->url,
+			'status'               => 'inactive',
+			'start_date'           => '',
+			'end_date'             => '',
+			'restrict_impressions' => $original->restrict_impressions,
+			'max_impressions'      => $original->max_impressions,
+			'restrict_clicks'      => $original->restrict_clicks,
+			'max_clicks'           => $original->max_clicks,
+		) );
+
+		// Copy all ad creatives.
+		$ads = OCAD_Campaign::get_ads_for_campaign( $campaign_id );
+		foreach ( $ads as $ad ) {
+			OCAD_Campaign::save_ad( $new_id, $ad->format, $ad->image_url, $ad->alt_text );
+		}
+
+		// Drop straight into the edit form so they can rename and set new dates.
+		wp_safe_redirect( add_query_arg(
+			array( 'page' => 'ocad-add-campaign', 'campaign_id' => $new_id, 'ocad_message' => 'saved' ),
 			admin_url( 'admin.php' )
 		) );
 		exit;
