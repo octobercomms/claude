@@ -3,7 +3,7 @@
  * Plugin Name: WebP Image Optimizer
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Automatically converts uploaded images to WebP, scales them to a max dimension, and serves them transparently via .htaccess rules. Includes a bulk converter for existing media.
- * Version:     1.1.2
+ * Version:     1.1.3
  * Author:      OctoberComms
  * License:     GPL-2.0-or-later
  * Text Domain: webp-image-optimizer
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WIO_VERSION', '1.1.2' );
+define( 'WIO_VERSION', '1.1.3' );
 define( 'WIO_PLUGIN_FILE', __FILE__ );
 define( 'WIO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -51,18 +51,19 @@ function wio_deactivate(): void {
 // ─── .htaccess: serve .webp transparently when browser supports it ──────────
 
 function wio_htaccess_rules(): string {
+	// GIFs are intentionally excluded — animated GIFs must not be served as WebP.
 	return <<<'HTACCESS'
 
 # BEGIN WebP Image Optimizer
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteCond %{HTTP_ACCEPT} image/webp
-  RewriteCond %{REQUEST_FILENAME} \.(jpe?g|png|gif)$
+  RewriteCond %{REQUEST_FILENAME} \.(jpe?g|png)$
   RewriteCond %{REQUEST_FILENAME}\.webp -f
-  RewriteRule ^(.+)\.(jpe?g|png|gif)$ $1.$2.webp [T=image/webp,L]
+  RewriteRule ^(.+)\.(jpe?g|png)$ $1.$2.webp [T=image/webp,L]
 </IfModule>
 <IfModule mod_headers.c>
-  <FilesMatch "\.(jpe?g|png|gif)\.webp$">
+  <FilesMatch "\.(jpe?g|png)\.webp$">
     Header set Vary "Accept"
   </FilesMatch>
 </IfModule>
@@ -76,10 +77,7 @@ function wio_write_htaccess(): void {
 	if ( ! is_writable( $htaccess ) && ! is_writable( dirname( $htaccess ) ) ) {
 		return;
 	}
-	$current = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : '';
-	if ( strpos( $current, '# BEGIN WebP Image Optimizer' ) !== false ) {
-		return; // already present
-	}
+	// Always replace so rule changes (e.g. GIF exclusion) take effect on upgrade.
 	insert_with_markers( $htaccess, 'WebP Image Optimizer', explode( "\n", trim( wio_htaccess_rules() ) ) );
 }
 
@@ -206,7 +204,8 @@ function wio_scaled_dimensions( int $w, int $h, int $max_w, int $max_h ): array 
 add_filter( 'wp_generate_attachment_metadata', 'wio_on_upload', 10, 2 );
 function wio_on_upload( array $metadata, int $attachment_id ): array {
 	$mime = get_post_mime_type( $attachment_id );
-	if ( ! in_array( $mime, [ 'image/jpeg', 'image/png', 'image/gif' ], true ) ) {
+	// GIFs are excluded — converting them breaks animation.
+	if ( ! in_array( $mime, [ 'image/jpeg', 'image/png' ], true ) ) {
 		return $metadata;
 	}
 
@@ -249,7 +248,8 @@ add_filter( 'wp_get_attachment_url',         'wio_rewrite_single_url',   10, 1 )
  * Map a single URL to its .webp equivalent if the file exists on disk.
  */
 function wio_maybe_webp_url( string $url ): string {
-	if ( ! preg_match( '/\.(jpe?g|png|gif)(\?.*)?$/i', $url ) ) {
+	// GIFs are excluded — rewriting them would break animated GIFs.
+	if ( ! preg_match( '/\.(jpe?g|png)(\?.*)?$/i', $url ) ) {
 		return $url;
 	}
 
@@ -298,9 +298,9 @@ function wio_rewrite_content_urls( string $content ): string {
 	$uploads  = wp_upload_dir();
 	$base_url = preg_quote( $uploads['baseurl'], '/' );
 
-	// Rewrite src="..." for jpg/png/gif.
+	// Rewrite src="..." for jpg/png (GIFs excluded — animated GIFs must not be converted).
 	$content = preg_replace_callback(
-		'/\b(src=["\'])(' . $base_url . '[^"\']+\.(jpe?g|png|gif))(["\'])/i',
+		'/\b(src=["\'])(' . $base_url . '[^"\']+\.(jpe?g|png))(["\'])/i',
 		function ( $m ) {
 			return $m[1] . wio_maybe_webp_url( $m[2] ) . $m[4];
 		},
@@ -425,7 +425,7 @@ function wio_render_settings_page(): void {
 		<hr>
 
 		<h2><?php esc_html_e( 'Bulk Convert Existing Images', 'webp-image-optimizer' ); ?></h2>
-		<p><?php esc_html_e( 'Convert all existing JPG, PNG, and GIF images in your Media Library to WebP. Large libraries may take a while — the process runs in batches so it will not time out.', 'webp-image-optimizer' ); ?></p>
+		<p><?php esc_html_e( 'Convert all existing JPG and PNG images in your Media Library to WebP. GIFs are excluded to preserve animation. Large libraries may take a while — the process runs in batches so it will not time out.', 'webp-image-optimizer' ); ?></p>
 
 		<?php if ( ! $can_convert ) : ?>
 			<p><em><?php esc_html_e( 'Bulk conversion is unavailable because this server lacks GD/Imagick WebP support.', 'webp-image-optimizer' ); ?></em></p>
@@ -607,7 +607,7 @@ function wio_ajax_bulk_convert(): void {
 	// offset-based paging (and client-side skips) consistent between requests.
 	$query = new WP_Query( [
 		'post_type'              => 'attachment',
-		'post_mime_type'         => [ 'image/jpeg', 'image/png', 'image/gif' ],
+		'post_mime_type'         => [ 'image/jpeg', 'image/png' ],
 		'post_status'            => 'inherit',
 		'posts_per_page'         => $batch,
 		'offset'                 => $offset,
