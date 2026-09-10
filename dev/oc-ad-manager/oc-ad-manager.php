@@ -3,7 +3,7 @@
  * Plugin Name: Ad Manager by October Communications
  * Plugin URI: https://octobercomms.com
  * Description: Advertising rotation manager for Atlanta Design Festival. Supports MPU, Leaderboard, and Skyscraper formats with click and impression tracking, campaign scheduling, and flexible restriction controls.
- * Version: 1.4.1
+ * Version: 1.4.2
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCAD_VERSION', '1.4.1' );
+define( 'OCAD_VERSION', '1.4.2' );
 define( 'OCAD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCAD_URL', plugin_dir_url( __FILE__ ) );
 
@@ -60,6 +60,27 @@ $ocad_shortcodes->register();
 
 new OCAD_REST_API();
 new OCAD_Booking_Form();
+
+// GIFs must not be converted to WebP — animated ads would break.
+// This prevents WordPress core (6.1+) from generating WebP sub-sizes for GIFs.
+add_filter( 'image_editor_output_format', 'ocad_preserve_gif_format', 10, 3 );
+function ocad_preserve_gif_format( $formats, $filename, $mime_type ) {
+	if ( 'image/gif' === $mime_type ) {
+		unset( $formats['image/gif'] );
+	}
+	return $formats;
+}
+
+/**
+ * Normalise an ad image URL: if a GIF was already converted to WebP by a
+ * site-level optimiser, strip the trailing .webp so the original GIF is served.
+ */
+function ocad_normalise_image_url( $url ) {
+	if ( preg_match( '/\.gif\.webp$/i', $url ) ) {
+		return preg_replace( '/\.webp$/i', '', $url );
+	}
+	return $url;
+}
 
 // Enqueue lightweight frontend script that loads ads via REST, bypassing page cache.
 // No JS data localisation needed — all URLs are baked into data-render / data-ocad-track

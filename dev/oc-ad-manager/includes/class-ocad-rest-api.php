@@ -160,7 +160,7 @@ class OCAD_REST_API {
 			'ad_id'       => (int) $ad->ad_id,
 			'campaign_id' => (int) $ad->campaign_id,
 			'format'      => $format,
-			'image_url'   => $ad->image_url,
+			'image_url'   => ocad_normalise_image_url( $ad->image_url ),
 			'alt_text'    => $ad->alt_text ?: $fmt['label'] . ' advertisement',
 			'click_url'   => $click_url,
 			'width'       => $fmt['width'],
