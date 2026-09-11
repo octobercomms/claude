@@ -13,6 +13,29 @@ they bite, headed by the **door check-in** and the **admin settings secret leak*
 
 ---
 
+## Remediation status (verified in code at v1.97.0)
+
+The P1–P4 findings and the concurrency findings below are **remediated** in the
+current code. Verified:
+
+- **P1 check-in PIN** — now a random 6-digit PIN (`TicketTypes::pin()`,
+  `random_int`), never derived from the post ID.
+- **P2 settings secret leak** — API-key/SES/AWS/GitHub fields render `value=""`
+  with a "•••••••• saved — leave blank to keep" placeholder; a blank submit keeps
+  the stored secret (`admin/views/settings.php`).
+- **P3 staff-API capability** — the whole staff/management REST surface is gated on
+  `OE\Access::can_manage()` (`manage_options`, filterable via `oe_manage_cap`), not
+  `edit_posts`.
+- **Overselling / double-issue / promo over-redemption** — a server-global
+  `GET_LOCK` wraps the count-then-insert path (`Orders.php`).
+
+Still open (lower priority, unchanged below): `X-Forwarded-For` trust on IP
+throttles, the AI Stories feed-fetch SSRF path, no `UNIQUE(payment_id)` /
+`UNIQUE(token)` DB constraints, and **P4** — the platform SPA still ships no
+`_headers` CSP. The performance backlog is also outstanding.
+
+---
+
 ## Re-audit — v1.66.15 (concurrency & scale focus)
 
 The original P1–P4 below were **remediated** (random PINs, masked secrets, capability

@@ -19,7 +19,7 @@ displayed brand per site is set in **Settings → Brand**.
   Anthropic Claude API, Google Maps Embed. No WooCommerce, no ACF, no React.
 
 > The original build brief is preserved at
-> [`docs/adf-festival/BRIEF.md`](./BRIEF.md). This README documents the **as-built**
+> [`docs/october-events/BRIEF.md`](./BRIEF.md). This README documents the **as-built**
 > plugin, including where it intentionally deviates from the brief based on the
 > live site's real structure.
 
@@ -34,16 +34,16 @@ live WordPress install (JupiterX theme, Elementor Free, Crocoblock/JetEngine).
 
 The site already manages **`events`** (rewrite `/e/`) and **`volunteer`**
 (rewrite `/v/`) as JetEngine CPTs, with live data and Elementor listings built
-on them. Rather than registering parallel `adf_event` / `adf_volunteer` types
+on them. Rather than registering parallel `oe_event` / `oe_volunteer` types
 and migrating data (as the brief literally proposed), the plugin **adopts** those
 two CPTs: it does not re-register them (JetEngine owns registration) and only
-layers the shared `_adf_` meta and the submission / payment / email / reminder
+layers the shared `_oe_` meta and the submission / payment / email / reminder
 logic on top.
 
-All **other** types are registered fresh by the plugin with an `adf_` prefix so
+All **other** types are registered fresh by the plugin with an `oe_` prefix so
 they can never collide with JetEngine:
-`adf_directory`, `adf_destination`, `adf_product`, `adf_story`, plus the
-supporting `adf_account` (tickets are relational tables, see Ticketing).
+`oe_directory`, `oe_destination`, `oe_product`, `oe_story`, plus the
+supporting `oe_account` (tickets are relational tables, see Ticketing).
 
 The single source of truth for this mapping is `PostTypes::TYPES` in
 `includes/PostTypes.php` (each entry flags `external` for adopted CPTs).
@@ -54,7 +54,7 @@ The plugin owns the **gated** surfaces — the account dashboard, submission for
 Stripe checkout, tickets/QR, volunteer signup widget — and **all** backend logic
 and REST endpoints. Public listing pages, the Destinations map, and story pages
 stay with **Elementor + JetEngine**, which bind to the data and REST endpoints
-the plugin exposes. A dependency-free `[adf_design_map]` shortcode is provided as
+the plugin exposes. A dependency-free `[oe_design_map]` shortcode is provided as
 a fallback for surfaces not built in Elementor.
 
 ### 3. Volunteers: opportunity + shift signups, owned by this plugin, with reminders
@@ -62,13 +62,13 @@ a fallback for surfaces not built in Elementor.
 The live volunteer flow is an **opportunity listing** (`volunteer` CPT, e.g.
 *Blueprints & BBQ — Meet & Greet Host*) with **time shifts** that each have a
 fixed slot **capacity**, previously handled by a separate *Sign-up Sheets*
-plugin. Per the team's decision, **ADF now owns this end-to-end**:
+plugin. Per the team's decision, **the plugin now owns this end-to-end**:
 
 - Shifts are edited via a meta box on the `volunteer` CPT (label / start / end /
   capacity, one per line).
-- Signups are stored in a custom table `{prefix}adf_volunteer_signups`, with
+- Signups are stored in a custom table `{prefix}oe_volunteer_signups`, with
   capacity enforced per shift and double-booking prevented.
-- The front-end signup table is rendered by `[adf_volunteer_signup]` (drop it on
+- The front-end signup table is rendered by `[oe_volunteer_signup]` (drop it on
   the opportunity template; `opportunity` defaults to the current post).
 - **Reminders** cut no-shows: email always (Brevo) and **SMS via Brevo** when
   enabled and the volunteer opted in. Cadence: immediate confirmation on signup,
@@ -80,25 +80,26 @@ plugin. Per the team's decision, **ADF now owns this end-to-end**:
 
 ## Installation
 
-1. Copy `dev/adf-festival/` into `wp-content/plugins/adf-festival/`.
+1. Copy `dev/october-events/` into `wp-content/plugins/october-events/` (or install
+   the release zip, which already bundles `vendor/`).
 2. From that folder run `composer install` (pulls the Stripe PHP SDK; the plugin
    degrades gracefully to direct Stripe REST calls if you skip this).
 3. Add the API-key constants below to `wp-config.php`.
-4. Activate **ADF Festival** in wp-admin. Activation registers CPTs, creates the
+4. Activate **October Events** in wp-admin. Activation registers CPTs, creates the
    audit-log + volunteer-signups tables, schedules cron, and flushes rewrites.
-5. Create a page (e.g. `/my-account/`) containing `[adf_account_dashboard]`.
-6. In **ADF Festival → Settings**, map Brevo template + list IDs, set tier
-   pricing, AI source URLs, and reminder options.
+5. Create a page (e.g. `/my-account/`) containing `[oe_account_dashboard]`.
+6. In **October Events → Settings** (the menu shows the site's brand name), map
+   list IDs, set tier pricing, AI source URLs, and reminder options.
 
 ### wp-config.php constants (secrets never touch the database)
 
 ```php
-define('ADF_STRIPE_SECRET_KEY', 'sk_live_…');
-define('ADF_STRIPE_PUBLISHABLE_KEY', 'pk_live_…');
-define('ADF_STRIPE_WEBHOOK_SECRET', 'whsec_…');
-define('ADF_BREVO_API_KEY', 'xkeysib-…');
-define('ADF_CLAUDE_API_KEY', 'sk-ant-…');
-define('ADF_GOOGLE_MAPS_KEY', 'AIza…');
+define('OE_STRIPE_SECRET_KEY', 'sk_live_…');
+define('OE_STRIPE_PUBLISHABLE_KEY', 'pk_live_…');
+define('OE_STRIPE_WEBHOOK_SECRET', 'whsec_…');
+define('OE_BREVO_API_KEY', 'xkeysib-…');
+define('OE_CLAUDE_API_KEY', 'sk-ant-…');
+define('OE_GOOGLE_MAPS_KEY', 'AIza…');
 ```
 
 ---
@@ -106,31 +107,37 @@ define('ADF_GOOGLE_MAPS_KEY', 'AIza…');
 ## Directory layout
 
 ```
-dev/adf-festival/
-  adf-festival-plugin.php     Main entry, autoloader, boot
+dev/october-events/
+  october-events.php          Main entry, autoloader, boot
   composer.json               Stripe SDK + metadata
   readme.txt                  WP manifest (points here)
-  includes/                   Core classes (ADF\…)
+  includes/                   Core classes (OE\…)
     PostTypes, Fields, Settings, Account, Submission, Invoice,
-    Tickets, Volunteers, VolunteerSignups, Reminders, Cron,
-    RestApi, AuditLog, Logger, Updater, Activator, Plugin
-    Connectors/               Stripe, Brevo (email+SMS), Claude, Maps
-  admin/                      Admin menu, settings, views (ADF\Admin\…)
-  frontend/                   Dashboard + templates (ADF\Frontend\…)
-  assets/                     css/ js/
-  migration/                  WP-CLI importers (ADF\Migration\…)
+    Volunteers, VolunteerSignups, Reminders, Cron, RestApi,
+    AuditLog, Logger, Updater, Activator, Plugin
+    Ticketing/                Orders, TicketTypes, CheckIn, Promo, Waitlist, …
+    Mail/                     Contacts, Campaigns, Mailer, Suppression, SNS, Copilot
+    AI/                       Staff assistant + public support assistant
+    Connectors/               Stripe, PayPal, Brevo, Quo, Claude, Maps, SMS
+  admin/                      Admin menu, settings, views (OE\Admin\…)
+  frontend/                   Dashboard + templates (OE\Frontend\…)
+  assets/                     css/ js/ fonts/
+  migration/                  WP-CLI importers (OE\Migration\…)
   bin/build-zip.sh            Packages the installable zip (used by CI)
 ```
 
-> The release workflow lives at repo root: `.github/workflows/adf-festival-release.yml`.
+> The release workflow lives at repo root: `.github/workflows/october-events-release.yml`.
 
-Classes autoload from the `ADF\` root namespace; the top-level sub-namespaces
+Classes autoload from the `OE\` root namespace; the top-level sub-namespaces
 `Admin`, `Frontend`, `Migration` map to their folders, everything else to
 `includes/`.
 
 ---
 
-## REST API (`adf/v1`)
+## REST API (`oe/v1`)
+
+> The pre-rename `adf/v1` namespace still resolves as a back-compat alias (see
+> `includes/Compat.php`); `oe/v1` is canonical.
 
 | Route | Auth | Purpose |
 |---|---|---|
@@ -185,12 +192,12 @@ reads/writes these (auth: a WordPress Application Password over Basic auth):
 
 | Hook | Schedule | Work |
 |---|---|---|
-| `adf_hourly_cron` | hourly | Volunteer reminder scan (email + SMS) |
-| `adf_daily_cron` | daily | AI Stories connector; monthly digest on the first Monday |
+| `oe_hourly_cron` | hourly | Volunteer reminder scan (email + SMS) |
+| `oe_daily_cron` | daily | AI Stories connector; monthly digest on the first Monday |
 
 The **AI Stories connector** fetches configured RSS sources, runs each new item
 through Claude with the ADF editorial prompt, discards `SKIP` responses, and
-saves keepers as `adf_story` drafts (`author_type = ai_generated`, source URL
+saves keepers as `oe_story` drafts (`author_type = ai_generated`, source URL
 stored for attribution) into the Stories approval queue.
 
 **Tone-of-voice training (Settings → AI Stories):** the voice is tuned in the
@@ -209,27 +216,30 @@ the flags.
 
 | Shortcode | Use |
 |---|---|
-| `[adf_account_dashboard]` | The gated member dashboard (place on `/my-account/`) |
-| `[adf_volunteer_signup opportunity="ID"]` | Shift table + signup form on an opportunity page |
-| `[adf_event_checkout event_id="ID"]` | Public Stripe ticket checkout for an event |
-| `[adf_checkin]` | Door check-in PWA (events → PIN → venue → QR scan) |
-| `[adf_design_map]` | Fallback Destinations map (Elementor/JetEngine preferred) |
+| `[oe_account_dashboard]` | The gated member dashboard (place on `/my-account/`) |
+| `[oe_volunteer_signup opportunity="ID"]` | Shift table + signup form on an opportunity page |
+| `[oe_event_checkout event_id="ID"]` | Public Stripe ticket checkout for an event |
+| `[oe_checkin]` | Door check-in PWA (events → PIN → venue → QR scan) |
+| `[oe_design_map]` | Fallback Destinations map (Elementor/JetEngine preferred) |
+
+> The pre-rename `[adf_*]` shortcodes (and the legacy `[oct_checkout]`) still work
+> as aliases (`includes/Compat.php`).
 
 ## Ticketing (relational)
 
 Events (the adopted `events` CPT) carry **ticket types** as meta — price, sale
 price, "admits N" group size, per-type capacity + sale windows, plus an
 event-wide sale close, check-in venues and a check-in PIN — edited via a meta box
-on the event. Sales are stored relationally in `adf_orders` / `adf_tickets` /
-`adf_checkins` / `adf_promo_codes` (`ADF\Ticketing`):
+on the event. Sales are stored relationally in `oe_orders` / `oe_tickets` /
+`oe_checkins` / `oe_promo_codes` (`OE\Ticketing`):
 
-- **Checkout** (`[adf_event_checkout]`, Stripe only): server always re-prices;
+- **Checkout** (`[oe_event_checkout]`, Stripe + PayPal): server always re-prices;
   `/ticket-intent` → confirm card → `/ticket-confirm` creates the order + tickets
   (each a unique 64-hex token). A webhook backup creates the order if the client
   never confirms. Promo codes (percent/fixed, event-scoped, expiry, max-uses).
 - **Admin → Registrations**: manual comp/paid order entry, cancel + Stripe refund,
   CSV export; **Promo Codes** CRUD; sales totals on the dashboard + a daily report.
-- **Check-in PWA** (`[adf_checkin]`): PIN-gated (no WP login for door staff),
+- **Check-in PWA** (`[oe_checkin]`): PIN-gated (no WP login for door staff),
   camera QR scanning (html5-qrcode bundled locally) with valid/already/invalid
   overlays + manual token fallback; every scan logged.
 
@@ -252,7 +262,7 @@ Reads the legacy Event Tickets **custom tables** (`oct_orders` / `oct_tickets` /
 `oct_checkins`) and is idempotent (records are marked once migrated). Run with
 `--dry-run` first to preview. Because events live in the adopted `events` CPT,
 `migrate-tickets` imports **ticket** records — preserving each ticket's unique
-check-in `token` and linking it to its existing event + matching `adf_account` —
+check-in `token` and linking it to its existing event + matching `oe_account` —
 and does not recreate event posts. (Ad data migration lives in the standalone
 oc-ad-manager plugin, not here.)
 
@@ -268,15 +278,22 @@ The plugin updates itself from GitHub Releases, surfaced through WordPress's
 normal **Dashboard → Updates** screen (one-click install) — mirroring the
 Hillcroft Garden Designer setup.
 
-- **Cutting a release:** bump `Version:` in `adf-festival-plugin.php` and merge to
-  `main`. The workflow `.github/workflows/adf-festival-release.yml` reads the
-  header, runs `composer install --no-dev`, builds the zip
-  (`bin/build-zip.sh`, top folder `adf-festival-plugin/`, `vendor/` bundled),
-  and publishes a release tagged `adf-v<version>`. No manual tag push needed.
+- **Cutting a release:** bump `Version:` in `october-events.php` (and `Stable tag`
+  in `readme.txt`) and merge to `main`. The workflow
+  `.github/workflows/october-events-release.yml` reads the header, runs
+  `composer install --no-dev`, builds the zip (`bin/build-zip.sh`, top folder
+  `october-events/`, `vendor/` bundled), and publishes a release tagged
+  `oe-v<version>`. No manual tag push needed.
+  > The workflow runs on `push` to `main` **and** after the Auto-merge Claude PRs
+  > workflow completes. The `workflow_run` trigger matters because auto-merge
+  > merges with the default `GITHUB_TOKEN`, and GitHub does not fire `push`
+  > workflows for `GITHUB_TOKEN` pushes — without it, auto-merged version bumps
+  > would never publish. (Setting an `AUTO_MERGE_TOKEN` PAT secret is the broader
+  > fix, as it also restores the other push-triggered release/deploy workflows.)
 - **On the site:** `includes/Updater.php` polls the Releases API for the newest
-  `adf-v*` tag and offers it. Because this is a private repo, set a fine-grained
-  token (Contents: read) under **ADF Festival → Settings → Updates**, or define
-  `ADF_GITHUB_TOKEN` in `wp-config.php`. A "Test update connection" button
+  `oe-v*` tag and offers it. Because this is a private repo, set a fine-grained
+  token (Contents: read) under **October Events → Settings → Updates**, or define
+  `OE_GITHUB_TOKEN` in `wp-config.php`. A "Test update connection" button
   diagnoses token/scope/release issues. Downloads handle GitHub's redirect to
   signed storage without leaking the auth header.
 - Because the release zip already contains `vendor/`, sites updating this way
