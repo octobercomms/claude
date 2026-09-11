@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.99.0 — Use the official Klarna / Afterpay / Affirm logos on the BNPL block
+
+Replaces the 1.98.0 colour chips with the providers' official logo badges,
+bundled locally in `assets/img/bnpl/` (`klarna.svg`, `afterpay.svg`,
+`affirm.svg`) and served via `OE_URL` — still no external logo requests. Each
+`<img>` carries explicit `width`/`height` (equal 30px display height) so there's
+no layout shift, plus `alt`, `loading="lazy"` and `decoding="async"`.
+
+No schema change.
+
 ## 1.98.0 — Show Klarna / Afterpay / Affirm brand chips on the BNPL block
 
 The **Buy Now, Pay Later** panel now shows a row of brand chips (Klarna,
