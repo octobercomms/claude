@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.99.1 — Fix oversized BNPL logos on themes that force `img { height:auto }`
+
+The 1.99.0 logos rendered at their native size on the live site because the
+theme (JupiterX/Elementor) sets `img { height:auto }`, which overrode the 30px
+height. The rule is now scoped tighter (`.oct-bnpl .oct-bnpl__brands img…`) with
+`!important` on height/width, and zeroes any inherited img margin/border/shadow,
+so the badges stay a consistent 26px tall regardless of the theme.
+
 ## 1.99.0 — Use the official Klarna / Afterpay / Affirm logos on the BNPL block
 
 Replaces the 1.98.0 colour chips with the providers' official logo badges,
