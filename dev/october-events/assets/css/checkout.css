@@ -896,10 +896,18 @@
   gap: 10px;
   margin: 0 0 16px;
 }
-.oct-bnpl__brand {
-  height: 30px;
-  width: auto;
+/* High specificity + !important so themes that force `img { height:auto }`
+   (JupiterX/Elementor do) can't blow these badges up to their native size. */
+.oct-bnpl .oct-bnpl__brands img.oct-bnpl__brand {
+  height: 26px !important;
+  width: auto !important;
+  max-width: 100%;
   display: block;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
 }
 .oct-btn--bnpl {
   background: var(--oct-text);
