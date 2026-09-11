@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.98.0 — Show Klarna / Afterpay / Affirm brand chips on the BNPL block
+
+The **Buy Now, Pay Later** panel now shows a row of brand chips (Klarna,
+Afterpay, Affirm) in each provider's signature colour, so shoppers recognise the
+options at a glance before they click through to Stripe. The sub-line copy drops
+the provider names (the chips carry them now).
+
+Chips are rendered locally (brand-coloured CSS pills, no external logo requests),
+keeping the "no external CDN for core assets" rule and avoiding CSP issues. To
+use the official logo SVGs instead, drop them in `assets/` and swap the chip
+markup in `frontend/templates/checkout.php`.
+
+No schema change. Which providers actually appear on Stripe's page still depends
+on the cart total, currency and buyer eligibility.
+
 ## 1.97.0 — Fix inflated per-event revenue + mislabelled sales-report heading
 
 **Bug fix.** `Orders::event_summary()` joined orders → tickets and then summed

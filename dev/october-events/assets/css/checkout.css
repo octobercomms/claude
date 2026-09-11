@@ -889,6 +889,26 @@
   line-height: 1.4;
   color: #4a4a4a;
 }
+.oct-bnpl__brands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.oct-bnpl__brand {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.oct-bnpl__brand--klarna   { background: #ffb3c7; color: #17120f; }
+.oct-bnpl__brand--afterpay { background: #b2fce4; color: #17120f; }
+.oct-bnpl__brand--affirm   { background: #4a4af4; color: #fff; }
 .oct-btn--bnpl {
   background: var(--oct-text);
   color: #fff;

@@ -230,7 +230,12 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
         <div class="oct-bnpl" id="panel-installments" role="tabpanel">
           <h6 class="oct-bnpl__title"><?php esc_html_e('Buy Now, Pay Later', 'october-events'); ?></h6>
           <p class="oct-bnpl__est" id="oct-bnpl-est"></p>
-          <p class="oct-bnpl__sub"><?php esc_html_e('Spread the cost with Klarna, Afterpay or Affirm — interest-free. You still get your tickets straight away.', 'october-events'); ?></p>
+          <p class="oct-bnpl__sub"><?php esc_html_e('Spread the cost interest-free. You still get your tickets straight away.', 'october-events'); ?></p>
+          <div class="oct-bnpl__brands" role="list" aria-label="<?php esc_attr_e('Available pay-later providers', 'october-events'); ?>">
+            <span class="oct-bnpl__brand oct-bnpl__brand--klarna" role="listitem">Klarna</span>
+            <span class="oct-bnpl__brand oct-bnpl__brand--afterpay" role="listitem">Afterpay</span>
+            <span class="oct-bnpl__brand oct-bnpl__brand--affirm" role="listitem">Affirm</span>
+          </div>
           <button type="button" id="oct-pay-installments" class="oct-btn oct-btn--full oct-btn--bnpl">
             <span class="btn-text"><?php esc_html_e('Pay over time', 'october-events'); ?></span>
           </button>
