@@ -12,6 +12,14 @@
 #
 # Uses the runner's preinstalled PHP/Composer and the first-party GitHub CLI, so
 # it depends on no third-party action being allow-listed.
+#
+# Triggers: a normal human/PAT merge fires the `push` trigger below. But the
+# Auto-merge Claude PRs workflow merges with the default GITHUB_TOKEN, and GitHub
+# does not run `push` workflows for GITHUB_TOKEN pushes (loop protection), so
+# those merges would never publish. The `workflow_run` trigger covers that case:
+# it runs after auto-merge completes regardless of the token used. The job is
+# idempotent (it skips when the release tag already exists) and only builds when
+# the plugin version has been bumped, so a no-op merge costs one cheap check.
 name: October Events — Release
 
 on:
@@ -20,6 +28,9 @@ on:
     paths:
       - 'dev/october-events/**'
       - '.github/workflows/october-events-release.yml'
+  workflow_run:
+    workflows: ["Auto-merge Claude PRs"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -29,8 +40,13 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # Always release from main's current tip. Under workflow_run the event SHA
+      # can be a PR head (auto-merge also runs on pull_request events), so pin the
+      # ref rather than trusting the trigger's default checkout.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Read plugin version
         id: ver
@@ -73,6 +89,6 @@ jobs:
           gh release create "${{ steps.ver.outputs.tag }}" \
             "$GITHUB_WORKSPACE/dist/october-events-${{ steps.ver.outputs.version }}.zip" \
             -R "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
+            --target main \
             --title "October Events ${{ steps.ver.outputs.version }}" \
             --generate-notes

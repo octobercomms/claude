@@ -25,10 +25,10 @@ parity as the old plugin is switched off.
 1. **`[oct_checkout]` shortcode alias — DONE (1.41.2).** Live checkout pages use the
    old `[oct_checkout event_id="…"]`; October Events only aliased `adf_*`. Added
    `oct_checkout → oe_event_checkout` to `Compat::SHORTCODE_ALIASES`.
-2. **Check-in Log admin screen — TODO.** Old plugin had a paginated *Check-in Log*
-   (event filter, per-venue stats, who/when/where). New plugin records the same
-   data (`wp_oe_checkins`, `CheckIn::stats()`) but exposes no admin screen — only
-   in-PWA stats. Add an admin screen (Tickets → Check-in log).
+2. **Check-in Log admin screen — DONE.** The paginated *Check-in Log* (event
+   filter, per-venue stats, who/when/where) now ships as an admin screen
+   (`TicketsAdmin::render_checkin_log()` → `admin/views/checkin-log.php`, wired in
+   `Admin.php`), reading `wp_oe_checkins` / `CheckIn::stats()`.
 3. **Waitlist — DONE (1.44.0, built fresh).** The repo copy of the old plugin
    (v1.0.0) had no waitlist code, so this was built from scratch: `wp_oe_waitlist`
    table + `Waitlist` model, a checkout "Join the waitlist" form on sold-out ticket
@@ -38,7 +38,9 @@ parity as the old plugin is switched off.
 
 ## Minor / optional differences
 
-- **PayPal** — old plugin had Stripe + PayPal; new is Stripe-only.
+- **PayPal** — DONE. Both old and new support Stripe + PayPal at checkout
+  (`includes/Connectors/PayPalConnector.php`, capture verified server-side and
+  idempotent on the capture id).
 - **QR in email** — old embedded the QR image in the confirmation email; new links
   to the ticket page (which renders the QR). Could embed for parity.
 - **Sales dashboard** — old had a dedicated *Ticket Sales Dashboard* with a 30-day
