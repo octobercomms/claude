@@ -3,7 +3,7 @@
  * Plugin Name:       Trinity Court Projects
  * Plugin URI:        https://trinitycourtmargate.co.uk/
  * Description:        Logs building improvement works for Trinity Court, tracks status, priority, quoted cost and a running total, groups works into programmes (epics / initiatives / sprints), attaches quote documents, exports to XLS and PDF, and lets residents vote and comment. Display anywhere with the [trinity_projects] shortcode.
- * Version:           1.1.3
+ * Version:           1.2.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            October Communications
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'TCP_VERSION', '1.1.3' );
+define( 'TCP_VERSION', '1.2.0' );
 define( 'TCP_FILE', __FILE__ );
 define( 'TCP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TCP_URL', plugin_dir_url( __FILE__ ) );
@@ -1520,11 +1520,250 @@ final class Trinity_Court_Projects {
 		return $inserted;
 	}
 
+	/**
+	 * Read the first table out of a .docx file.
+	 *
+	 * @param string $path Absolute path to the .docx.
+	 * @return array|WP_Error Array of rows (each an array of cell strings), header first.
+	 */
+	public function parse_docx_table( $path ) {
+		if ( ! class_exists( 'ZipArchive' ) ) {
+			return new WP_Error( 'tcp_zip', 'The server is missing the ZipArchive PHP extension, so Word files cannot be read here.' );
+		}
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $path ) ) {
+			return new WP_Error( 'tcp_open', 'That file could not be opened as a Word document.' );
+		}
+		$xml = $zip->getFromName( 'word/document.xml' );
+		$zip->close();
+		if ( false === $xml ) {
+			return new WP_Error( 'tcp_docx', 'That does not look like a valid .docx file.' );
+		}
+
+		$dom = new DOMDocument();
+		libxml_use_internal_errors( true );
+		$loaded = $dom->loadXML( $xml );
+		libxml_clear_errors();
+		if ( ! $loaded ) {
+			return new WP_Error( 'tcp_xml', 'The document could not be read.' );
+		}
+
+		$xp = new DOMXPath( $dom );
+		$xp->registerNamespace( 'w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main' );
+		$tables = $xp->query( '//w:tbl' );
+		if ( ! $tables || 0 === $tables->length ) {
+			return new WP_Error( 'tcp_notable', 'No table was found in that document. The list needs to be a table with the same columns as the works list.' );
+		}
+
+		$rows = array();
+		$trs  = $xp->query( './w:tr', $tables->item( 0 ) );
+		foreach ( $trs as $tr ) {
+			$cells = array();
+			foreach ( $xp->query( './w:tc', $tr ) as $tc ) {
+				$lines = array();
+				foreach ( $xp->query( './/w:p', $tc ) as $p ) {
+					$s = '';
+					foreach ( $xp->query( './/w:t', $p ) as $t ) {
+						$s .= $t->textContent;
+					}
+					$lines[] = $s;
+				}
+				$cells[] = trim( implode( "\n", $lines ) );
+			}
+			$rows[] = $cells;
+		}
+		return $rows;
+	}
+
+	/**
+	 * Map free-text priority from the document to a known slug.
+	 */
+	public static function map_priority( $text ) {
+		$t = strtolower( trim( (string) $text ) );
+		if ( '' === $t ) {
+			return 'tbc';
+		}
+		if ( false !== strpos( $t, 'urgent' ) || false !== strpos( $t, 'top priority' ) || false !== strpos( $t, 'critical' ) ) {
+			return 'urgent';
+		}
+		if ( false !== strpos( $t, 'wishlist' ) || false !== strpos( $t, 'wish list' ) ) {
+			return 'wishlist';
+		}
+		if ( false !== strpos( $t, 'high' ) ) {
+			return 'high';
+		}
+		if ( false !== strpos( $t, 'medium' ) || false !== strpos( $t, 'med' ) ) {
+			return 'medium';
+		}
+		if ( false !== strpos( $t, 'low' ) ) {
+			return 'low';
+		}
+		return 'tbc';
+	}
+
+	/**
+	 * Import projects from a parsed .docx works-list table.
+	 *
+	 * Matches rows to projects by reference number (Ref column). New refs are
+	 * created; existing ones have their descriptive fields refreshed. Status,
+	 * cost, votes, comments, priority and programme grouping on existing
+	 * projects are preserved, so an import never wipes tracking work.
+	 *
+	 * @param string $path            Absolute path to the uploaded .docx.
+	 * @param bool   $update_existing  Whether to refresh descriptions of existing refs.
+	 * @return array|WP_Error Counts: created, updated, skipped.
+	 */
+	public function import_from_docx( $path, $update_existing = true ) {
+		$rows = $this->parse_docx_table( $path );
+		if ( is_wp_error( $rows ) ) {
+			return $rows;
+		}
+		if ( count( $rows ) < 2 ) {
+			return new WP_Error( 'tcp_empty', 'No rows were found in the table.' );
+		}
+
+		// Map columns from the header row.
+		$header = array_map(
+			function ( $h ) {
+				return strtolower( trim( $h ) );
+			},
+			$rows[0]
+		);
+		$col = array(
+			'ref'      => null,
+			'category' => null,
+			'problem'  => null,
+			'solution' => null,
+			'location' => null,
+			'priority' => null,
+		);
+		foreach ( $header as $i => $h ) {
+			if ( false !== strpos( $h, 'ref' ) && null === $col['ref'] ) {
+				$col['ref'] = $i;
+			} elseif ( false !== strpos( $h, 'categ' ) ) {
+				$col['category'] = $i;
+			} elseif ( false !== strpos( $h, 'problem' ) ) {
+				$col['problem'] = $i;
+			} elseif ( false !== strpos( $h, 'solution' ) ) {
+				$col['solution'] = $i;
+			} elseif ( false !== strpos( $h, 'location' ) || false !== strpos( $h, 'scope' ) ) {
+				$col['location'] = $i;
+			} elseif ( false !== strpos( $h, 'priority' ) ) {
+				$col['priority'] = $i;
+			}
+		}
+		if ( null === $col['ref'] ) {
+			return new WP_Error( 'tcp_noref', 'The table needs a "Ref" column so items can be matched. Columns found: ' . implode( ', ', $rows[0] ) );
+		}
+
+		// Existing ref => post_id map.
+		$by_ref = array();
+		$all    = get_posts(
+			array(
+				'post_type'      => self::CPT,
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+			)
+		);
+		foreach ( $all as $pid ) {
+			$by_ref[ (string) get_post_meta( $pid, '_tcp_ref', true ) ] = $pid;
+		}
+
+		$created = 0;
+		$updated = 0;
+		$skipped = 0;
+		$menu    = 0;
+
+		$get = function ( $row, $key ) use ( $col ) {
+			return ( null !== $col[ $key ] && isset( $row[ $col[ $key ] ] ) ) ? trim( $row[ $col[ $key ] ] ) : '';
+		};
+
+		foreach ( array_slice( $rows, 1 ) as $row ) {
+			$menu++;
+			$ref      = $get( $row, 'ref' );
+			$category = $get( $row, 'category' );
+			$problem  = $get( $row, 'problem' );
+			$solution = $get( $row, 'solution' );
+			$location = $get( $row, 'location' );
+			$priority = self::map_priority( $get( $row, 'priority' ) );
+
+			// Skip placeholder rows with no real content, even if they carry a
+			// future reference number.
+			if ( '' === $category && '' === $problem && '' === $solution && '' === $location ) {
+				$skipped++;
+				continue;
+			}
+			// A row with content but no ref cannot be matched safely.
+			if ( '' === $ref ) {
+				$skipped++;
+				continue;
+			}
+
+			$title = ( '' !== $category ) ? $category : ( 'Item ' . $ref );
+
+			if ( isset( $by_ref[ $ref ] ) ) {
+				if ( ! $update_existing ) {
+					$skipped++;
+					continue;
+				}
+				$post_id = $by_ref[ $ref ];
+				wp_update_post(
+					array(
+						'ID'           => $post_id,
+						'post_title'   => $title,
+						'post_content' => $problem,
+						'menu_order'   => $menu,
+					)
+				);
+				// Refresh descriptive fields only; leave status/cost/votes/priority/groups.
+				update_post_meta( $post_id, '_tcp_location', $location );
+				update_post_meta( $post_id, '_tcp_solution', $solution );
+				if ( '' !== $category ) {
+					wp_set_object_terms( $post_id, $category, self::TAX_CAT );
+				}
+				$updated++;
+			} else {
+				$post_id = wp_insert_post(
+					array(
+						'post_type'      => self::CPT,
+						'post_status'    => 'publish',
+						'post_title'     => $title,
+						'post_content'   => $problem,
+						'menu_order'     => $menu,
+						'comment_status' => 'open',
+					)
+				);
+				if ( is_wp_error( $post_id ) || ! $post_id ) {
+					$skipped++;
+					continue;
+				}
+				update_post_meta( $post_id, '_tcp_ref', $ref );
+				update_post_meta( $post_id, '_tcp_status', 'not-started' );
+				update_post_meta( $post_id, '_tcp_priority', $priority );
+				update_post_meta( $post_id, '_tcp_location', $location );
+				update_post_meta( $post_id, '_tcp_solution', $solution );
+				update_post_meta( $post_id, '_tcp_votes', 0 );
+				if ( '' !== $category ) {
+					wp_set_object_terms( $post_id, $category, self::TAX_CAT );
+				}
+				$by_ref[ $ref ] = $post_id;
+				$created++;
+			}
+		}
+
+		return array(
+			'created' => $created,
+			'updated' => $updated,
+			'skipped' => $skipped,
+		);
+	}
+
 	public function admin_import_page() {
 		add_submenu_page(
 			'edit.php?post_type=' . self::CPT,
-			'Import seed list',
-			'Import seed list',
+			'Import list',
+			'Import list',
 			'manage_options',
 			'tcp-import',
 			array( $this, 'render_import_page' )
@@ -1532,21 +1771,106 @@ final class Trinity_Court_Projects {
 	}
 
 	public function render_import_page() {
+		// Seed list import.
 		if ( isset( $_POST['tcp_do_import'] ) && check_admin_referer( 'tcp_import' ) ) {
 			$count = $this->import_seed();
 			update_option( 'tcp_seeded', 1 );
 			printf( '<div class="notice notice-success"><p>Imported %d new project(s). Existing references were left untouched.</p></div>', (int) $count );
 		}
+
+		// Document upload import.
+		if ( isset( $_POST['tcp_do_docx'] ) && check_admin_referer( 'tcp_docx' ) ) {
+			$this->handle_docx_upload();
+		}
 		?>
 		<div class="wrap">
-			<h1>Import seed list</h1>
-			<p>This loads the 25 building improvement items from the RTM board's works list. Items are matched by reference number, so running it again only adds any that are missing; it will not duplicate or overwrite existing projects.</p>
+			<h1>Import list</h1>
+
+			<h2>Import from a Word document</h2>
+			<p>Upload the building works list as a Word file (<code>.docx</code>). The table needs the same columns as the works list: <strong>Ref, Category, Problem, Proposed Solution, Location / Scope, Priority</strong>.</p>
+			<p>Items are matched by their reference number:</p>
+			<ul style="list-style:disc;margin-left:20px">
+				<li>New reference numbers are <strong>added</strong> as new projects.</li>
+				<li>Existing reference numbers have their <strong>description, solution and location refreshed</strong>.</li>
+				<li>Status, cost, votes, comments, priority and programme grouping on existing items are <strong>kept</strong>, so importing never wipes your tracking.</li>
+			</ul>
+			<form method="post" enctype="multipart/form-data">
+				<?php wp_nonce_field( 'tcp_docx' ); ?>
+				<p><input type="file" name="tcp_docx_file" accept=".docx" required /></p>
+				<p>
+					<label><input type="checkbox" name="tcp_update_existing" value="1" checked /> Refresh descriptions of items that already exist</label>
+				</p>
+				<p><button type="submit" name="tcp_do_docx" class="button button-primary">Import from document</button></p>
+			</form>
+
+			<hr style="margin:28px 0" />
+
+			<h2>Load the built-in starter list</h2>
+			<p>This loads the original 25 building improvement items. Items are matched by reference number, so running it again only adds any that are missing; it will not duplicate or overwrite existing projects.</p>
 			<form method="post">
 				<?php wp_nonce_field( 'tcp_import' ); ?>
-				<p><button type="submit" name="tcp_do_import" class="button button-primary">Import / top up seed list</button></p>
+				<p><button type="submit" name="tcp_do_import" class="button">Load / top up starter list</button></p>
 			</form>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Validate and process an uploaded .docx works list.
+	 */
+	private function handle_docx_upload() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			echo '<div class="notice notice-error"><p>You do not have permission to import.</p></div>';
+			return;
+		}
+		if ( empty( $_FILES['tcp_docx_file']['tmp_name'] ) || ! is_uploaded_file( $_FILES['tcp_docx_file']['tmp_name'] ) ) {
+			echo '<div class="notice notice-error"><p>No file was uploaded, or the upload failed.</p></div>';
+			return;
+		}
+
+		$file = $_FILES['tcp_docx_file'];
+		if ( ! empty( $file['error'] ) ) {
+			echo '<div class="notice notice-error"><p>Upload error. The file may be too large for this server.</p></div>';
+			return;
+		}
+
+		// Validate type/extension.
+		$name = isset( $file['name'] ) ? sanitize_file_name( wp_unslash( $file['name'] ) ) : '';
+		$ext  = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
+		if ( 'docx' !== $ext ) {
+			echo '<div class="notice notice-error"><p>Please upload a Word <code>.docx</code> file.</p></div>';
+			return;
+		}
+		$check = wp_check_filetype_and_ext( $file['tmp_name'], $name );
+		$type  = $check['type'] ? $check['type'] : ( function_exists( 'mime_content_type' ) ? mime_content_type( $file['tmp_name'] ) : '' );
+		$ok_types = array(
+			'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			'application/zip',
+			'application/octet-stream',
+		);
+		if ( $type && ! in_array( $type, $ok_types, true ) ) {
+			echo '<div class="notice notice-error"><p>That file does not look like a Word document.</p></div>';
+			return;
+		}
+
+		$update = ! empty( $_POST['tcp_update_existing'] );
+		$result = $this->import_from_docx( $file['tmp_name'], $update );
+
+		if ( is_wp_error( $result ) ) {
+			printf(
+				'<div class="notice notice-error"><p>%s</p></div>',
+				esc_html( $result->get_error_message() )
+			);
+			return;
+		}
+
+		update_option( 'tcp_seeded', 1 );
+		printf(
+			'<div class="notice notice-success"><p><strong>Import complete.</strong> %d added, %d updated, %d skipped.</p></div>',
+			(int) $result['created'],
+			(int) $result['updated'],
+			(int) $result['skipped']
+		);
 	}
 
 	public function maybe_seed_notice() {
