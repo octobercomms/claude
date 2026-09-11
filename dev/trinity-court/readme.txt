@@ -4,7 +4,7 @@ Tags: projects, tracker, community, residents, rtm
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,15 @@ Shortcode attributes:
    quotes arrive.
 
 == Changelog ==
+
+= 1.3.0 =
+* Quick Edit: status, priority, cost, votes, reference and location can now be
+  edited inline from the Projects list (Category and Programme were already
+  there). No need to open each project.
+* Merge tickets: a "Merge selected tickets" bulk action combines duplicates
+  into one. Votes, voters, comments and quote documents are folded into the
+  primary (the earliest selected), each merged item's problem and solution are
+  appended so nothing is lost, and the merged tickets go to Trash.
 
 = 1.2.0 =
 * Import from a Word document: Projects > Import list now takes a .docx upload

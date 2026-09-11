@@ -94,6 +94,16 @@ Row order in the document sets the display order.
   Project tracking box sets the count. Use it to seed votes gathered at a
   meeting, correct a number, or reset to 0. Resident clicks on the site then
   adjust up and down from whatever you set.
+- **Quick Edit:** on the Projects list, hover a row and click **Quick Edit** to
+  change status, priority, cost, votes, reference and location inline, plus
+  Category and Programme. Faster than opening each project for small changes.
+- **Merge duplicate tickets:** on the Projects list, tick two or more, choose
+  **Merge selected tickets** from the Bulk actions menu, and Apply. The earliest
+  selected (top of the list) becomes the primary; the others' votes, comments
+  and quote documents fold into it, their problem and solution are appended to
+  the primary, and they move to Trash (recoverable). The primary's status,
+  priority and cost are kept. Useful where the imported list has duplicates
+  (e.g. an epic and a numbered item covering the same works).
 - **Moderate comments:** anonymous comments go to the normal WordPress
   moderation queue; comments from logged-in residents auto-approve. Manage them
   under Comments as usual.

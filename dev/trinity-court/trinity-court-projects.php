@@ -3,7 +3,7 @@
  * Plugin Name:       Trinity Court Projects
  * Plugin URI:        https://trinitycourtmargate.co.uk/
  * Description:        Logs building improvement works for Trinity Court, tracks status, priority, quoted cost and a running total, groups works into programmes (epics / initiatives / sprints), attaches quote documents, exports to XLS and PDF, and lets residents vote and comment. Display anywhere with the [trinity_projects] shortcode.
- * Version:           1.2.0
+ * Version:           1.3.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            October Communications
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'TCP_VERSION', '1.2.0' );
+define( 'TCP_VERSION', '1.3.0' );
 define( 'TCP_FILE', __FILE__ );
 define( 'TCP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TCP_URL', plugin_dir_url( __FILE__ ) );
@@ -59,6 +59,15 @@ final class Trinity_Court_Projects {
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_assets' ) );
 		add_action( 'admin_menu', array( $this, 'admin_import_page' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_seed_notice' ) );
+
+		// Quick Edit: inline editing of the tracking fields.
+		add_action( 'quick_edit_custom_box', array( $this, 'quick_edit_box' ), 10, 2 );
+		add_action( 'save_post_' . self::CPT, array( $this, 'save_quick_edit' ), 10, 1 );
+
+		// Merge: bulk action on the Projects list.
+		add_filter( 'bulk_actions-edit-' . self::CPT, array( $this, 'register_merge_bulk_action' ) );
+		add_filter( 'handle_bulk_actions-edit-' . self::CPT, array( $this, 'handle_merge_bulk_action' ), 10, 3 );
+		add_action( 'admin_notices', array( $this, 'merge_admin_notice' ) );
 
 		// Group (programme) term meta: type field.
 		add_action( self::TAX_GRP . '_add_form_fields', array( $this, 'group_add_field' ) );
@@ -457,6 +466,17 @@ final class Trinity_Court_Projects {
 		switch ( $column ) {
 			case 'tcp_ref':
 				echo esc_html( get_post_meta( $post_id, '_tcp_ref', true ) );
+				// Hidden raw values for Quick Edit to read.
+				$cost_raw = get_post_meta( $post_id, '_tcp_cost', true );
+				printf(
+					'<span class="tcp-inline-data" style="display:none" data-ref="%s" data-status="%s" data-priority="%s" data-cost="%s" data-votes="%s" data-location="%s"></span>',
+					esc_attr( get_post_meta( $post_id, '_tcp_ref', true ) ),
+					esc_attr( get_post_meta( $post_id, '_tcp_status', true ) ),
+					esc_attr( get_post_meta( $post_id, '_tcp_priority', true ) ),
+					esc_attr( '' === $cost_raw ? '' : $cost_raw ),
+					esc_attr( (int) get_post_meta( $post_id, '_tcp_votes', true ) ),
+					esc_attr( get_post_meta( $post_id, '_tcp_location', true ) )
+				);
 				break;
 			case 'tcp_status':
 				$status = get_post_meta( $post_id, '_tcp_status', true );
@@ -517,7 +537,260 @@ final class Trinity_Court_Projects {
 				wp_enqueue_media();
 				wp_enqueue_script( 'tcp-admin', TCP_URL . 'assets/admin.js', array( 'jquery' ), TCP_VERSION, true );
 			}
+			// List table: Quick Edit helper.
+			if ( 'edit.php' === $hook ) {
+				wp_enqueue_script( 'tcp-quickedit', TCP_URL . 'assets/quick-edit.js', array( 'jquery', 'inline-edit-post' ), TCP_VERSION, true );
+			}
 		}
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Quick Edit
+	 * ------------------------------------------------------------------- */
+
+	/**
+	 * Render the tracking fields inside the Quick Edit box. The hook fires
+	 * once per custom column; output the whole fieldset on the first of ours.
+	 */
+	public function quick_edit_box( $column_name, $post_type ) {
+		if ( self::CPT !== $post_type || 'tcp_status' !== $column_name ) {
+			return;
+		}
+		?>
+		<fieldset class="inline-edit-col-right tcp-quick-fields">
+			<div class="inline-edit-col">
+				<?php wp_nonce_field( 'tcp_quick_edit', 'tcp_quick_nonce' ); ?>
+				<label class="inline-edit-group">
+					<span class="title">Ref</span>
+					<input type="text" name="tcp_ref" class="tcp-q-ref" />
+				</label>
+				<label class="inline-edit-group">
+					<span class="title">Status</span>
+					<select name="tcp_status" class="tcp-q-status">
+						<?php foreach ( self::statuses() as $slug => $data ) : ?>
+							<option value="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $data[0] ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</label>
+				<label class="inline-edit-group">
+					<span class="title">Priority</span>
+					<select name="tcp_priority" class="tcp-q-priority">
+						<?php foreach ( self::priorities() as $slug => $data ) : ?>
+							<option value="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $data[0] ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</label>
+				<label class="inline-edit-group">
+					<span class="title">Cost (£)</span>
+					<input type="number" step="0.01" min="0" name="tcp_cost" class="tcp-q-cost" placeholder="Blank = awaiting quote" />
+				</label>
+				<label class="inline-edit-group">
+					<span class="title">Votes</span>
+					<input type="number" step="1" min="0" name="tcp_votes" class="tcp-q-votes" />
+				</label>
+				<label class="inline-edit-group">
+					<span class="title">Location</span>
+					<input type="text" name="tcp_location" class="tcp-q-location" />
+				</label>
+			</div>
+		</fieldset>
+		<?php
+	}
+
+	/**
+	 * Save Quick Edit values. Guarded by its own nonce so it never collides
+	 * with the full editor's save (which uses tcp_meta_nonce).
+	 */
+	public function save_quick_edit( $post_id ) {
+		if ( ! isset( $_POST['tcp_quick_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['tcp_quick_nonce'] ) ), 'tcp_quick_edit' ) ) {
+			return;
+		}
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		if ( isset( $_POST['tcp_ref'] ) ) {
+			update_post_meta( $post_id, '_tcp_ref', sanitize_text_field( wp_unslash( $_POST['tcp_ref'] ) ) );
+		}
+		if ( isset( $_POST['tcp_location'] ) ) {
+			update_post_meta( $post_id, '_tcp_location', sanitize_text_field( wp_unslash( $_POST['tcp_location'] ) ) );
+		}
+		if ( isset( $_POST['tcp_status'] ) ) {
+			$status = sanitize_key( wp_unslash( $_POST['tcp_status'] ) );
+			if ( array_key_exists( $status, self::statuses() ) ) {
+				update_post_meta( $post_id, '_tcp_status', $status );
+			}
+		}
+		if ( isset( $_POST['tcp_priority'] ) ) {
+			$priority = sanitize_key( wp_unslash( $_POST['tcp_priority'] ) );
+			if ( array_key_exists( $priority, self::priorities() ) ) {
+				update_post_meta( $post_id, '_tcp_priority', $priority );
+			}
+		}
+		if ( isset( $_POST['tcp_votes'] ) && '' !== trim( wp_unslash( $_POST['tcp_votes'] ) ) ) {
+			update_post_meta( $post_id, '_tcp_votes', max( 0, (int) wp_unslash( $_POST['tcp_votes'] ) ) );
+		}
+		if ( isset( $_POST['tcp_cost'] ) ) {
+			$raw = trim( wp_unslash( $_POST['tcp_cost'] ) );
+			if ( '' === $raw ) {
+				delete_post_meta( $post_id, '_tcp_cost' );
+			} else {
+				update_post_meta( $post_id, '_tcp_cost', round( (float) $raw, 2 ) );
+			}
+		}
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Merge tickets (bulk action)
+	 * ------------------------------------------------------------------- */
+
+	public function register_merge_bulk_action( $actions ) {
+		$actions['tcp_merge'] = 'Merge selected tickets';
+		return $actions;
+	}
+
+	/**
+	 * Merge two or more selected tickets into one. The primary is the earliest
+	 * in the list (lowest menu order, then lowest ID). Votes, voters, comments
+	 * and quote documents are folded into the primary; each merged ticket's
+	 * problem and solution are appended so nothing is lost; the merged tickets
+	 * are moved to Trash (recoverable). Status, priority and cost of the
+	 * primary are preserved.
+	 */
+	public function handle_merge_bulk_action( $redirect_to, $action, $post_ids ) {
+		if ( 'tcp_merge' !== $action ) {
+			return $redirect_to;
+		}
+		$post_ids = array_map( 'intval', (array) $post_ids );
+		if ( count( $post_ids ) < 2 ) {
+			return add_query_arg( 'tcp_merged', 'toofew', $redirect_to );
+		}
+		if ( ! current_user_can( 'edit_others_posts' ) ) {
+			return add_query_arg( 'tcp_merged', 'denied', $redirect_to );
+		}
+
+		// Choose primary: lowest menu_order, then lowest ID.
+		$posts = array();
+		foreach ( $post_ids as $pid ) {
+			$p = get_post( $pid );
+			if ( $p && self::CPT === $p->post_type ) {
+				$posts[] = $p;
+			}
+		}
+		if ( count( $posts ) < 2 ) {
+			return add_query_arg( 'tcp_merged', 'toofew', $redirect_to );
+		}
+		usort(
+			$posts,
+			function ( $a, $b ) {
+				if ( $a->menu_order === $b->menu_order ) {
+					return $a->ID - $b->ID;
+				}
+				return $a->menu_order - $b->menu_order;
+			}
+		);
+		$primary = array_shift( $posts );
+
+		$votes   = (int) get_post_meta( $primary->ID, '_tcp_votes', true );
+		$voters  = get_post_meta( $primary->ID, '_tcp_voters', true );
+		$voters  = is_array( $voters ) ? $voters : array();
+		$docs    = get_post_meta( $primary->ID, '_tcp_quote_docs', true );
+		$docs    = is_array( $docs ) ? $docs : array();
+		$content = $primary->post_content;
+		$solution = (string) get_post_meta( $primary->ID, '_tcp_solution', true );
+		$merged_refs = array();
+
+		foreach ( $posts as $other ) {
+			$oref = get_post_meta( $other->ID, '_tcp_ref', true );
+			$merged_refs[] = $oref ? $oref : ( '#' . $other->ID );
+
+			// Votes + voters.
+			$votes += (int) get_post_meta( $other->ID, '_tcp_votes', true );
+			$ov     = get_post_meta( $other->ID, '_tcp_voters', true );
+			if ( is_array( $ov ) ) {
+				$voters = array_values( array_unique( array_merge( $voters, $ov ) ) );
+			}
+
+			// Quote documents.
+			$od = get_post_meta( $other->ID, '_tcp_quote_docs', true );
+			if ( is_array( $od ) ) {
+				$docs = array_values( array_unique( array_merge( $docs, array_map( 'intval', $od ) ) ) );
+			}
+
+			// Reassign comments to the primary.
+			$comments = get_comments( array( 'post_id' => $other->ID ) );
+			foreach ( $comments as $c ) {
+				wp_update_comment(
+					array(
+						'comment_ID'      => $c->comment_ID,
+						'comment_post_ID' => $primary->ID,
+					)
+				);
+			}
+
+			// Append descriptions so nothing is lost.
+			$label = 'Merged from ' . ( $oref ? '#' . $oref : 'ID ' . $other->ID ) . ': ' . $other->post_title;
+			if ( '' !== trim( (string) $other->post_content ) ) {
+				$content .= "\n\n<hr />\n<strong>" . $label . "</strong>\n\n" . $other->post_content;
+			}
+			$osol = (string) get_post_meta( $other->ID, '_tcp_solution', true );
+			if ( '' !== trim( $osol ) ) {
+				$solution .= "\n\n" . $label . "\n" . $osol;
+			}
+
+			wp_trash_post( $other->ID );
+		}
+
+		// Recompute comment count on the primary after reassignment.
+		wp_update_comment_count( $primary->ID );
+
+		wp_update_post(
+			array(
+				'ID'           => $primary->ID,
+				'post_content' => $content,
+			)
+		);
+		update_post_meta( $primary->ID, '_tcp_votes', $votes );
+		update_post_meta( $primary->ID, '_tcp_voters', $voters );
+		update_post_meta( $primary->ID, '_tcp_solution', $solution );
+		if ( $docs ) {
+			update_post_meta( $primary->ID, '_tcp_quote_docs', $docs );
+		}
+		update_post_meta( $primary->ID, '_tcp_merged_refs', $merged_refs );
+
+		$primary_ref = get_post_meta( $primary->ID, '_tcp_ref', true );
+		$redirect_to = add_query_arg(
+			array(
+				'tcp_merged'      => count( $posts ),
+				'tcp_merged_into' => rawurlencode( $primary_ref ? $primary_ref : ( '#' . $primary->ID ) ),
+			),
+			$redirect_to
+		);
+		return $redirect_to;
+	}
+
+	public function merge_admin_notice() {
+		if ( ! isset( $_GET['tcp_merged'] ) ) {
+			return;
+		}
+		$val = sanitize_text_field( wp_unslash( $_GET['tcp_merged'] ) );
+		if ( 'toofew' === $val ) {
+			echo '<div class="notice notice-warning is-dismissible"><p>Select at least two tickets to merge.</p></div>';
+			return;
+		}
+		if ( 'denied' === $val ) {
+			echo '<div class="notice notice-error is-dismissible"><p>You do not have permission to merge tickets.</p></div>';
+			return;
+		}
+		$into = isset( $_GET['tcp_merged_into'] ) ? sanitize_text_field( wp_unslash( $_GET['tcp_merged_into'] ) ) : '';
+		printf(
+			'<div class="notice notice-success is-dismissible"><p>Merged %d ticket(s) into %s. Their votes, comments and quote documents were combined; the merged tickets are in the Trash.</p></div>',
+			(int) $val,
+			esc_html( $into )
+		);
 	}
 
 	/* ---------------------------------------------------------------------

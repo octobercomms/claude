@@ -10,3 +10,9 @@
 .tcp-doc-list li a { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tcp-doc-list .dashicons-media-document { color: #68353a; }
 .tcp-doc-remove { color: #b32d2e; text-decoration: none; font-size: 16px; line-height: 1; }
+
+/* Quick Edit tracking fields (hidden in Bulk Edit, which has no handler). */
+.bulk-edit-row .tcp-quick-fields { display: none; }
+.tcp-quick-fields .inline-edit-group { display: block; margin: 4px 0; }
+.tcp-quick-fields .inline-edit-group .title { display: inline-block; width: 70px; }
+.tcp-quick-fields select, .tcp-quick-fields input[type="text"], .tcp-quick-fields input[type="number"] { vertical-align: middle; }
