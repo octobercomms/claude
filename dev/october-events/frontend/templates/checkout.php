@@ -232,9 +232,9 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
           <p class="oct-bnpl__est" id="oct-bnpl-est"></p>
           <p class="oct-bnpl__sub"><?php esc_html_e('Spread the cost interest-free. You still get your tickets straight away.', 'october-events'); ?></p>
           <div class="oct-bnpl__brands" role="list" aria-label="<?php esc_attr_e('Available pay-later providers', 'october-events'); ?>">
-            <span class="oct-bnpl__brand oct-bnpl__brand--klarna" role="listitem">Klarna</span>
-            <span class="oct-bnpl__brand oct-bnpl__brand--afterpay" role="listitem">Afterpay</span>
-            <span class="oct-bnpl__brand oct-bnpl__brand--affirm" role="listitem">Affirm</span>
+            <img class="oct-bnpl__brand" src="<?php echo esc_url(OE_URL . 'assets/img/bnpl/klarna.svg'); ?>" alt="Klarna" width="72" height="30" loading="lazy" decoding="async" role="listitem">
+            <img class="oct-bnpl__brand" src="<?php echo esc_url(OE_URL . 'assets/img/bnpl/afterpay.svg'); ?>" alt="Afterpay" width="86" height="30" loading="lazy" decoding="async" role="listitem">
+            <img class="oct-bnpl__brand" src="<?php echo esc_url(OE_URL . 'assets/img/bnpl/affirm.svg'); ?>" alt="Affirm" width="148" height="30" loading="lazy" decoding="async" role="listitem">
           </div>
           <button type="button" id="oct-pay-installments" class="oct-btn oct-btn--full oct-btn--bnpl">
             <span class="btn-text"><?php esc_html_e('Pay over time', 'october-events'); ?></span>
