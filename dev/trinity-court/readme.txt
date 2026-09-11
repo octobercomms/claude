@@ -4,7 +4,7 @@ Tags: projects, tracker, community, residents, rtm
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.3
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,12 @@ Shortcode attributes:
    quotes arrive.
 
 == Changelog ==
+
+= 1.2.0 =
+* Import from a Word document: Projects > Import list now takes a .docx upload
+  of the works-list table. Matched by reference number, it adds new items and
+  refreshes descriptions of existing ones, while keeping status, cost, votes,
+  comments, priority and grouping on items already logged.
 
 = 1.1.3 =
 * Vote counts are now editable in the admin (Project tracking box), so votes

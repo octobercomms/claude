@@ -52,9 +52,27 @@ pulled into the current sprint.
    Refresh, Fire Safety).
 4. Create a residents' page and add the shortcode `[trinity_projects]`.
 
-If projects do not appear, go to **Projects > Import seed list** and run the
-import. It matches on reference number, so it tops up missing items without
-duplicating existing ones.
+If projects do not appear, go to **Projects > Import list** and load the
+starter list. It matches on reference number, so it tops up missing items
+without duplicating existing ones.
+
+## Importing an updated list from Word
+
+**Projects > Import list** takes a Word `.docx` upload of the works-list table
+(columns: Ref, Category, Problem, Proposed Solution, Location / Scope,
+Priority). Use it whenever the RTM's master document changes.
+
+- Matched by **reference number**.
+- New refs are **added**; existing refs have their **title, problem, solution
+  and location refreshed**.
+- **Status, cost, votes, comments, priority and programme grouping on existing
+  items are kept** — importing never wipes tracking work. New items get
+  priority from the document and status "Not started".
+- Blank placeholder rows (a future ref with no content) are skipped.
+- Untick "Refresh descriptions of items that already exist" to only add new
+  refs and leave current ones completely untouched.
+
+Row order in the document sets the display order.
 
 ## Using it
 
