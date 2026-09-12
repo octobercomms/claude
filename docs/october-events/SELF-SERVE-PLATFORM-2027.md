@@ -68,6 +68,30 @@ Recommendation: no. Trust the user once approved and rely on the edit notificati
   minority, later phase. Value is on-page checkout instead of a redirect.
 - Connect is only needed for managed paid. Tiers 1 and 2 use October's own Stripe.
 
+### Data ownership and the mailing list
+
+Registrations come through October's site, so October keeps the attendee
+relationship (the reason managed registration beats Eventbrite, where Eventbrite
+owns the attendee). Registrants sync into Brevo automatically, which the plugin
+already integrates with.
+
+Holding the data and marketing to it are different things:
+
+- **US (CAN-SPAM):** may add to marketing with a clear unsubscribe on every email.
+- **UK/EU (GDPR):** marketing needs explicit, unbundled opt-in. "You registered so
+  you are on our list" is not valid consent.
+
+Approach that works everywhere and protects deliverability:
+
+- An **unticked marketing opt-in** at registration ("Keep me posted on future
+  Atlanta Design Festival events").
+- **All** registrants are held and can be emailed transactionally (ticket, event
+  updates). **Only opted-in** registrants go into the Brevo marketing list.
+- Push each registrant to Brevo with event attributes (event, date, source) and
+  the consent flag.
+- Organiser (e.g. HKS) gets the **CSV download** for their own logistics. Marketing
+  to the attendees stays October's, not the organiser's, unless separately agreed.
+
 ## 6. Add-on / upsell model
 
 At the publish step the organiser sees a **priced checklist for this event**:
@@ -136,8 +160,9 @@ rules. This alone removes the festival admin pain.
 
 **Phase 2 — Managed free registration + add-ons**
 On-platform RSVP/$0 registration, self-serve list + CSV in the dashboard, flat
-handling fee, and the add-on checklist + Stripe Checkout at publish + fulfilment
-queue. Reuses the existing ticketing engine. This is where it starts to earn.
+handling fee, Brevo mailing-list sync with the marketing opt-in, and the add-on
+checklist + Stripe Checkout at publish + fulfilment queue. Reuses the existing
+ticketing engine. This is where it starts to earn.
 
 **Phase 3 — Managed paid selling + productised add-ons**
 Stripe Connect (Express) for on-page paid selling with money to the organiser and
@@ -155,6 +180,10 @@ Ship 1 and 2 before touching 3.
    vs per-registration.
 3. **Edit after publish** — does changing date/price re-trigger review?
    (Recommendation: no.)
+4. **Marketing consent model** — explicit unticked opt-in everywhere
+   (recommended, GDPR-safe) vs CAN-SPAM add-with-unsubscribe for US-only
+   audiences. And whether organisers may ever market to their own attendees or
+   only download the CSV.
 
 ## 12. Risks
 
