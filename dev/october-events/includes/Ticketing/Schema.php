@@ -97,6 +97,7 @@ final class Schema {
             event_id BIGINT UNSIGNED DEFAULT NULL,
             discount_type VARCHAR(10) NOT NULL DEFAULT 'percent',
             discount_value DECIMAL(10,2) NOT NULL DEFAULT 0,
+            ticket_type_keys VARCHAR(255) DEFAULT NULL,
             max_uses INT UNSIGNED DEFAULT NULL,
             used_count INT UNSIGNED DEFAULT 0,
             expires_at DATETIME DEFAULT NULL,

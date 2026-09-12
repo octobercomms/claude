@@ -5,6 +5,26 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.102.0 — Promo codes can be limited to specific ticket types
+
+A promo code can now discount only chosen ticket types, not just the whole
+event. On a single-event code, an optional **Limit to tickets** picker lists that
+event's ticket types; tick the ones the code applies to (leave all unticked to
+discount the whole event, as before).
+
+- **Percent** codes apply to the selected tickets' subtotal.
+- **Fixed** codes come off **each** selected ticket (e.g. "$10 off Student" with
+  3 Student tickets = $30 off), capped at those tickets' subtotal.
+- If a scoped code's tickets aren't in the cart, checkout says so instead of
+  silently doing nothing.
+- Existing whole-event codes are unchanged — a whole-event fixed code stays
+  per-order.
+- The discount is computed server-side on both the live preview and the pay-time
+  re-price, so a shared link still can't force a wrong amount.
+
+Schema: adds `ticket_type_keys` to the promo table (`OE_DB_VERSION` 14, applied
+automatically on upgrade).
+
 ## 1.101.1 — Copyable share link on the Promo Codes tab
 
 Each code in the Promo Codes list now shows a ready-made **share link** with a
