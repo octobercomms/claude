@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.99.2 — Date-only events show as all-day, not "12:00 AM" / a midnight–2am slot
+
+When an event has a date but no start time, its `start_datetime` reaches the
+ticketing layer as midnight. The confirmation email's "When" line then read
+e.g. "October 3, 2026 12:00 AM", and because there was no end time the
+"Add to calendar" link (Google + `.ics`) fell back to a midnight → +2h slot, so
+buyers saw a 12:00 AM–2:00 AM event and asked whether their ticket was right.
+
+`Ics` now detects a date-only event (start on local midnight, no distinct end
+time) and:
+- renders the "When" line as the date alone ("October 3, 2026"), no "12:00 AM";
+- emits an **all-day** entry in both the Google Calendar link and the `.ics`
+  (`VALUE=DATE`, end-exclusive), instead of a midnight–2am slot.
+
+A genuinely timed event (including one that really ends at 2:00 AM) is unchanged.
+
+**Note:** this stops a *missing* time from misleading buyers. If a tour does run
+at a set time, enter the real start/end time on the event (the OE start/end
+fields, or the JetEngine field mapped under Settings → Event field mapping) and
+resend the ticket — the code fix can't invent a time that was never set.
+
 ## 1.99.1 — Fix oversized BNPL logos on themes that force `img { height:auto }`
 
 The 1.99.0 logos rendered at their native size on the live site because the

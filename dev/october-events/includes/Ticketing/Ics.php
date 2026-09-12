@@ -24,9 +24,17 @@ final class Ics {
         if (! $start) {
             return '';
         }
-        $end = self::ts((string) Events::get($event_id, 'end_datetime', ''));
-        if (! $end || $end <= $start) {
-            $end = $start + 2 * HOUR_IN_SECONDS; // sensible default duration
+        $endRaw = self::ts((string) Events::get($event_id, 'end_datetime', ''));
+        // Date-only events (no time set → midnight) become all-day entries rather
+        // than a misleading midnight → +2h slot.
+        if (self::is_all_day($start, $endRaw)) {
+            $lastDay = ($endRaw && $endRaw > $start) ? $endRaw : $start;
+            $dtstart = 'DTSTART;VALUE=DATE:' . wp_date('Ymd', $start);
+            $dtend   = 'DTEND;VALUE=DATE:' . wp_date('Ymd', $lastDay + DAY_IN_SECONDS);
+        } else {
+            $end     = (! $endRaw || $endRaw <= $start) ? $start + 2 * HOUR_IN_SECONDS : $endRaw;
+            $dtstart = 'DTSTART:' . gmdate('Ymd\THis\Z', $start);
+            $dtend   = 'DTEND:' . gmdate('Ymd\THis\Z', $end);
         }
         $name     = (string) Events::get($event_id, 'name', '') ?: get_the_title($event_id);
         $location = (string) Events::get($event_id, 'location', '');
@@ -44,8 +52,8 @@ final class Ics {
             'BEGIN:VEVENT',
             'UID:' . $uid,
             'DTSTAMP:' . gmdate('Ymd\THis\Z'),
-            'DTSTART:' . gmdate('Ymd\THis\Z', $start),
-            'DTEND:' . gmdate('Ymd\THis\Z', $end),
+            $dtstart,
+            $dtend,
             'SUMMARY:' . self::esc($name),
         ];
         if ($location !== '') {
@@ -119,9 +127,17 @@ final class Ics {
         if (! $s) {
             return $raw;
         }
+        $e = self::ts((string) Events::get($event_id, 'end_datetime', ''));
+        // No time set (midnight) → show the date without a misleading "12:00 AM".
+        if (self::is_all_day($s, $e)) {
+            $out = wp_date('F j, Y', $s);
+            if ($e && $e > $s && wp_date('Y-m-d', $e) !== wp_date('Y-m-d', $s)) {
+                $out .= ' – ' . wp_date('F j, Y', $e);
+            }
+            return $out;
+        }
         $fmt = 'F j, Y g:i A';
         $out = wp_date($fmt, $s);
-        $e   = self::ts((string) Events::get($event_id, 'end_datetime', ''));
         if ($e && $e > $s) {
             $out .= ' – ' . wp_date($fmt, $e);
         }
@@ -148,14 +164,22 @@ final class Ics {
             return '';
         }
         $end = self::ts((string) Events::get($event_id, 'end_datetime', ''));
-        if (! $end || $end <= $start) {
-            $end = $start + 2 * HOUR_IN_SECONDS;
+        // Date-only event → an all-day Google Calendar entry (YYYYMMDD range, end
+        // exclusive), not a midnight → +2h slot.
+        if (self::is_all_day($start, $end)) {
+            $lastDay = ($end && $end > $start) ? $end : $start;
+            $dates   = wp_date('Ymd', $start) . '/' . wp_date('Ymd', $lastDay + DAY_IN_SECONDS);
+        } else {
+            if (! $end || $end <= $start) {
+                $end = $start + 2 * HOUR_IN_SECONDS;
+            }
+            $dates = gmdate('Ymd\THis\Z', $start) . '/' . gmdate('Ymd\THis\Z', $end);
         }
         $name = (string) Events::get($event_id, 'name', '') ?: get_the_title($event_id);
         $args = [
             'action' => 'TEMPLATE',
             'text'   => $name,
-            'dates'  => gmdate('Ymd\THis\Z', $start) . '/' . gmdate('Ymd\THis\Z', $end),
+            'dates'  => $dates,
         ];
         $loc = (string) Events::get($event_id, 'location', '');
         if ($loc !== '') {
@@ -167,6 +191,24 @@ final class Ics {
         }
         // add_query_arg URL-encodes the values for us.
         return add_query_arg($args, 'https://calendar.google.com/calendar/render');
+    }
+
+    /**
+     * True when an event carries no real time-of-day and should be treated as
+     * all-day: the start falls on local midnight and the end (if any) does too.
+     * This is how a date-only value (no time entered) reaches us — as midnight —
+     * so we render the date without "12:00 AM" and emit an all-day invite rather
+     * than a misleading midnight → +2h slot. A genuinely timed event whose end is
+     * a real clock time (e.g. 2:00 AM) is left as a timed event.
+     */
+    private static function is_all_day(int $start, int $end): bool {
+        if (! $start || wp_date('H:i:s', $start) !== '00:00:00') {
+            return false;
+        }
+        if ($end && $end > $start && wp_date('H:i:s', $end) !== '00:00:00') {
+            return false;
+        }
+        return true;
     }
 
     /** Parse a local datetime string (site timezone) to a UTC timestamp, 0 if unparseable. */
