@@ -5,6 +5,32 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.103.0 — Countdown image for emails
+
+A GIF endpoint that renders the time remaining until a deadline, embeddable as a
+plain `<img>` in an email (email clients can't run JS):
+
+```
+<img src="https://atlantadesignfestival.net/?oe_countdown=1&deadline=2026-09-17T10:00:00-04:00&units=dh">
+```
+
+- `deadline` — ISO 8601 with an explicit offset (required).
+- `label` — optional heading, default "OFFER EXPIRES IN".
+- `units` — which blocks to show: `dhms` (default), or `dh` for days+hours.
+- `accent` — optional `#rrggbb` for the unit labels.
+- Brand palette from the mockup, 560×130, ~4KB, hard no-cache headers, and an
+  "OFFER HAS ENDED" state past the deadline. Uses a bundled/system bold TTF when
+  available (`OE_COUNTDOWN_FONT` constant or `assets/fonts/countdown.ttf`), else a
+  built-in bitmap fallback.
+
+**Honest limitation:** Gmail's image proxy and Apple Mail Privacy Protection
+fetch and cache the image near delivery, so for many recipients it shows the
+time *at delivery*, not at open, and won't move on reopen. Prefer `units=dh` for
+real sends — seconds are effectively frozen. Requires GD with GIF support on the
+host, and the endpoint must be excluded from any page/CDN cache.
+
+No schema change.
+
 ## 1.102.0 — Promo codes can be limited to specific ticket types
 
 A promo code can now discount only chosen ticket types, not just the whole

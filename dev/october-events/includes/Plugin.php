@@ -168,6 +168,12 @@ final class Plugin {
             exit;
         }
 
+        // Countdown image for emails (/?oe_countdown=1&deadline=…).
+        if (isset($_GET['oe_countdown'])) {
+            \OE\Countdown::render(wp_unslash($_GET)); // sanitised per-field inside
+            exit;
+        }
+
         // Campaign click redirect (URL is HMAC-signed to prevent open redirects).
         $click = isset($_GET['oe_c']) ? sanitize_text_field(wp_unslash($_GET['oe_c'])) : '';
         if ($click !== '') {
