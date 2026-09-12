@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.101.1 — Copyable share link on the Promo Codes tab
+
+Each code in the Promo Codes list now shows a ready-made **share link** with a
+one-click **Copy** button, so you don't have to remember the `?promo=` format:
+
+- Event-scoped codes show the full event checkout URL with the code applied,
+  e.g. `https://…/e/conference/?promo=EARLYBIRD`.
+- All-events codes show a copyable `?promo=CODE` snippet to append to any event
+  link.
+
+Admin view only; no schema change.
+
 ## 1.101.0 — Promo code in the checkout URL auto-applies
 
 Share a link like `/e/conference/?promo=EARLYBIRD` (or `?code=…`) and the code

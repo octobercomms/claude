@@ -44,10 +44,11 @@ $promos_url = admin_url('admin.php?page=oe-tickets&tab=promos');
         <thead><tr>
             <th><?php esc_html_e('Code', 'october-events'); ?></th><th><?php esc_html_e('Event', 'october-events'); ?></th>
             <th><?php esc_html_e('Discount', 'october-events'); ?></th><th><?php esc_html_e('Used', 'october-events'); ?></th>
-            <th><?php esc_html_e('Expires', 'october-events'); ?></th><th><?php esc_html_e('Active', 'october-events'); ?></th><th></th>
+            <th><?php esc_html_e('Expires', 'october-events'); ?></th><th><?php esc_html_e('Active', 'october-events'); ?></th>
+            <th><?php esc_html_e('Share link', 'october-events'); ?></th><th></th>
         </tr></thead>
         <tbody>
-        <?php if (! $promos) : ?><tr><td colspan="7"><?php esc_html_e('No codes yet.', 'october-events'); ?></td></tr><?php endif; ?>
+        <?php if (! $promos) : ?><tr><td colspan="8"><?php esc_html_e('No codes yet.', 'october-events'); ?></td></tr><?php endif; ?>
         <?php foreach ($promos as $p) :
             $del  = wp_nonce_url(admin_url('admin-post.php?action=oe_delete_promo&id=' . $p->id), 'oe_delete_promo');
             $edit = add_query_arg(['page' => 'oe-tickets', 'tab' => 'promos', 'edit' => (int) $p->id], admin_url('admin.php')); ?>
@@ -58,10 +59,35 @@ $promos_url = admin_url('admin.php?page=oe-tickets&tab=promos');
                 <td><?php echo (int) $p->used_count; ?><?php echo $p->max_uses !== null ? ' / ' . (int) $p->max_uses : ''; ?></td>
                 <td><?php echo $p->expires_at ? esc_html($p->expires_at) : '—'; ?></td>
                 <td><?php echo $p->active ? '✓' : '—'; ?></td>
+                <td>
+                    <?php $perma = $p->event_id ? get_permalink((int) $p->event_id) : ''; ?>
+                    <?php if ($perma) :
+                        $share = add_query_arg('promo', rawurlencode((string) $p->code), $perma); ?>
+                        <input type="text" readonly value="<?php echo esc_attr($share); ?>" onfocus="this.select()" style="width:210px;font-size:11px;vertical-align:middle" aria-label="<?php esc_attr_e('Shareable checkout link', 'october-events'); ?>">
+                        <button type="button" class="button button-small oe-copy-link" data-clip="<?php echo esc_attr($share); ?>"><?php esc_html_e('Copy', 'october-events'); ?></button>
+                    <?php else : ?>
+                        <span class="description"><?php echo esc_html(sprintf(__('Add %s to any event link', 'october-events'), '?promo=' . $p->code)); ?></span>
+                        <button type="button" class="button button-small oe-copy-link" data-clip="<?php echo esc_attr('?promo=' . $p->code); ?>"><?php esc_html_e('Copy', 'october-events'); ?></button>
+                    <?php endif; ?>
+                </td>
                 <td><a class="button button-small" href="<?php echo esc_url($edit); ?>"><?php esc_html_e('Edit', 'october-events'); ?></a>
                     <a class="button button-small" href="<?php echo esc_url($del); ?>" onclick="return confirm('<?php echo esc_js(__('Delete this code?', 'october-events')); ?>')"><?php esc_html_e('Delete', 'october-events'); ?></a></td>
             </tr>
         <?php endforeach; ?>
         </tbody>
     </table>
+    <script>
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('.oe-copy-link') : null;
+        if (!btn) { return; }
+        var text = btn.getAttribute('data-clip') || '';
+        var done = function () { var o = btn.textContent; btn.textContent = '<?php echo esc_js(__('Copied', 'october-events')); ?>'; setTimeout(function () { btn.textContent = o; }, 1200); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(function () {});
+        } else {
+            var t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select();
+            try { document.execCommand('copy'); } catch (err) {} document.body.removeChild(t); done();
+        }
+    });
+    </script>
 </div>
