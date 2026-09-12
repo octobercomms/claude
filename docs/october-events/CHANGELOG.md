@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.106.0 — Countdown: timezone picker + bigger numbers
+
+- **Timezone selector** on the generator (and a `tz` IANA param on the endpoint):
+  pick the timezone the deadline is in — defaults to the site's, with common US +
+  UK zones and UTC. An explicit offset in the deadline still wins; otherwise the
+  chosen zone is used, DST-correct for the date.
+- **Larger countdown numbers** in the static image (was reading small).
+
+No schema change.
+
 ## 1.105.0 — Countdown generator screen (build, preview, download)
 
 Adds **October Events → Countdown**: a tool to make the countdown image without

@@ -19,7 +19,7 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
     <p class="description" style="max-width:640px">
         <?php echo esc_html(sprintf(
             /* translators: %s: timezone name */
-            __('Set a deadline and copy the image URL into your email as an <img>, or download the GIF. Times are in the site timezone (%s).', 'october-events'),
+            __('Set a deadline and copy the image URL into your email as an <img>, or download the GIF. The deadline is read in the timezone you pick below (defaults to the site’s, %s).', 'october-events'),
             $tz
         )); ?>
     </p>
@@ -30,6 +30,17 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
                 <tr>
                     <th scope="row"><label for="oe-cd-deadline"><?php esc_html_e('Deadline', 'october-events'); ?></label></th>
                     <td><input type="datetime-local" id="oe-cd-deadline" value="<?php echo esc_attr($default); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="oe-cd-tz"><?php esc_html_e('Timezone', 'october-events'); ?></label></th>
+                    <td><select id="oe-cd-tz">
+                        <?php
+                        $common = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'Europe/London', 'UTC'];
+                        foreach (array_values(array_unique(array_merge([$tz], $common))) as $z) {
+                            printf('<option value="%s"%s>%s</option>', esc_attr($z), selected($z, $tz, false), esc_html($z));
+                        }
+                        ?>
+                    </select></td>
                 </tr>
                 <tr>
                     <th scope="row"><label for="oe-cd-units"><?php esc_html_e('Show', 'october-events'); ?></label></th>
@@ -77,7 +88,7 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
         var BASE = <?php echo wp_json_encode($base); ?>;
         var el = function (id) { return document.getElementById(id); };
         var deadline = el('oe-cd-deadline'), units = el('oe-cd-units'), label = el('oe-cd-label'),
-            accent = el('oe-cd-accent'), img = el('oe-cd-preview'), urlBox = el('oe-cd-url'),
+            accent = el('oe-cd-accent'), tz = el('oe-cd-tz'), img = el('oe-cd-preview'), urlBox = el('oe-cd-url'),
             dl = el('oe-cd-download'), copy = el('oe-cd-copy');
 
         function style() {
@@ -93,6 +104,7 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
             p.set('oe_countdown', '1');
             p.set('deadline', dt);
             if (units.value) { p.set('units', units.value); }
+            if (tz.value) { p.set('tz', tz.value); }
             if (label.value.trim()) { p.set('label', label.value.trim()); }
             if (accent.value) { p.set('accent', accent.value); }
             if (style() === 'anim') { p.set('anim', '1'); }
@@ -106,7 +118,7 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
             img.src = bust;
             dl.href = bust; // fresh render on download
         }
-        [deadline, units, label, accent].forEach(function (n) {
+        [deadline, units, label, accent, tz].forEach(function (n) {
             n.addEventListener('input', refresh);
             n.addEventListener('change', refresh);
         });
