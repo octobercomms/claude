@@ -489,7 +489,7 @@ final class RestApi {
             }
             $unit = \OE\Ticketing\TicketTypes::effective_price($type);
             $subtotal += round($unit * $li['qty'], 2);
-            $lines[] = ['type' => $type, 'qty' => $li['qty'], 'unit' => $unit];
+            $lines[] = ['type' => $type, 'qty' => $li['qty'], 'unit' => $unit, 'type_key' => (string) $li['type_key'], 'amount' => round($unit * $li['qty'], 2)];
         }
         if (! $lines) {
             return new \WP_Error('oe_empty_cart', __('Please choose at least one ticket.', 'october-events'), ['status' => 400]);
@@ -511,7 +511,7 @@ final class RestApi {
         $promo    = null;
         $code     = trim((string) $req->get_param('promo_code'));
         if ($code !== '') {
-            $res = \OE\Ticketing\Promo::validate($code, $event_id, $subtotal);
+            $res = \OE\Ticketing\Promo::validate($code, $event_id, $subtotal, $lines);
             if (is_wp_error($res)) {
                 return $res;
             }
@@ -1237,7 +1237,7 @@ final class RestApi {
             if (! $type) { return null; }
             $unit = \OE\Ticketing\TicketTypes::effective_price($type);
             $subtotal += round($unit * $li['qty'], 2);
-            $lines[] = ['type' => $type, 'qty' => $li['qty']];
+            $lines[] = ['type' => $type, 'qty' => $li['qty'], 'type_key' => (string) $li['type_key'], 'amount' => round($unit * $li['qty'], 2)];
         }
         if (! $lines) {
             return null;
@@ -1246,7 +1246,7 @@ final class RestApi {
         $discount = 0.0;
         $promo    = null;
         if (! empty($meta['promo'])) {
-            $res = \OE\Ticketing\Promo::validate((string) $meta['promo'], $event_id, round($subtotal, 2));
+            $res = \OE\Ticketing\Promo::validate((string) $meta['promo'], $event_id, round($subtotal, 2), $lines);
             if (! is_wp_error($res)) {
                 $discount = (float) $res['discount_amount'];
                 $promo    = ['code' => strtoupper((string) $meta['promo']), 'promo_id' => $res['promo_id']];

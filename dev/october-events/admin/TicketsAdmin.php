@@ -495,6 +495,13 @@ final class TicketsAdmin {
         $promos = Promo::all();
         self::prime_event_titles($promos);
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200]);
+        // Each event's ticket types, so the form can offer "limit to tickets"
+        // checkboxes for the selected event (ticket keys are per event).
+        $types_by_event = [];
+        foreach ($events as $ev) {
+            $tt = array_map(static fn($t) => ['key' => $t['key'], 'label' => $t['label']], \OE\Ticketing\TicketTypes::types((int) $ev->ID));
+            if ($tt) { $types_by_event[(int) $ev->ID] = $tt; }
+        }
         // Editing an existing code? (?edit=<id>)
         $edit_id = isset($_GET['edit']) ? absint($_GET['edit']) : 0;
         $editing = null;
@@ -801,6 +808,7 @@ final class TicketsAdmin {
             'event_id'       => $_POST['event_id'] ?? '',
             'discount_type'  => $_POST['discount_type'] ?? 'percent',
             'discount_value' => $_POST['discount_value'] ?? 0,
+            'ticket_type_keys' => isset($_POST['ticket_type_keys']) ? (array) wp_unslash($_POST['ticket_type_keys']) : [],
             'max_uses'       => $_POST['max_uses'] ?? '',
             'expires_at'     => $_POST['expires_at'] ?? '',
             'active'         => ! empty($_POST['active']),

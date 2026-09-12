@@ -12,6 +12,8 @@ $ed_event  = $ed ? (int) $ed->event_id : 0;
 $ed_type   = $ed ? (string) $ed->discount_type : 'percent';
 $ed_active = $ed ? (bool) $ed->active : true;
 $ed_expiry = $ed && $ed->expires_at ? str_replace(' ', 'T', substr((string) $ed->expires_at, 0, 16)) : '';
+$ed_keys   = $ed ? \OE\Ticketing\Promo::applies_to($ed) : [];
+$types_by_event = $types_by_event ?? [];
 $promos_url = admin_url('admin.php?page=oe-tickets&tab=promos');
 ?>
 <div class="wrap oe-admin">
@@ -35,6 +37,11 @@ $promos_url = admin_url('admin.php?page=oe-tickets&tab=promos');
         <label><?php esc_html_e('Max uses', 'october-events'); ?><br><input type="number" min="0" name="max_uses" placeholder="∞" style="width:80px" value="<?php echo $ed && $ed->max_uses !== null ? (int) $ed->max_uses : ''; ?>"></label>
         <label><?php esc_html_e('Expires', 'october-events'); ?><br><input type="datetime-local" name="expires_at" value="<?php echo esc_attr($ed_expiry); ?>"></label>
         <label><input type="checkbox" name="active" value="1" <?php checked($ed_active); ?>> <?php esc_html_e('Active', 'october-events'); ?></label>
+        <div id="oe-promo-tickets-wrap" style="flex-basis:100%;<?php echo $ed_event ? '' : 'display:none'; ?>">
+            <strong><?php esc_html_e('Limit to tickets', 'october-events'); ?></strong> <span class="oe-optional">(<?php esc_html_e('optional', 'october-events'); ?>)</span>
+            <div id="oe-promo-tickets" style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px"></div>
+            <p class="description" style="margin:6px 0 0"><?php esc_html_e('Leave all unticked to discount the whole event. When some are ticked, a fixed amount comes off each selected ticket and a percentage applies to the selected tickets only.', 'october-events'); ?></p>
+        </div>
         <button class="button button-primary"><?php echo $ed ? esc_html__('Update code', 'october-events') : esc_html__('Save code', 'october-events'); ?></button>
         <?php if ($ed) : ?><a class="button" href="<?php echo esc_url($promos_url); ?>"><?php esc_html_e('Cancel', 'october-events'); ?></a><?php endif; ?>
     </form>
@@ -54,7 +61,19 @@ $promos_url = admin_url('admin.php?page=oe-tickets&tab=promos');
             $edit = add_query_arg(['page' => 'oe-tickets', 'tab' => 'promos', 'edit' => (int) $p->id], admin_url('admin.php')); ?>
             <tr>
                 <td><code><?php echo esc_html($p->code); ?></code></td>
-                <td><?php echo $p->event_id ? esc_html(get_the_title((int) $p->event_id)) : esc_html__('All', 'october-events'); ?></td>
+                <td><?php echo $p->event_id ? esc_html(get_the_title((int) $p->event_id)) : esc_html__('All', 'october-events'); ?>
+                    <?php
+                    $pk = \OE\Ticketing\Promo::applies_to($p);
+                    if ($pk && $p->event_id && ! empty($types_by_event[(int) $p->event_id])) {
+                        $labels = [];
+                        foreach ($types_by_event[(int) $p->event_id] as $t) {
+                            if (in_array($t['key'], $pk, true)) { $labels[] = $t['label']; }
+                        }
+                        if ($labels) {
+                            echo '<br><span class="description">' . esc_html(implode(', ', $labels)) . '</span>';
+                        }
+                    }
+                    ?></td>
                 <td><?php echo $p->discount_type === 'percent' ? esc_html($p->discount_value . '%') : esc_html($p->discount_value); ?></td>
                 <td><?php echo (int) $p->used_count; ?><?php echo $p->max_uses !== null ? ' / ' . (int) $p->max_uses : ''; ?></td>
                 <td><?php echo $p->expires_at ? esc_html($p->expires_at) : '—'; ?></td>
@@ -77,6 +96,30 @@ $promos_url = admin_url('admin.php?page=oe-tickets&tab=promos');
         </tbody>
     </table>
     <script>
+    (function () {
+        var MAP = <?php echo wp_json_encode((object) $types_by_event); ?>;
+        var SAVED = <?php echo wp_json_encode(array_values($ed_keys)); ?>;
+        var sel = document.querySelector('form select[name="event_id"]');
+        var wrap = document.getElementById('oe-promo-tickets-wrap');
+        var box = document.getElementById('oe-promo-tickets');
+        if (!sel || !wrap || !box) { return; }
+        function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+        function render() {
+            var types = MAP[sel.value] || [];
+            box.innerHTML = '';
+            if (!types.length) { wrap.style.display = 'none'; return; }
+            wrap.style.display = '';
+            types.forEach(function (t) {
+                var on = SAVED.indexOf(t.key) !== -1 ? ' checked' : '';
+                var l = document.createElement('label');
+                l.style.fontWeight = 'normal';
+                l.innerHTML = '<input type="checkbox" name="ticket_type_keys[]" value="' + esc(t.key) + '"' + on + '> ' + esc(t.label || t.key);
+                box.appendChild(l);
+            });
+        }
+        sel.addEventListener('change', function () { SAVED = []; render(); });
+        render();
+    })();
     document.addEventListener('click', function (e) {
         var btn = e.target.closest ? e.target.closest('.oe-copy-link') : null;
         if (!btn) { return; }
