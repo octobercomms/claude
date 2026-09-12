@@ -5,6 +5,28 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.100.0 — Daily start/end time for date-only tours (per-day tickets & calendar)
+
+Adds optional **daily hours** for date-only events that run set times each day —
+e.g. a two-day tour, 10am–4pm on both days, which a single continuous
+start→end datetime can't represent (it would read as one 30-hour overnight
+block).
+
+- Two new mappable fields, **Daily start time** and **Daily end time**
+  (Settings → Event field mapping). Map them to your JetEngine time-of-day
+  fields alongside the existing Start/End date.
+- With them set, the ticket "When" line reads e.g.
+  **"October 3 – 4, 2026 · 10:00 AM – 4:00 PM daily"**, and the calendar invite
+  (Google link + `.ics`) becomes a **timed entry repeated per day**
+  (`RRULE:FREQ=DAILY`), so each day gets its own 10am–4pm slot instead of a
+  continuous block.
+- Times parse from a plain time ("10:00 am", "16:00") or JetEngine's
+  seconds-since-midnight, and are interpreted in the site timezone.
+- No daily times set → the all-day behaviour from 1.99.2 still applies; timed
+  single events are unchanged.
+
+No schema change.
+
 ## 1.99.2 — Date-only events show as all-day, not "12:00 AM" / a midnight–2am slot
 
 When an event has a date but no start time, its `start_datetime` reaches the

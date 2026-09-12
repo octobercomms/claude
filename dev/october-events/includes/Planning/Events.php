@@ -27,6 +27,11 @@ final class Events {
         'name'            => 'text',
         'start_datetime'  => 'text',
         'end_datetime'    => 'text',
+        // Optional daily hours for date-only (often multi-day) events, e.g. a
+        // two-day tour running 10am–4pm each day. Time-of-day only; combined
+        // with the start/end DATE by the ticketing/calendar layer (see Ics).
+        'start_time'      => 'text',
+        'end_time'        => 'text',
         'price'           => 'text',     // "Free", "$25", "From $10" — kept as text
         'location'        => 'text',
         'description'     => 'textarea',

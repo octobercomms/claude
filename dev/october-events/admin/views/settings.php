@@ -50,13 +50,14 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('Optional. If your events store their data in existing (e.g. JetEngine) custom fields, enter those meta keys here so tickets, emails and reports can read the event’s date, price and location. Leave blank if unsure.', 'october-events'); ?></p>
         <?php $fmap = (array) ($cfg['event_field_map'] ?? []); ?>
         <table class="form-table" role="presentation"><tbody>
-            <?php foreach (['start_datetime' => __('Dates & times', 'october-events'), 'end_datetime' => __('End date & time', 'october-events'), 'price' => __('Price', 'october-events'), 'location' => __('Location', 'october-events'), 'organiser' => __('Organiser', 'october-events'), 'description' => __('Description', 'october-events')] as $field => $label) : ?>
+            <?php foreach (['start_datetime' => __('Start date', 'october-events'), 'end_datetime' => __('End date', 'october-events'), 'start_time' => __('Daily start time', 'october-events'), 'end_time' => __('Daily end time', 'october-events'), 'price' => __('Price', 'october-events'), 'location' => __('Location', 'october-events'), 'organiser' => __('Organiser', 'october-events'), 'description' => __('Description', 'october-events')] as $field => $label) : ?>
                 <tr>
                     <th scope="row"><label><?php echo esc_html($label); ?></label></th>
                     <td><input type="text" name="event_field_map[<?php echo esc_attr($field); ?>]" value="<?php echo esc_attr((string) ($fmap[$field] ?? '')); ?>" placeholder="<?php esc_attr_e('existing meta key, e.g. event-date', 'october-events'); ?>" class="regular-text"></td>
                 </tr>
             <?php endforeach; ?>
         </tbody></table>
+        <p class="description"><?php esc_html_e('“Daily start/end time” are for date-only events that run set hours — e.g. a two-day tour, 10am–4pm each day. Map them to your time-of-day fields and tickets show “October 3 – 4, 2026 · 10:00 AM – 4:00 PM daily” with a per-day calendar invite. Leave blank for all-day.', 'october-events'); ?></p>
         </div></details>
 
         <details class="oe-acc" id="volunteer-locations"><summary><?php esc_html_e('Volunteer locations', 'october-events'); ?></summary><div class="oe-acc-body">
