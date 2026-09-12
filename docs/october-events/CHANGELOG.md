@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.104.0 — Animated countdown variant (analog clock)
+
+Adds an optional animated version of the countdown image, on by passing `&anim=1`:
+
+```
+<img src="https://atlantadesignfestival.net/?oe_countdown=1&deadline=2026-09-17T10:00:00-04:00&anim=1">
+```
+
+- An **original** analog clock on the left with hands sweeping (illustrative
+  motion, not real time), and the countdown on one line beside it, e.g.
+  "03 DAYS 05 HRS". Honours `units`, `accent`, `deadline`; static number image
+  stays the default (no `anim`).
+- Animated GIFs play in email from baked-in frames, so the motion survives the
+  Gmail/Apple image proxy that freezes the numbers — it's *decorative* liveness,
+  not a live countdown.
+- Built on GD alone: frames are rendered with GD and stitched into a looping
+  GIF89a in-plugin (no Imagick dependency). 16 frames, ~58KB — heavier than the
+  static image, so use it as a hero, not everywhere.
+
+No schema change.
+
 ## 1.103.1 — Countdown image: no label + days/hours by default
 
 Tweaks the countdown defaults to how it's actually used:
