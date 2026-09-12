@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.101.0 — Promo code in the checkout URL auto-applies
+
+Share a link like `/e/conference/?promo=EARLYBIRD` (or `?code=…`) and the code
+pre-fills the promo field and applies automatically as soon as the buyer adds
+tickets — no typing, no copy-paste. Useful for email campaigns, partner offers
+and member perks.
+
+- Reads `promo`/`code` from the URL, shows "Code EARLYBIRD will apply when you
+  add tickets", then applies once a cart exists (a promo is validated against
+  the selected tickets, so it can't apply to an empty cart).
+- Editing the field cancels the auto-apply. Pricing is still validated and
+  re-priced server-side at pay time, so the link only pre-fills the UI — it
+  can't force an invalid or expired code.
+
+Client-side only (checkout.js); no schema change.
+
 ## 1.100.0 — Daily start/end time for date-only tours (per-day tickets & calendar)
 
 Adds optional **daily hours** for date-only events that run set times each day —

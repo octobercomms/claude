@@ -13,7 +13,7 @@
 
   var state = {
     eventId: 0, ticketTypes: [], cart: [],
-    promoCode: '', discountAmount: 0, promoValid: false,
+    promoCode: '', discountAmount: 0, promoValid: false, pendingPromo: null,
     subtotal: 0, total: 0, stripe: null, cardElement: null,
     processing: false, hasTerms: false,
     // Membership: whether the buyer's email is an active member, the email we
@@ -234,7 +234,34 @@
   function bindPromo() {
     $('#oct-apply-promo').on('click', applyPromo);
     $('#oct-promo').on('keypress', function (e) { if (e.which === 13) { e.preventDefault(); applyPromo(); } });
-    $('#oct-promo').on('input', function () { $(this).val($(this).val().toUpperCase()); });
+    // Editing the field cancels any pending auto-apply from the URL.
+    $('#oct-promo').on('input', function () { $(this).val($(this).val().toUpperCase()); state.pendingPromo = null; });
+    // Pre-fill from a shareable link, e.g. /e/conference/?promo=EARLYBIRD (or
+    // ?code=…). It applies automatically once tickets are in the cart, since a
+    // promo is validated against the selected tickets.
+    var pre = (getParam('promo') || getParam('code') || '').trim().toUpperCase();
+    if (pre) {
+      state.pendingPromo = pre;
+      $('#oct-promo').val(pre);
+      $('#oct-promo-message').removeClass('success error')
+        .text('Code ' + pre + ' will apply when you add tickets.').show();
+    }
+  }
+  // Read a query-string parameter (URLSearchParams with a legacy fallback).
+  function getParam(name) {
+    try { return new URLSearchParams(window.location.search).get(name) || ''; }
+    catch (e) {
+      var m = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.search || '');
+      return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+    }
+  }
+  // Apply a URL-supplied promo once a cart exists. Cleared before applying so the
+  // updateSummary() call inside applyPromo() can't re-enter this.
+  function maybeAutoApplyPromo() {
+    if (!state.pendingPromo || state.promoValid || !cartParam().length) { return; }
+    var code = state.pendingPromo;
+    state.pendingPromo = null;
+    if ($('#oct-promo').val().trim().toUpperCase() === code) { applyPromo(); }
   }
   function cartParam() { return readCart().map(function (c) { return { type_key: c.key, qty: c.qty }; }); }
   function applyPromo() {
@@ -386,6 +413,7 @@
     $('.oct-bnpl-or, #panel-installments').toggle(!joining && displayTotal >= 0.5);
 
     syncMembershipUI();
+    maybeAutoApplyPromo(); // apply a URL-supplied promo now that a cart may exist
   }
 
   /* ---- Free registration ---- */
