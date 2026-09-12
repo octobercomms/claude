@@ -5,6 +5,24 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.108.0 — Fix URL promo codes clearing when a ticket is added
+
+A shareable checkout link with `?promo=CODE` showed "Code … will apply when you
+add tickets", but adding a ticket cleared the field and dropped the code instead
+of applying it.
+
+- **Root cause:** every cart change calls `resetPromo()`, which blanked the promo
+  field; the auto-apply step then compared the code against the now-empty field
+  and gave up.
+- **Fix:** a URL-supplied code is held in state and stays visible across cart
+  changes, re-validating against the current cart until it applies, the buyer
+  edits the field, or the server rejects it. Each distinct cart is attempted once
+  (no request loops), and a ticket-scoped code retries when the matching ticket is
+  added.
+
+Front-end only (`assets/js/checkout.js`); no schema change. Purge any page cache
+(StackCache → Purge) so the updated script is served.
+
 ## 1.107.0 — Countdown fonts: bundled fallback + use the site brand font
 
 Fixes the countdown falling back to GD's bitmap font on hosts with no system
