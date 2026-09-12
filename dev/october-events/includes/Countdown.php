@@ -155,22 +155,50 @@ final class Countdown {
 
     /** Locate a usable bold TTF, or null for the bitmap fallback. */
     private static function font_path(): ?string {
+        if (! function_exists('imagettftext')) {
+            return null; // no FreeType — GD can't render TTF; caller uses the bitmap fallback
+        }
         $candidates = [];
         if (defined('OE_COUNTDOWN_FONT') && OE_COUNTDOWN_FONT) {
             $candidates[] = (string) OE_COUNTDOWN_FONT;
         }
-        $candidates[] = OE_DIR . 'assets/fonts/countdown.ttf';
+        // The site's own brand font (Settings → Branding), bold preferred. GD can
+        // only use a local .ttf/.otf — not .woff/.woff2 or a remote URL.
+        foreach (['theme_font_url_bold', 'theme_font_url'] as $key) {
+            $p = self::local_font_file((string) \OE\Settings::get($key, ''));
+            if ($p !== null) { $candidates[] = $p; }
+        }
+        $candidates[] = OE_DIR . 'assets/fonts/countdown.ttf'; // bundled fallback (always present)
         $candidates[] = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
-        $candidates[] = '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf';
         $candidates[] = '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf';
-        $candidates[] = '/usr/share/fonts/liberation/LiberationSans-Bold.ttf';
-        $candidates[] = '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf';
         foreach ($candidates as $f) {
-            if ($f && is_readable($f) && function_exists('imagettftext')) {
+            if ($f && is_readable($f)) {
                 return $f;
             }
         }
         return null;
+    }
+
+    /** Map an uploaded-font URL to a local .ttf/.otf path GD can read, or null. */
+    private static function local_font_file(string $url): ?string {
+        $url = trim($url);
+        if ($url === '') {
+            return null;
+        }
+        $pathpart = (string) (wp_parse_url($url, PHP_URL_PATH) ?: $url);
+        if (! preg_match('/\.(ttf|otf)$/i', $pathpart)) {
+            return null; // woff/woff2 or other — not usable by GD
+        }
+        $up   = wp_upload_dir();
+        $file = '';
+        if (! empty($up['baseurl']) && strpos($url, $up['baseurl']) === 0) {
+            $file = $up['basedir'] . substr($url, strlen($up['baseurl']));
+        } elseif (function_exists('content_url') && strpos($url, content_url()) === 0) {
+            $file = WP_CONTENT_DIR . substr($url, strlen(content_url()));
+        } elseif ($url[0] === '/') {
+            $file = ABSPATH . ltrim($url, '/');
+        }
+        return ($file !== '' && is_readable($file)) ? $file : null;
     }
 
     /**
