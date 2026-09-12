@@ -5,6 +5,26 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.109.0 — Countdown: background colour + transparency
+
+The countdown image no longer forces the dark `#17140F` panel, so it can sit in
+any email section.
+
+- **Background colour** via a `bg=#rrggbb` param and a colour picker on the
+  generator. Set it to your email's section colour for a seamless placement.
+- **Transparent background** via `bg=transparent` (or `transparent=1`) and a
+  Transparent checkbox. Applies to both the static image and the animated clock
+  (per-frame transparent index with GIF disposal method 2, so the hands don't
+  ghost).
+- The generator preview shows a checkerboard behind a transparent image.
+
+Note: GIF transparency is 1-bit, so antialiased edges blend toward the fill
+colour and can fringe on a very different background. A solid `bg` matching the
+email reads cleanest; transparent is best on dark sections. The pale numerals
+also need a dark background to stay legible.
+
+No schema change. Purge any page cache after updating.
+
 ## 1.108.0 — Fix URL promo codes clearing when a ticket is added
 
 A shareable checkout link with `?promo=CODE` showed "Code … will apply when you
