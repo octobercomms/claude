@@ -46,7 +46,9 @@ final class Countdown {
             exit;
         }
 
-        $deadline = isset($q['deadline']) ? self::parse_ts((string) $q['deadline']) : 0;
+        $deadline = isset($q['deadline'])
+            ? self::parse_ts((string) $q['deadline'], isset($q['tz']) ? (string) $q['tz'] : '')
+            : 0;
         // No label by default — the email supplies its own heading if it wants one.
         $label    = isset($q['label']) ? strtoupper(sanitize_text_field((string) $q['label'])) : '';
         $accent   = isset($q['accent']) ? self::sanitize_hex((string) $q['accent']) : self::ACCENT;
@@ -115,8 +117,8 @@ final class Countdown {
         $col = (int) ((self::W - $pad * 2) / max(1, count($blocks)));
         foreach ($blocks as $i => $b) {
             $x = $pad + $i * $col;
-            self::text($img, $font, 34, $x, $num_y, $cNumber, str_pad((string) $b[0], 2, '0', STR_PAD_LEFT), 0.0);
-            self::text($img, $font, 9, $x + 2, $unit_y, $cAccent, (string) $b[1], 1.5);
+            self::text($img, $font, 46, $x, $num_y, $cNumber, str_pad((string) $b[0], 2, '0', STR_PAD_LEFT), 0.0);
+            self::text($img, $font, 11, $x + 2, $unit_y, $cAccent, (string) $b[1], 1.5);
         }
     }
 
@@ -171,13 +173,22 @@ final class Countdown {
         return null;
     }
 
-    /** Parse an ISO-8601 timestamp (with explicit offset) to a UTC epoch, 0 if bad. */
-    private static function parse_ts(string $val): int {
+    /**
+     * Parse an ISO-8601 timestamp to a UTC epoch, 0 if bad. An explicit offset in
+     * the string wins; otherwise a caller-supplied IANA `$tzname` is used; failing
+     * that, the site timezone. (DST is resolved for the target date either way.)
+     */
+    private static function parse_ts(string $val, string $tzname = ''): int {
         $val = trim($val);
         if ($val === '') { return 0; }
         try {
-            // If no offset is present, interpret in the site timezone.
-            $tz = preg_match('/[zZ]|[+-]\d{2}:?\d{2}$/', $val) ? new \DateTimeZone('UTC') : wp_timezone();
+            if (preg_match('/[zZ]|[+-]\d{2}:?\d{2}$/', $val)) {
+                $tz = new \DateTimeZone('UTC');
+            } elseif ($tzname !== '') {
+                $tz = new \DateTimeZone($tzname);
+            } else {
+                $tz = wp_timezone();
+            }
             return (new \DateTime($val, $tz))->getTimestamp();
         } catch (\Exception $e) {
             $t = strtotime($val);
