@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.103.1 — Countdown image: no label + days/hours by default
+
+Tweaks the countdown defaults to how it's actually used:
+
+- **No label by default.** The image no longer draws "OFFER EXPIRES IN" — the
+  email adds its own heading. Pass `&label=…` to draw one; the blocks centre
+  vertically when there's none.
+- **Days + hours by default** (`units=dh`). Seconds are dropped unless asked for
+  (`units=dhms`), because the proxy-cached email image freezes them.
+
+No schema change.
+
 ## 1.103.0 — Countdown image for emails
 
 A GIF endpoint that renders the time remaining until a deadline, embeddable as a

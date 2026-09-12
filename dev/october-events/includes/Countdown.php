@@ -47,10 +47,13 @@ final class Countdown {
         }
 
         $deadline = isset($q['deadline']) ? self::parse_ts((string) $q['deadline']) : 0;
-        $label    = isset($q['label']) ? strtoupper(sanitize_text_field((string) $q['label'])) : __('OFFER EXPIRES IN', 'october-events');
+        // No label by default — the email supplies its own heading if it wants one.
+        $label    = isset($q['label']) ? strtoupper(sanitize_text_field((string) $q['label'])) : '';
         $accent   = isset($q['accent']) ? self::sanitize_hex((string) $q['accent']) : self::ACCENT;
-        $units    = isset($q['units']) ? preg_replace('/[^dhms]/', '', strtolower((string) $q['units'])) : 'dhms';
-        if ($units === '') { $units = 'dhms'; }
+        // Days + hours by default: in email the image is proxy-cached at delivery,
+        // so seconds never tick for the recipient — showing them reads as broken.
+        $units    = isset($q['units']) ? preg_replace('/[^dhms]/', '', strtolower((string) $q['units'])) : 'dh';
+        if ($units === '') { $units = 'dh'; }
 
         $img  = imagecreatetruecolor(self::W, self::H);
         $bg   = self::color($img, self::BG);
@@ -69,11 +72,16 @@ final class Countdown {
     }
 
     private static function draw_countdown($img, ?string $font, string $accent, string $label, int $secs, string $units): void {
-        $cLabel  = self::color($img, self::LABEL);
         $cNumber = self::color($img, self::NUMBER);
         $cAccent = self::color($img, $accent);
 
-        self::text($img, $font, 11, 28, 34, $cLabel, $label, 3.0);
+        $has_label = $label !== '';
+        if ($has_label) {
+            self::text($img, $font, 11, 28, 34, self::color($img, self::LABEL), $label, 3.0);
+        }
+        // Sit lower when a label is present; otherwise centre the blocks vertically.
+        $num_y  = $has_label ? 92 : 82;
+        $unit_y = $has_label ? 112 : 104;
 
         $days = intdiv($secs, 86400);
         $hrs  = intdiv($secs % 86400, 3600);
@@ -95,8 +103,8 @@ final class Countdown {
         $col = (int) ((self::W - $pad * 2) / max(1, count($blocks)));
         foreach ($blocks as $i => $b) {
             $x = $pad + $i * $col;
-            self::text($img, $font, 34, $x, 92, $cNumber, str_pad((string) $b[0], 2, '0', STR_PAD_LEFT), 0.0);
-            self::text($img, $font, 9, $x + 2, 112, $cAccent, (string) $b[1], 1.5);
+            self::text($img, $font, 34, $x, $num_y, $cNumber, str_pad((string) $b[0], 2, '0', STR_PAD_LEFT), 0.0);
+            self::text($img, $font, 9, $x + 2, $unit_y, $cAccent, (string) $b[1], 1.5);
         }
     }
 
