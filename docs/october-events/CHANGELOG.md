@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.107.0 — Countdown fonts: bundled fallback + use the site brand font
+
+Fixes the countdown falling back to GD's bitmap font on hosts with no system
+TrueType font (which also stopped the animated clock building, since it needs a
+font):
+
+- **Bundled a fallback TTF** in the plugin (`assets/fonts/countdown.ttf`), so the
+  countdown always has a real font and the animated clock renders on any host.
+- **Uses the site's brand font** from Settings → Branding when it's a **local
+  `.ttf`/`.otf`** (bold preferred). GD can't read `.woff`/`.woff2` or remote
+  URLs, so upload a desktop `.ttf`/`.otf` weight of the brand font for it to
+  appear in the image. `OE_COUNTDOWN_FONT` still overrides everything.
+
+No schema change.
+
 ## 1.106.0 — Countdown: timezone picker + bigger numbers
 
 - **Timezone selector** on the generator (and a `tz` IANA param on the endpoint):
