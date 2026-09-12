@@ -81,7 +81,8 @@ Holding the data and marketing to it are different things:
 - **UK/EU (GDPR):** marketing needs explicit, unbundled opt-in. "You registered so
   you are on our list" is not valid consent.
 
-Approach that works everywhere and protects deliverability:
+Decided: **explicit unticked marketing opt-in**, applied to everyone (GDPR-safe,
+CAN-SPAM compliant, keeps the list engaged and deliverable).
 
 - An **unticked marketing opt-in** at registration ("Keep me posted on future
   Atlanta Design Festival events").
@@ -180,10 +181,10 @@ Ship 1 and 2 before touching 3.
    vs per-registration.
 3. **Edit after publish** — does changing date/price re-trigger review?
    (Recommendation: no.)
-4. **Marketing consent model** — explicit unticked opt-in everywhere
-   (recommended, GDPR-safe) vs CAN-SPAM add-with-unsubscribe for US-only
-   audiences. And whether organisers may ever market to their own attendees or
-   only download the CSV.
+
+Decided: marketing consent is **explicit unticked opt-in** for everyone.
+Organisers get the CSV download only; the marketing relationship stays October's
+unless separately agreed.
 
 ## 12. Risks
 
