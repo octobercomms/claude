@@ -25,9 +25,21 @@ final class Ics {
             return '';
         }
         $endRaw = self::ts((string) Events::get($event_id, 'end_datetime', ''));
-        // Date-only events (no time set → midnight) become all-day entries rather
-        // than a misleading midnight → +2h slot.
-        if (self::is_all_day($start, $endRaw)) {
+        $rrule  = '';
+        $model  = self::daily_model($event_id, $start, $endRaw);
+        if ($model && $model['start']) {
+            // Date-only with daily hours: a timed occurrence, repeated per day for
+            // a multi-day tour (RRULE), so calendars show 10am–4pm on each day and
+            // never one continuous overnight block.
+            $es      = $model['start'];
+            $ee      = $model['end'] ?: ($es + 2 * HOUR_IN_SECONDS);
+            $dtstart = 'DTSTART:' . gmdate('Ymd\THis\Z', $es);
+            $dtend   = 'DTEND:' . gmdate('Ymd\THis\Z', $ee);
+            if ($model['days'] > 1) {
+                $rrule = 'RRULE:FREQ=DAILY;COUNT=' . $model['days'];
+            }
+        } elseif (self::is_all_day($start, $endRaw)) {
+            // Date-only, no hours → an all-day entry rather than a midnight → +2h slot.
             $lastDay = ($endRaw && $endRaw > $start) ? $endRaw : $start;
             $dtstart = 'DTSTART;VALUE=DATE:' . wp_date('Ymd', $start);
             $dtend   = 'DTEND;VALUE=DATE:' . wp_date('Ymd', $lastDay + DAY_IN_SECONDS);
@@ -56,6 +68,9 @@ final class Ics {
             $dtend,
             'SUMMARY:' . self::esc($name),
         ];
+        if ($rrule !== '') {
+            $lines[] = $rrule;
+        }
         if ($location !== '') {
             $lines[] = 'LOCATION:' . self::esc($location);
         }
@@ -130,6 +145,21 @@ final class Ics {
         $e = self::ts((string) Events::get($event_id, 'end_datetime', ''));
         // No time set (midnight) → show the date without a misleading "12:00 AM".
         if (self::is_all_day($s, $e)) {
+            $model = self::daily_model($event_id, $s, $e);
+            // Date-only, but daily hours are set: "October 3 – 4, 2026 · 10:00 AM – 4:00 PM daily".
+            if ($model && $model['start']) {
+                $out = ($model['days'] > 1 && $e)
+                    ? wp_date('F j', $s) . ' – ' . wp_date('F j, Y', $e)
+                    : wp_date('F j, Y', $s);
+                $out .= ' · ' . wp_date('g:i A', $model['start']);
+                if ($model['end']) {
+                    $out .= ' – ' . wp_date('g:i A', $model['end']);
+                }
+                if ($model['days'] > 1) {
+                    $out .= ' ' . __('daily', 'october-events');
+                }
+                return $out;
+            }
             $out = wp_date('F j, Y', $s);
             if ($e && $e > $s && wp_date('Y-m-d', $e) !== wp_date('Y-m-d', $s)) {
                 $out .= ' – ' . wp_date('F j, Y', $e);
@@ -163,10 +193,20 @@ final class Ics {
         if (! $start) {
             return '';
         }
-        $end = self::ts((string) Events::get($event_id, 'end_datetime', ''));
-        // Date-only event → an all-day Google Calendar entry (YYYYMMDD range, end
-        // exclusive), not a midnight → +2h slot.
-        if (self::is_all_day($start, $end)) {
+        $end   = self::ts((string) Events::get($event_id, 'end_datetime', ''));
+        $recur = '';
+        $model = self::daily_model($event_id, $start, $end);
+        if ($model && $model['start']) {
+            // Date-only with daily hours → a timed entry, repeated per day for a
+            // multi-day tour (so it's not one continuous overnight block).
+            $gs    = $model['start'];
+            $ge    = $model['end'] ?: ($gs + 2 * HOUR_IN_SECONDS);
+            $dates = gmdate('Ymd\THis\Z', $gs) . '/' . gmdate('Ymd\THis\Z', $ge);
+            if ($model['days'] > 1) {
+                $recur = 'RRULE:FREQ=DAILY;COUNT=' . $model['days'];
+            }
+        } elseif (self::is_all_day($start, $end)) {
+            // Date-only, no hours → an all-day entry (YYYYMMDD range, end exclusive).
             $lastDay = ($end && $end > $start) ? $end : $start;
             $dates   = wp_date('Ymd', $start) . '/' . wp_date('Ymd', $lastDay + DAY_IN_SECONDS);
         } else {
@@ -181,6 +221,9 @@ final class Ics {
             'text'   => $name,
             'dates'  => $dates,
         ];
+        if ($recur !== '') {
+            $args['recur'] = $recur;
+        }
         $loc = (string) Events::get($event_id, 'location', '');
         if ($loc !== '') {
             $args['location'] = $loc;
@@ -209,6 +252,74 @@ final class Ics {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Daily-hours model for a date-only event that runs set hours each day, e.g.
+     * a two-day tour 10am–4pm on both days (which a single continuous start→end
+     * datetime cannot represent). Returns null unless the event is date-only AND
+     * a daily start time is mapped/set. Otherwise:
+     *   ['start' => first-day start epoch, 'end' => first-day end epoch (0 if none),
+     *    'days'  => number of calendar days the hours repeat over]
+     * The calendar layers turn 'days' > 1 into an RRULE:FREQ=DAILY;COUNT so each
+     * day gets its own timed occurrence rather than one long block.
+     *
+     * @param int $start Parsed start-date epoch. @param int $end Parsed end-date epoch (0 if none).
+     * @return array{start:int,end:int,days:int}|null
+     */
+    private static function daily_model(int $event_id, int $start, int $end): ?array {
+        if (! self::is_all_day($start, $end)) {
+            return null;
+        }
+        $sSecs = self::time_to_seconds((string) Events::get($event_id, 'start_time', ''));
+        if ($sSecs === null) {
+            return null;
+        }
+        $eSecs   = self::time_to_seconds((string) Events::get($event_id, 'end_time', ''));
+        $dayStr  = wp_date('Y-m-d', $start);
+        $first_s = self::ts($dayStr . ' ' . self::secs_hhmm($sSecs));
+        $first_e = ($eSecs !== null && $eSecs > $sSecs) ? self::ts($dayStr . ' ' . self::secs_hhmm($eSecs)) : 0;
+        $days    = ($end && $end > $start) ? self::day_count($start, $end) : 1;
+        return ['start' => $first_s, 'end' => $first_e, 'days' => max(1, $days)];
+    }
+
+    /** Inclusive number of calendar days (site timezone) from one epoch to another. */
+    private static function day_count(int $start, int $end): int {
+        try {
+            $tz = wp_timezone();
+            $a  = (new \DateTime('@' . $start))->setTimezone($tz)->setTime(0, 0);
+            $b  = (new \DateTime('@' . $end))->setTimezone($tz)->setTime(0, 0);
+            return (int) $a->diff($b)->days + 1;
+        } catch (\Exception $e) {
+            return 1;
+        }
+    }
+
+    /** Parse a time-of-day (e.g. "10:00 am", "16:00", or seconds-since-midnight) to seconds, or null. */
+    private static function time_to_seconds(string $val): ?int {
+        $val = trim($val);
+        if ($val === '') {
+            return null;
+        }
+        if (ctype_digit($val)) {
+            $n = (int) $val;
+            if ($n >= 0 && $n < DAY_IN_SECONDS) {
+                return $n; // JetEngine time fields store seconds since midnight
+            }
+            return ((int) wp_date('G', $n)) * 3600 + ((int) wp_date('i', $n)) * 60; // a full epoch → its local time-of-day
+        }
+        // Parse the wall-clock time-of-day directly, with no timezone in play
+        // (strtotime + gmdate would shift it by the site's UTC offset).
+        $p = date_parse($val);
+        if (! empty($p['error_count']) || ! is_int($p['hour'] ?? null)) {
+            return null;
+        }
+        return $p['hour'] * 3600 + (int) ($p['minute'] ?: 0) * 60;
+    }
+
+    /** Seconds-since-midnight → "HH:MM" (24h) for recombining with a date. */
+    private static function secs_hhmm(int $secs): string {
+        return sprintf('%02d:%02d', intdiv($secs, 3600), intdiv($secs % 3600, 60));
     }
 
     /** Parse a local datetime string (site timezone) to a UTC timestamp, 0 if unparseable. */
