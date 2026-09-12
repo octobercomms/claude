@@ -55,6 +55,18 @@ final class Countdown {
         $units    = isset($q['units']) ? preg_replace('/[^dhms]/', '', strtolower((string) $q['units'])) : 'dh';
         if ($units === '') { $units = 'dh'; }
 
+        // Animated variant (&anim=1): an illustrative analog clock on the left with
+        // the countdown on one line beside it. GD can't write animated GIFs, so we
+        // render each frame with GD and stitch them (self::assemble_gif). Falls
+        // through to the static image if it can't build one.
+        if (! empty($q['anim']) && $deadline && $deadline > time()) {
+            $gif = self::build_animated($accent, $deadline - time(), $units);
+            if ($gif !== '') {
+                echo $gif;
+                exit;
+            }
+        }
+
         $img  = imagecreatetruecolor(self::W, self::H);
         $bg   = self::color($img, self::BG);
         imagefilledrectangle($img, 0, 0, self::W, self::H, $bg);
@@ -176,6 +188,195 @@ final class Countdown {
     private static function sanitize_hex(string $h): string {
         $h = ltrim(trim($h), '#');
         return preg_match('/^[0-9a-fA-F]{6}$/', $h) ? '#' . $h : self::ACCENT;
+    }
+
+    /* ---------------------------------------------------------------- *
+     * Animated variant: an original analog clock (not any branded clock
+     * face) with hands sweeping at illustrative — not real — speeds, plus
+     * the countdown on one line. Rendered per-frame with GD and stitched
+     * into a looping GIF89a by self::assemble_gif().
+     * ---------------------------------------------------------------- */
+
+    private const ANIM_FRAMES = 16;
+    private const ANIM_DELAY  = 9; // centiseconds per frame (~0.09s)
+
+    /** Build the looping GIF, or '' if it can't (GD/GIF missing, no font). */
+    private static function build_animated(string $accent, int $secs, string $units): string {
+        if (! function_exists('imagegif') || ! function_exists('imagettftext') || ! self::font_path()) {
+            return '';
+        }
+        $blocks = self::blocks_for($secs, $units);
+        $parts  = [];
+        for ($i = 0; $i < self::ANIM_FRAMES; $i++) {
+            $frame = self::draw_anim_frame($accent, $blocks, $i);
+            ob_start();
+            imagegif($frame);
+            $parts[] = ob_get_clean();
+            imagedestroy($frame);
+        }
+        return self::assemble_gif($parts, self::ANIM_DELAY);
+    }
+
+    /** @return array<array{0:string,1:string}> [[number, unit-label], …] for the given units. */
+    private static function blocks_for(int $secs, string $units): array {
+        $all = [
+            'd' => [intdiv($secs, 86400),        __('DAYS', 'october-events')],
+            'h' => [intdiv($secs % 86400, 3600), __('HRS', 'october-events')],
+            'm' => [intdiv($secs % 3600, 60),    __('MIN', 'october-events')],
+            's' => [$secs % 60,                  __('SEC', 'october-events')],
+        ];
+        $out = [];
+        foreach (str_split($units) as $u) {
+            if (isset($all[$u])) {
+                $out[] = [str_pad((string) $all[$u][0], 2, '0', STR_PAD_LEFT), (string) $all[$u][1]];
+            }
+        }
+        return $out ?: [['00', __('DAYS', 'october-events')]];
+    }
+
+    /** Draw one frame at 2× and downscale for smooth edges; returns a GD image. */
+    private static function draw_anim_frame(string $accent, array $blocks, int $i) {
+        $s   = 2;
+        $w   = self::W * $s;
+        $h   = self::H * $s;
+        $big = imagecreatetruecolor($w, $h);
+        imagefilledrectangle($big, 0, 0, $w, $h, self::color($big, self::BG));
+        $num   = self::color($big, self::NUMBER);
+        $acc   = self::color($big, $accent);
+        $faint = self::color($big, '#5A5444');
+        $font  = self::font_path();
+
+        $cx = 66 * $s;
+        $cy = 65 * $s;
+        $r  = 50 * $s;
+
+        // Clock face: uniform tick marks, bold every five (an original face).
+        for ($m = 0; $m < 60; $m++) {
+            $a    = deg2rad($m * 6);
+            $bold = ($m % 5 === 0);
+            $r1   = $r - ($bold ? 11 * $s : 5 * $s);
+            imagesetthickness($big, $bold ? 3 * $s : 1 * $s);
+            imageline(
+                $big,
+                (int) ($cx + $r1 * sin($a)), (int) ($cy - $r1 * cos($a)),
+                (int) ($cx + $r * sin($a)),  (int) ($cy - $r * cos($a)),
+                $bold ? $num : $faint
+            );
+        }
+
+        // Hands — illustrative speeds, all visibly moving over the loop.
+        $step = 360 / self::ANIM_FRAMES;
+        self::hand($big, $cx, $cy, $i * $step * 0.25, $r * 0.50, 6 * $s, $num); // hour
+        self::hand($big, $cx, $cy, $i * $step * 0.60, $r * 0.72, 4 * $s, $num); // minute
+        self::hand($big, $cx, $cy, $i * $step,        $r * 0.82, 2 * $s, $acc); // second
+        imagefilledellipse($big, $cx, $cy, 8 * $s, 8 * $s, $num);
+        imagesetthickness($big, 1);
+
+        // One-line countdown to the right of the clock.
+        $x = 130 * $s;
+        foreach ($blocks as $b) {
+            $x += self::ttf_center($big, $font, 40 * $s, $x, $cy, $num, $b[0]) + 8 * $s;
+            $x += self::ttf_center($big, $font, 13 * $s, $x, $cy + 4 * $s, $acc, $b[1]) + 22 * $s;
+        }
+
+        $out = imagecreatetruecolor(self::W, self::H);
+        imagecopyresampled($out, $big, 0, 0, 0, 0, self::W, self::H, $w, $h);
+        imagedestroy($big);
+        imagetruecolortopalette($out, false, 64); // smaller frames
+        return $out;
+    }
+
+    private static function hand($img, int $cx, int $cy, float $deg, float $len, int $width, int $color): void {
+        $a = deg2rad($deg);
+        imagesetthickness($img, $width);
+        imageline($img, $cx, $cy, (int) ($cx + $len * sin($a)), (int) ($cy - $len * cos($a)), $color);
+    }
+
+    /** Draw left-aligned text vertically centred on $cy; returns its advance width. */
+    private static function ttf_center($img, string $font, int $size, int $x, int $cy, int $color, string $text): int {
+        $bb = imagettfbbox($size, 0, $font, $text);
+        $y  = (int) round($cy - ($bb[7] + $bb[1]) / 2);
+        imagettftext($img, $size, 0, $x, $y, $color, $font, $text);
+        return $bb[2] - $bb[0];
+    }
+
+    /**
+     * Stitch single-frame GIFs (from imagegif) into one looping GIF89a. Each
+     * frame keeps its own colour table as a local table; a Netscape 2.0 block
+     * sets the infinite loop. Minimal by design — inputs are our own GD frames.
+     */
+    private static function assemble_gif(array $frames, int $delay_cs): string {
+        if (! $frames) { return ''; }
+        [$w, $h] = self::gif_size($frames[0]);
+        // Header + logical screen descriptor (no global colour table — per-frame).
+        $out  = 'GIF89a';
+        $out .= pack('v', $w) . pack('v', $h) . chr(0x00) . chr(0x00) . chr(0x00);
+        // Netscape looping extension (0 = forever).
+        $out .= "\x21\xFF\x0BNETSCAPE2.0\x03\x01\x00\x00\x00";
+        foreach ($frames as $f) {
+            $p = self::frame_parts($f);
+            if ($p === null) { continue; }
+            // Graphic Control Extension: delay + disposal "do not dispose".
+            $out .= "\x21\xF9\x04" . chr(0x04) . pack('v', $delay_cs) . chr(0x00) . chr(0x00);
+            // Image descriptor with a local colour table flag/size.
+            $out .= "\x2C" . pack('v', 0) . pack('v', 0) . pack('v', $p['w']) . pack('v', $p['h'])
+                 . chr(0x80 | ($p['ctbits'] & 0x07));
+            $out .= $p['ct'];   // local colour table
+            $out .= $p['data']; // LZW min-code-size byte + image sub-blocks
+        }
+        return $out . "\x3B";
+    }
+
+    /** Width/height from a GIF's logical screen descriptor. */
+    private static function gif_size(string $gif): array {
+        return [ord($gif[6]) | (ord($gif[7]) << 8), ord($gif[8]) | (ord($gif[9]) << 8)];
+    }
+
+    /** Pull the colour table + image data out of a single-frame GIF, or null. */
+    private static function frame_parts(string $gif): ?array {
+        $len = strlen($gif);
+        if ($len < 14 || substr($gif, 0, 3) !== 'GIF') { return null; }
+        $p      = 10;
+        $packed = ord($gif[10]);
+        $p      = 13;
+        $gct    = '';
+        $gbits  = 0;
+        if ($packed & 0x80) {
+            $gbits = $packed & 0x07;
+            $sz    = 3 * (1 << ($gbits + 1));
+            $gct   = substr($gif, $p, $sz);
+            $p    += $sz;
+        }
+        // Walk to the image descriptor (0x2C), skipping any extension blocks.
+        while ($p < $len) {
+            $b = ord($gif[$p]);
+            if ($b === 0x21) {
+                $p += 2;
+                while ($p < $len && ($sub = ord($gif[$p])) !== 0) { $p += 1 + $sub; }
+                $p += 1;
+            } elseif ($b === 0x2C) {
+                break;
+            } else {
+                return null;
+            }
+        }
+        if ($p >= $len || ord($gif[$p]) !== 0x2C) { return null; }
+        $idpacked = ord($gif[$p + 9]);
+        $iw       = ord($gif[$p + 5]) | (ord($gif[$p + 6]) << 8);
+        $ih       = ord($gif[$p + 7]) | (ord($gif[$p + 8]) << 8);
+        $p       += 10;
+        $ct       = $gct;
+        $ctbits   = $gbits;
+        if ($idpacked & 0x80) { // frame carries its own local table
+            $ctbits = $idpacked & 0x07;
+            $sz     = 3 * (1 << ($ctbits + 1));
+            $ct     = substr($gif, $p, $sz);
+            $p     += $sz;
+        }
+        $end  = strrpos($gif, "\x3B");
+        $data = substr($gif, $p, ($end === false ? $len : $end) - $p);
+        if ($ct === '' || $data === '') { return null; }
+        return ['w' => $iw, 'h' => $ih, 'ct' => $ct, 'ctbits' => $ctbits, 'data' => $data];
     }
 
     /** Allocate a colour from #rrggbb on the image. */
