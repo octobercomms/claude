@@ -59,6 +59,14 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
                     <td><input type="color" id="oe-cd-accent" value="#C15A2C"></td>
                 </tr>
                 <tr>
+                    <th scope="row"><label for="oe-cd-bg"><?php esc_html_e('Background', 'october-events'); ?></label></th>
+                    <td>
+                        <input type="color" id="oe-cd-bg" value="#17140F">
+                        <label style="margin-left:10px"><input type="checkbox" id="oe-cd-transparent"> <?php esc_html_e('Transparent', 'october-events'); ?></label>
+                        <p class="description" style="margin-top:6px;max-width:340px"><?php esc_html_e('Set this to your email section colour for a seamless fit. Transparent works too, but 1-bit GIF edges can fringe on a different colour, so a matched solid colour reads cleanest.', 'october-events'); ?></p>
+                    </td>
+                </tr>
+                <tr>
                     <th scope="row"><?php esc_html_e('Style', 'october-events'); ?></th>
                     <td>
                         <label><input type="radio" name="oe-cd-style" value="static" checked> <?php esc_html_e('Static numbers', 'october-events'); ?></label><br>
@@ -88,8 +96,10 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
         var BASE = <?php echo wp_json_encode($base); ?>;
         var el = function (id) { return document.getElementById(id); };
         var deadline = el('oe-cd-deadline'), units = el('oe-cd-units'), label = el('oe-cd-label'),
-            accent = el('oe-cd-accent'), tz = el('oe-cd-tz'), img = el('oe-cd-preview'), urlBox = el('oe-cd-url'),
-            dl = el('oe-cd-download'), copy = el('oe-cd-copy');
+            accent = el('oe-cd-accent'), tz = el('oe-cd-tz'), bg = el('oe-cd-bg'), transparent = el('oe-cd-transparent'),
+            img = el('oe-cd-preview'), urlBox = el('oe-cd-url'), dl = el('oe-cd-download'), copy = el('oe-cd-copy');
+        // A checkerboard behind the preview so a transparent image is legible.
+        var CHECKER = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\'%3E%3Crect width=\'20\' height=\'20\' fill=\'%23fff\'/%3E%3Crect width=\'10\' height=\'10\' fill=\'%23e0e0e0\'/%3E%3Crect x=\'10\' y=\'10\' width=\'10\' height=\'10\' fill=\'%23e0e0e0\'/%3E%3C/svg%3E")';
 
         function style() {
             var r = document.querySelector('input[name="oe-cd-style"]:checked');
@@ -107,6 +117,10 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
             if (tz.value) { p.set('tz', tz.value); }
             if (label.value.trim()) { p.set('label', label.value.trim()); }
             if (accent.value) { p.set('accent', accent.value); }
+            // Background: transparent knocks it out (blending edges toward the
+            // chosen colour); otherwise a solid fill of that colour.
+            if (transparent.checked) { p.set('transparent', '1'); }
+            if (bg.value) { p.set('bg', bg.value); }
             if (style() === 'anim') { p.set('anim', '1'); }
             if (bust) { p.set('_', String(Date.now())); }
             return BASE + '?' + p.toString();
@@ -117,8 +131,11 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
             var bust = build(true);
             img.src = bust;
             dl.href = bust; // fresh render on download
+            // Show the checkerboard only when the image is transparent.
+            var box = img.parentNode;
+            if (box) { box.style.background = transparent.checked ? CHECKER : '#f3eee1'; }
         }
-        [deadline, units, label, accent, tz].forEach(function (n) {
+        [deadline, units, label, accent, tz, bg, transparent].forEach(function (n) {
             n.addEventListener('input', refresh);
             n.addEventListener('change', refresh);
         });

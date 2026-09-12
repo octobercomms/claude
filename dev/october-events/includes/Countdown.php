@@ -57,12 +57,26 @@ final class Countdown {
         $units    = isset($q['units']) ? preg_replace('/[^dhms]/', '', strtolower((string) $q['units'])) : 'dh';
         if ($units === '') { $units = 'dh'; }
 
+        // Background. Defaults to the dark panel; set `bg` to your email's section
+        // colour for a seamless placement, or `bg=transparent` (or transparent=1)
+        // to knock the background out. GIF transparency is 1-bit, so antialiased
+        // edges blend toward the fill colour — a solid `bg` matching the email
+        // reads cleanest; transparent may show a faint edge on a different colour.
+        $transparent = ! empty($q['transparent']) && (string) $q['transparent'] !== '0';
+        $bgraw       = isset($q['bg']) ? strtolower(trim((string) $q['bg'])) : '';
+        if ($bgraw === 'transparent' || $bgraw === 'none') {
+            $transparent = true;
+            $bgspec      = self::BG; // matte the edges blend toward
+        } else {
+            $bgspec = self::sanitize_bg($bgraw);
+        }
+
         // Animated variant (&anim=1): an illustrative analog clock on the left with
         // the countdown on one line beside it. GD can't write animated GIFs, so we
         // render each frame with GD and stitch them (self::assemble_gif). Falls
         // through to the static image if it can't build one.
         if (! empty($q['anim']) && $deadline && $deadline > time()) {
-            $gif = self::build_animated($accent, $deadline - time(), $units);
+            $gif = self::build_animated($accent, $deadline - time(), $units, $bgspec, $transparent);
             if ($gif !== '') {
                 echo $gif;
                 exit;
@@ -70,8 +84,7 @@ final class Countdown {
         }
 
         $img  = imagecreatetruecolor(self::W, self::H);
-        $bg   = self::color($img, self::BG);
-        imagefilledrectangle($img, 0, 0, self::W, self::H, $bg);
+        imagefilledrectangle($img, 0, 0, self::W, self::H, self::color($img, $bgspec));
         $font = self::font_path();
 
         if (! $deadline || $deadline <= time()) {
@@ -80,9 +93,25 @@ final class Countdown {
             self::draw_countdown($img, $font, $accent, $label, $deadline - time(), $units);
         }
 
+        self::output_gif($img, $bgspec, $transparent);
+        exit;
+    }
+
+    /**
+     * Emit a GD image as a GIF. When $transparent, flatten to a palette (no
+     * dither, so the fill stays one solid colour) and knock out the fill colour
+     * as the transparent index. Destroys the image.
+     */
+    private static function output_gif($img, string $bgspec, bool $transparent): void {
+        if ($transparent) {
+            [$r, $g, $b] = self::rgb($bgspec);
+            imagetruecolortopalette($img, false, 255);
+            $idx = imagecolorexact($img, $r, $g, $b);
+            if ($idx < 0) { $idx = imagecolorclosest($img, $r, $g, $b); }
+            if ($idx >= 0) { imagecolortransparent($img, $idx); }
+        }
         imagegif($img);
         imagedestroy($img);
-        exit;
     }
 
     private static function draw_countdown($img, ?string $font, string $accent, string $label, int $secs, string $units): void {
@@ -229,6 +258,12 @@ final class Countdown {
         return preg_match('/^[0-9a-fA-F]{6}$/', $h) ? '#' . $h : self::ACCENT;
     }
 
+    /** Background colour: a valid #rrggbb, else the default dark panel. */
+    private static function sanitize_bg(string $h): string {
+        $h = ltrim(trim($h), '#');
+        return preg_match('/^[0-9a-fA-F]{6}$/', $h) ? '#' . $h : self::BG;
+    }
+
     /* ---------------------------------------------------------------- *
      * Animated variant: an original analog clock (not any branded clock
      * face) with hands sweeping at illustrative — not real — speeds, plus
@@ -240,20 +275,32 @@ final class Countdown {
     private const ANIM_DELAY  = 9; // centiseconds per frame (~0.09s)
 
     /** Build the looping GIF, or '' if it can't (GD/GIF missing, no font). */
-    private static function build_animated(string $accent, int $secs, string $units): string {
+    private static function build_animated(string $accent, int $secs, string $units, string $bgspec, bool $transparent): string {
         if (! function_exists('imagegif') || ! function_exists('imagettftext') || ! self::font_path()) {
             return '';
         }
         $blocks = self::blocks_for($secs, $units);
-        $parts  = [];
+        [$r, $g, $b] = self::rgb($bgspec);
+        $parts   = [];
+        $tindex  = [];
         for ($i = 0; $i < self::ANIM_FRAMES; $i++) {
-            $frame = self::draw_anim_frame($accent, $blocks, $i);
+            $frame = self::draw_anim_frame($accent, $blocks, $i, $bgspec);
+            // The frame is already a palette image; find the fill's index so the
+            // GIF can flag it transparent (per-frame — GD may order palettes
+            // differently each frame).
+            if ($transparent) {
+                $idx = imagecolorexact($frame, $r, $g, $b);
+                if ($idx < 0) { $idx = imagecolorclosest($frame, $r, $g, $b); }
+                $tindex[] = $idx;
+            } else {
+                $tindex[] = -1;
+            }
             ob_start();
             imagegif($frame);
             $parts[] = ob_get_clean();
             imagedestroy($frame);
         }
-        return self::assemble_gif($parts, self::ANIM_DELAY);
+        return self::assemble_gif($parts, self::ANIM_DELAY, $tindex);
     }
 
     /** @return array<array{0:string,1:string}> [[number, unit-label], …] for the given units. */
@@ -274,12 +321,12 @@ final class Countdown {
     }
 
     /** Draw one frame at 2× and downscale for smooth edges; returns a GD image. */
-    private static function draw_anim_frame(string $accent, array $blocks, int $i) {
+    private static function draw_anim_frame(string $accent, array $blocks, int $i, string $bgspec = self::BG) {
         $s   = 2;
         $w   = self::W * $s;
         $h   = self::H * $s;
         $big = imagecreatetruecolor($w, $h);
-        imagefilledrectangle($big, 0, 0, $w, $h, self::color($big, self::BG));
+        imagefilledrectangle($big, 0, 0, $w, $h, self::color($big, $bgspec));
         $num   = self::color($big, self::NUMBER);
         $acc   = self::color($big, $accent);
         $faint = self::color($big, '#5A5444');
@@ -343,8 +390,14 @@ final class Countdown {
      * Stitch single-frame GIFs (from imagegif) into one looping GIF89a. Each
      * frame keeps its own colour table as a local table; a Netscape 2.0 block
      * sets the infinite loop. Minimal by design — inputs are our own GD frames.
+     *
+     * $tindex[$k] >= 0 marks that frame's transparent colour index: the GCE then
+     * flags transparency and uses disposal method 2 (restore to background) so
+     * the moving hands don't leave a trail through the cleared pixels.
+     *
+     * @param array<int,int> $tindex Per-frame transparent index, or -1 for none.
      */
-    private static function assemble_gif(array $frames, int $delay_cs): string {
+    private static function assemble_gif(array $frames, int $delay_cs, array $tindex = []): string {
         if (! $frames) { return ''; }
         [$w, $h] = self::gif_size($frames[0]);
         // Header + logical screen descriptor (no global colour table — per-frame).
@@ -352,11 +405,17 @@ final class Countdown {
         $out .= pack('v', $w) . pack('v', $h) . chr(0x00) . chr(0x00) . chr(0x00);
         // Netscape looping extension (0 = forever).
         $out .= "\x21\xFF\x0BNETSCAPE2.0\x03\x01\x00\x00\x00";
-        foreach ($frames as $f) {
+        foreach ($frames as $k => $f) {
             $p = self::frame_parts($f);
             if ($p === null) { continue; }
-            // Graphic Control Extension: delay + disposal "do not dispose".
-            $out .= "\x21\xF9\x04" . chr(0x04) . pack('v', $delay_cs) . chr(0x00) . chr(0x00);
+            $ti = isset($tindex[$k]) ? (int) $tindex[$k] : -1;
+            if ($ti >= 0) {
+                // Disposal 2 (restore to background) + transparent colour flag.
+                $out .= "\x21\xF9\x04" . chr(0x09) . pack('v', $delay_cs) . chr($ti & 0xFF) . chr(0x00);
+            } else {
+                // Delay + disposal "do not dispose", no transparency.
+                $out .= "\x21\xF9\x04" . chr(0x04) . pack('v', $delay_cs) . chr(0x00) . chr(0x00);
+            }
             // Image descriptor with a local colour table flag/size.
             $out .= "\x2C" . pack('v', 0) . pack('v', 0) . pack('v', $p['w']) . pack('v', $p['h'])
                  . chr(0x80 | ($p['ctbits'] & 0x07));
@@ -420,12 +479,17 @@ final class Countdown {
 
     /** Allocate a colour from #rrggbb on the image. */
     private static function color($img, string $hex) {
+        [$r, $g, $b] = self::rgb($hex);
+        return imagecolorallocate($img, $r, $g, $b);
+    }
+
+    /** @return array{0:int,1:int,2:int} R,G,B from #rrggbb. */
+    private static function rgb(string $hex): array {
         $hex = ltrim($hex, '#');
-        return imagecolorallocate(
-            $img,
+        return [
             (int) hexdec(substr($hex, 0, 2)),
             (int) hexdec(substr($hex, 2, 2)),
-            (int) hexdec(substr($hex, 4, 2))
-        );
+            (int) hexdec(substr($hex, 4, 2)),
+        ];
     }
 }
