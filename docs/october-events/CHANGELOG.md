@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.110.0 — Countdown: ready-to-paste email HTML (responsive)
+
+The generator now gives a copy-paste **Email HTML** `<img>` snippet alongside the
+raw URL, so the countdown drops into an email HTML block without hand-writing the
+tag.
+
+- **Email HTML field** with its own Copy button. Built to reference the live URL,
+  with a note to use the HTML block (not the image block, which re-hosts a frozen
+  copy) and that Gmail/Apple cache the image at delivery so numbers show the time
+  at send.
+- **Responsive image style** — `width:100%;max-width:560px;height:auto`, so the
+  image scales down to the column on mobile instead of overflowing and clipping,
+  and caps at 560px on desktop. The `width="560"` attribute is the Outlook
+  fallback.
+
+No schema change.
+
 ## 1.109.0 — Countdown: background colour + transparency
 
 The countdown image no longer forces the dark `#17140F` panel, so it can sit in
