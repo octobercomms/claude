@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.105.0 — Countdown generator screen (build, preview, download)
+
+Adds **October Events → Countdown**: a tool to make the countdown image without
+hand-writing the URL. Pick a deadline (in the site timezone), choose the units,
+label, accent colour and static/animated, and it:
+
+- shows a **live preview**,
+- gives a ready **image URL** with a Copy button (paste as an `<img>` in email),
+- and a **Download GIF** button that saves the current settings as a file.
+
+The generated URL uses a bare datetime (no offset); the endpoint reads it in the
+site timezone, DST-correct for the chosen date. No schema change.
+
 ## 1.104.0 — Animated countdown variant (analog clock)
 
 Adds an optional animated version of the countdown image, on by passing `&anim=1`:

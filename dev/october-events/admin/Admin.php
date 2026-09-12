@@ -65,6 +65,7 @@ final class Admin {
         if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']); }
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']); }
+        add_submenu_page('october-events', 'Countdown', 'Countdown', $cap, 'oe-countdown', [$this, 'page_countdown']);
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
     }
 
@@ -418,6 +419,10 @@ final class Admin {
         $contacts = \OE\Mail\Contacts::search('', 50, 0);
         $lists    = \OE\Mail\Lists::all();
         require OE_DIR . 'admin/views/contacts.php';
+    }
+
+    public function page_countdown(): void {
+        require OE_DIR . 'admin/views/countdown.php';
     }
 
     public function handle_rebuild_contacts(): void {
