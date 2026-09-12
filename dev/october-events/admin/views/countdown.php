@@ -82,12 +82,21 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
                 <img id="oe-cd-preview" alt="<?php esc_attr_e('Countdown preview', 'october-events'); ?>" style="display:block;max-width:100%;width:560px;height:auto">
             </div>
 
-            <p style="margin-top:16px"><strong><?php esc_html_e('Image URL', 'october-events'); ?></strong> <span class="description"><?php esc_html_e('(paste into your email as an image)', 'october-events'); ?></span></p>
+            <p style="margin-top:16px"><strong><?php esc_html_e('Image URL', 'october-events'); ?></strong> <span class="description"><?php esc_html_e('(the raw endpoint — the Email HTML below wraps it for you)', 'october-events'); ?></span></p>
             <div style="display:flex;gap:8px;align-items:center;max-width:640px">
                 <input type="text" id="oe-cd-url" readonly onfocus="this.select()" style="flex:1;font-size:12px" aria-label="<?php esc_attr_e('Countdown image URL', 'october-events'); ?>">
                 <button type="button" class="button" id="oe-cd-copy"><?php esc_html_e('Copy', 'october-events'); ?></button>
                 <a class="button button-primary" id="oe-cd-download" download="countdown.gif" href="#"><?php esc_html_e('Download GIF', 'october-events'); ?></a>
             </div>
+
+            <p style="margin-top:16px"><strong><?php esc_html_e('Email HTML', 'october-events'); ?></strong> <span class="description"><?php esc_html_e('(paste into an HTML block — Brevo, Mailchimp, etc. — not the image block)', 'october-events'); ?></span></p>
+            <div style="display:flex;gap:8px;align-items:flex-start;max-width:640px">
+                <textarea id="oe-cd-html" readonly rows="3" onfocus="this.select()" style="flex:1;font-size:12px;font-family:monospace;white-space:pre;overflow:auto" aria-label="<?php esc_attr_e('Countdown email HTML', 'october-events'); ?>"></textarea>
+                <button type="button" class="button" id="oe-cd-copy-html"><?php esc_html_e('Copy', 'october-events'); ?></button>
+            </div>
+            <p class="description" style="max-width:640px;margin-top:8px">
+                <?php esc_html_e('Use the HTML block so the live URL is kept — the image block re-hosts a frozen copy. Note: Gmail and Apple Mail cache the image at delivery, so the numbers show the time at send and don’t tick live for most recipients. Send close to the deadline; the moving clock carries the “live” feel.', 'october-events'); ?>
+            </p>
         </div>
     </div>
 
@@ -97,7 +106,9 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
         var el = function (id) { return document.getElementById(id); };
         var deadline = el('oe-cd-deadline'), units = el('oe-cd-units'), label = el('oe-cd-label'),
             accent = el('oe-cd-accent'), tz = el('oe-cd-tz'), bg = el('oe-cd-bg'), transparent = el('oe-cd-transparent'),
-            img = el('oe-cd-preview'), urlBox = el('oe-cd-url'), dl = el('oe-cd-download'), copy = el('oe-cd-copy');
+            img = el('oe-cd-preview'), urlBox = el('oe-cd-url'), htmlBox = el('oe-cd-html'),
+            dl = el('oe-cd-download'), copy = el('oe-cd-copy'), copyHtml = el('oe-cd-copy-html');
+        var COPIED = '<?php echo esc_js(__('Copied', 'october-events')); ?>';
         // A checkerboard behind the preview so a transparent image is legible.
         var CHECKER = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\'%3E%3Crect width=\'20\' height=\'20\' fill=\'%23fff\'/%3E%3Crect width=\'10\' height=\'10\' fill=\'%23e0e0e0\'/%3E%3Crect x=\'10\' y=\'10\' width=\'10\' height=\'10\' fill=\'%23e0e0e0\'/%3E%3C/svg%3E")';
 
@@ -125,9 +136,25 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
             if (bust) { p.set('_', String(Date.now())); }
             return BASE + '?' + p.toString();
         }
+        // Escape a value for an HTML attribute (the URL joins params with &).
+        function escAttr(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+        // A ready-to-paste <img> for an email HTML block, referencing the live URL.
+        // width:100% + max-width:560px is the responsive pattern: it fills the
+        // column on mobile (so it never overflows and clips) and caps at 560px on
+        // desktop; the width attribute is the Outlook fallback.
+        function snippet(url) {
+            if (!url) { return ''; }
+            var alt = label.value.trim() || 'Countdown';
+            return '<img src="' + escAttr(url) + '" width="560" alt="' + escAttr(alt) + '"'
+                 + ' style="display:block;border:0;width:100%;max-width:560px;height:auto">';
+        }
         function refresh() {
             var clean = build(false);
             urlBox.value = clean;
+            htmlBox.value = snippet(clean);
             var bust = build(true);
             img.src = bust;
             dl.href = bust; // fresh render on download
@@ -142,12 +169,16 @@ $default = (new DateTimeImmutable('+5 days', wp_timezone()))->setTime(10, 0)->fo
         Array.prototype.forEach.call(document.querySelectorAll('input[name="oe-cd-style"]'), function (n) {
             n.addEventListener('change', refresh);
         });
-        copy.addEventListener('click', function () {
-            var t = urlBox.value; if (!t) { return; }
-            var done = function () { var o = copy.textContent; copy.textContent = '<?php echo esc_js(__('Copied', 'october-events')); ?>'; setTimeout(function () { copy.textContent = o; }, 1200); };
-            if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).then(done).catch(function () {}); }
-            else { urlBox.focus(); urlBox.select(); try { document.execCommand('copy'); } catch (e) {} done(); }
-        });
+        function bindCopy(btn, src) {
+            btn.addEventListener('click', function () {
+                var t = src.value; if (!t) { return; }
+                var done = function () { var o = btn.textContent; btn.textContent = COPIED; setTimeout(function () { btn.textContent = o; }, 1200); };
+                if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).then(done).catch(function () {}); }
+                else { src.focus(); src.select(); try { document.execCommand('copy'); } catch (e) {} done(); }
+            });
+        }
+        bindCopy(copy, urlBox);
+        bindCopy(copyHtml, htmlBox);
         refresh();
     })();
     </script>
