@@ -106,10 +106,13 @@ two days") generate them rather than typing each one.
 - 48 hours before each slot, the plugin emails holders to confirm or release.
   Unconfirmed places are auto-released to the waitlist.
 
-## Still to build in the plugin (next code task)
+## Plugin support (shipped in 1.112.0)
 
-The two shortcodes above (`[guided_gate]`, `[guided_slots]`), the tour-settings
-screen with the ticket mapping, the slot generator, and the reconfirm email do
-not exist yet. They reuse the ticketing engine's existing capacity lock, waitlist
-and attendee export. This guide is the spec for that build; the page above can be
-laid out in advance and wired up once the shortcodes ship.
+The two shortcodes (`[guided_gate]`, `[guided_slots]`), the booking engine
+(capacity lock, waitlist, one-per-building), the slots metabox with a generator,
+the reservations CSV, and the 48-hour reconfirm email all ship in October Events
+1.112.0. Per-tour defaults live in Settings (`guided_default_capacity`,
+`guided_close_hours`, `guided_reconfirm_hours`, `guided_ticket_map`); leave the
+ticket map empty while you run a single tour and any paid ticket unlocks. Add the
+slots on each Location post under "Guided tour slots", then build the page as
+above.

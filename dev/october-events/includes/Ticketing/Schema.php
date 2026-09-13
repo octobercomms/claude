@@ -155,5 +155,29 @@ final class Schema {
             KEY status (status),
             KEY updated_at (updated_at)
         ) {$charset};");
+
+        // Guided-tour reservations — free, capacity-limited timed slots on a tour
+        // Location post (see includes/GuidedTours). Keyed by location + slot uid;
+        // status reserved | waitlist | confirmed | released | cancelled.
+        $guided = $wpdb->prefix . 'oe_gt_reservations';
+        dbDelta("CREATE TABLE {$guided} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            location_id BIGINT UNSIGNED NOT NULL,
+            slot_uid VARCHAR(20) NOT NULL DEFAULT '',
+            tour_key VARCHAR(120) NOT NULL DEFAULT '',
+            email VARCHAR(190) NOT NULL,
+            name VARCHAR(190) DEFAULT '',
+            status VARCHAR(20) NOT NULL DEFAULT 'reserved',
+            token VARCHAR(64) NOT NULL DEFAULT '',
+            slot_start DATETIME NULL,
+            reconfirm_sent TINYINT(1) NOT NULL DEFAULT 0,
+            confirmed_at DATETIME NULL,
+            created_at DATETIME NOT NULL,
+            PRIMARY KEY  (id),
+            KEY token (token),
+            KEY location_slot (location_id, slot_uid),
+            KEY location_email (location_id, email),
+            KEY reconfirm (status, reconfirm_sent, slot_start)
+        ) {$charset};");
     }
 }

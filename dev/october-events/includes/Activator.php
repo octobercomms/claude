@@ -108,6 +108,7 @@ final class Activator {
 
     public static function deactivate(): void {
         Cron::unschedule();
+        wp_clear_scheduled_hook('oe_gt_reconfirm');
         flush_rewrite_rules();
     }
 }

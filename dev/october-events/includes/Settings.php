@@ -48,6 +48,15 @@ final class Settings {
             // on the tours sites). When set, each location gets a one-click "Needs
             // volunteers" box that creates/links a volunteer opportunity. Blank = off.
             'location_post_type' => '',
+            // Guided tours: free, capacity-limited timed slots on a Location post,
+            // open only to ticket holders (see includes/GuidedTours). Defaults
+            // apply to every slot unless a location overrides its capacity.
+            'guided_default_capacity' => 30,
+            'guided_close_hours'      => 12,  // stop booking N hours before each slot
+            'guided_reconfirm_hours'  => 48,  // send the confirm-or-release email N hours before
+            // Tour (city|year) => ticket event id. Empty = any paid ticket unlocks
+            // (the single-tour default); map per tour once you run more than one.
+            'guided_ticket_map'       => [],
             // On a SOURCE (tours) site: the meta keys on a location that hold its
             // street address and its date, so the partner feed can pass them to the
             // festival site's volunteer-post picker. Default to the tours schema's
