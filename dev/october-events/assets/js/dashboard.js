@@ -310,11 +310,14 @@
         var d = new Date(String(v).replace(' ', 'T'));
         return isNaN(d.getTime()) ? null : d;
     }
-    function dayLabel(d) { return d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }); }
+    // Force US formatting (12-hour AM/PM, US date order) regardless of the
+    // viewer's browser locale — this is a US event, so a UK/other browser must
+    // not flip shift times to a 24-hour clock.
+    function dayLabel(d) { return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
     function timeLabel(s) {
         var a = parseDT(s.start), b = parseDT(s.end);
         if (!a) { return s.label; } // fall back to the freeform label
-        var t = function (x) { return x.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
+        var t = function (x) { return x.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); };
         return b ? t(a) + ' – ' + t(b) : t(a);
     }
 

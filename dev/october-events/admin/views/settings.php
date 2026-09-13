@@ -763,7 +763,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 <tbody>
                 <?php foreach ($log as $row) : ?>
                     <tr>
-                        <td><?php echo esc_html(get_date_from_gmt((string) $row->created_at, 'M j, H:i')); ?></td>
+                        <td><?php echo esc_html(get_date_from_gmt((string) $row->created_at, 'M j, g:i a')); ?></td>
                         <td><?php echo esc_html((string) $row->recipients); ?></td>
                         <td><?php echo esc_html((string) $row->subject); ?></td>
                         <td><strong style="color:<?php echo $row->status === 'sent' ? '#1a7f37' : ($row->status === 'failed' ? '#b32d2e' : '#8a6d3b'); ?>"><?php echo esc_html((string) $row->status); ?></strong>

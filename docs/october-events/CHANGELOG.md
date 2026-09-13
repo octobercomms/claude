@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.111.0 — 12-hour times for a US audience
+
+Times now always render in US 12-hour AM/PM, never a 24-hour clock.
+
+- **Volunteer shifts** (front-end) were formatted with the *viewer's* browser
+  locale, so a UK/non-US browser showed 24-hour times. Forced `en-US` so shift
+  times and day labels always read as 12-hour AM/PM for everyone.
+- **Email log** in Settings switched from `H:i` to `g:i a`.
+
+The rest of the plugin already used `g:i A`. Datetime-local inputs stay 24-hour
+(the browser control requires it) and MySQL timestamps are unchanged.
+
+Front-end/admin only; no schema change. Purge page cache so the updated
+`dashboard.js` is served.
+
 ## 1.110.0 — Countdown: ready-to-paste email HTML (responsive)
 
 The generator now gives a copy-paste **Email HTML** `<img>` snippet alongside the
