@@ -5,6 +5,36 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.112.0 — Guided tours: gated booking for ticket holders
+
+The plugin now powers the guided-tours flow scoped in `GUIDED-TOURS.md`. October
+builds the page and the building layout; the plugin provides two shortcodes and
+the booking engine.
+
+- **`[guided_gate city="atlanta-ga" year="2026"]`** — a ticket-email unlock. The
+  visitor enters the email they booked with; if it matches a paid order, a signed,
+  tour-scoped cookie unlocks booking (instant, no magic link). No match shows the
+  "buy a ticket first" message. Scoped by Tour City + Year, so Boston can't unlock
+  Atlanta.
+- **`[guided_slots]`** — one building's time slots with live counts. No attribute
+  needed inside a JetEngine listing (uses the current post); pass `location="ID"`
+  standalone. Reserve or join the waitlist per slot.
+- **Booking engine** — a new `oe_gt_reservations` table, per-location advisory
+  lock so a 30-spot slot can't oversell, automatic waitlist with promotion when a
+  seat frees, one reservation per person per building, and confirmation / waitlist
+  emails.
+- **Admin** — a "Guided tour slots" metabox on the location post type: add slots,
+  generate a run (every N minutes across a date range), see booked counts, and
+  download a reservations CSV.
+- **Reconfirm** — an hourly job emails reserved holders ~48 hours before their
+  slot with one-click confirm / release links; releasing promotes the waitlist.
+
+Settings (defaults): `guided_default_capacity` 30, `guided_close_hours` 12,
+`guided_reconfirm_hours` 48, `guided_ticket_map` empty (any paid ticket unlocks
+while you run one tour). Schema change (`OE_DB_VERSION` 15) — the table is created
+on update. Ships to the site running guided tours (architecturetours.us); purge
+page cache after updating.
+
 ## 1.111.0 — 12-hour times for a US audience
 
 Times now always render in US 12-hour AM/PM, never a 24-hour clock.

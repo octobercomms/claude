@@ -1,0 +1,129 @@
+<?php
+declare(strict_types=1);
+
+namespace OE\GuidedTours;
+
+use OE\Settings;
+
+defined('ABSPATH') || exit;
+
+/**
+ * Guided-tour public endpoints and background jobs.
+ *
+ *  - POST oe/v1/guided/unlock   {email, tour}            → check a ticket, set the unlock cookie
+ *  - POST oe/v1/guided/reserve  {location, slot, tour}   → reserve (or waitlist) for the unlocked email
+ *  - GET  /?oe_gt=confirm|release&token=…                → one-click reconfirm / release links from email
+ *  - cron oe_gt_reconfirm                                → 48h-before reconfirm emails
+ *
+ * Anonymous, so each write carries a nonce (action "oe_gt"); the email is never
+ * taken from the request on reserve, only from the signed unlock cookie.
+ */
+final class Rest {
+
+    private const NS = 'oe/v1';
+
+    public static function init(): void {
+        add_action('rest_api_init', [self::class, 'register_routes']);
+        add_action('template_redirect', [self::class, 'handle_links']);
+        add_action('oe_gt_reconfirm', [self::class, 'run_reconfirm']);
+        if (! wp_next_scheduled('oe_gt_reconfirm')) {
+            wp_schedule_event(time() + HOUR_IN_SECONDS, 'hourly', 'oe_gt_reconfirm');
+        }
+    }
+
+    public static function register_routes(): void {
+        register_rest_route(self::NS, '/guided/unlock', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'unlock'],
+            'permission_callback' => [self::class, 'verify_nonce'],
+        ]);
+        register_rest_route(self::NS, '/guided/reserve', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'reserve'],
+            'permission_callback' => [self::class, 'verify_nonce'],
+        ]);
+    }
+
+    /** CSRF: the shortcodes print a nonce for action "oe_gt". */
+    public static function verify_nonce(\WP_REST_Request $req): bool {
+        $nonce = (string) ($req->get_param('nonce') ?: $req->get_header('X-OE-GT-Nonce'));
+        return (bool) wp_verify_nonce($nonce, 'oe_gt');
+    }
+
+    public static function unlock(\WP_REST_Request $req): \WP_REST_Response {
+        $email = strtolower(trim((string) $req->get_param('email')));
+        $tour  = self::tour_key((string) $req->get_param('tour'));
+        $res   = Eligibility::check($email, $tour);
+        if (! $res['ok']) {
+            return new \WP_REST_Response([
+                'ok'    => false,
+                'error' => __('This email address isn’t linked to a ticket for the Architecture Tours, Metro Atlanta. Please buy your ticket first, then revisit this page.', 'october-events'),
+            ], 200);
+        }
+        Eligibility::unlock($email, $tour);
+        return new \WP_REST_Response(['ok' => true, 'name' => $res['name']], 200);
+    }
+
+    public static function reserve(\WP_REST_Request $req): \WP_REST_Response {
+        $tour  = self::tour_key((string) $req->get_param('tour'));
+        $email = Eligibility::unlocked_email($tour);
+        if ($email === '') {
+            return new \WP_REST_Response(['ok' => false, 'error' => __('Please verify your ticket email again.', 'october-events')], 200);
+        }
+        $location = (int) $req->get_param('location');
+        $slot     = preg_replace('/[^a-z0-9]/', '', strtolower((string) $req->get_param('slot')));
+        $name     = sanitize_text_field((string) $req->get_param('name'));
+        if ($location <= 0 || $slot === '') {
+            return new \WP_REST_Response(['ok' => false, 'error' => __('Something went wrong. Please try again.', 'october-events')], 200);
+        }
+        $out = Reservations::reserve($location, $slot, $tour, $email, $name);
+        if (is_wp_error($out)) {
+            return new \WP_REST_Response(['ok' => false, 'error' => $out->get_error_message()], 200);
+        }
+        return new \WP_REST_Response(['ok' => true, 'status' => $out['status'], 'spots_left' => $out['spots_left']], 200);
+    }
+
+    /** Handle the confirm / release links from the reconfirm email. */
+    public static function handle_links(): void {
+        $action = isset($_GET['oe_gt']) ? sanitize_key((string) $_GET['oe_gt']) : '';
+        if ($action !== 'confirm' && $action !== 'release') {
+            return;
+        }
+        $token = isset($_GET['token']) ? preg_replace('/[^A-Za-z0-9]/', '', (string) $_GET['token']) : '';
+        $ok    = false;
+        if ($token !== '') {
+            $ok = $action === 'confirm' ? Reservations::confirm_by_token($token) : Reservations::release_by_token($token);
+        }
+        $title = $action === 'confirm' ? __('Spot confirmed', 'october-events') : __('Spot released', 'october-events');
+        $msg   = $ok
+            ? ($action === 'confirm'
+                ? __('Thanks — your guided tour spot is confirmed. See you there.', 'october-events')
+                : __('Your spot has been released and offered to the next person on the waitlist. Thanks for letting us know.', 'october-events'))
+            : __('This link is no longer valid. The spot may already have been confirmed, released, or the tour has passed.', 'october-events');
+        wp_die('<h1 style="font:700 24px system-ui">' . esc_html($title) . '</h1><p style="font:16px system-ui;max-width:40em">' . esc_html($msg) . '</p>', esc_html($title), ['response' => 200]);
+    }
+
+    /** Hourly: email reserved holders ~N hours before their slot to confirm or release. */
+    public static function run_reconfirm(): void {
+        global $wpdb;
+        $hours = max(1, (int) Settings::get('guided_reconfirm_hours', 48));
+        $t     = Reservations::table();
+        $now   = time();
+        $window_end = gmdate('Y-m-d H:i:s', $now + $hours * HOUR_IN_SECONDS);
+        $now_str    = gmdate('Y-m-d H:i:s', $now);
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$t} WHERE status = %s AND reconfirm_sent = 0 AND slot_start IS NOT NULL AND slot_start > %s AND slot_start <= %s ORDER BY id ASC LIMIT 200",
+            Reservations::STATUS_RESERVED, $now_str, $window_end
+        )) ?: [];
+        foreach ($rows as $row) {
+            Mailer::reconfirm($row);
+            $wpdb->update($t, ['reconfirm_sent' => 1], ['id' => (int) $row->id]);
+        }
+    }
+
+    /** Normalise a tour key from the shortcode ("city|year"), lowercased. */
+    public static function tour_key(string $raw): string {
+        $raw = strtolower(trim($raw));
+        return preg_replace('/[^a-z0-9|_-]/', '', $raw);
+    }
+}

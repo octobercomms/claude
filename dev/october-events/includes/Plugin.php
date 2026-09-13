@@ -53,10 +53,13 @@ final class Plugin {
         (new Cron())->init();
         MapsConnector::init();
         Chat::init();
+        \OE\GuidedTours\Shortcodes::init();
+        \OE\GuidedTours\Rest::init();
 
         // Interfaces.
         if (is_admin()) {
             Admin::get_instance()->init();
+            \OE\GuidedTours\Metabox::init();
         }
         Dashboard::get_instance()->init();
         \OE\Frontend\Checkout::get_instance()->init();
