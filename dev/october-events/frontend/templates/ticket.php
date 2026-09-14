@@ -16,7 +16,8 @@ use OE\Planning\Events;
 $event_id = (int) $ticket->event_id;
 $event    = get_the_title($event_id) ?: (string) ($ticket->event_label ?? '');
 $logo     = TicketTypes::logo_url($event_id);
-$when     = $event_id ? Ics::when_label($event_id) : '';
+$sched    = $event_id ? Ics::day_schedule($event_id) : [];
+$when     = $sched ? '' : ($event_id ? Ics::when_label($event_id) : '');
 $type     = (string) $ticket->ticket_type_label;
 $name     = (string) $ticket->attendee_name;
 $num      = str_pad((string) (int) $ticket->ticket_number, 2, '0', STR_PAD_LEFT);
@@ -63,6 +64,10 @@ $accent_on = (string) \OE\Settings::get('theme_accent_on', '') ?: '#ffffff';
         .rule{border:0;border-top:3px solid #111;margin:20px 0}
         h1.ev{font-size:22px;font-weight:800;line-height:1.18;margin:0 0 6px}
         .date{font-size:14px;color:#222;margin:0 0 22px}
+        .date .day{margin:0 0 10px}
+        .date .day:last-child{margin-bottom:0}
+        .date .day-date{display:block;font-weight:700}
+        .date .day-time{display:block;color:#333}
         .type{font-size:20px;font-weight:800;margin:0 0 4px}
         .desc{font-size:14px;color:#333;margin:0;line-height:1.5}
         .foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:30px;gap:12px}
@@ -93,7 +98,16 @@ $accent_on = (string) \OE\Settings::get('theme_accent_on', '') ?: '#ffffff';
             </div>
             <hr class="rule">
             <h1 class="ev"><?php echo esc_html($event); ?></h1>
-            <?php if ($when) : ?><p class="date"><?php echo esc_html($when); ?></p><?php endif; ?>
+            <?php if ($sched) : ?>
+                <div class="date">
+                    <?php foreach ($sched as $row) : ?>
+                        <div class="day">
+                            <span class="day-date"><?php echo esc_html($row['date']); ?></span>
+                            <?php if ($row['time'] !== '') : ?><span class="day-time"><?php echo esc_html($row['time']); ?></span><?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php elseif ($when) : ?><p class="date"><?php echo esc_html($when); ?></p><?php endif; ?>
             <p class="type"><?php echo esc_html($type); ?></p>
             <p class="desc">
                 <?php if ($desc) : ?><?php echo nl2br(esc_html($desc)); ?><br><?php endif; ?>

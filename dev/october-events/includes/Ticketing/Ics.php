@@ -175,6 +175,70 @@ final class Ics {
     }
 
     /**
+     * A per-day schedule for a date-only event, one row per calendar day from the
+     * start date to the end date, each carrying that day's hours:
+     *   [ ['date' => 'Saturday, October 3, 2026', 'time' => '10:00 AM–4:00 PM'], … ]
+     * Times come from the event's start_time / end_time (a fixed daily window).
+     *
+     * Returns [] for a timed event (a real clock time on the start), or when there
+     * is no parseable start — the caller then falls back to when_label(), so timed
+     * events keep their existing single-line rendering.
+     *
+     * @return array<int,array{date:string,time:string}>
+     */
+    public static function day_schedule(int $event_id): array {
+        $sRaw = (string) Events::get($event_id, 'start_datetime', '');
+        if ($sRaw === '' || ! self::is_date_only($sRaw)) {
+            return [];
+        }
+        $sYmd = self::wall_ymd($sRaw);
+        if ($sYmd === '') {
+            return [];
+        }
+        $eYmd = self::wall_ymd((string) Events::get($event_id, 'end_datetime', ''));
+        if ($eYmd === '' || $eYmd < $sYmd) {
+            $eYmd = $sYmd;
+        }
+        $time = self::hours_label(
+            (string) Events::get($event_id, 'start_time', ''),
+            (string) Events::get($event_id, 'end_time', '')
+        );
+
+        // A single day with no hours is just a date — leave it to when_label so
+        // existing single-day tickets keep their plain line.
+        if ($eYmd === $sYmd && $time === '') {
+            return [];
+        }
+
+        $rows = [];
+        $day  = $sYmd;
+        $guard = 0;
+        while ($day <= $eYmd && $guard++ < 62) {
+            $rows[] = ['date' => self::fmt_ymd($day, 'l, F j, Y'), 'time' => $time];
+            $next = strtotime($day . ' +1 day UTC');
+            if (! $next) {
+                break;
+            }
+            $day = gmdate('Y-m-d', $next);
+        }
+        return $rows;
+    }
+
+    /** "10:00 AM–4:00 PM", or just the start ("10:00 AM"), or '' if no start time. */
+    private static function hours_label(string $start, string $end): string {
+        $s = self::time_to_seconds($start);
+        if ($s === null) {
+            return '';
+        }
+        $out = gmdate('g:i A', $s);
+        $e   = self::time_to_seconds($end);
+        if ($e !== null && $e > $s) {
+            $out .= '–' . gmdate('g:i A', $e);
+        }
+        return $out;
+    }
+
+    /**
      * Concise start-date label for an event, e.g. "March 14, 2026" (date only,
      * no time). Used in the registrations screen and the ticket email subject.
      *
@@ -229,23 +293,19 @@ final class Ics {
         if ($raw === '') {
             return false;
         }
-        // "2026-09-28", or a datetime whose time is exactly midnight.
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
-            return true;
-        }
-        if (preg_match('#^\d{4}-\d{2}-\d{2}[ T]00:00(:00)?$#', $raw)) {
-            return true;
-        }
-        // A bare epoch sitting on midnight UTC (save-as-timestamp dates).
-        $n = $raw;
-        if ($n[0] === '@' && ctype_digit(substr($n, 1))) {
-            $n = substr($n, 1);
-        }
+        // A bare epoch (optionally @-prefixed): date-only when it sits on midnight
+        // UTC (JetEngine save-as-timestamp dates); a real time makes it timed.
+        $n = ($raw[0] === '@') ? substr($raw, 1) : $raw;
         if (ctype_digit($n)) {
             $sec = strlen($n) >= 13 ? (int) ((int) $n / 1000) : (int) $n;
             return $sec % DAY_IN_SECONDS === 0;
         }
-        return false;
+        // Any other value ("2026-10-03", "October 3, 2026", "3 Oct 2026"): date-only
+        // when it carries no clock time and still parses to a calendar date.
+        if (preg_match('/\d{1,2}:\d{2}/', $raw) || preg_match('/\b[ap]\.?m\.?\b/i', $raw)) {
+            return false;
+        }
+        return self::wall_ymd($raw) !== '';
     }
 
     /**

@@ -61,9 +61,35 @@ final class Events {
                     return $ext;
                 }
             }
+            // Then the common convention keys for date/time fields, so a tour that
+            // already stores start-date / end-date / start-time / end-time resolves
+            // its full schedule without every field being mapped by hand.
+            foreach (self::convention_keys($field) as $ck) {
+                $ext = get_post_meta($event_id, $ck, true);
+                if ($ext !== '' && $ext !== false) {
+                    return $ext;
+                }
+            }
             return $default;
         }
         return $v;
+    }
+
+    /**
+     * Conventional source meta keys tried, in order, after the mapped one for the
+     * date/time fields. Only fires when the primary value is empty, so a mapping
+     * always wins and non-date fields are never touched.
+     *
+     * @return string[]
+     */
+    private static function convention_keys(string $field): array {
+        switch ($field) {
+            case 'start_datetime': return ['start-date', 'start_date'];
+            case 'end_datetime':   return ['end-date', 'end_date'];
+            case 'start_time':     return ['start-time', 'start_time'];
+            case 'end_time':       return ['end-time', 'end_time'];
+            default:               return [];
+        }
     }
 
     /** @return array<string,string> event field => source meta key */
