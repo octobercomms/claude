@@ -28,7 +28,9 @@ final class TicketTypes {
     public static function logo_url(int $event_id): string {
         $id = $event_id ? (int) get_post_meta($event_id, self::META_LOGO, true) : 0;
         if ($id) {
-            $url = wp_get_attachment_image_url($id, 'medium');
+            // 'medium' first; fall back to the full file for logos with no
+            // intermediate size (e.g. SVGs), so it never resolves to nothing.
+            $url = wp_get_attachment_image_url($id, 'medium') ?: wp_get_attachment_url($id);
             if ($url) {
                 return (string) $url;
             }
