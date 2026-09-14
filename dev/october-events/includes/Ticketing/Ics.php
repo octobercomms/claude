@@ -20,11 +20,11 @@ final class Ics {
 
     /** Build the .ics text for an event, or '' if it has no usable date. */
     public static function for_event(int $event_id): string {
-        $start = self::ts((string) Events::get($event_id, 'start_datetime', ''));
+        $start = self::norm_ts((string) Events::get($event_id, 'start_datetime', ''));
         if (! $start) {
             return '';
         }
-        $endRaw = self::ts((string) Events::get($event_id, 'end_datetime', ''));
+        $endRaw = self::norm_ts((string) Events::get($event_id, 'end_datetime', ''));
         $rrule  = '';
         $model  = self::daily_model($event_id, $start, $endRaw);
         if ($model && $model['start']) {
@@ -138,11 +138,11 @@ final class Ics {
      */
     public static function when_label(int $event_id): string {
         $raw = (string) Events::get($event_id, 'start_datetime', '');
-        $s = self::ts($raw);
+        $s = self::norm_ts($raw);
         if (! $s) {
             return $raw;
         }
-        $e = self::ts((string) Events::get($event_id, 'end_datetime', ''));
+        $e = self::norm_ts((string) Events::get($event_id, 'end_datetime', ''));
         // No time set (midnight) → show the date without a misleading "12:00 AM".
         if (self::is_all_day($s, $e)) {
             $model = self::daily_model($event_id, $s, $e);
@@ -220,16 +220,69 @@ final class Ics {
     }
 
     /**
+     * True when a raw start/end value carries a date but no real time of day.
+     * JetEngine "save as timestamp" date fields land on midnight UTC; a plain
+     * date field arrives as "YYYY-MM-DD". Either way there's no clock time to show.
+     */
+    private static function is_date_only(string $raw): bool {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return false;
+        }
+        // "2026-09-28", or a datetime whose time is exactly midnight.
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+            return true;
+        }
+        if (preg_match('#^\d{4}-\d{2}-\d{2}[ T]00:00(:00)?$#', $raw)) {
+            return true;
+        }
+        // A bare epoch sitting on midnight UTC (save-as-timestamp dates).
+        $n = $raw;
+        if ($n[0] === '@' && ctype_digit(substr($n, 1))) {
+            $n = substr($n, 1);
+        }
+        if (ctype_digit($n)) {
+            $sec = strlen($n) >= 13 ? (int) ((int) $n / 1000) : (int) $n;
+            return $sec % DAY_IN_SECONDS === 0;
+        }
+        return false;
+    }
+
+    /**
+     * Parse a start/end value to a UTC timestamp, but for a date-only value
+     * re-anchor it to LOCAL midnight of the date the organiser entered. A
+     * save-as-timestamp date stored at midnight UTC otherwise reads as the
+     * previous evening in a negative-offset zone (US Eastern), which is why a
+     * date-only event showed "Sept 27 8:00 PM" instead of "September 28". A value
+     * with a real time of day is returned unchanged.
+     */
+    private static function norm_ts(string $raw): int {
+        $t = self::ts($raw);
+        if (! $t || ! self::is_date_only($raw)) {
+            return $t;
+        }
+        $ymd = self::wall_ymd($raw);
+        if ($ymd === '') {
+            return $t;
+        }
+        try {
+            return (new \DateTime($ymd . ' 00:00:00', wp_timezone()))->getTimestamp();
+        } catch (\Exception $e) {
+            return $t;
+        }
+    }
+
+    /**
      * A Google Calendar "add event" template URL — a clickable alternative to
      * the .ics attachment in the ticket email (webmail clients honour it even
      * when they hide attachments). '' if the event has no parseable start.
      */
     public static function gcal_url(int $event_id): string {
-        $start = self::ts((string) Events::get($event_id, 'start_datetime', ''));
+        $start = self::norm_ts((string) Events::get($event_id, 'start_datetime', ''));
         if (! $start) {
             return '';
         }
-        $end   = self::ts((string) Events::get($event_id, 'end_datetime', ''));
+        $end   = self::norm_ts((string) Events::get($event_id, 'end_datetime', ''));
         $recur = '';
         $model = self::daily_model($event_id, $start, $end);
         if ($model && $model['start']) {
