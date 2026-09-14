@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.113.0 — Drag to reorder volunteer shifts
+
+Volunteer shift rows now have a drag handle (⠿) so you can reorder them, handy
+after adding more shifts. Saved order follows the row order, so a reshuffle
+sticks on Update. Native drag, no library; signups stay attached to their shift.
+
+Admin only; no schema change.
+
 ## 1.112.0 — Guided tours: gated booking for ticket holders
 
 The plugin now powers the guided-tours flow scoped in `GUIDED-TOURS.md`. October
