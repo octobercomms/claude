@@ -140,6 +140,7 @@ final class Volunteers {
         <p><strong><?php esc_html_e('Shifts', 'october-events'); ?></strong></p>
         <table class="widefat" id="oe-shift-table">
             <thead><tr>
+                <th style="width:24px"></th>
                 <th><?php esc_html_e('Label', 'october-events'); ?></th>
                 <th><?php esc_html_e('Start', 'october-events'); ?></th>
                 <th><?php esc_html_e('End', 'october-events'); ?></th>
@@ -151,7 +152,7 @@ final class Volunteers {
             </tbody>
         </table>
         <p><button type="button" class="button" id="oe-shift-add"><?php esc_html_e('+ Add another shift', 'october-events'); ?></button></p>
-        <p class="description"><?php esc_html_e('Capacity is how many volunteers each shift needs. Changing a shift label keeps existing signups attached.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('Capacity is how many volunteers each shift needs. Drag the ⠿ handle to reorder. Changing a shift label keeps existing signups attached.', 'october-events'); ?></p>
 
         <script type="text/html" id="oe-shift-tpl"><?php $this->shift_row(9999, []); ?></script>
         <script>
@@ -172,6 +173,40 @@ final class Volunteers {
             document.querySelector('#oe-shift-table').addEventListener('click', function(e){
                 if (e.target.classList.contains('oe-shift-del')) { e.target.closest('tr').remove(); }
             });
+
+            // Drag rows by the handle to reorder. Saved order follows the row
+            // order, so a reshuffle sticks on Update.
+            var tbody = document.querySelector('#oe-shift-table tbody');
+            if (tbody) {
+                var dragging = null;
+                var clearDraggable = function(){
+                    tbody.querySelectorAll('tr[draggable]').forEach(function(tr){ tr.removeAttribute('draggable'); });
+                };
+                tbody.addEventListener('mousedown', function(e){
+                    var h = e.target.closest('.oe-shift-handle');
+                    if (h) { var tr = h.closest('tr'); if (tr) { tr.setAttribute('draggable', 'true'); } }
+                });
+                tbody.addEventListener('mouseup', clearDraggable);
+                tbody.addEventListener('dragstart', function(e){
+                    var tr = e.target.closest('tr'); if (!tr) { return; }
+                    dragging = tr; tr.style.opacity = '.45';
+                    e.dataTransfer.effectAllowed = 'move';
+                    try { e.dataTransfer.setData('text/plain', ''); } catch (x) {}
+                });
+                tbody.addEventListener('dragover', function(e){
+                    if (!dragging) { return; }
+                    e.preventDefault();
+                    var over = e.target.closest('tr');
+                    if (!over || over === dragging) { return; }
+                    var r = over.getBoundingClientRect();
+                    var after = (e.clientY - r.top) > r.height / 2;
+                    tbody.insertBefore(dragging, after ? over.nextSibling : over);
+                });
+                tbody.addEventListener('dragend', function(){
+                    if (dragging) { dragging.style.opacity = ''; }
+                    dragging = null; clearDraggable();
+                });
+            }
         })();
         </script>
         <script>
@@ -321,6 +356,7 @@ final class Volunteers {
         };
         ?>
         <tr>
+            <td class="oe-shift-handle" title="<?php esc_attr_e('Drag to reorder', 'october-events'); ?>" style="cursor:grab;text-align:center;color:#8a8a8a;user-select:none">⠿</td>
             <td><input type="text" name="oe_shift[<?php echo $i; ?>][label]" value="<?php echo esc_attr((string) ($s['label'] ?? '')); ?>" placeholder="<?php esc_attr_e('Sat Oct 3 — 10:00am–1:00pm', 'october-events'); ?>" class="widefat">
                 <input type="hidden" name="oe_shift[<?php echo $i; ?>][id]" value="<?php echo esc_attr((string) ($s['id'] ?? '')); ?>"></td>
             <td><input type="datetime-local" name="oe_shift[<?php echo $i; ?>][start]" value="<?php echo esc_attr($to_input((string) ($s['start'] ?? ''))); ?>"></td>
