@@ -425,6 +425,27 @@ final class TicketsAdmin {
                 $event_types[$ev->ID] = array_map(static fn($x) => ['key' => $x['key'], 'label' => $x['label']], $t);
             }
         }
+
+        // Tickets sold + revenue from PAID orders, per event (accurate — computed
+        // in SQL, not from the 500-row list above). Honours the event filter.
+        $rev_where = $event_filter ? $wpdb->prepare('AND event_id = %d', $event_filter) : '';
+        $rev_rows  = $wpdb->get_results(
+            "SELECT event_id, COUNT(*) AS orders, SUM(qty) AS tickets, SUM(total) AS revenue, MAX(currency) AS currency
+             FROM " . Schema::orders() . " WHERE status = 'paid' {$rev_where}
+             GROUP BY event_id ORDER BY revenue DESC"
+        );
+        self::prime_event_titles($rev_rows);
+        $rev_total = 0.0;
+        $tix_total = 0;
+        $currency  = 'USD';
+        foreach (($rev_rows ?: []) as $r) {
+            $rev_total += (float) $r->revenue;
+            $tix_total += (int) $r->tickets;
+            if (! empty($r->currency)) {
+                $currency = (string) $r->currency;
+            }
+        }
+
         require OE_DIR . 'admin/views/registrations.php';
     }
 

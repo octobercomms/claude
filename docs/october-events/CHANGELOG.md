@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.114.0 — Registrations: revenue, per-event view, ticket preview; event-date fix
+
+- **Revenue and tickets sold** on the Registrations screen: headline totals plus a
+  per-event breakdown (paid orders, tickets, revenue), computed from paid orders
+  in SQL so it's accurate regardless of the row limit. An **event filter** narrows
+  the whole screen to one event.
+- **Preview a ticket** from an order: each ticket in the order-details panel now
+  has a **View** link that opens the buyer's ticket page in a new tab.
+- **Event-date fix**: the "Event date" column (and the ticket email subject) showed
+  the day before the event when the date was stored as midnight UTC and formatted
+  in a negative-offset timezone (US Eastern). `date_label` now shows the calendar
+  date the organiser entered, with no timezone shift.
+
+Admin display + a date-formatting fix; no schema change.
+
 ## 1.113.0 — Drag to reorder volunteer shifts
 
 Volunteer shift rows now have a drag handle (⠿) so you can reorder them, handy
