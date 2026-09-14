@@ -103,6 +103,59 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
     </script>
 
     <h2 style="margin-top:24px"><?php esc_html_e('Orders', 'october-events'); ?></h2>
+    <?php
+    $money = static function ($amount) use ($currency): string {
+        return number_format((float) $amount, 2) . ' ' . $currency;
+    };
+    ?>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:14px 0 10px">
+        <div style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:12px 18px">
+            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Revenue (paid)', 'october-events'); ?></div>
+            <div style="font-size:22px;font-weight:700"><?php echo esc_html($money($rev_total)); ?></div>
+        </div>
+        <div style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:12px 18px">
+            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Tickets sold', 'october-events'); ?></div>
+            <div style="font-size:22px;font-weight:700"><?php echo esc_html(number_format_i18n($tix_total)); ?></div>
+        </div>
+        <form method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <input type="hidden" name="page" value="oe-tickets">
+            <label for="oe-ev-filter" class="description"><?php esc_html_e('Event', 'october-events'); ?></label>
+            <select id="oe-ev-filter" name="event" onchange="this.form.submit()">
+                <option value="0"><?php esc_html_e('All events', 'october-events'); ?></option>
+                <?php foreach (($events ?: []) as $ev) : ?>
+                    <option value="<?php echo (int) $ev->ID; ?>" <?php selected($event_filter, (int) $ev->ID); ?>><?php echo esc_html(get_the_title($ev) ?: ('#' . (int) $ev->ID)); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </form>
+    </div>
+
+    <?php if ($rev_rows && ! $event_filter) : ?>
+        <table class="widefat striped" style="margin-bottom:18px;max-width:640px">
+            <thead><tr>
+                <th><?php esc_html_e('Event', 'october-events'); ?></th>
+                <th style="text-align:right"><?php esc_html_e('Paid orders', 'october-events'); ?></th>
+                <th style="text-align:right"><?php esc_html_e('Tickets', 'october-events'); ?></th>
+                <th style="text-align:right"><?php esc_html_e('Revenue', 'october-events'); ?></th>
+            </tr></thead>
+            <tbody>
+                <?php foreach ($rev_rows as $r) : ?>
+                    <tr>
+                        <td><a href="<?php echo esc_url(admin_url('admin.php?page=oe-tickets&event=' . (int) $r->event_id)); ?>"><?php echo esc_html(get_the_title((int) $r->event_id) ?: ('#' . (int) $r->event_id)); ?></a></td>
+                        <td style="text-align:right"><?php echo (int) $r->orders; ?></td>
+                        <td style="text-align:right"><?php echo esc_html(number_format_i18n((int) $r->tickets)); ?></td>
+                        <td style="text-align:right"><?php echo esc_html($money($r->revenue)); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+            <tfoot><tr>
+                <th><?php esc_html_e('Total', 'october-events'); ?></th>
+                <th></th>
+                <th style="text-align:right"><?php echo esc_html(number_format_i18n($tix_total)); ?></th>
+                <th style="text-align:right"><?php echo esc_html($money($rev_total)); ?></th>
+            </tr></tfoot>
+        </table>
+    <?php endif; ?>
+
     <table class="widefat striped">
         <thead><tr>
             <th>#</th><th><?php esc_html_e('Event', 'october-events'); ?></th><th><?php esc_html_e('Event date', 'october-events'); ?></th><th><?php esc_html_e('Purchaser', 'october-events'); ?></th>
@@ -185,6 +238,11 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                                             <td style="padding:3px 8px 3px 0;white-space:nowrap"><code>#<?php echo esc_html((string) $tk->ticket_number); ?></code></td>
                                             <td style="padding:3px 8px"><?php echo esc_html($tk->attendee_name ?: '—'); ?></td>
                                             <td style="padding:3px 0"><span class="oe-status oe-status-<?php echo esc_attr($tk->status); ?>"><?php echo esc_html($tk->status); ?></span></td>
+                                            <td style="padding:3px 0 3px 8px;white-space:nowrap">
+                                                <?php if (! empty($tk->token)) : ?>
+                                                    <a href="<?php echo esc_url(\OE\Ticketing\Orders::ticket_url((string) $tk->token)); ?>" target="_blank" rel="noopener"><?php esc_html_e('View', 'october-events'); ?></a>
+                                                <?php endif; ?>
+                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </table>

@@ -176,11 +176,47 @@ final class Ics {
 
     /**
      * Concise start-date label for an event, e.g. "March 14, 2026" (date only,
-     * no time). Used in the ticket email subject. '' if there's no date.
+     * no time). Used in the registrations screen and the ticket email subject.
+     *
+     * Formats the event's own calendar date, not a timezone-converted instant.
+     * A date-only value is often stored as midnight UTC; formatting that in a
+     * negative-offset zone (e.g. US Eastern) rolls it back to the previous day.
+     * We read the date the organiser entered and show that.
      */
     public static function date_label(int $event_id): string {
-        $s = self::start_ts($event_id);
-        return $s ? wp_date('F j, Y', $s) : '';
+        return self::fmt_ymd(self::wall_ymd((string) Events::get($event_id, 'start_datetime', '')), 'F j, Y');
+    }
+
+    /** The stored calendar date (Y-m-d) of a start/end value, without timezone shift. */
+    private static function wall_ymd(string $raw): string {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+        // "2026-10-03" or "2026-10-03 10:00" → take the date exactly as written.
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $raw, $m)) {
+            return $m[1];
+        }
+        if ($raw[0] === '@' && ctype_digit(substr($raw, 1))) {
+            $raw = substr($raw, 1);
+        }
+        // A bare epoch (JetEngine "save as timestamp" dates land at midnight UTC);
+        // read its UTC calendar day so the entered date is preserved.
+        if (ctype_digit($raw)) {
+            $sec = strlen($raw) >= 13 ? (int) ((int) $raw / 1000) : (int) $raw;
+            return gmdate('Y-m-d', $sec);
+        }
+        $t = strtotime($raw);
+        return $t ? gmdate('Y-m-d', $t) : '';
+    }
+
+    /** Format a Y-m-d as a display date with no timezone involved. */
+    private static function fmt_ymd(string $ymd, string $fmt): string {
+        if ($ymd === '') {
+            return '';
+        }
+        $t = strtotime($ymd . ' 00:00:00 UTC');
+        return $t ? gmdate($fmt, $t) : '';
     }
 
     /**
