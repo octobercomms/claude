@@ -88,6 +88,7 @@ final class Events {
             case 'end_datetime':   return ['end-date', 'end_date'];
             case 'start_time':     return ['start-time', 'start_time'];
             case 'end_time':       return ['end-time', 'end_time'];
+            case 'schedule_text':  return ['date-time', 'date_time', 'dates-times'];
             default:               return [];
         }
     }
