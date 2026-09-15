@@ -20,6 +20,11 @@ final class Ics {
 
     /** Build the .ics text for an event, or '' if it has no usable date. */
     public static function for_event(int $event_id): string {
+        // Irregular schedules can't be a single (optionally repeating) event, so
+        // no invite is produced — better none than a misleading one.
+        if (TicketTypes::is_irregular($event_id)) {
+            return '';
+        }
         $start = self::norm_ts((string) Events::get($event_id, 'start_datetime', ''));
         if (! $start) {
             return '';
@@ -137,6 +142,9 @@ final class Ics {
      * '' if there's none.
      */
     public static function when_label(int $event_id): string {
+        if (TicketTypes::is_irregular($event_id)) {
+            return self::schedule_text($event_id);
+        }
         $raw = (string) Events::get($event_id, 'start_datetime', '');
         $s = self::norm_ts($raw);
         if (! $s) {
@@ -187,6 +195,11 @@ final class Ics {
      * @return array<int,array{date:string,time:string}>
      */
     public static function day_schedule(int $event_id): array {
+        // Irregular events describe themselves in prose (see when_label); the
+        // auto day-by-day model would repeat one window and mislead.
+        if (TicketTypes::is_irregular($event_id)) {
+            return [];
+        }
         $sRaw = (string) Events::get($event_id, 'start_datetime', '');
         if ($sRaw === '' || ! self::is_date_only($sRaw)) {
             return [];
@@ -222,6 +235,27 @@ final class Ics {
             $day = gmdate('Y-m-d', $next);
         }
         return $rows;
+    }
+
+    /**
+     * The organiser's own "Dates & Times" prose, flattened to a single safe line
+     * (block breaks become " · "). Used as the schedule for irregular events,
+     * where the auto model can't be trusted. '' when the field is empty.
+     */
+    public static function schedule_text(int $event_id): string {
+        $raw = (string) Events::get($event_id, 'schedule_text', '');
+        if (trim($raw) === '') {
+            return '';
+        }
+        // Turn block boundaries into line breaks before stripping tags, so two
+        // paragraphs don't run together.
+        $raw  = preg_replace('#<(?:/p|br\s*/?|/div|/li|/h[1-6])\s*>#i', "\n", $raw);
+        $text = trim(wp_strip_all_tags((string) $raw));
+        if ($text === '') {
+            return '';
+        }
+        $text = preg_replace('/\s*\R+\s*/u', ' · ', $text);      // line breaks → " · "
+        return trim((string) preg_replace('/[ \t]{2,}/', ' ', $text));
     }
 
     /** "10:00 AM–4:00 PM", or just the start ("10:00 AM"), or '' if no start time. */
@@ -338,6 +372,9 @@ final class Ics {
      * when they hide attachments). '' if the event has no parseable start.
      */
     public static function gcal_url(int $event_id): string {
+        if (TicketTypes::is_irregular($event_id)) {
+            return '';
+        }
         $start = self::norm_ts((string) Events::get($event_id, 'start_datetime', ''));
         if (! $start) {
             return '';

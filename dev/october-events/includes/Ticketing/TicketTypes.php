@@ -20,6 +20,18 @@ final class TicketTypes {
     public const META_PIN        = '_oe_checkin_pin';
     public const META_LOGO       = '_oe_ticket_logo'; // attachment id for the per-event ticket/email logo
     public const META_CAPACITY   = '_oe_event_capacity'; // event-wide ticket capacity (0/empty = unlimited)
+    public const META_IRREGULAR  = '_oe_irregular_schedule'; // event runs different dates/times per day
+
+    /**
+     * Whether the organiser flagged this event's schedule as irregular (different
+     * hours on different days). A single start/end pair can't express that, and a
+     * calendar link would repeat one window across every day, so when set we
+     * suppress the auto "add to calendar" link/.ics and show the organiser's own
+     * dates/times text instead.
+     */
+    public static function is_irregular(int $event_id): bool {
+        return $event_id > 0 && (int) get_post_meta($event_id, self::META_IRREGULAR, true) === 1;
+    }
 
     /**
      * Logo shown top-left on the ticket page and confirmation email for an

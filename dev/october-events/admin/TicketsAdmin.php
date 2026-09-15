@@ -213,6 +213,14 @@ final class TicketsAdmin {
             <button type="button" class="button" id="oe-ticket-logo-pick"><?php echo $logo_url ? esc_html__('Change logo', 'october-events') : esc_html__('Choose logo', 'october-events'); ?></button>
             <button type="button" class="button-link" id="oe-ticket-logo-clear" style="<?php echo $logo_url ? '' : 'display:none'; ?>;color:#b32d2e;margin-left:6px"><?php esc_html_e('Remove', 'october-events'); ?></button>
         </div>
+
+        <?php $irregular = TicketTypes::is_irregular($post->ID); ?>
+        <p style="margin:14px 0 4px">
+            <label><input type="checkbox" name="oe_irregular_schedule" value="1" <?php checked($irregular); ?>>
+                <strong><?php esc_html_e('Irregular dates / times', 'october-events'); ?></strong></label>
+            <span class="description" style="display:block;margin:2px 0 0"><?php esc_html_e('Tick when the event runs different hours on different days. The ticket then shows your “Dates & Times” text and hides the “add to calendar” link, since a single calendar entry can only repeat one time window.', 'october-events'); ?></span>
+        </p>
+
         <script>
         (function(){
             var frame, pick=document.getElementById('oe-ticket-logo-pick'),
@@ -381,6 +389,7 @@ final class TicketsAdmin {
         update_post_meta($post_id, TicketTypes::META_VENUES, wp_json_encode(array_map(static fn($n) => ['name' => $n], $venues)));
         update_post_meta($post_id, TicketTypes::META_PIN, preg_replace('/\D/', '', (string) ($_POST['oe_checkin_pin'] ?? '')));
         update_post_meta($post_id, TicketTypes::META_LOGO, absint($_POST['oe_ticket_logo'] ?? 0));
+        update_post_meta($post_id, TicketTypes::META_IRREGULAR, empty($_POST['oe_irregular_schedule']) ? 0 : 1);
         // Event-wide capacity (blank/0 = unlimited).
         update_post_meta($post_id, TicketTypes::META_CAPACITY, max(0, absint($_POST['oe_event_capacity'] ?? 0)));
 
