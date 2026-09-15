@@ -42,6 +42,22 @@ final class Rest {
             'callback'            => [self::class, 'reserve'],
             'permission_callback' => [self::class, 'verify_nonce'],
         ]);
+        // A fresh nonce, fetched at runtime. The gate/slots markup is often served
+        // from full-page cache (StackCache / Cloudflare), which freezes a printed
+        // nonce until it expires and every unlock then 403s. Fetching it live keeps
+        // it valid for whoever is actually viewing.
+        register_rest_route(self::NS, '/guided/nonce', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'nonce'],
+            'permission_callback' => '__return_true',
+        ]);
+    }
+
+    /** A fresh oe_gt nonce for the current visitor; never cached. */
+    public static function nonce(\WP_REST_Request $req): \WP_REST_Response {
+        $res = new \WP_REST_Response(['nonce' => wp_create_nonce('oe_gt')], 200);
+        $res->header('Cache-Control', 'no-store, max-age=0');
+        return $res;
     }
 
     /** CSRF: the shortcodes print a nonce for action "oe_gt". */
