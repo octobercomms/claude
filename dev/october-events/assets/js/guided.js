@@ -7,17 +7,38 @@
     var unlocked = false;
     var buyerName = '';
 
-    function cfg() { return CFG && CFG.rest && CFG.nonce; }
+    function cfg() { return CFG && CFG.rest; }
 
-    function post(path, body) {
+    // Fetch a live nonce rather than trusting the one printed into a page that may
+    // be served from full-page cache. Memoised, and refreshable on a 403.
+    var noncePromise = null;
+    function freshNonce() {
+        if (noncePromise) { return noncePromise; }
+        noncePromise = fetch(CFG.rest + 'nonce', { credentials: 'same-origin', cache: 'no-store' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) { if (d && d.nonce) { CFG.nonce = d.nonce; } return CFG.nonce; })
+            .catch(function () { return CFG.nonce; });
+        return noncePromise;
+    }
+
+    function post(path, body, retried) {
         body = body || {};
-        body.nonce = CFG.nonce;
-        return fetch(CFG.rest + path, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json', 'X-OE-GT-Nonce': CFG.nonce },
-            body: JSON.stringify(body)
-        }).then(function (r) { return r.json(); });
+        return freshNonce().then(function (nonce) {
+            body.nonce = nonce;
+            return fetch(CFG.rest + path, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-OE-GT-Nonce': nonce },
+                body: JSON.stringify(body)
+            }).then(function (r) { return r.json(); }).then(function (res) {
+                // A rolled/invalid nonce reads as rest_forbidden — refresh once and retry.
+                if (!retried && res && res.code === 'rest_forbidden') {
+                    noncePromise = null;
+                    return post(path, body, true);
+                }
+                return res;
+            });
+        });
     }
 
     /* ---- gate ---- */
