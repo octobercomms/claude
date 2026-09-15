@@ -56,7 +56,8 @@ $accent_on = (string) \OE\Settings::get('theme_accent_on', '') ?: '#ffffff';
         .topbar{background:#111;color:#fff;text-align:center;font-weight:700;font-size:14px;padding:13px 16px}
         .card{border:2px solid #111;border-top:0;background:#fff;padding:26px}
         .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;min-height:120px}
-        .logo img{max-width:230px;max-height:118px;display:block}
+        .logo{flex:0 1 230px;min-width:0}
+        .logo img{display:block;width:100%;height:auto;max-width:230px;max-height:118px;object-fit:contain;object-position:left top}
         .logo .brand{font-weight:800;font-size:20px;line-height:1.1}
         .qr{flex:0 0 auto}
         .qr #qr{width:120px;height:120px}

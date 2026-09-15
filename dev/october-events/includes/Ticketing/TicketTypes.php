@@ -28,9 +28,11 @@ final class TicketTypes {
     public static function logo_url(int $event_id): string {
         $id = $event_id ? (int) get_post_meta($event_id, self::META_LOGO, true) : 0;
         if ($id) {
-            // 'medium' first; fall back to the full file for logos with no
-            // intermediate size (e.g. SVGs), so it never resolves to nothing.
-            $url = wp_get_attachment_image_url($id, 'medium') ?: wp_get_attachment_url($id);
+            // The full file, so the logo keeps its real proportions (a cropped
+            // 'medium'/'thumbnail' square mangles a wide wordmark) and SVGs, which
+            // have no intermediate sizes, still resolve. CSS bounds the size.
+            $url = wp_get_attachment_url($id)
+                ?: (wp_get_attachment_image_url($id, 'large') ?: wp_get_attachment_image_url($id, 'medium'));
             if ($url) {
                 return (string) $url;
             }
