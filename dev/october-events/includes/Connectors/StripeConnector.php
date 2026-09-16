@@ -413,6 +413,83 @@ final class StripeConnector {
         return $result;
     }
 
+    /**
+     * Active members whose subscription is on one of the given price/product IDs
+     * — the source for the public Friends / Patrons lists. Pages Stripe's active
+     * subscriptions, expanding each customer for a name + email, and dedupes by
+     * email. A subscription matches when EITHER its price id OR its product id is
+     * in $tier_ids (same rule as member_status), so a prod_… covers monthly and
+     * yearly. Cached ~15 minutes per tier since a footer renders on every page.
+     *
+     * @param array<int,string> $tier_ids
+     * @return array<int,array{name:string,email:string}>
+     */
+    public static function active_members(array $tier_ids): array {
+        $tier_ids = array_values(array_unique(array_filter(array_map('strval', $tier_ids))));
+        if (! $tier_ids || ! self::is_ready()) {
+            return [];
+        }
+        $key    = 'oe_members_' . md5(implode('|', $tier_ids));
+        $cached = get_transient($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
+        $out   = [];
+        $seen  = [];
+        $after = '';
+        $pages = 0;
+        do {
+            $params = ['status' => 'active', 'limit' => 100, 'expand' => ['data.customer']];
+            if ($after !== '') {
+                $params['starting_after'] = $after;
+            }
+            $res  = self::request('GET', '/subscriptions', $params);
+            $data = is_array($res['data'] ?? null) ? $res['data'] : [];
+            if (! $data) {
+                break;
+            }
+            foreach ($data as $sub) {
+                $after = (string) ($sub['id'] ?? $after); // cursor advances over every subscription
+                $match = false;
+                foreach ((array) ($sub['items']['data'] ?? []) as $item) {
+                    $pid  = (string) ($item['price']['id'] ?? '');
+                    $prod = is_string($item['price']['product'] ?? null) ? (string) $item['price']['product'] : '';
+                    if (($pid !== '' && in_array($pid, $tier_ids, true))
+                        || ($prod !== '' && in_array($prod, $tier_ids, true))) {
+                        $match = true;
+                        break;
+                    }
+                }
+                if (! $match) {
+                    continue;
+                }
+                $cust = is_array($sub['customer'] ?? null) ? $sub['customer'] : [];
+                if (! empty($cust['deleted'])) {
+                    continue;
+                }
+                $email  = strtolower(trim((string) ($cust['email'] ?? '')));
+                $name   = trim((string) ($cust['name'] ?? ''));
+                $dedupe = $email !== '' ? $email : (string) ($cust['id'] ?? '');
+                if ($dedupe === '' || isset($seen[$dedupe])) {
+                    continue;
+                }
+                $seen[$dedupe] = true;
+                $out[] = ['name' => $name, 'email' => $email];
+            }
+            $pages++;
+        } while (! empty($res['has_more']) && $pages < 20);
+        set_transient($key, $out, 15 * MINUTE_IN_SECONDS);
+        return $out;
+    }
+
+    /** Drop the cached member list for a tier (e.g. after editing the price IDs). */
+    public static function bust_members_list(array $tier_ids): void {
+        $tier_ids = array_values(array_unique(array_filter(array_map('strval', $tier_ids))));
+        if ($tier_ids) {
+            delete_transient('oe_members_' . md5(implode('|', $tier_ids)));
+        }
+    }
+
     /** Drop the cached membership status for an email (e.g. right after they join). */
     public static function bust_member_status(string $email): void {
         $email = trim(strtolower($email));

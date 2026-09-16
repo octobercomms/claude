@@ -365,6 +365,14 @@ final class Settings {
                 static fn($p) => sanitize_text_field(trim((string) $p)),
                 preg_split('/[\r\n,\s]+/', (string) ($in['membership_price_ids'] ?? ''))
             )))),
+            'friends_price_ids' => array_values(array_unique(array_filter(array_map(
+                static fn($p) => sanitize_text_field(trim((string) $p)),
+                preg_split('/[\r\n,\s]+/', (string) ($in['friends_price_ids'] ?? ''))
+            )))),
+            'patrons_price_ids' => array_values(array_unique(array_filter(array_map(
+                static fn($p) => sanitize_text_field(trim((string) $p)),
+                preg_split('/[\r\n,\s]+/', (string) ($in['patrons_price_ids'] ?? ''))
+            )))),
             'membership_join_url'      => esc_url_raw(trim((string) ($in['membership_join_url'] ?? ''))),
             'membership_join_label'    => sanitize_text_field((string) ($in['membership_join_label'] ?? '')),
             'membership_join_price_id' => sanitize_text_field(trim((string) ($in['membership_join_price_id'] ?? ''))),
@@ -383,6 +391,10 @@ final class Settings {
             'chatwoot_base_url'     => esc_url_raw(trim((string) ($in['chatwoot_base_url'] ?? ''))),
             'chatwoot_token'        => sanitize_text_field((string) ($in['chatwoot_token'] ?? '')),
         ]);
+
+        // Editing a tier's price IDs should show in the footer lists at once.
+        \OE\Connectors\StripeConnector::bust_members_list((array) Config::get('friends_price_ids', []));
+        \OE\Connectors\StripeConnector::bust_members_list((array) Config::get('patrons_price_ids', []));
 
         // "Save & sync now" (a submit button in the Volunteer-locations accordion)
         // saves the feed credentials above and immediately runs the partner sync

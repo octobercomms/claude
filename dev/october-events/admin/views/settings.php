@@ -395,6 +395,14 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p><label><strong><?php esc_html_e('Membership product / price IDs', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one per line — a prod_… covers all its prices, a price_… is that exact one', 'october-events'); ?></span><br>
             <textarea name="membership_price_ids" rows="4" class="large-text code" placeholder="prod_FriendMembership&#10;prod_PatronMembership"><?php echo esc_textarea(implode("\n", (array) ($cfg['membership_price_ids'] ?? []))); ?></textarea></label></p>
 
+        <h4 style="margin:16px 0 6px"><?php esc_html_e('Website Friends & Patrons lists', 'october-events'); ?></h4>
+        <p class="description"><?php esc_html_e('Auto-populate the footer Friends and Patrons lists from your active Stripe subscribers. Paste each tier’s Stripe product ID (prod_… covers monthly + yearly) or a specific price ID (price_…), one per line. Names show as they appear on the Stripe customer, sorted by last name. Place the shortcodes anywhere (e.g. the footer):', 'october-events'); ?>
+            <code>[oe_friends_list]</code> · <code>[oe_patrons_list]</code></p>
+        <p><label><strong><?php esc_html_e('Friends tier — product / price IDs', 'october-events'); ?></strong><br>
+            <textarea name="friends_price_ids" rows="3" class="large-text code" placeholder="prod_Friend&#10;price_1RA8GK…"><?php echo esc_textarea(implode("\n", (array) ($cfg['friends_price_ids'] ?? []))); ?></textarea></label></p>
+        <p><label><strong><?php esc_html_e('Patrons tier — product / price IDs', 'october-events'); ?></strong><br>
+            <textarea name="patrons_price_ids" rows="3" class="large-text code" placeholder="prod_Patron&#10;price_1RA8GK…"><?php echo esc_textarea(implode("\n", (array) ($cfg['patrons_price_ids'] ?? []))); ?></textarea></label></p>
+
         <h4 style="margin:16px 0 6px"><?php esc_html_e('Join offer (for member-only ticket rates)', 'october-events'); ?></h4>
         <p class="description"><?php esc_html_e('When a ticket type is marked "Members" and a non-member tries to buy it, the checkout offers them the chance to join. Two ways to run the offer:', 'october-events'); ?></p>
         <p class="description" style="margin-left:4px">
