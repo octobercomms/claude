@@ -514,7 +514,7 @@ async function fetchGoogleAdsData(credentials, params) {
     };
   };
 
-  // Explicit MCC override takes priority — set GOOGLE_ADS_MCC_ID in Settings to skip auto-discovery
+  // Explicit MCC override is tried first — set GOOGLE_ADS_MCC_ID in Settings.
   const explicitMcc = (process.env.GOOGLE_ADS_MCC_ID || '').replace(/-/g, '');
   if (explicitMcc) {
     try {
@@ -523,7 +523,19 @@ async function fetchGoogleAdsData(credentials, params) {
       const detail = err.response?.data?.error?.details?.[0]?.errors?.[0]?.message
         || err.response?.data?.error?.message
         || err.message;
-      throw new Error(`Google Ads API error (MCC ${explicitMcc}): ${detail}`);
+      // In manager / service-account mode the MCC is authoritative — the
+      // platform authenticates AS that manager, so there's no per-user identity
+      // to fall back on. Surface the error.
+      if (useManager) {
+        throw new Error(`Google Ads API error (MCC ${explicitMcc}): ${detail}`);
+      }
+      // OAuth mode: GOOGLE_ADS_MCC_ID is a global default, but this particular
+      // account may be owned directly by the authenticated user, or sit under a
+      // different manager. A 404 here only means THIS manager can't see THIS
+      // customer — it doesn't mean the user can't. Fall through to direct
+      // access + auto-discovery (what works when the user owns the account)
+      // instead of hard-failing on the global setting.
+      console.warn(`[Google Ads] explicit MCC ${explicitMcc} failed for ${cleanCustomerId} (${detail}); falling back to direct access + auto-discovery`);
     }
   }
 
