@@ -126,7 +126,7 @@ async function checkRank(keyword, matchDomain) {
   }]);
 
   if (!data.tasks || !data.tasks[0] || data.tasks[0].status_code !== 20000) {
-    return { position: null, url: null, serp_features: [] };
+    return { position: null, url: null, serp_features: [], competitors: [] };
   }
 
   const results = data.tasks[0].result?.[0]?.items || [];
@@ -139,6 +139,19 @@ async function checkRank(keyword, matchDomain) {
     results.filter(r => r.type && r.type !== 'organic').map(r => r.type)
   ));
 
+  // All organic results in rank order — the raw material for "who's ranking
+  // above you". Captured from the SERP we already fetched, so it costs nothing.
+  const organics = results
+    .filter(r => r.type === 'organic' && r.url && r.rank_absolute)
+    .sort((a, b) => a.rank_absolute - b.rank_absolute);
+
+  // Top N competitors above a given position (or the outright top N when the
+  // client isn't ranking — useful to see who owns the term).
+  const competitorsAbove = (rankAbs) => organics
+    .filter(r => rankAbs == null || r.rank_absolute < rankAbs)
+    .slice(0, 5)
+    .map(r => ({ rank: r.rank_absolute, url: r.url, title: r.title || '', domain: rankHost(r.url) }));
+
   // The site we're tracking: per-keyword target_url wins, else the client's
   // own domain. Match by hostname (incl. subdomains), never a path substring.
   const host = rankHost(keyword.target_url) || rankHost(matchDomain);
@@ -149,13 +162,19 @@ async function checkRank(keyword, matchDomain) {
       return ih && (ih === host || ih.endsWith('.' + host));
     });
     if (match) {
-      return { position: match.rank_absolute, url: match.url, serp_features };
+      return {
+        position: match.rank_absolute,
+        url: match.url,
+        serp_features,
+        competitors: competitorsAbove(match.rank_absolute),
+      };
     }
   }
 
   // The tracked site isn't in the top 50 (or we have no site to match) — that's
-  // "not ranking", not the top competitor's spot.
-  return { position: null, url: null, serp_features };
+  // "not ranking", not the top competitor's spot. Still return the top of the
+  // SERP so the UI can show who's winning the term the client wants.
+  return { position: null, url: null, serp_features, competitors: competitorsAbove(null) };
 }
 
 // AI Overview is NOT a standalone SERP endpoint — DataForSEO returns it inside
@@ -310,6 +329,33 @@ async function fetchBacklinkData(domain) {
     limit: 1,
   }]);
 
+  if (!data.tasks?.[0]?.result?.[0]) return null;
+  return data.tasks[0].result[0];
+}
+
+// Page target for the backlinks summary — a specific URL, not the whole
+// domain. Unlike normalizeDomain we KEEP the path, so DataForSEO scopes the
+// summary to that exact page. Strip only the protocol, a leading www and any
+// trailing slash. Used by the rankings "deep-dive" to explain why THIS page
+// (not just the domain) earns its spot.
+function normalizePageTarget(input) {
+  return String(input || '')
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
+}
+
+// Backlink summary for a single page URL (referring domains, total backlinks,
+// DFS page rank). Part of the Backlinks API, so it's gated like the rest until
+// the DFS cutover — callers should tolerate it throwing / returning null.
+async function fetchPageBacklinks(pageUrl) {
+  const client = await getClient();
+  const { data } = await client.post('/backlinks/summary/live', [{
+    target: normalizePageTarget(pageUrl),
+    limit: 1,
+  }]);
   if (!data.tasks?.[0]?.result?.[0]) return null;
   return data.tasks[0].result[0];
 }
@@ -645,4 +691,4 @@ async function fetchGoogleTrends(keywords, { locationCode = 2826, timeRange = 'p
   };
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchDomainRanks, fetchReferringDomains, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchLlmResponse, fetchLlmModels, fetchData, testCredentials, resolveCreds };
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchPageBacklinks, fetchDomainRanks, fetchReferringDomains, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchLlmResponse, fetchLlmModels, fetchData, testCredentials, resolveCreds };

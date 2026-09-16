@@ -131,6 +131,122 @@ function fmtVolume(v) {
   return String(v);
 }
 
+// URL display helpers. stripProto is for showing a URL compactly; normUrl
+// compares two URLs ignoring protocol / www / trailing slash / case so we can
+// flag when the page Google ranked differs from the AM's target URL.
+const stripProto = (u) => String(u || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+const normUrl = (u) => stripProto(u).replace(/^www\./i, '').toLowerCase();
+
+// "Why it ranks" block shown under an expanded keyword. Two layers:
+//   • free — the competitors ranking above you, captured from the last SERP
+//     check (kw.competitors); no extra API call.
+//   • on-demand — a paid DataForSEO deep-dive: the ranking page's full keyword
+//     footprint + its backlink profile. Only runs when the AM asks.
+function WhyItRanks({ kw }) {
+  const toast = useToast();
+  const [dive, setDive] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const competitors = Array.isArray(kw.competitors) ? kw.competitors : [];
+
+  async function runDeepDive() {
+    setLoading(true);
+    try {
+      const d = await api.post(`/rankings/keywords/${kw.id}/deep-dive`, {});
+      setDive(d);
+      if (d.note) toast(d.note, 'info');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div style={{ borderTop: '1px solid var(--card-border)', marginTop: 12, paddingTop: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 8 }}>Why it ranks</div>
+
+      {kw.ranking_url && (
+        <div style={{ fontSize: 12, marginBottom: 10 }}>
+          <span style={{ color: 'var(--text-subtle)' }}>Ranking page: </span>
+          <a href={kw.ranking_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>{stripProto(kw.ranking_url)}</a>
+          {kw.target_url && normUrl(kw.ranking_url) !== normUrl(kw.target_url) && (
+            <span className="chip chip-warning" style={{ fontSize: 9, padding: '1px 5px', marginLeft: 6 }} title={`Your target URL is ${kw.target_url}`}>≠ your target page</span>
+          )}
+        </div>
+      )}
+
+      {competitors.length > 0 ? (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 4 }}>
+            {kw.current_position ? 'Ranking above you' : 'Who owns this term'}:
+          </div>
+          <ol style={{ margin: 0, paddingLeft: 22, fontSize: 12, lineHeight: 1.7 }}>
+            {competitors.map((c, i) => (
+              <li key={i} value={c.rank}>
+                <a href={c.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)', fontWeight: 600 }} title={c.url}>{c.domain || stripProto(c.url)}</a>
+                {c.title && <span style={{ color: 'var(--text-subtle)' }}> — {c.title.slice(0, 80)}</span>}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 10 }}>Run a rank check to capture who ranks around you.</div>
+      )}
+
+      {!dive ? (
+        <button className="btn btn-secondary btn-sm" onClick={runDeepDive} disabled={loading}
+          title="Live DataForSEO lookup: this page's full keyword footprint + backlink profile">
+          {loading ? 'Analysing…' : '🔎 Deep-dive: why this page ranks'}
+        </button>
+      ) : (
+        <DeepDiveResult dive={dive} />
+      )}
+    </div>
+  );
+}
+
+// Renders the paid deep-dive payload: backlink authority metrics + the ranking
+// page's keyword footprint (the other terms it earns, strongest first).
+function DeepDiveResult({ dive }) {
+  const b = dive.backlinks;
+  const Metric = ({ label, value }) => (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700 }}>{value}</div>
+      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-subtle)' }}>{label}</div>
+    </div>
+  );
+  return (
+    <div style={{ marginTop: 4 }}>
+      {b ? (
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 12 }}>
+          <Metric label="Page rank" value={b.rank ?? '—'} />
+          <Metric label="Backlinks" value={fmtVolume(b.backlinks)} />
+          <Metric label="Referring domains" value={fmtVolume(b.referring_domains ?? b.referring_main_domains)} />
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 10 }}>Backlink data unavailable for this page.</div>
+      )}
+      {dive.footprint?.length > 0 ? (
+        <>
+          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 4 }}>
+            This page also ranks for {dive.footprint_total} keyword{dive.footprint_total === 1 ? '' : 's'} — its strongest:
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <tbody>
+              {dive.footprint.slice(0, 15).map((f, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--card-border)' }}>
+                  <td style={{ padding: '3px 6px' }}>{f.keyword}</td>
+                  <td style={{ padding: '3px 6px', textAlign: 'right', color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>#{f.position ?? '—'}</td>
+                  <td style={{ padding: '3px 6px', textAlign: 'right', color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>{f.search_volume != null ? `${fmtVolume(f.search_volume)}/mo` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : (
+        <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No keyword footprint returned for this page.</div>
+      )}
+    </div>
+  );
+}
+
 // Buckets keywords under a group label (by tag or landing page).
 function groupKeywords(list, by) {
   const groups = {};
@@ -174,6 +290,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
       ) : (
         <p style={{ color: 'var(--text-subtle)', fontSize: 12, padding: '24px 0', margin: 0 }}>Not enough rank history yet to chart this keyword.</p>
       )}
+      <WhyItRanks kw={kw} />
     </div>
   );
 }
@@ -299,7 +416,21 @@ export default function ClientSEOPage() {
             <IntentBadge intent={kw.intent} />
             {kw.aio_present && <span className={`chip chip-${kw.aio_brand_cited ? 'success' : 'warning'}`} style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px' }}>AIO{kw.aio_brand_cited ? '+CITED' : ''}</span>}
           </div>
-          {kw.target_url && <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{kw.target_url}</div>}
+          {kw.ranking_url ? (
+            <div style={{ fontSize: 11, marginTop: 1, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ color: 'var(--text-subtle)' }}>↳</span>
+              <a href={kw.ranking_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                title={kw.ranking_url}
+                style={{ color: 'var(--accent)', maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {stripProto(kw.ranking_url)}
+              </a>
+              {kw.target_url && normUrl(kw.ranking_url) !== normUrl(kw.target_url) && (
+                <span className="chip chip-warning" style={{ fontSize: 9, padding: '1px 5px' }} title={`Your target page is ${kw.target_url}`}>≠ target</span>
+              )}
+            </div>
+          ) : kw.target_url ? (
+            <div style={{ fontSize: 11, color: 'var(--text-subtle)' }} title="Your target URL — not yet ranking">target: {stripProto(kw.target_url)}</div>
+          ) : null}
           {kw.serp_features?.length > 0 && <div style={{ marginTop: 3 }}><SerpFeaturePills features={kw.serp_features} /></div>}
         </td>
         <td ><span className="chip chip-neutral">{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
