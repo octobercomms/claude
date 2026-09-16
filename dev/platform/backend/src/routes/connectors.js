@@ -365,7 +365,7 @@ router.get('/:id/diagnose', async (req, res) => {
         try {
           const token = await getPlatformAdsAccessToken();
           const testRes = await axios.get(
-            'https://googleads.googleapis.com/v21/customers:listAccessibleCustomers',
+            `${require('../connectors/google').GADS_API}/customers:listAccessibleCustomers`,
             { headers: { Authorization: `Bearer ${token}`, 'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '' } }
           );
           const n = (testRes.data.resourceNames || []).length;
