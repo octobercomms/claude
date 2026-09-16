@@ -87,31 +87,33 @@ async function markdownToPdfBuffer(markdown, opts = {}) {
 // bullet + numbered lists, GFM tables, horizontal rules, blockquotes,
 // code fences. Anything else falls through to a plain Paragraph.
 
-function inlineRuns(tokens) {
+// Thread the active formatting (bold/italic/etc.) DOWN into each leaf TextRun
+// as it's created, rather than building a plain run and trying to re-apply
+// formatting afterwards. docx's TextRun doesn't expose its text back through
+// `.options`, so the old "build then mutate" approach rebuilt bold/italic/link
+// spans as EMPTY runs — silently dropping all bold text from the export.
+function inlineRuns(tokens, fmt = {}) {
   const runs = [];
   for (const tok of tokens || []) {
     switch (tok.type) {
-      case 'text':       runs.push(new TextRun({ text: tok.text })); break;
-      case 'strong':     runs.push(...inlineRuns(tok.tokens).map(r => mutateRun(r, { bold: true }))); break;
-      case 'em':         runs.push(...inlineRuns(tok.tokens).map(r => mutateRun(r, { italics: true }))); break;
-      case 'codespan':   runs.push(new TextRun({ text: tok.text, font: 'Consolas' })); break;
-      case 'link':       runs.push(...inlineRuns(tok.tokens).map(r => mutateRun(r, { color: '1A56DB', underline: {} }))); break;
+      case 'text':
+        // A text token can itself carry nested inline tokens (e.g. emphasis
+        // inside a list item); recurse when present, else emit the leaf.
+        if (tok.tokens && tok.tokens.length) runs.push(...inlineRuns(tok.tokens, fmt));
+        else runs.push(new TextRun({ text: tok.text, ...fmt }));
+        break;
+      case 'strong':     runs.push(...inlineRuns(tok.tokens, { ...fmt, bold: true })); break;
+      case 'em':         runs.push(...inlineRuns(tok.tokens, { ...fmt, italics: true })); break;
+      case 'codespan':   runs.push(new TextRun({ text: tok.text, font: 'Consolas', ...fmt })); break;
+      case 'link':       runs.push(...inlineRuns(tok.tokens, { ...fmt, color: '1A56DB', underline: {} })); break;
       case 'br':         runs.push(new TextRun({ break: 1 })); break;
-      case 'del':        runs.push(...inlineRuns(tok.tokens).map(r => mutateRun(r, { strike: true }))); break;
-      case 'html':       runs.push(new TextRun({ text: stripHtml(tok.text) })); break;
+      case 'del':        runs.push(...inlineRuns(tok.tokens, { ...fmt, strike: true })); break;
+      case 'html':       runs.push(new TextRun({ text: stripHtml(tok.text), ...fmt })); break;
       default:
-        if (tok.raw) runs.push(new TextRun({ text: tok.raw }));
+        if (tok.raw) runs.push(new TextRun({ text: tok.raw, ...fmt }));
     }
   }
   return runs.length ? runs : [new TextRun({ text: '' })];
-}
-
-function mutateRun(run, extra) {
-  // Clone-ish — re-construct with merged options. docx TextRun is
-  // immutable; we have to read out the props and rebuild.
-  const opts = { ...(run.options || {}), ...extra };
-  if (run.options?.text != null && opts.text == null) opts.text = run.options.text;
-  return new TextRun(opts);
 }
 
 function stripHtml(s) {
