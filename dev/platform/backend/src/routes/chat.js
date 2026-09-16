@@ -259,13 +259,27 @@ async function toolGetClientInfo(clientId) {
 }
 
 async function toolGetConnectorData(clientId, { connector_type, days = 30, start_date, end_date, store_label }) {
-  const whereClause = store_label
-    ? 'client_id = $1 AND connector_type = $2 AND store_label = $3 AND status = \'active\''
-    : 'client_id = $1 AND connector_type = $2 AND status = \'active\'';
+  // Don't require status = 'active' — the AM sees a connector in the UI, and
+  // the Ads page pulls its data, long before it's ever marked active. A
+  // connector left in 'error'/'expired' by a transient token blip may work now,
+  // and service-account / MCC connectors sit at the default 'disconnected' yet
+  // are usable via the platform service account (they carry no stored creds).
+  // Only skip an OAuth connector that was never connected (nothing to try).
+  // Prefer an active row, then the most recently checked, and self-heal the
+  // status on a successful fetch so the badge catches up.
+  const base = store_label
+    ? 'client_id = $1 AND connector_type = $2 AND store_label = $3'
+    : 'client_id = $1 AND connector_type = $2';
   const params = store_label ? [clientId, connector_type, store_label] : [clientId, connector_type];
 
-  const connRes = await pool.query(`SELECT * FROM connectors WHERE ${whereClause} LIMIT 1`, params);
-  if (!connRes.rows.length) return { error: `No active ${connector_type} connector found${store_label ? ` with store_label "${store_label}"` : ''}` };
+  const connRes = await pool.query(
+    `SELECT * FROM connectors
+       WHERE ${base} AND (status <> 'disconnected' OR auth_mode <> 'oauth')
+       ORDER BY (status = 'active') DESC, last_checked DESC NULLS LAST
+       LIMIT 1`,
+    params
+  );
+  if (!connRes.rows.length) return { error: `No ${connector_type} connector configured${store_label ? ` with store_label "${store_label}"` : ''}` };
 
   const connector = connRes.rows[0];
   let creds;
@@ -305,6 +319,14 @@ async function toolGetConnectorData(clientId, { connector_type, days = 30, start
       periodStart: fmt(periodStart),
       periodEnd: fmt(periodEnd),
     });
+    // The fetch worked — clear any stale error state so Setup → Connectors
+    // reflects reality without the AM having to click Diagnose by hand.
+    if (connector.status !== 'active') {
+      await pool.query(
+        "UPDATE connectors SET status = 'active', error_message = NULL, last_checked = NOW() WHERE id = $1",
+        [connector.id]
+      ).catch(() => {});
+    }
     return {
       store_label: connector.store_label || null,
       config_value: configValue || null,
@@ -648,11 +670,17 @@ async function toolGetReports(clientId, limit = 10) {
 }
 
 async function toolDetectAnomalies(clientId) {
+  // Same connector set the analyst's data tool uses: anything usable, not just
+  // status='active' (see toolGetConnectorData). A connector that pulls data
+  // fine here is self-healed to 'active', and only ones we genuinely couldn't
+  // pull are flagged as errored — so a working service-account connector sitting
+  // at 'disconnected' isn't reported as broken.
   const connRes = await pool.query(
-    `SELECT * FROM connectors WHERE client_id = $1 AND status = 'active'`,
+    `SELECT * FROM connectors WHERE client_id = $1 AND (status <> 'disconnected' OR auth_mode <> 'oauth')`,
     [clientId]
   );
   const anomalies = [];
+  const pulledIds = new Set();
   const now = new Date();
   const thisStart = new Date(now - 7 * 86400000);
   const prevStart = new Date(now - 14 * 86400000);
@@ -670,6 +698,10 @@ async function toolDetectAnomalies(clientId) {
         connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, authMode: connector.auth_mode, startDate: fmt(thisStart), endDate: fmt(now), periodStart: fmt(thisStart), periodEnd: fmt(now) }),
         connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, authMode: connector.auth_mode, startDate: fmt(prevStart), endDate: fmt(thisStart), periodStart: fmt(prevStart), periodEnd: fmt(thisStart) }),
       ]);
+      pulledIds.add(connector.id);
+      if (connector.status !== 'active') {
+        await pool.query("UPDATE connectors SET status = 'active', error_message = NULL, last_checked = NOW() WHERE id = $1", [connector.id]).catch(() => {});
+      }
       const currSummary = summariseConnectorData(connector.connector_type, curr, 7);
       const prevSummary = summariseConnectorData(connector.connector_type, prev, 7);
       const label = connector.store_label ? `${connector.connector_type} (${connector.store_label})` : connector.connector_type;
@@ -680,12 +712,14 @@ async function toolDetectAnomalies(clientId) {
     } catch { /* connector might not support this period */ }
   }
 
-  // Flag errored connectors
+  // Flag errored connectors we couldn't pull this run (skip any that just
+  // succeeded above and were healed).
   const errored = await pool.query(
-    `SELECT connector_type, store_label, error_message FROM connectors WHERE client_id = $1 AND status IN ('error','expired','disconnected')`,
+    `SELECT id, connector_type, store_label, status, error_message FROM connectors WHERE client_id = $1 AND status IN ('error','expired','disconnected')`,
     [clientId]
   );
   for (const c of errored.rows) {
+    if (pulledIds.has(c.id)) continue;
     anomalies.push({ source: c.connector_type, type: 'connector_error', severity: 'high', message: `${c.connector_type}${c.store_label ? ` (${c.store_label})` : ''} is ${c.status}: ${c.error_message || 'no detail'}` });
   }
 
@@ -862,6 +896,7 @@ async function executeTool(name, input, clientId, ctx = {}) {
 function buildSystemPrompt(client, connectors, opts = {}) {
   const connectorList = connectors.length
     ? connectors.map(c => `${c.connector_type}${c.store_label ? ` (${c.store_label})` : ''} [${c.status}]`).join(', ')
+      + '. The status badge is only the last check — treat any connector listed here as available and actually try get_connector_data / detect_anomalies on it. A badge of [error], [expired] or [disconnected] does NOT mean "no data": errored connectors often work again after a transient token blip, and service-account / MCC connectors stay [disconnected] until first used yet pull fine. Only report a source as unavailable after a data pull actually fails, and say what failed.'
     : 'none configured';
 
   if (opts.persona === 'strategist') return buildStrategistSystemPrompt(client, connectorList, opts.briefing);
