@@ -107,6 +107,12 @@ final class Settings {
             // enabled and at least one price ID is set.
             'membership_enabled'    => false,
             'membership_price_ids'  => [],
+            // Stripe price/product IDs for each named tier, used only to build the
+            // public website "Friends" and "Patrons" lists ([oe_friends_list] /
+            // [oe_patrons_list]). A prod_… covers all its prices; a price_… is that
+            // exact one. Independent of membership_price_ids above.
+            'friends_price_ids'     => [],
+            'patrons_price_ids'     => [],
             // The Stripe Payment Link (or any join URL) for the membership we
             // offer non-members at checkout — e.g. the Friend monthly plan. Shown
             // as the "Join to unlock this rate" button next to member-only tickets.

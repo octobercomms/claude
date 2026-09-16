@@ -54,6 +54,7 @@ final class Plugin {
         MapsConnector::init();
         Chat::init();
         \OE\GuidedTours\Shortcodes::init();
+        \OE\Members\Shortcodes::init();
         \OE\GuidedTours\Rest::init();
 
         // Interfaces.
