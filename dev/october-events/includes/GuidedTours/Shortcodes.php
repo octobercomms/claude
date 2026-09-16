@@ -76,6 +76,8 @@ final class Shortcodes {
             }
             $by_day[$s['date']][] = $s;
         }
+        // Seats held per slot in one query, rather than a SUM() per slot below.
+        $held_map = Reservations::held_map($id);
 
         ob_start(); ?>
         <div class="oe-gt-slots" data-oe-gt-slots="<?php echo esc_attr((string) $id); ?>">
@@ -85,7 +87,7 @@ final class Shortcodes {
                     <?php if ($day_label !== '') : ?><h4 class="oe-gt-day__label"><?php echo esc_html($day_label); ?></h4><?php endif; ?>
                     <div class="oe-gt-pills">
                         <?php foreach ($day_slots as $s) :
-                            $held = Reservations::count_held($id, $s['uid']);
+                            $held = $held_map[$s['uid']] ?? 0;
                             $left = max(0, $s['capacity'] - $held);
                             $full = $left <= 0;
                             $time = gmdate('g:i A', (int) strtotime('2000-01-01 ' . $s['start']));

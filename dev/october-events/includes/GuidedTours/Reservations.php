@@ -51,6 +51,28 @@ final class Reservations {
         ));
     }
 
+    /**
+     * Seats held (reserved + confirmed) for every slot at a building, in one
+     * grouped query — so a page rendering many slots does one query, not one per
+     * slot. Returns slot_uid => seats.
+     *
+     * @return array<string,int>
+     */
+    public static function held_map(int $location_id): array {
+        global $wpdb;
+        $in   = "'" . implode("','", self::held()) . "'";
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT slot_uid, COALESCE(SUM(party_size),0) AS seats FROM " . self::table()
+            . " WHERE location_id = %d AND status IN ({$in}) GROUP BY slot_uid",
+            $location_id
+        )) ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(string) $r->slot_uid] = (int) $r->seats;
+        }
+        return $out;
+    }
+
     /** How many seats are waiting on a slot, summing party sizes. */
     public static function waitlist_count(int $location_id, string $slot_uid): int {
         global $wpdb;

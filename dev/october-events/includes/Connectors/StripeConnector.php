@@ -425,15 +425,43 @@ final class StripeConnector {
      * @return array<int,array{name:string,email:string}>
      */
     public static function active_members(array $tier_ids): array {
-        $tier_ids = array_values(array_unique(array_filter(array_map('strval', $tier_ids))));
+        $tier_ids = self::tier_ids($tier_ids);
+        if (! $tier_ids) {
+            return [];
+        }
+        // Render-safe: this is called from the footer shortcodes on (potentially)
+        // every page, so it never calls Stripe inline. It serves the last list
+        // warmed by cron/admin-save; if none exists yet, it schedules a one-off
+        // background warm and shows nothing this time rather than blocking.
+        $stored = get_option(self::members_key($tier_ids), null);
+        if (is_array($stored)) {
+            return $stored;
+        }
+        self::schedule_members_warm($tier_ids);
+        return [];
+    }
+
+    /**
+     * Fetch the tier's active members fresh from Stripe and store them for the
+     * render-safe reader above. Runs from cron and on a settings save, never in a
+     * visitor's page render.
+     *
+     * @param array<int,string> $tier_ids
+     * @return array<int,array{name:string,email:string}>
+     */
+    public static function warm_members(array $tier_ids): array {
+        $tier_ids = self::tier_ids($tier_ids);
         if (! $tier_ids || ! self::is_ready()) {
             return [];
         }
-        $key    = 'oe_members_' . md5(implode('|', $tier_ids));
-        $cached = get_transient($key);
-        if (is_array($cached)) {
-            return $cached;
-        }
+        $list = self::fetch_members($tier_ids);
+        // autoload = no: read only on the footer render path, not every request.
+        update_option(self::members_key($tier_ids), $list, false);
+        return $list;
+    }
+
+    /** The Stripe paging that builds a tier's member list. Never cached here. */
+    private static function fetch_members(array $tier_ids): array {
         $out   = [];
         $seen  = [];
         $after = '';
@@ -478,16 +506,33 @@ final class StripeConnector {
             }
             $pages++;
         } while (! empty($res['has_more']) && $pages < 20);
-        set_transient($key, $out, 15 * MINUTE_IN_SECONDS);
         return $out;
     }
 
-    /** Drop the cached member list for a tier (e.g. after editing the price IDs). */
-    public static function bust_members_list(array $tier_ids): void {
-        $tier_ids = array_values(array_unique(array_filter(array_map('strval', $tier_ids))));
-        if ($tier_ids) {
-            delete_transient('oe_members_' . md5(implode('|', $tier_ids)));
+    /** Normalise a tier's price/product IDs (deduped, non-empty strings). */
+    private static function tier_ids(array $tier_ids): array {
+        return array_values(array_unique(array_filter(array_map('strval', $tier_ids))));
+    }
+
+    private static function members_key(array $tier_ids): string {
+        return 'oe_members_' . md5(implode('|', $tier_ids));
+    }
+
+    /** Queue a one-off background warm so a cold footer never blocks on Stripe. */
+    private static function schedule_members_warm(array $tier_ids): void {
+        if (! wp_next_scheduled('oe_warm_members', [$tier_ids])) {
+            wp_schedule_single_event(time() + 5, 'oe_warm_members', [$tier_ids]);
         }
+    }
+
+    /** Refresh (or drop) the stored member list after the price IDs change. */
+    public static function bust_members_list(array $tier_ids): void {
+        $tier_ids = self::tier_ids($tier_ids);
+        if (! $tier_ids) {
+            return;
+        }
+        delete_option(self::members_key($tier_ids));
+        self::schedule_members_warm($tier_ids);
     }
 
     /** Drop the cached membership status for an email (e.g. right after they join). */
@@ -622,7 +667,9 @@ final class StripeConnector {
         $url  = self::API_BASE . $path;
         $args = [
             'method'  => $method,
-            'timeout' => 30,
+            // Reads must not hang a request that triggered them; writes (charges,
+            // refunds, subscriptions) may legitimately take longer.
+            'timeout' => $method === 'GET' ? 10 : 30,
             'headers' => [
                 'Authorization' => 'Bearer ' . self::secret(),
                 'Content-Type'  => 'application/x-www-form-urlencoded',

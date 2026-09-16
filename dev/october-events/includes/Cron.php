@@ -86,6 +86,14 @@ final class Cron {
         \OE\Ticketing\AttendeeReminders::run_due();
         // Chip away at contact CleanUp (names + company) for any new contacts.
         \OE\Mail\Enrich::backfill(1000);
+        // Keep the public Friends/Patrons footer lists warm so no visitor ever
+        // waits on Stripe during a page render.
+        foreach (['friends_price_ids', 'patrons_price_ids'] as $setting) {
+            $ids = (array) \OE\Settings::get($setting, []);
+            if ($ids) {
+                \OE\Connectors\StripeConnector::warm_members($ids);
+            }
+        }
     }
 
     public function run_daily(): void {
@@ -316,7 +324,8 @@ final class Cron {
         }
 
         // Keep the seen list bounded.
-        update_option('oe_ai_seen_guids', array_slice(array_unique($seen), -500));
+        // autoload = no: a daily-cron dedup list has no business loading on every request.
+        update_option('oe_ai_seen_guids', array_slice(array_unique($seen), -500), false);
     }
 
     /**
