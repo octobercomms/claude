@@ -64,6 +64,24 @@ foreach ($reservations as $r) {
             <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=oe-guided-tours&oe_export=guided'), 'oe_export')); ?>"><?php esc_html_e('Download all (CSV)', 'october-events'); ?></a>
         </form>
 
+        <?php
+        $previews = [
+            'reserved'  => __('Booking confirmation', 'october-events'),
+            'waitlist'  => __('Waitlist notice', 'october-events'),
+            'promoted'  => __('Waitlist promotion', 'october-events'),
+            'reconfirm' => __('48-hour reconfirm', 'october-events'),
+        ];
+        ?>
+        <p style="margin:14px 0 20px;color:#444">
+            <strong><?php esc_html_e('Preview emails:', 'october-events'); ?></strong>
+            <?php $sep = ''; foreach ($previews as $type => $label) :
+                $url = wp_nonce_url(admin_url('admin-post.php?action=oe_preview_guided_email&type=' . $type), 'oe_preview_guided_email');
+                echo $sep; $sep = ' &nbsp;·&nbsp; '; ?>
+                <a href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener"><?php echo esc_html($label); ?></a>
+            <?php endforeach; ?>
+            <span class="description" style="display:block;margin-top:4px"><?php esc_html_e('Opens in a new tab with sample details, showing exactly what recipients get.', 'october-events'); ?></span>
+        </p>
+
         <h2 style="margin-top:22px"><?php esc_html_e('Add someone', 'october-events'); ?></h2>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:14px 16px;max-width:960px">
             <?php wp_nonce_field('oe_gt_reservation_add'); ?>
