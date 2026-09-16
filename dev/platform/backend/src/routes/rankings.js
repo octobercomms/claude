@@ -27,6 +27,7 @@ router.get('/keywords', async (req, res) => {
         (SELECT url FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as ranking_url,
         (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked,
         (SELECT serp_features FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as serp_features,
+        (SELECT competitors FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as competitors,
         (SELECT present FROM aio_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as aio_present,
         (SELECT brand_cited FROM aio_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as aio_brand_cited
       FROM seo_keywords k WHERE k.active = true
@@ -142,6 +143,77 @@ router.get('/keywords/:id/history', async (req, res) => {
       [req.params.id]
     );
     res.json(rows);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// "Why does this page rank" deep-dive for a single keyword. On-demand (not part
+// of the scheduled check) because it spends extra DataForSEO calls: the ranking
+// page's full keyword footprint + its backlink profile. The competitors-above
+// list is free — it's already stored from the last rank check.
+router.post('/keywords/:id/deep-dive', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM seo_keywords WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Keyword not found' });
+    const kw = rows[0];
+    assertClientAccess(req, kw.client_id);
+
+    const { rows: hist } = await pool.query(
+      `SELECT position, url, competitors FROM seo_rank_history
+       WHERE keyword_id = $1 ORDER BY checked_at DESC LIMIT 1`,
+      [kw.id]
+    );
+    const latest = hist[0] || {};
+    const competitors = latest.competitors || [];
+    // Prefer the page Google actually ranked; fall back to the AM's target URL.
+    const rankingUrl = latest.url || kw.target_url || null;
+
+    if (!rankingUrl) {
+      return res.json({
+        position: latest.position ?? null,
+        ranking_url: null,
+        target_url: kw.target_url || null,
+        competitors,
+        footprint: [],
+        footprint_total: 0,
+        backlinks: null,
+        note: 'This keyword isn’t ranking yet and has no target URL, so there’s no page to analyse. Add a target URL or run a rank check first.',
+      });
+    }
+
+    const loc = kw.location_code || 2826;
+    // Both are best-effort: the footprint (Labs) and backlinks (gated) can each
+    // fail independently, so degrade to whatever came back rather than erroring.
+    const [footprintAll, backlinks] = await Promise.all([
+      dataForSEO.fetchKeywordsForUrl(rankingUrl, loc, 100).catch((e) => {
+        console.error('deep-dive footprint failed:', e.message); return [];
+      }),
+      dataForSEO.fetchPageBacklinks(rankingUrl).catch((e) => {
+        console.error('deep-dive backlinks failed:', e.message); return null;
+      }),
+    ]);
+
+    // Show the strongest positions first — that's what explains the ranking.
+    const footprint = [...footprintAll]
+      .sort((a, b) => (a.position || 999) - (b.position || 999))
+      .slice(0, 30);
+
+    res.json({
+      position: latest.position ?? null,
+      ranking_url: rankingUrl,
+      target_url: kw.target_url || null,
+      competitors,
+      footprint,
+      footprint_total: footprintAll.length,
+      backlinks: backlinks ? {
+        backlinks: backlinks.backlinks ?? null,
+        referring_domains: backlinks.referring_domains ?? null,
+        referring_main_domains: backlinks.referring_main_domains ?? null,
+        rank: backlinks.rank ?? null,
+        broken_backlinks: backlinks.broken_backlinks ?? null,
+      } : null,
+    });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
@@ -381,11 +453,13 @@ async function runRankChecks(keywords) {
     try {
       const result = await dataForSEO.checkRank(kw, domainByClient[kw.client_id]);
       await pool.query(
-        `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url, serp_features)
-         VALUES ($1, CURRENT_DATE, $2, $3, $4)
+        `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url, serp_features, competitors)
+         VALUES ($1, CURRENT_DATE, $2, $3, $4, $5)
          ON CONFLICT (keyword_id, checked_at) DO UPDATE
-           SET position = EXCLUDED.position, url = EXCLUDED.url, serp_features = EXCLUDED.serp_features`,
-        [kw.id, result.position, result.url, JSON.stringify(result.serp_features || [])]
+           SET position = EXCLUDED.position, url = EXCLUDED.url, serp_features = EXCLUDED.serp_features,
+               competitors = EXCLUDED.competitors`,
+        [kw.id, result.position, result.url, JSON.stringify(result.serp_features || []),
+         JSON.stringify(result.competitors || [])]
       );
     } catch (err) {
       console.error(`Rank check failed for keyword ${kw.keyword}:`, err.message);
