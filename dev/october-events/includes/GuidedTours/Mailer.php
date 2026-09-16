@@ -15,18 +15,29 @@ defined('ABSPATH') || exit;
 final class Mailer {
 
     /** Confirmation on reserve (or a waitlist notice when the slot was full). */
-    public static function reserved(int $location_id, string $slot_uid, string $email, string $name, bool $waitlisted): void {
-        $when = self::when($location_id, $slot_uid);
-        $bld  = self::building($location_id);
+    public static function reserved(int $location_id, string $slot_uid, string $email, string $name, bool $waitlisted, string $token = ''): void {
+        $when    = self::when($location_id, $slot_uid);
+        $bld     = self::building($location_id);
+        $release = $token !== '' ? add_query_arg(['oe_gt' => 'release', 'token' => $token], home_url('/')) : '';
         if ($waitlisted) {
             $subject = __('You’re on the waitlist', 'october-events');
             $html    = self::p(sprintf(__('Thanks %s. %s on %s is full, so you’re on the waitlist. If a spot frees up we’ll email you straight away.', 'october-events'),
                 self::name($name), esc_html($bld), esc_html($when)));
+            if ($release !== '') {
+                $html .= self::p(sprintf(__('Changed your mind? %s.', 'october-events'),
+                    '<a href="' . esc_url($release) . '" style="color:#b23b2a;font-weight:600">' . esc_html__('Leave the waitlist', 'october-events') . '</a>'));
+            }
         } else {
             $subject = __('Your guided tour spot is booked', 'october-events');
             $html    = self::p(sprintf(__('You’re booked for %s on %s. Please arrive a few minutes early.', 'october-events'),
                 '<strong>' . esc_html($bld) . '</strong>', '<strong>' . esc_html($when) . '</strong>'))
-                . self::p(__('We’ll email you 48 hours before to confirm. If you can’t make it, please release your spot so someone on the waitlist can take it.', 'october-events'));
+                . self::details($location_id);
+            if ($release !== '') {
+                $html .= self::p(sprintf(__('Can’t make it? Please %s so someone on the waitlist can take it. We’ll also email you 48 hours before to confirm.', 'october-events'),
+                    '<a href="' . esc_url($release) . '" style="color:#b23b2a;font-weight:600">' . esc_html__('release your spot', 'october-events') . '</a>'));
+            } else {
+                $html .= self::p(__('We’ll email you 48 hours before to confirm. If you can’t make it, please release your spot so someone on the waitlist can take it.', 'october-events'));
+            }
         }
         Transactional::send('gt_reserved', ['email' => $email, 'name' => $name], [], $subject, $html);
     }
@@ -37,7 +48,8 @@ final class Mailer {
         $bld     = self::building($location_id);
         $subject = __('A spot opened up — you’re in', 'october-events');
         $html    = self::p(sprintf(__('Good news %s, a spot opened for %s on %s and it’s yours. See you there.', 'october-events'),
-            self::name($name), '<strong>' . esc_html($bld) . '</strong>', '<strong>' . esc_html($when) . '</strong>'));
+            self::name($name), '<strong>' . esc_html($bld) . '</strong>', '<strong>' . esc_html($when) . '</strong>'))
+            . self::details($location_id);
         Transactional::send('gt_promoted', ['email' => $email, 'name' => $name], [], $subject, $html);
     }
 
@@ -61,6 +73,33 @@ final class Mailer {
 
     private static function building(int $location_id): string {
         return get_the_title($location_id) ?: __('the building', 'october-events');
+    }
+
+    /**
+     * Address, Google Maps link and project-page link for a building, read from
+     * the Location's own fields. Each part is included only when present, so a
+     * building missing a field just omits that line.
+     */
+    private static function details(int $location_id): string {
+        $out     = '';
+        $address = trim((string) get_post_meta($location_id, 'address', true));
+        if ($address !== '') {
+            $out .= self::p('<strong>' . esc_html__('Address', 'october-events') . ':</strong> ' . esc_html($address));
+        }
+
+        $links = [];
+        $map = trim((string) get_post_meta($location_id, 'google_maps', true));
+        if ($map !== '' && filter_var($map, FILTER_VALIDATE_URL)) {
+            $links[] = '<a href="' . esc_url($map) . '" style="color:#111;font-weight:600">' . esc_html__('Open in Google Maps', 'october-events') . '</a>';
+        }
+        $page = get_permalink($location_id);
+        if ($page) {
+            $links[] = '<a href="' . esc_url($page) . '" style="color:#111;font-weight:600">' . esc_html__('See the building', 'october-events') . '</a>';
+        }
+        if ($links) {
+            $out .= self::p(implode(' &nbsp;·&nbsp; ', $links));
+        }
+        return $out;
     }
 
     private static function when(int $location_id, string $slot_uid): string {
