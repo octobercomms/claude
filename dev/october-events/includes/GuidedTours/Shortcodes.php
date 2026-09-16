@@ -39,7 +39,6 @@ final class Shortcodes {
         ob_start(); ?>
         <div class="oe-gt-gate<?php echo $unlocked ? ' is-unlocked' : ''; ?>" data-oe-gt-gate>
             <div class="oe-gt-gate__locked" <?php echo $unlocked ? 'hidden' : ''; ?>>
-                <p class="oe-gt-gate__intro"><?php esc_html_e('Have a tour ticket? Enter the email you booked with and booking unlocks on this page.', 'october-events'); ?></p>
                 <form class="oe-gt-gate__form" data-oe-gt-form>
                     <input type="email" inputmode="email" autocomplete="email" required
                         class="oe-gt-gate__email" placeholder="<?php esc_attr_e('you@example.com', 'october-events'); ?>"
