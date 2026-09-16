@@ -118,6 +118,47 @@ final class Reservations {
         )) ?: [];
     }
 
+    /**
+     * All reservations for the admin screen, optionally scoped to one building,
+     * ordered by building then slot time. Includes every status; the screen shows
+     * the active ones and can reveal cancelled/released.
+     *
+     * @return array<int,object>
+     */
+    public static function all(int $location_id = 0): array {
+        global $wpdb;
+        $where = $location_id > 0 ? $wpdb->prepare('WHERE location_id = %d', $location_id) : '';
+        return $wpdb->get_results(
+            'SELECT * FROM ' . self::table() . " {$where} ORDER BY location_id ASC, slot_start ASC, id ASC"
+        ) ?: [];
+    }
+
+    /**
+     * Admin-add a person to a slot (bypasses the ticket gate). Reuses the normal
+     * reserve path, so capacity, the per-building limit, the waitlist and the
+     * confirmation email all behave exactly as a self-service booking.
+     *
+     * @return array{status:string,spots_left:int}|\WP_Error
+     */
+    public static function admin_add(int $location_id, string $slot_uid, string $email, string $name) {
+        return self::reserve($location_id, $slot_uid, '', $email, $name);
+    }
+
+    /** Admin-remove: cancel a reservation and offer a freed seat to the waitlist. */
+    public static function admin_remove(int $id): void {
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE id = %d', $id));
+        if (! $row) {
+            return;
+        }
+        $was_held = in_array($row->status, self::held(), true);
+        $wpdb->update(self::table(), ['status' => self::STATUS_CANCELLED], ['id' => $id]);
+        AuditLog::record('gt_removed', $id, 'guided_tour', (string) $row->email);
+        if ($was_held) {
+            self::promote_waitlist((int) $row->location_id, (string) $row->slot_uid);
+        }
+    }
+
     public static function by_token(string $token): ?object {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE token = %s', $token)) ?: null;

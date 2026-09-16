@@ -52,6 +52,22 @@ final class Slots {
         return null;
     }
 
+    /** Location post IDs that have at least one slot defined (for the admin screen). */
+    public static function locations_with_slots(): array {
+        global $wpdb;
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s",
+            self::META
+        ));
+        $out = [];
+        foreach ((array) $ids as $id) {
+            if (self::all((int) $id)) {
+                $out[] = (int) $id;
+            }
+        }
+        return $out;
+    }
+
     /** A slot's start as a UTC timestamp (site timezone → UTC), 0 if unparseable. */
     public static function start_ts(int $location_id, string $uid): int {
         $s = self::get($location_id, $uid);

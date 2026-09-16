@@ -34,6 +34,8 @@ final class Admin {
         add_action('admin_post_oe_preview_volunteer_email', [$this, 'handle_preview_volunteer_email']);
         add_action('admin_post_oe_volunteer_blast', [$this, 'handle_volunteer_blast']);
         add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
+        add_action('admin_post_oe_gt_reservation_remove', [$this, 'handle_gt_reservation_remove']);
+        add_action('admin_post_oe_gt_reservation_add', [$this, 'handle_gt_reservation_add']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
         add_action('admin_post_oe_import_contacts', [$this, 'handle_import_contacts']);
@@ -65,6 +67,7 @@ final class Admin {
         if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']); }
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']); }
+        add_submenu_page('october-events', 'Guided Tours', 'Guided Tours', $cap, 'oe-guided-tours', [$this, 'page_guided_tours']);
         add_submenu_page('october-events', 'Countdown', 'Countdown', $cap, 'oe-countdown', [$this, 'page_countdown']);
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
     }
@@ -425,6 +428,51 @@ final class Admin {
         require OE_DIR . 'admin/views/countdown.php';
     }
 
+    /** Guided-tour signups: list per building, add/remove people, export CSV. */
+    public function page_guided_tours(): void {
+        $location     = isset($_GET['building']) ? absint($_GET['building']) : 0;
+        $buildings    = \OE\GuidedTours\Slots::locations_with_slots();
+        $reservations = \OE\GuidedTours\Reservations::all($location);
+        $notice       = get_transient('oe_gt_notice_' . get_current_user_id());
+        if ($notice) {
+            delete_transient('oe_gt_notice_' . get_current_user_id());
+        }
+        require OE_DIR . 'admin/views/guided-tours.php';
+    }
+
+    /** Cancel a guided-tour reservation (promotes the waitlist if it held a seat). */
+    public function handle_gt_reservation_remove(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        $id = isset($_REQUEST['id']) ? absint($_REQUEST['id']) : 0;
+        check_admin_referer('oe_gt_reservation_remove_' . $id);
+        \OE\GuidedTours\Reservations::admin_remove($id);
+        $this->redirect_back();
+    }
+
+    /** Add a person to a slot by hand (bypasses the ticket gate). */
+    public function handle_gt_reservation_add(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_gt_reservation_add');
+        $location = absint($_POST['building'] ?? 0);
+        $slot     = isset($_POST['slot']) ? preg_replace('/[^a-z0-9]/', '', strtolower((string) $_POST['slot'])) : '';
+        $name     = sanitize_text_field(wp_unslash((string) ($_POST['name'] ?? '')));
+        $email    = sanitize_email((string) ($_POST['email'] ?? ''));
+        $res      = \OE\GuidedTours\Reservations::admin_add($location, (string) $slot, $email, $name);
+        if (is_wp_error($res)) {
+            $notice = ['error' => $res->get_error_message()];
+        } else {
+            $notice = ['ok' => $res['status'] === \OE\GuidedTours\Reservations::STATUS_WAITLIST
+                ? __('Added to the waitlist — that slot was full.', 'october-events')
+                : __('Added, and emailed them a confirmation.', 'october-events')];
+        }
+        set_transient('oe_gt_notice_' . get_current_user_id(), $notice, 60);
+        $this->redirect_back();
+    }
+
     public function handle_rebuild_contacts(): void {
         if (! current_user_can('manage_options')) {
             wp_die('Forbidden', '', ['response' => 403]);
@@ -592,6 +640,21 @@ final class Admin {
         $what = sanitize_key((string) $_GET['oe_export']);
 
         // Ticket/order CSV is handled by TicketsAdmin::maybe_export_orders().
+
+        if ($what === 'guided') {
+            $rows = \OE\GuidedTours\Reservations::all();
+            $this->stream_csv('guided-tours.csv', ['Building', 'When', 'Name', 'Email', 'Status', 'Booked'], array_map(static function ($r) {
+                $ts = \OE\GuidedTours\Slots::start_ts((int) $r->location_id, (string) $r->slot_uid);
+                return [
+                    get_the_title((int) $r->location_id),
+                    $ts ? wp_date('Y-m-d g:i A', $ts) : '',
+                    $r->name,
+                    $r->email,
+                    $r->status,
+                    (string) $r->created_at,
+                ];
+            }, $rows));
+        }
 
         if ($what === 'volunteers') {
             global $wpdb;
