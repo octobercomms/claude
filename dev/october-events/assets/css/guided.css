@@ -1,3 +1,16 @@
 /* Guided tours: no plugin styling by design. The shortcodes output plain
-   class-named HTML (oe-gt-gate, oe-gt-slots, oe-gt-pill, oe-gt-btn, is-selected,
-   is-full, is-almost, is-done, is-unlocked…). Style it entirely in your theme. */
+   class-named HTML — style it entirely in your theme.
+
+   Gate:   oe-gt-gate, oe-gt-gate__form, oe-gt-gate__email, oe-gt-gate__error,
+           oe-gt-gate__ok, is-unlocked
+   Slots:  oe-gt-slots, oe-gt-day, oe-gt-day__label, oe-gt-pills,
+           oe-gt-pill (+ .oe-gt-pill__time, .oe-gt-pill__count),
+           oe-gt-btn (+ .oe-gt-btn--primary)
+   Pill states: is-open, is-almost, is-full, is-selected, is-done, is-mine
+           (a pill the visitor has booked; also carries data-mine-status=
+           "reserved"|"confirmed"|"waitlist")
+   Booking (the visitor's own, shown after unlock):
+           oe-gt-mine, oe-gt-mine__item, oe-gt-mine__label,
+           oe-gt-mine__change, oe-gt-mine__cancel
+   Party size selector: oe-gt-party, oe-gt-party__label, oe-gt-party__select
+   Body flag while unlocked: body.oe-gt-unlocked */

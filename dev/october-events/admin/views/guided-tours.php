@@ -101,6 +101,8 @@ foreach ($reservations as $r) {
                 <input type="text" name="name" style="min-width:160px"></label>
             <label style="display:flex;flex-direction:column;font-weight:600;gap:4px"><?php esc_html_e('Email', 'october-events'); ?>
                 <input type="email" name="email" required style="min-width:220px"></label>
+            <label style="display:flex;flex-direction:column;font-weight:600;gap:4px"><?php esc_html_e('Seats', 'october-events'); ?>
+                <input type="number" name="party" value="1" min="1" max="50" style="width:80px"></label>
             <button class="button button-primary"><?php esc_html_e('Add person', 'october-events'); ?></button>
         </form>
         <p class="description" style="max-width:960px"><?php esc_html_e('They get the same confirmation email (building details and a release link). If the slot is full they join the waitlist.', 'october-events'); ?></p>
@@ -152,7 +154,8 @@ foreach ($reservations as $r) {
                 $rows = $by_slot[$uid];
                 $held = 0; $wait = 0;
                 foreach ($rows as $rr) {
-                    if ($rr->status === Reservations::STATUS_WAITLIST) { $wait++; } else { $held++; }
+                    $seats = max(1, (int) ($rr->party_size ?? 1));
+                    if ($rr->status === Reservations::STATUS_WAITLIST) { $wait += $seats; } else { $held += $seats; }
                 }
                 ?>
                 <h3 style="margin:16px 0 6px"><?php echo esc_html($slot_label((int) $bid, $uid)); ?>
@@ -167,8 +170,9 @@ foreach ($reservations as $r) {
                     <tbody>
                         <?php foreach ($rows as $r) : $shown++;
                             $remove = wp_nonce_url(admin_url('admin-post.php?action=oe_gt_reservation_remove&id=' . (int) $r->id), 'oe_gt_reservation_remove_' . (int) $r->id); ?>
+                            <?php $seats = max(1, (int) ($r->party_size ?? 1)); ?>
                             <tr>
-                                <td><?php echo esc_html($r->name ?: '—'); ?></td>
+                                <td><?php echo esc_html($r->name ?: '—'); ?><?php if ($seats > 1) : ?> <span style="color:#666;font-size:12px">· <?php echo esc_html(sprintf(_n('%d seat', '%d seats', $seats, 'october-events'), $seats)); ?></span><?php endif; ?></td>
                                 <td><?php echo esc_html($r->email); ?></td>
                                 <td><?php echo esc_html(ucfirst((string) $r->status)); ?></td>
                                 <td style="text-align:right"><a href="<?php echo esc_url($remove); ?>" class="button-link" style="color:#b32d2e" onclick="return confirm('<?php echo esc_js(__('Remove this person from the slot?', 'october-events')); ?>')"><?php esc_html_e('Remove', 'october-events'); ?></a></td>
