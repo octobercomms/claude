@@ -1047,10 +1047,17 @@ async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens,
 router.get('/:clientId', async (req, res) => {
   const thread = VALID_THREADS.includes(req.query.thread) ? req.query.thread : 'analyst';
   try {
+    // Return the MOST RECENT 200 messages, in chronological order. Taking the
+    // latest 200 (DESC) and re-sorting ASC — rather than the first 200 ASC —
+    // means a long-running thread keeps showing the current conversation
+    // instead of getting stuck on the oldest 200 once history passes the cap.
     const { rows } = await pool.query(
-      `SELECT id, role, content, tools_used, created_at
-       FROM client_chat_messages WHERE client_id = $1 AND thread = $2
-       ORDER BY created_at ASC LIMIT 200`,
+      `SELECT id, role, content, tools_used, created_at FROM (
+         SELECT id, role, content, tools_used, created_at
+         FROM client_chat_messages WHERE client_id = $1 AND thread = $2
+         ORDER BY created_at DESC LIMIT 200
+       ) recent
+       ORDER BY created_at ASC`,
       [req.params.clientId, thread]
     );
     res.json(rows);
