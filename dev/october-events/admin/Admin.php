@@ -68,7 +68,6 @@ final class Admin {
         if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']); }
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']); }
-        add_submenu_page('october-events', 'Guided Tours', 'Guided Tours', $cap, 'oe-guided-tours', [$this, 'page_guided_tours']);
         add_submenu_page('october-events', 'Countdown', 'Countdown', $cap, 'oe-countdown', [$this, 'page_countdown']);
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
     }
@@ -230,6 +229,8 @@ final class Admin {
             TicketsAdmin::get_instance()->render_abandoned_carts();
         } elseif ($tab === 'transactions') {
             TicketsAdmin::get_instance()->render_transactions();
+        } elseif ($tab === 'guided') {
+            $this->render_guided();
         } else {
             TicketsAdmin::get_instance()->render_registrations();
         }
@@ -247,6 +248,7 @@ final class Admin {
             'checkin'  => [__('Check-in log', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=checkin')],
             'failed'   => [__('Failed payments', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=failed')],
             'abandoned' => [__('Abandoned carts', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=abandoned')],
+            'guided'   => [__('Guided tours', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=guided')],
         ];
         echo '<h2 class="nav-tab-wrapper">';
         foreach ($tabs as $key => $t) {
@@ -430,7 +432,8 @@ final class Admin {
     }
 
     /** Guided-tour signups: list per building, add/remove people, export CSV. */
-    public function page_guided_tours(): void {
+    /** Guided-tour signups — a tab on the Tickets screen. */
+    public function render_guided(): void {
         $location     = isset($_GET['building']) ? absint($_GET['building']) : 0;
         $buildings    = \OE\GuidedTours\Slots::locations_with_slots();
         $reservations = \OE\GuidedTours\Reservations::all($location);
