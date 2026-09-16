@@ -85,6 +85,7 @@ final class Reservations {
             $held   = self::count_held($location_id, $slot_uid);
             $full   = $held >= $slot['capacity'];
             $status = $full ? self::STATUS_WAITLIST : self::STATUS_RESERVED;
+            $token  = wp_generate_password(20, false);
 
             $wpdb->insert(self::table(), [
                 'location_id' => $location_id,
@@ -93,7 +94,7 @@ final class Reservations {
                 'email'       => $email,
                 'name'        => sanitize_text_field($name),
                 'status'      => $status,
-                'token'       => wp_generate_password(20, false),
+                'token'       => $token,
                 'slot_start'  => Slots::start_ts($location_id, $slot_uid) ? gmdate('Y-m-d H:i:s', Slots::start_ts($location_id, $slot_uid)) : null,
                 'created_at'  => current_time('mysql', true),
             ]);
@@ -103,7 +104,7 @@ final class Reservations {
         }
 
         AuditLog::record($full ? 'gt_waitlist' : 'gt_reserved', $id, 'guided_tour', $email);
-        Mailer::reserved($location_id, $slot_uid, $email, $name, $full);
+        Mailer::reserved($location_id, $slot_uid, $email, $name, $full, $token);
         $left = max(0, $slot['capacity'] - self::count_held($location_id, $slot_uid));
         return ['status' => $status, 'spots_left' => $left];
     }
