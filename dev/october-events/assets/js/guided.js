@@ -42,10 +42,17 @@
     }
 
     /* ---- gate ---- */
+    // Flag the whole page as unlocked so CSS anywhere (e.g. the slots inside a
+    // listing, which aren't siblings of the gate) can react to the locked state.
+    function markUnlocked() {
+        unlocked = true;
+        if (document.body) { document.body.classList.add('oe-gt-unlocked'); }
+    }
+
     function initGate() {
         var gate = document.querySelector('[data-oe-gt-gate]');
         if (!gate) { return; }
-        if (gate.classList.contains('is-unlocked')) { unlocked = true; }
+        if (gate.classList.contains('is-unlocked')) { markUnlocked(); }
         var form = gate.querySelector('[data-oe-gt-form]');
         var err = gate.querySelector('[data-oe-gt-error]');
         if (!form) { return; }
@@ -61,7 +68,7 @@
             post('unlock', { email: email, tour: CFG.tour }).then(function (res) {
                 if (btn) { btn.disabled = false; }
                 if (res && res.ok) {
-                    unlocked = true;
+                    markUnlocked();
                     buyerName = res.name || '';
                     var locked = gate.querySelector('.oe-gt-gate__locked');
                     var ok = gate.querySelector('[data-oe-gt-ok]');
