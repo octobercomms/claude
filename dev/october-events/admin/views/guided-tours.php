@@ -40,7 +40,9 @@ foreach ($reservations as $r) {
 }
 ?>
 <div class="wrap">
-    <h1><?php esc_html_e('Guided Tours', 'october-events'); ?></h1>
+    <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::tickets_tabs('guided'); ?>
+    <h2 style="margin-top:18px"><?php esc_html_e('Guided tour registrations', 'october-events'); ?></h2>
     <p class="description" style="max-width:820px"><?php esc_html_e('Everyone booked onto a guided-tour slot. Add or remove people by hand, and download the list for each building or all at once.', 'october-events'); ?></p>
 
     <?php if (is_array($notice)) : ?>
@@ -52,7 +54,8 @@ foreach ($reservations as $r) {
     <?php else : ?>
 
         <form method="get" style="margin:14px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <input type="hidden" name="page" value="oe-guided-tours">
+            <input type="hidden" name="page" value="oe-tickets">
+            <input type="hidden" name="tab" value="guided">
             <label><?php esc_html_e('Building', 'october-events'); ?>
                 <select name="building" onchange="this.form.submit()">
                     <option value="0"><?php esc_html_e('All buildings', 'october-events'); ?></option>
@@ -61,7 +64,7 @@ foreach ($reservations as $r) {
                     <?php endforeach; ?>
                 </select>
             </label>
-            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=oe-guided-tours&oe_export=guided'), 'oe_export')); ?>"><?php esc_html_e('Download all (CSV)', 'october-events'); ?></a>
+            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=oe-tickets&tab=guided&oe_export=guided'), 'oe_export')); ?>"><?php esc_html_e('Download all (CSV)', 'october-events'); ?></a>
         </form>
 
         <?php
