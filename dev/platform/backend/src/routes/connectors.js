@@ -539,6 +539,52 @@ router.get('/:id/diagnose', async (req, res) => {
           }
         }
       }
+
+      if (row.connector_type === 'google_ads') {
+        const customerId = row.config?.value;
+        result.customer_id = customerId || '(not set)';
+        const mccId = (process.env.GOOGLE_ADS_MCC_ID || '').replace(/-/g, '');
+        result.mcc_id = mccId || '(GOOGLE_ADS_MCC_ID not set — auto-discovery attempted)';
+        if (!customerId) {
+          result.live_test = { status: 'error', error: 'No Customer ID set for this Google Ads connector.' };
+        } else {
+          // Run the SAME dated pull the Data Analyst uses, over a short window,
+          // so the real Google Ads API status/message surfaces here — not only
+          // in the server logs. Token scope ("✓ Connected") alone never proved
+          // a dated GAQL query against this customer id would actually succeed,
+          // which is why an Ads connector could look healthy yet return nothing.
+          try {
+            const fmt = d => d.toISOString().slice(0, 10);
+            const end = new Date();
+            const start = new Date(end.getTime() - 7 * 86400000);
+            const googleConnector = require('../connectors/google');
+            const raw = await googleConnector.fetchData(creds, {
+              connectorType: 'google_ads',
+              authMode: row.auth_mode,
+              customerId,
+              adAccountId: customerId,
+              startDate: fmt(start),
+              endDate: fmt(end),
+              periodStart: fmt(start),
+              periodEnd: fmt(end),
+            });
+            result.live_test = {
+              status: 'ok',
+              detail: `${(raw?.results || []).length} campaign row(s) over the last 7 days`,
+              login_customer_id: raw?.account?.login_id || null,
+              accounts_visible: (raw?.account_hierarchy || []).map(a => `${a.id}${a.name ? ` (${a.name})` : ''}${a.manager ? ' [manager]' : ''}`),
+            };
+          } catch (adsErr) {
+            const detail = adsErr.response?.data?.error?.details?.[0]?.errors?.[0]?.message
+              || adsErr.response?.data?.error?.message
+              || adsErr.message;
+            result.live_test = { status: 'error', http_status: adsErr.response?.status, error: detail };
+            result.live_test.note = mccId
+              ? `Pull ran with login-customer-id ${mccId}. A 404 / NOT_FOUND usually means that manager account can't see customer ${customerId}; a 403 usually means the developer token isn't approved on that manager, or the manager isn't linked to this account.`
+              : `No GOOGLE_ADS_MCC_ID set — if this account sits under a manager, set the manager (MCC) ID in Settings.`;
+          }
+        }
+      }
     } else {
       // Non-Google: call checkTokenValidity and report result
       try {

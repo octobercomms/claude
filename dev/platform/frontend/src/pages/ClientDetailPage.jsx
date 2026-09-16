@@ -1194,12 +1194,21 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               )}
             </div>
           )}
-          {/* Live API test (GA4) */}
+          {/* Live API test (GA4, Google Ads, …) */}
           {diagnoseResult.live_test && (
             <div style={{ color: diagnoseResult.live_test.status === 'ok' ? 'var(--positive)' : 'var(--negative)' }}>
               Live test: {diagnoseResult.live_test.status === 'ok'
                 ? `✓ ${diagnoseResult.live_test.detail}`
-                : `✗ ${diagnoseResult.live_test.http_status ? `HTTP ${diagnoseResult.live_test.http_status} — ` : ''}${JSON.stringify(diagnoseResult.live_test.error)}`}
+                : `✗ ${diagnoseResult.live_test.http_status ? `HTTP ${diagnoseResult.live_test.http_status} — ` : ''}${typeof diagnoseResult.live_test.error === 'string' ? diagnoseResult.live_test.error : JSON.stringify(diagnoseResult.live_test.error)}`}
+              {diagnoseResult.live_test.login_customer_id && (
+                <div style={{ color: 'var(--text-subtle)', fontSize: 11, marginTop: 2 }}>via login-customer-id {diagnoseResult.live_test.login_customer_id}</div>
+              )}
+              {diagnoseResult.live_test.accounts_visible?.length > 0 && (
+                <div style={{ color: 'var(--text-subtle)', fontSize: 11, marginTop: 2 }}>Accounts visible: {diagnoseResult.live_test.accounts_visible.join(', ')}</div>
+              )}
+              {diagnoseResult.live_test.note && (
+                <div style={{ color: 'var(--text-subtle)', fontSize: 11, marginTop: 4, fontFamily: 'sans-serif', lineHeight: 1.4 }}>{diagnoseResult.live_test.note}</div>
+              )}
             </div>
           )}
           {/* Access report — scopes / permissions and what it can't see */}
