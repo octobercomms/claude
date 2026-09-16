@@ -7,6 +7,14 @@ const GA4_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
 const GSC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
 const MERCHANT_SCOPE = 'https://www.googleapis.com/auth/content';
 
+// Google Ads REST API base. Google sunsets each version ~1 year after release
+// with NO grace period — every request to a sunset version fails outright
+// (v21 was sunset 5 Aug 2026). Keep this one constant current and bump it here
+// (and re-check GAQL field/enum changes in the release notes) rather than
+// hardcoding the version at each call site. Current GA version: v25.
+// https://developers.google.com/google-ads/api/docs/sunset-dates
+const GADS_API = 'https://googleads.googleapis.com/v25';
+
 // Modes that authenticate with the platform service account rather than a
 // per-user OAuth token. See migration 065 and services/googleAuth.js.
 function isServiceAccountMode(authMode) {
@@ -383,7 +391,7 @@ async function fetchGoogleAdsData(credentials, params) {
     const headers = { Authorization: `Bearer ${accessToken}`, 'developer-token': devToken };
     if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
     return axios.post(
-      `https://googleads.googleapis.com/v21/customers/${cleanCustomerId}/googleAds:search`,
+      `${GADS_API}/customers/${cleanCustomerId}/googleAds:search`,
       { query },
       { headers }
     );
@@ -555,7 +563,7 @@ async function fetchGoogleAdsData(credentials, params) {
     let candidates = [];
     try {
       const { data: accountsData } = await axios.get(
-        'https://googleads.googleapis.com/v21/customers:listAccessibleCustomers',
+        `${GADS_API}/customers:listAccessibleCustomers`,
         { headers: { Authorization: `Bearer ${accessToken}`, 'developer-token': devToken } }
       );
       candidates = (accountsData.resourceNames || [])
@@ -645,7 +653,7 @@ async function listGoogleAdsAccounts(credentials, authMode) {
     : (await getValidToken(credentials)).access_token;
   try {
     const { data } = await axios.get(
-      'https://googleads.googleapis.com/v21/customers:listAccessibleCustomers',
+      `${GADS_API}/customers:listAccessibleCustomers`,
       { headers: { Authorization: `Bearer ${accessToken}`, 'developer-token': devToken } }
     );
     return (data.resourceNames || []).map(name => ({
@@ -737,4 +745,4 @@ function getPreviousPeriodEnd(start, end) {
   return prevEnd.toISOString().split('T')[0];
 }
 
-module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, fetchGA4Daily, fetchSearchAnalytics, fetchSearchConsoleSitemaps, getAccessReport };
+module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, fetchGA4Daily, fetchSearchAnalytics, fetchSearchConsoleSitemaps, getAccessReport, GADS_API };
