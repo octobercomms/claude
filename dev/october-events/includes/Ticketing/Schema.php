@@ -178,6 +178,7 @@ final class Schema {
             KEY token (token),
             KEY location_slot (location_id, slot_uid),
             KEY location_email (location_id, email),
+            KEY email_tour (email, tour_key),
             KEY reconfirm (status, reconfirm_sent, slot_start)
         ) {$charset};");
     }

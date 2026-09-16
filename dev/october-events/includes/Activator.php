@@ -43,7 +43,25 @@ final class Activator {
         \OE\Mail\Contacts::install();
         \OE\Mail\Lists::install();
         \OE\Mail\Campaigns::install();
+        self::fix_option_autoload();
         update_option('oe_db_version', OE_DB_VERSION);
+    }
+
+    /**
+     * Make sure the big/occasional options don't autoload on every request. New
+     * writes already pass autoload=no, but rows created by an older version can
+     * still be 'yes'; flip them once here.
+     */
+    private static function fix_option_autoload(): void {
+        global $wpdb;
+        $names = ['oe_settings', 'oe_ai_seen_guids'];
+        foreach ($names as $name) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->options} SET autoload = 'no' WHERE option_name = %s AND autoload = 'yes'",
+                $name
+            ));
+        }
+        wp_cache_delete('alloptions', 'options');
     }
 
     /**

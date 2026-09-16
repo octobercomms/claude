@@ -29,6 +29,9 @@ final class Shortcodes {
     public static function init(): void {
         add_shortcode('oe_friends_list', [self::class, 'friends']);
         add_shortcode('oe_patrons_list', [self::class, 'patrons']);
+        // Background warm for the footer lists (scheduled from a cold render or a
+        // settings save), so the shortcodes never call Stripe in a page render.
+        add_action('oe_warm_members', [StripeConnector::class, 'warm_members']);
     }
 
     /** @param array<string,string>|string $atts */
