@@ -426,6 +426,15 @@ final class Transactional {
     }
 
     /**
+     * Wrap an inner HTML body in the same branded shell live emails use, so an
+     * admin preview shows exactly what recipients get. Public counterpart to the
+     * private wrap() the send path calls.
+     */
+    public static function wrap_body(string $inner): string {
+        return self::wrap((string) Settings::get('brand_name', 'October Events'), $inner);
+    }
+
+    /**
      * The shared branded shell for transactional emails (refunds, cancellations,
      * rejections, waitlist, etc.) — matches the ticket confirmation's house style:
      * the brand logo, the 2px black border card, and the same header/footer.

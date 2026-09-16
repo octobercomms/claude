@@ -36,6 +36,7 @@ final class Admin {
         add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
         add_action('admin_post_oe_gt_reservation_remove', [$this, 'handle_gt_reservation_remove']);
         add_action('admin_post_oe_gt_reservation_add', [$this, 'handle_gt_reservation_add']);
+        add_action('admin_post_oe_preview_guided_email', [$this, 'handle_preview_guided_email']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
         add_action('admin_post_oe_import_contacts', [$this, 'handle_import_contacts']);
@@ -584,6 +585,22 @@ final class Admin {
         nocache_headers();
         header('Content-Type: text/html; charset=utf-8');
         echo \OE\Mail\Transactional::volunteer_preview_html($key); // phpcs:ignore WordPress.Security.EscapeOutput -- a complete, self-escaped HTML email document
+        exit;
+    }
+
+    public function handle_preview_guided_email(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_preview_guided_email');
+        $type  = isset($_GET['type']) ? sanitize_key((string) $_GET['type']) : 'reserved';
+        $valid = ['reserved', 'waitlist', 'promoted', 'reconfirm'];
+        if (! in_array($type, $valid, true)) {
+            $type = 'reserved';
+        }
+        nocache_headers();
+        header('Content-Type: text/html; charset=utf-8');
+        echo \OE\GuidedTours\Mailer::preview($type); // phpcs:ignore WordPress.Security.EscapeOutput -- a complete, self-escaped HTML email document
         exit;
     }
 
