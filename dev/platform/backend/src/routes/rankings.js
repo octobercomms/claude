@@ -290,27 +290,64 @@ router.get('/tags/:clientId', async (req, res) => {
   }
 });
 
-// Export keywords to CSV data
+// Export keywords to CSV data. Mirrors what the Health-tab table now shows: the
+// ranking page, whether it matches the AM's target, SERP features, competitors
+// above, and AI-Overview status — all from data already collected on each rank
+// check. The paid deep-dive (footprint/backlinks) is deliberately NOT exported:
+// it's a per-keyword on-demand lookup, so running it across a whole list would
+// spend an unbounded number of DataForSEO calls on an export click.
 router.get('/export/:clientId', async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT k.keyword, k.target_url, k.device, k.tag, k.location_name, k.search_volume,
         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as current_position,
-        (SELECT MIN(position) FROM seo_rank_history WHERE keyword_id = k.id) as best_position,
+        (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1 OFFSET 1) as previous_position,
+        (SELECT MIN(position) FROM seo_rank_history WHERE keyword_id = k.id AND position IS NOT NULL) as best_position,
+        (SELECT url FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as ranking_url,
+        (SELECT serp_features FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as serp_features,
+        (SELECT competitors FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as competitors,
+        (SELECT present FROM aio_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as aio_present,
+        (SELECT brand_cited FROM aio_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as aio_brand_cited,
         (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked
       FROM seo_keywords k
       WHERE k.client_id = $1 AND k.active = true
       ORDER BY k.keyword
     `, [req.params.clientId]);
 
-    const csvLines = ['keyword,target_url,device,tag,location,search_volume,current_position,best_position,last_checked'];
+    // Wrap every value in quotes and double any internal quotes so URLs, SERP
+    // feature lists and competitor lists (which contain commas) stay in one cell.
+    const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    // Normalise a URL for comparison (drop scheme/www/trailing slash) so we can
+    // tell whether Google ranked the exact page the AM targeted.
+    const norm = (u) => String(u || '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '').toLowerCase();
+    const yesNo = (v) => (v === true ? 'yes' : v === false ? 'no' : '');
+
+    const header = [
+      'keyword', 'tag', 'location', 'device', 'search_volume',
+      'current_position', 'previous_position', 'best_position',
+      'ranking_url', 'target_url', 'ranks_target_page',
+      'serp_features', 'competitors_above', 'ai_overview', 'brand_cited_in_ai_overview',
+      'last_checked',
+    ];
+    const csvLines = [header.join(',')];
+
     for (const r of rows) {
+      // "does Google rank the page we wanted?" — blank when no target set or not
+      // ranking, else yes/no by normalised URL match.
+      const ranksTarget = (!r.target_url || !r.ranking_url)
+        ? '' : (norm(r.ranking_url) === norm(r.target_url) ? 'yes' : 'no');
+      const serp = Array.isArray(r.serp_features) ? r.serp_features.join(' | ') : '';
+      const comps = Array.isArray(r.competitors)
+        ? r.competitors.map((c) => `${c.rank ? c.rank + ':' : ''}${c.domain || c.url || ''}`).join(' | ')
+        : '';
+
       csvLines.push([
-        `"${r.keyword}"`, `"${r.target_url || ''}"`, r.device,
-        `"${r.tag || ''}"`, `"${r.location_name}"`,
+        q(r.keyword), q(r.tag || ''), q(r.location_name), q(r.device),
         r.search_volume ?? '',
-        r.current_position || '', r.best_position || '',
-        r.last_checked ? r.last_checked.toISOString().split('T')[0] : ''
+        r.current_position || '', r.previous_position || '', r.best_position || '',
+        q(r.ranking_url || ''), q(r.target_url || ''), ranksTarget,
+        q(serp), q(comps), yesNo(r.aio_present), yesNo(r.aio_brand_cited),
+        r.last_checked ? r.last_checked.toISOString().split('T')[0] : '',
       ].join(','));
     }
 
