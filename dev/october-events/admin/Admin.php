@@ -462,7 +462,8 @@ final class Admin {
         $slot     = isset($_POST['slot']) ? preg_replace('/[^a-z0-9]/', '', strtolower((string) $_POST['slot'])) : '';
         $name     = sanitize_text_field(wp_unslash((string) ($_POST['name'] ?? '')));
         $email    = sanitize_email((string) ($_POST['email'] ?? ''));
-        $res      = \OE\GuidedTours\Reservations::admin_add($location, (string) $slot, $email, $name);
+        $party    = max(1, absint($_POST['party'] ?? 1));
+        $res      = \OE\GuidedTours\Reservations::admin_add($location, (string) $slot, $email, $name, $party);
         if (is_wp_error($res)) {
             $notice = ['error' => $res->get_error_message()];
         } else {
@@ -660,13 +661,14 @@ final class Admin {
 
         if ($what === 'guided') {
             $rows = \OE\GuidedTours\Reservations::all();
-            $this->stream_csv('guided-tours.csv', ['Building', 'When', 'Name', 'Email', 'Status', 'Booked'], array_map(static function ($r) {
+            $this->stream_csv('guided-tours.csv', ['Building', 'When', 'Name', 'Email', 'Seats', 'Status', 'Booked'], array_map(static function ($r) {
                 $ts = \OE\GuidedTours\Slots::start_ts((int) $r->location_id, (string) $r->slot_uid);
                 return [
                     get_the_title((int) $r->location_id),
                     $ts ? wp_date('Y-m-d g:i A', $ts) : '',
                     $r->name,
                     $r->email,
+                    (string) max(1, (int) ($r->party_size ?? 1)),
                     $r->status,
                     (string) $r->created_at,
                 ];

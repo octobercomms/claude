@@ -42,6 +42,23 @@ final class Rest {
             'callback'            => [self::class, 'reserve'],
             'permission_callback' => [self::class, 'verify_nonce'],
         ]);
+        register_rest_route(self::NS, '/guided/change', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'change'],
+            'permission_callback' => [self::class, 'verify_nonce'],
+        ]);
+        register_rest_route(self::NS, '/guided/cancel', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'cancel'],
+            'permission_callback' => [self::class, 'verify_nonce'],
+        ]);
+        // The unlocked visitor's own bookings + seat allowance, read from the
+        // signed cookie. Never cached (it is per-visitor and changes on booking).
+        register_rest_route(self::NS, '/guided/state', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'state'],
+            'permission_callback' => '__return_true',
+        ]);
         // A fresh nonce, fetched at runtime. The gate/slots markup is often served
         // from full-page cache (StackCache / Cloudflare), which freezes a printed
         // nonce until it expires and every unlock then 403s. Fetching it live keeps
@@ -87,16 +104,109 @@ final class Rest {
             return new \WP_REST_Response(['ok' => false, 'error' => __('Please verify your ticket email again.', 'october-events')], 200);
         }
         $location = (int) $req->get_param('location');
-        $slot     = preg_replace('/[^a-z0-9]/', '', strtolower((string) $req->get_param('slot')));
+        $slot     = self::clean_slot((string) $req->get_param('slot'));
         $name     = sanitize_text_field((string) $req->get_param('name'));
+        $party    = max(1, (int) $req->get_param('party'));
         if ($location <= 0 || $slot === '') {
             return new \WP_REST_Response(['ok' => false, 'error' => __('Something went wrong. Please try again.', 'october-events')], 200);
         }
-        $out = Reservations::reserve($location, $slot, $tour, $email, $name);
+        $allowance = Eligibility::ticket_allowance($email, $tour);
+        $out       = Reservations::reserve($location, $slot, $tour, $email, $name, $party, $allowance);
         if (is_wp_error($out)) {
-            return new \WP_REST_Response(['ok' => false, 'error' => $out->get_error_message()], 200);
+            return new \WP_REST_Response(['ok' => false, 'error' => $out->get_error_message(), 'state' => self::state_payload($email, $tour)], 200);
         }
-        return new \WP_REST_Response(['ok' => true, 'status' => $out['status'], 'spots_left' => $out['spots_left']], 200);
+        return new \WP_REST_Response([
+            'ok'         => true,
+            'status'     => $out['status'],
+            'spots_left' => $out['spots_left'],
+            'state'      => self::state_payload($email, $tour),
+        ], 200);
+    }
+
+    /** Move one of the caller's bookings to another slot (or building). */
+    public static function change(\WP_REST_Request $req): \WP_REST_Response {
+        $tour  = self::tour_key((string) $req->get_param('tour'));
+        $email = Eligibility::unlocked_email($tour);
+        if ($email === '') {
+            return new \WP_REST_Response(['ok' => false, 'error' => __('Please verify your ticket email again.', 'october-events')], 200);
+        }
+        $id       = (int) $req->get_param('id');
+        $location = (int) $req->get_param('location');
+        $slot     = self::clean_slot((string) $req->get_param('slot'));
+        if ($id <= 0 || $location <= 0 || $slot === '') {
+            return new \WP_REST_Response(['ok' => false, 'error' => __('Something went wrong. Please try again.', 'october-events')], 200);
+        }
+        $out = Reservations::change_slot($id, $email, $tour, $location, $slot);
+        if (is_wp_error($out)) {
+            return new \WP_REST_Response(['ok' => false, 'error' => $out->get_error_message(), 'state' => self::state_payload($email, $tour)], 200);
+        }
+        return new \WP_REST_Response(['ok' => true, 'state' => self::state_payload($email, $tour)], 200);
+    }
+
+    /** Cancel one of the caller's bookings and free the seats to the waitlist. */
+    public static function cancel(\WP_REST_Request $req): \WP_REST_Response {
+        $tour  = self::tour_key((string) $req->get_param('tour'));
+        $email = Eligibility::unlocked_email($tour);
+        if ($email === '') {
+            return new \WP_REST_Response(['ok' => false, 'error' => __('Please verify your ticket email again.', 'october-events')], 200);
+        }
+        $id = (int) $req->get_param('id');
+        if ($id <= 0 || ! Reservations::cancel_for_email($id, $email, $tour)) {
+            return new \WP_REST_Response(['ok' => false, 'error' => __('We couldn’t cancel that booking.', 'october-events'), 'state' => self::state_payload($email, $tour)], 200);
+        }
+        return new \WP_REST_Response(['ok' => true, 'state' => self::state_payload($email, $tour)], 200);
+    }
+
+    /** The unlocked visitor's own bookings + seat allowance for this tour. */
+    public static function state(\WP_REST_Request $req): \WP_REST_Response {
+        $tour    = self::tour_key((string) $req->get_param('tour'));
+        $email   = Eligibility::unlocked_email($tour);
+        $payload = $email === '' ? ['ok' => false] : self::state_payload($email, $tour);
+        $res     = new \WP_REST_Response($payload, 200);
+        $res->header('Cache-Control', 'no-store, max-age=0');
+        return $res;
+    }
+
+    /**
+     * Everything the booking page needs to reflect the current visitor: their
+     * seat allowance, seats already used, and each active booking (which slot, at
+     * which building, and its party size and status).
+     *
+     * @return array<string,mixed>
+     */
+    private static function state_payload(string $email, string $tour): array {
+        $allowance = Eligibility::ticket_allowance($email, $tour);
+        $used      = Reservations::party_used($email, $tour);
+        $mine      = [];
+        foreach (Reservations::active_for_email($email, $tour) as $r) {
+            $location = (int) $r->location_id;
+            $mine[]   = [
+                'id'       => (int) $r->id,
+                'location' => $location,
+                'slot'     => (string) $r->slot_uid,
+                'status'   => (string) $r->status,
+                'party'    => max(1, (int) $r->party_size),
+                'building' => get_the_title($location) ?: '',
+                'when'     => self::slot_when($location, (string) $r->slot_uid),
+            ];
+        }
+        return [
+            'ok'        => true,
+            'allowance' => $allowance,
+            'used'      => $used,
+            'remaining' => max(0, $allowance - $used),
+            'mine'      => $mine,
+        ];
+    }
+
+    /** Human "Sat Oct 3 · 12:00 PM" for a slot. */
+    private static function slot_when(int $location_id, string $slot_uid): string {
+        $ts = Slots::start_ts($location_id, $slot_uid);
+        return $ts ? wp_date('D M j · g:i A', $ts) : '';
+    }
+
+    private static function clean_slot(string $raw): string {
+        return (string) preg_replace('/[^a-z0-9]/', '', strtolower($raw));
     }
 
     /** Handle the confirm / release links from the reconfirm email. */

@@ -10,8 +10,13 @@ defined('ABSPATH') || exit;
 /**
  * Guided-tour reservations. One relational table keyed to a Location post and a
  * slot uid. Reserving is serialized per location with a MySQL advisory lock (the
- * same technique the ticketing engine uses) so a 30-spot slot can't oversell in
- * a stampede. When a slot is full the reservation joins the waitlist instead.
+ * same technique the ticketing engine uses) so a slot can't oversell in a
+ * stampede. When a slot can't fit the party it joins the waitlist instead.
+ *
+ * A booking can hold more than one seat (`party_size`): a ticket buyer who paid
+ * for several people can bring their group to one time. Capacity everywhere is
+ * counted in seats, not rows, and a person's seats across the whole tour are
+ * capped at the number of admissions their ticket(s) bought.
  */
 final class Reservations {
 
@@ -31,47 +36,76 @@ final class Reservations {
         return [self::STATUS_RESERVED, self::STATUS_CONFIRMED];
     }
 
-    /** How many seats are taken on a slot (reserved + confirmed). */
+    /** Statuses that still count against a person's ticket allowance (held or waiting). */
+    private static function active(): array {
+        return [self::STATUS_RESERVED, self::STATUS_CONFIRMED, self::STATUS_WAITLIST];
+    }
+
+    /** How many seats are taken on a slot (reserved + confirmed), summing party sizes. */
     public static function count_held(int $location_id, string $slot_uid): int {
         global $wpdb;
         $in = "'" . implode("','", self::held()) . "'";
         return (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM " . self::table() . " WHERE location_id = %d AND slot_uid = %s AND status IN ({$in})",
+            "SELECT COALESCE(SUM(party_size),0) FROM " . self::table() . " WHERE location_id = %d AND slot_uid = %s AND status IN ({$in})",
             $location_id, $slot_uid
         ));
     }
 
+    /** How many seats are waiting on a slot, summing party sizes. */
     public static function waitlist_count(int $location_id, string $slot_uid): int {
         global $wpdb;
         return (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM " . self::table() . " WHERE location_id = %d AND slot_uid = %s AND status = %s",
+            "SELECT COALESCE(SUM(party_size),0) FROM " . self::table() . " WHERE location_id = %d AND slot_uid = %s AND status = %s",
             $location_id, $slot_uid, self::STATUS_WAITLIST
         ));
     }
 
-    /** True if this email already holds (or waits for) a slot at this building. */
-    public static function has_active_for_location(string $email, int $location_id): bool {
+    /** Seats this email already holds or waits for across the whole tour. */
+    public static function party_used(string $email, string $tour_key): int {
         global $wpdb;
-        $in = "'" . implode("','", array_merge(self::held(), [self::STATUS_WAITLIST])) . "'";
-        return (bool) $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM " . self::table() . " WHERE location_id = %d AND email = %s AND status IN ({$in}) LIMIT 1",
-            $location_id, strtolower($email)
+        $in = "'" . implode("','", self::active()) . "'";
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COALESCE(SUM(party_size),0) FROM " . self::table() . " WHERE email = %s AND tour_key = %s AND status IN ({$in})",
+            strtolower($email), $tour_key
         ));
     }
 
+    /** This email's active bookings for the tour, oldest first (for the booking page). */
+    public static function active_for_email(string $email, string $tour_key): array {
+        global $wpdb;
+        $in = "'" . implode("','", self::active()) . "'";
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM " . self::table() . " WHERE email = %s AND tour_key = %s AND status IN ({$in}) ORDER BY slot_start ASC, id ASC",
+            strtolower($email), $tour_key
+        )) ?: [];
+    }
+
+    /** This email's active booking on one slot, if any (to block a duplicate). */
+    public static function active_at_slot(string $email, int $location_id, string $slot_uid, int $exclude_id = 0): ?object {
+        global $wpdb;
+        $in = "'" . implode("','", self::active()) . "'";
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM " . self::table() . " WHERE email = %s AND location_id = %d AND slot_uid = %s AND id <> %d AND status IN ({$in}) LIMIT 1",
+            strtolower($email), $location_id, $slot_uid, $exclude_id
+        )) ?: null;
+    }
+
     /**
-     * Reserve a slot for a verified ticket holder. Returns
-     *   ['status' => 'reserved'|'waitlist', 'spots_left' => int]
-     * or a WP_Error. One reservation per person per building.
+     * Reserve a slot for a party of one or more. `$allowance` is how many seats
+     * this email may hold across the whole tour (its ticket count); pass
+     * PHP_INT_MAX to bypass the cap for a hand-added admin booking. The whole
+     * party is kept together: it is reserved when the slot has room, otherwise the
+     * whole party joins the waitlist.
      *
-     * @return array{status:string,spots_left:int}|\WP_Error
+     * @return array{status:string,spots_left:int,remaining:int}|\WP_Error
      */
-    public static function reserve(int $location_id, string $slot_uid, string $tour_key, string $email, string $name) {
+    public static function reserve(int $location_id, string $slot_uid, string $tour_key, string $email, string $name, int $party_size = 1, int $allowance = PHP_INT_MAX) {
         global $wpdb;
         $email = strtolower(trim($email));
         if (! is_email($email)) {
             return new \WP_Error('oe_gt_email', __('Please use a valid email address.', 'october-events'));
         }
+        $party_size = max(1, $party_size);
         $slot = Slots::get($location_id, $slot_uid);
         if (! $slot || ! $slot['active']) {
             return new \WP_Error('oe_gt_slot', __('That time is no longer available.', 'october-events'));
@@ -79,11 +113,18 @@ final class Reservations {
 
         $lock = self::lock($location_id);
         try {
-            if (self::has_active_for_location($email, $location_id)) {
-                return new \WP_Error('oe_gt_dupe', __('You already have a spot at this building. Only one per person.', 'october-events'));
+            if (self::active_at_slot($email, $location_id, $slot_uid)) {
+                return new \WP_Error('oe_gt_dupe', __('You’ve already booked this time. Change or cancel that booking below to move it.', 'october-events'));
+            }
+            $used = self::party_used($email, $tour_key);
+            if ($used + $party_size > $allowance) {
+                $left = max(0, $allowance - $used);
+                return new \WP_Error('oe_gt_allow', $left > 0
+                    ? sprintf(_n('That’s more seats than your tickets allow. You have %d seat left.', 'That’s more seats than your tickets allow. You have %d seats left.', $left, 'october-events'), $left)
+                    : __('Your tickets are all booked onto tours. Cancel one below to free a seat.', 'october-events'));
             }
             $held   = self::count_held($location_id, $slot_uid);
-            $full   = $held >= $slot['capacity'];
+            $full   = ($held + $party_size) > $slot['capacity'];
             $status = $full ? self::STATUS_WAITLIST : self::STATUS_RESERVED;
             $token  = wp_generate_password(20, false);
 
@@ -93,6 +134,7 @@ final class Reservations {
                 'tour_key'    => $tour_key,
                 'email'       => $email,
                 'name'        => sanitize_text_field($name),
+                'party_size'  => $party_size,
                 'status'      => $status,
                 'token'       => $token,
                 'slot_start'  => Slots::start_ts($location_id, $slot_uid) ? gmdate('Y-m-d H:i:s', Slots::start_ts($location_id, $slot_uid)) : null,
@@ -104,9 +146,90 @@ final class Reservations {
         }
 
         AuditLog::record($full ? 'gt_waitlist' : 'gt_reserved', $id, 'guided_tour', $email);
-        Mailer::reserved($location_id, $slot_uid, $email, $name, $full, $token);
-        $left = max(0, $slot['capacity'] - self::count_held($location_id, $slot_uid));
-        return ['status' => $status, 'spots_left' => $left];
+        Mailer::reserved($location_id, $slot_uid, $email, $name, $full, $token, $party_size);
+        $left      = max(0, $slot['capacity'] - self::count_held($location_id, $slot_uid));
+        $remaining = $allowance === PHP_INT_MAX ? PHP_INT_MAX : max(0, $allowance - self::party_used($email, $tour_key));
+        return ['status' => $status, 'spots_left' => $left, 'remaining' => $remaining];
+    }
+
+    /**
+     * Move an existing booking to another slot without giving up the current seat
+     * until the new one is secured. The party moves as a whole; if the target
+     * can't fit it, nothing changes and an error is returned. Cross-building moves
+     * are fine (allowance is tour-wide).
+     *
+     * @return true|\WP_Error
+     */
+    public static function change_slot(int $id, string $email, string $tour_key, int $new_location, string $new_slot) {
+        global $wpdb;
+        $email = strtolower(trim($email));
+        $row   = self::owned_active_row($id, $email, $tour_key);
+        if (! $row) {
+            return new \WP_Error('oe_gt_notfound', __('We couldn’t find that booking.', 'october-events'));
+        }
+        if ((int) $row->location_id === $new_location && (string) $row->slot_uid === $new_slot) {
+            return true;
+        }
+        $slot = Slots::get($new_location, $new_slot);
+        if (! $slot || ! $slot['active']) {
+            return new \WP_Error('oe_gt_slot', __('That time is no longer available.', 'october-events'));
+        }
+        $party    = max(1, (int) $row->party_size);
+        $old_loc  = (int) $row->location_id;
+        $old_slot = (string) $row->slot_uid;
+
+        $lock = self::lock($new_location);
+        try {
+            if (self::active_at_slot($email, $new_location, $new_slot, $id)) {
+                return new \WP_Error('oe_gt_dupe', __('You’ve already booked that time.', 'october-events'));
+            }
+            $held = self::count_held($new_location, $new_slot);
+            if (($held + $party) > $slot['capacity']) {
+                return new \WP_Error('oe_gt_full', __('That time doesn’t have room for your group. Pick another.', 'october-events'));
+            }
+            $wpdb->update(self::table(), [
+                'location_id'    => $new_location,
+                'slot_uid'       => $new_slot,
+                'status'         => self::STATUS_RESERVED,
+                'reconfirm_sent' => 0,
+                'confirmed_at'   => null,
+                'slot_start'     => Slots::start_ts($new_location, $new_slot) ? gmdate('Y-m-d H:i:s', Slots::start_ts($new_location, $new_slot)) : null,
+            ], ['id' => $id]);
+        } finally {
+            self::unlock($lock);
+        }
+
+        AuditLog::record('gt_moved', $id, 'guided_tour', $email);
+        // Free the vacated seat(s) to whoever is waiting on the old slot.
+        self::promote_waitlist($old_loc, $old_slot);
+        Mailer::reserved($new_location, $new_slot, $email, (string) $row->name, false, (string) $row->token, $party);
+        return true;
+    }
+
+    /** A caller cancelling their own booking from the page (by row + verified email). */
+    public static function cancel_for_email(int $id, string $email, string $tour_key): bool {
+        $row = self::owned_active_row($id, strtolower(trim($email)), $tour_key);
+        if (! $row) {
+            return false;
+        }
+        $was_held = in_array($row->status, self::held(), true);
+        global $wpdb;
+        $wpdb->update(self::table(), ['status' => self::STATUS_CANCELLED], ['id' => $id]);
+        AuditLog::record('gt_self_cancel', $id, 'guided_tour', (string) $row->email);
+        if ($was_held) {
+            self::promote_waitlist((int) $row->location_id, (string) $row->slot_uid);
+        }
+        return true;
+    }
+
+    /** A row that belongs to this email + tour and is still active, else null. */
+    private static function owned_active_row(int $id, string $email, string $tour_key): ?object {
+        global $wpdb;
+        $in = "'" . implode("','", self::active()) . "'";
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM " . self::table() . " WHERE id = %d AND email = %s AND tour_key = %s AND status IN ({$in})",
+            $id, strtolower($email), $tour_key
+        )) ?: null;
     }
 
     /** @return array<int,object> reservations for a location, newest first. */
@@ -134,17 +257,17 @@ final class Reservations {
     }
 
     /**
-     * Admin-add a person to a slot (bypasses the ticket gate). Reuses the normal
-     * reserve path, so capacity, the per-building limit, the waitlist and the
+     * Admin-add a person to a slot (bypasses the ticket gate and the allowance
+     * cap). Reuses the normal reserve path, so capacity, the waitlist and the
      * confirmation email all behave exactly as a self-service booking.
      *
-     * @return array{status:string,spots_left:int}|\WP_Error
+     * @return array{status:string,spots_left:int,remaining:int}|\WP_Error
      */
-    public static function admin_add(int $location_id, string $slot_uid, string $email, string $name) {
-        return self::reserve($location_id, $slot_uid, '', $email, $name);
+    public static function admin_add(int $location_id, string $slot_uid, string $email, string $name, int $party_size = 1) {
+        return self::reserve($location_id, $slot_uid, '', $email, $name, $party_size, PHP_INT_MAX);
     }
 
-    /** Admin-remove: cancel a reservation and offer a freed seat to the waitlist. */
+    /** Admin-remove: cancel a reservation and offer the freed seats to the waitlist. */
     public static function admin_remove(int $id): void {
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE id = %d', $id));
@@ -185,7 +308,7 @@ final class Reservations {
         return true;
     }
 
-    /** Free a seat and offer it to the next person waiting on that slot. */
+    /** Free a seat and offer it to the next people waiting on that slot. */
     public static function release_row(int $id, int $location_id, string $slot_uid): void {
         global $wpdb;
         $wpdb->update(self::table(), ['status' => self::STATUS_RELEASED], ['id' => $id]);
@@ -193,25 +316,33 @@ final class Reservations {
         self::promote_waitlist($location_id, $slot_uid);
     }
 
-    /** Promote the oldest waitlister on a slot if a seat is now free. */
+    /**
+     * Fill freed seats from the waitlist in strict first-come order: promote each
+     * oldest waiting party that fits the room now open, skip any party too big for
+     * the space left, and stop once nothing more fits.
+     */
     public static function promote_waitlist(int $location_id, string $slot_uid): void {
         $slot = Slots::get($location_id, $slot_uid);
         if (! $slot) {
             return;
         }
-        if (self::count_held($location_id, $slot_uid) >= $slot['capacity']) {
-            return;
-        }
         global $wpdb;
-        $next = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM " . self::table() . " WHERE location_id = %d AND slot_uid = %s AND status = %s ORDER BY id ASC LIMIT 1",
+        $waiting = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM " . self::table() . " WHERE location_id = %d AND slot_uid = %s AND status = %s ORDER BY id ASC",
             $location_id, $slot_uid, self::STATUS_WAITLIST
-        ));
-        if (! $next) {
-            return;
+        )) ?: [];
+        foreach ($waiting as $next) {
+            $free = $slot['capacity'] - self::count_held($location_id, $slot_uid);
+            if ($free <= 0) {
+                break;
+            }
+            $party = max(1, (int) $next->party_size);
+            if ($party > $free) {
+                continue; // this group won't fit yet; a smaller one behind it might
+            }
+            $wpdb->update(self::table(), ['status' => self::STATUS_RESERVED], ['id' => (int) $next->id]);
+            Mailer::promoted($location_id, $slot_uid, (string) $next->email, (string) $next->name, $party);
         }
-        $wpdb->update(self::table(), ['status' => self::STATUS_RESERVED], ['id' => (int) $next->id]);
-        Mailer::promoted($location_id, $slot_uid, (string) $next->email, (string) $next->name);
     }
 
     /* ---- advisory lock (per location) ---- */

@@ -6,6 +6,8 @@ namespace OE\GuidedTours;
 use OE\Settings;
 use OE\Ticketing\Schema;
 
+// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names are code constants, values are always bound.
+
 defined('ABSPATH') || exit;
 
 /**
@@ -47,6 +49,35 @@ final class Eligibility {
             ));
         }
         return $row ? ['ok' => true, 'name' => (string) $row->name] : ['ok' => false, 'name' => ''];
+    }
+
+    /**
+     * How many guided-tour seats this email is entitled to: the number of active
+     * admissions across its paid orders for the tour. Every admission is one
+     * ticket row, and a group ("admits N") ticket writes N of them, so a group
+     * ticket counts as its full head count with no special case. Scoped to the
+     * mapped ticket event when set, otherwise any paid order. Always at least 1,
+     * so a paid holder can book themselves even if ticket rows predate the
+     * per-admission model.
+     */
+    public static function ticket_allowance(string $email, string $tour_key): int {
+        global $wpdb;
+        $email = strtolower(trim($email));
+        if (! is_email($email)) {
+            return 0;
+        }
+        $orders   = Schema::orders();
+        $tickets  = Schema::tickets();
+        $event_id = self::mapped_event($tour_key);
+        $sql = "SELECT COUNT(t.id) FROM {$tickets} t INNER JOIN {$orders} o ON t.order_id = o.id"
+            . " WHERE o.email = %s AND o.status = 'paid' AND t.status = 'active'";
+        $args = [$email];
+        if ($event_id > 0) {
+            $sql   .= ' AND o.event_id = %d';
+            $args[] = $event_id;
+        }
+        $count = (int) $wpdb->get_var($wpdb->prepare($sql, $args));
+        return max(1, $count);
     }
 
     /** The event id mapped to a tour key in settings, or 0 for "any paid ticket". */

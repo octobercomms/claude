@@ -108,7 +108,12 @@ final class Shortcodes {
                     </div>
                 </div>
             <?php endforeach; ?>
+            <div class="oe-gt-mine" data-oe-gt-mine hidden></div>
             <div class="oe-gt-slots__action">
+                <label class="oe-gt-party" data-oe-gt-party-wrap hidden>
+                    <span class="oe-gt-party__label"><?php esc_html_e('People', 'october-events'); ?></span>
+                    <select class="oe-gt-party__select" data-oe-gt-party aria-label="<?php esc_attr_e('How many people', 'october-events'); ?>"></select>
+                </label>
                 <button type="button" class="oe-gt-btn oe-gt-btn--primary" data-oe-gt-reserve disabled><?php esc_html_e('Select a time', 'october-events'); ?></button>
                 <span class="oe-gt-slots__msg" data-oe-gt-msg><?php esc_html_e('Enter your ticket email above to reserve.', 'october-events'); ?></span>
             </div>
