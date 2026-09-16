@@ -77,13 +77,16 @@ final class Eligibility {
         if ($raw === '') {
             return '';
         }
+        // Value is "<rawurlencoded-email>.<expiry>.<signature>". The signature is
+        // hex and the expiry is digits, so they are always the last two segments;
+        // the email is everything before and may itself contain dots (co.uk).
         $parts = explode('.', $raw);
-        if (count($parts) !== 3) {
+        if (count($parts) < 3) {
             return '';
         }
-        [$enc, $exp, $sig] = $parts;
-        $email = rawurldecode($enc);
-        $exp   = (int) $exp;
+        $sig   = (string) array_pop($parts);
+        $exp   = (int) array_pop($parts);
+        $email = rawurldecode(implode('.', $parts));
         if ($exp < time() || ! hash_equals(self::sig($email, $tour_key, $exp), $sig)) {
             return '';
         }
