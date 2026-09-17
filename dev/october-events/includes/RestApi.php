@@ -532,13 +532,12 @@ final class RestApi {
     /**
      * The configured recurring Stripe price to subscribe a joiner to at checkout
      * (the "join with the same card" plan, e.g. Friend monthly). Empty unless
-     * membership is enabled and a join price is set.
+     * membership is enabled and the join price is a real price_… id — a prod_… (or
+     * anything else) reads as "no join price", so the member rate is blocked for
+     * non-members rather than sold with a join that can never complete.
      */
     private function join_price_id(): string {
-        if (empty(\OE\Settings::get('membership_enabled', false))) {
-            return '';
-        }
-        return trim((string) \OE\Settings::get('membership_join_price_id', ''));
+        return \OE\Membership\Repair::join_price();
     }
 
     public function ticket_promo(\WP_REST_Request $req): \WP_REST_Response {
@@ -1181,6 +1180,10 @@ final class RestApi {
                 // Backup ticket-order creation (idempotent on payment_id).
                 $paid = (int) ($object['amount_received'] ?? $object['amount'] ?? 0);
                 $this->create_ticket_order_from_meta((string) ($object['id'] ?? ''), $meta, $paid);
+                // Safety net for the one-click membership join: if the buyer's
+                // browser never completed /ticket-confirm, still create the
+                // subscription here. Idempotent — skips anyone already a member.
+                $this->maybe_create_join_subscription($object, $meta);
             } else {
                 Submission::confirm_payment((string) ($object['id'] ?? ''));
             }
