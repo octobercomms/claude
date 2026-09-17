@@ -429,16 +429,18 @@ final class StripeConnector {
         if (! $tier_ids) {
             return [];
         }
-        // Render-safe: this is called from the footer shortcodes on (potentially)
-        // every page, so it never calls Stripe inline. It serves the last list
-        // warmed by cron/admin-save; if none exists yet, it schedules a one-off
-        // background warm and shows nothing this time rather than blocking.
+        // Serve the stored list on the render path (no Stripe call). The list is
+        // a persistent, non-autoloaded option refreshed hourly by cron and on a
+        // settings save, so the common case is one option read.
         $stored = get_option(self::members_key($tier_ids), null);
         if (is_array($stored)) {
             return $stored;
         }
-        self::schedule_members_warm($tier_ids);
-        return [];
+        // No stored list yet (first run, or right after a price-id change): fetch
+        // once inline and store it, so the footer never silently shows empty on a
+        // full-page-cached site where a background warm might not fire. This is a
+        // single Stripe call on a cold cache, not per render.
+        return self::warm_members($tier_ids);
     }
 
     /**
@@ -454,9 +456,19 @@ final class StripeConnector {
         if (! $tier_ids || ! self::is_ready()) {
             return [];
         }
+        $key  = self::members_key($tier_ids);
         $list = self::fetch_members($tier_ids);
+        // A Stripe hiccup returns an empty list; don't let it wipe a good one.
+        // Keep the last known names rather than blanking the public wall — the
+        // next hourly refresh replaces them once Stripe answers again.
+        if (! $list) {
+            $prev = get_option($key, null);
+            if (is_array($prev) && $prev) {
+                return $prev;
+            }
+        }
         // autoload = no: read only on the footer render path, not every request.
-        update_option(self::members_key($tier_ids), $list, false);
+        update_option($key, $list, false);
         return $list;
     }
 
@@ -518,21 +530,10 @@ final class StripeConnector {
         return 'oe_members_' . md5(implode('|', $tier_ids));
     }
 
-    /** Queue a one-off background warm so a cold footer never blocks on Stripe. */
-    private static function schedule_members_warm(array $tier_ids): void {
-        if (! wp_next_scheduled('oe_warm_members', [$tier_ids])) {
-            wp_schedule_single_event(time() + 5, 'oe_warm_members', [$tier_ids]);
-        }
-    }
-
-    /** Refresh (or drop) the stored member list after the price IDs change. */
+    /** Refresh the stored member list right away after the price IDs change, so
+     *  the public footer never blanks between a save and the next cron run. */
     public static function bust_members_list(array $tier_ids): void {
-        $tier_ids = self::tier_ids($tier_ids);
-        if (! $tier_ids) {
-            return;
-        }
-        delete_option(self::members_key($tier_ids));
-        self::schedule_members_warm($tier_ids);
+        self::warm_members($tier_ids);
     }
 
     /** Drop the cached membership status for an email (e.g. right after they join). */
