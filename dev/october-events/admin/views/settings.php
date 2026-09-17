@@ -424,6 +424,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p><label><strong><?php esc_html_e('Membership benefits', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one per line — a few key perks from your membership page, shown as bullets in the checkout upsell card. Leave blank for no bullets.', 'october-events'); ?></span><br>
             <textarea name="membership_benefits" rows="4" class="large-text" placeholder="<?php esc_attr_e("Regular email updates about upcoming events&#10;Your name on the Friends wall on our website&#10;Support student-led installations & public workshops", 'october-events'); ?>"><?php echo esc_textarea(implode("\n", (array) ($cfg['membership_benefits'] ?? []))); ?></textarea></label></p>
 
+        <p style="margin:14px 0"><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-membership-repair')); ?>"><?php esc_html_e('Repair unfulfilled memberships →', 'october-events'); ?></a>
+            <span class="description"><?php esc_html_e('Find members-only rate buyers with no membership and create it on their saved card.', 'october-events'); ?></span></p>
+
         <h4 style="margin:16px 0 6px"><?php esc_html_e('Test: is this email a member?', 'october-events'); ?></h4>
         <p><?php esc_html_e('Check a known member’s email to confirm your price IDs resolve in Stripe.', 'october-events'); ?></p>
         <p><input type="email" id="oe-mem-email" class="regular-text" placeholder="member@example.com">

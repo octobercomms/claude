@@ -37,6 +37,7 @@ final class Admin {
         add_action('admin_post_oe_gt_reservation_remove', [$this, 'handle_gt_reservation_remove']);
         add_action('admin_post_oe_gt_reservation_add', [$this, 'handle_gt_reservation_add']);
         add_action('admin_post_oe_preview_guided_email', [$this, 'handle_preview_guided_email']);
+        add_action('admin_post_oe_membership_repair', [$this, 'handle_membership_repair']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
         add_action('admin_post_oe_import_contacts', [$this, 'handle_import_contacts']);
@@ -69,6 +70,8 @@ final class Admin {
         if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']); }
         if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']); }
         add_submenu_page('october-events', 'Countdown', 'Countdown', $cap, 'oe-countdown', [$this, 'page_countdown']);
+        // Reachable by URL from the Membership settings, not shown in the menu.
+        add_submenu_page('', 'Membership repair', '', $cap, 'oe-membership-repair', [$this, 'page_membership_repair']);
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
     }
 
@@ -432,6 +435,43 @@ final class Admin {
     }
 
     /** Guided-tour signups: list per building, add/remove people, export CSV. */
+    /** Recover memberships that never got created after a members-only ticket sale. */
+    public function page_membership_repair(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        $candidates = \OE\Membership\Repair::candidates();
+        $results    = get_transient('oe_mem_repair_' . get_current_user_id());
+        if ($results) {
+            delete_transient('oe_mem_repair_' . get_current_user_id());
+        }
+        require OE_DIR . 'admin/views/membership-repair.php';
+    }
+
+    public function handle_membership_repair(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_membership_repair');
+        $which = isset($_POST['which']) ? sanitize_text_field((string) $_POST['which']) : '';
+        $ids   = [];
+        if ($which === 'all') {
+            foreach (\OE\Membership\Repair::candidates() as $c) {
+                $ids[] = (int) $c['order_id'];
+            }
+        } elseif (ctype_digit($which)) {
+            $ids[] = (int) $which;
+        }
+        $results = [];
+        foreach ($ids as $id) {
+            $res = \OE\Membership\Repair::repair_order($id);
+            $results[] = ['order_id' => $id, 'ok' => $res['ok'], 'status' => $res['status'], 'message' => $res['message']];
+        }
+        set_transient('oe_mem_repair_' . get_current_user_id(), $results, 120);
+        wp_safe_redirect(admin_url('admin.php?page=oe-membership-repair'));
+        exit;
+    }
+
     /** Guided-tour signups — a tab on the Tickets screen. */
     public function render_guided(): void {
         $location     = isset($_GET['building']) ? absint($_GET['building']) : 0;
