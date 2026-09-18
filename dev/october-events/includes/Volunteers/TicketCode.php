@@ -42,11 +42,42 @@ final class TicketCode {
         return $code;
     }
 
-    /** Where volunteers redeem it — the configured event's page, else the site. */
+    /**
+     * Where volunteers redeem it. Prefers an explicit redeem URL (so an email on
+     * one site can point at the tickets page on another), else the configured
+     * local event's page, else the site home.
+     */
     public static function redeem_url(): string {
+        $url = trim((string) Settings::get('volunteer_code_redeem_url', ''));
+        if ($url !== '') {
+            return $url;
+        }
         $event = (int) Settings::get('volunteer_code_event', 0);
-        $url   = $event ? (string) get_permalink($event) : '';
-        return $url !== '' ? $url : home_url('/');
+        $local = $event ? (string) get_permalink($event) : '';
+        return $local !== '' ? $local : home_url('/');
+    }
+
+    /**
+     * Create the year's promo, but only on the site that actually sells the
+     * tickets — i.e. where the configured event is a real, published ticket
+     * event in THIS install. Tickets and their promo codes live per-site, so the
+     * site that only sends the volunteer email (a different WordPress install)
+     * must not create a useless local code. Safe to call from cron / on save.
+     */
+    public static function maybe_ensure(): void {
+        if (! self::enabled()) {
+            return;
+        }
+        $event = (int) Settings::get('volunteer_code_event', 0);
+        if ($event <= 0
+            || get_post_type($event) !== \OE\PostTypes::slug('event')
+            || get_post_status($event) !== 'publish') {
+            return;
+        }
+        $code = self::peek();
+        if ($code !== '') {
+            self::ensure_promo($code);
+        }
     }
 
     /** Create the year's 100%-off promo once, matching the settings. */

@@ -180,6 +180,11 @@ final class Settings {
             'volunteer_code_ticket_types' => '',
             // Total redemptions allowed across all volunteers (0 = unlimited).
             'volunteer_code_max_uses'     => 0,
+            // Where the email sends volunteers to redeem. Set this to the tickets
+            // page when tickets live on a DIFFERENT site from the one that sends
+            // volunteer emails (e.g. tours on architecturetours.us, volunteers on
+            // atlantadesignfestival.net). Blank = the local event's page.
+            'volunteer_code_redeem_url'   => '',
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',

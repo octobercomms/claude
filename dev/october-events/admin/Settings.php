@@ -319,6 +319,7 @@ final class Settings {
             'volunteer_code_event'        => absint($in['volunteer_code_event'] ?? 0),
             'volunteer_code_ticket_types' => sanitize_textarea_field((string) ($in['volunteer_code_ticket_types'] ?? '')),
             'volunteer_code_max_uses'     => max(0, (int) ($in['volunteer_code_max_uses'] ?? 0)),
+            'volunteer_code_redeem_url'   => esc_url_raw(trim((string) ($in['volunteer_code_redeem_url'] ?? ''))),
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => self::keep_secret($in['github_token'] ?? '', $existing['github_token'] ?? ''),
             'platform_origins' => self::parse_origins((string) ($in['platform_origins'] ?? '')),
@@ -401,6 +402,10 @@ final class Settings {
         // Editing a tier's price IDs should show in the footer lists at once.
         \OE\Connectors\StripeConnector::bust_members_list((array) Config::get('friends_price_ids', []));
         \OE\Connectors\StripeConnector::bust_members_list((array) Config::get('patrons_price_ids', []));
+
+        // On the site that sells the tickets, make sure this year's volunteer code
+        // exists as soon as the feature is set up (a no-op elsewhere).
+        \OE\Volunteers\TicketCode::maybe_ensure();
 
         // "Save & sync now" (a submit button in the Volunteer-locations accordion)
         // saves the feed credentials above and immediately runs the partner sync

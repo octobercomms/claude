@@ -106,6 +106,10 @@ final class Cron {
         // Retention: drop abandoned-cart drafts past the retention window.
         \OE\Ticketing\Abandonment::purge();
 
+        // Keep this year's volunteer thank-you code alive on the ticket-selling
+        // site (creates it if the year rolled over; a no-op on other sites).
+        \OE\Volunteers\TicketCode::maybe_ensure();
+
         // Monthly digest: hard-disabled for now (DIGEST_ENABLED). When re-enabled
         // it will run only when opted in, on the first Monday, once per month.
         if (self::DIGEST_ENABLED && (bool) Settings::get('digest_enabled', false) && self::is_first_monday()) {
