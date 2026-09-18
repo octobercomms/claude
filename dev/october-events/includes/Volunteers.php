@@ -601,6 +601,17 @@ final class Volunteers {
         // saved blank). Override in settings only if your fields differ.
         $addr_key = trim((string) Settings::get('location_address_field', '')) ?: 'address';
         $date_key = trim((string) Settings::get('location_date_field', '')) ?: 'date';
+        // Taxonomies that group locations into a tour (City + Year), used by the
+        // partner site to auto-match a volunteer to their tour's thank-you code.
+        $city_tax = trim((string) Settings::get('location_city_tax', ''));
+        $year_tax = trim((string) Settings::get('location_year_tax', ''));
+        $first_term = static function (int $id, string $tax): string {
+            if ($tax === '' || ! taxonomy_exists($tax)) {
+                return '';
+            }
+            $terms = get_the_terms($id, $tax);
+            return (is_array($terms) && $terms) ? (string) $terms[0]->name : '';
+        };
         $out = [];
         foreach ($ids as $id) {
             $out[] = [
@@ -611,6 +622,8 @@ final class Volunteers {
                 'date'     => $date_key !== '' ? (string) get_post_meta($id, $date_key, true) : '',
                 'capacity' => (int) get_post_meta($id, '_oe_loc_vol_capacity', true),
                 'image'    => (string) (get_the_post_thumbnail_url($id, 'medium') ?: ''),
+                'city'     => $first_term((int) $id, $city_tax),
+                'year'     => $first_term((int) $id, $year_tax),
             ];
         }
         return $out;
@@ -664,6 +677,8 @@ final class Volunteers {
                 'date'     => sanitize_text_field((string) ($l['date'] ?? '')),
                 'capacity' => max(0, (int) ($l['capacity'] ?? 0)),
                 'image'    => esc_url_raw((string) ($l['image'] ?? '')),
+                'city'     => sanitize_text_field((string) ($l['city'] ?? '')),
+                'year'     => sanitize_text_field((string) ($l['year'] ?? '')),
             ];
         }
         Settings::update([

@@ -36,6 +36,8 @@ final class EventCodes {
     public const M_TYPE  = '_oe_vol_type';
     public const M_PER   = '_oe_vol_per';
     public const M_URL   = '_oe_vol_url';
+    public const M_CITY  = '_oe_vol_city';
+    public const M_YEAR  = '_oe_vol_year';
 
     /** Event meta (festival side): the reward tour's code for this event's volunteers. */
     public const M_EVENT_REWARD = '_oe_vol_event_reward';
@@ -105,6 +107,21 @@ final class EventCodes {
         return $u !== '' ? $u : (string) get_permalink($event);
     }
 
+    public static function city_for(int $event): string {
+        return trim((string) get_post_meta($event, self::M_CITY, true));
+    }
+
+    public static function year_for(int $event): string {
+        return trim((string) get_post_meta($event, self::M_YEAR, true));
+    }
+
+    /** Normalise a City + Year pair to a comparable key ("atlanta ga" + "2026" => "atlantaga|2026"). */
+    public static function place_key(string $city, string $year): string {
+        $c = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $city));
+        $y = (string) preg_replace('/[^0-9]/', '', $year);
+        return ($c === '' && $y === '') ? '' : $c . '|' . $y;
+    }
+
     /** @return int[] published events flagged as offering. */
     public static function offering_events(): array {
         return get_posts([
@@ -166,6 +183,8 @@ final class EventCodes {
                 'url'        => self::url_for($event),
                 'per'        => self::per_for($event),
                 'type_label' => $type_lbl,
+                'city'       => self::city_for($event),
+                'year'       => self::year_for($event),
             ];
         }
         return $out;
@@ -257,6 +276,8 @@ final class EventCodes {
                 'url'        => esc_url_raw((string) ($row['url'] ?? '')),
                 'per'        => max(1, (int) ($row['per'] ?? 2)),
                 'type_label' => sanitize_text_field((string) ($row['type_label'] ?? '')),
+                'city'       => sanitize_text_field((string) ($row['city'] ?? '')),
+                'year'       => sanitize_text_field((string) ($row['year'] ?? '')),
             ];
         }
         update_option(self::OPT_SYNCED, $clean, false);
@@ -311,9 +332,43 @@ final class EventCodes {
                 return self::resolve_code($ev_code);
             }
         }
-        // 3. the single default.
+        // 3. auto-match by the tour location's City + Year (tour-stop volunteers).
+        $auto = self::match_by_location($opportunity);
+        if ($auto !== null) {
+            return $auto;
+        }
+        // 4. the single default.
         $default = self::default_reward_code();
         return $default !== '' ? self::resolve_code($default) : null;
+    }
+
+    /**
+     * Resolve the reward from the tour location a volunteer signed up for, by
+     * matching its City + Year against the synced tours. This is what lets a
+     * second tour (e.g. Boston) work with no per-event setup: tag its locations
+     * and give its event the same City + Year.
+     *
+     * @return array{code:string,url:string,label:string,per:int,type_label:string}|null
+     */
+    public static function match_by_location(int $opportunity): ?array {
+        $ref = (string) get_post_meta($opportunity, '_oe_linked_location_ref', true);
+        if ($ref === '') {
+            return null;
+        }
+        $loc = \OE\Volunteers::feed_location($ref);
+        if (! is_array($loc)) {
+            return null;
+        }
+        $key = self::place_key((string) ($loc['city'] ?? ''), (string) ($loc['year'] ?? ''));
+        if ($key === '') {
+            return null;
+        }
+        foreach (self::synced() as $t) {
+            if (self::place_key((string) ($t['city'] ?? ''), (string) ($t['year'] ?? '')) === $key) {
+                return self::resolve_code((string) $t['code']);
+            }
+        }
+        return null;
     }
 
     /**
@@ -332,6 +387,8 @@ final class EventCodes {
             update_post_meta($event, self::M_TYPE, sanitize_key((string) ($row['type'] ?? '')));
             update_post_meta($event, self::M_PER, max(1, (int) ($row['per'] ?? 2)));
             update_post_meta($event, self::M_URL, esc_url_raw(trim((string) ($row['url'] ?? ''))));
+            update_post_meta($event, self::M_CITY, sanitize_text_field((string) ($row['city'] ?? '')));
+            update_post_meta($event, self::M_YEAR, sanitize_text_field((string) ($row['year'] ?? '')));
         }
         foreach ($rewards as $event => $code) {
             $event = (int) $event;

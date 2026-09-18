@@ -660,6 +660,12 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <tr><th scope="row"><?php esc_html_e('Date field', 'october-events'); ?></th>
                 <td><input type="text" name="location_date_field" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['location_date_field'] ?? '')); ?>" placeholder="date">
                     <p class="description"><?php esc_html_e('Meta field name that holds the location’s tour date (e.g. “date”). Used to pre-fill the volunteer shift. Blank = don’t send.', 'october-events'); ?></p></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Tour City taxonomy', 'october-events'); ?></th>
+                <td><input type="text" name="location_city_tax" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['location_city_tax'] ?? '')); ?>" placeholder="tour-cities">
+                    <p class="description"><?php esc_html_e('Taxonomy slug that tags each location’s city (e.g. “tour-cities”). Sent with the location so the festival site auto-matches a volunteer to their tour’s thank-you code. Blank = off.', 'october-events'); ?></p></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Tour Year taxonomy', 'october-events'); ?></th>
+                <td><input type="text" name="location_year_tax" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['location_year_tax'] ?? '')); ?>" placeholder="tour-years">
+                    <p class="description"><?php esc_html_e('Taxonomy slug that tags each location’s year (e.g. “tour-years”). Paired with the city to identify the tour. Blank = off.', 'october-events'); ?></p></td></tr>
         </tbody></table>
 
         <p><label><strong><?php esc_html_e('Default role', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('pre-filled as the role when you link a volunteer post to a tour location (tour stops are docent-led). Blank = don’t pre-fill.', 'october-events'); ?></span><br>
@@ -767,24 +773,29 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <th style="width:56px"><?php esc_html_e('Offer', 'october-events'); ?></th><th><?php esc_html_e('Event', 'october-events'); ?></th>
             <th><?php esc_html_e('Code', 'october-events'); ?></th><th><?php esc_html_e('Ticket type', 'october-events'); ?></th><th><?php esc_html_e('Per volunteer', 'october-events'); ?></th>
             <th><?php esc_html_e('Tickets URL', 'october-events'); ?></th>
+            <th><?php esc_html_e('City', 'october-events'); ?></th><th><?php esc_html_e('Year', 'october-events'); ?></th>
         </tr></thead><tbody>
         <?php foreach ($oe_events as $eid => $etitle) :
             $on = get_post_meta($eid, $ec::M_OFFER, true) === '1';
             $code = (string) get_post_meta($eid, $ec::M_CODE, true);
             $type = (string) get_post_meta($eid, $ec::M_TYPE, true);
             $per  = (int) get_post_meta($eid, $ec::M_PER, true) ?: 2;
-            $turl = (string) get_post_meta($eid, $ec::M_URL, true); ?>
+            $turl = (string) get_post_meta($eid, $ec::M_URL, true);
+            $city = (string) get_post_meta($eid, $ec::M_CITY, true);
+            $year = (string) get_post_meta($eid, $ec::M_YEAR, true); ?>
             <tr>
                 <td><input type="checkbox" name="oe_vol_ev[<?php echo (int) $eid; ?>][offer]" value="1" <?php checked($on); ?>></td>
                 <td><strong><?php echo esc_html($etitle); ?></strong></td>
                 <td><input type="text" class="code" name="oe_vol_ev[<?php echo (int) $eid; ?>][code]" value="<?php echo esc_attr($code); ?>" placeholder="<?php echo esc_attr($ec::code_for((int) $eid)); ?>" style="width:150px"></td>
                 <td><input type="text" class="code" name="oe_vol_ev[<?php echo (int) $eid; ?>][type]" value="<?php echo esc_attr($type); ?>" placeholder="single" style="width:100px"></td>
                 <td><input type="number" min="1" name="oe_vol_ev[<?php echo (int) $eid; ?>][per]" value="<?php echo esc_attr((string) $per); ?>" style="width:70px"></td>
-                <td><input type="url" class="code" name="oe_vol_ev[<?php echo (int) $eid; ?>][url]" value="<?php echo esc_attr($turl); ?>" placeholder="<?php echo esc_attr((string) get_permalink((int) $eid)); ?>" style="min-width:240px"></td>
+                <td><input type="url" class="code" name="oe_vol_ev[<?php echo (int) $eid; ?>][url]" value="<?php echo esc_attr($turl); ?>" placeholder="<?php echo esc_attr((string) get_permalink((int) $eid)); ?>" style="min-width:220px"></td>
+                <td><input type="text" name="oe_vol_ev[<?php echo (int) $eid; ?>][city]" value="<?php echo esc_attr($city); ?>" placeholder="Atlanta GA" style="width:110px"></td>
+                <td><input type="text" name="oe_vol_ev[<?php echo (int) $eid; ?>][year]" value="<?php echo esc_attr($year); ?>" placeholder="2026" style="width:70px"></td>
             </tr>
         <?php endforeach; ?>
         </tbody></table></div>
-        <p class="description" style="max-width:820px"><?php esc_html_e('“Per volunteer” is enforced by the code itself at checkout — it makes up to that many free, once per volunteer email. Don’t touch the ticket type’s “Max per order” (that would limit public sales too). “Tickets URL” is where the volunteer email’s button sends them (the code is auto-applied); leave blank to use the event’s own page.', 'october-events'); ?></p>
+        <p class="description" style="max-width:820px"><?php esc_html_e('“Per volunteer” is enforced by the code itself at checkout — it makes up to that many free, once per volunteer email. Don’t touch the ticket type’s “Max per order” (that would limit public sales too). “Tickets URL” is where the volunteer email’s button sends them (the code is auto-applied); leave blank to use the event’s own page. “City” and “Year” must match the tour-location tags (Volunteer locations, above) so a volunteer at a stop auto-gets the right code — e.g. Atlanta GA / 2026.', 'october-events'); ?></p>
         <?php endif; endif; ?>
 
         <?php if (\OE\Features::enabled('volunteers')) :
