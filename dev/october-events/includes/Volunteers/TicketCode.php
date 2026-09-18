@@ -256,12 +256,16 @@ final class TicketCode {
             $row(__('Redeem URL', 'october-events'), 'info', $redeem);
         }
 
-        // 48h reminder must be on — the code only rides that one.
-        $offsets = (array) Settings::get('reminder_offsets', array_keys(\OE\Reminders::OFFSETS));
-        if (in_array('48h', $offsets, true)) {
-            $row(__('48-hour reminder', 'october-events'), 'ok', __('On — the code rides this send.', 'october-events'));
-        } else {
-            $row(__('48-hour reminder', 'october-events'), 'fail', __('Off. The code is only sent in the 48-hour reminder, so nothing goes out. Enable it under Reminders.', 'october-events'));
+        // 48h reminder must be on — the code only rides that one. Only relevant on
+        // the site that actually sends volunteer emails (Volunteers feature on); the
+        // tickets-only site hosts the code but doesn't send the reminder.
+        if (\OE\Features::enabled('volunteers')) {
+            $offsets = (array) Settings::get('reminder_offsets', array_keys(\OE\Reminders::OFFSETS));
+            if (in_array('48h', $offsets, true)) {
+                $row(__('48-hour reminder', 'october-events'), 'ok', __('On — the code rides this send.', 'october-events'));
+            } else {
+                $row(__('48-hour reminder', 'october-events'), 'fail', __('Off. The code is only sent in the 48-hour reminder, so nothing goes out. Enable it under Reminders.', 'october-events'));
+            }
         }
 
         // Verification, ticket side (this site calls the partner).
@@ -308,9 +312,11 @@ final class TicketCode {
             }
         }
 
-        // FAQ link on volunteer emails.
-        $faq = trim((string) Settings::get('volunteer_faq_url', ''));
-        $row(__('Volunteer FAQ link', 'october-events'), $faq !== '' ? 'ok' : 'info', $faq !== '' ? $faq : __('Not set — no FAQ link in volunteer emails.', 'october-events'));
+        // FAQ link on volunteer emails — only meaningful where emails are sent.
+        if (\OE\Features::enabled('volunteers')) {
+            $faq = trim((string) Settings::get('volunteer_faq_url', ''));
+            $row(__('Volunteer FAQ link', 'october-events'), $faq !== '' ? 'ok' : 'info', $faq !== '' ? $faq : __('Not set — no FAQ link in volunteer emails.', 'october-events'));
+        }
 
         return ['code' => $code, 'can_create' => $can_create, 'rows' => $rows];
     }
