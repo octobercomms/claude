@@ -371,6 +371,7 @@ final class Settings {
             'volunteer_code_max_uses'     => max(0, (int) ($in['volunteer_code_max_uses'] ?? 0)),
             'volunteer_code_redeem_url'   => esc_url_raw(trim((string) ($in['volunteer_code_redeem_url'] ?? ''))),
             'volunteer_code_reward_label' => sanitize_text_field((string) ($in['volunteer_code_reward_label'] ?? '')),
+            'volunteer_default_reward'    => strtoupper((string) preg_replace('/[^A-Za-z0-9\-]/', '', sanitize_text_field((string) ($in['oe_vol_default_reward'] ?? '')))),
             'volunteer_code_verify_enabled' => ! empty($in['volunteer_code_verify_enabled']),
             'volunteer_verify_token'        => sanitize_text_field(trim((string) ($in['volunteer_verify_token'] ?? ''))),
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
@@ -459,6 +460,16 @@ final class Settings {
         // On the site that sells the tickets, make sure this year's volunteer code
         // exists as soon as the feature is set up (a no-op elsewhere).
         \OE\Volunteers\TicketCode::maybe_ensure();
+
+        // Per-event volunteer thank-you tickets (offer table) and rewards, edited
+        // in place in the Volunteers tab. Saves the meta on each event and creates
+        // any missing promos.
+        if (isset($in['oe_vol_ev']) || isset($in['oe_vol_rw'])) {
+            \OE\Volunteers\EventCodes::save_from_settings(
+                (array) ($in['oe_vol_ev'] ?? []),
+                (array) ($in['oe_vol_rw'] ?? [])
+            );
+        }
 
         // "Save & sync now" (a submit button in the Volunteer-locations accordion)
         // saves the feed credentials above and immediately runs the partner sync

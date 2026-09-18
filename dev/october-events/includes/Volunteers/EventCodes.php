@@ -36,7 +36,10 @@ final class EventCodes {
     public const M_TYPE  = '_oe_vol_type';
     public const M_PER   = '_oe_vol_per';
 
-    /** Opportunity meta (on the festival site): the reward tour's code. */
+    /** Event meta (festival side): the reward tour's code for this event's volunteers. */
+    public const M_EVENT_REWARD = '_oe_vol_event_reward';
+
+    /** Opportunity meta (optional per-opportunity override of the reward). */
     public const M_REWARD = '_oe_vol_reward_code';
 
     /** Festival-side option: tours pulled from the ticket site. */
@@ -46,13 +49,23 @@ final class EventCodes {
         // Keep this year's per-event promos alive + refresh the synced list.
         add_action(\OE\Cron::HOOK_DAILY, [self::class, 'ensure_promos']);
         add_action(\OE\Cron::HOOK_DAILY, [self::class, 'sync']);
-
-        if (is_admin()) {
-            add_action('add_meta_boxes', [self::class, 'register_boxes']);
-            add_action('save_post', [self::class, 'save_boxes'], 10, 2);
-        }
         // Recreate a promo as soon as an offering event is saved (ticket site).
         add_action('save_post_' . PostTypes::slug('event'), [self::class, 'ensure_for_event'], 20, 1);
+    }
+
+    /** All published events on this site, id => title (for the settings tables). */
+    public static function all_events(): array {
+        $out = [];
+        foreach (get_posts([
+            'post_type'      => PostTypes::slug('event'),
+            'post_status'    => 'publish',
+            'posts_per_page' => 200,
+            'orderby'        => 'date',
+            'order'          => 'DESC',
+        ]) as $ev) {
+            $out[(int) $ev->ID] = (string) (get_the_title($ev) ?: ('#' . $ev->ID));
+        }
+        return $out;
     }
 
     /* ---------------------------------------------------------------- */
@@ -216,111 +229,83 @@ final class EventCodes {
         return ['ok' => true, 'count' => count($clean)];
     }
 
-    /** The reward code chosen on an opportunity (festival site). */
-    public static function reward_code_for_opportunity(int $opportunity): string {
-        return strtoupper((string) get_post_meta($opportunity, self::M_REWARD, true));
+    /** The reward tour code set on a festival event (its volunteers' reward). */
+    public static function event_reward_code(int $event): string {
+        return strtoupper((string) get_post_meta($event, self::M_EVENT_REWARD, true));
+    }
+
+    /** The single default reward tour code, for volunteers not matched by an event. */
+    public static function default_reward_code(): string {
+        return strtoupper((string) Settings::get('volunteer_default_reward', ''));
+    }
+
+    /** Resolve a tour code against the synced list. @return array|null */
+    private static function resolve_code(string $code): ?array {
+        $code = strtoupper(trim($code));
+        if ($code === '') {
+            return null;
+        }
+        foreach (self::synced() as $t) {
+            if (strtoupper((string) $t['code']) === $code) {
+                return ['code' => (string) $t['code'], 'url' => (string) $t['url'], 'label' => (string) $t['label'], 'per' => (int) $t['per']];
+            }
+        }
+        // Chosen but not in the synced list yet (stale/not synced) — still send it.
+        return ['code' => $code, 'url' => TicketCode::redeem_url(), 'label' => '', 'per' => 2];
     }
 
     /**
-     * Resolve what a volunteer on this opportunity should receive in the 48h email:
-     * their opportunity's chosen tour (from the synced list), else the global code
-     * as a fallback. Returns null when nothing is configured.
+     * Resolve what a volunteer on this opportunity receives in the 48h email:
+     *   1. an explicit per-opportunity override, else
+     *   2. the reward tour set on the event they signed up for, else
+     *   3. the single default reward tour.
+     * Returns null when nothing is configured (so no dead code is ever sent).
      *
      * @return array{code:string,url:string,label:string,per:int}|null
      */
     public static function reward_for_opportunity(int $opportunity): ?array {
-        $code = self::reward_code_for_opportunity($opportunity);
-        if ($code !== '') {
-            foreach (self::synced() as $t) {
-                if (strtoupper((string) $t['code']) === $code) {
-                    return [
-                        'code'  => (string) $t['code'],
-                        'url'   => (string) $t['url'],
-                        'label' => (string) $t['label'],
-                        'per'   => (int) $t['per'],
-                    ];
-                }
-            }
-            // Chosen but not in the synced list (stale) — still send the code.
-            return ['code' => $code, 'url' => TicketCode::redeem_url(), 'label' => '', 'per' => 2];
+        // 1. per-opportunity override.
+        $override = strtoupper((string) get_post_meta($opportunity, self::M_REWARD, true));
+        if ($override !== '') {
+            return self::resolve_code($override);
         }
-        // Legacy fallback: the older single global code, but ONLY on a site still
-        // set up that way (a redeem URL configured and no per-event tours synced).
-        // Otherwise send nothing rather than risk a code with no matching promo.
-        $legacy_redeem = trim((string) Settings::get('volunteer_code_redeem_url', ''));
-        if ($legacy_redeem !== '' && ! self::synced()) {
-            $global = TicketCode::peek();
-            if ($global !== '') {
-                return ['code' => $global, 'url' => TicketCode::redeem_url(), 'label' => '', 'per' => 2];
+        // 2. the linked event's reward.
+        $event = \OE\Volunteers::linked_event($opportunity);
+        if ($event > 0) {
+            $ev_code = self::event_reward_code($event);
+            if ($ev_code !== '') {
+                return self::resolve_code($ev_code);
             }
         }
-        return null;
+        // 3. the single default.
+        $default = self::default_reward_code();
+        return $default !== '' ? self::resolve_code($default) : null;
     }
 
-    /* ---------------------------------------------------------------- */
-    /* Meta boxes                                                        */
-    /* ---------------------------------------------------------------- */
-
-    public static function register_boxes(): void {
-        if (Features::enabled('tickets')) {
-            add_meta_box('oe-vol-offer', __('Volunteer thank-you tickets', 'october-events'), [self::class, 'render_offer_box'], PostTypes::slug('event'), 'side', 'default');
+    /**
+     * Persist the per-event offer + reward rows posted from Settings → Volunteers.
+     * @param array<int,array<string,mixed>> $offers  event_id => [offer,code,type,per]
+     * @param array<int,string>              $rewards event_id => reward code
+     */
+    public static function save_from_settings(array $offers, array $rewards): void {
+        foreach ($offers as $event => $row) {
+            $event = (int) $event;
+            if ($event <= 0 || ! current_user_can('edit_post', $event)) {
+                continue;
+            }
+            update_post_meta($event, self::M_OFFER, empty($row['offer']) ? '' : '1');
+            update_post_meta($event, self::M_CODE, strtoupper((string) preg_replace('/[^A-Za-z0-9\-]/', '', sanitize_text_field((string) ($row['code'] ?? '')))));
+            update_post_meta($event, self::M_TYPE, sanitize_key((string) ($row['type'] ?? '')));
+            update_post_meta($event, self::M_PER, max(1, (int) ($row['per'] ?? 2)));
         }
-        if (Features::enabled('volunteers')) {
-            add_meta_box('oe-vol-reward', __('Volunteer reward', 'october-events'), [self::class, 'render_reward_box'], self::opportunity_slug(), 'side', 'default');
+        foreach ($rewards as $event => $code) {
+            $event = (int) $event;
+            if ($event <= 0 || ! current_user_can('edit_post', $event)) {
+                continue;
+            }
+            update_post_meta($event, self::M_EVENT_REWARD, strtoupper((string) preg_replace('/[^A-Za-z0-9\-]/', '', sanitize_text_field((string) $code))));
         }
+        self::ensure_promos();
     }
 
-    private static function opportunity_slug(): string {
-        return \OE\Volunteers::slug();
-    }
-
-    public static function render_offer_box(\WP_Post $post): void {
-        wp_nonce_field('oe_vol_offer_' . $post->ID, 'oe_vol_offer_nonce');
-        $on   = get_post_meta($post->ID, self::M_OFFER, true) === '1';
-        $code = (string) get_post_meta($post->ID, self::M_CODE, true);
-        $type = (string) get_post_meta($post->ID, self::M_TYPE, true);
-        $per  = (int) get_post_meta($post->ID, self::M_PER, true) ?: 2;
-        echo '<p><label><input type="checkbox" name="oe_vol_offer" value="1" ' . checked($on, true, false) . '> <strong>' . esc_html__('Offer free volunteer tickets to this event', 'october-events') . '</strong></label></p>';
-        echo '<p><label>' . esc_html__('Code', 'october-events') . '<br><input type="text" name="oe_vol_code" class="widefat code" value="' . esc_attr($code) . '" placeholder="' . esc_attr(self::code_for($post->ID)) . '"></label>';
-        echo '<span class="description">' . esc_html__('Blank = auto from the slug + year.', 'october-events') . '</span></p>';
-        echo '<p><label>' . esc_html__('Ticket type key', 'october-events') . '<br><input type="text" name="oe_vol_type" class="widefat code" value="' . esc_attr($type) . '" placeholder="single"></label>';
-        echo '<span class="description">' . esc_html__('Blank = whole event. Set this type’s Max per order to your free-ticket count.', 'october-events') . '</span></p>';
-        echo '<p><label>' . esc_html__('Free tickets per volunteer', 'october-events') . '<br><input type="number" min="1" name="oe_vol_per" value="' . esc_attr((string) $per) . '" style="width:90px"></label></p>';
-    }
-
-    public static function render_reward_box(\WP_Post $post): void {
-        wp_nonce_field('oe_vol_reward_' . $post->ID, 'oe_vol_reward_nonce');
-        $chosen = self::reward_code_for_opportunity($post->ID);
-        $tours  = self::synced();
-        echo '<p class="description">' . esc_html__('The tour whose free-ticket code this opportunity’s volunteers receive in their 48-hour reminder.', 'october-events') . '</p>';
-        if (! $tours) {
-            echo '<p class="description">' . esc_html__('No tours synced yet. Set up the linked ticket site and run a sync first.', 'october-events') . '</p>';
-        }
-        echo '<select name="oe_vol_reward_code" class="widefat"><option value="">' . esc_html__('— none —', 'october-events') . '</option>';
-        foreach ($tours as $t) {
-            $c = strtoupper((string) $t['code']);
-            echo '<option value="' . esc_attr($c) . '" ' . selected($chosen, $c, false) . '>' . esc_html((string) $t['label'] . ' (' . $c . ')') . '</option>';
-        }
-        echo '</select>';
-    }
-
-    public static function save_boxes(int $post_id, \WP_Post $post): void {
-        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-            return;
-        }
-        if (! current_user_can('edit_post', $post_id)) {
-            return;
-        }
-        // Offer box (event editor).
-        if (isset($_POST['oe_vol_offer_nonce']) && wp_verify_nonce((string) $_POST['oe_vol_offer_nonce'], 'oe_vol_offer_' . $post_id)) {
-            update_post_meta($post_id, self::M_OFFER, empty($_POST['oe_vol_offer']) ? '' : '1');
-            update_post_meta($post_id, self::M_CODE, strtoupper((string) preg_replace('/[^A-Za-z0-9\-]/', '', sanitize_text_field((string) ($_POST['oe_vol_code'] ?? '')))));
-            update_post_meta($post_id, self::M_TYPE, sanitize_key((string) ($_POST['oe_vol_type'] ?? '')));
-            update_post_meta($post_id, self::M_PER, max(1, (int) ($_POST['oe_vol_per'] ?? 2)));
-        }
-        // Reward box (opportunity editor).
-        if (isset($_POST['oe_vol_reward_nonce']) && wp_verify_nonce((string) $_POST['oe_vol_reward_nonce'], 'oe_vol_reward_' . $post_id)) {
-            update_post_meta($post_id, self::M_REWARD, strtoupper((string) preg_replace('/[^A-Za-z0-9\-]/', '', sanitize_text_field((string) ($_POST['oe_vol_reward_code'] ?? '')))));
-        }
-    }
 }
