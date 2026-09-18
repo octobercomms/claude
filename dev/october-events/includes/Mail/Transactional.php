@@ -302,6 +302,34 @@ final class Transactional {
                 . '<td style="padding:4px 0;font-size:14px;font-weight:700;color:#111">' . esc_html($value) . '</td></tr>';
         };
 
+        // Thank-you ticket code — only on the 48-hour reminder (ctx "48h"), so a
+        // volunteer who cancels earlier never receives it. Earlier emails (signup,
+        // week-before) tease that it's coming.
+        $reward = '';
+        if (\OE\Volunteers\TicketCode::enabled()) {
+            if ($ctx === '48h') {
+                // Preview just shows the code; a real send also ensures its promo exists.
+                $code   = ! empty($params['preview']) ? \OE\Volunteers\TicketCode::peek() : \OE\Volunteers\TicketCode::current();
+                $redeem = \OE\Volunteers\TicketCode::redeem_url();
+                if ($code !== '') {
+                    $reward = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111;background:#faf7f0;margin:0 0 18px"><tr><td style="padding:16px">'
+                        . '<p style="margin:0 0 6px;font-size:15px;font-weight:800;color:#111">' . esc_html__('Your thank-you: 2 free tour tickets', 'october-events') . '</p>'
+                        . '<p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#333">' . esc_html__('Use this code at checkout for two complimentary Architecture Tour tickets.', 'october-events') . '</p>'
+                        . '<p style="margin:0 0 12px"><span style="display:inline-block;border:2px dashed #111;padding:8px 14px;font-size:18px;font-weight:800;letter-spacing:.08em;color:#111">' . esc_html($code) . '</span></p>'
+                        . '<a href="' . esc_url($redeem) . '" style="display:inline-block;background:#b23b2a;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:11px 18px">' . esc_html__('Get your tickets', 'october-events') . '</a>'
+                        . '</td></tr></table>';
+                }
+            } elseif ($ctx === 'on_signup' || $ctx === 'week') {
+                $reward = '<p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#555">'
+                    . esc_html__('As a thank-you, you’ll receive a code for 2 free Architecture Tour tickets 48 hours before your shift.', 'october-events')
+                    . '</p>';
+            }
+        }
+
+        // FAQ link for the footer of every volunteer email.
+        $faq_url = trim((string) Settings::get('volunteer_faq_url', ''));
+        $faq     = $faq_url !== '' ? ' · <a href="' . esc_url($faq_url) . '" style="color:#777">' . esc_html__('Volunteer FAQs', 'october-events') . '</a>' : '';
+
         return '<!doctype html><html><body style="margin:0;background:#eceae6">'
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceae6;padding:24px;font-family:Arial,Helvetica,sans-serif">'
             . '<tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border:2px solid #111">'
@@ -315,6 +343,7 @@ final class Transactional {
             . $row(__('Shift', 'october-events'), $shift)
             . $row(__('Location', 'october-events'), $where)
             . '</table></td></tr></table>'
+            . $reward
             . ($url !== '' ? '<a href="' . esc_url($url) . '" style="display:inline-block;background:#111;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:11px 18px">' . esc_html__('View details', 'october-events') . '</a>' : '')
             // Self-service cancel — shown for signup/confirmed/reminder emails,
             // never on the "declined" email. A quiet secondary link.
@@ -326,7 +355,7 @@ final class Transactional {
                 : '')
             . '</td></tr>'
             . '<tr><td style="padding:16px 22px;border-top:2px solid #111;font-size:12px;color:#777">'
-            . esc_html($brand) . ' · <a href="' . $home . '" style="color:#777">' . $host . '</a> · ' . esc_html__('Questions? Just reply to this email.', 'october-events')
+            . esc_html($brand) . ' · <a href="' . $home . '" style="color:#777">' . $host . '</a>' . $faq . ' · ' . esc_html__('Questions? Just reply to this email.', 'october-events')
             . '</td></tr>'
             . '</table></td></tr></table></body></html>';
     }
@@ -371,6 +400,9 @@ final class Transactional {
             $trigger = 'volunteer_declined';
         } elseif ($key === 'on_signup') {
             $ctx = 'on_signup';
+        } elseif ($key === 'reminder') {
+            // Preview the 48h reminder — the one that carries the ticket code.
+            $ctx = '48h';
         }
         $params = [
             'name'        => __('Sample Volunteer', 'october-events'),
@@ -379,6 +411,7 @@ final class Transactional {
             'location'    => __('49 26th St NW, Atlanta, GA 30309', 'october-events'),
             'url'         => home_url('/'),
             'context'     => $ctx,
+            'preview'     => true,
             // A dummy cancel link so the "Cancel this shift" line shows in preview.
             'cancel_url'  => $key === 'declined' ? '' : home_url('/?oe_vcancel=0&k=preview'),
         ];

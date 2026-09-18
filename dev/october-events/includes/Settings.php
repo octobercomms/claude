@@ -164,6 +164,22 @@ final class Settings {
             // Admin-editable SMS templates, keyed by on_signup | reminder.
             // Blank = built-in default. Supports the same [merge] tags.
             'volunteer_sms_templates' => [],
+            // Link to the FAQ page, shown in the footer of every volunteer email.
+            'volunteer_faq_url' => '',
+            // Volunteer thank-you ticket code, included in the 48h reminder only
+            // (so anyone who cancels earlier never receives it). The code renews
+            // every year automatically: it is <prefix><year> (e.g. VOLUNTEER2026)
+            // and the matching 100%-off promo is created on first use if missing.
+            'volunteer_code_enabled'      => false,
+            'volunteer_code_prefix'       => 'VOLUNTEER',
+            // The ticket event the code applies to (its permalink is the redeem
+            // link), and optionally the ticket type key(s) — one per line — it is
+            // limited to. Point it at a type whose "Max per order" is 2 so each
+            // volunteer gets exactly two free.
+            'volunteer_code_event'        => 0,
+            'volunteer_code_ticket_types' => '',
+            // Total redemptions allowed across all volunteers (0 = unlimited).
+            'volunteer_code_max_uses'     => 0,
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',

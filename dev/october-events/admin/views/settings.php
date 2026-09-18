@@ -617,6 +617,32 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('Previews use sample details and reflect your saved text — save to update them.', 'october-events'); ?></p>
         </div></details>
 
+        <details class="oe-acc" id="volunteer-perks"><summary><?php esc_html_e('Volunteer FAQ & thank-you tickets', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p><label><strong><?php esc_html_e('Volunteer FAQ page', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('linked in the footer of every volunteer email', 'october-events'); ?></span><br>
+            <input type="url" name="volunteer_faq_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_faq_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net/faqs/"></label></p>
+
+        <h4 style="margin:18px 0 6px"><?php esc_html_e('Thank-you: 2 free tour tickets', 'october-events'); ?></h4>
+        <p class="description"><?php esc_html_e('A free-ticket code included only in the 48-hour reminder, so anyone who cancels earlier never receives it. The code renews every year automatically — it is your prefix plus the year (e.g. VOLUNTEER2026), and the matching 100%-off promo is created the first time it’s needed, so there’s nothing to rotate.', 'october-events'); ?></p>
+        <p><label><input type="checkbox" name="volunteer_code_enabled" value="1" <?php checked(! empty($cfg['volunteer_code_enabled'])); ?>> <strong><?php esc_html_e('Include a free-ticket code in the 48-hour reminder', 'october-events'); ?></strong></label></p>
+        <p><label><strong><?php esc_html_e('Code prefix', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('the year is appended automatically', 'october-events'); ?></span><br>
+            <input type="text" name="volunteer_code_prefix" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_code_prefix'] ?? 'VOLUNTEER')); ?>" placeholder="VOLUNTEER"></label>
+            <span class="description"><?php echo esc_html(sprintf(__('This year’s code: %s', 'october-events'), \OE\Volunteers\TicketCode::peek() ?: (strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', (string) ($cfg['volunteer_code_prefix'] ?? 'VOLUNTEER'))) . wp_date('Y')))); ?></span></p>
+        <p><label><strong><?php esc_html_e('Applies to event', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('its ticket page is the redeem link', 'october-events'); ?></span><br>
+            <select name="volunteer_code_event">
+                <option value="0"><?php esc_html_e('— choose the tour event —', 'october-events'); ?></option>
+                <?php
+                $evs = get_posts(['post_type' => \OE\PostTypes::slug('event'), 'post_status' => 'any', 'posts_per_page' => 100, 'orderby' => 'date', 'order' => 'DESC']);
+                foreach ($evs as $ev) :
+                    ?><option value="<?php echo (int) $ev->ID; ?>" <?php selected((int) ($cfg['volunteer_code_event'] ?? 0), (int) $ev->ID); ?>><?php echo esc_html(get_the_title($ev) ?: ('#' . $ev->ID)); ?></option><?php
+                endforeach;
+                ?>
+            </select></label></p>
+        <p><label><strong><?php esc_html_e('Limit to ticket type(s)', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one key per line; leave blank for the whole event. Point it at a type whose “Max per order” is 2 so each volunteer gets exactly two.', 'october-events'); ?></span><br>
+            <textarea name="volunteer_code_ticket_types" rows="2" class="large-text code" placeholder="single"><?php echo esc_textarea((string) ($cfg['volunteer_code_ticket_types'] ?? '')); ?></textarea></label></p>
+        <p><label><strong><?php esc_html_e('Total redemptions allowed', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('across all volunteers; 0 = unlimited', 'october-events'); ?></span><br>
+            <input type="number" min="0" name="volunteer_code_max_uses" value="<?php echo esc_attr((string) ($cfg['volunteer_code_max_uses'] ?? 0)); ?>" style="width:120px"></label></p>
+        </div></details>
+
         <?php endif; ?>
         <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional. Sends volunteer texts (reminders + blasts). Off until enabled and configured. US sending requires a 10DLC-registered number either way.', 'october-events'); ?></p>
