@@ -48,6 +48,42 @@ final class TicketCode {
         return ! empty(Settings::get('volunteer_code_verify_enabled', false));
     }
 
+    /** scheme://host(:port) of a URL, or '' if it has no host. */
+    private static function origin_of(string $url): string {
+        $p = wp_parse_url(trim($url));
+        if (empty($p['host'])) {
+            return '';
+        }
+        return (($p['scheme'] ?? 'https')) . '://' . $p['host'] . (isset($p['port']) ? ':' . $p['port'] : '');
+    }
+
+    /**
+     * The single linked partner site (no trailing slash). Prefers the merged
+     * `volunteer_partner_url`, falling back to the older feed URL (festival side)
+     * or the host of the older verify URL (ticket side) so existing setups keep
+     * working before the field is re-saved.
+     */
+    public static function partner_url(): string {
+        $u = trim((string) Settings::get('volunteer_partner_url', ''));
+        if ($u === '') {
+            $u = trim((string) Settings::get('volunteer_feed_url', ''));
+        }
+        if ($u === '') {
+            $u = self::origin_of((string) Settings::get('volunteer_verify_url', ''));
+        }
+        return untrailingslashit($u);
+    }
+
+    /** The volunteer-check endpoint on the partner site (derived), or an explicit override. */
+    public static function verify_endpoint(): string {
+        $explicit = trim((string) Settings::get('volunteer_verify_url', ''));
+        if ($explicit !== '') {
+            return $explicit;
+        }
+        $p = self::partner_url();
+        return $p !== '' ? trailingslashit($p) . 'wp-json/oe/v1/volunteer-check' : '';
+    }
+
     /**
      * Is this email a current volunteer? Asks the volunteer site's
      * /volunteer-check endpoint (they live in a different install). Cached ~10 min.
@@ -62,7 +98,7 @@ final class TicketCode {
         if (! is_email($email)) {
             return false;
         }
-        $url   = trim((string) Settings::get('volunteer_verify_url', ''));
+        $url   = self::verify_endpoint();
         $token = trim((string) Settings::get('volunteer_verify_token', ''));
         if ($url === '' || $token === '') {
             return true; // enabled but not configured — don't block a real volunteer
@@ -270,7 +306,7 @@ final class TicketCode {
 
         // Verification, ticket side (this site calls the partner).
         if (self::verify_enabled()) {
-            $vurl   = trim((string) Settings::get('volunteer_verify_url', ''));
+            $vurl   = self::verify_endpoint();
             $vtoken = trim((string) Settings::get('volunteer_verify_token', ''));
             if ($vurl === '' || $vtoken === '') {
                 $row(__('Volunteer verification', 'october-events'), 'warn', __('Enabled but not fully configured (needs the check URL and shared token). Until configured, any email can use the code.', 'october-events'));

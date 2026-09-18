@@ -319,13 +319,27 @@ final class Settings {
             }
         }
 
+        // Merged linked-site URL: prefer the new single field; otherwise migrate the
+        // older feed URL (festival side) or the host of the older verify URL (ticket
+        // side) so existing setups keep working the moment they save on this build.
+        $partner_url = esc_url_raw(trim((string) ($in['volunteer_partner_url'] ?? '')));
+        if ($partner_url === '') {
+            $legacy = trim((string) ($existing['volunteer_feed_url'] ?? ''));
+            if ($legacy === '') {
+                $lp = wp_parse_url(trim((string) ($existing['volunteer_verify_url'] ?? '')));
+                $legacy = ! empty($lp['host']) ? (($lp['scheme'] ?? 'https') . '://' . $lp['host']) : '';
+            }
+            $partner_url = esc_url_raw($legacy);
+        }
+
         Config::update([
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
             'event_field_map'  => $event_field_map,
             'location_post_type' => sanitize_key((string) ($in['location_post_type'] ?? '')),
             'location_address_field' => sanitize_key((string) ($in['location_address_field'] ?? '')),
             'location_date_field'    => sanitize_key((string) ($in['location_date_field'] ?? '')),
-            'volunteer_feed_url'          => esc_url_raw(trim((string) ($in['volunteer_feed_url'] ?? ''))),
+            // Merged linked-site connection (feed + verify + tour sync derive from this).
+            'volunteer_partner_url'       => $partner_url,
             'volunteer_feed_user'         => sanitize_text_field((string) ($in['volunteer_feed_user'] ?? '')),
             'volunteer_feed_app_password' => trim((string) ($in['volunteer_feed_app_password'] ?? '')),
             'location_default_role'       => sanitize_text_field((string) ($in['location_default_role'] ?? '')),
@@ -358,7 +372,6 @@ final class Settings {
             'volunteer_code_redeem_url'   => esc_url_raw(trim((string) ($in['volunteer_code_redeem_url'] ?? ''))),
             'volunteer_code_reward_label' => sanitize_text_field((string) ($in['volunteer_code_reward_label'] ?? '')),
             'volunteer_code_verify_enabled' => ! empty($in['volunteer_code_verify_enabled']),
-            'volunteer_verify_url'          => esc_url_raw(trim((string) ($in['volunteer_verify_url'] ?? ''))),
             'volunteer_verify_token'        => sanitize_text_field(trim((string) ($in['volunteer_verify_token'] ?? ''))),
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => self::keep_secret($in['github_token'] ?? '', $existing['github_token'] ?? ''),
