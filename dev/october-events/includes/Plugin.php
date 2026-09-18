@@ -297,8 +297,19 @@ if ('serviceWorker' in navigator) {
     private function render_door(): void {
         nocache_headers();
         $app = \OE\Frontend\DoorSale::get_instance();
-        $app->register_assets();
-        $body  = $app->render();
+        // A fatal in the checkout build would otherwise white-screen the buyer.
+        // Catch it, log it, and render a visible message instead (with the detail
+        // shown only when the URL carries ?oe_debug=1, for diagnosis).
+        try {
+            $app->register_assets();
+            $body = $app->render();
+        } catch (\Throwable $e) {
+            \OE\Logger::log('Door checkout render failed', ['error' => $e->getMessage(), 'event' => absint($_GET['e'] ?? 0)]);
+            $detail = isset($_GET['oe_debug']) ? '<pre style="white-space:pre-wrap;text-align:left;font-size:12px;opacity:.7">' . esc_html($e->getMessage()) . '</pre>' : '';
+            $body = '<div class="door-empty"><div class="door-empty-icon">🎟</div><h1>' .
+                esc_html__('Tickets are unavailable right now', 'october-events') .
+                '</h1><p>' . esc_html__('Please ask a member of staff.', 'october-events') . '</p>' . $detail . '</div>';
+        }
         $brand = (string) \OE\Settings::get('brand_name', get_bloginfo('name'));
         $fav   = function_exists('get_site_icon_url') ? get_site_icon_url(32) : '';
         ?><!doctype html>

@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.149.0 — Fix: door checkout was a blank page
+
+- The **Sell** QR now points at the door checkout via a plain query string
+  (`/?oe_door=1&e=…&v=…`) instead of the pretty `/door` route. The pretty route
+  needs a rewrite rule that may not have flushed after the plugin self-updated, and
+  fails entirely on sites not using pretty permalinks; the query-string form is
+  caught directly and always resolves. The pretty `/door` route still works where
+  rewrites are active.
+- The door page now catches a render fatal and shows a visible "tickets
+  unavailable" message instead of a white screen, logging the cause. Append
+  `?oe_debug=1` to the URL to see the error detail on the page.
+
 ## 1.148.0 — Check-in and door apps pick up the brand accent
 
 - The **check-in** app and the **door** checkout now take their accent colour from
