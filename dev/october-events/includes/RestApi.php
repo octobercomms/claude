@@ -521,13 +521,34 @@ final class RestApi {
             // Extra gates on the volunteer thank-you code: one redemption per
             // email, and (when enabled) the email must belong to a current
             // volunteer. Only checked once we know the buyer's email.
-            if (is_email($buyer_email) && \OE\Volunteers\EventCodes::is_thankyou_code($code)) {
-                $code_u = strtoupper($code);
-                if (\OE\Volunteers\TicketCode::email_used($buyer_email, $code_u)) {
-                    return new \WP_Error('oe_code_used', __('This volunteer code has already been used with your email.', 'october-events'), ['status' => 409]);
+            if (\OE\Volunteers\EventCodes::is_thankyou_code($code)) {
+                // Cap the free quantity on the CODE, not the ticket type (whose
+                // "Max per order" governs public sales too). The code makes up to
+                // `per` of its ticket type free; more than that is rejected.
+                $cap = \OE\Volunteers\EventCodes::code_cap($code);
+                if ($cap !== null) {
+                    $qty = 0;
+                    foreach ($lines as $l) {
+                        if ($cap['type'] === '' || (string) $l['type_key'] === $cap['type']) {
+                            $qty += (int) $l['qty'];
+                        }
+                    }
+                    if ($qty > $cap['per']) {
+                        return new \WP_Error('oe_code_qty', sprintf(
+                            /* translators: %d: number of free tickets the code covers */
+                            _n('This volunteer code covers up to %d free ticket — please reduce your quantity.', 'This volunteer code covers up to %d free tickets — please reduce your quantity.', $cap['per'], 'october-events'),
+                            $cap['per']
+                        ), ['status' => 400]);
+                    }
                 }
-                if (! \OE\Volunteers\TicketCode::is_volunteer_email($buyer_email)) {
-                    return new \WP_Error('oe_not_volunteer', __('This code is for festival volunteers. Please use the email you signed up to volunteer with.', 'october-events'), ['status' => 403]);
+                if (is_email($buyer_email)) {
+                    $code_u = strtoupper($code);
+                    if (\OE\Volunteers\TicketCode::email_used($buyer_email, $code_u)) {
+                        return new \WP_Error('oe_code_used', __('This volunteer code has already been used with your email.', 'october-events'), ['status' => 409]);
+                    }
+                    if (! \OE\Volunteers\TicketCode::is_volunteer_email($buyer_email)) {
+                        return new \WP_Error('oe_not_volunteer', __('This code is for festival volunteers. Please use the email you signed up to volunteer with.', 'october-events'), ['status' => 403]);
+                    }
                 }
             }
         }
