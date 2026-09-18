@@ -61,7 +61,11 @@ $sym   = $cur === 'GBP' ? '£' : ($cur === 'EUR' ? '€' : '$');
 
             <details class="door-promo">
                 <summary><?php esc_html_e('Add a promo or volunteer code', 'october-events'); ?></summary>
-                <input type="text" id="oe-door-promo" autocapitalize="characters" autocomplete="off" placeholder="<?php esc_attr_e('Code', 'october-events'); ?>">
+                <div class="door-promo-row">
+                    <input type="text" id="oe-door-promo" autocapitalize="characters" autocomplete="off" placeholder="<?php esc_attr_e('Code', 'october-events'); ?>">
+                    <button type="button" class="door-promo-apply" id="oe-door-promo-apply"><?php esc_html_e('Apply', 'october-events'); ?></button>
+                </div>
+                <div class="door-promo-msg" id="oe-door-promo-msg" aria-live="polite"></div>
             </details>
 
             <div class="door-msg" id="oe-door-msg" role="alert"></div>

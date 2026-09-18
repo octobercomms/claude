@@ -63,6 +63,12 @@
     var emailEl = document.getElementById('oe-door-email');
     var promoEl = document.getElementById('oe-door-promo');
     var msgEl   = document.getElementById('oe-door-msg');
+    var promoApplyBtn = document.getElementById('oe-door-promo-apply');
+    var promoMsgEl    = document.getElementById('oe-door-promo-msg');
+
+    // Applied promo preview. The code is always re-priced server-side at Pay, so
+    // this only drives the on-screen total + confirmation.
+    var appliedDiscount = 0;
 
     function emailOk() { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((emailEl.value || '').trim()); }
 
@@ -84,8 +90,23 @@
     }
     function refresh() {
         var items = cart();
-        totalEl.textContent = money(subtotal());
+        var total = Math.max(0, subtotal() - appliedDiscount);
+        totalEl.textContent = money(total);
         payBtn.disabled = !(items.length && emailOk() && cfg.ready);
+    }
+
+    function setPromoMsg(text, kind) {
+        if (!promoMsgEl) { return; }
+        promoMsgEl.textContent = text || '';
+        promoMsgEl.className = 'door-promo-msg' + (kind ? ' is-' + kind : '');
+    }
+    // A cart change invalidates any applied discount — clear it so the total is
+    // honest until they re-apply. (Pay re-prices regardless.)
+    function clearPromo() {
+        if (appliedDiscount > 0) {
+            appliedDiscount = 0;
+            setPromoMsg('Cart changed — tap Apply to reprice.', '');
+        }
     }
 
     root.querySelectorAll('.door-type').forEach(function (row) {
@@ -95,16 +116,59 @@
             var q = parseInt(qtyEl.textContent, 10) || 0;
             if (q < max) { qtyEl.textContent = q + 1; }
             row.classList.toggle('is-picked', (parseInt(qtyEl.textContent, 10) || 0) > 0);
-            refresh();
+            clearPromo(); refresh();
         });
         row.querySelector('.door-minus').addEventListener('click', function () {
             var q = parseInt(qtyEl.textContent, 10) || 0;
             if (q > 0) { qtyEl.textContent = q - 1; }
             row.classList.toggle('is-picked', (parseInt(qtyEl.textContent, 10) || 0) > 0);
-            refresh();
+            clearPromo(); refresh();
         });
     });
     emailEl.addEventListener('input', refresh);
+
+    /* ---- Promo: validate + preview the discount ---- */
+    if (promoApplyBtn) {
+        promoApplyBtn.addEventListener('click', function () {
+            var code = promoEl ? (promoEl.value || '').trim() : '';
+            var items = cart();
+            if (!code) { setPromoMsg('Enter a code first.', 'bad'); return; }
+            if (!items.length) { setPromoMsg('Choose a ticket first.', 'bad'); return; }
+            promoApplyBtn.disabled = true;
+            setPromoMsg('Checking…', '');
+            fetch(cfg.restUrl + '/ticket-promo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    event_id: cfg.eventId,
+                    cart: items,
+                    promo_code: code,
+                    email: (emailEl.value || '').trim()
+                })
+            }).then(function (r) {
+                return r.json().then(function (b) { return { ok: r.ok, body: b }; });
+            }).then(function (res) {
+                promoApplyBtn.disabled = false;
+                if (res.ok && res.body && typeof res.body.discount !== 'undefined') {
+                    appliedDiscount = parseFloat(res.body.discount) || 0;
+                    if (appliedDiscount > 0) {
+                        setPromoMsg(code.toUpperCase() + ' applied — you save ' + money(appliedDiscount) + '.', 'ok');
+                    } else {
+                        setPromoMsg('Code accepted. No discount on this cart.', 'ok');
+                    }
+                } else {
+                    appliedDiscount = 0;
+                    setPromoMsg((res.body && res.body.error) ? res.body.error : 'That code isn\'t valid.', 'bad');
+                }
+                refresh();
+            }).catch(function () {
+                promoApplyBtn.disabled = false;
+                setPromoMsg('Network problem. Try again.', 'bad');
+            });
+        });
+    }
+    // Editing the code clears a stale applied discount.
+    if (promoEl) { promoEl.addEventListener('input', function () { clearPromo(); refresh(); }); }
 
     payBtn.addEventListener('click', function () {
         var items = cart();

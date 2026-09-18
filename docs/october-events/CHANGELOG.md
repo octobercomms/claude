@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.151.0 — Door checkout: promo code has an Apply button + live discount
+
+- The door promo/volunteer code field now has an **Apply** button. It validates the
+  code against the cart (via `/ticket-promo`) and shows the result inline: the
+  saving ("VIP applied — you save $X") or the reason it was rejected. The total
+  updates to reflect the discount before paying.
+- Changing the quantity or editing the code clears the preview so the total stays
+  honest until re-applied. The code is still re-priced server-side at payment
+  regardless, so the charge is always correct.
+
 ## 1.150.0 — Fix: door checkout blank page (result overlay covered it)
 
 - The real cause of the blank door page: the `.door-result` confirmation overlay
