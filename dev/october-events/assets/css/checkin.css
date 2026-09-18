@@ -9,6 +9,7 @@ body.oe-checkin-route { margin: 0; background: #0f0f0f; }
 
 .oe-checkin {
   --bg: #0f0f0f; --surface: #1a1a1a; --border: #2a2a2a; --accent: #C8A96E;
+  --accent-ink: #1a1a1a; /* text/icon colour on top of --accent */
   --text: #f0f0f0; --muted: #888; --green: #22c55e; --amber: #f59e0b; --red: #ef4444;
   --radius: 12px;
   display: flex;
@@ -37,7 +38,7 @@ body.oe-checkin-route { margin: 0; background: #0f0f0f; }
 .oe-checkin .app-header .ci-home { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; }
 .oe-checkin .app-header .ci-home:hover { color: var(--text); border-color: var(--muted); }
 .oe-checkin .scan-count-badge {
-  background: var(--accent); color: #1a1a1a;
+  background: var(--accent); color: var(--accent-ink);
   font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
 }
 
@@ -83,7 +84,7 @@ body.oe-checkin-route { margin: 0; background: #0f0f0f; }
 }
 .oe-checkin .pin-btn:active { background: #333; }
 .oe-checkin .pin-btn.clear { color: var(--red); font-size: 16px; }
-.oe-checkin .pin-btn.enter { background: var(--accent); color: #1a1a1a; border-color: var(--accent); }
+.oe-checkin .pin-btn.enter { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .oe-checkin .pin-error { color: var(--red); text-align: center; font-size: 14px; min-height: 18px; }
 
 /* ---- Back link ---- */
@@ -126,7 +127,7 @@ body.oe-checkin-route { margin: 0; background: #0f0f0f; }
   background: #252525; border: 1px solid var(--border); color: var(--text);
   padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap;
 }
-.oe-checkin .scanner-bar .ci-go { background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 700; }
+.oe-checkin .scanner-bar .ci-go { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
 .oe-checkin .scanner-bar .ci-sell { background: #fff; color: #111; border-color: #fff; font-weight: 700; }
 
 /* ---- Sell screen: full-brightness white QR for a walk-up to scan ---- */
