@@ -44,7 +44,10 @@ final class CheckInApp {
         wp_enqueue_script('oe-checkin');
         wp_localize_script('oe-checkin', 'OE_CHECKIN', [
             'restUrl' => esc_url_raw(rest_url('oe/v1')),
-            'doorUrl' => esc_url_raw(home_url('/door')),
+            // Query-var form (?oe_door=1) rather than the pretty /door route, so the
+            // door page resolves even on sites without pretty permalinks or where a
+            // fresh rewrite rule hasn't flushed after a plugin update.
+            'doorUrl' => esc_url_raw(add_query_arg('oe_door', 1, home_url('/'))),
         ]);
 
         ob_start();
