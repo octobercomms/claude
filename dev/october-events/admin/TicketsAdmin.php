@@ -147,7 +147,7 @@ final class TicketsAdmin {
         <p><label><strong><?php esc_html_e('Close all sales at', 'october-events'); ?></strong>
             <input type="datetime-local" name="oe_sale_until" value="<?php echo esc_attr($this->dt_local((string) get_post_meta($post->ID, TicketTypes::META_SALE_UNTIL, true))); ?>"></label></p>
         <p style="margin-bottom:4px"><strong><?php esc_html_e('Check-in venues / doors', 'october-events'); ?></strong> —
-            <span class="description"><?php esc_html_e('type a door name and press Enter; click ✕ to remove. Save to use them in the “Valid at” column above.', 'october-events'); ?></span></p>
+            <span class="description"><?php esc_html_e('type a door name and press Enter; drag to reorder; click ✕ to remove. Save to use them in the “Valid at” column above.', 'october-events'); ?></span></p>
         <div id="oe-doors-field" style="border:1px solid #8c8f94;border-radius:4px;padding:3px 4px;background:#fff;max-width:640px;cursor:text">
             <span id="oe-doors-tags"></span><input type="text" id="oe-doors-input" placeholder="<?php esc_attr_e('Add a door…', 'october-events'); ?>" style="border:0;outline:0;padding:6px 4px;min-width:160px;font-size:13px;background:transparent">
         </div>
@@ -156,7 +156,7 @@ final class TicketsAdmin {
             var wrap = document.getElementById('oe-doors-field'),
                 tags = document.getElementById('oe-doors-tags'),
                 input = document.getElementById('oe-doors-input'),
-                seen = {};
+                seen = {}, dragEl = null;
             function add(name){
                 name = (name || '').replace(/\s+/g, ' ').trim();
                 if (!name) { return; }
@@ -165,11 +165,25 @@ final class TicketsAdmin {
                 seen[key] = true;
                 var chip = document.createElement('span');
                 chip.className = 'oe-door-chip';
-                chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:#f0f0f1;border:1px solid #c3c4c7;border-radius:3px;padding:2px 6px;margin:2px;font-size:13px;vertical-align:middle';
+                chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:#f0f0f1;border:1px solid #c3c4c7;border-radius:3px;padding:2px 6px;margin:2px;font-size:13px;vertical-align:middle;cursor:grab';
+                chip.setAttribute('draggable', 'true');
+                // Drag to reorder. The hidden oe_venues[] inputs ride inside the
+                // chips, so their DOM order IS the saved order (and the "Valid at"
+                // picker + ticket display order downstream).
+                chip.addEventListener('dragstart', function(e){ dragEl = chip; chip.style.opacity = '0.5'; if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; } });
+                chip.addEventListener('dragend', function(){ dragEl = null; chip.style.opacity = ''; });
+                chip.addEventListener('dragover', function(e){
+                    if (!dragEl || dragEl === chip) { return; }
+                    e.preventDefault();
+                    var r = chip.getBoundingClientRect();
+                    var before = e.clientX < r.left + r.width / 2;
+                    tags.insertBefore(dragEl, before ? chip : chip.nextSibling);
+                });
                 var label = document.createElement('span'); label.textContent = name;
                 var hid = document.createElement('input'); hid.type = 'hidden'; hid.name = 'oe_venues[]'; hid.value = name;
                 var x = document.createElement('button'); x.type = 'button'; x.textContent = '✕';
                 x.setAttribute('aria-label', 'Remove ' + name);
+                x.setAttribute('draggable', 'false');
                 x.style.cssText = 'border:0;background:transparent;cursor:pointer;color:#b32d2e;font-size:12px;line-height:1;padding:0';
                 x.addEventListener('click', function(){ delete seen[key]; chip.remove(); });
                 chip.appendChild(label); chip.appendChild(hid); chip.appendChild(x);
