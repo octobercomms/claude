@@ -655,6 +655,63 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="url" name="volunteer_verify_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_verify_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net/wp-json/oe/v1/volunteer-check"></label></p>
         <p><label><strong><?php esc_html_e('Shared token', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('a secret, identical on BOTH sites (the volunteer site checks it; the ticket site sends it)', 'october-events'); ?></span><br>
             <input type="text" name="volunteer_verify_token" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_verify_token'] ?? '')); ?>" placeholder="<?php esc_attr_e('a long random string', 'october-events'); ?>"></label></p>
+
+        <h4 style="margin:18px 0 6px"><?php esc_html_e('Test this setup', 'october-events'); ?></h4>
+        <p class="description" style="max-width:820px"><?php esc_html_e('Save first, then run the self-test on each site. It reads this install and reports what’s live and what’s missing — the promo code, the 48-hour reminder, and (when verification is on) a live call to the volunteer site.', 'october-events'); ?></p>
+        <p>
+            <input type="email" id="oe-vol-email" class="regular-text" placeholder="<?php esc_attr_e('optional: a volunteer’s email to test verification', 'october-events'); ?>">
+            <button type="button" class="button button-primary" id="oe-vol-diag"><?php esc_html_e('Run self-test', 'october-events'); ?></button>
+        </p>
+        <div id="oe-vol-diag-out" style="margin-top:8px"></div>
+        <script>
+        (function(){
+            var NONCE = <?php echo wp_json_encode(wp_create_nonce('oe_volunteer_diag')); ?>;
+            var btn = document.getElementById('oe-vol-diag'),
+                inp = document.getElementById('oe-vol-email'),
+                out = document.getElementById('oe-vol-diag-out');
+            if (!btn) { return; }
+            var COLORS = { ok:'#008a20', warn:'#8a6d3b', fail:'#b32d2e', info:'#50575e' };
+            var ICONS  = { ok:'✓', warn:'!', fail:'✗', info:'·' };
+            function esc(s){ var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+            function render(data){
+                var html = '<table class="widefat striped" style="max-width:860px"><tbody>';
+                (data.rows||[]).forEach(function(r){
+                    var c = COLORS[r.state]||COLORS.info;
+                    html += '<tr>'
+                        + '<td style="width:28px;font-weight:700;color:'+c+'">'+(ICONS[r.state]||'·')+'</td>'
+                        + '<td style="width:180px;font-weight:600">'+esc(r.label)+'</td>'
+                        + '<td style="color:'+c+'">'+esc(r.detail)+'</td></tr>';
+                });
+                html += '</tbody></table>';
+                if (data.can_create) {
+                    html += '<p style="margin-top:8px"><button type="button" class="button" id="oe-vol-create">'
+                        + <?php echo wp_json_encode(esc_html__('Create the code now', 'october-events')); ?>
+                        + '</button> <span id="oe-vol-create-msg" style="margin-left:8px;font-weight:600"></span></p>';
+                }
+                out.innerHTML = html;
+                var cb = document.getElementById('oe-vol-create');
+                if (cb) { cb.addEventListener('click', createCode); }
+            }
+            function run(){
+                out.innerHTML = '<em>…</em>';
+                var body = new URLSearchParams({ action:'oe_volunteer_diag', nonce:NONCE, email: inp.value });
+                fetch(ajaxurl, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString() })
+                    .then(function(r){ return r.json(); })
+                    .then(function(j){ if (j && j.success) { render(j.data); } else { out.innerHTML = '<span style="color:#b32d2e">Error</span>'; } })
+                    .catch(function(){ out.innerHTML = '<span style="color:#b32d2e">Error</span>'; });
+            }
+            function createCode(){
+                var msg = document.getElementById('oe-vol-create-msg');
+                msg.style.color = '#50575e'; msg.textContent = '…';
+                var body = new URLSearchParams({ action:'oe_volunteer_create_code', nonce:NONCE });
+                fetch(ajaxurl, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString() })
+                    .then(function(r){ return r.json(); })
+                    .then(function(j){ if (j && j.success) { run(); } else { msg.style.color = '#b32d2e'; msg.textContent = (j && j.data && j.data.message) || 'Error'; } })
+                    .catch(function(){ msg.style.color = '#b32d2e'; msg.textContent = 'Error'; });
+            }
+            btn.addEventListener('click', run);
+        })();
+        </script>
         </div></details>
 
         <?php endif; ?>

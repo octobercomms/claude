@@ -31,6 +31,8 @@ final class Settings {
         add_action('admin_post_oe_send_test_email', [$this, 'send_test_email']);
         add_action('wp_ajax_oe_reveal_secret', [$this, 'ajax_reveal_secret']);
         add_action('wp_ajax_oe_check_membership', [$this, 'ajax_check_membership']);
+        add_action('wp_ajax_oe_volunteer_diag', [$this, 'ajax_volunteer_diag']);
+        add_action('wp_ajax_oe_volunteer_create_code', [$this, 'ajax_volunteer_create_code']);
         // Allow brand font files (.woff2/.woff/.ttf/.otf) to be uploaded to the
         // media library (WordPress blocks these MIME types by default).
         add_filter('upload_mimes', [$this, 'allow_font_mimes']);
@@ -63,6 +65,37 @@ final class Settings {
                 ? sprintf(__('✓ Active member (price %s).', 'october-events'), $m['price_id'])
                 : __('Not an active member (no live subscription on the configured prices).', 'october-events'),
         ]);
+    }
+
+    /**
+     * Admin self-test for the volunteer thank-you code: runs role-aware checks on
+     * this install (promo exists, 48h reminder on, live verification probe, own
+     * endpoint reachable) so an admin gets a green/red readout without touching the
+     * other site. Admin + nonce gated.
+     */
+    public function ajax_volunteer_diag(): void {
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'forbidden'], 403);
+        }
+        check_ajax_referer('oe_volunteer_diag', 'nonce');
+        $email = sanitize_email((string) wp_unslash($_POST['email'] ?? ''));
+        wp_send_json_success(\OE\Volunteers\TicketCode::diagnostics($email));
+    }
+
+    /** Admin action: create this year's volunteer promo code now. Admin + nonce gated. */
+    public function ajax_volunteer_create_code(): void {
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'forbidden'], 403);
+        }
+        check_ajax_referer('oe_volunteer_diag', 'nonce');
+        if (! \OE\Volunteers\TicketCode::enabled()) {
+            wp_send_json_error(['message' => __('Enable the feature and save first.', 'october-events')]);
+        }
+        $code = \OE\Volunteers\TicketCode::create_now();
+        if ($code === '') {
+            wp_send_json_error(['message' => __('Couldn’t determine the code — check the prefix.', 'october-events')]);
+        }
+        wp_send_json_success(['code' => $code, 'message' => sprintf(__('Created %s.', 'october-events'), $code)]);
     }
 
     /**
