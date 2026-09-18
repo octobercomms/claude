@@ -744,37 +744,60 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p><label><strong><?php esc_html_e('Volunteer FAQ page', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('linked in the footer of every volunteer email', 'october-events'); ?></span><br>
             <input type="url" name="volunteer_faq_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_faq_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net/faqs/"></label></p>
 
-        <h4 style="margin:18px 0 6px"><?php esc_html_e('Thank-you tour tickets', 'october-events'); ?></h4>
-        <p class="description" style="border-left:3px solid #2271b1;padding-left:10px;max-width:820px"><strong><?php esc_html_e('Codes are now set per event.', 'october-events'); ?></strong>
-            <?php esc_html_e('On the ticket site, open each tour event and use its “Volunteer thank-you tickets” box (code, ticket type, tickets per volunteer). On the festival site, open each volunteer opportunity and pick its reward tour in the “Volunteer reward” box — the tour list syncs from the ticket site over the connection above. The 48-hour reminder then sends each volunteer the code for the tour they signed up for. The fields below are the older single-code fallback for a one-tour site; leave them blank if you use per-event codes.', 'october-events'); ?></p>
-        <p class="description"><?php esc_html_e('The free-ticket code is included only in the 48-hour reminder, so anyone who cancels earlier never receives it. Codes renew automatically each year.', 'october-events'); ?></p>
-        <p class="description" style="border-left:3px solid #b23b2a;padding-left:10px;max-width:820px"><strong><?php esc_html_e('Tickets on a different website?', 'october-events'); ?></strong>
-            <?php esc_html_e('Promo codes live in each site’s own database. Set this feature up on BOTH sites with the SAME prefix. On the site that SELLS the tickets, choose the ticket event and type below — it creates and hosts the code. On the site that SENDS volunteer emails, leave the event blank, tick enable, set the same prefix, and fill in the Redeem URL pointing to the tickets page. The email then prints the matching code and links across.', 'october-events'); ?></p>
-        <p><label><input type="checkbox" name="volunteer_code_enabled" value="1" <?php checked(! empty($cfg['volunteer_code_enabled'])); ?>> <strong><?php esc_html_e('Include a free-ticket code in the 48-hour reminder', 'october-events'); ?></strong></label></p>
-        <p><label><strong><?php esc_html_e('Code prefix', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('the year is appended automatically', 'october-events'); ?></span><br>
-            <input type="text" name="volunteer_code_prefix" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_code_prefix'] ?? 'VOLUNTEER')); ?>" placeholder="VOLUNTEER"></label>
-            <span class="description"><?php echo esc_html(sprintf(__('This year’s code: %s', 'october-events'), \OE\Volunteers\TicketCode::peek() ?: (strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', (string) ($cfg['volunteer_code_prefix'] ?? 'VOLUNTEER'))) . wp_date('Y')))); ?></span></p>
-        <p><label><strong><?php esc_html_e('Applies to event', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('its ticket page is the redeem link', 'october-events'); ?></span><br>
-            <select name="volunteer_code_event">
-                <option value="0"><?php esc_html_e('— choose the tour event —', 'october-events'); ?></option>
-                <?php
-                $evs = get_posts(['post_type' => \OE\PostTypes::slug('event'), 'post_status' => 'any', 'posts_per_page' => 100, 'orderby' => 'date', 'order' => 'DESC']);
-                foreach ($evs as $ev) :
-                    ?><option value="<?php echo (int) $ev->ID; ?>" <?php selected((int) ($cfg['volunteer_code_event'] ?? 0), (int) $ev->ID); ?>><?php echo esc_html(get_the_title($ev) ?: ('#' . $ev->ID)); ?></option><?php
-                endforeach;
-                ?>
-            </select></label></p>
-        <p><label><strong><?php esc_html_e('Limit to ticket type(s)', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('one key per line; leave blank for the whole event. Point it at a type whose “Max per order” is 2 so each volunteer gets exactly two.', 'october-events'); ?></span><br>
-            <textarea name="volunteer_code_ticket_types" rows="2" class="large-text code" placeholder="single"><?php echo esc_textarea((string) ($cfg['volunteer_code_ticket_types'] ?? '')); ?></textarea></label></p>
-        <p><label><strong><?php esc_html_e('Total redemptions allowed', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('across all volunteers; 0 = unlimited', 'october-events'); ?></span><br>
-            <input type="number" min="0" name="volunteer_code_max_uses" value="<?php echo esc_attr((string) ($cfg['volunteer_code_max_uses'] ?? 0)); ?>" style="width:120px"></label></p>
-        <p><label><strong><?php esc_html_e('Redeem URL', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('the tickets page the email links to. Set this when tickets are on a different website; leave blank to use the event above.', 'october-events'); ?></span><br>
-            <input type="url" name="volunteer_code_redeem_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_code_redeem_url'] ?? '')); ?>" placeholder="https://architecturetours.us/e/atlanta/#tickets"></label></p>
+        <?php $ec = \OE\Volunteers\EventCodes::class; ?>
+        <p><label><input type="checkbox" name="volunteer_code_enabled" value="1" <?php checked(! empty($cfg['volunteer_code_enabled'])); ?>> <strong><?php esc_html_e('Send volunteers a free-ticket code in the 48-hour reminder', 'october-events'); ?></strong></label></p>
         <p><label><strong><?php esc_html_e('Reward wording', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('shown in the email, e.g. “2 free tour tickets”', 'october-events'); ?></span><br>
             <input type="text" name="volunteer_code_reward_label" class="regular-text" value="<?php echo esc_attr((string) ($cfg['volunteer_code_reward_label'] ?? '')); ?>" placeholder="<?php esc_attr_e('2 free tour tickets', 'october-events'); ?>"></label></p>
 
-        <h4 style="margin:18px 0 6px"><?php esc_html_e('Limits & volunteer verification', 'october-events'); ?></h4>
-        <p class="description" style="max-width:820px"><?php esc_html_e('The code allows one redemption per email (set the ticket type’s Max per order to your free-ticket count). Optionally require that the redeeming email is a current volunteer, so a forwarded code can’t be used by a non-volunteer. Turn this on here on the TICKET site; it checks against the Linked site set above, using the shared token.', 'october-events'); ?></p>
+        <?php if (\OE\Features::enabled('tickets')) : $oe_events = $ec::all_events(); ?>
+        <h4 style="margin:18px 0 6px"><?php esc_html_e('Events that give free volunteer tickets', 'october-events'); ?></h4>
+        <p class="description" style="max-width:820px"><?php esc_html_e('Tick each tour whose tickets volunteers get free. Each keeps its own code (auto from the slug + year, editable). Adding a tour later is one more row here.', 'october-events'); ?></p>
+        <?php if (! $oe_events) : ?><p class="description"><?php esc_html_e('No events yet — create a tour event first.', 'october-events'); ?></p><?php else : ?>
+        <table class="widefat striped" style="max-width:900px"><thead><tr>
+            <th style="width:56px"><?php esc_html_e('Offer', 'october-events'); ?></th><th><?php esc_html_e('Event', 'october-events'); ?></th>
+            <th><?php esc_html_e('Code', 'october-events'); ?></th><th><?php esc_html_e('Ticket type', 'october-events'); ?></th><th><?php esc_html_e('Per volunteer', 'october-events'); ?></th>
+        </tr></thead><tbody>
+        <?php foreach ($oe_events as $eid => $etitle) :
+            $on = get_post_meta($eid, $ec::M_OFFER, true) === '1';
+            $code = (string) get_post_meta($eid, $ec::M_CODE, true);
+            $type = (string) get_post_meta($eid, $ec::M_TYPE, true);
+            $per  = (int) get_post_meta($eid, $ec::M_PER, true) ?: 2; ?>
+            <tr>
+                <td><input type="checkbox" name="oe_vol_ev[<?php echo (int) $eid; ?>][offer]" value="1" <?php checked($on); ?>></td>
+                <td><strong><?php echo esc_html($etitle); ?></strong></td>
+                <td><input type="text" class="code" name="oe_vol_ev[<?php echo (int) $eid; ?>][code]" value="<?php echo esc_attr($code); ?>" placeholder="<?php echo esc_attr($ec::code_for((int) $eid)); ?>" style="width:150px"></td>
+                <td><input type="text" class="code" name="oe_vol_ev[<?php echo (int) $eid; ?>][type]" value="<?php echo esc_attr($type); ?>" placeholder="single" style="width:100px"></td>
+                <td><input type="number" min="1" name="oe_vol_ev[<?php echo (int) $eid; ?>][per]" value="<?php echo esc_attr((string) $per); ?>" style="width:70px"></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody></table>
+        <p class="description"><?php esc_html_e('Set the chosen ticket type’s “Max per order” to your free-ticket count so each volunteer gets exactly that many.', 'october-events'); ?></p>
+        <?php endif; endif; ?>
+
+        <?php if (\OE\Features::enabled('volunteers')) :
+            $oe_tours  = $ec::synced();
+            $oe_events2 = $ec::all_events();
+            $oe_tour_opts = static function ($sel) use ($oe_tours) {
+                $h = '<option value="">' . esc_html__('— none —', 'october-events') . '</option>';
+                foreach ($oe_tours as $t) { $c = strtoupper((string) $t['code']); $h .= '<option value="' . esc_attr($c) . '"' . selected($sel, $c, false) . '>' . esc_html((string) $t['label'] . ' (' . $c . ')') . '</option>'; }
+                return $h;
+            }; ?>
+        <h4 style="margin:18px 0 6px"><?php esc_html_e('What volunteers earn', 'october-events'); ?></h4>
+        <p class="description" style="max-width:820px"><?php esc_html_e('Which tour’s free-ticket code each volunteer receives. Tours sync from the ticket site (use “Save & sync now” on the Linked site above).', 'october-events'); ?></p>
+        <?php if (! $oe_tours) : ?><p class="description" style="color:#8a6d3b"><?php esc_html_e('No tours synced yet — set the Linked site above and Save & sync now.', 'october-events'); ?></p><?php endif; ?>
+        <p><label><strong><?php esc_html_e('Default reward tour', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('for volunteers not matched by a specific event below, e.g. tour-stop sign-ups', 'october-events'); ?></span><br>
+            <select name="oe_vol_default_reward" style="min-width:300px"><?php echo $oe_tour_opts($ec::default_reward_code()); ?></select></label></p>
+        <?php if ($oe_events2) : ?>
+        <table class="widefat striped" style="max-width:760px"><thead><tr><th><?php esc_html_e('Event', 'october-events'); ?></th><th><?php esc_html_e('Reward tour (overrides the default)', 'october-events'); ?></th></tr></thead><tbody>
+        <?php foreach ($oe_events2 as $eid => $etitle) : ?>
+            <tr><td><strong><?php echo esc_html($etitle); ?></strong></td>
+                <td><select name="oe_vol_rw[<?php echo (int) $eid; ?>]" style="min-width:260px"><?php echo $oe_tour_opts($ec::event_reward_code((int) $eid)); ?></select></td></tr>
+        <?php endforeach; ?>
+        </tbody></table>
+        <?php endif; endif; ?>
+
+        <h4 style="margin:18px 0 6px"><?php esc_html_e('Volunteer verification', 'october-events'); ?></h4>
+        <p class="description" style="max-width:820px"><?php esc_html_e('The code allows one redemption per email. Optionally require that the redeeming email is a current volunteer, so a forwarded code can’t be used by a non-volunteer. Checks against the Linked site above using the shared token.', 'october-events'); ?></p>
         <p><label><input type="checkbox" name="volunteer_code_verify_enabled" value="1" <?php checked(! empty($cfg['volunteer_code_verify_enabled'])); ?>> <strong><?php esc_html_e('Only allow the code for current volunteers (ticket site)', 'october-events'); ?></strong></label></p>
 
         <h4 style="margin:18px 0 6px"><?php esc_html_e('Test this setup', 'october-events'); ?></h4>

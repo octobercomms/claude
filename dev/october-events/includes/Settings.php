@@ -68,6 +68,7 @@ final class Settings {
             // picked when building a volunteer post here. Auth = an Application
             // Password on that site.
             'volunteer_partner_url'       => '',
+            'volunteer_default_reward'    => '',
             'volunteer_feed_url'          => '',
             'volunteer_feed_user'         => '',
             'volunteer_feed_app_password' => '',
