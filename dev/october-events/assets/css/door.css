@@ -60,6 +60,16 @@
 .door-promo { margin-top: 16px; }
 .door-promo summary { font-size: 14px; color: var(--accent); cursor: pointer; padding: 6px 0; }
 .door-promo input { margin-top: 8px; text-transform: uppercase; }
+.door-promo-row { display: flex; gap: 8px; margin-top: 8px; }
+.door-promo-row input { margin-top: 0; flex: 1; min-width: 0; }
+.door-promo-apply {
+    flex: 0 0 auto; padding: 0 20px; border: 1px solid var(--accent); border-radius: 12px;
+    background: var(--accent); color: var(--accent-ink); font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.door-promo-apply:disabled { opacity: .5; cursor: default; }
+.door-promo-msg { font-size: 13px; margin-top: 8px; min-height: 1em; color: var(--muted); }
+.door-promo-msg.is-ok { color: var(--ok); }
+.door-promo-msg.is-bad { color: #b00020; }
 
 .door-msg { color: #b00020; font-size: 14px; margin-top: 14px; min-height: 1em; }
 
