@@ -72,6 +72,14 @@ final class Rest {
             'callback'            => [self::class, 'volunteer_check'],
             'permission_callback' => [self::class, 'verify_shared_token'],
         ]);
+        // Offered volunteer thank-you tickets (per event) — the festival site
+        // pulls these over the partner-feed connection to fill the reward picker
+        // and the reminder links. Same authenticated-manager auth as the feed.
+        register_rest_route(self::NS, '/volunteers/thankyou-codes', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'thankyou_codes'],
+            'permission_callback' => [self::class, 'can'],
+        ]);
     }
 
     /** Constant-time check of the shared token that guards volunteer-check. */
@@ -91,6 +99,11 @@ final class Rest {
         $res   = new \WP_REST_Response(['ok' => true, 'volunteer' => $is], 200);
         $res->header('Cache-Control', 'no-store, max-age=0');
         return $res;
+    }
+
+    /** @return \WP_REST_Response {codes:[{event_id,code,label,url,per}]} */
+    public static function thankyou_codes(\WP_REST_Request $req): \WP_REST_Response {
+        return new \WP_REST_Response(['codes' => EventCodes::offered_feed()], 200);
     }
 
     public static function list_opportunities(\WP_REST_Request $req): \WP_REST_Response {

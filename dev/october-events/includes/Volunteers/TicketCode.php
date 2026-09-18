@@ -318,6 +318,31 @@ final class TicketCode {
             $row(__('Volunteer FAQ link', 'october-events'), $faq !== '' ? 'ok' : 'info', $faq !== '' ? $faq : __('Not set — no FAQ link in volunteer emails.', 'october-events'));
         }
 
+        // Per-event codes: what each offering event hosts (ticket site), and what
+        // tours have been synced for the reward picker (festival site).
+        $offering = EventCodes::offering_events();
+        if ($offering) {
+            foreach ($offering as $eid) {
+                $eid   = (int) $eid;
+                $ecode = EventCodes::code_for($eid);
+                $exists = \OE\Ticketing\Promo::get_by_code($ecode);
+                $row((string) get_the_title($eid) ?: ('#' . $eid),
+                    $exists ? 'ok' : 'fail',
+                    $exists ? sprintf(__('%s — created', 'october-events'), $ecode)
+                            : sprintf(__('%s — not created yet (save the event or click Create).', 'october-events'), $ecode));
+                if (! $exists) {
+                    $can_create = true;
+                }
+            }
+        }
+        if (\OE\Features::enabled('volunteers')) {
+            $synced = EventCodes::synced();
+            $row(__('Tours synced', 'october-events'),
+                $synced ? 'ok' : 'info',
+                $synced ? sprintf(__('%d tour(s) available for the reward picker.', 'october-events'), count($synced))
+                        : __('None yet — use “Save & sync now” on the linked-site connection.', 'october-events'));
+        }
+
         return ['code' => $code, 'can_create' => $can_create, 'rows' => $rows];
     }
 

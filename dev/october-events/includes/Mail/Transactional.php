@@ -308,18 +308,18 @@ final class Transactional {
         $reward = '';
         if (\OE\Volunteers\TicketCode::enabled()) {
             if ($ctx === '48h') {
-                // The email only prints the code string — it never creates the
-                // promo, which must live on the site that sells the tickets (see
-                // TicketCode::maybe_ensure). Two-site setups keep tickets on a
-                // different install from the one sending volunteer emails.
-                $code   = \OE\Volunteers\TicketCode::peek();
-                $redeem = \OE\Volunteers\TicketCode::redeem_url();
-                if ($code !== '') {
-                    $label  = trim((string) Settings::get('volunteer_code_reward_label', '')) ?: __('2 free tickets', 'october-events');
+                // Resolve the reward from the opportunity this volunteer signed up
+                // for (its chosen tour, from the synced list), falling back to the
+                // older single global code. The email only prints the code and
+                // links across — the promo lives on the ticket-selling site.
+                $rw = \OE\Volunteers\EventCodes::reward_for_opportunity($oid);
+                if ($rw !== null && $rw['code'] !== '') {
+                    $redeem = $rw['url'] !== '' ? $rw['url'] : \OE\Volunteers\TicketCode::redeem_url();
+                    $label  = $rw['label'] !== '' ? $rw['label'] : (trim((string) Settings::get('volunteer_code_reward_label', '')) ?: __('2 free tickets', 'october-events'));
                     $reward = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111;background:#faf7f0;margin:0 0 18px"><tr><td style="padding:16px">'
                         . '<p style="margin:0 0 6px;font-size:15px;font-weight:800;color:#111">' . esc_html(sprintf(__('Your thank-you: %s', 'october-events'), $label)) . '</p>'
                         . '<p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#333">' . esc_html__('Use this code at checkout to claim it.', 'october-events') . '</p>'
-                        . '<p style="margin:0 0 12px"><span style="display:inline-block;border:2px dashed #111;padding:8px 14px;font-size:18px;font-weight:800;letter-spacing:.08em;color:#111">' . esc_html($code) . '</span></p>'
+                        . '<p style="margin:0 0 12px"><span style="display:inline-block;border:2px dashed #111;padding:8px 14px;font-size:18px;font-weight:800;letter-spacing:.08em;color:#111">' . esc_html($rw['code']) . '</span></p>'
                         . '<a href="' . esc_url($redeem) . '" style="display:inline-block;background:#b23b2a;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:11px 18px">' . esc_html__('Get your tickets', 'october-events') . '</a>'
                         . '</td></tr></table>';
                 }

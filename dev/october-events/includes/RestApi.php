@@ -521,9 +521,9 @@ final class RestApi {
             // Extra gates on the volunteer thank-you code: one redemption per
             // email, and (when enabled) the email must belong to a current
             // volunteer. Only checked once we know the buyer's email.
-            $vol_code = \OE\Volunteers\TicketCode::peek();
-            if ($vol_code !== '' && strtoupper($code) === $vol_code && is_email($buyer_email)) {
-                if (\OE\Volunteers\TicketCode::email_used($buyer_email, $vol_code)) {
+            if (is_email($buyer_email) && \OE\Volunteers\EventCodes::is_thankyou_code($code)) {
+                $code_u = strtoupper($code);
+                if (\OE\Volunteers\TicketCode::email_used($buyer_email, $code_u)) {
                     return new \WP_Error('oe_code_used', __('This volunteer code has already been used with your email.', 'october-events'), ['status' => 409]);
                 }
                 if (! \OE\Volunteers\TicketCode::is_volunteer_email($buyer_email)) {

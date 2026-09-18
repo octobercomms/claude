@@ -91,11 +91,14 @@ final class Settings {
         if (! \OE\Volunteers\TicketCode::enabled()) {
             wp_send_json_error(['message' => __('Enable the feature and save first.', 'october-events')]);
         }
-        $code = \OE\Volunteers\TicketCode::create_now();
-        if ($code === '') {
-            wp_send_json_error(['message' => __('Couldn’t determine the code — check the prefix.', 'october-events')]);
+        // Per-event model: create a promo for every offering event.
+        \OE\Volunteers\EventCodes::ensure_promos();
+        // Backward-compat: also create the older single global code, but only when
+        // it's actually configured against a published event on this install.
+        if (\OE\Volunteers\TicketCode::is_ticket_site()) {
+            \OE\Volunteers\TicketCode::create_now();
         }
-        wp_send_json_success(['code' => $code, 'message' => sprintf(__('Created %s.', 'october-events'), $code)]);
+        wp_send_json_success(['message' => __('Created any missing volunteer codes.', 'october-events')]);
     }
 
     /**
@@ -449,6 +452,9 @@ final class Settings {
         // against them, so there's no save-first/sync-second ordering to trip on.
         if (! empty($in['oe_sync_after_save'])) {
             $res = \OE\Volunteers::sync_partner_feed();
+            // Same connection also carries the offered thank-you tours (per event)
+            // for the volunteer-reward picker and reminder links.
+            \OE\Volunteers\EventCodes::sync();
             set_transient('oe_vol_sync_' . get_current_user_id(), $res, 60);
             wp_safe_redirect(admin_url('admin.php?page=oe-settings&updated=1#volunteer-locations'));
             exit;
