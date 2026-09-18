@@ -258,38 +258,31 @@ final class TicketCode {
         }
         $row(__('Feature', 'october-events'), 'ok', __('On.', 'october-events'));
 
-        $code = self::peek();
-        $row(__('This year’s code', 'october-events'), 'info', $code);
+        $code = self::peek(); // kept for the return value; the per-event rows below are what matter.
 
-        $ticket_site = self::is_ticket_site();
-        if ($ticket_site) {
-            $row(__('This site’s role', 'october-events'), 'ok', __('Sells the tickets — it creates and hosts the promo code.', 'october-events'));
-            $promo = Promo::get_by_code($code);
-            if (! $promo) {
-                $can_create = true;
-                $row(__('Promo code', 'october-events'), 'fail', __('Not created yet. Click “Create the code now” below, or it’s created automatically on save and by the daily job.', 'october-events'));
+        // Where the volunteer email links now (per-event model): the reward tour
+        // synced from the ticket site carries its own tickets URL — there is no
+        // single global "Redeem URL" any more. On the email-sending site, confirm
+        // the default reward tour resolves to a tickets page.
+        if (\OE\Features::enabled('volunteers')) {
+            $def = EventCodes::default_reward_code();
+            if ($def !== '') {
+                $tour = null;
+                foreach (EventCodes::synced() as $t) {
+                    if (strtoupper((string) $t['code']) === $def) { $tour = $t; break; }
+                }
+                if (! $tour) {
+                    $row(__('Default reward tour', 'october-events'), 'warn', __('Set, but that tour isn’t in the synced list — run Save & sync now.', 'october-events'));
+                } else {
+                    $u = trim((string) ($tour['url'] ?? ''));
+                    $row(__('Default reward tour', 'october-events'), $u !== '' ? 'ok' : 'warn',
+                        $u !== ''
+                            ? sprintf(__('%1$s → %2$s (the email links here, code auto-applied)', 'october-events'), (string) $tour['label'], $u)
+                            : sprintf(__('%s has no Tickets URL — set it on the ticket site’s offer table.', 'october-events'), (string) $tour['label']));
+                }
             } else {
-                $bits = [sprintf(__('%d%% off', 'october-events'), (int) $promo->discount_value)];
-                $types = trim((string) ($promo->ticket_type_keys ?? ''));
-                $bits[] = $types !== '' ? sprintf(__('ticket type(s): %s', 'october-events'), $types) : __('whole event', 'october-events');
-                $max = (int) ($promo->max_uses ?? 0);
-                $bits[] = $max > 0 ? sprintf(__('used %d of %d', 'october-events'), (int) ($promo->used_count ?? 0), $max) : sprintf(__('used %d (no cap)', 'october-events'), (int) ($promo->used_count ?? 0));
-                $expired = $promo->expires_at !== null && strtotime((string) $promo->expires_at) < current_time('timestamp', true);
-                $state = 'ok';
-                if (empty($promo->active)) { $state = 'fail'; $bits[] = __('INACTIVE', 'october-events'); }
-                elseif ($expired) { $state = 'fail'; $bits[] = __('EXPIRED', 'october-events'); }
-                $row(__('Promo code', 'october-events'), $state, implode(' · ', $bits));
+                $row(__('Default reward tour', 'october-events'), 'info', __('None set. Volunteers are matched by their event or by City + Year instead; set a default to cover everyone else.', 'october-events'));
             }
-        } else {
-            $row(__('This site’s role', 'october-events'), 'info', __('Sends the volunteer email only — tickets are hosted on the other site (no local event set). The email prints the code and links across via the Redeem URL.', 'october-events'));
-        }
-
-        $redeem = self::redeem_url();
-        $home = trailingslashit(home_url());
-        if (! $ticket_site && (trailingslashit($redeem) === $home)) {
-            $row(__('Redeem URL', 'october-events'), 'warn', __('Not set. On the email-only site, set the Redeem URL to the tickets page on the other site, or the email links back here.', 'october-events'));
-        } else {
-            $row(__('Redeem URL', 'october-events'), 'info', $redeem);
         }
 
         // 48h reminder must be on — the code only rides that one. Only relevant on
