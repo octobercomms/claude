@@ -616,7 +616,12 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </p>
         <p class="description"><?php esc_html_e('Previews use sample details and reflect your saved text — save to update them.', 'october-events'); ?></p>
         </div></details>
+        <?php endif; // volunteers-only settings above ?>
 
+        <?php // The thank-you code is a ticketing concern configured on the site that SELLS
+        // the tickets, so it also shows when Tickets is on but Volunteers is off (the
+        // tours site). The volunteer-email site shows it via Volunteers being on. ?>
+        <?php if (\OE\Features::enabled('volunteers') || \OE\Features::enabled('tickets')) : ?>
         <details class="oe-acc" id="volunteer-perks"><summary><?php esc_html_e('Volunteer FAQ & thank-you tickets', 'october-events'); ?></summary><div class="oe-acc-body">
         <p><label><strong><?php esc_html_e('Volunteer FAQ page', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('linked in the footer of every volunteer email', 'october-events'); ?></span><br>
             <input type="url" name="volunteer_faq_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_faq_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net/faqs/"></label></p>
