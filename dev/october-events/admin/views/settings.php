@@ -25,6 +25,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <button type="button" data-tab="theme"><?php esc_html_e('Platform theme', 'october-events'); ?></button>
             <button type="button" data-tab="keys"><?php esc_html_e('Keys & platform', 'october-events'); ?></button>
             <button type="button" data-tab="emailsms"><?php esc_html_e('Email & SMS', 'october-events'); ?></button>
+        <?php if (\OE\Features::enabled('volunteers') || \OE\Features::enabled('tickets')) : ?>
+            <button type="button" data-tab="volunteers"><?php esc_html_e('Volunteers', 'october-events'); ?></button>
+        <?php endif; ?>
             <button type="button" data-tab="updates"><?php esc_html_e('Updates', 'october-events'); ?></button>
         </nav>
         <div class="oe-set-main">
@@ -60,60 +63,6 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('“Daily start/end time” are for date-only events that run set hours — e.g. a two-day tour, 10am–4pm each day. Map them to your time-of-day fields and tickets show “October 3 – 4, 2026 · 10:00 AM – 4:00 PM daily” with a per-day calendar invite. Leave blank for all-day.', 'october-events'); ?></p>
         </div></details>
 
-        <details class="oe-acc" id="volunteer-locations"><summary><?php esc_html_e('Volunteer locations', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('If your tour has a “Locations” post type (e.g. homes/stops on the tour), choose it here. Each location then gets a one-click “Needs volunteers” box that creates and links a volunteer opportunity for it — no more building them by hand. Leave blank if you only need volunteers for events.', 'october-events'); ?></p>
-        <?php
-        $loc_pt  = (string) ($cfg['location_post_type'] ?? '');
-        $cpts    = get_post_types(['public' => true, '_builtin' => false], 'objects');
-        ?>
-        <p><label><strong><?php esc_html_e('Locations post type', 'october-events'); ?></strong><br>
-            <select name="location_post_type">
-                <option value="">— <?php esc_html_e('none', 'october-events'); ?> —</option>
-                <?php foreach ($cpts as $pt) : if ($pt->name === \OE\PostTypes::slug('event') || $pt->name === \OE\Volunteers::slug()) { continue; } ?>
-                    <option value="<?php echo esc_attr($pt->name); ?>" <?php selected($loc_pt, $pt->name); ?>><?php echo esc_html($pt->labels->singular_name . ' (' . $pt->name . ')'); ?></option>
-                <?php endforeach; ?>
-            </select></label></p>
-        <table class="form-table" role="presentation"><tbody>
-            <tr><th scope="row"><?php esc_html_e('Address field', 'october-events'); ?></th>
-                <td><input type="text" name="location_address_field" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['location_address_field'] ?? '')); ?>" placeholder="address">
-                    <p class="description"><?php esc_html_e('Meta field name on a location that holds its street address (e.g. “address”). Sent to the festival site so picking a location fills in the address. Blank = don’t send.', 'october-events'); ?></p></td></tr>
-            <tr><th scope="row"><?php esc_html_e('Date field', 'october-events'); ?></th>
-                <td><input type="text" name="location_date_field" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['location_date_field'] ?? '')); ?>" placeholder="date">
-                    <p class="description"><?php esc_html_e('Meta field name that holds the location’s tour date (e.g. “date”). Used to pre-fill the volunteer shift. Blank = don’t send.', 'october-events'); ?></p></td></tr>
-        </tbody></table>
-
-        <hr style="margin:18px 0;border:0;border-top:1px solid #eee">
-        <h4 style="margin:0 0 4px"><?php esc_html_e('Partner volunteer feed (pick another site’s locations here)', 'october-events'); ?></h4>
-        <p class="description" style="max-width:820px"><?php esc_html_e('Use this on the site that HOSTS the sign-ups (e.g. the festival site). Point it at a tours site and it pulls in that site’s locations flagged “Needs volunteers → Partner site” so you can pick them when building a volunteer post (Volunteer → Add, “Linked event or tour location”). It does not create posts for you — you stay in control. Auth: create an Application Password on the tours site (Users → Profile → Application Passwords) for an admin, and paste the username + password below.', 'october-events'); ?></p>
-        <table class="form-table" role="presentation"><tbody>
-            <tr><th scope="row"><?php esc_html_e('Tours site URL', 'october-events'); ?></th>
-                <td><input type="url" name="volunteer_feed_url" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_url'] ?? '')); ?>" placeholder="https://architecturetours.us"></td></tr>
-            <tr><th scope="row"><?php esc_html_e('Username', 'october-events'); ?></th>
-                <td><input type="text" name="volunteer_feed_user" class="regular-text" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_user'] ?? '')); ?>" autocomplete="off"></td></tr>
-            <tr><th scope="row"><?php esc_html_e('Application password', 'october-events'); ?></th>
-                <td><input type="password" name="volunteer_feed_app_password" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_app_password'] ?? '')); ?>" autocomplete="new-password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></td></tr>
-            <tr><th scope="row"><?php esc_html_e('Default role', 'october-events'); ?></th>
-                <td><input type="text" name="location_default_role" class="regular-text" value="<?php echo esc_attr((string) ($cfg['location_default_role'] ?? '')); ?>" placeholder="Docent">
-                    <p class="description"><?php esc_html_e('Pre-filled as the role when you link a volunteer post to a tour location (tour stops are docent-led). Blank = don’t pre-fill.', 'october-events'); ?></p></td></tr>
-        </tbody></table>
-        <?php
-        $last = (int) ($cfg['volunteer_feed_last_sync'] ?? 0);
-        $sync = get_transient('oe_vol_sync_' . get_current_user_id());
-        if (is_array($sync)) {
-            delete_transient('oe_vol_sync_' . get_current_user_id());
-            if (! empty($sync['error'])) {
-                echo '<div class="notice notice-error inline" style="margin:8px 0"><p>' . esc_html(sprintf(__('Sync failed: %s', 'october-events'), $sync['error'])) . '</p></div>';
-            } else {
-                $n = (int) ($sync['locations'] ?? 0);
-                echo '<div class="notice notice-success inline" style="margin:8px 0"><p>' . esc_html(sprintf(_n('Synced — %d tour location available to pick.', 'Synced — %d tour locations available to pick.', $n, 'october-events'), $n)) . '</p></div>';
-            }
-        }
-        ?>
-        <p>
-            <button type="submit" name="oe_sync_after_save" value="1" class="button button-secondary"><?php esc_html_e('Save & sync now', 'october-events'); ?></button>
-            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last refreshed %s ago. Saves your changes first, then pulls the pickable list; also auto-refreshes daily. You can also refresh from the volunteer editor.', 'october-events'), human_time_diff($last))) : esc_html__('Saves your changes first, then pulls the pickable list of tour locations. Also runs automatically once a day, and there’s a refresh button in the volunteer editor.', 'october-events'); ?></span>
-        </p>
-        </div></details>
 
         <details class="oe-acc" id="pricing"><summary><?php esc_html_e('Tier pricing', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Amounts in your chosen currency. Leave 0 for free.', 'october-events'); ?></p>
@@ -549,6 +498,156 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </div>
         </div></details>
 
+        <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Optional. Sends volunteer texts (reminders + blasts). Off until enabled and configured. US sending requires a 10DLC-registered number either way.', 'october-events'); ?></p>
+        <?php
+        $aws_pw_const   = \OE\Settings::secret_is_constant('aws_secret_access_key');
+        $quo_pw_const   = \OE\Settings::secret_is_constant('quo_api_key');
+        $brevo_pw_const = \OE\Settings::secret_is_constant('brevo_api_key');
+        $sms_provider   = in_array(($cfg['sms_provider'] ?? 'aws'), ['brevo', 'quo', 'aws'], true) ? (string) $cfg['sms_provider'] : 'aws';
+        ?>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><?php esc_html_e('Enable SMS', 'october-events'); ?></th>
+                <td><label><input type="checkbox" name="sms_enabled" value="1" <?php checked((bool) ($cfg['sms_enabled'] ?? false)); ?>> <?php esc_html_e('Send volunteer reminders by SMS', 'october-events'); ?></label></td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Provider', 'october-events'); ?></th>
+                <td>
+                    <label><input type="radio" name="sms_provider" value="brevo" <?php checked($sms_provider, 'brevo'); ?>> <?php esc_html_e('Brevo — transactional SMS from your approved Brevo sender (easiest if already set up)', 'october-events'); ?></label><br>
+                    <label><input type="radio" name="sms_provider" value="quo" <?php checked($sms_provider, 'quo'); ?>> <?php esc_html_e('Quo (OpenPhone) — sends from your Quo number; replies go to your Quo inbox / Slack', 'october-events'); ?></label><br>
+                    <label><input type="radio" name="sms_provider" value="aws" <?php checked($sms_provider, 'aws'); ?>> <?php esc_html_e('AWS End User Messaging — cheapest, one-way (replies not received)', 'october-events'); ?></label>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('Brevo', 'october-events'); ?></strong></th>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Brevo API key', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="brevo_api_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $brevo_pw_const ? 'disabled placeholder="Set via OE_BREVO_API_KEY constant"' : (trim((string) ($cfg['brevo_api_key'] ?? '')) !== '' ? 'data-reveal="brevo_api_key" placeholder="•••••••• saved — leave blank to keep"' : 'placeholder="Brevo → SMTP & API → API Keys"'); ?>>
+                    <?php if (! $brevo_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span>
+                <p class="description"><?php esc_html_e('Create it in Brevo → Settings → SMTP & API → API Keys.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Brevo SMS sender', 'october-events'); ?></label></th>
+                <td><input type="text" name="brevo_sms_sender" value="<?php echo esc_attr((string) ($cfg['brevo_sms_sender'] ?? '')); ?>" placeholder="atldsgnfest" class="regular-text" maxlength="15">
+                    <p class="description"><?php esc_html_e('Your approved Brevo sender — an alphanumeric name (≤11 chars, e.g. atldsgnfest) or a number.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('Quo (OpenPhone)', 'october-events'); ?></strong></th>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Quo API key', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="quo_api_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $quo_pw_const ? 'disabled placeholder="Set via OE_QUO_API_KEY constant"' : (trim((string) ($cfg['quo_api_key'] ?? '')) !== '' ? 'data-reveal="quo_api_key" placeholder="•••••••• saved — leave blank to keep"' : 'placeholder="Quo → Settings → API"'); ?>>
+                    <?php if (! $quo_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span>
+                <p class="description"><?php esc_html_e('Create it in Quo → Settings → API (Owner/Admin). Requires prepaid Quo credits.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Quo “from” number', 'october-events'); ?></label></th>
+                <td><input type="text" name="quo_from_number" value="<?php echo esc_attr((string) ($cfg['quo_from_number'] ?? '')); ?>" placeholder="+19548803278" class="regular-text">
+                    <p class="description"><?php esc_html_e('Your Quo workspace number in E.164 (with +1). Must be 10DLC-registered in Quo’s Trust Center for US sending.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('AWS End User Messaging', 'october-events'); ?></strong></th>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS region', 'october-events'); ?></label></th>
+                <td><input type="text" name="sms_region" value="<?php echo esc_attr((string) ($cfg['sms_region'] ?? 'us-east-1')); ?>" placeholder="us-east-1" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS access key ID', 'october-events'); ?></label></th>
+                <td><input type="text" name="aws_access_key_id" value="<?php echo esc_attr((string) ($cfg['aws_access_key_id'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS secret access key', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="aws_secret_access_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $aws_pw_const ? 'disabled placeholder="Set via OE_AWS_SECRET_ACCESS_KEY constant"' : (trim((string) ($cfg['aws_secret_access_key'] ?? '')) !== '' ? 'data-reveal="aws_secret_access_key" placeholder="•••••••• saved — leave blank to keep"' : ''); ?>>
+                    <?php if (! $aws_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Origination identity', 'october-events'); ?></label></th>
+                <td><input type="text" name="sms_origination" value="<?php echo esc_attr((string) ($cfg['sms_origination'] ?? '')); ?>" placeholder="+18005551234 / sender ID / pool ARN" class="regular-text">
+                    <p class="description"><?php esc_html_e('Your registered phone number (E.164), sender ID, or pool ARN.', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
+        </div></details>
+
+        <details class="oe-acc" id="chat"><summary><?php esc_html_e('Live chat (Chatwoot)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Optional. Paste your self-hosted Chatwoot base URL and website token to inject the chat widget site-wide. Also used as the “Talk to a person” hand-off from the AI support chat. Leave blank for no live chat.', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Chatwoot base URL', 'october-events'); ?></label></th>
+                <td><input type="url" name="chatwoot_base_url" value="<?php echo esc_attr((string) ($cfg['chatwoot_base_url'] ?? '')); ?>" placeholder="https://chat.example.com" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Website token', 'october-events'); ?></label></th>
+                <td><input type="text" name="chatwoot_token" value="<?php echo esc_attr((string) ($cfg['chatwoot_token'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
+            </tr>
+        </tbody></table>
+        </div></details>
+
+        </section>
+        <section class="oe-set-panel" data-tab="volunteers">
+        <details class="oe-acc" id="volunteer-locations"><summary><?php esc_html_e('Volunteer locations', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('If your tour has a “Locations” post type (e.g. homes/stops on the tour), choose it here. Each location then gets a one-click “Needs volunteers” box that creates and links a volunteer opportunity for it — no more building them by hand. Leave blank if you only need volunteers for events.', 'october-events'); ?></p>
+        <?php
+        $loc_pt  = (string) ($cfg['location_post_type'] ?? '');
+        $cpts    = get_post_types(['public' => true, '_builtin' => false], 'objects');
+        ?>
+        <p><label><strong><?php esc_html_e('Locations post type', 'october-events'); ?></strong><br>
+            <select name="location_post_type">
+                <option value="">— <?php esc_html_e('none', 'october-events'); ?> —</option>
+                <?php foreach ($cpts as $pt) : if ($pt->name === \OE\PostTypes::slug('event') || $pt->name === \OE\Volunteers::slug()) { continue; } ?>
+                    <option value="<?php echo esc_attr($pt->name); ?>" <?php selected($loc_pt, $pt->name); ?>><?php echo esc_html($pt->labels->singular_name . ' (' . $pt->name . ')'); ?></option>
+                <?php endforeach; ?>
+            </select></label></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr><th scope="row"><?php esc_html_e('Address field', 'october-events'); ?></th>
+                <td><input type="text" name="location_address_field" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['location_address_field'] ?? '')); ?>" placeholder="address">
+                    <p class="description"><?php esc_html_e('Meta field name on a location that holds its street address (e.g. “address”). Sent to the festival site so picking a location fills in the address. Blank = don’t send.', 'october-events'); ?></p></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Date field', 'october-events'); ?></th>
+                <td><input type="text" name="location_date_field" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['location_date_field'] ?? '')); ?>" placeholder="date">
+                    <p class="description"><?php esc_html_e('Meta field name that holds the location’s tour date (e.g. “date”). Used to pre-fill the volunteer shift. Blank = don’t send.', 'october-events'); ?></p></td></tr>
+        </tbody></table>
+
+        <hr style="margin:18px 0;border:0;border-top:1px solid #eee">
+        <h4 style="margin:0 0 4px"><?php esc_html_e('Partner volunteer feed (pick another site’s locations here)', 'october-events'); ?></h4>
+        <p class="description" style="max-width:820px"><?php esc_html_e('Use this on the site that HOSTS the sign-ups (e.g. the festival site). Point it at a tours site and it pulls in that site’s locations flagged “Needs volunteers → Partner site” so you can pick them when building a volunteer post (Volunteer → Add, “Linked event or tour location”). It does not create posts for you — you stay in control. Auth: create an Application Password on the tours site (Users → Profile → Application Passwords) for an admin, and paste the username + password below.', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr><th scope="row"><?php esc_html_e('Tours site URL', 'october-events'); ?></th>
+                <td><input type="url" name="volunteer_feed_url" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_url'] ?? '')); ?>" placeholder="https://architecturetours.us"></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Username', 'october-events'); ?></th>
+                <td><input type="text" name="volunteer_feed_user" class="regular-text" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_user'] ?? '')); ?>" autocomplete="off"></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Application password', 'october-events'); ?></th>
+                <td><input type="password" name="volunteer_feed_app_password" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_app_password'] ?? '')); ?>" autocomplete="new-password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Default role', 'october-events'); ?></th>
+                <td><input type="text" name="location_default_role" class="regular-text" value="<?php echo esc_attr((string) ($cfg['location_default_role'] ?? '')); ?>" placeholder="Docent">
+                    <p class="description"><?php esc_html_e('Pre-filled as the role when you link a volunteer post to a tour location (tour stops are docent-led). Blank = don’t pre-fill.', 'october-events'); ?></p></td></tr>
+        </tbody></table>
+        <?php
+        $last = (int) ($cfg['volunteer_feed_last_sync'] ?? 0);
+        $sync = get_transient('oe_vol_sync_' . get_current_user_id());
+        if (is_array($sync)) {
+            delete_transient('oe_vol_sync_' . get_current_user_id());
+            if (! empty($sync['error'])) {
+                echo '<div class="notice notice-error inline" style="margin:8px 0"><p>' . esc_html(sprintf(__('Sync failed: %s', 'october-events'), $sync['error'])) . '</p></div>';
+            } else {
+                $n = (int) ($sync['locations'] ?? 0);
+                echo '<div class="notice notice-success inline" style="margin:8px 0"><p>' . esc_html(sprintf(_n('Synced — %d tour location available to pick.', 'Synced — %d tour locations available to pick.', $n, 'october-events'), $n)) . '</p></div>';
+            }
+        }
+        ?>
+        <p>
+            <button type="submit" name="oe_sync_after_save" value="1" class="button button-secondary"><?php esc_html_e('Save & sync now', 'october-events'); ?></button>
+            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last refreshed %s ago. Saves your changes first, then pulls the pickable list; also auto-refreshes daily. You can also refresh from the volunteer editor.', 'october-events'), human_time_diff($last))) : esc_html__('Saves your changes first, then pulls the pickable list of tour locations. Also runs automatically once a day, and there’s a refresh button in the volunteer editor.', 'october-events'); ?></span>
+        </p>
+        </div></details>
+
         <?php if (\OE\Features::enabled('volunteers')) : ?>
         <details class="oe-acc" id="reminders"><summary><?php esc_html_e('Volunteer reminders', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Email reminders always send. SMS is optional (see the SMS section) and only goes to volunteers who provided a mobile and opted in.', 'october-events'); ?></p>
@@ -720,99 +819,6 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </div></details>
 
         <?php endif; ?>
-        <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Optional. Sends volunteer texts (reminders + blasts). Off until enabled and configured. US sending requires a 10DLC-registered number either way.', 'october-events'); ?></p>
-        <?php
-        $aws_pw_const   = \OE\Settings::secret_is_constant('aws_secret_access_key');
-        $quo_pw_const   = \OE\Settings::secret_is_constant('quo_api_key');
-        $brevo_pw_const = \OE\Settings::secret_is_constant('brevo_api_key');
-        $sms_provider   = in_array(($cfg['sms_provider'] ?? 'aws'), ['brevo', 'quo', 'aws'], true) ? (string) $cfg['sms_provider'] : 'aws';
-        ?>
-        <table class="form-table" role="presentation"><tbody>
-            <tr>
-                <th scope="row"><?php esc_html_e('Enable SMS', 'october-events'); ?></th>
-                <td><label><input type="checkbox" name="sms_enabled" value="1" <?php checked((bool) ($cfg['sms_enabled'] ?? false)); ?>> <?php esc_html_e('Send volunteer reminders by SMS', 'october-events'); ?></label></td>
-            </tr>
-            <tr>
-                <th scope="row"><?php esc_html_e('Provider', 'october-events'); ?></th>
-                <td>
-                    <label><input type="radio" name="sms_provider" value="brevo" <?php checked($sms_provider, 'brevo'); ?>> <?php esc_html_e('Brevo — transactional SMS from your approved Brevo sender (easiest if already set up)', 'october-events'); ?></label><br>
-                    <label><input type="radio" name="sms_provider" value="quo" <?php checked($sms_provider, 'quo'); ?>> <?php esc_html_e('Quo (OpenPhone) — sends from your Quo number; replies go to your Quo inbox / Slack', 'october-events'); ?></label><br>
-                    <label><input type="radio" name="sms_provider" value="aws" <?php checked($sms_provider, 'aws'); ?>> <?php esc_html_e('AWS End User Messaging — cheapest, one-way (replies not received)', 'october-events'); ?></label>
-                </td>
-            </tr>
-            <tr>
-                <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('Brevo', 'october-events'); ?></strong></th>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Brevo API key', 'october-events'); ?></label></th>
-                <td><span class="oe-secret-wrap">
-                    <input type="password" name="brevo_api_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $brevo_pw_const ? 'disabled placeholder="Set via OE_BREVO_API_KEY constant"' : (trim((string) ($cfg['brevo_api_key'] ?? '')) !== '' ? 'data-reveal="brevo_api_key" placeholder="•••••••• saved — leave blank to keep"' : 'placeholder="Brevo → SMTP & API → API Keys"'); ?>>
-                    <?php if (! $brevo_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
-                </span>
-                <p class="description"><?php esc_html_e('Create it in Brevo → Settings → SMTP & API → API Keys.', 'october-events'); ?></p></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Brevo SMS sender', 'october-events'); ?></label></th>
-                <td><input type="text" name="brevo_sms_sender" value="<?php echo esc_attr((string) ($cfg['brevo_sms_sender'] ?? '')); ?>" placeholder="atldsgnfest" class="regular-text" maxlength="15">
-                    <p class="description"><?php esc_html_e('Your approved Brevo sender — an alphanumeric name (≤11 chars, e.g. atldsgnfest) or a number.', 'october-events'); ?></p></td>
-            </tr>
-            <tr>
-                <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('Quo (OpenPhone)', 'october-events'); ?></strong></th>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Quo API key', 'october-events'); ?></label></th>
-                <td><span class="oe-secret-wrap">
-                    <input type="password" name="quo_api_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $quo_pw_const ? 'disabled placeholder="Set via OE_QUO_API_KEY constant"' : (trim((string) ($cfg['quo_api_key'] ?? '')) !== '' ? 'data-reveal="quo_api_key" placeholder="•••••••• saved — leave blank to keep"' : 'placeholder="Quo → Settings → API"'); ?>>
-                    <?php if (! $quo_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
-                </span>
-                <p class="description"><?php esc_html_e('Create it in Quo → Settings → API (Owner/Admin). Requires prepaid Quo credits.', 'october-events'); ?></p></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Quo “from” number', 'october-events'); ?></label></th>
-                <td><input type="text" name="quo_from_number" value="<?php echo esc_attr((string) ($cfg['quo_from_number'] ?? '')); ?>" placeholder="+19548803278" class="regular-text">
-                    <p class="description"><?php esc_html_e('Your Quo workspace number in E.164 (with +1). Must be 10DLC-registered in Quo’s Trust Center for US sending.', 'october-events'); ?></p></td>
-            </tr>
-            <tr>
-                <th scope="row" colspan="2" style="padding-bottom:0"><strong><?php esc_html_e('AWS End User Messaging', 'october-events'); ?></strong></th>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('AWS region', 'october-events'); ?></label></th>
-                <td><input type="text" name="sms_region" value="<?php echo esc_attr((string) ($cfg['sms_region'] ?? 'us-east-1')); ?>" placeholder="us-east-1" class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('AWS access key ID', 'october-events'); ?></label></th>
-                <td><input type="text" name="aws_access_key_id" value="<?php echo esc_attr((string) ($cfg['aws_access_key_id'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('AWS secret access key', 'october-events'); ?></label></th>
-                <td><span class="oe-secret-wrap">
-                    <input type="password" name="aws_secret_access_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $aws_pw_const ? 'disabled placeholder="Set via OE_AWS_SECRET_ACCESS_KEY constant"' : (trim((string) ($cfg['aws_secret_access_key'] ?? '')) !== '' ? 'data-reveal="aws_secret_access_key" placeholder="•••••••• saved — leave blank to keep"' : ''); ?>>
-                    <?php if (! $aws_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
-                </span></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Origination identity', 'october-events'); ?></label></th>
-                <td><input type="text" name="sms_origination" value="<?php echo esc_attr((string) ($cfg['sms_origination'] ?? '')); ?>" placeholder="+18005551234 / sender ID / pool ARN" class="regular-text">
-                    <p class="description"><?php esc_html_e('Your registered phone number (E.164), sender ID, or pool ARN.', 'october-events'); ?></p></td>
-            </tr>
-        </tbody></table>
-        </div></details>
-
-        <details class="oe-acc" id="chat"><summary><?php esc_html_e('Live chat (Chatwoot)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Optional. Paste your self-hosted Chatwoot base URL and website token to inject the chat widget site-wide. Also used as the “Talk to a person” hand-off from the AI support chat. Leave blank for no live chat.', 'october-events'); ?></p>
-        <table class="form-table" role="presentation"><tbody>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Chatwoot base URL', 'october-events'); ?></label></th>
-                <td><input type="url" name="chatwoot_base_url" value="<?php echo esc_attr((string) ($cfg['chatwoot_base_url'] ?? '')); ?>" placeholder="https://chat.example.com" class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Website token', 'october-events'); ?></label></th>
-                <td><input type="text" name="chatwoot_token" value="<?php echo esc_attr((string) ($cfg['chatwoot_token'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
-            </tr>
-        </tbody></table>
-        </div></details>
-
         </section>
         <section class="oe-set-panel" data-tab="updates">
         <details class="oe-acc" id="updates"><summary><?php esc_html_e('Updates (GitHub)', 'october-events'); ?></summary><div class="oe-acc-body">
