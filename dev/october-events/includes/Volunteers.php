@@ -1477,10 +1477,31 @@ final class Volunteers {
             'opportunity_id' => $oid,
             'shift'          => $shift['label'] ?? '',
             'location'       => self::location($oid),
-            'url'            => get_permalink($oid),
+            // "View details" → the public page for what they signed up for: the
+            // linked event or tour location, falling back to the opportunity post.
+            'url'            => self::details_url($oid),
             // Self-service cancel link for the confirmation/reminder email.
             'cancel_url'     => self::cancel_url($signup),
         ];
+    }
+
+    /** Public page a volunteer's "View details" should open. */
+    public static function details_url(int $opportunity_id): string {
+        $event = self::linked_event($opportunity_id);
+        if ($event > 0) {
+            $u = (string) get_permalink($event);
+            if ($u !== '') {
+                return $u;
+            }
+        }
+        $ref = (string) get_post_meta($opportunity_id, '_oe_linked_location_ref', true);
+        if ($ref !== '') {
+            $fl = self::feed_location($ref);
+            if (! empty($fl['url'])) {
+                return (string) $fl['url'];
+            }
+        }
+        return (string) get_permalink($opportunity_id);
     }
 
     /**

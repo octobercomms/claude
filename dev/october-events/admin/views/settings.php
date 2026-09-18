@@ -700,14 +700,24 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             'confirmed' => __('Confirmed by staff (sent when you click “Confirm”)', 'october-events'),
             'declined'  => __('Declined by staff (sent when you click “Decline”)', 'october-events'),
         ];
-        foreach ($vol_labels as $vk => $vlabel) :
-            $preview = wp_nonce_url(admin_url('admin-post.php?action=oe_preview_volunteer_email&type=' . $vk), 'oe_preview_volunteer_email');
-        ?>
+        $vk_preview = static function (string $type): string {
+            return esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_preview_volunteer_email&type=' . $type), 'oe_preview_volunteer_email'));
+        };
+        foreach ($vol_labels as $vk => $vlabel) : ?>
         <p style="margin:14px 0 4px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
             <strong><?php echo esc_html($vlabel); ?></strong>
-            <a class="button button-small" href="<?php echo esc_url($preview); ?>" target="_blank" rel="noopener"><?php esc_html_e('Preview →', 'october-events'); ?></a>
+            <?php if ($vk === 'reminder') : ?>
+            <span style="display:flex;gap:6px;flex-wrap:wrap">
+                <a class="button button-small" href="<?php echo $vk_preview('week'); ?>" target="_blank" rel="noopener"><?php esc_html_e('1 week →', 'october-events'); ?></a>
+                <a class="button button-small" href="<?php echo $vk_preview('48h'); ?>" target="_blank" rel="noopener"><?php esc_html_e('48 hours (code) →', 'october-events'); ?></a>
+                <a class="button button-small" href="<?php echo $vk_preview('morning'); ?>" target="_blank" rel="noopener"><?php esc_html_e('Morning of →', 'october-events'); ?></a>
+            </span>
+            <?php else : ?>
+            <a class="button button-small" href="<?php echo $vk_preview($vk); ?>" target="_blank" rel="noopener"><?php esc_html_e('Preview →', 'october-events'); ?></a>
+            <?php endif; ?>
         </p>
         <textarea name="volunteer_email_intros[<?php echo esc_attr($vk); ?>]" rows="2" class="large-text" placeholder="<?php echo esc_attr((string) ($vol_defaults[$vk] ?? '')); ?>"><?php echo esc_textarea((string) ($vol_intros[$vk] ?? '')); ?></textarea>
+        <?php if ($vk === 'reminder') : ?><p class="description" style="margin:2px 0 0"><?php esc_html_e('The free-ticket code only appears in the 48-hour version. The 1-week email teases it; the morning-of email omits it.', 'october-events'); ?></p><?php endif; ?>
         <?php endforeach; ?>
         <p class="description" style="margin-top:10px"><?php esc_html_e('Previews open in a new tab and use sample shift details. The declined email never shows the cancel link.', 'october-events'); ?></p>
         </div></details>
