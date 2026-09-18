@@ -42,6 +42,66 @@ final class TicketCode {
         return $code;
     }
 
+    /* ---- checkout-side gates (run on the ticket-selling site) ---- */
+
+    public static function verify_enabled(): bool {
+        return ! empty(Settings::get('volunteer_code_verify_enabled', false));
+    }
+
+    /**
+     * Is this email a current volunteer? Asks the volunteer site's
+     * /volunteer-check endpoint (they live in a different install). Cached ~10 min.
+     * Off when verification isn't enabled. A definitive "no" blocks; a network or
+     * config problem fails OPEN, so a real volunteer is never blocked by a hiccup.
+     */
+    public static function is_volunteer_email(string $email): bool {
+        if (! self::verify_enabled()) {
+            return true;
+        }
+        $email = strtolower(trim($email));
+        if (! is_email($email)) {
+            return false;
+        }
+        $url   = trim((string) Settings::get('volunteer_verify_url', ''));
+        $token = trim((string) Settings::get('volunteer_verify_token', ''));
+        if ($url === '' || $token === '') {
+            return true; // enabled but not configured — don't block a real volunteer
+        }
+        $key    = 'oe_volchk_' . md5($email);
+        $cached = get_transient($key);
+        if ($cached === 'yes') {
+            return true;
+        }
+        if ($cached === 'no') {
+            return false;
+        }
+        $resp = wp_remote_get(add_query_arg(['email' => rawurlencode($email)], $url), [
+            'timeout' => 8,
+            'headers' => ['X-OE-Vol-Token' => $token],
+        ]);
+        if (is_wp_error($resp) || (int) wp_remote_retrieve_response_code($resp) !== 200) {
+            return true; // endpoint unreachable — fail open rather than block a volunteer
+        }
+        $body = json_decode((string) wp_remote_retrieve_body($resp), true);
+        $ok   = is_array($body) && ! empty($body['volunteer']);
+        set_transient($key, $ok ? 'yes' : 'no', 10 * MINUTE_IN_SECONDS);
+        return $ok;
+    }
+
+    /** Has this email already redeemed this code on a paid order (this site)? */
+    public static function email_used(string $email, string $code): bool {
+        global $wpdb;
+        $email = strtolower(trim($email));
+        $code  = strtoupper(trim($code));
+        if ($email === '' || $code === '') {
+            return false;
+        }
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            'SELECT id FROM ' . \OE\Ticketing\Schema::orders() . " WHERE promo_code = %s AND LOWER(email) = %s AND status = 'paid' LIMIT 1",
+            $code, $email
+        ));
+    }
+
     /**
      * Where volunteers redeem it. Prefers an explicit redeem URL (so an email on
      * one site can point at the tickets page on another), else the configured

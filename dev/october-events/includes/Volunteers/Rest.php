@@ -64,6 +64,33 @@ final class Rest {
                 'permission_callback' => [self::class, 'can'],
             ],
         ]);
+        // Cross-site check: "is this email a current volunteer?" Used by the
+        // ticket site (a different install) to gate the volunteer thank-you code.
+        // Protected by a shared token, not a user session. Returns only a boolean.
+        register_rest_route(self::NS, '/volunteer-check', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'volunteer_check'],
+            'permission_callback' => [self::class, 'verify_shared_token'],
+        ]);
+    }
+
+    /** Constant-time check of the shared token that guards volunteer-check. */
+    public static function verify_shared_token(\WP_REST_Request $req): bool {
+        $secret = trim((string) \OE\Settings::get('volunteer_verify_token', ''));
+        if ($secret === '') {
+            return false;
+        }
+        $token = (string) ($req->get_param('token') ?: $req->get_header('X-OE-Vol-Token'));
+        return hash_equals($secret, $token);
+    }
+
+    /** @return \WP_REST_Response {ok, volunteer} — no personal data beyond the boolean. */
+    public static function volunteer_check(\WP_REST_Request $req): \WP_REST_Response {
+        $email = sanitize_email((string) $req->get_param('email'));
+        $is    = is_email($email) && VolunteerSignups::has_active_signup($email);
+        $res   = new \WP_REST_Response(['ok' => true, 'volunteer' => $is], 200);
+        $res->header('Cache-Control', 'no-store, max-age=0');
+        return $res;
     }
 
     public static function list_opportunities(\WP_REST_Request $req): \WP_REST_Response {

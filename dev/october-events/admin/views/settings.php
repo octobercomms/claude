@@ -645,6 +645,16 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="number" min="0" name="volunteer_code_max_uses" value="<?php echo esc_attr((string) ($cfg['volunteer_code_max_uses'] ?? 0)); ?>" style="width:120px"></label></p>
         <p><label><strong><?php esc_html_e('Redeem URL', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('the tickets page the email links to. Set this when tickets are on a different website; leave blank to use the event above.', 'october-events'); ?></span><br>
             <input type="url" name="volunteer_code_redeem_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_code_redeem_url'] ?? '')); ?>" placeholder="https://architecturetours.us/e/atlanta/#tickets"></label></p>
+        <p><label><strong><?php esc_html_e('Reward wording', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('shown in the email, e.g. “2 free tour tickets”', 'october-events'); ?></span><br>
+            <input type="text" name="volunteer_code_reward_label" class="regular-text" value="<?php echo esc_attr((string) ($cfg['volunteer_code_reward_label'] ?? '')); ?>" placeholder="<?php esc_attr_e('2 free tour tickets', 'october-events'); ?>"></label></p>
+
+        <h4 style="margin:18px 0 6px"><?php esc_html_e('Limits & volunteer verification', 'october-events'); ?></h4>
+        <p class="description" style="max-width:820px"><?php esc_html_e('The code allows one redemption per email (set the ticket type’s Max per order to 2 for two free each). Optionally require that the redeeming email is a current volunteer, so a forwarded code can’t be used by a non-volunteer. Volunteers and tickets can be on different sites: enable this on the TICKET site, point the check URL at the VOLUNTEER site’s /volunteer-check endpoint, and set the same token on both sites.', 'october-events'); ?></p>
+        <p><label><input type="checkbox" name="volunteer_code_verify_enabled" value="1" <?php checked(! empty($cfg['volunteer_code_verify_enabled'])); ?>> <strong><?php esc_html_e('Only allow the code for current volunteers (ticket site)', 'october-events'); ?></strong></label></p>
+        <p><label><strong><?php esc_html_e('Volunteer check URL', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('the volunteer site’s endpoint', 'october-events'); ?></span><br>
+            <input type="url" name="volunteer_verify_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_verify_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net/wp-json/oe/v1/volunteer-check"></label></p>
+        <p><label><strong><?php esc_html_e('Shared token', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('a secret, identical on BOTH sites (the volunteer site checks it; the ticket site sends it)', 'october-events'); ?></span><br>
+            <input type="text" name="volunteer_verify_token" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_verify_token'] ?? '')); ?>" placeholder="<?php esc_attr_e('a long random string', 'october-events'); ?>"></label></p>
         </div></details>
 
         <?php endif; ?>

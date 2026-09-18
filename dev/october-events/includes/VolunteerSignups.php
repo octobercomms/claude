@@ -120,6 +120,19 @@ final class VolunteerSignups {
         )) ?: [];
     }
 
+    /** Is this email a current volunteer — has a live (pending/confirmed) signup? */
+    public static function has_active_signup(string $email): bool {
+        global $wpdb;
+        $email = strtolower(trim($email));
+        if ($email === '') {
+            return false;
+        }
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM " . self::table() . " WHERE LOWER(email) = %s AND status IN ('pending','confirmed') LIMIT 1",
+            $email
+        ));
+    }
+
     public static function get(int $id): ?object {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare("SELECT * FROM " . self::table() . " WHERE id = %d", $id)) ?: null;

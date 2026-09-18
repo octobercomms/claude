@@ -185,6 +185,15 @@ final class Settings {
             // volunteer emails (e.g. tours on architecturetours.us, volunteers on
             // atlantadesignfestival.net). Blank = the local event's page.
             'volunteer_code_redeem_url'   => '',
+            // The reward wording shown in the email (keeps the copy generic across
+            // sites). e.g. "2 free tour tickets".
+            'volunteer_code_reward_label' => '2 free tour tickets',
+            // Cross-site check that the redeeming email is a current volunteer.
+            // Enable on the ticket site; point verify_url at the volunteer site's
+            // /volunteer-check endpoint and share the same token on both sites.
+            'volunteer_code_verify_enabled' => false,
+            'volunteer_verify_url'          => '',
+            'volunteer_verify_token'        => '',
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',

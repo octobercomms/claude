@@ -517,6 +517,19 @@ final class RestApi {
             }
             $discount = (float) $res['discount_amount'];
             $promo    = ['code' => strtoupper($code), 'promo_id' => $res['promo_id']];
+
+            // Extra gates on the volunteer thank-you code: one redemption per
+            // email, and (when enabled) the email must belong to a current
+            // volunteer. Only checked once we know the buyer's email.
+            $vol_code = \OE\Volunteers\TicketCode::peek();
+            if ($vol_code !== '' && strtoupper($code) === $vol_code && is_email($buyer_email)) {
+                if (\OE\Volunteers\TicketCode::email_used($buyer_email, $vol_code)) {
+                    return new \WP_Error('oe_code_used', __('This volunteer code has already been used with your email.', 'october-events'), ['status' => 409]);
+                }
+                if (! \OE\Volunteers\TicketCode::is_volunteer_email($buyer_email)) {
+                    return new \WP_Error('oe_not_volunteer', __('This code is for festival volunteers. Please use the email you signed up to volunteer with.', 'october-events'), ['status' => 403]);
+                }
+            }
         }
         $total = max(0, round($subtotal - $discount, 2));
 
