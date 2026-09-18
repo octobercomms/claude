@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.150.0 — Fix: door checkout blank page (result overlay covered it)
+
+- The real cause of the blank door page: the `.door-result` confirmation overlay
+  set `display: flex` in its class, which overrides the `hidden` attribute's
+  default `display: none`. So the empty white overlay sat on top of the checkout
+  on every load (a reload flashed the form for an instant, then went white). Added
+  the `.door-result[hidden] { display: none; }` guard, matching the check-in
+  overlay. The 1.149.0 routing change was a real robustness improvement but not the
+  cause.
+
 ## 1.149.0 — Fix: door checkout was a blank page
 
 - The **Sell** QR now points at the door checkout via a plain query string
