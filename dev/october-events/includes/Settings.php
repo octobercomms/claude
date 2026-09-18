@@ -63,6 +63,8 @@ final class Settings {
             // own field names so it works with no config; override if yours differ.
             'location_address_field' => 'address',
             'location_date_field'    => 'date',
+            'location_city_tax'      => '',
+            'location_year_tax'      => '',
             // Partner volunteer feed (used on the FESTIVAL site): pull the tour
             // locations flagged "host on partner" from a tours site so they can be
             // picked when building a volunteer post here. Auth = an Application

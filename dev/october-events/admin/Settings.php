@@ -338,6 +338,8 @@ final class Settings {
             'location_post_type' => sanitize_key((string) ($in['location_post_type'] ?? '')),
             'location_address_field' => sanitize_key((string) ($in['location_address_field'] ?? '')),
             'location_date_field'    => sanitize_key((string) ($in['location_date_field'] ?? '')),
+            'location_city_tax'      => sanitize_key((string) ($in['location_city_tax'] ?? '')),
+            'location_year_tax'      => sanitize_key((string) ($in['location_year_tax'] ?? '')),
             // Merged linked-site connection (feed + verify + tour sync derive from this).
             'volunteer_partner_url'       => $partner_url,
             'volunteer_feed_user'         => sanitize_text_field((string) ($in['volunteer_feed_user'] ?? '')),
