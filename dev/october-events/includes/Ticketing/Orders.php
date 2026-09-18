@@ -161,6 +161,9 @@ final class Orders {
             'payment_method'    => $method,
             'payment_id'        => $payment_id ?: null,
             'source'            => $source,
+            // Door-side sale tag: the venue a walk-up was sold at (empty for online
+            // sales). Feeds the per-venue door tally; never affects pricing/capacity.
+            'door'              => sanitize_text_field((string) ($data['door'] ?? '')),
             'status'            => 'paid',
             'account_id'        => $account_id ?: null,
             'created_at'        => $now,
@@ -860,7 +863,7 @@ final class Orders {
      * @param array{email:string,name:string} $buyer
      * @return array{tickets:array}|\WP_Error
      */
-    public static function create_cart(int $event_id, array $lines, array $buyer, string $payment_id = '', string $method = 'stripe', string $source = 'public', ?array $promo = null, array $attendee_names = [], float $discount = 0.0) {
+    public static function create_cart(int $event_id, array $lines, array $buyer, string $payment_id = '', string $method = 'stripe', string $source = 'public', ?array $promo = null, array $attendee_names = [], float $discount = 0.0, string $door = '') {
         // Serialize per payment so a Stripe webhook and the client /ticket-confirm
         // can't both pass the idempotency check and double-issue. Fails open.
         $pay_lock = $payment_id !== '' ? 'oe_pay_' . $payment_id : '';
@@ -868,14 +871,14 @@ final class Orders {
             self::lock($pay_lock);
         }
         try {
-            return self::create_cart_inner($event_id, $lines, $buyer, $payment_id, $method, $source, $promo, $attendee_names, $discount);
+            return self::create_cart_inner($event_id, $lines, $buyer, $payment_id, $method, $source, $promo, $attendee_names, $discount, $door);
         } finally {
             self::unlock($pay_lock);
         }
     }
 
     /** @return array{tickets:array}|\WP_Error */
-    private static function create_cart_inner(int $event_id, array $lines, array $buyer, string $payment_id, string $method, string $source, ?array $promo, array $attendee_names, float $discount) {
+    private static function create_cart_inner(int $event_id, array $lines, array $buyer, string $payment_id, string $method, string $source, ?array $promo, array $attendee_names, float $discount, string $door = '') {
         // Cart-level idempotency: if this payment already produced orders, reuse.
         if ($payment_id !== '' && self::by_payment($payment_id)) {
             return ['tickets' => self::ticket_dtos_for($payment_id)];
@@ -910,6 +913,7 @@ final class Orders {
                 'attendee_names'  => array_slice($attendee_names, $offset, $count),
                 'purchase_total'  => $grand,
                 'purchase_offset' => $offset,
+                'door'            => $door,
             ], $payment_id, $method, $source, true);
             if (is_wp_error($res)) {
                 return $res;
@@ -919,6 +923,31 @@ final class Orders {
             $first   = false;
         }
         return ['tickets' => $tickets];
+    }
+
+    /**
+     * Door-sale tally for an event: paid orders grouped by the "door" tag (the
+     * venue a walk-up was sold at). Online sales (empty door) are excluded.
+     *
+     * @return array<int,array{door:string,orders:int,tickets:int,revenue:float}>
+     */
+    public static function sold_by_door(int $event_id): array {
+        global $wpdb;
+        $t    = self::orders();
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT door, COUNT(*) AS orders, SUM(qty) AS tickets, SUM(total) AS revenue
+             FROM {$t}
+             WHERE event_id = %d AND status = 'paid' AND door <> ''
+             GROUP BY door
+             ORDER BY revenue DESC",
+            $event_id
+        )) ?: [];
+        return array_map(static fn($r) => [
+            'door'    => (string) $r->door,
+            'orders'  => (int) $r->orders,
+            'tickets' => (int) $r->tickets,
+            'revenue' => (float) $r->revenue,
+        ], $rows);
     }
 
     /** @return array<int,array<string,mixed>> */

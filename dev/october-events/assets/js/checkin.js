@@ -19,7 +19,8 @@
     var root = document.getElementById('oe-checkin');
     if (!root) { return; }
 
-    var state = { eventId: 0, pin: '', venue: '', count: 0 };
+    var state = { eventId: 0, eventTitle: '', pin: '', venue: '', count: 0 };
+    var wakeLock = null;
     var scanner = null, scanning = false, lastToken = '', lastAt = 0;
     // Cached manifest for the current event: token -> {attendee,type} + a set of
     // tokens already checked in (kept current as we scan, online or off).
@@ -225,7 +226,8 @@
         box.querySelectorAll('.oe-ci-event').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 state.eventId = parseInt(btn.dataset.id, 10);
-                document.getElementById('oe-ci-pin-event').textContent = btn.querySelector('.list-item__title').textContent;
+                state.eventTitle = btn.querySelector('.list-item__title').textContent;
+                document.getElementById('oe-ci-pin-event').textContent = state.eventTitle;
                 resetPin();
                 go('pin');
             });
@@ -312,6 +314,50 @@
         if (t) { submit(t); document.getElementById('oe-ci-manual').value = ''; }
     });
 
+    /* ---- Sell: a full-brightness QR to the fast door checkout ---- */
+    function doorUrl() {
+        var base = cfg.doorUrl || '';
+        return base + (base.indexOf('?') === -1 ? '?' : '&') +
+            'e=' + encodeURIComponent(state.eventId) +
+            '&v=' + encodeURIComponent(state.venue);
+    }
+    function requestWakeLock() {
+        // Best-effort: keep the tablet awake while the QR is up. Screen brightness
+        // itself is an OS control we can't set, so the white full-screen does the
+        // visible work.
+        if (navigator.wakeLock && navigator.wakeLock.request) {
+            navigator.wakeLock.request('screen').then(function (w) { wakeLock = w; }).catch(function () {});
+        }
+    }
+    function releaseWakeLock() {
+        if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
+    }
+    var sellBtn = document.getElementById('oe-ci-sell');
+    if (sellBtn) {
+        sellBtn.addEventListener('click', function () {
+            var box = document.getElementById('oe-ci-sell-qr');
+            box.innerHTML = '';
+            if (window.QRCode) {
+                new window.QRCode(box, { text: doorUrl(), width: 320, height: 320, correctLevel: window.QRCode.CorrectLevel.M });
+            } else {
+                box.textContent = doorUrl();
+            }
+            document.getElementById('oe-ci-sell-sub').textContent =
+                state.eventTitle + (state.venue ? ' · ' + state.venue : '');
+            document.getElementById('oe-ci-sell-screen').hidden = false;
+            stopScanner();          // free the camera while the QR is shown
+            requestWakeLock();
+        });
+    }
+    var sellClose = document.getElementById('oe-ci-sell-close');
+    if (sellClose) {
+        sellClose.addEventListener('click', function () {
+            document.getElementById('oe-ci-sell-screen').hidden = true;
+            releaseWakeLock();
+            startScanner();         // back to checking people in
+        });
+    }
+
     /* Validate a token against the cached manifest, with no network. The manifest
        holds token hashes, so hash the scanned token and match on that. */
     function scanOffline(token) {
@@ -375,8 +421,14 @@
         get('/checkin-stats', { event_id: state.eventId, pin: state.pin }).then(function (res) {
             if (res.error) { return; }
             var box = document.getElementById('oe-ci-stats');
-            box.innerHTML = '<strong>' + (res.unique || 0) + '</strong> unique in · ' +
+            var html = '<strong>' + (res.unique || 0) + '</strong> unique in · ' +
                 (res.venues || []).map(function (v) { return esc(v.venue) + ': ' + v.count; }).join(' · ');
+            // Door sales at this venue (from the "Sell" QR), when there are any.
+            var here = (res.door_sales || []).filter(function (d) { return d.door === state.venue; })[0];
+            if (here && here.tickets) {
+                html += ' · <strong>' + here.tickets + '</strong> sold here';
+            }
+            box.innerHTML = html;
         }).catch(function () {});
     }
 

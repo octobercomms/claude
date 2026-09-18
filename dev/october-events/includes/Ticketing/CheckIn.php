@@ -351,6 +351,11 @@ final class CheckIn {
             "SELECT venue_name AS venue, COUNT(*) AS count FROM {$c} WHERE event_id = %d GROUP BY venue_name",
             $event_id
         )) ?: [];
-        return ['unique' => $unique, 'venues' => array_map(static fn($r) => ['venue' => $r->venue, 'count' => (int) $r->count], $rows)];
+        return [
+            'unique' => $unique,
+            'venues' => array_map(static fn($r) => ['venue' => $r->venue, 'count' => (int) $r->count], $rows),
+            // Door-side ticket sales, grouped by the venue they were sold at.
+            'door_sales' => \OE\Ticketing\Orders::sold_by_door($event_id),
+        ];
     }
 }

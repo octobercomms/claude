@@ -44,6 +44,7 @@ final class Schema {
             payment_method VARCHAR(20) DEFAULT 'stripe',
             payment_id VARCHAR(190) DEFAULT NULL,
             source VARCHAR(20) NOT NULL DEFAULT 'public',
+            door VARCHAR(190) NOT NULL DEFAULT '',
             status VARCHAR(20) NOT NULL DEFAULT 'pending',
             account_id BIGINT UNSIGNED NULL,
             created_at DATETIME NOT NULL,

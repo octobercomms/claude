@@ -5,6 +5,29 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.147.0 — Door sales: sell a ticket to a walk-up in seconds
+
+- **Sell button in the check-in app**: on the scanner screen a staff member taps
+  **Sell** and the tablet shows a full-brightness screen with a large QR. The QR
+  points at a fast checkout for the current event and venue (`/door?e=<event>&v=<venue>`).
+  The camera is released while the QR is up and re-armed on **Done**; a screen wake
+  lock keeps the tablet awake. The QR uses the same local generator as the printed
+  ticket (no external CDN).
+- **Fast door checkout** (`/door`): a stripped, single-event page the walk-up
+  reaches by scanning. It lists the on-sale ticket types (active, in stock, not
+  members-only), takes a quantity, an email and an optional promo/volunteer code,
+  then hands off to a **hosted Stripe Checkout Session** so **Apple Pay and Google
+  Pay** appear natively. No Apple Pay domain verification is needed — the payment
+  runs on `checkout.stripe.com`, which Stripe already registers. The ticket is
+  **emailed** by the `payment_intent.succeeded` webhook, so it lands even if the
+  buyer closes the tab and works at the next stop.
+- **Door tag on orders**: a new `door` column records the venue a walk-up was sold
+  at. It never affects pricing or capacity. `Orders::sold_by_door()` tallies paid
+  orders per venue, and the check-in stats line shows **"N sold here"** for the
+  current door.
+- Fully-discounted door carts (e.g. a volunteer code) skip Stripe and email the
+  ticket directly, with the same door tag.
+
 ## 1.114.0 — Registrations: revenue, per-event view, ticket preview; event-date fix
 
 - **Revenue and tickets sold** on the Registrations screen: headline totals plus a

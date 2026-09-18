@@ -107,6 +107,14 @@ final class RestApi {
             'callback'            => [$this, 'ticket_checkout_session'],
             'permission_callback' => '__return_true',
         ]);
+        // Door sale — a walk-up buys on their own phone via a hosted Stripe
+        // Checkout Session (Apple Pay / Google Pay native). The ticket is emailed
+        // by the same webhook; the venue rides along as a "door" tag on the order.
+        register_rest_route(self::NS, '/door-session', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'door_session'],
+            'permission_callback' => '__return_true',
+        ]);
         // PayPal: create an approved order, then capture + issue tickets.
         register_rest_route(self::NS, '/paypal-create', [
             'methods'             => 'POST',
@@ -899,6 +907,89 @@ final class RestApi {
         return new \WP_REST_Response(['url' => $sess['url']], 200);
     }
 
+    /**
+     * Door sale: a walk-up buys on their own phone. Prices the cart exactly like
+     * the on-site checkout, then hands off to a hosted Stripe Checkout Session so
+     * Apple Pay / Google Pay appear natively (checkout.stripe.com is already
+     * registered with Apple, so no per-domain verification is needed). The order —
+     * and its emailed ticket — is created by the payment_intent.succeeded webhook
+     * from the metadata, so it lands even if the buyer closes the tab after paying.
+     * The venue rides along as a "door" tag for the per-venue tally.
+     */
+    public function door_session(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('ticket_intent', 20)) {
+            return $this->too_many();
+        }
+        if (! \OE\Features::enabled('tickets')) {
+            return new \WP_REST_Response(['error' => 'not_enabled'], 403);
+        }
+        if (! \OE\Connectors\StripeConnector::is_ready()) {
+            return new \WP_REST_Response(['error' => 'payments_unavailable'], 503);
+        }
+        $priced = $this->price_checkout($req, false);
+        if (is_wp_error($priced)) {
+            return new \WP_REST_Response(['error' => $priced->get_error_message()], (int) ($priced->get_error_data()['status'] ?? 400));
+        }
+        $cents = (int) round($priced['total'] * 100);
+        if ($cents < 50) {
+            // A fully-discounted (e.g. volunteer-code) cart issues for free — no
+            // Stripe hop. Emails the ticket via the normal order path.
+            $buyer = ['email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name'))];
+            if ($buyer['email'] === '') {
+                return new \WP_REST_Response(['error' => 'email_required'], 400);
+            }
+            $cart  = array_map(static fn($l) => ['type' => $l['type'], 'qty' => $l['qty']], $priced['lines']);
+            $order = \OE\Ticketing\Orders::create_cart($priced['event_id'], $cart, $buyer, '', 'free', 'public', $priced['promo'], [], $priced['discount'], $this->door_tag($req));
+            if (is_wp_error($order)) {
+                return new \WP_REST_Response(['error' => $order->get_error_message()], 400);
+            }
+            return new \WP_REST_Response(['free' => true], 200);
+        }
+
+        $buyer = ['email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name'))];
+        if ($buyer['email'] === '') {
+            return new \WP_REST_Response(['error' => 'email_required'], 400);
+        }
+        $meta = [
+            'kind'     => 'ticket',
+            'event_id' => $priced['event_id'],
+            'cart'     => $this->cart_meta($priced['lines']),
+            'email'    => $buyer['email'],
+            'name'     => $buyer['name'],
+            'promo'    => $priced['promo']['code'] ?? '',
+            'door'     => $this->door_tag($req),
+        ];
+
+        // Return to the door page the buyer started on (same-origin only), keeping
+        // the marker the door JS reads to show the "ticket emailed" confirmation.
+        $return = esc_url_raw((string) $req->get_param('return_url'));
+        if ($return === '' || wp_parse_url($return, PHP_URL_HOST) !== wp_parse_url(home_url(), PHP_URL_HOST)) {
+            $return = home_url('/');
+        }
+        $sep         = strpos($return, '?') === false ? '?' : '&';
+        $success_url = $return . $sep . 'oe_paid=1&session_id={CHECKOUT_SESSION_ID}';
+        $cancel_url  = $return . $sep . 'oe_cancelled=1';
+
+        $sess = \OE\Connectors\StripeConnector::create_checkout_session(
+            $cents,
+            (string) \OE\Settings::get('currency', 'usd'),
+            $buyer['email'],
+            $meta,
+            $success_url,
+            $cancel_url,
+            (string) (get_the_title($priced['event_id']) ?: __('Tickets', 'october-events'))
+        );
+        if (($sess['url'] ?? '') === '') {
+            return new \WP_REST_Response(['error' => 'session_failed'], 502);
+        }
+        return new \WP_REST_Response(['url' => $sess['url']], 200);
+    }
+
+    /** The venue/door tag from the request, trimmed to the column width. */
+    private function door_tag(\WP_REST_Request $req): string {
+        return substr(sanitize_text_field((string) $req->get_param('door')), 0, 190);
+    }
+
     public function ticket_confirm(\WP_REST_Request $req): \WP_REST_Response {
         if (! $this->rl('ticket_confirm', 30)) {
             return $this->too_many();
@@ -1303,8 +1394,9 @@ final class RestApi {
             if (is_array($decoded)) { $attendees = array_map('sanitize_text_field', $decoded); }
         }
         $buyer = ['email' => sanitize_email((string) ($meta['email'] ?? '')), 'name' => sanitize_text_field((string) ($meta['name'] ?? ''))];
+        $door  = sanitize_text_field((string) ($meta['door'] ?? ''));
 
-        $order = \OE\Ticketing\Orders::create_cart($event_id, $lines, $buyer, $intent_id, $method, 'public', $promo, $attendees, $discount);
+        $order = \OE\Ticketing\Orders::create_cart($event_id, $lines, $buyer, $intent_id, $method, 'public', $promo, $attendees, $discount, $door);
         if (! is_wp_error($order) && $buyer['email'] !== '') {
             // A completed purchase — clear any abandonment drafts for this buyer.
             \OE\Ticketing\Abandonment::mark_recovered($buyer['email'], $event_id);

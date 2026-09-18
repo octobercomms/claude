@@ -89,6 +89,9 @@ final class Plugin {
         // /checkin scope (a worker under /wp-content/ couldn't). Lets the app open
         // and keep scanning with no signal.
         add_rewrite_rule('^checkin-sw\.js$', 'index.php?oe_checkin_sw=1', 'top');
+        // Fast door-sale checkout at /door (event + venue ride in the query string,
+        // e.g. /door?e=123&v=Wingspan). Opened by scanning the "Sell" QR.
+        add_rewrite_rule('^door/?$', 'index.php?oe_door=1', 'top');
         // Flush once per plugin version (covers self-updates, where no activation
         // hook fires) so /checkin resolves without re-saving permalinks.
         if (get_option('oe_rewrite_v') !== OE_VERSION) {
@@ -101,6 +104,7 @@ final class Plugin {
     public function add_query_vars(array $vars): array {
         $vars[] = 'oe_checkin';
         $vars[] = 'oe_checkin_sw';
+        $vars[] = 'oe_door';
         return $vars;
     }
 
@@ -208,6 +212,15 @@ final class Plugin {
             exit;
         }
 
+        // Fast door-sale checkout at /door?e=<event>&v=<venue> (or /?oe_door=1).
+        if (isset($_GET['oe_door']) || get_query_var('oe_door')) {
+            if (! Features::enabled('tickets')) {
+                return; // ticketing off for this site
+            }
+            $this->render_door();
+            exit;
+        }
+
         $ticket_token = isset($_GET['oe_ticket']) ? sanitize_text_field(wp_unslash($_GET['oe_ticket'])) : '';
         if ($ticket_token !== '') {
             $this->render_ticket($ticket_token);
@@ -263,6 +276,31 @@ if ('serviceWorker' in navigator) {
 </html><?php
     }
 
+    /** Render the fast door-sale checkout as a standalone full page. */
+    private function render_door(): void {
+        nocache_headers();
+        $app = \OE\Frontend\DoorSale::get_instance();
+        $app->register_assets();
+        $body  = $app->render();
+        $brand = (string) \OE\Settings::get('brand_name', get_bloginfo('name'));
+        $fav   = function_exists('get_site_icon_url') ? get_site_icon_url(32) : '';
+        ?><!doctype html>
+<html <?php language_attributes(); ?>>
+<head>
+<meta charset="<?php echo esc_attr(get_bloginfo('charset')); ?>">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title><?php echo esc_html($brand . ' — ' . __('Buy tickets', 'october-events')); ?></title>
+<meta name="theme-color" content="#ffffff">
+<?php if ($fav) : ?><link rel="icon" href="<?php echo esc_url($fav); ?>"><?php endif; ?>
+<?php wp_print_styles(); ?>
+</head>
+<body class="oe-door-route">
+<?php echo $body; // built from an escaped template ?>
+<?php wp_print_footer_scripts(); ?>
+</body>
+</html><?php
+    }
+
     /**
      * The check-in app's service worker. Served from the site root (via the
      * /checkin-sw.js rewrite) so it can take the /checkin scope. It precaches the
@@ -278,6 +316,7 @@ if ('serviceWorker' in navigator) {
         $assets = [
             OE_URL . 'assets/css/checkin.css?ver=' . OE_VERSION,
             OE_URL . 'assets/js/html5-qrcode.min.js?ver=' . OE_VERSION,
+            OE_URL . 'assets/js/qrcode.min.js?ver=' . OE_VERSION,
             OE_URL . 'assets/js/checkin.js?ver=' . OE_VERSION,
         ];
         $cache = 'oe-checkin-' . OE_VERSION;
