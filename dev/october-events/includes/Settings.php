@@ -67,6 +67,7 @@ final class Settings {
             // locations flagged "host on partner" from a tours site so they can be
             // picked when building a volunteer post here. Auth = an Application
             // Password on that site.
+            'volunteer_partner_url'       => '',
             'volunteer_feed_url'          => '',
             'volunteer_feed_user'         => '',
             'volunteer_feed_app_password' => '',

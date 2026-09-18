@@ -180,7 +180,7 @@ final class EventCodes {
      * partner-feed connection (same URL + application password). Festival side.
      */
     public static function sync(): array {
-        $url  = trim((string) Settings::get('volunteer_feed_url', ''));
+        $url  = TicketCode::partner_url();
         $user = trim((string) Settings::get('volunteer_feed_user', ''));
         $pass = trim((string) Settings::get('volunteer_feed_app_password', ''));
         if ($url === '' || $user === '' || $pass === '') {

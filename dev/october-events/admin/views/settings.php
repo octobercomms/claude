@@ -593,6 +593,53 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
 
         </section>
         <section class="oe-set-panel" data-tab="volunteers">
+        <details class="oe-acc" id="linked-site" open><summary><?php esc_html_e('Linked site', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description" style="max-width:820px"><?php esc_html_e('One connection between the two sites. The festival site pulls tour locations, thank-you codes and buy links from here; the ticket site verifies volunteers against it. The feed, the tour sync and the volunteer-check URL are all derived from the partner site below, so there is nothing else to keep matching.', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr><th scope="row"><?php esc_html_e('Partner site URL', 'october-events'); ?></th>
+                <td><input type="url" name="volunteer_partner_url" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_partner_url'] ?? '')); ?>" placeholder="https://architecturetours.us">
+                    <p class="description"><?php esc_html_e('The other October Events site. On the festival site that is the tours site; on the tours site that is the festival site.', 'october-events'); ?></p></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Username', 'october-events'); ?></th>
+                <td><input type="text" name="volunteer_feed_user" class="regular-text" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_user'] ?? '')); ?>" autocomplete="off"></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Application password', 'october-events'); ?></th>
+                <td><input type="password" name="volunteer_feed_app_password" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_app_password'] ?? '')); ?>" autocomplete="new-password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx">
+                    <p class="description"><?php esc_html_e('Created on the partner site under Users → Profile → Application Passwords. Only the pulling (festival) side needs this.', 'october-events'); ?></p></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Shared token', 'october-events'); ?></th>
+                <td><input type="text" id="oe-vol-token" name="volunteer_verify_token" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_verify_token'] ?? '')); ?>" placeholder="<?php esc_attr_e('a long random string', 'october-events'); ?>">
+                    <button type="button" class="button" id="oe-vol-gen-token"><?php esc_html_e('Generate', 'october-events'); ?></button>
+                    <p class="description"><?php esc_html_e('One secret, identical on both sites. It lets the ticket site trust the volunteer check.', 'october-events'); ?></p></td></tr>
+        </tbody></table>
+        <?php
+        $last = (int) ($cfg['volunteer_feed_last_sync'] ?? 0);
+        $sync = get_transient('oe_vol_sync_' . get_current_user_id());
+        if (is_array($sync)) {
+            delete_transient('oe_vol_sync_' . get_current_user_id());
+            if (! empty($sync['error'])) {
+                echo '<div class="notice notice-error inline" style="margin:8px 0"><p>' . esc_html(sprintf(__('Sync failed: %s', 'october-events'), $sync['error'])) . '</p></div>';
+            } else {
+                $n = (int) ($sync['locations'] ?? 0);
+                echo '<div class="notice notice-success inline" style="margin:8px 0"><p>' . esc_html(sprintf(_n('Synced — %d tour location available to pick.', 'Synced — %d tour locations available to pick.', $n, 'october-events'), $n)) . '</p></div>';
+            }
+        }
+        ?>
+        <p>
+            <button type="submit" name="oe_sync_after_save" value="1" class="button button-secondary"><?php esc_html_e('Save & sync now', 'october-events'); ?></button>
+            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last refreshed %s ago. Saves your changes first, then pulls tour locations and thank-you codes; also auto-refreshes daily.', 'october-events'), human_time_diff($last))) : esc_html__('Saves your changes first, then pulls the tour locations and thank-you codes. Also runs automatically once a day.', 'october-events'); ?></span>
+        </p>
+        <script>
+        (function(){
+            var b = document.getElementById('oe-vol-gen-token'), i = document.getElementById('oe-vol-token');
+            if (!b || !i) { return; }
+            b.addEventListener('click', function(){
+                var a = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789', s = '';
+                var arr = (window.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint32Array(32)) : null;
+                for (var k = 0; k < 32; k++) { s += a[(arr ? arr[k] : Math.floor(Math.random()*1e9)) % a.length]; }
+                i.value = s;
+            });
+        })();
+        </script>
+        </div></details>
+
         <details class="oe-acc" id="volunteer-locations"><summary><?php esc_html_e('Volunteer locations', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('If your tour has a “Locations” post type (e.g. homes/stops on the tour), choose it here. Each location then gets a one-click “Needs volunteers” box that creates and links a volunteer opportunity for it — no more building them by hand. Leave blank if you only need volunteers for events.', 'october-events'); ?></p>
         <?php
@@ -615,37 +662,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                     <p class="description"><?php esc_html_e('Meta field name that holds the location’s tour date (e.g. “date”). Used to pre-fill the volunteer shift. Blank = don’t send.', 'october-events'); ?></p></td></tr>
         </tbody></table>
 
-        <hr style="margin:18px 0;border:0;border-top:1px solid #eee">
-        <h4 style="margin:0 0 4px"><?php esc_html_e('Partner volunteer feed (pick another site’s locations here)', 'october-events'); ?></h4>
-        <p class="description" style="max-width:820px"><?php esc_html_e('Use this on the site that HOSTS the sign-ups (e.g. the festival site). Point it at a tours site and it pulls in that site’s locations flagged “Needs volunteers → Partner site” so you can pick them when building a volunteer post (Volunteer → Add, “Linked event or tour location”). It does not create posts for you — you stay in control. Auth: create an Application Password on the tours site (Users → Profile → Application Passwords) for an admin, and paste the username + password below.', 'october-events'); ?></p>
-        <table class="form-table" role="presentation"><tbody>
-            <tr><th scope="row"><?php esc_html_e('Tours site URL', 'october-events'); ?></th>
-                <td><input type="url" name="volunteer_feed_url" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_url'] ?? '')); ?>" placeholder="https://architecturetours.us"></td></tr>
-            <tr><th scope="row"><?php esc_html_e('Username', 'october-events'); ?></th>
-                <td><input type="text" name="volunteer_feed_user" class="regular-text" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_user'] ?? '')); ?>" autocomplete="off"></td></tr>
-            <tr><th scope="row"><?php esc_html_e('Application password', 'october-events'); ?></th>
-                <td><input type="password" name="volunteer_feed_app_password" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_feed_app_password'] ?? '')); ?>" autocomplete="new-password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></td></tr>
-            <tr><th scope="row"><?php esc_html_e('Default role', 'october-events'); ?></th>
-                <td><input type="text" name="location_default_role" class="regular-text" value="<?php echo esc_attr((string) ($cfg['location_default_role'] ?? '')); ?>" placeholder="Docent">
-                    <p class="description"><?php esc_html_e('Pre-filled as the role when you link a volunteer post to a tour location (tour stops are docent-led). Blank = don’t pre-fill.', 'october-events'); ?></p></td></tr>
-        </tbody></table>
-        <?php
-        $last = (int) ($cfg['volunteer_feed_last_sync'] ?? 0);
-        $sync = get_transient('oe_vol_sync_' . get_current_user_id());
-        if (is_array($sync)) {
-            delete_transient('oe_vol_sync_' . get_current_user_id());
-            if (! empty($sync['error'])) {
-                echo '<div class="notice notice-error inline" style="margin:8px 0"><p>' . esc_html(sprintf(__('Sync failed: %s', 'october-events'), $sync['error'])) . '</p></div>';
-            } else {
-                $n = (int) ($sync['locations'] ?? 0);
-                echo '<div class="notice notice-success inline" style="margin:8px 0"><p>' . esc_html(sprintf(_n('Synced — %d tour location available to pick.', 'Synced — %d tour locations available to pick.', $n, 'october-events'), $n)) . '</p></div>';
-            }
-        }
-        ?>
-        <p>
-            <button type="submit" name="oe_sync_after_save" value="1" class="button button-secondary"><?php esc_html_e('Save & sync now', 'october-events'); ?></button>
-            <span class="description"><?php echo $last ? esc_html(sprintf(__('Last refreshed %s ago. Saves your changes first, then pulls the pickable list; also auto-refreshes daily. You can also refresh from the volunteer editor.', 'october-events'), human_time_diff($last))) : esc_html__('Saves your changes first, then pulls the pickable list of tour locations. Also runs automatically once a day, and there’s a refresh button in the volunteer editor.', 'october-events'); ?></span>
-        </p>
+        <p><label><strong><?php esc_html_e('Default role', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('pre-filled as the role when you link a volunteer post to a tour location (tour stops are docent-led). Blank = don’t pre-fill.', 'october-events'); ?></span><br>
+            <input type="text" name="location_default_role" class="regular-text" value="<?php echo esc_attr((string) ($cfg['location_default_role'] ?? '')); ?>" placeholder="Docent"></label></p>
+        <p class="description"><?php esc_html_e('The connection to the partner tours site lives in the Linked site section above.', 'october-events'); ?></p>
         </div></details>
 
         <?php if (\OE\Features::enabled('volunteers')) : ?>
@@ -755,12 +774,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="text" name="volunteer_code_reward_label" class="regular-text" value="<?php echo esc_attr((string) ($cfg['volunteer_code_reward_label'] ?? '')); ?>" placeholder="<?php esc_attr_e('2 free tour tickets', 'october-events'); ?>"></label></p>
 
         <h4 style="margin:18px 0 6px"><?php esc_html_e('Limits & volunteer verification', 'october-events'); ?></h4>
-        <p class="description" style="max-width:820px"><?php esc_html_e('The code allows one redemption per email (set the ticket type’s Max per order to 2 for two free each). Optionally require that the redeeming email is a current volunteer, so a forwarded code can’t be used by a non-volunteer. Volunteers and tickets can be on different sites: enable this on the TICKET site, point the check URL at the VOLUNTEER site’s /volunteer-check endpoint, and set the same token on both sites.', 'october-events'); ?></p>
+        <p class="description" style="max-width:820px"><?php esc_html_e('The code allows one redemption per email (set the ticket type’s Max per order to your free-ticket count). Optionally require that the redeeming email is a current volunteer, so a forwarded code can’t be used by a non-volunteer. Turn this on here on the TICKET site; it checks against the Linked site set above, using the shared token.', 'october-events'); ?></p>
         <p><label><input type="checkbox" name="volunteer_code_verify_enabled" value="1" <?php checked(! empty($cfg['volunteer_code_verify_enabled'])); ?>> <strong><?php esc_html_e('Only allow the code for current volunteers (ticket site)', 'october-events'); ?></strong></label></p>
-        <p><label><strong><?php esc_html_e('Volunteer check URL', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('the volunteer site’s endpoint', 'october-events'); ?></span><br>
-            <input type="url" name="volunteer_verify_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_verify_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net/wp-json/oe/v1/volunteer-check"></label></p>
-        <p><label><strong><?php esc_html_e('Shared token', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('a secret, identical on BOTH sites (the volunteer site checks it; the ticket site sends it)', 'october-events'); ?></span><br>
-            <input type="text" name="volunteer_verify_token" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_verify_token'] ?? '')); ?>" placeholder="<?php esc_attr_e('a long random string', 'october-events'); ?>"></label></p>
 
         <h4 style="margin:18px 0 6px"><?php esc_html_e('Test this setup', 'october-events'); ?></h4>
         <p class="description" style="max-width:820px"><?php esc_html_e('Save first, then run the self-test on each site. It reads this install and reports what’s live and what’s missing — the promo code, the 48-hour reminder, and (when verification is on) a live call to the volunteer site.', 'october-events'); ?></p>

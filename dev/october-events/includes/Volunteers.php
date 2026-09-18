@@ -109,7 +109,7 @@ final class Volunteers {
         // Tour locations pulled from a partner site — pickable alongside events.
         $feed_locs  = self::feed_locations();
         $linked_ref = (string) get_post_meta($post->ID, '_oe_linked_location_ref', true);
-        $feed_host  = (string) Settings::get('volunteer_feed_url', '');
+        $feed_host  = \OE\Volunteers\TicketCode::partner_url();
         $feed_label = $feed_host !== '' ? (string) wp_parse_url($feed_host, PHP_URL_HOST) : __('partner site', 'october-events');
         ?>
         <p><label><strong><?php esc_html_e('Linked event or tour location', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('optional; reuses the location and shows a “Volunteer” call-out on the event/location page', 'october-events'); ?></span><br>
@@ -625,7 +625,7 @@ final class Volunteers {
      * @return array{locations?:int,error?:string}
      */
     public static function sync_partner_feed(): array {
-        $url  = trim((string) Settings::get('volunteer_feed_url', ''));
+        $url  = \OE\Volunteers\TicketCode::partner_url();
         $user = trim((string) Settings::get('volunteer_feed_user', ''));
         $pass = trim((string) Settings::get('volunteer_feed_app_password', ''));
         if ($url === '' || $user === '' || $pass === '') {
