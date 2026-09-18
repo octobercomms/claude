@@ -315,16 +315,18 @@ final class Transactional {
                 $code   = \OE\Volunteers\TicketCode::peek();
                 $redeem = \OE\Volunteers\TicketCode::redeem_url();
                 if ($code !== '') {
+                    $label  = trim((string) Settings::get('volunteer_code_reward_label', '')) ?: __('2 free tickets', 'october-events');
                     $reward = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111;background:#faf7f0;margin:0 0 18px"><tr><td style="padding:16px">'
-                        . '<p style="margin:0 0 6px;font-size:15px;font-weight:800;color:#111">' . esc_html__('Your thank-you: 2 free tour tickets', 'october-events') . '</p>'
-                        . '<p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#333">' . esc_html__('Use this code at checkout for two complimentary Architecture Tour tickets.', 'october-events') . '</p>'
+                        . '<p style="margin:0 0 6px;font-size:15px;font-weight:800;color:#111">' . esc_html(sprintf(__('Your thank-you: %s', 'october-events'), $label)) . '</p>'
+                        . '<p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#333">' . esc_html__('Use this code at checkout to claim it.', 'october-events') . '</p>'
                         . '<p style="margin:0 0 12px"><span style="display:inline-block;border:2px dashed #111;padding:8px 14px;font-size:18px;font-weight:800;letter-spacing:.08em;color:#111">' . esc_html($code) . '</span></p>'
                         . '<a href="' . esc_url($redeem) . '" style="display:inline-block;background:#b23b2a;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:11px 18px">' . esc_html__('Get your tickets', 'october-events') . '</a>'
                         . '</td></tr></table>';
                 }
             } elseif ($ctx === 'on_signup' || $ctx === 'week') {
+                $label  = trim((string) Settings::get('volunteer_code_reward_label', '')) ?: __('2 free tickets', 'october-events');
                 $reward = '<p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#555">'
-                    . esc_html__('As a thank-you, you’ll receive a code for 2 free Architecture Tour tickets 48 hours before your shift.', 'october-events')
+                    . esc_html(sprintf(__('As a thank-you, you’ll receive a code for %s 48 hours before your shift.', 'october-events'), $label))
                     . '</p>';
             }
         }
