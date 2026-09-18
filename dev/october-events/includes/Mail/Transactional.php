@@ -315,12 +315,25 @@ final class Transactional {
                 $rw = \OE\Volunteers\EventCodes::reward_for_opportunity($oid);
                 if ($rw !== null && $rw['code'] !== '') {
                     $redeem = $rw['url'] !== '' ? $rw['url'] : \OE\Volunteers\TicketCode::redeem_url();
-                    $label  = $rw['label'] !== '' ? $rw['label'] : (trim((string) Settings::get('volunteer_code_reward_label', '')) ?: __('2 free tickets', 'october-events'));
+                    // Carry the code in the link so the checkout auto-applies it
+                    // (the tickets page reads ?promo=CODE).
+                    $redeem_link = $redeem !== '' ? add_query_arg('promo', rawurlencode($rw['code']), $redeem) : '';
+                    $per   = max(1, (int) $rw['per']);
+                    $tour  = $rw['label'] !== '' ? $rw['label'] : (trim((string) Settings::get('volunteer_code_reward_label', '')) ?: __('the tour', 'october-events'));
+                    // "2 tickets (Single)" — name the ticket type when we have it.
+                    $tickets = $rw['type_label'] !== ''
+                        ? sprintf(_n('%1$d ticket (%2$s)', '%1$d tickets (%2$s)', $per, 'october-events'), $per, $rw['type_label'])
+                        : sprintf(_n('%d ticket', '%d tickets', $per, 'october-events'), $per);
+                    $sentence = sprintf(
+                        /* translators: 1: "2 tickets (Single)"; 2: tour name */
+                        __('As a thank-you for volunteering, we’d like to offer you %1$s for %2$s. Use this code at checkout to claim it.', 'october-events'),
+                        $tickets,
+                        $tour
+                    );
                     $reward = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111;background:#faf7f0;margin:0 0 18px"><tr><td style="padding:16px">'
-                        . '<p style="margin:0 0 6px;font-size:15px;font-weight:800;color:#111">' . esc_html(sprintf(__('Your thank-you: %s', 'october-events'), $label)) . '</p>'
-                        . '<p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#333">' . esc_html__('Use this code at checkout to claim it.', 'october-events') . '</p>'
+                        . '<p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#222">' . esc_html($sentence) . '</p>'
                         . '<p style="margin:0 0 12px"><span style="display:inline-block;border:2px dashed #111;padding:8px 14px;font-size:18px;font-weight:800;letter-spacing:.08em;color:#111">' . esc_html($rw['code']) . '</span></p>'
-                        . '<a href="' . esc_url($redeem) . '" style="display:inline-block;background:#b23b2a;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:11px 18px">' . esc_html__('Get your tickets', 'october-events') . '</a>'
+                        . ($redeem_link !== '' ? '<a href="' . esc_url($redeem_link) . '" style="display:inline-block;background:#b23b2a;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:11px 18px">' . esc_html__('Get your tickets', 'october-events') . '</a>' : '')
                         . '</td></tr></table>';
                 }
             } elseif ($ctx === 'on_signup' || $ctx === 'week') {
@@ -405,8 +418,11 @@ final class Transactional {
             $trigger = 'volunteer_declined';
         } elseif ($key === 'on_signup') {
             $ctx = 'on_signup';
-        } elseif ($key === 'reminder') {
-            // Preview the 48h reminder — the one that carries the ticket code.
+        } elseif ($key === 'week' || $key === 'morning') {
+            // The two reminder timings without the code (week teaser / morning of).
+            $ctx = $key;
+        } else {
+            // 'reminder' / '48h' — the one that carries the ticket code.
             $ctx = '48h';
         }
         $params = [

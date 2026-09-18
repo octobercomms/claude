@@ -145,13 +145,20 @@ final class EventCodes {
     public static function offered_feed(): array {
         $out = [];
         foreach (self::offering_events() as $event) {
-            $event = (int) $event;
+            $event    = (int) $event;
+            $type_key = self::type_for($event);
+            $type_lbl = '';
+            if ($type_key !== '') {
+                $t = \OE\Ticketing\TicketTypes::type($event, $type_key);
+                $type_lbl = $t ? (string) $t['label'] : $type_key;
+            }
             $out[] = [
-                'event_id' => $event,
-                'code'     => self::code_for($event),
-                'label'    => (string) get_the_title($event),
-                'url'      => (string) get_permalink($event),
-                'per'      => self::per_for($event),
+                'event_id'   => $event,
+                'code'       => self::code_for($event),
+                'label'      => (string) get_the_title($event),
+                'url'        => (string) get_permalink($event),
+                'per'        => self::per_for($event),
+                'type_label' => $type_lbl,
             ];
         }
         return $out;
@@ -237,11 +244,12 @@ final class EventCodes {
                 continue;
             }
             $clean[] = [
-                'event_id' => (int) ($row['event_id'] ?? 0),
-                'code'     => strtoupper((string) $row['code']),
-                'label'    => (string) ($row['label'] ?? $row['code']),
-                'url'      => esc_url_raw((string) ($row['url'] ?? '')),
-                'per'      => max(1, (int) ($row['per'] ?? 2)),
+                'event_id'   => (int) ($row['event_id'] ?? 0),
+                'code'       => strtoupper((string) $row['code']),
+                'label'      => (string) ($row['label'] ?? $row['code']),
+                'url'        => esc_url_raw((string) ($row['url'] ?? '')),
+                'per'        => max(1, (int) ($row['per'] ?? 2)),
+                'type_label' => sanitize_text_field((string) ($row['type_label'] ?? '')),
             ];
         }
         update_option(self::OPT_SYNCED, $clean, false);
@@ -266,11 +274,11 @@ final class EventCodes {
         }
         foreach (self::synced() as $t) {
             if (strtoupper((string) $t['code']) === $code) {
-                return ['code' => (string) $t['code'], 'url' => (string) $t['url'], 'label' => (string) $t['label'], 'per' => (int) $t['per']];
+                return ['code' => (string) $t['code'], 'url' => (string) $t['url'], 'label' => (string) $t['label'], 'per' => (int) $t['per'], 'type_label' => (string) ($t['type_label'] ?? '')];
             }
         }
         // Chosen but not in the synced list yet (stale/not synced) — still send it.
-        return ['code' => $code, 'url' => TicketCode::redeem_url(), 'label' => '', 'per' => 2];
+        return ['code' => $code, 'url' => TicketCode::redeem_url(), 'label' => '', 'per' => 2, 'type_label' => ''];
     }
 
     /**

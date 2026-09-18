@@ -622,7 +622,7 @@ final class Admin {
         }
         check_admin_referer('oe_preview_volunteer_email');
         $key   = isset($_GET['type']) ? sanitize_key((string) $_GET['type']) : 'on_signup';
-        $valid = ['on_signup', 'reminder', 'confirmed', 'declined'];
+        $valid = ['on_signup', 'reminder', 'week', '48h', 'morning', 'confirmed', 'declined'];
         if (! in_array($key, $valid, true)) {
             $key = 'on_signup';
         }
