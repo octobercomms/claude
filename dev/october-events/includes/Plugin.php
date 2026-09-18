@@ -258,6 +258,7 @@ final class Plugin {
 <?php if ($icon) : ?><link rel="apple-touch-icon" href="<?php echo esc_url($icon); ?>"><?php endif; ?>
 <?php if ($fav) : ?><link rel="icon" href="<?php echo esc_url($fav); ?>"><?php endif; ?>
 <?php wp_print_styles(); ?>
+<?php echo $this->brand_app_style('.oe-checkin'); // brand accent from theme settings ?>
 </head>
 <body class="oe-checkin-route">
 <?php echo $body; // built from an escaped template ?>
@@ -274,6 +275,22 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html><?php
+    }
+
+    /**
+     * Inline CSS that overrides an app's brand variables from the site's theme
+     * settings (Settings → the same accent used on tickets + emails), so the
+     * check-in and door pages match the site rather than the built-in defaults.
+     * Emits nothing when no accent is configured, so the defaults stand.
+     */
+    private function brand_app_style(string $scope): string {
+        $accent = sanitize_hex_color((string) Settings::get('theme_accent', ''));
+        if (! $accent) {
+            return '';
+        }
+        $ink  = sanitize_hex_color((string) Settings::get('theme_accent_on', '')) ?: '#1a1a1a';
+        $vars = '--accent:' . $accent . ';--accent-ink:' . $ink . ';';
+        return '<style>' . $scope . '{' . $vars . '}</style>';
     }
 
     /** Render the fast door-sale checkout as a standalone full page. */
@@ -293,6 +310,7 @@ if ('serviceWorker' in navigator) {
 <meta name="theme-color" content="#ffffff">
 <?php if ($fav) : ?><link rel="icon" href="<?php echo esc_url($fav); ?>"><?php endif; ?>
 <?php wp_print_styles(); ?>
+<?php echo $this->brand_app_style('.oe-door'); // brand accent from theme settings ?>
 </head>
 <body class="oe-door-route">
 <?php echo $body; // built from an escaped template ?>

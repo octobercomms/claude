@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.148.0 — Check-in and door apps pick up the brand accent
+
+- The **check-in** app and the **door** checkout now take their accent colour from
+  the site's theme settings (the same `theme_accent` / `theme_accent_on` that
+  drive tickets and the confirmation email), so both match the site instead of the
+  built-in gold/black defaults. Nothing configured = defaults stand.
+- Done with two new CSS variables (`--accent`, `--accent-ink`) and a small inline
+  `<style>` injected on the standalone pages, so there's no extra request and the
+  dark check-in chrome and light door page keep their contrast.
+
 ## 1.147.0 — Door sales: sell a ticket to a walk-up in seconds
 
 - **Sell button in the check-in app**: on the scanner screen a staff member taps
