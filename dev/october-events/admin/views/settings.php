@@ -771,7 +771,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             </tr>
         <?php endforeach; ?>
         </tbody></table>
-        <p class="description"><?php esc_html_e('Set the chosen ticket type’s “Max per order” to your free-ticket count so each volunteer gets exactly that many.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('“Per volunteer” is enforced by the code itself at checkout — it makes up to that many free, once per volunteer email. Don’t touch the ticket type’s “Max per order” (that would limit public sales too).', 'october-events'); ?></p>
         <?php endif; endif; ?>
 
         <?php if (\OE\Features::enabled('volunteers')) :

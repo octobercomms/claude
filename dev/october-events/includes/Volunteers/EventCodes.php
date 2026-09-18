@@ -166,6 +166,25 @@ final class EventCodes {
         return $codes;
     }
 
+    /**
+     * The free-ticket cap for a per-event code: how many units it makes free and
+     * which ticket type it applies to. Null for a code that isn't one of ours.
+     * @return array{per:int,type:string}|null
+     */
+    public static function code_cap(string $code): ?array {
+        $code = strtoupper(trim($code));
+        if ($code === '') {
+            return null;
+        }
+        foreach (self::offering_events() as $ev) {
+            $ev = (int) $ev;
+            if (strtoupper(self::code_for($ev)) === $code) {
+                return ['per' => self::per_for($ev), 'type' => self::type_for($ev)];
+            }
+        }
+        return null;
+    }
+
     /** Is this code one of the volunteer thank-you codes (per-event or the global one)? */
     public static function is_thankyou_code(string $code): bool {
         $code = strtoupper(trim($code));
