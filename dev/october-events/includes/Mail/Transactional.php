@@ -308,8 +308,11 @@ final class Transactional {
         $reward = '';
         if (\OE\Volunteers\TicketCode::enabled()) {
             if ($ctx === '48h') {
-                // Preview just shows the code; a real send also ensures its promo exists.
-                $code   = ! empty($params['preview']) ? \OE\Volunteers\TicketCode::peek() : \OE\Volunteers\TicketCode::current();
+                // The email only prints the code string — it never creates the
+                // promo, which must live on the site that sells the tickets (see
+                // TicketCode::maybe_ensure). Two-site setups keep tickets on a
+                // different install from the one sending volunteer emails.
+                $code   = \OE\Volunteers\TicketCode::peek();
                 $redeem = \OE\Volunteers\TicketCode::redeem_url();
                 if ($code !== '') {
                     $reward = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111;background:#faf7f0;margin:0 0 18px"><tr><td style="padding:16px">'

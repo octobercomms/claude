@@ -622,7 +622,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="url" name="volunteer_faq_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_faq_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net/faqs/"></label></p>
 
         <h4 style="margin:18px 0 6px"><?php esc_html_e('Thank-you: 2 free tour tickets', 'october-events'); ?></h4>
-        <p class="description"><?php esc_html_e('A free-ticket code included only in the 48-hour reminder, so anyone who cancels earlier never receives it. The code renews every year automatically — it is your prefix plus the year (e.g. VOLUNTEER2026), and the matching 100%-off promo is created the first time it’s needed, so there’s nothing to rotate.', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('A free-ticket code included only in the 48-hour reminder, so anyone who cancels earlier never receives it. The code renews every year automatically — it is your prefix plus the year (e.g. VOLUNTEER2026).', 'october-events'); ?></p>
+        <p class="description" style="border-left:3px solid #b23b2a;padding-left:10px;max-width:820px"><strong><?php esc_html_e('Tickets on a different website?', 'october-events'); ?></strong>
+            <?php esc_html_e('Promo codes live in each site’s own database. Set this feature up on BOTH sites with the SAME prefix. On the site that SELLS the tickets, choose the ticket event and type below — it creates and hosts the code. On the site that SENDS volunteer emails, leave the event blank, tick enable, set the same prefix, and fill in the Redeem URL pointing to the tickets page. The email then prints the matching code and links across.', 'october-events'); ?></p>
         <p><label><input type="checkbox" name="volunteer_code_enabled" value="1" <?php checked(! empty($cfg['volunteer_code_enabled'])); ?>> <strong><?php esc_html_e('Include a free-ticket code in the 48-hour reminder', 'october-events'); ?></strong></label></p>
         <p><label><strong><?php esc_html_e('Code prefix', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('the year is appended automatically', 'october-events'); ?></span><br>
             <input type="text" name="volunteer_code_prefix" class="regular-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_code_prefix'] ?? 'VOLUNTEER')); ?>" placeholder="VOLUNTEER"></label>
@@ -641,6 +643,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <textarea name="volunteer_code_ticket_types" rows="2" class="large-text code" placeholder="single"><?php echo esc_textarea((string) ($cfg['volunteer_code_ticket_types'] ?? '')); ?></textarea></label></p>
         <p><label><strong><?php esc_html_e('Total redemptions allowed', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('across all volunteers; 0 = unlimited', 'october-events'); ?></span><br>
             <input type="number" min="0" name="volunteer_code_max_uses" value="<?php echo esc_attr((string) ($cfg['volunteer_code_max_uses'] ?? 0)); ?>" style="width:120px"></label></p>
+        <p><label><strong><?php esc_html_e('Redeem URL', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('the tickets page the email links to. Set this when tickets are on a different website; leave blank to use the event above.', 'october-events'); ?></span><br>
+            <input type="url" name="volunteer_code_redeem_url" class="large-text code" value="<?php echo esc_attr((string) ($cfg['volunteer_code_redeem_url'] ?? '')); ?>" placeholder="https://architecturetours.us/e/atlanta/#tickets"></label></p>
         </div></details>
 
         <?php endif; ?>
