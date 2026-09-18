@@ -30,7 +30,10 @@ final class CheckInApp {
         // Local QR scanner library (no external CDN for core, §12). Drop a build
         // of html5-qrcode here; the app falls back to manual token entry if absent.
         wp_register_script('oe-qr-scanner', OE_URL . 'assets/js/html5-qrcode.min.js', [], OE_VERSION, true);
-        wp_register_script('oe-checkin', OE_URL . 'assets/js/checkin.js', ['oe-qr-scanner'], OE_VERSION, true);
+        // Local QR *generator* (same lib the printed ticket uses) — powers the
+        // door "Sell" screen's large scannable code.
+        wp_register_script('oe-qr-gen', OE_URL . 'assets/js/qrcode.min.js', [], OE_VERSION, true);
+        wp_register_script('oe-checkin', OE_URL . 'assets/js/checkin.js', ['oe-qr-scanner', 'oe-qr-gen'], OE_VERSION, true);
     }
 
     public function render(array $atts = []): string {
@@ -41,6 +44,7 @@ final class CheckInApp {
         wp_enqueue_script('oe-checkin');
         wp_localize_script('oe-checkin', 'OE_CHECKIN', [
             'restUrl' => esc_url_raw(rest_url('oe/v1')),
+            'doorUrl' => esc_url_raw(home_url('/door')),
         ]);
 
         ob_start();

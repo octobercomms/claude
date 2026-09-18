@@ -127,6 +127,28 @@ body.oe-checkin-route { margin: 0; background: #0f0f0f; }
   padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap;
 }
 .oe-checkin .scanner-bar .ci-go { background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 700; }
+.oe-checkin .scanner-bar .ci-sell { background: #fff; color: #111; border-color: #fff; font-weight: 700; }
+
+/* ---- Sell screen: full-brightness white QR for a walk-up to scan ---- */
+.oe-ci-sell-screen {
+  position: fixed; inset: 0; z-index: 60; background: #fff; color: #111;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px; text-align: center;
+}
+.oe-ci-sell-screen[hidden] { display: none; }
+.oe-ci-sell-screen .sell-title { font-size: 22px; font-weight: 700; }
+.oe-ci-sell-screen .sell-sub { font-size: 15px; color: #555; margin-top: 6px; }
+.oe-ci-sell-screen .sell-qr {
+  margin: 24px 0; width: 320px; max-width: 78vw; aspect-ratio: 1 / 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.oe-ci-sell-screen .sell-qr img,
+.oe-ci-sell-screen .sell-qr canvas { width: 100% !important; height: 100% !important; }
+.oe-ci-sell-screen .sell-hint { font-size: 14px; color: #777; }
+.oe-ci-sell-screen .sell-close {
+  margin-top: 28px; height: 50px; padding: 0 32px; border: 0; border-radius: 12px;
+  background: #111; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+}
 
 /* ---- Result overlay ---- */
 .oe-checkin .oe-ci-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 30; padding: 24px; text-align: center; }
