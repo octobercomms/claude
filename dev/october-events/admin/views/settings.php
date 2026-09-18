@@ -763,25 +763,28 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <h4 style="margin:18px 0 6px"><?php esc_html_e('Events that give free volunteer tickets', 'october-events'); ?></h4>
         <p class="description" style="max-width:820px"><?php esc_html_e('Tick each tour whose tickets volunteers get free. Each keeps its own code (auto from the slug + year, editable). Adding a tour later is one more row here.', 'october-events'); ?></p>
         <?php if (! $oe_events) : ?><p class="description"><?php esc_html_e('No events yet — create a tour event first.', 'october-events'); ?></p><?php else : ?>
-        <table class="widefat striped" style="max-width:900px"><thead><tr>
+        <div style="overflow-x:auto"><table class="widefat striped" style="min-width:900px"><thead><tr>
             <th style="width:56px"><?php esc_html_e('Offer', 'october-events'); ?></th><th><?php esc_html_e('Event', 'october-events'); ?></th>
             <th><?php esc_html_e('Code', 'october-events'); ?></th><th><?php esc_html_e('Ticket type', 'october-events'); ?></th><th><?php esc_html_e('Per volunteer', 'october-events'); ?></th>
+            <th><?php esc_html_e('Tickets URL', 'october-events'); ?></th>
         </tr></thead><tbody>
         <?php foreach ($oe_events as $eid => $etitle) :
             $on = get_post_meta($eid, $ec::M_OFFER, true) === '1';
             $code = (string) get_post_meta($eid, $ec::M_CODE, true);
             $type = (string) get_post_meta($eid, $ec::M_TYPE, true);
-            $per  = (int) get_post_meta($eid, $ec::M_PER, true) ?: 2; ?>
+            $per  = (int) get_post_meta($eid, $ec::M_PER, true) ?: 2;
+            $turl = (string) get_post_meta($eid, $ec::M_URL, true); ?>
             <tr>
                 <td><input type="checkbox" name="oe_vol_ev[<?php echo (int) $eid; ?>][offer]" value="1" <?php checked($on); ?>></td>
                 <td><strong><?php echo esc_html($etitle); ?></strong></td>
                 <td><input type="text" class="code" name="oe_vol_ev[<?php echo (int) $eid; ?>][code]" value="<?php echo esc_attr($code); ?>" placeholder="<?php echo esc_attr($ec::code_for((int) $eid)); ?>" style="width:150px"></td>
                 <td><input type="text" class="code" name="oe_vol_ev[<?php echo (int) $eid; ?>][type]" value="<?php echo esc_attr($type); ?>" placeholder="single" style="width:100px"></td>
                 <td><input type="number" min="1" name="oe_vol_ev[<?php echo (int) $eid; ?>][per]" value="<?php echo esc_attr((string) $per); ?>" style="width:70px"></td>
+                <td><input type="url" class="code" name="oe_vol_ev[<?php echo (int) $eid; ?>][url]" value="<?php echo esc_attr($turl); ?>" placeholder="<?php echo esc_attr((string) get_permalink((int) $eid)); ?>" style="min-width:240px"></td>
             </tr>
         <?php endforeach; ?>
-        </tbody></table>
-        <p class="description"><?php esc_html_e('“Per volunteer” is enforced by the code itself at checkout — it makes up to that many free, once per volunteer email. Don’t touch the ticket type’s “Max per order” (that would limit public sales too).', 'october-events'); ?></p>
+        </tbody></table></div>
+        <p class="description" style="max-width:820px"><?php esc_html_e('“Per volunteer” is enforced by the code itself at checkout — it makes up to that many free, once per volunteer email. Don’t touch the ticket type’s “Max per order” (that would limit public sales too). “Tickets URL” is where the volunteer email’s button sends them (the code is auto-applied); leave blank to use the event’s own page.', 'october-events'); ?></p>
         <?php endif; endif; ?>
 
         <?php if (\OE\Features::enabled('volunteers')) :

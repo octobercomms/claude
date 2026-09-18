@@ -35,6 +35,7 @@ final class EventCodes {
     public const M_CODE  = '_oe_vol_code';
     public const M_TYPE  = '_oe_vol_type';
     public const M_PER   = '_oe_vol_per';
+    public const M_URL   = '_oe_vol_url';
 
     /** Event meta (festival side): the reward tour's code for this event's volunteers. */
     public const M_EVENT_REWARD = '_oe_vol_event_reward';
@@ -98,6 +99,12 @@ final class EventCodes {
         return $n > 0 ? $n : 2;
     }
 
+    /** The tickets page volunteers are sent to for this tour: the explicit URL, else the event page. */
+    public static function url_for(int $event): string {
+        $u = trim((string) get_post_meta($event, self::M_URL, true));
+        return $u !== '' ? $u : (string) get_permalink($event);
+    }
+
     /** @return int[] published events flagged as offering. */
     public static function offering_events(): array {
         return get_posts([
@@ -156,7 +163,7 @@ final class EventCodes {
                 'event_id'   => $event,
                 'code'       => self::code_for($event),
                 'label'      => (string) get_the_title($event),
-                'url'        => (string) get_permalink($event),
+                'url'        => self::url_for($event),
                 'per'        => self::per_for($event),
                 'type_label' => $type_lbl,
             ];
@@ -324,6 +331,7 @@ final class EventCodes {
             update_post_meta($event, self::M_CODE, strtoupper((string) preg_replace('/[^A-Za-z0-9\-]/', '', sanitize_text_field((string) ($row['code'] ?? '')))));
             update_post_meta($event, self::M_TYPE, sanitize_key((string) ($row['type'] ?? '')));
             update_post_meta($event, self::M_PER, max(1, (int) ($row['per'] ?? 2)));
+            update_post_meta($event, self::M_URL, esc_url_raw(trim((string) ($row['url'] ?? ''))));
         }
         foreach ($rewards as $event => $code) {
             $event = (int) $event;
