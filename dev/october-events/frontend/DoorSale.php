@@ -25,7 +25,10 @@ final class DoorSale {
 
     public function register_assets(): void {
         wp_register_style('oe-door', OE_URL . 'assets/css/door.css', [], OE_VERSION);
-        wp_register_script('oe-door', OE_URL . 'assets/js/door.js', [], OE_VERSION, true);
+        // Stripe.js for the on-page Payment Element (card + Apple Pay / Google Pay).
+        // Loaded from Stripe's own domain, as their terms require.
+        wp_register_script('oe-stripe-js', 'https://js.stripe.com/v3/', [], null, true);
+        wp_register_script('oe-door', OE_URL . 'assets/js/door.js', ['oe-stripe-js'], OE_VERSION, true);
     }
 
     /** The event being sold, from the ?e= query param. 0 when missing/invalid. */
@@ -64,6 +67,7 @@ final class DoorSale {
 
     public function render(): string {
         wp_enqueue_style('oe-door');
+        wp_enqueue_script('oe-stripe-js');
         wp_enqueue_script('oe-door');
 
         $event_id = $this->event_id();
@@ -86,6 +90,10 @@ final class DoorSale {
             'currency'  => $currency,
             'symbol'    => $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$'),
             'ready'     => \OE\Connectors\StripeConnector::is_ready(),
+            // With a publishable key the page takes payment on-page (Payment
+            // Element: card + Apple Pay / Google Pay). Without one it falls back to
+            // the hosted Stripe Checkout redirect.
+            'publishable' => (string) \OE\Settings::get('stripe_publishable_key', ''),
         ]);
 
         ob_start();

@@ -115,6 +115,14 @@ final class RestApi {
             'callback'            => [$this, 'door_session'],
             'permission_callback' => '__return_true',
         ]);
+        // Inline door checkout: a PaymentIntent so the door page takes card +
+        // wallets on-page (Payment Element) instead of redirecting. Order is issued
+        // by the same webhook / ticket-confirm path, with the door tag in metadata.
+        register_rest_route(self::NS, '/door-intent', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'door_intent'],
+            'permission_callback' => '__return_true',
+        ]);
         // PayPal: create an approved order, then capture + issue tickets.
         register_rest_route(self::NS, '/paypal-create', [
             'methods'             => 'POST',
@@ -983,6 +991,69 @@ final class RestApi {
             return new \WP_REST_Response(['error' => 'session_failed'], 502);
         }
         return new \WP_REST_Response(['url' => $sess['url']], 200);
+    }
+
+    /**
+     * Door sale, inline: create a PaymentIntent for the cart so the door page can
+     * take the card + wallets (Apple Pay / Google Pay) on-page via the Stripe
+     * Payment Element, instead of redirecting to a hosted Checkout Session. The
+     * order + emailed ticket are issued the same way as every other ticket sale:
+     * the payment_intent.succeeded webhook (and /ticket-confirm) read the metadata,
+     * which carries the "door" tag. automatic_payment_methods on the PaymentIntent
+     * is what surfaces the wallets in the Payment Element.
+     */
+    public function door_intent(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('ticket_intent', 20)) {
+            return $this->too_many();
+        }
+        if (! \OE\Features::enabled('tickets')) {
+            return new \WP_REST_Response(['error' => 'not_enabled'], 403);
+        }
+        if (! \OE\Connectors\StripeConnector::is_ready()) {
+            return new \WP_REST_Response(['error' => 'payments_unavailable'], 503);
+        }
+        $priced = $this->price_checkout($req, false);
+        if (is_wp_error($priced)) {
+            return new \WP_REST_Response(['error' => $priced->get_error_message()], (int) ($priced->get_error_data()['status'] ?? 400));
+        }
+        $buyer = ['email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name'))];
+        if ($buyer['email'] === '') {
+            return new \WP_REST_Response(['error' => 'email_required'], 400);
+        }
+
+        $cents = (int) round($priced['total'] * 100);
+        if ($cents < 50) {
+            // Fully-discounted cart (e.g. a volunteer code) — issue free, no Stripe.
+            $cart  = array_map(static fn($l) => ['type' => $l['type'], 'qty' => $l['qty']], $priced['lines']);
+            $order = \OE\Ticketing\Orders::create_cart($priced['event_id'], $cart, $buyer, '', 'free', 'public', $priced['promo'], [], $priced['discount'], $this->door_tag($req));
+            if (is_wp_error($order)) {
+                return new \WP_REST_Response(['error' => $order->get_error_message()], 400);
+            }
+            return new \WP_REST_Response(['free' => true], 200);
+        }
+
+        $meta = [
+            'kind'     => 'ticket',
+            'event_id' => $priced['event_id'],
+            'cart'     => $this->cart_meta($priced['lines']),
+            'email'    => $buyer['email'],
+            'name'     => $buyer['name'],
+            'promo'    => $priced['promo']['code'] ?? '',
+            'door'     => $this->door_tag($req),
+        ];
+        $intent = \OE\Connectors\StripeConnector::create_payment_intent($cents, (string) \OE\Settings::get('currency', 'usd'), '', $meta);
+        if (($intent['id'] ?? '') === '') {
+            $safe = ['card_error', 'invalid_request_error'];
+            $message = (in_array((string) ($intent['error_type'] ?? ''), $safe, true) && (string) ($intent['error'] ?? '') !== '')
+                ? (string) $intent['error']
+                : __('We couldn’t start the payment. Please try again.', 'october-events');
+            return new \WP_REST_Response(['error' => 'payment_init_failed', 'message' => $message], 502);
+        }
+        return new \WP_REST_Response([
+            'client_secret' => $intent['client_secret'],
+            'intent_id'     => $intent['id'],
+            'amount'        => $cents,
+        ], 200);
     }
 
     /** The venue/door tag from the request, trimmed to the column width. */
