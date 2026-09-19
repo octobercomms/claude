@@ -23,18 +23,21 @@ one slice. The unified product is the "why this and not five tools" answer.
 - **OMI marketing tools** (from `dev/platform`): the marketing intelligence
   capability, lifted into this product as modules.
 
-### How the merge is done
+### How the merge is done (decided: composition, not fusion)
 
-- **One codebase, one deploy, one product.** For a small team building with AI,
-  a single well-structured codebase is cheaper to run than two services with an
-  API contract between them.
-- **Clean module boundaries inside** (section 4) so a change in one area does not
-  break another and work can proceed one module at a time.
-- **Lift OMI's capability, do not fuse the live codebases.** Extract the marketing
-  tools into this new product. The existing OMI (`dev/platform`) keeps its own
-  life and users; this is a new product sharing OMI's lineage, not a surgical
-  coupling of two running systems. Respect the `CLAUDE.md` rule keeping OMI and
-  nvelope branding separate: this product carries neither brand by default, brand
+- **Two codebases, one composed product.** October Events and OMI stay as
+  separate engines, each maintainable on its own. A **front-end app composes them
+  into a single product** the customer experiences as one: one website, one
+  signup, one login, one price. This suits running two engines that already work
+  rather than surgically fusing them, and keeps each engine's roadmap independent.
+- **The shared spine is the seam that matters.** A shared **identity, tenant and
+  contact layer** both engines read from. If the marketing engine cannot see the
+  events engine's contact record, the joined-up promise (and the segmentation
+  being sold) breaks. This shared spine, not the front end alone, is what makes
+  two codebases behave as one product.
+- **Do not destabilise the live engines.** The existing OMI (`dev/platform`) keeps
+  its own users and roadmap. Respect the `CLAUDE.md` rule keeping OMI and nvelope
+  branding separate: the composed product carries neither brand by default, brand
   is per tenant.
 
 ## 3. Multi-tenancy and isolation (the critical line)
@@ -128,7 +131,38 @@ tenant data. The current WordPress plugin keeps running the existing October
 sites until the platform is proven, then those sites migrate the same way legacy
 tools were retired (migrate, verify, cut over).
 
-## 10. Build sequence
+## 10. Financial target and what it implies
+
+The stated target is **£20k/year**, framed as replacing ADF income if it stops
+and walking away with a product to sell. These are two different goals with
+different build implications.
+
+| Goal | What it is | Needs the platform? |
+|---|---|---|
+| £20k/year income | A services *job*: delivered by October, income stops if work stops | No. 3–4 managed festivals hit it (`PRODUCTISATION-PLAN.md`) |
+| A product to sell | An *asset*: recurring revenue, low-touch, runs without the founder | Yes, and realistically growth past £20k to be worth a sale |
+
+Reaching £20k:
+
+| Route | Clients | Each | Total |
+|---|---|---|---|
+| Managed | 4 | £5k/cycle | £20k |
+| Managed | 3 | £6.7k/cycle | £20k |
+| Turnkey | 2 | £10k/cycle | £20k |
+
+Plus setup fees (£1.5–3k each) front-loading cash. £20k is reachable on the
+managed WordPress model with no platform rebuild.
+
+**Sequencing, not either/or:** earn the £20k as services first (replaces ADF,
+proves demand), then use the cheap AI-assisted build to convert that proven book
+into the low-touch, sellable asset. Cheap build is what makes the second step
+rational at modest revenue.
+
+The constraint on £20k is not build, it is **3–4 signed festivals**. No external
+prospect is named yet (open decision 5). Building does not produce clients;
+conversations do.
+
+## 11. Build sequence
 
 1. **Now, no platform needed:** land the first umbrella festival on the managed
    WordPress model (`PRODUCTISATION-PLAN.md`). Real revenue, real requirements.
@@ -143,7 +177,7 @@ tools were retired (migrate, verify, cut over).
 Build against the first client's real needs, funded by the engagement, rather
 than to a guess.
 
-## 11. Open decisions
+## 12. Open decisions
 
 1. Tenancy model: shared DB with row scoping (recommended) vs DB-per-tenant.
 2. The new product's name and its repo home (`dev/<name>` + `docs/<name>` per the
