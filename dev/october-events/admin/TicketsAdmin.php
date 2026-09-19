@@ -292,6 +292,42 @@ final class TicketsAdmin {
             }
         })();
         </script>
+
+        <?php
+        // Door sale sign — the permanent links for selling this event at the door.
+        // Keyed to the event id, so a reused event page keeps the same sign forever.
+        $door_buy    = add_query_arg(['oe_door' => 1, 'e' => $post->ID], home_url('/'));
+        $door_poster = add_query_arg(['oe_door' => 1, 'e' => $post->ID, 'poster' => 1], home_url('/'));
+        ?>
+        <hr style="margin:18px 0">
+        <p style="margin:0 0 4px"><strong><?php esc_html_e('Door sale sign', 'october-events'); ?></strong> —
+            <span class="description"><?php esc_html_e('Sell walk-up tickets for this event on a phone. The buy link is permanent for this event, so a printed sign keeps working. Add &v=Door name to tag a specific venue’s sales.', 'october-events'); ?></span></p>
+        <div class="oe-door-links">
+            <label><?php esc_html_e('Buy link (QR / share)', 'october-events'); ?>
+                <input type="text" readonly value="<?php echo esc_url($door_buy); ?>" onfocus="this.select()">
+                <button type="button" class="button oe-door-copy" data-copy="<?php echo esc_url($door_buy); ?>"><?php esc_html_e('Copy', 'october-events'); ?></button>
+            </label>
+            <label><?php esc_html_e('Printable poster', 'october-events'); ?>
+                <input type="text" readonly value="<?php echo esc_url($door_poster); ?>" onfocus="this.select()">
+                <button type="button" class="button oe-door-copy" data-copy="<?php echo esc_url($door_poster); ?>"><?php esc_html_e('Copy', 'october-events'); ?></button>
+                <a class="button button-primary" href="<?php echo esc_url($door_poster); ?>" target="_blank" rel="noopener"><?php esc_html_e('Open poster', 'october-events'); ?></a>
+            </label>
+        </div>
+        <style>
+        .oe-door-links label{display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:600;font-size:13px}
+        .oe-door-links input{flex:1;min-width:0;max-width:520px;font-family:monospace;font-size:12px;padding:5px 8px}
+        </style>
+        <script>
+        (function(){
+            document.querySelectorAll('.oe-door-copy').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                    var url = btn.getAttribute('data-copy'), done = function(){ var t = btn.textContent; btn.textContent = '<?php echo esc_js(__('Copied', 'october-events')); ?>'; setTimeout(function(){ btn.textContent = t; }, 1500); };
+                    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(url).then(done).catch(done); }
+                    else { var i = btn.previousElementSibling; if (i && i.select) { i.select(); document.execCommand('copy'); done(); } }
+                });
+            });
+        })();
+        </script>
         <?php
     }
 
