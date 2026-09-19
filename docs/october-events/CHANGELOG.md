@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.154.0 — Door sale links on the event editor
+
+- The event editor's **Tickets & check-in** box now has a **Door sale sign**
+  section with the event's permanent buy link and printable-poster link, each with
+  a Copy button and an **Open poster** button. No more hand-building URLs — reuse
+  the same event page each year and the links keep working.
+
 ## 1.153.0 — Permanent per-tour door QR + printable poster
 
 - The door checkout can now be targeted by **tour city** instead of a one-year
