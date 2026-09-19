@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.153.0 — Permanent per-tour door QR + printable poster
+
+- The door checkout can now be targeted by **tour city** instead of a one-year
+  event id: `/?oe_door=1&city=atlanta-ga`. It resolves to whichever event for that
+  city is current — the latest year that has tickets on sale — so a **printed sign
+  keeps working every year**. Create next year's Atlanta event with the same City
+  and add its tickets, and the same QR switches to it automatically. Other tours
+  (Boston, etc.) get their own city URL.
+- **Poster mode** (`&poster=1`) renders a printable sign: brand, tour name, a large
+  QR to the buy page, and a Print button. Open it on any screen and print.
+- The door tag defaults to the tour city when no venue is given, so city-level
+  signs still group in the per-venue tally. Add `&v=<venue>` to a specific sign to
+  tag it to that door.
+- The per-event QR (`&e=<id>`, the check-in app's live Sell button) is unchanged.
+
 ## 1.152.0 — Door checkout: pay on-page (card + Apple Pay / Google Pay)
 
 - The door checkout now takes payment **on the page** with the Stripe Payment

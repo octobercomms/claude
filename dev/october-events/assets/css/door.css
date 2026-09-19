@@ -128,6 +128,33 @@
     background: var(--accent); color: var(--accent-ink); font-size: 16px; font-weight: 600; cursor: pointer;
 }
 
+/* ---- Printable poster (?poster=1) ---- */
+.oe-door-poster {
+    max-width: 640px; margin: 0 auto; padding: 48px 24px; text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #111; background: #fff; min-height: 100vh;
+}
+.oe-door-poster .poster-brand { font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: #666; }
+.oe-door-poster .poster-title { font-size: 40px; line-height: 1.1; margin: 10px 0 4px; font-weight: 800; }
+.oe-door-poster .poster-venue { font-size: 20px; color: #444; margin-bottom: 8px; }
+.oe-door-poster .poster-cta { font-size: 24px; font-weight: 600; margin: 22px 0 20px; }
+.oe-door-poster .poster-qr {
+    width: 360px; max-width: 80vw; aspect-ratio: 1 / 1; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+}
+.oe-door-poster .poster-qr img,
+.oe-door-poster .poster-qr canvas { width: 100% !important; height: 100% !important; }
+.oe-door-poster .poster-steps { font-size: 17px; color: #555; max-width: 420px; margin: 22px auto 0; line-height: 1.5; }
+.oe-door-poster .poster-print {
+    margin-top: 28px; height: 48px; padding: 0 26px; border: 0; border-radius: 12px;
+    background: #111; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+}
+@media print {
+    /* Hide the print button and any chrome; show only the poster. */
+    .oe-door-poster .poster-print { display: none; }
+    .oe-door-poster { padding-top: 8vh; }
+}
+
 @media (prefers-color-scheme: dark) {
     .oe-door { --ink: #f2f2f2; --muted: #a0a0a0; --line: #333; --accent: #fff; --accent-ink: #0f0f0f; background: #0f0f0f; }
     body.oe-door-route { background: #0f0f0f; }
