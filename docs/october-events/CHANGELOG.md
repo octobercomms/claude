@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.155.0 — Door checkout: payment fields inline, tighter layout
+
+- Removed the **Continue to payment** step. The Stripe Payment Element (card +
+  Apple Pay / Google Pay) now appears **inline under the tickets** as soon as one
+  is selected, and its amount updates live as the cart changes (deferred
+  PaymentIntent, created on Pay). One **Pay $X** button.
+- **Compacted** the page — smaller header, tighter ticket rows, fields and spacing
+  — so more fits on screen at the door.
+- Apple Pay reminder: inline Apple Pay needs the site domain added under Stripe →
+  Payment method domains, and only renders in Safari / on Apple devices with a card
+  in Wallet (not desktop Chrome). Google Pay and card need no domain step.
+
 ## 1.154.0 — Door sale links on the event editor
 
 - The event editor's **Tickets & check-in** box now has a **Door sale sign**
