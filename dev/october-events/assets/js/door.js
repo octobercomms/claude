@@ -15,6 +15,17 @@
     var root = document.getElementById('oe-door');
     if (!root) { return; }
 
+    // Poster mode: render a big QR to the buy URL and stop (nothing to sell here).
+    if (cfg.poster) {
+        var qrBox = document.getElementById('oe-door-qr');
+        if (qrBox && window.QRCode && cfg.buyUrl) {
+            new window.QRCode(qrBox, { text: cfg.buyUrl, width: 360, height: 360, correctLevel: window.QRCode.CorrectLevel.M });
+        } else if (qrBox) {
+            qrBox.textContent = cfg.buyUrl || '';
+        }
+        return;
+    }
+
     var sym = cfg.symbol || '$';
     // Inline payment is available only with a publishable key + Stripe.js loaded.
     var inline = !!(cfg.publishable && window.Stripe);

@@ -12,6 +12,23 @@ $brand = (string) \OE\Settings::get('brand_name', get_bloginfo('name'));
 $cur   = strtoupper((string) \OE\Settings::get('currency', 'usd'));
 $sym   = $cur === 'GBP' ? '£' : ($cur === 'EUR' ? '€' : '$');
 ?>
+<?php if (! empty($tpl_poster)) : ?>
+
+    <!-- Printable poster: a big QR to the buy page. Open on any screen and print
+         (Cmd/Ctrl+P). The QR is built by door.js from OE_DOOR.buyUrl. -->
+    <div class="oe-door-poster" id="oe-door">
+        <div class="poster-brand"><?php echo esc_html($brand); ?></div>
+        <h1 class="poster-title"><?php echo esc_html($tpl_title !== '' ? $tpl_title : ($tpl_city !== '' ? $tpl_city : __('Buy tickets', 'october-events'))); ?></h1>
+        <?php if ($tpl_venue !== '') : ?>
+            <div class="poster-venue"><?php echo esc_html($tpl_venue); ?></div>
+        <?php endif; ?>
+        <div class="poster-cta"><?php esc_html_e('Scan to buy a tour ticket', 'october-events'); ?></div>
+        <div class="poster-qr" id="oe-door-qr"></div>
+        <div class="poster-steps"><?php esc_html_e('Point your phone camera at the code, pick your tickets and pay. Your ticket is emailed to you.', 'october-events'); ?></div>
+        <button type="button" class="poster-print" id="oe-door-print" onclick="window.print()"><?php esc_html_e('Print this sign', 'october-events'); ?></button>
+    </div>
+
+<?php else : ?>
 <div class="oe-door" id="oe-door">
 
     <?php if (! $tpl_event_id || ! $tpl_types) : ?>
@@ -99,3 +116,4 @@ $sym   = $cur === 'GBP' ? '£' : ($cur === 'EUR' ? '€' : '$');
         <div class="door-result-inner"></div>
     </div>
 </div>
+<?php endif; ?>
