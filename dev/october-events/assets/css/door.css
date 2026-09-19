@@ -12,52 +12,52 @@
     color: var(--ink);
     max-width: 520px;
     margin: 0 auto;
-    padding: 20px 16px 120px;
+    padding: 12px 16px 100px;
     -webkit-font-smoothing: antialiased;
 }
 
 /* Header */
-.door-head { padding: 8px 0 20px; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
-.door-brand { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.door-title { font-size: 26px; line-height: 1.15; margin: 6px 0 0; font-weight: 700; }
-.door-venue { margin-top: 8px; font-size: 15px; color: var(--muted); }
+.door-head { padding: 2px 0 10px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+.door-brand { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.door-title { font-size: 21px; line-height: 1.15; margin: 3px 0 0; font-weight: 700; }
+.door-venue { margin-top: 4px; font-size: 14px; color: var(--muted); }
 
 /* Ticket type rows */
-.door-types { display: flex; flex-direction: column; gap: 10px; }
+.door-types { display: flex; flex-direction: column; gap: 7px; }
 .door-type {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px;
     transition: border-color .15s, box-shadow .15s;
 }
 .door-type.is-picked { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .door-type-info { min-width: 0; }
-.door-type-label { font-size: 17px; font-weight: 600; }
-.door-type-desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
-.door-type-price { font-size: 15px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.door-type-label { font-size: 15px; font-weight: 600; }
+.door-type-desc { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.door-type-price { font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
 /* Stepper */
 .door-stepper { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 .door-minus, .door-plus {
-    width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line);
-    background: #fafafa; font-size: 24px; line-height: 1; color: var(--ink);
+    width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line);
+    background: #fafafa; font-size: 22px; line-height: 1; color: var(--ink);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     -webkit-tap-highlight-color: transparent;
 }
 .door-minus:active, .door-plus:active { background: #eee; }
-.door-qty { min-width: 28px; text-align: center; font-size: 18px; font-variant-numeric: tabular-nums; }
+.door-qty { min-width: 26px; text-align: center; font-size: 17px; font-variant-numeric: tabular-nums; }
 
 /* Fields */
-.door-field { margin-top: 22px; }
-.door-field label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.door-field { margin-top: 14px; }
+.door-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
 .door-field input,
 .door-promo input {
-    width: 100%; box-sizing: border-box; font-size: 17px; padding: 14px;
-    border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
+    width: 100%; box-sizing: border-box; font-size: 16px; padding: 11px 12px;
+    border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
 }
 .door-field input:focus, .door-promo input:focus { outline: none; border-color: var(--accent); }
-.door-hint { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.door-hint { font-size: 12px; color: var(--muted); margin: 5px 0 0; }
 
-.door-promo { margin-top: 16px; }
+.door-promo { margin-top: 10px; }
 .door-promo summary { font-size: 14px; color: var(--accent); cursor: pointer; padding: 6px 0; }
 .door-promo input { margin-top: 8px; text-transform: uppercase; }
 .door-promo-row { display: flex; gap: 8px; margin-top: 8px; }
@@ -71,15 +71,13 @@
 .door-promo-msg.is-ok { color: var(--ok); }
 .door-promo-msg.is-bad { color: #b00020; }
 
-.door-msg { color: #b00020; font-size: 14px; margin-top: 14px; min-height: 1em; }
+.door-msg { color: #b00020; font-size: 13px; margin-top: 10px; min-height: 1em; }
 
-/* Payment phase (Stripe Payment Element) */
-.door-pay-phase { margin-top: 22px; }
+/* Inline Payment Element (card + Apple Pay / Google Pay), shown under the tickets */
+.door-pay-phase { margin-top: 14px; }
 .door-pay-phase[hidden] { display: none; }
-.door-pay-back { margin-bottom: 12px; }
-.door-pay-back button { background: none; border: 0; color: var(--accent); font-size: 14px; cursor: pointer; padding: 4px 0; }
 .door-pay-el { min-height: 40px; }
-.door-pay-err { color: #b00020; font-size: 14px; margin-top: 12px; min-height: 1em; }
+.door-pay-err { color: #b00020; font-size: 13px; margin-top: 10px; min-height: 1em; }
 
 /* Sticky pay bar */
 .door-bar {

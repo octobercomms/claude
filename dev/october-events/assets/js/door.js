@@ -1,12 +1,13 @@
 /**
  * October Events — fast door-sale checkout.
  *
- * A walk-up scans the "Sell" QR on the tablet and lands here. They pick a ticket
- * and quantity, enter an email, optionally add a promo, then pay on-page with the
- * Stripe Payment Element (card + Apple Pay / Google Pay / Link). The order and the
- * emailed ticket are issued by the payment webhook (and /ticket-confirm), the same
- * as every other sale. When no publishable key is configured, the page falls back
- * to a hosted Stripe Checkout redirect.
+ * A walk-up scans the QR and lands here. They pick a ticket and quantity; the
+ * Stripe Payment Element (card + Apple Pay / Google Pay / Link) appears inline
+ * right under the tickets, and one Pay button charges it. Deferred PaymentIntent:
+ * the element mounts with the running total and the intent is created on Pay. The
+ * order + emailed ticket are issued by the payment webhook (and /ticket-confirm).
+ * Without a publishable key it falls back to a hosted Stripe Checkout redirect.
+ * `?poster=1` renders a printable poster instead (handled up top).
  */
 (function () {
     'use strict';
@@ -15,7 +16,7 @@
     var root = document.getElementById('oe-door');
     if (!root) { return; }
 
-    // Poster mode: render a big QR to the buy URL and stop (nothing to sell here).
+    // Poster mode: render a big QR to the buy URL and stop.
     if (cfg.poster) {
         var qrBox = document.getElementById('oe-door-qr');
         if (qrBox && window.QRCode && cfg.buyUrl) {
@@ -27,7 +28,6 @@
     }
 
     var sym = cfg.symbol || '$';
-    // Inline payment is available only with a publishable key + Stripe.js loaded.
     var inline = !!(cfg.publishable && window.Stripe);
 
     function money(n) { return sym + (Math.round(n * 100) / 100).toFixed(2); }
@@ -65,10 +65,9 @@
         }
     }
 
-    // Returning from a hosted redirect or a 3DS challenge.
     if (qs('oe_paid') || qs('redirect_status') === 'succeeded') { showResult('paid'); return; }
     if (qs('oe_cancelled')) { showResult('cancel'); }
-    else if (qs('redirect_status')) { showResult('cancel'); } // failed / requires_payment_method
+    else if (qs('redirect_status')) { showResult('cancel'); }
 
     /* ---- Buy flow ---- */
     var buy = document.getElementById('oe-door-buy');
@@ -83,11 +82,10 @@
     var promoMsgEl    = document.getElementById('oe-door-promo-msg');
     var payPhaseEl = document.getElementById('oe-door-pay-phase');
     var payErrEl   = document.getElementById('oe-door-pay-err');
-    var backBtn    = document.getElementById('oe-door-back');
 
-    var appliedDiscount = 0;   // promo preview only; the PaymentIntent is authoritative
-    var phase = 'select';      // 'select' → pick tickets; 'pay' → Payment Element shown
-    var stripe = null, elements = null, intentId = '', payAmount = 0;
+    var appliedDiscount = 0;   // from the promo preview
+    var appliedCode = '';      // the code that discount belongs to (sent at Pay)
+    var stripe = null, elements = null, mounted = false, paying = false;
 
     function emailOk() { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((emailEl.value || '').trim()); }
 
@@ -107,17 +105,42 @@
         });
         return t;
     }
+    function totalCents() { return Math.max(0, Math.round((subtotal() - appliedDiscount) * 100)); }
+
     function refresh() {
         var items = cart();
-        if (phase === 'pay') {
-            totalEl.textContent = money(payAmount / 100);
-            payBtn.textContent = 'Pay ' + money(payAmount / 100);
-            payBtn.disabled = false;
-            return;
+        var cents = totalCents();
+        totalEl.textContent = money(cents / 100);
+        payBtn.textContent = cents > 0 ? 'Pay ' + money(cents / 100) : 'Get ticket';
+        payBtn.disabled = paying || !(items.length && emailOk() && cfg.ready);
+        syncPayment(cents, items.length);
+    }
+
+    // Mount / update the inline Payment Element to match the running total. Only
+    // for the inline flow and only once there's a chargeable amount.
+    function syncPayment(cents, hasItems) {
+        if (!inline || !payPhaseEl) { return; }
+        if (cents >= 50) {
+            payPhaseEl.hidden = false;
+            try {
+                if (!stripe) { stripe = window.Stripe(cfg.publishable); }
+                if (!elements) {
+                    var appearance = { theme: 'stripe' };
+                    try {
+                        var accent = getComputedStyle(payBtn).backgroundColor;
+                        if (accent) { appearance.variables = { colorPrimary: accent, borderRadius: '10px' }; }
+                    } catch (e) {}
+                    elements = stripe.elements({ mode: 'payment', amount: cents, currency: (cfg.currency || 'usd').toLowerCase(), appearance: appearance });
+                    elements.create('payment', { layout: 'tabs' }).mount('#oe-door-payment-element');
+                    mounted = true;
+                } else {
+                    elements.update({ amount: cents });
+                }
+            } catch (e) { /* leave hidden; Pay still works via a fresh intent */ }
+        } else {
+            // Nothing to charge by card (empty cart, or a fully-discounted $0 cart).
+            payPhaseEl.hidden = true;
         }
-        totalEl.textContent = money(Math.max(0, subtotal() - appliedDiscount));
-        payBtn.textContent = 'Continue to payment';
-        payBtn.disabled = !(items.length && emailOk() && cfg.ready);
     }
 
     function setPromoMsg(text, kind) {
@@ -126,22 +149,10 @@
         promoMsgEl.className = 'door-promo-msg' + (kind ? ' is-' + kind : '');
     }
     function clearPromo() {
-        if (appliedDiscount > 0) {
-            appliedDiscount = 0;
+        if (appliedDiscount > 0 || appliedCode) {
+            appliedDiscount = 0; appliedCode = '';
             setPromoMsg('Cart changed — tap Apply to reprice.', '');
         }
-    }
-
-    // Return to the selection step (e.g. after Change order or a cart edit),
-    // tearing down any mounted Payment Element so the amount can't go stale.
-    function toSelect() {
-        phase = 'select';
-        if (elements) { try { elements.getElement('payment').unmount(); } catch (e) {} }
-        elements = null; intentId = ''; payAmount = 0;
-        if (payPhaseEl) { payPhaseEl.hidden = true; }
-        if (payErrEl) { payErrEl.textContent = ''; }
-        payBtn.classList.remove('is-busy');
-        refresh();
     }
 
     root.querySelectorAll('.door-type').forEach(function (row) {
@@ -152,80 +163,88 @@
             q = Math.min(max, Math.max(0, q + delta));
             qtyEl.textContent = q;
             row.classList.toggle('is-picked', q > 0);
-            if (phase === 'pay') { toSelect(); } else { clearPromo(); refresh(); }
+            clearPromo(); refresh();
         }
         row.querySelector('.door-plus').addEventListener('click', function () { step(1); });
         row.querySelector('.door-minus').addEventListener('click', function () { step(-1); });
     });
-    emailEl.addEventListener('input', function () { if (phase === 'pay') { toSelect(); } else { refresh(); } });
+    emailEl.addEventListener('input', refresh);
 
-    /* ---- Promo: validate + preview the discount ---- */
-    if (promoApplyBtn) {
-        promoApplyBtn.addEventListener('click', function () {
-            var code = promoEl ? (promoEl.value || '').trim() : '';
-            var items = cart();
-            if (!code) { setPromoMsg('Enter a code first.', 'bad'); return; }
-            if (!items.length) { setPromoMsg('Choose a ticket first.', 'bad'); return; }
-            if (phase === 'pay') { toSelect(); }
-            promoApplyBtn.disabled = true;
-            setPromoMsg('Checking…', '');
-            fetch(cfg.restUrl + '/ticket-promo', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ event_id: cfg.eventId, cart: items, promo_code: code, email: (emailEl.value || '').trim() })
-            }).then(function (r) {
-                return r.json().then(function (b) { return { ok: r.ok, body: b }; });
-            }).then(function (res) {
-                promoApplyBtn.disabled = false;
-                if (res.ok && res.body && typeof res.body.discount !== 'undefined') {
-                    appliedDiscount = parseFloat(res.body.discount) || 0;
-                    setPromoMsg(appliedDiscount > 0
-                        ? code.toUpperCase() + ' applied — you save ' + money(appliedDiscount) + '.'
-                        : 'Code accepted. No discount on this cart.', 'ok');
-                } else {
-                    appliedDiscount = 0;
-                    setPromoMsg((res.body && res.body.error) ? res.body.error : 'That code isn\'t valid.', 'bad');
-                }
+    /* ---- Promo ---- */
+    // Validate a code against the cart; resolves to the discount (0 if none/invalid).
+    function applyPromo() {
+        var code = promoEl ? (promoEl.value || '').trim() : '';
+        var items = cart();
+        if (!code) { setPromoMsg('Enter a code first.', 'bad'); return Promise.resolve(false); }
+        if (!items.length) { setPromoMsg('Choose a ticket first.', 'bad'); return Promise.resolve(false); }
+        if (promoApplyBtn) { promoApplyBtn.disabled = true; }
+        setPromoMsg('Checking…', '');
+        return fetch(cfg.restUrl + '/ticket-promo', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event_id: cfg.eventId, cart: items, promo_code: code, email: (emailEl.value || '').trim() })
+        }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+          .then(function (res) {
+            if (promoApplyBtn) { promoApplyBtn.disabled = false; }
+            if (res.ok && res.body && typeof res.body.discount !== 'undefined') {
+                appliedDiscount = parseFloat(res.body.discount) || 0;
+                appliedCode = code;
+                setPromoMsg(appliedDiscount > 0
+                    ? code.toUpperCase() + ' applied — you save ' + money(appliedDiscount) + '.'
+                    : 'Code accepted. No discount on this cart.', 'ok');
                 refresh();
-            }).catch(function () {
-                promoApplyBtn.disabled = false;
-                setPromoMsg('Network problem. Try again.', 'bad');
-            });
+                return true;
+            }
+            appliedDiscount = 0; appliedCode = '';
+            setPromoMsg((res.body && res.body.error) ? res.body.error : 'That code isn\'t valid.', 'bad');
+            refresh();
+            return false;
+        }).catch(function () {
+            if (promoApplyBtn) { promoApplyBtn.disabled = false; }
+            setPromoMsg('Network problem. Try again.', 'bad');
+            return false;
         });
     }
-    if (promoEl) { promoEl.addEventListener('input', function () { if (phase === 'pay') { toSelect(); } clearPromo(); refresh(); }); }
+    if (promoApplyBtn) { promoApplyBtn.addEventListener('click', function () { applyPromo(); }); }
+    if (promoEl) { promoEl.addEventListener('input', function () { clearPromo(); refresh(); }); }
 
-    if (backBtn) { backBtn.addEventListener('click', toSelect); }
-
-    /* ---- Payment ---- */
+    /* ---- Pay ---- */
     payBtn.addEventListener('click', function () {
-        if (phase === 'pay') { confirmPayment(); return; }
-        startPayment();
+        if (paying) { return; }
+        var items = cart();
+        if (!items.length || !emailOk()) { return; }
+
+        // A typed-but-unapplied code: apply it first so the amount is right.
+        var typed = promoEl ? (promoEl.value || '').trim().toUpperCase() : '';
+        if (typed && typed !== appliedCode.toUpperCase()) {
+            applyPromo().then(function () { pay(); });
+            return;
+        }
+        pay();
     });
 
     function busy(on, label) {
+        paying = on;
         payBtn.disabled = on;
         payBtn.classList.toggle('is-busy', on);
         if (label) { payBtn.textContent = label; }
     }
 
-    function startPayment() {
-        var items = cart();
-        if (!items.length || !emailOk()) { return; }
+    function pay() {
         msgEl.textContent = '';
-        busy(true, 'Starting…');
+        if (payErrEl) { payErrEl.textContent = ''; }
 
         var body = {
             event_id: cfg.eventId,
-            cart: items,
+            cart: cart(),
             email: (emailEl.value || '').trim(),
-            promo_code: promoEl ? (promoEl.value || '').trim() : '',
+            promo_code: appliedCode,
             door: cfg.venue || '',
             return_url: cfg.returnUrl || window.location.href
         };
 
-        // No inline payments available → hosted Stripe Checkout redirect.
+        // Hosted fallback (no inline payments): redirect to Stripe Checkout.
         if (!inline) {
+            busy(true, 'Starting…');
             fetch(cfg.restUrl + '/door-session', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
             }).then(readJson).then(function (res) {
@@ -236,76 +255,55 @@
             return;
         }
 
-        // Inline: create the PaymentIntent, then mount the Payment Element.
-        fetch(cfg.restUrl + '/door-intent', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-        }).then(readJson).then(function (res) {
-            if (res.ok && res.body && res.body.free) { showResult('paid'); return; }
-            if (!res.ok || !res.body || !res.body.client_secret) { fail(pickError(res.body)); return; }
-            intentId  = res.body.intent_id || '';
-            payAmount = parseInt(res.body.amount, 10) || 0;
-            mountPaymentElement(res.body.client_secret);
-        }).catch(function () { fail('Network problem. Check the connection and try again.'); });
-    }
+        var cents = totalCents();
+        busy(true, 'Paying…');
 
-    function mountPaymentElement(clientSecret) {
-        try {
-            if (!stripe) { stripe = window.Stripe(cfg.publishable); }
-            var appearance = { theme: 'stripe' };
-            try {
-                var accent = getComputedStyle(payBtn).backgroundColor;
-                if (accent) { appearance.variables = { colorPrimary: accent, borderRadius: '10px' }; }
-            } catch (e) {}
-            elements = stripe.elements({ clientSecret: clientSecret, appearance: appearance });
-            var pe = elements.create('payment', { layout: 'tabs' });
-            pe.mount('#oe-door-payment-element');
-        } catch (e) {
-            fail('Could not start the payment. Please try again.');
+        // Fully-discounted / free cart: no card step.
+        if (cents < 50) {
+            fetch(cfg.restUrl + '/door-intent', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+            }).then(readJson).then(function (res) {
+                if (res.ok && res.body && res.body.free) { showResult('paid'); return; }
+                fail(pickError(res.body));
+            }).catch(function () { fail('Network problem. Check the connection and try again.'); });
             return;
         }
-        phase = 'pay';
-        if (payPhaseEl) { payPhaseEl.hidden = false; }
-        if (payErrEl) { payErrEl.textContent = ''; }
-        busy(false);
-        refresh();
-        if (payPhaseEl && payPhaseEl.scrollIntoView) { payPhaseEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+
+        // Deferred flow: validate the element, create the intent, then confirm.
+        elements.submit().then(function (sub) {
+            if (sub && sub.error) { return payFail(sub.error.message); }
+            return fetch(cfg.restUrl + '/door-intent', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+            }).then(readJson).then(function (res) {
+                if (res.ok && res.body && res.body.free) { showResult('paid'); return; }
+                if (!res.ok || !res.body || !res.body.client_secret) { return payFail(pickError(res.body)); }
+                var intentId = res.body.intent_id || '';
+                return stripe.confirmPayment({
+                    elements: elements,
+                    clientSecret: res.body.client_secret,
+                    confirmParams: { return_url: cfg.returnUrl || window.location.href },
+                    redirect: 'if_required'
+                }).then(function (result) {
+                    if (result.error) { return payFail(result.error.message); }
+                    if (intentId) {
+                        fetch(cfg.restUrl + '/ticket-confirm', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ intent_id: intentId })
+                        }).catch(function () {});
+                    }
+                    showResult('paid');
+                });
+            });
+        }).catch(function () { payFail('Payment failed. Please try again.'); });
     }
 
-    function confirmPayment() {
-        if (!stripe || !elements) { return; }
-        if (payErrEl) { payErrEl.textContent = ''; }
-        busy(true, 'Paying…');
-        stripe.confirmPayment({
-            elements: elements,
-            confirmParams: { return_url: cfg.returnUrl || window.location.href },
-            redirect: 'if_required'
-        }).then(function (result) {
-            if (result.error) {
-                if (payErrEl) { payErrEl.textContent = result.error.message || 'Payment failed. Please try again.'; }
-                busy(false);
-                refresh();
-                return;
-            }
-            // Succeeded without a redirect. The webhook issues + emails the ticket;
-            // nudge /ticket-confirm too so it happens immediately.
-            if (intentId) {
-                fetch(cfg.restUrl + '/ticket-confirm', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ intent_id: intentId })
-                }).catch(function () {});
-            }
-            showResult('paid');
-        }).catch(function () {
-            if (payErrEl) { payErrEl.textContent = 'Payment failed. Please try again.'; }
-            busy(false);
-            refresh();
-        });
+    function payFail(text) {
+        if (payErrEl) { payErrEl.textContent = text || 'Payment failed. Please try again.'; }
+        busy(false);
+        refresh();
     }
 
     function readJson(r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }
-    function pickError(body) {
-        if (body && body.message) { return body.message; }
-        return mapError(body && body.error);
-    }
+    function pickError(body) { return (body && body.message) ? body.message : mapError(body && body.error); }
     function mapError(code) {
         var m = {
             email_required: 'Please enter an email for the ticket.',
@@ -319,11 +317,7 @@
         };
         return m[code] || 'Something went wrong. Please try again.';
     }
-    function fail(text) {
-        msgEl.textContent = text;
-        busy(false);
-        refresh();
-    }
+    function fail(text) { msgEl.textContent = text; busy(false); refresh(); }
 
     refresh();
 })();
