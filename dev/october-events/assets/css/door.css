@@ -73,6 +73,14 @@
 
 .door-msg { color: #b00020; font-size: 14px; margin-top: 14px; min-height: 1em; }
 
+/* Payment phase (Stripe Payment Element) */
+.door-pay-phase { margin-top: 22px; }
+.door-pay-phase[hidden] { display: none; }
+.door-pay-back { margin-bottom: 12px; }
+.door-pay-back button { background: none; border: 0; color: var(--accent); font-size: 14px; cursor: pointer; padding: 4px 0; }
+.door-pay-el { min-height: 40px; }
+.door-pay-err { color: #b00020; font-size: 14px; margin-top: 12px; min-height: 1em; }
+
 /* Sticky pay bar */
 .door-bar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;

@@ -5,6 +5,25 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.152.0 — Door checkout: pay on-page (card + Apple Pay / Google Pay)
+
+- The door checkout now takes payment **on the page** with the Stripe Payment
+  Element instead of redirecting to a hosted Checkout page. The buyer picks
+  tickets and taps **Continue to payment**, and the Payment Element appears inline
+  with card fields plus **Apple Pay / Google Pay / Link** where the device supports
+  them. **Change order** returns to the ticket picker; editing the cart after
+  continuing re-prices automatically.
+- New `/door-intent` endpoint creates the PaymentIntent (with the door tag in
+  metadata); the order and emailed ticket are issued by the same webhook /
+  `/ticket-confirm` path as every other sale. Fully-discounted carts still issue
+  free with no card step.
+- **Fallback:** if no Stripe publishable key is set, the page falls back to the
+  hosted Checkout redirect (previous behaviour), so it always works.
+- **Apple Pay note:** inline Apple Pay needs the site's domain registered with
+  Stripe (Stripe usually auto-registers when the Payment Element loads). Google
+  Pay and card need no domain step. On the hosted redirect both always worked
+  because it ran on Stripe's own domain.
+
 ## 1.151.0 — Door checkout: promo code has an Apply button + live discount
 
 - The door promo/volunteer code field now has an **Apply** button. It validates the

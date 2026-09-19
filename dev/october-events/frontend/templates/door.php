@@ -68,6 +68,16 @@ $sym   = $cur === 'GBP' ? '£' : ($cur === 'EUR' ? '€' : '$');
                 <div class="door-promo-msg" id="oe-door-promo-msg" aria-live="polite"></div>
             </details>
 
+            <!-- Payment phase: the Stripe Payment Element (card + Apple Pay /
+                 Google Pay) mounts here once the buyer taps Continue. Hidden until
+                 then, and when the inline flow isn't available (no publishable key)
+                 the button falls back to the hosted Stripe redirect. -->
+            <div class="door-pay-phase" id="oe-door-pay-phase" hidden>
+                <div class="door-pay-back"><button type="button" id="oe-door-back">&larr; <?php esc_html_e('Change order', 'october-events'); ?></button></div>
+                <div class="door-pay-el" id="oe-door-payment-element"></div>
+                <div class="door-pay-err" id="oe-door-pay-err" role="alert"></div>
+            </div>
+
             <div class="door-msg" id="oe-door-msg" role="alert"></div>
         </section>
 
@@ -78,7 +88,7 @@ $sym   = $cur === 'GBP' ? '£' : ($cur === 'EUR' ? '€' : '$');
                 <span class="door-total-amount" id="oe-door-total"><?php echo esc_html($sym . '0.00'); ?></span>
             </div>
             <button type="button" class="door-pay" id="oe-door-pay" disabled>
-                <?php esc_html_e('Pay', 'october-events'); ?>
+                <?php esc_html_e('Continue to payment', 'october-events'); ?>
             </button>
         </div>
 
