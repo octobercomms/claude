@@ -13,6 +13,7 @@ const pool = require('../db');
 const mediaStore = require('../services/mediaStore');
 const loomFetch = require('../services/loomFetch');
 const transcribe = require('../services/recordingTranscribe');
+const recordingExport = require('../services/recordingExport');
 
 const router = express.Router();
 router.use(authenticate);
@@ -39,6 +40,9 @@ function present(r, views) {
     size_bytes: r.size_bytes != null ? Number(r.size_bytes) : null,
     status: r.status,
     has_transcript: !!r.transcript,
+    has_mp4: !!r.mp4_key,
+    has_gif: !!r.gif_key,
+    export_status: r.export_status || null,
     public_token: r.public_token,
     share_path: `/share/${r.public_token}`,
     imported_views: r.imported_views || 0,
@@ -198,6 +202,54 @@ router.post('/:id/transcribe', async (req, res) => {
   res.json({ ok: true, queued: true });
 });
 
+// ── Export a recording to MP4 / GIF (rendered server-side with ffmpeg) ────────
+// The browser records WebM; this produces a shareable H.264 MP4 or a short GIF.
+// Fire-and-forget: the UI polls the recording until export_status flips to
+// 'ready' and has_mp4/has_gif is set, then downloads via GET /:id/download.
+router.post('/:id/export', express.json(), async (req, res) => {
+  try {
+    const format = req.body?.format === 'gif' ? 'gif' : 'mp4';
+    const { rows } = await pool.query(
+      `SELECT id FROM recordings WHERE id = $1 AND created_by IS NOT DISTINCT FROM $2`,
+      [req.params.id, req.user?.id || null]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
+    await pool.query(`UPDATE recordings SET export_status = 'processing' WHERE id = $1`, [req.params.id]);
+    recordingExport.exportInBackground(req.params.id, format);
+    res.json({ ok: true, queued: true, format });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Download a rendered export (authed staff download) ────────────────────────
+router.get('/:id/download', async (req, res) => {
+  try {
+    const format = req.query.format === 'gif' ? 'gif' : 'mp4';
+    const { rows } = await pool.query(
+      `SELECT title, mp4_key, gif_key FROM recordings WHERE id = $1 AND created_by IS NOT DISTINCT FROM $2`,
+      [req.params.id, req.user?.id || null]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
+    const key = format === 'gif' ? rows[0].gif_key : rows[0].mp4_key;
+    if (!key) return res.status(404).json({ error: `No ${format.toUpperCase()} export yet` });
+    const mime = format === 'gif' ? 'image/gif' : 'video/mp4';
+    const safe = String(rows[0].title || 'recording').replace(/[^\w.\- ]+/g, '').trim().slice(0, 80) || 'recording';
+    const filename = `${safe}.${format}`;
+
+    // R2 redirects to a signed URL; disk streams the bytes.
+    const signed = await mediaStore.signedGetUrl(key, 3600).catch(() => null);
+    if (signed) return res.redirect(signed);
+    const { stream, size } = await mediaStore.openRead(key);
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Length', size);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    stream.pipe(res);
+  } catch (err) {
+    res.status(err.code === 'ENOENT' ? 404 : 500).json({ error: err.message });
+  }
+});
+
 // ── Bulk delete (clear out migrated / dead recordings) ────────────────────────
 router.post('/bulk-delete', express.json(), async (req, res) => {
   try {
@@ -205,10 +257,10 @@ router.post('/bulk-delete', express.json(), async (req, res) => {
       .map(String).filter(id => UUID_RE.test(id));
     if (!ids.length) return res.status(400).json({ error: 'No valid ids' });
     const { rows } = await pool.query(
-      `DELETE FROM recordings WHERE id = ANY($1::uuid[]) AND created_by IS NOT DISTINCT FROM $2 RETURNING storage_key`,
+      `DELETE FROM recordings WHERE id = ANY($1::uuid[]) AND created_by IS NOT DISTINCT FROM $2 RETURNING storage_key, mp4_key, gif_key`,
       [ids, req.user?.id || null]
     );
-    await Promise.all(rows.filter(r => r.storage_key).map(r => mediaStore.remove(r.storage_key).catch(() => {})));
+    await Promise.all(rows.flatMap(r => [r.storage_key, r.mp4_key, r.gif_key].filter(Boolean).map(k => mediaStore.remove(k).catch(() => {}))));
     res.json({ ok: true, deleted: rows.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -322,11 +374,13 @@ router.post('/import-loom', express.json(), async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `DELETE FROM recordings WHERE id = $1 AND created_by IS NOT DISTINCT FROM $2 RETURNING storage_key`,
+      `DELETE FROM recordings WHERE id = $1 AND created_by IS NOT DISTINCT FROM $2 RETURNING storage_key, mp4_key, gif_key`,
       [req.params.id, req.user?.id || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Recording not found' });
-    if (rows[0].storage_key) await mediaStore.remove(rows[0].storage_key).catch(() => {});
+    for (const k of [rows[0].storage_key, rows[0].mp4_key, rows[0].gif_key]) {
+      if (k) await mediaStore.remove(k).catch(() => {});
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
