@@ -77,6 +77,13 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
 
   const load = () => api.get(clientId ? `/recordings?client_id=${clientId}` : '/recordings').then(setList).catch(() => setList([]));
   useEffect(() => { load(); }, [clientId]);
+  // While any recording is exporting, poll the library until it's ready/failed.
+  useEffect(() => {
+    if (!Array.isArray(list) || !list.some(r => r.export_status === 'processing')) return;
+    const t = setInterval(load, 4000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list]);
   useEffect(() => { if (canEdit) api.get('/clients').then(setClients).catch(() => setClients([])); }, [canEdit]);
 
   const clientName = id => (clients.find(c => c.id === id)?.name) || 'Client';
@@ -303,6 +310,29 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     const link = window.location.origin + rec.share_path;
     try { await navigator.clipboard.writeText(link); toast('Share link copied'); }
     catch { toast('Couldn’t copy — link: ' + link, 'error'); }
+  }
+
+  // Kick off an MP4/GIF export, then poll (via the effect below) until ready.
+  async function exportRec(rec, format) {
+    try {
+      await api.post(`/recordings/${rec.id}/export`, { format });
+      toast(`Preparing ${format.toUpperCase()}… this can take a moment`);
+      load();
+    } catch (err) { toast('Export failed: ' + (err?.message || ''), 'error'); }
+  }
+
+  // Download a rendered export with the auth header, then save it locally.
+  async function downloadExport(rec, format) {
+    try {
+      const res = await api.raw(`/recordings/${rec.id}/download?format=${format}`);
+      if (!res.ok) { const e = await res.json().catch(() => ({ error: res.statusText })); throw new Error(e.error || `HTTP ${res.status}`); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(rec.title || 'recording').replace(/[^\w.\- ]+/g, '').trim() || 'recording'}.${format}`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (err) { toast('Download failed: ' + (err?.message || ''), 'error'); }
   }
 
   async function remove(rec) {
@@ -620,6 +650,22 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontWeight: 600, textDecoration: 'none', color: 'var(--text)' }}>Open</a>
                 <button onClick={() => copyLink(r)}
                   style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Copy link</button>
+                {canEdit && r.status === 'ready' && ['mp4', 'gif'].map(fmt => {
+                  const has = fmt === 'gif' ? r.has_gif : r.has_mp4;
+                  const label = fmt.toUpperCase();
+                  if (has) return (
+                    <button key={fmt} onClick={() => downloadExport(r, fmt)} title={`Download ${label}`}
+                      style={{ padding: '7px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⬇ {label}</button>
+                  );
+                  if (r.export_status === 'processing') return (
+                    <button key={fmt} disabled title="Rendering…"
+                      style={{ padding: '7px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, opacity: 0.6, cursor: 'default' }}>… {label}</button>
+                  );
+                  return (
+                    <button key={fmt} onClick={() => exportRec(r, fmt)} title={`Render a shareable ${label}`}
+                      style={{ padding: '7px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{label}</button>
+                  );
+                })}
                 {canEdit && clientId && r.status === 'ready' && (
                   <button onClick={() => sendToEdit(r)} title="Trim / caption this in the editor"
                     style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Send to Edit</button>
