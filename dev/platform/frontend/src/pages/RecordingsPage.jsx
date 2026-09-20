@@ -34,6 +34,14 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   const [supported] = useState(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && typeof MediaRecorder !== 'undefined');
   const [withMic, setWithMic] = useState(true);
   const [withCam, setWithCam] = useState(false);
+  // Camera bubble appearance — adjustable before AND during a recording (the
+  // draw loop reads camSettingsRef every frame). Defaults match the old
+  // behaviour (bottom-left, medium, mirrored circle) so nothing changes for
+  // anyone who ignores these controls.
+  const [camPos, setCamPos] = useState('bottom-left');
+  const [camSize, setCamSize] = useState('md');
+  const [camShape, setCamShape] = useState('circle');
+  const [camMirror, setCamMirror] = useState(true);
   const [phase, setPhase] = useState('idle'); // idle | recording | preview | saving
   const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -63,6 +71,9 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
   const pausedMsRef = useRef(0);       // total paused time
   const pauseStartRef = useRef(0);
   const pausedRef = useRef(false);
+  // Live snapshot of the camera-bubble settings for the draw loop.
+  const camSettingsRef = useRef({ pos: 'bottom-left', size: 'md', shape: 'circle', mirror: true });
+  useEffect(() => { camSettingsRef.current = { pos: camPos, size: camSize, shape: camShape, mirror: camMirror }; }, [camPos, camSize, camShape, camMirror]);
 
   const load = () => api.get(clientId ? `/recordings?client_id=${clientId}` : '/recordings').then(setList).catch(() => setList([]));
   useEffect(() => { load(); }, [clientId]);
@@ -101,9 +112,9 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     streamsRef.current = [];
   }
 
-  // Composite the screen + a circular camera bubble (bottom-left, Loom-style)
-  // onto a canvas and return its captured video track. Runs a draw loop until
-  // stopAllTracks cancels it.
+  // Composite the screen + a camera bubble onto a canvas and return its
+  // captured video track. Position, size, shape and mirror are read live from
+  // camSettingsRef each frame, so the presenter can reposition mid-recording.
   function makeCameraComposite(display, camStream) {
     const settings = display.getVideoTracks()[0].getSettings();
     const w = settings.width || 1280, h = settings.height || 720;
@@ -114,20 +125,47 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
-    const d = Math.round(Math.min(w, h) * 0.24);      // bubble diameter
-    const pad = Math.round(d * 0.16);
-    const bx = pad, by = h - d - pad;                 // bottom-left
+    const SIZE_FRAC = { sm: 0.16, md: 0.24, lg: 0.34 };
+
+    // Rounded-rect path (used for the "square" bubble shape).
+    const roundRect = (x, y, rw, rh, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + rw, y, x + rw, y + rh, r);
+      ctx.arcTo(x + rw, y + rh, x, y + rh, r);
+      ctx.arcTo(x, y + rh, x, y, r);
+      ctx.arcTo(x, y, x + rw, y, r);
+      ctx.closePath();
+    };
+
     const draw = () => {
       try {
+        const cfg = camSettingsRef.current || {};
+        const d = Math.round(Math.min(w, h) * (SIZE_FRAC[cfg.size] || SIZE_FRAC.md));
+        const pad = Math.round(d * 0.16);
+        const pos = cfg.pos || 'bottom-left';
+        const [vy, vx] = pos.split('-'); // e.g. "bottom-left"
+        const bx = vx === 'left' ? pad : vx === 'right' ? w - d - pad : Math.round((w - d) / 2);
+        const by = vy === 'top' ? pad : vy === 'bottom' ? h - d - pad : Math.round((h - d) / 2);
+
         ctx.drawImage(screenVideo, 0, 0, w, h);
+
         const sw = camVideo.videoWidth || 640, sh = camVideo.videoHeight || 480;
         const side = Math.min(sw, sh);
         ctx.save();
-        ctx.beginPath(); ctx.arc(bx + d / 2, by + d / 2, d / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+        // Clip to the chosen shape.
+        if (cfg.shape === 'square') roundRect(bx, by, d, d, Math.round(d * 0.22));
+        else { ctx.beginPath(); ctx.arc(bx + d / 2, by + d / 2, d / 2, 0, Math.PI * 2); ctx.closePath(); }
+        ctx.clip();
+        // Mirror (selfie view) by flipping horizontally around the bubble centre.
+        if (cfg.mirror !== false) { ctx.translate(bx + d / 2, 0); ctx.scale(-1, 1); ctx.translate(-(bx + d / 2), 0); }
         ctx.drawImage(camVideo, (sw - side) / 2, (sh - side) / 2, side, side, bx, by, d, d);
         ctx.restore();
-        ctx.beginPath(); ctx.arc(bx + d / 2, by + d / 2, d / 2, 0, Math.PI * 2);
-        ctx.lineWidth = Math.max(2, d * 0.02); ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.stroke();
+
+        // Border ring on top (in un-mirrored space).
+        ctx.lineWidth = Math.max(2, d * 0.02); ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        if (cfg.shape === 'square') { roundRect(bx, by, d, d, Math.round(d * 0.22)); ctx.stroke(); }
+        else { ctx.beginPath(); ctx.arc(bx + d / 2, by + d / 2, d / 2, 0, Math.PI * 2); ctx.stroke(); }
       } catch { /* a frame not ready yet */ }
       rafRef.current = requestAnimationFrame(draw);
     };
@@ -317,6 +355,53 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
 
+  // Camera-bubble appearance controls, shown when the camera is on. Rendered
+  // both on the idle setup panel and (compact) during recording for live
+  // repositioning.
+  function camControls() {
+    const POSITIONS = [
+      ['top-left', '◤'], ['top-center', '▲'], ['top-right', '◥'],
+      ['center-left', '◀'], ['center-center', '⬤'], ['center-right', '▶'],
+      ['bottom-left', '◣'], ['bottom-center', '▼'], ['bottom-right', '◢'],
+    ];
+    const pill = (active) => ({
+      padding: '4px 9px', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer',
+      border: 'var(--border-w) solid var(--card-border)',
+      background: active ? 'var(--accent)' : 'var(--surface)', color: active ? 'var(--accent-on)' : 'var(--text)', fontWeight: active ? 700 : 500,
+    });
+    return (
+      <div style={{ marginTop: 8, marginBottom: 12, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div>
+          <div className="body-sm text-subtle" style={{ marginBottom: 4 }}>Camera position</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 26px)', gap: 3 }}>
+            {POSITIONS.map(([p, glyph]) => (
+              <button key={p} type="button" title={p.replace('-', ' ')} onClick={() => setCamPos(p)}
+                style={{ ...pill(camPos === p), padding: 0, height: 26, display: 'grid', placeItems: 'center' }}>{glyph}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="body-sm text-subtle" style={{ marginBottom: 4 }}>Size</div>
+          <div className="row" style={{ gap: 4 }}>
+            {[['sm', 'S'], ['md', 'M'], ['lg', 'L']].map(([s, l]) => (
+              <button key={s} type="button" onClick={() => setCamSize(s)} style={pill(camSize === s)}>{l}</button>
+            ))}
+          </div>
+          <div className="body-sm text-subtle" style={{ margin: '10px 0 4px' }}>Shape</div>
+          <div className="row" style={{ gap: 4 }}>
+            {[['circle', 'Circle'], ['square', 'Rounded']].map(([s, l]) => (
+              <button key={s} type="button" onClick={() => setCamShape(s)} style={pill(camShape === s)}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="body-sm text-subtle" style={{ marginBottom: 4 }}>Mirror</div>
+          <button type="button" onClick={() => setCamMirror(m => !m)} style={pill(camMirror)}>{camMirror ? 'On' : 'Off'}</button>
+        </div>
+      </div>
+    );
+  }
+
   async function bulkDelete() {
     const ids = [...selected];
     if (!ids.length) return;
@@ -353,8 +438,9 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 14 }}>
                 <input type="checkbox" checked={withCam} onChange={e => setWithCam(e.target.checked)} />
-                Show my camera (a circle in the corner)
+                Show my camera (a bubble in the corner)
               </label>
+              {withCam && camControls()}
               <button onClick={startRecording}
                 style={{ padding: '11px 24px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
                 ● Start recording
@@ -374,6 +460,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                 </span>
               </div>
               <video ref={livePreviewRef} autoPlay muted playsInline style={{ width: '100%', maxHeight: 320, background: '#000', borderRadius: 'var(--r-md)' }} />
+              {withCam && camControls()}
               <div className="row" style={{ marginTop: 12, gap: 10 }}>
                 <button onClick={togglePause}
                   style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
