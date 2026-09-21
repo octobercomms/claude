@@ -39,21 +39,58 @@ export default function BriefPanel({ clientId, onNext, seed }) {
         ))}
       </div>
       {mode === 'single' && <PlanningTab clientId={clientId} seed={seed} />}
-      {mode === 'cluster' && <ClusterMode clientId={clientId} />}
+      {mode === 'cluster' && <ClusterMode clientId={clientId} onNext={onNext} />}
       {mode === 'programmatic' && <ProgrammaticMode clientId={clientId} />}
     </PipelineStep>
   );
 }
 
-function ClusterMode({ clientId }) {
+function ClusterMode({ clientId, onNext }) {
   const { readOnly } = useAuth();
   const [keywordText, setKeywordText] = useState('');
   const [clustering, setClustering] = useState(false);
+  const [loadingKws, setLoadingKws] = useState(false);
   const [briefing, setBriefing] = useState(null);   // which cluster.label is being briefed
+  const [drafting, setDrafting] = useState(null);   // which cluster.label is being drafted
   const [result, setResult] = useState(null);       // { clusters, unclustered }
   const [briefs, setBriefs] = useState({});         // cluster.label → brief
   const [refineOpen, setRefineOpen] = useState({}); // cluster.label → bool
   const [err, setErr] = useState(null);
+
+  // Pull the client's already-tracked keywords (the SEO keyword table) straight
+  // into the box, so you can cluster the list you already have instead of
+  // re-typing it. De-duped; capped at the 200/run clustering limit.
+  async function loadTrackedKeywords() {
+    setLoadingKws(true); setErr(null);
+    try {
+      const rows = await api.get(`/rankings/keywords?client_id=${clientId}`);
+      const seen = new Set();
+      const existing = keywordText.split('\n').map(k => k.trim()).filter(Boolean);
+      existing.forEach(k => seen.add(k.toLowerCase()));
+      const add = [];
+      for (const r of (rows || [])) {
+        const kw = String(r.keyword || '').trim();
+        if (kw && !seen.has(kw.toLowerCase())) { seen.add(kw.toLowerCase()); add.push(kw); }
+      }
+      if (!add.length) { setErr(rows?.length ? 'All your tracked keywords are already in the box.' : 'No tracked keywords for this client yet — add some in the SEO keyword tracker first.'); return; }
+      const merged = [...existing, ...add].slice(0, 200);
+      setKeywordText(merged.join('\n'));
+    } catch (e) { setErr(e.message); }
+    finally { setLoadingKws(false); }
+  }
+
+  // Turn a generated cluster brief straight into a content draft (same endpoint
+  // the single-keyword pipeline uses), then jump to the Draft step to edit it.
+  async function draftCluster(c) {
+    const brief = briefs[c.label];
+    if (!brief) return;
+    setDrafting(c.label); setErr(null);
+    try {
+      await api.post(`/seo/clients/${clientId}/drafts`, { brief, target_keyword: c.primary });
+      onNext?.();
+    } catch (e) { setErr(e.message); }
+    finally { setDrafting(null); }
+  }
 
   // Try to JSON.parse a revision returned by the refine chat. Strip
   // any code fences first because Claude often wraps JSON in them
@@ -87,7 +124,12 @@ function ClusterMode({ clientId }) {
   return (
     <div>
       <div className="card" style={{ marginBottom: 18 }}>
-        <div className="caption mb-2">Paste keywords — one per line</div>
+        <div className="row between center wrap mb-2" style={{ gap: 8 }}>
+          <div className="caption">Paste keywords — one per line</div>
+          <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: loadTrackedKeywords, disabled: loadingKws })}>
+            {loadingKws ? 'Loading…' : '↥ Load my tracked keywords'}
+          </button>
+        </div>
         <textarea
           value={keywordText}
           onChange={e => setKeywordText(e.target.value)}
@@ -139,6 +181,11 @@ function ClusterMode({ clientId }) {
                       <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => makeBrief(c), disabled: briefing === c.label || !!brief })}>
                         {brief ? '✓ Brief generated' : briefing === c.label ? 'Generating…' : 'Generate brief →'}
                       </button>
+                      {brief && (
+                        <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => draftCluster(c), disabled: drafting === c.label })}>
+                          {drafting === c.label ? 'Drafting…' : 'Draft this →'}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: brief ? 'var(--s3)' : 0 }}>
