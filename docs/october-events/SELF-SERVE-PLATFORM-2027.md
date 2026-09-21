@@ -53,6 +53,51 @@ workload. Build in that order.
 Open decision: whether changing **date or price** after publish re-triggers review.
 Recommendation: no. Trust the user once approved and rely on the edit notification.
 
+## 4a. Event images — quality gate & validation
+
+The listing wall only reads well if the event images are consistent. Uploaders
+tend to submit portrait promo posters full of text (see the ZuCot "Black
+Aesthetic" poster as the canonical *don't*). We enforce a house standard at the
+point of upload rather than fixing it in review.
+
+### The rules
+
+- **Square** — width must equal height (small tolerance, e.g. ±1%).
+- **Minimum 1500 × 1500 px** — the short side must be ≥ 1500.
+- **Format** — JPEG, PNG or WebP only; sensible max file size (e.g. 12 MB).
+- **No text on the image** — no overlaid titles, dates, logos or captions.
+- **A single, clear subject** — a clean photo of the work / space / people, not a
+  poster, flyer or collage. One consistent feel across the wall.
+
+### How each rule is checked
+
+| Rule | Check | Certainty |
+|------|-------|-----------|
+| Square, min 1500px, format, size | Read the file's dimensions/type — **client-side on file select** (instant feedback, no wasted upload) and **re-enforced server-side** so it can't be bypassed | 100%, deterministic — **hard block** |
+| No text / single subject / clean feel | One **vision check via the plugin's Claude AI connector** (`includes/AI/`): "Is there overlaid text? Is this a clean single-subject photo or a promotional poster/collage?" Returns pass/fail + a short human-readable reason | High, not perfect — **block with the reason shown**, so the uploader fixes it themselves |
+
+### Design principles
+
+- Fail **early and specifically**: tell them exactly what's wrong ("must be
+  square, at least 1500px" / "please upload a clean photo with no text on it"),
+  never a generic "invalid image".
+- Show a **good example inline** next to the upload box — worth more than any
+  validator for steering taste.
+- **Admin approval stays the backstop** (see §3). Automated checks cannot
+  guarantee taste; they catch the obvious failures and keep the reviewer's queue
+  clean. The vision check is advisory-strong, not infallible — a human can always
+  override.
+- Cost/latency: the deterministic checks are free and instant; the vision check is
+  one AI call per uploaded image — cache the verdict so re-saves don't re-bill.
+
+### Build notes
+
+- Extend the existing submission path (`includes/Submission.php`) and reuse the AI
+  connector (`includes/AI/`) rather than adding a new dependency.
+- Store the accepted image square at ≥ 1500px; generate the display sizes from it.
+- Keep the thresholds as settings (min px, max file size, whether the vision check
+  hard-blocks or soft-warns) so the standard can be tuned without a code change.
+
 ## 5. Registration model (three tiers, chosen per event)
 
 | Tier | How it works | Attendee money | October revenue | Their Stripe? |
