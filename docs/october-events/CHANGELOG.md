@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.156.0 — Stripe webhook health readout in settings
+
+- Settings → Keys & platform now shows the **last Stripe webhook result** under the
+  API keys: green when the most recent event verified, red with the exact reason
+  (e.g. wrong/missing signing secret) when it was rejected. A wrong `whsec_` is now
+  obvious in wp-admin instead of only surfacing as Stripe "delivery failing" emails.
+- The rejection reason is always populated, so a failed delivery's response in the
+  Stripe dashboard names the precise cause too.
+
 ## 1.155.0 — Door checkout: payment fields inline, tighter layout
 
 - Removed the **Continue to payment** step. The Stripe Payment Element (card +
