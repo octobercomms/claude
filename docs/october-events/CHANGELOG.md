@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.159.0 — Reconcile paid orders (webhook safety net)
+
+- New **Reconcile paid orders** tool under Settings → Keys & platform (below the
+  Stripe webhook health line). It lists every succeeded ticket PaymentIntent in a
+  chosen window and flags any that never produced an order — the exact gap a
+  missed webhook delivery leaves. Only intents this plugin created for a ticket
+  sale are checked (`metadata.kind = ticket`), so membership invoices and other
+  charges on the shared Stripe account are ignored and a flagged intent always
+  means a real missing order.
+- Tick **Create any missing orders** to rebuild the missing ones from each
+  intent's own metadata (buyer, cart, promo, attendees). It reuses the same
+  idempotent path as the webhook, so it never duplicates and is safe to re-run;
+  a webhook that later retries the same intent is a no-op.
+- The order-building logic is now a shared `OE\Ticketing\OrderFactory`, used by
+  `/ticket-confirm`, the webhook and this tool (no behaviour change to checkout).
+
 ## 1.158.0 — Stripe webhook verified with our own HMAC (SDK-conflict fix)
 
 - Webhook signatures are now verified with the plugin's own HMAC check (Stripe's
