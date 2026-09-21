@@ -16,6 +16,7 @@ const seoSxo = require('../services/seoSxo');
 const overviewReport = require('../services/overviewReport');
 const ownedOverviewReport = require('../services/ownedOverviewReport');
 const { decrypt } = require('../utils/encryption');
+const { parseJsonLoose } = require('../utils/jsonParse');
 
 const router = express.Router();
 router.use(authenticate);
@@ -59,9 +60,8 @@ ${keywords.map(k => `- ${k.keyword}`).join('\n')}`;
       system: 'You classify search intent. British English. Respond with JSON only.',
       user: prompt,
     });
-    const cleaned = reply.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
     let intentMap;
-    try { intentMap = JSON.parse(cleaned); }
+    try { intentMap = parseJsonLoose(reply); }
     catch { return res.status(502).json({ error: 'Claude returned malformed JSON', raw: reply.slice(0, 500) }); }
 
     let updated = 0;
@@ -403,13 +403,12 @@ ${briefKeySpec({ intent: 'Informational' })}
 Return ONLY the JSON object. No prose.`;
 
     const reply = await claudeService.callClaude({
-      max_tokens: 3000,
+      max_tokens: 4096,   // headroom so a full brief isn't truncated mid-JSON
       system: BRIEF_SYSTEM,
       user: prompt,
     });
-    const cleaned = reply.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
     let brief;
-    try { brief = JSON.parse(cleaned); }
+    try { brief = parseJsonLoose(reply); }
     catch { return res.status(502).json({ error: 'Claude returned malformed JSON', raw: reply.slice(0, 500) }); }
     res.json({ brief });
   } catch (err) {
