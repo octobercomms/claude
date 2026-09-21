@@ -665,7 +665,12 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.followup_hero !== false}
                 onChange={async e => { const next = e.target.checked; setRelease(r => ({ ...r, followup_hero: next })); try { await api.patch(`/press/releases/${release.id}`, { followup_hero: next }); if (previewing) preview(previewing, true); } catch (err) { toast(err.message, 'error'); } }} />
-              <span><strong>Add the hero image at the foot of follow-ups.</strong> <span style={{ color: 'var(--text-subtle)' }}>Sits below your sign-off as a reminder of the story. Follow-ups always link to the release and read as standalone pitches; the last one offers a quick 1/2/3 reply.</span></span>
+              <span><strong>Add the hero image at the foot of follow-ups.</strong> <span style={{ color: 'var(--text-subtle)' }}>Sits below your sign-off as a reminder of the story. Follow-ups read as standalone pitches; the last one offers a quick 1/2/3 reply.</span></span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={release.include_release_link !== false}
+                onChange={async e => { const next = e.target.checked; setRelease(r => ({ ...r, include_release_link: next })); try { await api.patch(`/press/releases/${release.id}`, { include_release_link: next }); if (previewing) preview(previewing, true); } catch (err) { toast(err.message, 'error'); } }} />
+              <span><strong>Include the “Read the release” button.</strong> <span style={{ color: 'var(--text-subtle)' }}>On by default. Turn off (with embedding off above) to send plain personal emails — e.g. an invitation or announcement — with no release link on the first email or the follow-ups.</span></span>
             </label>
 
             {/* Configurable footer / signature */}
@@ -777,7 +782,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
                   <strong>Subject:</strong> {steps[emailIdx]?.subject || <span style={{ color: 'var(--text-subtle)' }}>(set in step 2)</span>}
-                  {emailIdx === 0 && <span style={{ color: 'var(--text-subtle)' }}> · {release.embed_full_release !== false ? 'pitch + embedded release' : 'pitch + link'}</span>}
+                  {emailIdx === 0 && <span style={{ color: 'var(--text-subtle)' }}> · {release.embed_full_release !== false ? 'pitch + embedded release' : (release.include_release_link !== false ? 'pitch + link' : 'plain email')}</span>}
                 </div>
 
                 <iframe srcDoc={shownHtml} title="Preview" style={{ width: '100%', height: 620, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: '#fff' }} sandbox="" />

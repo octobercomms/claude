@@ -427,7 +427,7 @@ function layoutImagesAndCaptions($, root) {
   });
 }
 
-function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, contactId, clientId, campaignId, signature }) {
+function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, includeReleaseLink = true, contactId, clientId, campaignId, signature }) {
   const pitchHtml = (pitch || '').split('\n').map(p => p.trim()).filter(Boolean)
     .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(p)}</p>`)
     .join('');
@@ -437,7 +437,7 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
 
   // A single, clear pill call-to-action, opening the release page in a new tab
   // (#4, #5). Mirrors the "Download Hi-Res Images" button on Daniel's own sends.
-  const downloadBtn = release.source_url ? `
+  const downloadBtn = (includeReleaseLink && release.source_url) ? `
     <div style="margin:20px 0 4px;">
       <a href="${escapeHtml(release.source_url)}" target="_blank" rel="noopener" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 26px;border-radius:999px;">Download hi-res images &amp; full release &rarr;</a>
     </div>` : '';
@@ -521,7 +521,7 @@ function emailShell(title, inner) {
 // greeting, the short body, at most one image, then the AM's sign-off +
 // configurable footer and the unsubscribe line. Same shell as the pitch so a
 // chase reads like a real human wrote it — which is what earns the reply.
-function buildFollowUpHtml({ release, body, sender, recipientName, includeHero = true, contactId, clientId, campaignId, signature }) {
+function buildFollowUpHtml({ release, body, sender, recipientName, includeHero = true, includeReleaseLink = true, contactId, clientId, campaignId, signature }) {
   const greeting = recipientName
     ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(recipientName.split(' ')[0])},</p>` : '';
   const bodyHtml = (body || '').split('\n').map(p => p.trim()).filter(Boolean)
@@ -529,7 +529,7 @@ function buildFollowUpHtml({ release, body, sender, recipientName, includeHero =
     .join('');
   // A link back to the release so the follow-up stands alone — the journalist
   // may not have opened anything before, and this gives them the full story.
-  const readLink = release.source_url ? `
+  const readLink = (includeReleaseLink && release.source_url) ? `
     <div style="margin:18px 0 0;">
       <a href="${escapeHtml(release.source_url)}" target="_blank" rel="noopener" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 22px;border-radius:999px;">Read the release &rarr;</a>
     </div>` : '';

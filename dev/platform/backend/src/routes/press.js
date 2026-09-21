@@ -517,6 +517,7 @@ router.post('/releases/:id/preview', async (req, res) => {
       sender,
       recipientName: contactRows[0].name,
       embedFull: release.embed_full_release !== false,
+      includeReleaseLink: release.include_release_link !== false,
       contactId: contact_id,
       clientId: release.client_id,
       signature,
@@ -534,6 +535,7 @@ router.post('/releases/:id/preview', async (req, res) => {
       release: releaseWithHero, body: fu.body, sender, recipientName: contactRows[0].name,
       contactId: contact_id, clientId: release.client_id, signature,
       includeHero: release.followup_hero !== false,
+      includeReleaseLink: release.include_release_link !== false,
     }));
     // Merge the authoritative sequence subject onto each follow-up for display.
     const followUpsOut = followUps.map((fu, i) => ({
@@ -569,6 +571,10 @@ router.patch('/releases/:id', async (req, res) => {
     if (typeof req.body?.followup_hero === 'boolean') {
       params.push(req.body.followup_hero);
       updates.push(`followup_hero = $${params.length}`);
+    }
+    if (typeof req.body?.include_release_link === 'boolean') {
+      params.push(req.body.include_release_link);
+      updates.push(`include_release_link = $${params.length}`);
     }
     // Persist the chosen audience so closing/reopening the campaign restores it.
     if (Array.isArray(req.body?.selected_tags)) {
