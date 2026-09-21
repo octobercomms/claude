@@ -366,6 +366,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     let h = pressRelease.buildEmailHtml({
       release: releaseWithHero, pitch: cached.intro, sender,
       recipientName: contact.name, embedFull: release.embed_full_release !== false,
+      includeReleaseLink: release.include_release_link !== false,
       contactId: contact.id, clientId, campaignId, signature,
     });
     h = rewriteLinksForTracking(h, sendId);
@@ -412,6 +413,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
         release: releaseWithHero, body: text, sender, recipientName: contact.name,
         contactId: contact.id, clientId, campaignId, signature,
         includeHero: release.followup_hero !== false,
+        includeReleaseLink: release.include_release_link !== false,
       });
       html = rewriteLinksForTracking(html, sendId);
       if (sendId && process.env.PLATFORM_URL) {
@@ -455,6 +457,7 @@ async function sendPressTest({ release, contact, toAddress, sending, clientId, s
     html = pressRelease.buildEmailHtml({
       release: releaseWithHero, pitch: cached.intro, sender,
       recipientName: contact.name, embedFull: release.embed_full_release !== false,
+      includeReleaseLink: release.include_release_link !== false,
       contactId: contact.id, clientId, signature,
     });
     text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
@@ -472,6 +475,7 @@ async function sendPressTest({ release, contact, toAddress, sending, clientId, s
       release: releaseWithHero, body: text, sender, recipientName: contact.name,
       contactId: contact.id, clientId, signature,
       includeHero: release.followup_hero !== false,
+      includeReleaseLink: release.include_release_link !== false,
     });
   }
   return deliver({ from, to: toAddress, replyTo, subject: `[TEST] ${subject}`, text, html });

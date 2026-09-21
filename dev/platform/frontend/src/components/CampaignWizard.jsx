@@ -290,11 +290,47 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
   );
 }
 
+// Parse a pasted recipient list into contact objects. Tolerant of the shapes
+// people actually paste: one per line, as "email", "Name <email>",
+// "email, Name, Company" or "Name, email, Company" (comma / tab / semicolon
+// separated). The first token that looks like an email is the address; of the
+// remaining cells, the first becomes the name and the second the company. Lines
+// with no email are returned as skipped so the UI can say how many were ignored.
+const EMAIL_RE = /[^\s<>,;]+@[^\s<>,;]+\.[^\s<>,;]+/;
+function parseContactLines(text) {
+  const contacts = [];
+  const seen = new Set();
+  let skipped = 0;
+  for (const raw of String(text || '').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const angle = line.match(/^(.*?)<\s*([^>]+?)\s*>$/); // Name <email>
+    let email, rest = [];
+    if (angle && EMAIL_RE.test(angle[2])) {
+      email = angle[2].trim();
+      if (angle[1].trim()) rest = [angle[1].trim()];
+    } else {
+      const cells = line.split(/[,\t;]+/).map(c => c.trim()).filter(Boolean);
+      const emailCell = cells.find(c => EMAIL_RE.test(c));
+      if (!emailCell) { skipped++; continue; }
+      email = (emailCell.match(EMAIL_RE) || [emailCell])[0];
+      rest = cells.filter(c => c !== emailCell);
+    }
+    const lower = email.toLowerCase();
+    if (seen.has(lower)) continue;
+    seen.add(lower);
+    contacts.push({ email: lower, name: rest[0] || null, company: rest[1] || null, source: 'imported' });
+  }
+  return { contacts, skipped };
+}
+
 // ─── Step 3 ─────────────────────────────────────────────────────────────────
 function StepContacts({ campaign, clientId, onBack, onNext }) {
   const toast = useToast();
   const { readOnly } = useAuth();
   const [mode, setMode] = useState('find');
+  const [pasteText, setPasteText] = useState('');
+  const [savingPaste, setSavingPaste] = useState(false);
   const [batchIdx, setBatchIdx] = useState(0);
   const [searching, setSearching] = useState(false);
   const [foundContacts, setFoundContacts] = useState([]);
@@ -361,16 +397,59 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
     }
   }
 
+  const parsedPaste = React.useMemo(() => parseContactLines(pasteText), [pasteText]);
+
+  async function savePastedList() {
+    if (!parsedPaste.contacts.length) { toast('Paste at least one email address first', 'error'); return; }
+    setSavingPaste(true);
+    try {
+      const res = await api.post(`/outreach/campaigns/${campaign.id}/contacts/add`, { new_contacts: parsedPaste.contacts });
+      toast(`Added ${res.added} recipient${res.added === 1 ? '' : 's'} to the campaign`, 'success');
+      onNext();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setSavingPaste(false);
+    }
+  }
+
   const totalSelected = selectedFound.size + selectedExisting.size;
 
   return (
     <div className="card">
-      <H>Find Leads</H>
+      <H>Add Recipients</H>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <button onClick={() => setMode('find')} className={`btn btn-sm ${mode === 'find' ? 'btn-primary' : 'btn-secondary'}`}>Find new leads</button>
         <button onClick={() => setMode('existing')} className={`btn btn-sm ${mode === 'existing' ? 'btn-primary' : 'btn-secondary'}`}>Existing leads</button>
+        <button onClick={() => setMode('paste')} className={`btn btn-sm ${mode === 'paste' ? 'btn-primary' : 'btn-secondary'}`}>Paste / upload a list</button>
       </div>
+
+      {mode === 'paste' && (
+        <div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px' }}>
+            One recipient per line. Any of: <code>email</code> · <code>Name &lt;email&gt;</code> · <code>email, Name, Company</code> · <code>Name, email, Company</code>.
+            Paste straight from a spreadsheet column or a CSV — commas, tabs or semicolons all work.
+          </p>
+          <textarea
+            className="input"
+            value={pasteText}
+            onChange={e => setPasteText(e.target.value)}
+            placeholder={'cindy@example.com, Cindy Ramos, Indiewalls\njordan@studio.com\nAlex Lee <alex@outlet.co>'}
+            style={{ width: '100%', minHeight: 160, resize: 'vertical', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 13, boxSizing: 'border-box' }}
+          />
+          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 6 }}>
+            {parsedPaste.contacts.length} valid recipient{parsedPaste.contacts.length === 1 ? '' : 's'}
+            {parsedPaste.skipped ? ` · ${parsedPaste.skipped} line${parsedPaste.skipped === 1 ? '' : 's'} skipped (no email)` : ''}
+            {parsedPaste.contacts.length > 0 && <span> · e.g. {parsedPaste.contacts.slice(0, 3).map(c => c.name ? `${c.name} (${c.email})` : c.email).join(', ')}{parsedPaste.contacts.length > 3 ? '…' : ''}</span>}
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <button {...roWrite(readOnly, { onClick: savePastedList, disabled: savingPaste || parsedPaste.contacts.length === 0 })} className="btn btn-primary">
+              {savingPaste ? 'Adding…' : `Add ${parsedPaste.contacts.length || ''} to campaign →`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {mode === 'find' && (
         <div>
