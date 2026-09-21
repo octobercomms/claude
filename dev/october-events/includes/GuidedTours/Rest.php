@@ -176,6 +176,8 @@ final class Rest {
      */
     private static function state_payload(string $email, string $tour): array {
         $allowance = Eligibility::ticket_allowance($email, $tour);
+        // Informational total across tours (not a cap): a ticket is a pass, so the
+        // buyer may join every tour bringing up to their party each time.
         $used      = Reservations::party_used($email, $tour);
         $mine      = [];
         foreach (Reservations::active_for_email($email, $tour) as $r) {
@@ -194,7 +196,10 @@ final class Rest {
             'ok'        => true,
             'allowance' => $allowance,
             'used'      => $used,
-            'remaining' => max(0, $allowance - $used),
+            // A ticket is a pass: the full party allowance is available for each
+            // tour, so "remaining" is the per-booking cap (group size), not a pool
+            // that shrinks as they add tours. Capacity is enforced per slot.
+            'remaining' => $allowance,
             'mine'      => $mine,
         ];
     }

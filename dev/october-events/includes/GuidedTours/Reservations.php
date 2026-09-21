@@ -113,9 +113,10 @@ final class Reservations {
     }
 
     /**
-     * Reserve a slot for a party of one or more. `$allowance` is how many seats
-     * this email may hold across the whole tour (its ticket count); pass
-     * PHP_INT_MAX to bypass the cap for a hand-added admin booking. The whole
+     * Reserve a slot for a party of one or more. `$allowance` is the most seats
+     * this email may bring to ANY ONE tour (its ticket count) — a ticket is a
+     * pass, so the same buyer can book onto every tour, up to that party each time;
+     * pass PHP_INT_MAX to bypass the cap for a hand-added admin booking. The whole
      * party is kept together: it is reserved when the slot has room, otherwise the
      * whole party joins the waitlist.
      *
@@ -138,12 +139,17 @@ final class Reservations {
             if (self::active_at_slot($email, $location_id, $slot_uid)) {
                 return new \WP_Error('oe_gt_dupe', __('You’ve already booked this time. Change or cancel that booking below to move it.', 'october-events'));
             }
-            $used = self::party_used($email, $tour_key);
-            if ($used + $party_size > $allowance) {
-                $left = max(0, $allowance - $used);
-                return new \WP_Error('oe_gt_allow', $left > 0
-                    ? sprintf(_n('That’s more seats than your tickets allow. You have %d seat left.', 'That’s more seats than your tickets allow. You have %d seats left.', $left, 'october-events'), $left)
-                    : __('Your tickets are all booked onto tours. Cancel one below to free a seat.', 'october-events'));
+            // A ticket is a pass: the buyer may join every tour and bring up to
+            // their ticket count (party) to each. So the cap is per booking, not a
+            // shared pool across tours — only the party at any one slot can't
+            // exceed the tickets held. (Booking the same slot twice is blocked
+            // above; slot capacity is enforced below.)
+            if ($party_size > $allowance && $allowance !== PHP_INT_MAX) {
+                return new \WP_Error('oe_gt_allow', sprintf(
+                    /* translators: %d: number of tickets/people the buyer holds */
+                    _n('Your ticket covers %d person — reduce your party size to book.', 'Your tickets cover %d people — reduce your party size to book.', $allowance, 'october-events'),
+                    $allowance
+                ));
             }
             $held   = self::count_held($location_id, $slot_uid);
             $full   = ($held + $party_size) > $slot['capacity'];
@@ -170,7 +176,10 @@ final class Reservations {
         AuditLog::record($full ? 'gt_waitlist' : 'gt_reserved', $id, 'guided_tour', $email);
         Mailer::reserved($location_id, $slot_uid, $email, $name, $full, $token, $party_size);
         $left      = max(0, $slot['capacity'] - self::count_held($location_id, $slot_uid));
-        $remaining = $allowance === PHP_INT_MAX ? PHP_INT_MAX : max(0, $allowance - self::party_used($email, $tour_key));
+        // A ticket is a pass, so the party allowance is available again on the next
+        // tour — remaining is the per-booking cap (the group size), not a shrinking
+        // pool. This drives the booking page's party stepper.
+        $remaining = $allowance;
         return ['status' => $status, 'spots_left' => $left, 'remaining' => $remaining];
     }
 
