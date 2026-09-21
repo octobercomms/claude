@@ -2256,6 +2256,41 @@ router.post('/campaigns/:id/resume', async (req, res) => {
   }
 });
 
+// Re-queue every send that gave up ('failed') for this campaign so a transient
+// provider wobble (SES throttle, a brief outage, a timeout) doesn't leave anyone
+// unsent. Contacts that are genuinely terminal — hard-bounced or unsubscribed —
+// are skipped so we never re-hammer a dead or opted-out address; the send loop
+// would cancel those anyway, but excluding them keeps the requeue count honest.
+// attempts is reset so each gets a fresh set of retries. Works for any campaign,
+// press or bulk, since press campaigns are outreach_campaigns under the hood.
+router.post('/campaigns/:id/retry-failed', async (req, res) => {
+  try {
+    const { rows: camps } = await pool.query('SELECT client_id, status FROM outreach_campaigns WHERE id = $1', [req.params.id]);
+    if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
+    await assertClientAccess(req, camps[0].client_id);
+    // Make sure the campaign is active so the send cron will actually pick the
+    // re-queued rows up (a fully-failed campaign may have been paused).
+    if (camps[0].status !== 'active') {
+      await pool.query("UPDATE outreach_campaigns SET status = 'active' WHERE id = $1", [req.params.id]);
+    }
+    const { rowCount } = await pool.query(
+      `UPDATE outreach_sends s
+          SET status = 'pending', attempts = 0, claimed_at = NULL,
+              last_error = NULL, scheduled_at = NOW()
+         FROM outreach_contacts c
+        WHERE s.contact_id = c.id
+          AND s.campaign_id = $1
+          AND s.status = 'failed'
+          AND c.bounced_at IS NULL
+          AND c.status NOT IN ('bounced', 'unsubscribed')`,
+      [req.params.id]
+    );
+    res.json({ requeued: rowCount });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 router.post('/campaigns/:id/test', async (req, res) => {
   const { to } = req.body;
   if (!to) return res.status(400).json({ error: 'A test recipient email is required.' });

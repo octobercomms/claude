@@ -36,10 +36,22 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   }, [release.id, clientId, toast]);
   useEffect(() => { load(); }, [load]);
 
+  const [retrying, setRetrying] = useState(false);
   async function saveCfg(next) {
     setCfg(next);
     try { await api.put(`/press/clients/${clientId}/warm-config`, next); }
     catch (e) { toast(e.message, 'error'); }
+  }
+  async function retryFailed() {
+    const campaignId = data?.campaign_id;
+    if (!campaignId) return;
+    setRetrying(true);
+    try {
+      const r = await api.post(`/outreach/campaigns/${campaignId}/retry-failed`, {});
+      toast(r.requeued ? `Re-queued ${r.requeued} failed send(s) — they'll go out on the next send cycle.` : 'Nothing to retry.', 'success');
+      await load();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setRetrying(false); }
   }
   async function loadSuppression() {
     try { setSupp(await api.get(`/press/clients/${clientId}/suppression`)); }
@@ -101,6 +113,23 @@ export default function PressCampaignAnalytics({ clientId, release }) {
           <button className="btn btn-secondary btn-sm" onClick={exportCsv}>Export CSV</button>
         </div>
       </div>
+
+      {/* Delivery health — the send queue, distinct from engagement above. Only
+          shown once a send exists; the failed count carries the retry action. */}
+      {data?.delivery && (data.delivery.sent + data.delivery.in_flight + data.delivery.failed + data.delivery.cancelled > 0) && (
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', padding: '8px 14px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
+          <span style={{ fontWeight: 600 }}>Delivery</span>
+          <span style={{ color: 'var(--positive, #15803d)' }}>✓ {data.delivery.sent} sent</span>
+          {data.delivery.in_flight > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {data.delivery.in_flight} still going out</span>}
+          {data.delivery.failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {data.delivery.failed} failed</span>}
+          {data.delivery.cancelled > 0 && <span style={{ color: 'var(--text-subtle)' }}>{data.delivery.cancelled} skipped (bounced/unsub)</span>}
+          {data.delivery.failed > 0 && (
+            <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} onClick={retryFailed} disabled={retrying}>
+              {retrying ? 'Re-queueing…' : `Retry ${data.delivery.failed} failed`}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Warm threshold */}
       {cfg && (
