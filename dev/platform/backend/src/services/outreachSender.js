@@ -324,24 +324,35 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
   );
   if (!relRows.length) throw new Error('Press release for this campaign not found');
   const release = relRows[0];
-  let { rows: emailRows } = await pool.query(
-    'SELECT * FROM press_release_emails WHERE press_release_id = $1 AND contact_id = $2',
-    [release.id, contact.id]
-  );
-  if (!emailRows.length) {
-    // Press emails are generated lazily at dispatch (not up-front at send
-    // time), so a large list can queue instantly. Generate this recipient's
-    // intro + follow-ups now, on the paced send cron.
-    await require('./pressRelease').getOrGenerateEmails({
-      pressReleaseId: release.id, contactId: contact.id, force: false,
-    });
-    ({ rows: emailRows } = await pool.query(
+  // Full author mode: the AM has turned AI off and writes every email
+  // themselves (the invite/announcement + the follow-ups). In that mode we
+  // generate NOTHING — no AI pitch, no AI follow-ups, no cost — and the first
+  // email uses the AM's written body instead of an AI press pitch (which is
+  // what wrongly framed event invites as "press releases").
+  const authorMode = release.followups_ai === false;
+  const authorReleaseBody = authorMode ? (release.custom_release_body || '').trim() : '';
+
+  let cached = null;
+  if (!authorMode) {
+    let { rows: emailRows } = await pool.query(
       'SELECT * FROM press_release_emails WHERE press_release_id = $1 AND contact_id = $2',
       [release.id, contact.id]
-    ));
+    );
+    if (!emailRows.length) {
+      // Press emails are generated lazily at dispatch (not up-front at send
+      // time), so a large list can queue instantly. Generate this recipient's
+      // intro now, on the paced send cron.
+      await require('./pressRelease').getOrGenerateEmails({
+        pressReleaseId: release.id, contactId: contact.id, force: false,
+      });
+      ({ rows: emailRows } = await pool.query(
+        'SELECT * FROM press_release_emails WHERE press_release_id = $1 AND contact_id = $2',
+        [release.id, contact.id]
+      ));
+    }
+    if (!emailRows.length) throw new Error('Could not generate the press email for this contact');
+    cached = emailRows[0];
   }
-  if (!emailRows.length) throw new Error('Could not generate the press email for this contact');
-  const cached = emailRows[0];
 
   // Lazy require so the outreach sender doesn't depend on cheerio /
   // pressRelease at module load time on installs that aren't using
@@ -358,13 +369,19 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
   );
   const editedSubject = seqRows[0]?.subject;
 
-  // Render the full release email (pitch + optional embed), tracked. Shared by
+  // The first email's body: the AM's written invite/announcement in author
+  // mode, else the AI-personalised pitch. fillTemplate honours {{merge}} tags.
+  const firstEmailBody = authorMode
+    ? fillTemplate(authorReleaseBody || release.title || '', contact)
+    : (cached?.intro || '');
+
+  // Render the full first email (body + optional embed), tracked. Shared by
   // the initial send AND the "resend to an unopener" follow-up path.
   function renderRelease(subjectLine) {
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
     let h = pressRelease.buildEmailHtml({
-      release: releaseWithHero, pitch: cached.intro, sender,
+      release: releaseWithHero, pitch: firstEmailBody, sender,
       recipientName: contact.name, embedFull: release.embed_full_release !== false,
       includeReleaseLink: release.include_release_link !== false,
       contactId: contact.id, clientId, campaignId, signature,
@@ -374,7 +391,8 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
       const sig = signTrackToken({ sendId, kind: 'open' });
       h += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${sendId}?s=${sig}" width="1" height="1" alt="" style="display:none">`;
     }
-    return { subject: subjectLine, html: h, text: (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}` };
+    const linkLine = (release.source_url && release.include_release_link !== false) ? `\n\nPress release: ${release.source_url}` : '';
+    return { subject: subjectLine, html: h, text: (firstEmailBody || '') + linkLine };
   }
 
   let subject, html, text;
