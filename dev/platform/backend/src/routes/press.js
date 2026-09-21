@@ -801,7 +801,14 @@ router.post('/releases/:id/send-plan', async (req, res) => {
       );
       already = rows[0]?.n || 0;
     }
-    res.json({ total: ids.length, already, new: Math.max(0, ids.length - already) });
+    const fresh = Math.max(0, ids.length - already);
+    // Pre-spend estimate: personalising a pitch for each NEW recipient is the
+    // dominant AI cost of a send (follow-ups are generated lazily, only for
+    // opens). Surfaced so the confirm dialog can warn before a big send.
+    let est = null;
+    try { est = await require('../services/budget').estimatePressSendUsd(fresh); }
+    catch { /* estimate is best-effort — never block the plan on it */ }
+    res.json({ total: ids.length, already, new: fresh, est_cost_usd: est ? est.est_usd : null });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

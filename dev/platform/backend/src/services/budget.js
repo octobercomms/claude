@@ -54,15 +54,58 @@ async function topFeatures({ days = 1, limit = 6 } = {}) {
   return rows;
 }
 
-function hardCapUsd() {
-  const v = parseFloat(process.env.AI_MONTHLY_HARD_CAP_USD || '');
-  return Number.isFinite(v) && v > 0 ? v : null;
+// The monthly hard cap, from the Settings 'AI_MONTHLY_HARD_CAP_USD' value
+// (getSetting falls back to the env var of the same name). null = no cap.
+// Cached 30s so the per-call gate stays cheap.
+let _capCache = { at: 0, cap: undefined };
+const CAP_TTL_MS = 30 * 1000;
+async function hardCapUsd() {
+  const now = Date.now();
+  if (_capCache.cap !== undefined && now - _capCache.at < CAP_TTL_MS) return _capCache.cap;
+  let raw = null;
+  try { raw = await require('../utils/settings').getSetting('AI_MONTHLY_HARD_CAP_USD'); }
+  catch { /* fall back to env below */ }
+  const v = parseFloat(raw != null ? raw : (process.env.AI_MONTHLY_HARD_CAP_USD || ''));
+  const cap = Number.isFinite(v) && v > 0 ? v : null;
+  _capCache = { at: now, cap };
+  return cap;
+}
+function clearCapCache() { _capCache = { at: 0, cap: undefined }; }
+
+// Recent average actual cost per call for a feature — the basis for a pre-spend
+// estimate. null when there's no billing history yet.
+async function avgFeatureCostUsd(feature, { days = 30 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT AVG(cost_usd)::float AS avg
+       FROM api_cost_events
+      WHERE feature = $1 AND cost_usd > 0
+        AND ts >= NOW() - ($2::int || ' days')::interval`,
+    [feature, days]
+  );
+  return rows[0]?.avg || null;
+}
+
+// Estimate the AI cost of sending a press release to `newRecipients` NEW people:
+// one personalised pitch each (the dominant cost — follow-ups are now generated
+// lazily, only for opens, and run on the cheaper model). Uses the recent average
+// actual pitch cost, falling back to an Opus-price estimate with no history.
+const FALLBACK_PITCH_USD = 0.033;
+async function estimatePressSendUsd(newRecipients) {
+  const n = Math.max(0, Number(newRecipients) || 0);
+  const avg = await avgFeatureCostUsd('press_pitch');
+  const perPitch = (avg && avg > 0) ? avg : FALLBACK_PITCH_USD;
+  return {
+    new_recipients: n,
+    per_pitch_usd: perPitch,
+    est_usd: n * perPitch,
+    basis: avg ? 'recent-average' : 'estimate',
+  };
 }
 
 // Throw if the opt-in monthly hard cap is set and month-to-date spend has
 // reached it. Cheap (cached) so callClaude can call it on every request.
 async function assertUnderHardCap() {
-  const cap = hardCapUsd();
+  const cap = await hardCapUsd();
   if (!cap) return;
   const spent = await monthlySpendUsd();
   if (spent >= cap) {
@@ -76,4 +119,7 @@ async function assertUnderHardCap() {
   }
 }
 
-module.exports = { monthlySpendUsd, dailySpendUsd, topFeatures, hardCapUsd, assertUnderHardCap };
+module.exports = {
+  monthlySpendUsd, dailySpendUsd, topFeatures, hardCapUsd, clearCapCache,
+  avgFeatureCostUsd, estimatePressSendUsd, assertUnderHardCap,
+};

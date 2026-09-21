@@ -385,15 +385,22 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     let plan = null;
     try { plan = await api.post(`/press/releases/${release.id}/send-plan`, { contact_ids: Array.from(combinedIds) }); }
     catch { /* non-fatal — fall through to the simple confirm */ }
+    // Pre-spend line: each NEW recipient gets a personalised AI pitch, so a big
+    // send costs real money. Show the estimate before it happens.
+    const est = plan && typeof plan.est_cost_usd === 'number' ? plan.est_cost_usd : null;
+    const costLine = est != null
+      ? `\n\n💸 Estimated AI cost: ~$${est.toFixed(2)} — each recipient gets a uniquely personalised pitch. This is billed to your AI usage.`
+      : '';
     if (plan && plan.already > 0) {
       if (plan.new === 0) {
         alert(`All ${plan.already} of these recipients have already been sent this release in this campaign. There's no one new to send to.`);
         return;
       }
       const msg = `${plan.already} of these ${plan.total} recipient${plan.total === 1 ? '' : 's'} were already emailed this release in this campaign — they will be skipped automatically (no duplicates).\n\n`
-        + `Send the release to the ${plan.new} new recipient${plan.new === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop if they reply.`;
+        + `Send the release to the ${plan.new} new recipient${plan.new === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop if they reply.`
+        + costLine;
       if (!confirm(msg)) return;
-    } else if (!confirm(`Send to ${totalRecipients} journalist${totalRecipients === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop automatically if they reply.`)) {
+    } else if (!confirm(`Send to ${totalRecipients} journalist${totalRecipients === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop automatically if they reply.${costLine}`)) {
       return;
     }
     setSending(true);
