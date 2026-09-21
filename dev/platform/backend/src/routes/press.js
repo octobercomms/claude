@@ -439,11 +439,29 @@ router.get('/releases/:id/analytics', async (req, res) => {
     const replied = rows.filter(r => r.replied).length;
     const warm = rows.filter(r => r.warm_at).length;
     const pct = (n) => (recipients ? Math.round((n / recipients) * 100) : 0);
+
+    // Delivery health: how the actual send queue is doing, distinct from
+    // engagement. 'in_flight' = still to go out (pending/sending/retrying),
+    // 'failed' = gave up after retries. Surfaces a "Retry failed" affordance
+    // and reassures the AM a big send is progressing, not stuck.
+    const { rows: deliv } = await pool.query(
+      `SELECT
+          COUNT(*) FILTER (WHERE status = 'sent')::int                         AS sent,
+          COUNT(*) FILTER (WHERE status IN ('pending', 'sending'))::int        AS in_flight,
+          COUNT(*) FILTER (WHERE status = 'failed')::int                       AS failed,
+          COUNT(*) FILTER (WHERE status = 'cancelled')::int                    AS cancelled
+         FROM outreach_sends WHERE campaign_id = $1`,
+      [release.campaign_id]
+    );
+    const delivery = deliv[0] || { sent: 0, in_flight: 0, failed: 0, cancelled: 0 };
+
     res.json({
+      campaign_id: release.campaign_id,
       totals: {
         recipients, opened, clicked, replied, warm,
         open_rate: pct(opened), click_rate: pct(clicked), reply_rate: pct(replied),
       },
+      delivery,
       recipients: rows,
     });
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }

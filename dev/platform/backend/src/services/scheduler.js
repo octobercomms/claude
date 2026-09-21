@@ -820,9 +820,52 @@ cron.schedule('0 7 * * 1', async () => {
 // standing weekly briefing is wanted again. The manual "Generate" button is
 // unchanged, so quality on demand is exactly the same.
 
+// A row is claimed ('sending') for the few seconds it takes to render + hand off
+// to SES. If the process dies in that window (deploy, crash, OOM) the row would
+// otherwise sit in 'sending' forever — the crash-during-claim gap. Reclaim any
+// 'sending' row that's been stuck well past a normal send (15 min) back to
+// 'pending' so the next tick retries it. This is what makes a big send resumable
+// across a restart rather than silently losing its tail.
+const SEND_STALL_MINUTES = 15;
+// How many times we'll try a single recipient before giving up. Covers a
+// transient SES throttle / network blip / brief outage without hammering a
+// genuinely dead address (those are caught earlier as hard bounces).
+const MAX_SEND_ATTEMPTS = 4;
+
+async function reapStalledSends() {
+  // A stalled row that still has attempts left goes back to 'pending' to be
+  // retried; one that's already used its attempts (a poison row that keeps
+  // killing the worker mid-send) is failed terminally so it can't loop forever.
+  const { rowCount: requeued } = await pool.query(
+    `UPDATE outreach_sends
+        SET status = 'pending',
+            last_error = COALESCE(last_error, 'reclaimed after a stalled send (worker restart)')
+      WHERE status = 'sending'
+        AND claimed_at IS NOT NULL
+        AND claimed_at < NOW() - make_interval(mins => $1)
+        AND attempts < $2`,
+    [SEND_STALL_MINUTES, MAX_SEND_ATTEMPTS]
+  );
+  const { rowCount: gaveUp } = await pool.query(
+    `UPDATE outreach_sends
+        SET status = 'failed',
+            last_error = COALESCE(last_error, 'stalled repeatedly — gave up after max attempts')
+      WHERE status = 'sending'
+        AND claimed_at IS NOT NULL
+        AND claimed_at < NOW() - make_interval(mins => $1)
+        AND attempts >= $2`,
+    [SEND_STALL_MINUTES, MAX_SEND_ATTEMPTS]
+  );
+  if (requeued) console.log(`[Outreach] reclaimed ${requeued} stalled send(s) back to the queue`);
+  if (gaveUp) console.log(`[Outreach] gave up on ${gaveUp} repeatedly-stalled send(s)`);
+}
+
 async function runOutreachSends() {
+  // Resurrect anything stranded mid-send before picking up new work.
+  await reapStalledSends();
+
   const { rows: due } = await pool.query(
-    `SELECT s.id AS send_id, s.contact_id, s.campaign_id,
+    `SELECT s.id AS send_id, s.contact_id, s.campaign_id, s.attempts,
             seq.subject, seq.body,
             con.id AS con_id, con.name, con.email, con.company,
             con.bounced_at, con.status AS contact_status,
@@ -887,9 +930,10 @@ async function runOutreachSends() {
       );
       continue;
     }
-    // Claim the row so overlapping runs can't double-send it.
+    // Claim the row so overlapping runs can't double-send it. Stamp claimed_at
+    // (for the stalled-send reaper) and count the attempt.
     const claim = await pool.query(
-      "UPDATE outreach_sends SET status = 'sending' WHERE id = $1 AND status = 'pending'",
+      "UPDATE outreach_sends SET status = 'sending', claimed_at = NOW(), attempts = attempts + 1 WHERE id = $1 AND status = 'pending'",
       [row.send_id]
     );
     if (claim.rowCount === 0) continue;
@@ -904,12 +948,30 @@ async function runOutreachSends() {
       // Stash the SES message id so the SNS bounce webhook can map an
       // async bounce notification back to the originating send + contact.
       await pool.query(
-        "UPDATE outreach_sends SET status = 'sent', sent_at = NOW(), provider_message_id = $2 WHERE id = $1",
+        "UPDATE outreach_sends SET status = 'sent', sent_at = NOW(), last_error = NULL, provider_message_id = $2 WHERE id = $1",
         [row.send_id, result?.providerMessageId || null]
       );
     } catch (err) {
       console.error(`Outreach send ${row.send_id} failed:`, err.message);
-      await pool.query("UPDATE outreach_sends SET status = 'failed' WHERE id = $1", [row.send_id]);
+      const msg = String(err.message || '').slice(0, 500);
+      // Attempts already counted this try at claim time.
+      const triedSoFar = (row.attempts || 0) + 1;
+      // "Send blocked: …" is our own deterministic gate (unverified/paused/
+      // replied) — retrying can't change it, so fail it terminally. Everything
+      // else (SES throttle, transport hiccup, timeout) gets a backed-off retry.
+      const deterministic = /^Send blocked/i.test(msg);
+      if (!deterministic && triedSoFar < MAX_SEND_ATTEMPTS) {
+        const backoffMins = Math.min(60, 5 * Math.pow(2, triedSoFar - 1)); // 5, 10, 20, …
+        await pool.query(
+          `UPDATE outreach_sends
+              SET status = 'pending', last_error = $2,
+                  scheduled_at = NOW() + make_interval(mins => $3)
+            WHERE id = $1`,
+          [row.send_id, msg, backoffMins]
+        );
+      } else {
+        await pool.query("UPDATE outreach_sends SET status = 'failed', last_error = $2 WHERE id = $1", [row.send_id, msg]);
+      }
     }
   }
 }
