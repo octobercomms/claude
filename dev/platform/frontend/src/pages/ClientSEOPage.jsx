@@ -537,8 +537,8 @@ export default function ClientSEOPage() {
         const parts = line.split(',').map(p => p.trim());
         return { keyword: parts[0], target_url: parts[1] || '', tag: parts[2] || bulkTag, device: bulkDevice, location_code: loc.code, location_name: loc.name };
       });
-      const { inserted } = await api.post('/rankings/keywords/bulk', { client_id: id, keywords: kws });
-      setBulkMsg(`Imported ${inserted} keyword${inserted !== 1 ? 's' : ''}.`);
+      const { inserted, skipped } = await api.post('/rankings/keywords/bulk', { client_id: id, keywords: kws });
+      setBulkMsg(`Imported ${inserted} keyword${inserted !== 1 ? 's' : ''}.${skipped ? ` ${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped.` : ''}`);
       const updated = await api.get(`/rankings/keywords?client_id=${id}`);
       setKeywords(updated);
       setBulkText('');

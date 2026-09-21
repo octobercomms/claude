@@ -52,10 +52,14 @@ router.post('/keywords', async (req, res) => {
     assertClientAccess(req, client_id);
     const { rows } = await pool.query(
       `INSERT INTO seo_keywords (client_id, keyword, target_url, device, tag, location_code, location_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (client_id, lower(keyword), device, location_code) DO NOTHING RETURNING *`,
       [client_id, keyword, target_url || null, device || 'desktop', tag || null,
        location_code || 2826, location_name || 'United Kingdom']
     );
+    if (!rows.length) {
+      return res.status(409).json({ error: 'That keyword is already tracked for this device and location.' });
+    }
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -71,18 +75,28 @@ router.post('/keywords/bulk', async (req, res) => {
   try {
     assertClientAccess(req, client_id);
     const inserted = [];
+    let considered = 0;
+    // Also dedupe WITHIN this batch (two identical rows in the same paste would
+    // both miss the DB conflict check since neither is committed yet).
+    const seenInBatch = new Set();
     for (const kw of keywords) {
       if (!kw.keyword) continue;
+      const device = kw.device || 'desktop';
+      const locationCode = kw.location_code || 2826;
+      const batchKey = `${String(kw.keyword).trim().toLowerCase()}|${device}|${locationCode}`;
+      if (seenInBatch.has(batchKey)) continue;
+      seenInBatch.add(batchKey);
+      considered++;
       const { rows } = await pool.query(
         `INSERT INTO seo_keywords (client_id, keyword, target_url, device, tag, location_code, location_name)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT DO NOTHING RETURNING *`,
-        [client_id, kw.keyword, kw.target_url || null, kw.device || 'desktop',
-         kw.tag || null, kw.location_code || 2826, kw.location_name || 'United Kingdom']
+         ON CONFLICT (client_id, lower(keyword), device, location_code) DO NOTHING RETURNING *`,
+        [client_id, kw.keyword, kw.target_url || null, device,
+         kw.tag || null, locationCode, kw.location_name || 'United Kingdom']
       );
       if (rows.length) inserted.push(rows[0]);
     }
-    res.json({ inserted: inserted.length, keywords: inserted });
+    res.json({ inserted: inserted.length, skipped: considered - inserted.length, keywords: inserted });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
