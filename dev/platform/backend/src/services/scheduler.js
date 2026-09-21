@@ -466,7 +466,7 @@ cron.schedule('15 8 * * *', async () => {
 
     const yesterday = await budget.dailySpendUsd(1);
     const monthToDate = await budget.monthlySpendUsd({ fresh: true });
-    const cap = budget.hardCapUsd();
+    const cap = await budget.hardCapUsd();
     const dailyThreshold = parseFloat(process.env.AI_DAILY_ALERT_USD || '25');
     const monthlyThreshold = parseFloat(process.env.AI_MONTHLY_ALERT_USD || '') || (cap ? cap * 0.8 : null);
 

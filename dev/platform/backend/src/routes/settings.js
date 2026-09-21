@@ -483,6 +483,54 @@ router.get('/usage/cost-log', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Spend controls — the monthly hard cap + daily alert threshold, plus the live
+// month-to-date total so the operator can set the cap safely (a cap below the
+// current MTD pauses AI immediately, so we show MTD next to the field).
+router.get('/usage/spend-controls', async (req, res) => {
+  try {
+    const budget = require('../services/budget');
+    const [cap, monthToDate] = await Promise.all([
+      budget.hardCapUsd(),
+      budget.monthlySpendUsd({ fresh: true }),
+    ]);
+    const dailyRaw = await getSetting('AI_DAILY_ALERT_USD');
+    const daily = parseFloat(dailyRaw != null ? dailyRaw : (process.env.AI_DAILY_ALERT_USD || ''));
+    res.json({
+      monthly_cap_usd: cap,                                   // null = no cap
+      daily_alert_usd: Number.isFinite(daily) && daily > 0 ? daily : 25,
+      month_to_date_usd: monthToDate,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/usage/spend-controls', async (req, res) => {
+  try {
+    const budget = require('../services/budget');
+    const setKey = async (key, val) => {
+      await db.query(
+        `INSERT INTO platform_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+        [key, JSON.stringify(encrypt(String(val)))]
+      );
+    };
+    // Monthly cap: a positive number enables it; 0 / empty / null disables it.
+    if ('monthly_cap_usd' in (req.body || {})) {
+      const n = parseFloat(req.body.monthly_cap_usd);
+      await setKey('AI_MONTHLY_HARD_CAP_USD', Number.isFinite(n) && n > 0 ? n : 0);
+      budget.clearCapCache();
+    }
+    if ('daily_alert_usd' in (req.body || {})) {
+      const n = parseFloat(req.body.daily_alert_usd);
+      await setKey('AI_DAILY_ALERT_USD', Number.isFinite(n) && n > 0 ? n : 25);
+    }
+    const [cap, monthToDate] = await Promise.all([
+      budget.hardCapUsd(),
+      budget.monthlySpendUsd({ fresh: true }),
+    ]);
+    res.json({ monthly_cap_usd: cap, month_to_date_usd: monthToDate });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // DataForSEO recurring-spend estimate. Mirrors the scheduled jobs that
 // actually bill per active keyword, so the daily cap can be sized safely:
 //   - Rank checks: serp/google/organic/live/advanced at depth 50 (5 pages),

@@ -612,6 +612,7 @@ export default function SettingsPage() {
       {tab === 'strategy' && <StrategyTemplatesPanel />}
       {tab === 'costs' && (<>
       <CostsPanel />
+      <SpendControlsPanel />
       <KeywordSpendPanel />
       <CostLogPanel />
       </>)}
@@ -3152,6 +3153,76 @@ function OpSummary({ op }) {
   return <span>{op.type}</span>;
 }
 
+
+// Spend controls — a monthly hard cap that pauses AI when hit, plus the daily
+// alert threshold. Shows live month-to-date so a cap can be set safely (a cap
+// below the current MTD would pause AI immediately).
+function SpendControlsPanel() {
+  const [data, setData] = useState(null);
+  const [cap, setCap] = useState('');
+  const [daily, setDaily] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    api.get('/settings/usage/spend-controls').then((d) => {
+      setData(d);
+      setCap(d.monthly_cap_usd != null ? String(d.monthly_cap_usd) : '');
+      setDaily(d.daily_alert_usd != null ? String(d.daily_alert_usd) : '');
+    }).catch((e) => setMsg(e.message));
+  }, []);
+
+  const mtd = data?.month_to_date_usd ?? 0;
+  const capNum = parseFloat(cap);
+  const capBelowMtd = Number.isFinite(capNum) && capNum > 0 && capNum <= mtd;
+
+  async function save() {
+    setSaving(true); setMsg(null);
+    try {
+      const r = await api.put('/settings/usage/spend-controls', {
+        monthly_cap_usd: cap === '' ? 0 : capNum,
+        daily_alert_usd: daily === '' ? 25 : parseFloat(daily),
+      });
+      setData((d) => ({ ...d, monthly_cap_usd: r.monthly_cap_usd, month_to_date_usd: r.month_to_date_usd }));
+      setMsg(r.monthly_cap_usd ? `Saved. AI pauses at $${Number(r.monthly_cap_usd).toFixed(2)}/month.` : 'Saved. No monthly hard cap (alerts only).');
+    } catch (e) { setMsg(`Error: ${e.message}`); }
+    finally { setSaving(false); }
+  }
+
+  const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <h2 className="caption">Spend controls</h2>
+      <p className="body-sm text-muted">Cap AI spend and get warned before it runs away. The cap pauses all AI features in OMI once month-to-date spend reaches it; it resets on the 1st.</p>
+      {!data ? <p className="body-sm text-muted">Loading…</p> : (
+        <>
+          <div style={{ margin: '10px 0 14px' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>This month so far</span>
+            <div style={{ fontSize: 22, fontWeight: 800 }}>{fmt(mtd)}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              <div style={{ marginBottom: 4 }}>Monthly hard cap ($) — blank / 0 = off</div>
+              <input className="input" type="number" min="0" step="10" value={cap} onChange={(e) => setCap(e.target.value)} placeholder="e.g. 100" style={{ width: 140 }} />
+            </label>
+            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              <div style={{ marginBottom: 4 }}>Daily alert email over ($)</div>
+              <input className="input" type="number" min="0" step="5" value={daily} onChange={(e) => setDaily(e.target.value)} placeholder="25" style={{ width: 140 }} />
+            </label>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          </div>
+          {capBelowMtd && (
+            <div className="callout callout-danger" style={{ marginTop: 12, fontSize: 13 }}>
+              ⚠️ You've already spent {fmt(mtd)} this month, which is at or above this cap. Saving it will <strong>pause all AI in OMI until the 1st</strong>. Set a higher number for this month if you don't want that.
+            </div>
+          )}
+          {msg && <p className="body-sm" style={{ marginTop: 10, color: msg.startsWith('Error') ? 'var(--negative)' : 'var(--text-muted)' }}>{msg}</p>}
+          <p className="body-xs text-subtle" style={{ marginTop: 10 }}>Per-feature model choice (a bigger lever than the cap) lives in <strong>Settings → AI models</strong>.</p>
+        </>
+      )}
+    </div>
+  );
+}
 
 // Cost log — surfaces WHICH features are spending the credits.
 // Reads /settings/usage/cost-log which aggregates api_cost_events: every
