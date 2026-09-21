@@ -855,6 +855,48 @@ async function sendErrorDigest({ to, hours, summary }) {
   });
 }
 
+// AI/API spend alert — sent by the daily budget cron when yesterday's spend or
+// month-to-date spend crosses a threshold. `reasons` is the human list of what
+// tripped it; `features` is the top spenders for context.
+async function sendSpendAlert({ to, reasons, yesterday, monthToDate, monthCap, features }) {
+  if (!to?.length) return;
+  const rows = (features || []).map(f => `
+    <tr>
+      <td style="padding:6px 10px;font-size:12px;border-bottom:1px solid #eee;color:#888;text-transform:uppercase;">${escapeHtmlLocal(f.provider)}</td>
+      <td style="padding:6px 10px;font-size:12px;border-bottom:1px solid #eee;font-weight:600;color:#1a1a1a;">${escapeHtmlLocal(f.feature)}</td>
+      <td style="padding:6px 10px;font-size:12px;border-bottom:1px solid #eee;text-align:right;color:#666;">${f.calls}</td>
+      <td style="padding:6px 10px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">$${Number(f.cost_usd).toFixed(2)}</td>
+    </tr>`).join('');
+  const capLine = monthCap
+    ? `<p style="color:#666;font-size:13px;margin:2px 0;">Month-to-date: <strong>$${monthToDate.toFixed(2)}</strong> of the $${monthCap.toFixed(2)} hard cap (${Math.round((monthToDate / monthCap) * 100)}%).</p>`
+    : `<p style="color:#666;font-size:13px;margin:2px 0;">Month-to-date: <strong>$${monthToDate.toFixed(2)}</strong>.</p>`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:780px;margin:0 auto;padding:20px">
+      <h2 style="margin:0">AI spend alert</h2>
+      <ul style="color:#b45309;font-size:13px;padding-left:18px;">${(reasons || []).map(r => `<li>${escapeHtmlLocal(r)}</li>`).join('')}</ul>
+      <p style="color:#666;font-size:13px;margin:2px 0;">Yesterday: <strong>$${yesterday.toFixed(2)}</strong>.</p>
+      ${capLine}
+      <p style="color:#666;font-size:13px;margin-top:14px;">Top spenders (last 7 days):</p>
+      <table style="width:100%;border-collapse:collapse;margin-top:4px">
+        <thead><tr style="background:#f5f5f5">
+          <th style="text-align:left;padding:6px 10px;font-size:11px;color:#666;text-transform:uppercase">Provider</th>
+          <th style="text-align:left;padding:6px 10px;font-size:11px;color:#666;text-transform:uppercase">Feature</th>
+          <th style="text-align:right;padding:6px 10px;font-size:11px;color:#666;text-transform:uppercase">Calls</th>
+          <th style="text-align:right;padding:6px 10px;font-size:11px;color:#666;text-transform:uppercase">Spend</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="color:#888;font-size:12px;margin-top:16px">Turn a feature down in <strong>Settings → AI models</strong> (e.g. Opus → Sonnet/Haiku), or set a hard cap with the <code>AI_MONTHLY_HARD_CAP_USD</code> env var to pause AI when a monthly budget is hit.</p>
+      <p style="color:#aaa;font-size:11px;margin-top:24px">October Marketing Intelligence — spend alert</p>
+    </div>`;
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to,
+    subject: `AI spend alert — $${yesterday.toFixed(2)} yesterday, $${monthToDate.toFixed(2)} MTD`,
+    html,
+  });
+}
+
 function escapeHtmlLocal(str) {
   return String(str ?? '').replace(/[<>&'"]/g, c =>
     ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -1104,4 +1146,4 @@ async function sendCertExpiryAlert({ problems = [], alertDays = 14 }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest };
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest };

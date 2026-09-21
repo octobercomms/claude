@@ -453,6 +453,40 @@ cron.schedule('0 9 * * *', async () => {
   }
 });
 
+// Daily AI/API spend check: 08:15. Emails ALERT_EMAIL when yesterday's spend or
+// month-to-date spend crosses a threshold, so a runaway feature (e.g. press
+// follow-ups defaulting to Opus) is caught in a day rather than at month end.
+// Thresholds via env: AI_DAILY_ALERT_USD (default 25), AI_MONTHLY_ALERT_USD
+// (default 80% of the hard cap if one is set, else unset). Silent when under.
+cron.schedule('15 8 * * *', async () => {
+  try {
+    const budget = require('./budget');
+    const to = (process.env.ALERT_EMAIL || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+    if (!to.length) return;
+
+    const yesterday = await budget.dailySpendUsd(1);
+    const monthToDate = await budget.monthlySpendUsd({ fresh: true });
+    const cap = budget.hardCapUsd();
+    const dailyThreshold = parseFloat(process.env.AI_DAILY_ALERT_USD || '25');
+    const monthlyThreshold = parseFloat(process.env.AI_MONTHLY_ALERT_USD || '') || (cap ? cap * 0.8 : null);
+
+    const reasons = [];
+    if (Number.isFinite(dailyThreshold) && yesterday > dailyThreshold) {
+      reasons.push(`Yesterday's AI spend was $${yesterday.toFixed(2)} (over the $${dailyThreshold.toFixed(2)} daily alert).`);
+    }
+    if (monthlyThreshold && monthToDate > monthlyThreshold) {
+      reasons.push(`Month-to-date AI spend is $${monthToDate.toFixed(2)}${cap ? ` — ${Math.round((monthToDate / cap) * 100)}% of the $${cap.toFixed(2)} cap` : ''} (over the $${monthlyThreshold.toFixed(2)} monthly alert).`);
+    }
+    if (!reasons.length) return; // under thresholds — stay quiet
+
+    const features = await budget.topFeatures({ days: 7, limit: 6 });
+    await emailService.sendSpendAlert({ to, reasons, yesterday, monthToDate, monthCap: cap, features });
+    console.log(`[Scheduler] AI spend alert sent: yesterday $${yesterday.toFixed(2)}, MTD $${monthToDate.toFixed(2)}`);
+  } catch (err) {
+    console.error('[Scheduler] AI spend check failed:', err.message);
+  }
+});
+
 // Daily connector health check: 07:30 AM
 cron.schedule('30 7 * * *', async () => {
   console.log('[Scheduler] Running connector health check...');

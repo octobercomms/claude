@@ -402,7 +402,14 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
       // Resend the release with a new subject.
       ({ subject, html, text } = renderRelease(stepSubject || `Re: ${release.title}`));
     } else {
-      const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
+      // The journalist opened an earlier email, so they get the real AI
+      // follow-ups. These are generated lazily HERE (not at release-send) so we
+      // only pay to write follow-ups for people who actually engage — see
+      // pressRelease.getOrGenerateEmails.
+      const withFu = await pressRelease.getOrGenerateEmails({
+        pressReleaseId: release.id, contactId: contact.id, withFollowUps: true,
+      });
+      const followUps = Array.isArray(withFu.follow_ups) ? withFu.follow_ups : [];
       const idx = Math.max(0, Math.min(followupIndex - 1, followUps.length - 1));
       const fu = followUps[idx] || { subject: `Re: ${release.title}`, body: '' };
       subject = stepSubject || fu.subject || `Re: ${release.title}`;
@@ -444,7 +451,7 @@ async function sendPressTest({ release, contact, toAddress, sending, clientId, s
   const pool = require('../db');
   const { from, replyTo } = await senderFields(sending);
   const pressRelease = require('./pressRelease');
-  const cached = await pressRelease.getOrGenerateEmails({ pressReleaseId: release.id, contactId: contact.id, force: false });
+  const cached = await pressRelease.getOrGenerateEmails({ pressReleaseId: release.id, contactId: contact.id, force: false, withFollowUps: stepNumber > 1 });
   const signature = await pressRelease.clientSignature(clientId);
   const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
   let subject, html, text;

@@ -80,6 +80,9 @@ async function callDeepSeekText({ max_tokens, system, user, feature, clientId })
 // per the AM's Settings → AI models map. An explicit `model` argument overrides
 // the routing. No tool use — that path stays on Claude (see routes/chat.js).
 async function callClaude({ max_tokens, system, user, model = null, feature = 'report_narrative', clientId = null }) {
+  // Opt-in monthly hard cap (AI_MONTHLY_HARD_CAP_USD). No-op unless set; when
+  // set and month-to-date spend has hit it, this throws before we bill a call.
+  await require('./budget').assertUnderHardCap();
   const aiModels = require('./aiModels');
   const chosen = (model && aiModels.MODELS[model]) ? model : await aiModels.resolveModel(feature);
   if (aiModels.MODELS[chosen]?.provider === 'deepseek') {

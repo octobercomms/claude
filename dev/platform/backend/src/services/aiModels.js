@@ -22,7 +22,11 @@ const DEFAULT_MODEL = 'claude-sonnet-4-6';
 // Opus for genuinely intelligent writing/thinking. The AM can still override.
 const FEATURE_DEFAULTS = {
   press_pitch: 'claude-opus-4-8',
-  press_followups: 'claude-opus-4-8',
+  // Follow-ups are lower-stakes chase emails (and now generated only for
+  // journalists who actually opened), so they default to Sonnet, not Opus —
+  // ~5× cheaper per call at more than good enough quality. The AM can raise it
+  // back to Opus, or drop it to Haiku/DeepSeek, in Settings → AI models.
+  press_followups: 'claude-sonnet-4-6',
   press_import_sort: 'claude-opus-4-8',
   press_audience: 'claude-opus-4-8',
   media_db_hygiene: 'claude-opus-4-8',
