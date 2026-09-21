@@ -5,6 +5,25 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.160.0 — Reconcile is now per-site (shared Stripe account fix)
+
+- Both October sites (festival + tours) share one Stripe account, so the 1.159.0
+  reconcile swept the whole account and checked every payment against whichever
+  site it ran on. On the festival site it flagged the tours site's ticket sales as
+  "missing" (their orders live in the tours database), and vice versa — a false
+  alarm, not lost orders.
+- Every ticket PaymentIntent now carries a `site` stamp (the originating site's
+  host), and the reconcile only checks payments that belong to the site it runs
+  on. Payments from the other site are counted and ignored, shown in the summary
+  ("N payments from the other site were ignored").
+- Payments made before this update carry no stamp, so they're attributed by
+  whether the purchased ticket type resolves on this install (`TicketTypes` reads
+  each event's own post meta, which only its own site has). The other site's
+  legacy sales fall away cleanly.
+- Order creation is hardened the same way: `OrderFactory` refuses to build an
+  order for a payment that isn't this site's, so neither the webhook nor the
+  reconcile backfill can ever write a cross-site order.
+
 ## 1.159.0 — Reconcile paid orders (webhook safety net)
 
 - New **Reconcile paid orders** tool under Settings → Keys & platform (below the
