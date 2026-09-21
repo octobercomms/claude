@@ -502,50 +502,65 @@ router.post('/releases/:id/preview', async (req, res) => {
     const release = relRows[0];
     assertClientAccess(req, release.client_id);
 
-    const cached = await pressRelease.getOrGenerateEmails({
-      pressReleaseId: req.params.id, contactId: contact_id, force: !!force,
-      withFollowUps: true,   // the preview shows the follow-ups, so generate them here
-    });
-
     // Hero image lives in release.images[0] (extracted at fetch time);
     // surface it as hero_image so buildEmailHtml can render it.
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: req.user.username === 'daniel' ? 'Daniel Nelson' : req.user.username, first_name: (req.user.username || 'Daniel').split(' ')[0], company: 'October Communications' };
     const signature = await pressRelease.clientSignature(release.client_id);
-    const html = pressRelease.buildEmailHtml({
-      release: releaseWithHero,
-      pitch: cached.intro,
-      sender,
-      recipientName: contactRows[0].name,
-      embedFull: release.embed_full_release !== false,
-      includeReleaseLink: release.include_release_link !== false,
-      contactId: contact_id,
-      clientId: release.client_id,
-      signature,
-    });
-
-    // Follow-up subjects are owned by the sequence (steps 2-4), not the cached
-    // per-recipient draft — so the preview shows the SAME subject the sequence
-    // panel edits, and the AM edits only the body here (no duplicate subject).
+    const recipientName = contactRows[0].name;
+    // Follow-up subjects are owned by the sequence (steps 2-4).
     const { rows: fuSteps } = await pool.query(
       'SELECT step_number, subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number > 1 ORDER BY step_number',
       [release.campaign_id]
     );
-    const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
-    const follow_ups_html = followUps.map((fu, i) => pressRelease.buildFollowUpHtml({
-      release: releaseWithHero, body: fu.body, sender, recipientName: contactRows[0].name,
-      contactId: contact_id, clientId: release.client_id, signature,
-      includeHero: release.followup_hero !== false,
-      includeReleaseLink: release.include_release_link !== false,
-    }));
-    // Merge the authoritative sequence subject onto each follow-up for display.
-    const followUpsOut = followUps.map((fu, i) => ({
-      ...fu, subject: fuSteps[i]?.subject || fu.subject || null,
-    }));
+
+    let html, pitchOut, followUpsOut, follow_ups_html, generatedAt = null;
+
+    if (release.followups_ai === false) {
+      // Author mode — preview exactly what will send: the AM's written first
+      // email + written follow-ups, no AI generated (and no AI cost on preview).
+      const { fillTemplate } = require('../services/outreachSender');
+      pitchOut = fillTemplate(release.custom_release_body || release.title || '', contactRows[0]);
+      html = pressRelease.buildEmailHtml({
+        release: releaseWithHero, pitch: pitchOut, sender, recipientName,
+        embedFull: release.embed_full_release !== false,
+        includeReleaseLink: release.include_release_link !== false,
+        contactId: contact_id, clientId: release.client_id, signature,
+      });
+      const customs = Array.isArray(release.custom_followups) ? release.custom_followups : [];
+      follow_ups_html = customs.map(c => pressRelease.buildFollowUpHtml({
+        release: releaseWithHero, body: fillTemplate(c?.body || '', contactRows[0]), sender, recipientName,
+        contactId: contact_id, clientId: release.client_id, signature,
+        includeHero: release.followup_hero !== false,
+        includeReleaseLink: release.include_release_link !== false,
+      }));
+      followUpsOut = customs.map((c, i) => ({ subject: fuSteps[i]?.subject || c?.subject || null, body: c?.body || '' }));
+    } else {
+      const cached = await pressRelease.getOrGenerateEmails({
+        pressReleaseId: req.params.id, contactId: contact_id, force: !!force,
+        withFollowUps: true,   // the preview shows the follow-ups, so generate them here
+      });
+      pitchOut = cached.intro;
+      generatedAt = cached.generated_at;
+      html = pressRelease.buildEmailHtml({
+        release: releaseWithHero, pitch: cached.intro, sender, recipientName,
+        embedFull: release.embed_full_release !== false,
+        includeReleaseLink: release.include_release_link !== false,
+        contactId: contact_id, clientId: release.client_id, signature,
+      });
+      const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
+      follow_ups_html = followUps.map(fu => pressRelease.buildFollowUpHtml({
+        release: releaseWithHero, body: fu.body, sender, recipientName,
+        contactId: contact_id, clientId: release.client_id, signature,
+        includeHero: release.followup_hero !== false,
+        includeReleaseLink: release.include_release_link !== false,
+      }));
+      followUpsOut = followUps.map((fu, i) => ({ ...fu, subject: fuSteps[i]?.subject || fu.subject || null }));
+    }
 
     res.json({
-      html, pitch: cached.intro, follow_ups: followUpsOut, follow_ups_html,
-      generated_at: cached.generated_at, contact: contactRows[0],
+      html, pitch: pitchOut, follow_ups: followUpsOut, follow_ups_html,
+      generated_at: generatedAt, contact: contactRows[0],
     });
   } catch (err) {
     console.error('[press] preview failed:', err.message);
@@ -590,6 +605,10 @@ router.patch('/releases/:id', async (req, res) => {
       }));
       params.push(JSON.stringify(lean));
       updates.push(`custom_followups = $${params.length}::jsonb`);
+    }
+    if (typeof req.body?.custom_release_body === 'string') {
+      params.push(req.body.custom_release_body.slice(0, 40000));
+      updates.push(`custom_release_body = $${params.length}`);
     }
     // Persist the chosen audience so closing/reopening the campaign restores it.
     if (Array.isArray(req.body?.selected_tags)) {

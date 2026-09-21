@@ -508,6 +508,10 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     try { await api.patch(`/press/releases/${release.id}`, { custom_followups: release.custom_followups || [] }); }
     catch (err) { toast(err.message, 'error'); }
   }
+  async function saveReleaseBody() {
+    try { await api.patch(`/press/releases/${release.id}`, { custom_release_body: release.custom_release_body || '' }); if (previewing) preview(previewing, true); }
+    catch (err) { toast(err.message, 'error'); }
+  }
   async function setFollowupsAi(aiOn) {
     setRelease(r => ({ ...r, followups_ai: aiOn }));
     try { await api.patch(`/press/releases/${release.id}`, { followups_ai: aiOn }); if (previewing) preview(previewing, true); }
@@ -703,12 +707,18 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 <input value={s.subject ?? ''} onChange={e => setStepField(s.step_number, 'subject', e.target.value)}
                   placeholder="Subject line — {{first_name}} to personalise"
                   style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-                {release.followups_ai === false && s.step_number > 1 && (
+                {release.followups_ai === false && (
                   <textarea
-                    value={(release.custom_followups?.[s.step_number - 2]?.body) ?? ''}
-                    onChange={e => setCustomFollowupLocal(s.step_number - 2, e.target.value)}
-                    onBlur={saveCustomFollowups}
-                    placeholder="Write this follow-up email — sent to everyone as-is. {{first_name}} / {{company}} to personalise. Leave blank to just resend the release with the new subject."
+                    value={s.step_number === 1
+                      ? (release.custom_release_body ?? '')
+                      : ((release.custom_followups?.[s.step_number - 2]?.body) ?? '')}
+                    onChange={e => s.step_number === 1
+                      ? setRelease(r => ({ ...r, custom_release_body: e.target.value }))
+                      : setCustomFollowupLocal(s.step_number - 2, e.target.value)}
+                    onBlur={s.step_number === 1 ? saveReleaseBody : saveCustomFollowups}
+                    placeholder={s.step_number === 1
+                      ? "Write the first email — your invite / announcement, sent to everyone as-is. {{first_name}} / {{company}} to personalise. (Turn off 'Embed the full release' below for a plain email.)"
+                      : "Write this follow-up email — sent to everyone as-is. {{first_name}} / {{company}} to personalise. Leave blank to just resend the first email with the new subject."}
                     style={{ width: '100%', minHeight: 90, marginTop: 4, padding: '8px 9px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
                 )}
               </div>
@@ -726,7 +736,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.followups_ai === false}
                 onChange={e => setFollowupsAi(!e.target.checked)} />
-              <span><strong>Write my own follow-ups (no AI).</strong> <span style={{ color: 'var(--text-subtle)' }}>On = the follow-up bodies you type above are sent to everyone as-is — no AI, no per-person variation, no follow-up AI cost. Off (default) = AI writes a personalised follow-up for each journalist who opens.</span></span>
+              <span><strong>Write every email myself (no AI).</strong> <span style={{ color: 'var(--text-subtle)' }}>On = you write the first email AND the follow-ups above; each is sent to everyone as-is — no AI, no per-person variation, no AI cost, and no “press release” framing. Best for a plain invitation or announcement. Off (default) = AI writes a personalised pitch + follow-ups per journalist.</span></span>
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.include_release_link !== false}
