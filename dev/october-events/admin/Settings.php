@@ -31,6 +31,7 @@ final class Settings {
         add_action('admin_post_oe_send_test_email', [$this, 'send_test_email']);
         add_action('wp_ajax_oe_reveal_secret', [$this, 'ajax_reveal_secret']);
         add_action('wp_ajax_oe_check_membership', [$this, 'ajax_check_membership']);
+        add_action('wp_ajax_oe_reconcile_orders', [$this, 'ajax_reconcile_orders']);
         add_action('wp_ajax_oe_volunteer_diag', [$this, 'ajax_volunteer_diag']);
         add_action('wp_ajax_oe_volunteer_create_code', [$this, 'ajax_volunteer_create_code']);
         // Allow brand font files (.woff2/.woff/.ttf/.otf) to be uploaded to the
@@ -65,6 +66,91 @@ final class Settings {
                 ? sprintf(__('✓ Active member (price %s).', 'october-events'), $m['price_id'])
                 : __('Not an active member (no live subscription on the configured prices).', 'october-events'),
         ]);
+    }
+
+    /**
+     * Reconcile paid ticket PaymentIntents against local orders for a window, and
+     * optionally rebuild any that never produced an order (webhook safety net).
+     * Admin + nonce gated. Returns a rendered summary + rows for the readout under
+     * the Stripe webhook health line.
+     */
+    public function ajax_reconcile_orders(): void {
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'forbidden'], 403);
+        }
+        check_ajax_referer('oe_reconcile_orders', 'nonce');
+        if (! \OE\Connectors\StripeConnector::is_ready()) {
+            wp_send_json_error(['message' => __('Stripe isn’t configured on this site.', 'october-events')]);
+        }
+        $days     = max(1, min(90, (int) ($_POST['days'] ?? 14)));
+        $backfill = ! empty($_POST['backfill']);
+        $r = \OE\Ticketing\Reconcile::run($days, $backfill);
+
+        $orphans_open = count(array_filter($r['orphans'], static fn($o) => empty($o['repaired'])));
+        if ($orphans_open === 0) {
+            $summary = sprintf(
+                /* translators: 1: intents checked, 2: window in days */
+                __('✓ All %1$d paid ticket orders present over the last %2$d days.', 'october-events'),
+                (int) $r['checked'],
+                (int) $r['days']
+            );
+            if ((int) $r['repaired'] > 0) {
+                $summary .= ' ' . sprintf(
+                    /* translators: %d: orders created */
+                    _n('Created %d missing order.', 'Created %d missing orders.', (int) $r['repaired'], 'october-events'),
+                    (int) $r['repaired']
+                );
+            }
+        } else {
+            $summary = sprintf(
+                /* translators: 1: missing count, 2: intents checked, 3: window in days */
+                _n('✗ %1$d paid order missing (of %2$d checked, last %3$d days).', '✗ %1$d paid orders missing (of %2$d checked, last %3$d days).', $orphans_open, 'october-events'),
+                $orphans_open,
+                (int) $r['checked'],
+                (int) $r['days']
+            );
+        }
+        if (! empty($r['partial'])) {
+            $summary .= ' ' . __('(window capped — narrow the days for a full pass.)', 'october-events');
+        }
+
+        wp_send_json_success([
+            'ok'      => $orphans_open === 0,
+            'summary' => $summary,
+            'rows'    => self::reconcile_rows_html($r),
+        ]);
+    }
+
+    /**
+     * Table rows for the reconciliation orphan list — the paid intents with no
+     * order. Empty string when nothing is outstanding.
+     *
+     * @param array<string,mixed> $r
+     */
+    private static function reconcile_rows_html(array $r): string {
+        $orphans = array_values(array_filter((array) ($r['orphans'] ?? []), static fn($o) => empty($o['repaired'])));
+        if (! $orphans) {
+            return '';
+        }
+        $rows = '';
+        foreach ($orphans as $o) {
+            $amount = number_format(((int) $o['amount_cents']) / 100, 2);
+            $when   = $o['created'] ? gmdate('j M H:i', (int) $o['created']) . ' UTC' : '';
+            $rows  .= '<tr>'
+                . '<td><code>' . esc_html((string) $o['id']) . '</code></td>'
+                . '<td>' . esc_html($when) . '</td>'
+                . '<td>' . esc_html((string) $o['currency'] . ' ' . $amount) . '</td>'
+                . '<td>' . esc_html((string) $o['email']) . '</td>'
+                . '<td>' . esc_html((string) $o['event']) . '</td>'
+                . '</tr>';
+        }
+        return '<table class="widefat striped" style="margin-top:8px"><thead><tr>'
+            . '<th>' . esc_html__('PaymentIntent', 'october-events') . '</th>'
+            . '<th>' . esc_html__('Paid at', 'october-events') . '</th>'
+            . '<th>' . esc_html__('Amount', 'october-events') . '</th>'
+            . '<th>' . esc_html__('Buyer', 'october-events') . '</th>'
+            . '<th>' . esc_html__('Event', 'october-events') . '</th>'
+            . '</tr></thead><tbody>' . $rows . '</tbody></table>';
     }
 
     /**

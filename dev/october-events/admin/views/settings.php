@@ -312,6 +312,70 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         else : ?>
             <p class="description" style="margin-top:10px"><strong><?php esc_html_e('Stripe webhook:', 'october-events'); ?></strong> <?php esc_html_e('no events received yet.', 'october-events'); ?></p>
         <?php endif; ?>
+
+        <?php
+        // Reconciliation — confirm every paid ticket checkout produced an order
+        // (the webhook's job). Catches any delivery missed while an endpoint was
+        // down, and can rebuild the missing orders from the intent's own metadata.
+        $rec = \OE\Ticketing\Reconcile::last();
+        ?>
+        <h4 style="margin:18px 0 4px"><?php esc_html_e('Reconcile paid orders', 'october-events'); ?></h4>
+        <p class="description" style="margin:0 0 8px"><?php esc_html_e('Check that every paid ticket checkout produced an order. Flags any charge with no order, and can create the missing ones from Stripe (safe to re-run — it never duplicates).', 'october-events'); ?></p>
+        <p style="margin:0 0 6px">
+            <label><?php esc_html_e('Last', 'october-events'); ?>
+                <input type="number" id="oe-rec-days" min="1" max="90" value="14" style="width:64px"> <?php esc_html_e('days', 'october-events'); ?></label>
+            &nbsp;
+            <label style="margin-left:6px"><input type="checkbox" id="oe-rec-fix"> <?php esc_html_e('Create any missing orders', 'october-events'); ?></label>
+            &nbsp;
+            <button type="button" class="button" id="oe-rec-run"><?php esc_html_e('Check now', 'october-events'); ?></button>
+            <span id="oe-rec-msg" style="margin-left:10px;font-weight:600"><?php
+                if (is_array($rec) && ! empty($rec['ran_at'])) {
+                    $open = count(array_filter((array) ($rec['orphans'] ?? []), static fn($o) => empty($o['repaired'])));
+                    printf(
+                        /* translators: 1: last-run time ago */
+                        esc_html__('Last run %s ago:', 'october-events'),
+                        esc_html(human_time_diff((int) $rec['ran_at'], time()))
+                    );
+                    echo ' ';
+                    echo $open === 0
+                        ? '<span style="color:#1a7f37">' . esc_html(sprintf(__('all %d present.', 'october-events'), (int) ($rec['checked'] ?? 0))) . '</span>'
+                        : '<span style="color:#b32d2e">' . esc_html(sprintf(_n('%d missing.', '%d missing.', $open, 'october-events'), $open)) . '</span>';
+                }
+            ?></span>
+        </p>
+        <div id="oe-rec-rows"></div>
+        <script>
+        (function(){
+            var NONCE = <?php echo wp_json_encode(wp_create_nonce('oe_reconcile_orders')); ?>;
+            var btn = document.getElementById('oe-rec-run'),
+                days = document.getElementById('oe-rec-days'),
+                fix = document.getElementById('oe-rec-fix'),
+                msg = document.getElementById('oe-rec-msg'),
+                rows = document.getElementById('oe-rec-rows');
+            if (!btn) { return; }
+            btn.addEventListener('click', function(){
+                btn.disabled = true;
+                msg.style.color = '#50575e';
+                msg.textContent = fix.checked ? <?php echo wp_json_encode(__('Checking and fixing…', 'october-events')); ?> : <?php echo wp_json_encode(__('Checking…', 'october-events')); ?>;
+                rows.innerHTML = '';
+                var body = new URLSearchParams({ action: 'oe_reconcile_orders', nonce: NONCE, days: days.value, backfill: fix.checked ? '1' : '' });
+                fetch(ajaxurl, { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString() })
+                    .then(function(r){ return r.json(); })
+                    .then(function(j){
+                        btn.disabled = false;
+                        if (j && j.success) {
+                            msg.style.color = j.data.ok ? '#008a20' : '#b32d2e';
+                            msg.textContent = j.data.summary;
+                            rows.innerHTML = j.data.rows || '';
+                        } else {
+                            msg.style.color = '#b32d2e';
+                            msg.textContent = (j && j.data && j.data.message) || 'Error';
+                        }
+                    })
+                    .catch(function(){ btn.disabled = false; msg.style.color = '#b32d2e'; msg.textContent = 'Error'; });
+            });
+        })();
+        </script>
         </div></details>
 
         <details class="oe-acc" id="platform"><summary><?php esc_html_e('Staff platform', 'october-events'); ?></summary><div class="oe-acc-body">

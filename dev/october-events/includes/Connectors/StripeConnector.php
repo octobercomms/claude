@@ -237,6 +237,72 @@ final class StripeConnector {
     }
 
     /**
+     * Succeeded ticket PaymentIntents in the last $days — the buyers who paid.
+     * Used by the order reconciliation (Settings → Keys & platform) to confirm
+     * every paid checkout produced a ticket order, which is exactly the webhook's
+     * job. Only intents this plugin created for a ticket sale are returned
+     * (metadata.kind === 'ticket'); membership invoices, listing payments and any
+     * other charge on the shared Stripe account are ignored, so a "missing order"
+     * always means a real gap.
+     *
+     * Each row carries the full metadata + captured amount, so a caller can
+     * rebuild the order with no second Stripe fetch.
+     *
+     * @return array{intents:array<int,array{id:string,created:int,amount_cents:int,currency:string,email:string,event_id:int,meta:array<string,mixed>}>,partial:bool}
+     */
+    public static function succeeded_ticket_intents(int $days = 14, int $max = 500): array {
+        if (! self::is_ready()) {
+            return ['intents' => [], 'partial' => false];
+        }
+        $days    = max(1, min(90, $days));
+        $max     = max(1, min(1000, $max));
+        $since   = time() - $days * DAY_IN_SECONDS;
+        $out     = [];
+        $after   = '';
+        $pages   = 0;
+        $partial = false;
+        do {
+            $params = ['limit' => 100, 'created' => ['gte' => $since]];
+            if ($after !== '') {
+                $params['starting_after'] = $after;
+            }
+            $res  = self::request('GET', '/payment_intents', $params);
+            $data = is_array($res['data'] ?? null) ? $res['data'] : [];
+            if (! $data) {
+                break;
+            }
+            foreach ($data as $pi) {
+                $after = (string) ($pi['id'] ?? $after); // cursor advances over every intent
+                if (($pi['status'] ?? '') !== 'succeeded') {
+                    continue;
+                }
+                $meta = is_array($pi['metadata'] ?? null) ? $pi['metadata'] : [];
+                if (($meta['kind'] ?? '') !== 'ticket') {
+                    continue;
+                }
+                $out[] = [
+                    'id'           => (string) ($pi['id'] ?? ''),
+                    'created'      => (int) ($pi['created'] ?? 0),
+                    'amount_cents' => (int) ($pi['amount_received'] ?? $pi['amount'] ?? 0),
+                    'currency'     => strtoupper((string) ($pi['currency'] ?? '')),
+                    'email'        => (string) ($meta['email'] ?? ($pi['receipt_email'] ?? '')),
+                    'event_id'     => (int) ($meta['event_id'] ?? 0),
+                    'meta'         => $meta,
+                ];
+                if (count($out) >= $max) {
+                    return ['intents' => $out, 'partial' => ! empty($res['has_more'])];
+                }
+            }
+            $pages++;
+            if ($pages >= 20) {
+                $partial = ! empty($res['has_more']);
+                break;
+            }
+        } while (! empty($res['has_more']));
+        return ['intents' => $out, 'partial' => $partial];
+    }
+
+    /**
      * Failed charges in the last $days, with the decline reason + card details —
      * for the Failed payments dashboard. Pages through Stripe (the charges list
      * can't filter by status server-side) up to a bounded number of pages.
