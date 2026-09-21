@@ -504,6 +504,7 @@ router.post('/releases/:id/preview', async (req, res) => {
 
     const cached = await pressRelease.getOrGenerateEmails({
       pressReleaseId: req.params.id, contactId: contact_id, force: !!force,
+      withFollowUps: true,   // the preview shows the follow-ups, so generate them here
     });
 
     // Hero image lives in release.images[0] (extracted at fetch time);

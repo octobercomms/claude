@@ -22,6 +22,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const pool = require('../db');
 const claude = require('./claude');
+const { parseJsonLoose } = require('../utils/jsonParse');
 const { assertPublicHttpUrl } = require('../utils/urlSafety');
 
 // Press personalisation runs through callClaude so it's model-routable in
@@ -648,9 +649,8 @@ Return ONLY a JSON array of three objects: [{ "subject": "...", "body": "..." },
     max_tokens: 1500, system: PRESS_SYSTEM, user: prompt,
     feature: 'press_followups', clientId: release.client_id || null,
   })).trim();
-  const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
   let followUps;
-  try { followUps = JSON.parse(cleaned); }
+  try { followUps = parseJsonLoose(text); }
   catch { throw new Error('Claude returned malformed follow-up JSON'); }
 
   // Deterministically guarantee the closing (last) follow-up offers the
@@ -681,15 +681,27 @@ function hasReplyOptions(body) {
   return hasOne && hasTwo && hasThree;
 }
 
-// Cache the pitch + follow-ups per (release × journalist) so re-opening
-// the preview doesn't re-bill. `force` regenerates.
-async function getOrGenerateEmails({ pressReleaseId, contactId, force = false }) {
+// Cache the pitch + follow-ups per (release × journalist).
+//
+// Follow-ups are generated LAZILY (withFollowUps), not up front: the AI
+// follow-ups are only ever used for a journalist who OPENED an earlier email —
+// a non-opener gets a plain resend of the release, no AI. Generating three
+// personalised follow-ups for every recipient at release-send time meant paying
+// (on Opus) to write follow-ups for the ~60-80% who never open and so never
+// receive them. So the release send asks for the pitch only; the follow-ups are
+// generated the first time an opener's follow-up is actually due. Preview / test
+// pass withFollowUps to still show them (low volume, AM-triggered).
+async function getOrGenerateEmails({ pressReleaseId, contactId, force = false, withFollowUps = false }) {
+  let existing = null;
   if (!force) {
     const { rows } = await pool.query(
       'SELECT * FROM press_release_emails WHERE press_release_id = $1 AND contact_id = $2',
       [pressReleaseId, contactId]
     );
-    if (rows.length) return rows[0];
+    existing = rows[0] || null;
+    const hasFollowUps = existing && Array.isArray(existing.follow_ups) && existing.follow_ups.length > 0;
+    // Cache hit only when it already holds everything this caller needs.
+    if (existing && (!withFollowUps || hasFollowUps)) return existing;
   }
 
   const [{ rows: relRows }, { rows: contactRows }] = await Promise.all([
@@ -704,10 +716,16 @@ async function getOrGenerateEmails({ pressReleaseId, contactId, force = false })
 
   const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
 
-  const [pitch, followUps] = await Promise.all([
-    generatePitch({ release, journalist, brandBriefing: release.briefing_field, sender }),
-    generateFollowUps({ release, journalist, brandBriefing: release.briefing_field, sender }),
-  ]);
+  // Reuse a cached pitch rather than re-billing it when we're only here to add
+  // the follow-ups.
+  const pitch = (existing && existing.intro)
+    ? existing.intro
+    : await generatePitch({ release, journalist, brandBriefing: release.briefing_field, sender });
+
+  let followUps = (existing && Array.isArray(existing.follow_ups)) ? existing.follow_ups : [];
+  if (withFollowUps && (!followUps || !followUps.length)) {
+    followUps = await generateFollowUps({ release, journalist, brandBriefing: release.briefing_field, sender });
+  }
 
   const { rows } = await pool.query(
     `INSERT INTO press_release_emails (press_release_id, contact_id, intro, follow_ups)
