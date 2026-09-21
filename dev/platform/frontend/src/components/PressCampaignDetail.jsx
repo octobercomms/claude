@@ -62,6 +62,8 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
   // Emails.
   const [steps, setSteps] = useState([]);
+  const [paused, setPaused] = useState(false);
+  const [pausing, setPausing] = useState(false);
   const [savingSteps, setSavingSteps] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [signature, setSignature] = useState('');
@@ -479,17 +481,38 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     </div>
   );
 
+  async function togglePause() {
+    if (!campaignId) return;
+    setPausing(true);
+    try {
+      const action = paused ? 'resume' : 'pause';
+      const r = await api.post(`/outreach/campaigns/${campaignId}/${action}`, {});
+      const isPaused = r.status === 'paused';
+      setPaused(isPaused);
+      toast(isPaused
+        ? 'Sending paused — no further emails, including any queued follow-ups, will go out until you resume.'
+        : 'Sending resumed.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPausing(false); }
+  }
+
   return (
     <div>
       <button onClick={onExit} className="btn btn-secondary btn-sm" style={{ marginBottom: 16 }}>← Back to campaigns</button>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div>
           <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 4 }}>press release</div>
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{release.title}</h2>
           {release.dateline && <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{release.dateline}</div>}
           {release.source_url && <a href={release.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--accent)', display: 'inline-block', marginTop: 6 }}>↗ source page</a>}
         </div>
+        <button onClick={togglePause} disabled={pausing}
+          className={`btn btn-sm ${paused ? 'btn-primary' : 'btn-secondary'}`}
+          title="Pause stops all further sends for this campaign, including any queued follow-ups, until you resume."
+          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {pausing ? '…' : paused ? '▶ Resume sending' : '⏸ Pause sending'}
+        </button>
       </div>
 
       {attribution?.launched && (
