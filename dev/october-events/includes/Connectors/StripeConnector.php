@@ -610,17 +610,12 @@ final class StripeConnector {
             return null;
         }
 
-        if (self::use_sdk() && class_exists('\\Stripe\\Webhook')) {
-            try {
-                $event = \Stripe\Webhook::constructEvent($payload, $sig_header, $secret);
-                return json_decode((string) $event, true);
-            } catch (\Throwable $e) {
-                self::$last_webhook_error = 'sdk: ' . $e->getMessage();
-                Logger::log('Stripe webhook signature failed', ['error' => $e->getMessage()]);
-                return null;
-            }
-        }
-
+        // Verify with our own HMAC (Stripe's documented scheme), NOT the bundled
+        // Stripe SDK. On a multi-plugin WordPress site the `\Stripe\` classes can
+        // be loaded from another plugin's (older) copy — first one wins, PHP can't
+        // redeclare — and a version mismatch there breaks constructEvent even with
+        // the right secret and body. The manual check has no such dependency and
+        // always records a precise reason on failure.
         return self::verify_signature($payload, $sig_header, $secret)
             ? (json_decode($payload, true) ?: null)
             : null;

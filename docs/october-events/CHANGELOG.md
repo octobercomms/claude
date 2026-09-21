@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.158.0 — Stripe webhook verified with our own HMAC (SDK-conflict fix)
+
+- Webhook signatures are now verified with the plugin's own HMAC check (Stripe's
+  documented scheme) instead of the bundled Stripe SDK. On a busy WordPress site
+  the `\Stripe\` classes can be loaded from another plugin's older copy (first one
+  wins, PHP can't redeclare), and a version mismatch there breaks the SDK's
+  `constructEvent` even with the right secret and body — surfacing as a persistent
+  `invalid_signature` 400. The manual check has no such dependency.
+- It also always records a precise rejection reason, so the settings health line
+  now names the exact cause (`signature_mismatch`, `timestamp_out_of_tolerance`,
+  etc.) instead of a blank.
+
 ## 1.157.0 — Guided tours: a ticket is a pass to every tour
 
 - A tour ticket now lets its holder book onto **every** guided tour (project), not
