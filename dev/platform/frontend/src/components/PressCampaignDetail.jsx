@@ -496,6 +496,24 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     finally { setPausing(false); }
   }
 
+  function setCustomFollowupLocal(idx, body) {
+    setRelease(r => {
+      const next = Array.isArray(r.custom_followups) ? r.custom_followups.map(c => ({ ...c })) : [];
+      while (next.length <= idx) next.push({ subject: null, body: '' });
+      next[idx] = { ...next[idx], body };
+      return { ...r, custom_followups: next };
+    });
+  }
+  async function saveCustomFollowups() {
+    try { await api.patch(`/press/releases/${release.id}`, { custom_followups: release.custom_followups || [] }); }
+    catch (err) { toast(err.message, 'error'); }
+  }
+  async function setFollowupsAi(aiOn) {
+    setRelease(r => ({ ...r, followups_ai: aiOn }));
+    try { await api.patch(`/press/releases/${release.id}`, { followups_ai: aiOn }); if (previewing) preview(previewing, true); }
+    catch (err) { toast(err.message, 'error'); }
+  }
+
   return (
     <div>
       <button onClick={onExit} className="btn btn-secondary btn-sm" style={{ marginBottom: 16 }}>← Back to campaigns</button>
@@ -685,6 +703,14 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 <input value={s.subject ?? ''} onChange={e => setStepField(s.step_number, 'subject', e.target.value)}
                   placeholder="Subject line — {{first_name}} to personalise"
                   style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                {release.followups_ai === false && s.step_number > 1 && (
+                  <textarea
+                    value={(release.custom_followups?.[s.step_number - 2]?.body) ?? ''}
+                    onChange={e => setCustomFollowupLocal(s.step_number - 2, e.target.value)}
+                    onBlur={saveCustomFollowups}
+                    placeholder="Write this follow-up email — sent to everyone as-is. {{first_name}} / {{company}} to personalise. Leave blank to just resend the release with the new subject."
+                    style={{ width: '100%', minHeight: 90, marginTop: 4, padding: '8px 9px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+                )}
               </div>
             ))}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
@@ -696,6 +722,11 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               <input type="checkbox" checked={release.followup_hero !== false}
                 onChange={async e => { const next = e.target.checked; setRelease(r => ({ ...r, followup_hero: next })); try { await api.patch(`/press/releases/${release.id}`, { followup_hero: next }); if (previewing) preview(previewing, true); } catch (err) { toast(err.message, 'error'); } }} />
               <span><strong>Add the hero image at the foot of follow-ups.</strong> <span style={{ color: 'var(--text-subtle)' }}>Sits below your sign-off as a reminder of the story. Follow-ups read as standalone pitches; the last one offers a quick 1/2/3 reply.</span></span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={release.followups_ai === false}
+                onChange={e => setFollowupsAi(!e.target.checked)} />
+              <span><strong>Write my own follow-ups (no AI).</strong> <span style={{ color: 'var(--text-subtle)' }}>On = the follow-up bodies you type above are sent to everyone as-is — no AI, no per-person variation, no follow-up AI cost. Off (default) = AI writes a personalised follow-up for each journalist who opens.</span></span>
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.include_release_link !== false}

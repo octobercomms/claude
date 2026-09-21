@@ -398,7 +398,34 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     );
     const stepSubject = stepRows[0]?.subject;
 
-    if (!hasOpened) {
+    if (release.followups_ai === false) {
+      // Author-written follow-ups: the AM turned OFF AI follow-ups and wrote
+      // their own body for this step, so send that — the SAME to everyone (with
+      // merge tags), regardless of whether they opened. No AI, no per-person
+      // variation. Falls back to a release resend if no body was written.
+      const customs = Array.isArray(release.custom_followups) ? release.custom_followups : [];
+      const c = customs[followupIndex - 1];
+      const body = c && typeof c.body === 'string' ? c.body.trim() : '';
+      if (body) {
+        subject = stepSubject || (c.subject && c.subject.trim()) || `Re: ${release.title}`;
+        text = fillTemplate(body, contact);
+        const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
+        const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
+        html = pressRelease.buildFollowUpHtml({
+          release: releaseWithHero, body: text, sender, recipientName: contact.name,
+          contactId: contact.id, clientId, campaignId, signature,
+          includeHero: release.followup_hero !== false,
+          includeReleaseLink: release.include_release_link !== false,
+        });
+        html = rewriteLinksForTracking(html, sendId);
+        if (sendId && process.env.PLATFORM_URL) {
+          const sig = signTrackToken({ sendId, kind: 'open' });
+          html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${sendId}?s=${sig}" width="1" height="1" alt="" style="display:none">`;
+        }
+      } else {
+        ({ subject, html, text } = renderRelease(stepSubject || `Re: ${release.title}`));
+      }
+    } else if (!hasOpened) {
       // Resend the release with a new subject.
       ({ subject, html, text } = renderRelease(stepSubject || `Re: ${release.title}`));
     } else {

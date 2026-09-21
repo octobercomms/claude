@@ -577,6 +577,20 @@ router.patch('/releases/:id', async (req, res) => {
       params.push(req.body.include_release_link);
       updates.push(`include_release_link = $${params.length}`);
     }
+    // Author-written follow-ups: a flag to turn AI follow-ups off, and the
+    // per-step bodies the AM writes instead. Bodies are stored lean and capped.
+    if (typeof req.body?.followups_ai === 'boolean') {
+      params.push(req.body.followups_ai);
+      updates.push(`followups_ai = $${params.length}`);
+    }
+    if (Array.isArray(req.body?.custom_followups)) {
+      const lean = req.body.custom_followups.slice(0, 10).map(c => ({
+        subject: typeof c?.subject === 'string' ? c.subject.slice(0, 300) : null,
+        body: typeof c?.body === 'string' ? c.body.slice(0, 20000) : '',
+      }));
+      params.push(JSON.stringify(lean));
+      updates.push(`custom_followups = $${params.length}::jsonb`);
+    }
     // Persist the chosen audience so closing/reopening the campaign restores it.
     if (Array.isArray(req.body?.selected_tags)) {
       params.push(req.body.selected_tags.map(t => String(t)).slice(0, 300));
