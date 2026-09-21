@@ -276,6 +276,42 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 </tr>
             <?php endforeach; ?>
         </table>
+        <?php
+        // Live webhook health — the last delivery Stripe made to this site, so a
+        // wrong/missing signing secret is obvious here instead of only in email.
+        $wh = get_option('oe_webhook_last');
+        if (is_array($wh)) :
+            $ago = human_time_diff((int) ($wh['at'] ?? 0), time());
+            if (! empty($wh['ok'])) : ?>
+                <p class="description" style="margin-top:10px;color:#1a7f37">
+                    <strong><?php esc_html_e('Stripe webhook:', 'october-events'); ?></strong>
+                    <?php printf(
+                        /* translators: 1: time ago, 2: event type */
+                        esc_html__('✓ last event received %1$s ago (%2$s). Signature verified.', 'october-events'),
+                        esc_html($ago),
+                        '<code>' . esc_html((string) ($wh['type'] ?? 'event')) . '</code>'
+                    ); // phpcs safe: only the code tag ?>
+                </p>
+            <?php else :
+                $reason = (string) ($wh['reason'] ?? '');
+                $human  = [
+                    'no_signing_secret_configured' => __('no signing secret is saved above (the field may show “saved” but decrypts empty).', 'october-events'),
+                ][$reason] ?? ($reason !== '' ? $reason : __('the signature could not be verified.', 'october-events'));
+                ?>
+                <p class="description" style="margin-top:10px;color:#b32d2e">
+                    <strong><?php esc_html_e('Stripe webhook:', 'october-events'); ?></strong>
+                    <?php printf(
+                        /* translators: 1: time ago, 2: reason */
+                        esc_html__('✗ last event rejected %1$s ago — %2$s', 'october-events'),
+                        esc_html($ago),
+                        esc_html($human)
+                    ); ?>
+                    <br><?php esc_html_e('Fix: make sure the “Stripe webhook secret” above is the Signing secret of the exact endpoint delivering events, and that only one endpoint points at this site’s webhook URL.', 'october-events'); ?>
+                </p>
+            <?php endif;
+        else : ?>
+            <p class="description" style="margin-top:10px"><strong><?php esc_html_e('Stripe webhook:', 'october-events'); ?></strong> <?php esc_html_e('no events received yet.', 'october-events'); ?></p>
+        <?php endif; ?>
         </div></details>
 
         <details class="oe-acc" id="platform"><summary><?php esc_html_e('Staff platform', 'october-events'); ?></summary><div class="oe-acc-body">

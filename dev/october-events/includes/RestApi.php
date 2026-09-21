@@ -1355,6 +1355,14 @@ final class RestApi {
         }
         $event = StripeConnector::parse_webhook((string) $payload, $sig);
         if ($event === null) {
+            // Remember the failure so wp-admin can show the exact cause without
+            // digging through the Stripe dashboard (Settings → Keys & platform).
+            update_option('oe_webhook_last', [
+                'ok'     => false,
+                'reason' => StripeConnector::$last_webhook_error,
+                'hassig' => $sig !== '',
+                'at'     => time(),
+            ], false);
             // Non-sensitive diagnostics (no secret, no body content) so a failed
             // delivery in the Stripe dashboard states exactly why it was rejected.
             return new \WP_REST_Response([
@@ -1392,6 +1400,9 @@ final class RestApi {
         }
         // payment_intent.payment_failed: nothing to advance; the draft stays
         // in pending_payment for the user to retry.
+
+        // Record a good delivery so the admin webhook-health line shows green.
+        update_option('oe_webhook_last', ['ok' => true, 'type' => $type, 'at' => time()], false);
 
         return new \WP_REST_Response(['received' => true], 200);
     }
