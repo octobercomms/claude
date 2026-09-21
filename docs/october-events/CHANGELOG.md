@@ -5,6 +5,17 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.157.0 — Guided tours: a ticket is a pass to every tour
+
+- A tour ticket now lets its holder book onto **every** guided tour (project), not
+  just one. The ticket count caps the **party size per tour** (a group of 4 can
+  bring 4 to each project), instead of being a shared pool spent across tours. The
+  only limit on joining more tours is each slot's own capacity (full slots
+  waitlist as before).
+- The booking page's party stepper now offers the full group size on every tour,
+  and no longer locks after the first booking. Booking the same slot twice is
+  still blocked; per-slot capacity is unchanged.
+
 ## 1.156.0 — Stripe webhook health readout in settings
 
 - Settings → Keys & platform now shows the **last Stripe webhook result** under the
