@@ -22,13 +22,13 @@ const STEPS = [
   { key: 'confirm', label: 'Confirm', hint: 'check & send' },
 ];
 
-function AttrStat({ value, label, big }) {
+function AttrStat({ value, label, big, hint }) {
   return (
-    <div>
+    <div title={hint || undefined} style={hint ? { cursor: 'help' } : undefined}>
       <div style={{ fontSize: big ? 26 : 20, fontWeight: 700, lineHeight: 1, color: big ? 'var(--accent)' : 'var(--text)' }}>
         {value == null ? '—' : value}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3 }}>{label}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3 }}>{label}{hint ? ' ⓘ' : ''}</div>
     </div>
   );
 }
@@ -539,12 +539,19 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
       {attribution?.launched && (
         <div style={{ marginTop: 16, padding: 14, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 8 }}>Backlink attribution · {attribution.window_days} days after launch</div>
+          <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 3 }}>Backlink attribution · {attribution.window_days} days after launch</div>
+          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 10, maxWidth: 640, lineHeight: 1.45 }}>
+            The SEO payoff of this pitch: websites that started linking to the client in the {attribution.window_days} days since launch. Links take days to weeks to appear, so early numbers stay low.
+          </div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'baseline' }}>
-            <AttrStat value={attribution.new_rds} label="new referring domains" big />
-            <AttrStat value={attribution.dofollow_rds} label="dofollow" />
-            <AttrStat value={attribution.pitched_rds} label="from outlets you pitched" />
-            <AttrStat value={attribution.recipients} label="journalists emailed" />
+            <AttrStat value={attribution.new_rds} label="new referring domains" big
+              hint="Distinct websites whose first-ever link to this client appeared within the attribution window." />
+            <AttrStat value={attribution.dofollow_rds} label="dofollow"
+              hint="Of those new links, how many pass SEO ranking value (not tagged nofollow)." />
+            <AttrStat value={attribution.pitched_rds} label="from outlets you pitched"
+              hint="New links whose domain matches a journalist you emailed in this campaign — the defensible 'we caused this' number." />
+            <AttrStat value={attribution.recipients} label="emailed so far"
+              hint="Distinct journalists actually sent an email so far. This climbs as the paced send finishes — it's lower than the total audience until every batch has gone out." />
           </div>
         </div>
       )}

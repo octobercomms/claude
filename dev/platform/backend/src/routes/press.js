@@ -279,8 +279,39 @@ router.get('/journalists', async (req, res) => {
 
 router.get('/clients/:clientId/releases', async (req, res) => {
   try {
+    // List with each campaign's live status (active/paused) and a lightweight
+    // stat roll-up (first-email sent/total, distinct opens & clicks), so the
+    // campaigns list can show a pause chip and click-to-expand stats without a
+    // second round-trip per row. Follow-up steps are excluded from sent/total
+    // so the numbers reflect the actual send-out, not the scheduled queue.
     const { rows } = await pool.query(
-      'SELECT * FROM outreach_press_releases WHERE client_id = $1 ORDER BY created_at DESC LIMIT 50',
+      `SELECT pr.*,
+              c.status AS campaign_status,
+              COALESCE(st.sent, 0)         AS stat_sent,
+              COALESCE(st.first_total, 0)  AS stat_first_total,
+              COALESCE(st.pending, 0)      AS stat_pending,
+              COALESCE(st.failed, 0)       AS stat_failed,
+              COALESCE(st.opened, 0)       AS stat_opened,
+              COALESCE(st.clicked, 0)      AS stat_clicked
+         FROM outreach_press_releases pr
+         LEFT JOIN outreach_campaigns c ON c.id = pr.campaign_id
+         LEFT JOIN LATERAL (
+           SELECT
+             COUNT(*) FILTER (WHERE s.status = 'sent' AND COALESCE(seq.step_number,1) <= 1)::int                       AS sent,
+             COUNT(*) FILTER (WHERE COALESCE(seq.step_number,1) <= 1)::int                                             AS first_total,
+             COUNT(*) FILTER (WHERE s.status IN ('pending','sending') AND COALESCE(seq.step_number,1) <= 1)::int       AS pending,
+             COUNT(*) FILTER (WHERE s.status = 'failed' AND COALESCE(seq.step_number,1) <= 1)::int                     AS failed,
+             COUNT(DISTINCT s.contact_id) FILTER (WHERE s.opened_at IS NOT NULL)::int                                  AS opened,
+             (SELECT COUNT(DISTINCT s2.contact_id) FROM outreach_clicks cl
+                JOIN outreach_sends s2 ON s2.id = cl.send_id
+               WHERE s2.campaign_id = pr.campaign_id)::int                                                             AS clicked
+           FROM outreach_sends s
+           LEFT JOIN outreach_sequences seq ON seq.id = s.sequence_id
+          WHERE s.campaign_id = pr.campaign_id
+         ) st ON TRUE
+        WHERE pr.client_id = $1
+        ORDER BY pr.created_at DESC
+        LIMIT 50`,
       [req.params.clientId]
     );
     res.json(rows);
@@ -441,19 +472,62 @@ router.get('/releases/:id/analytics', async (req, res) => {
     const pct = (n) => (recipients ? Math.round((n / recipients) * 100) : 0);
 
     // Delivery health: how the actual send queue is doing, distinct from
-    // engagement. 'in_flight' = still to go out (pending/sending/retrying),
-    // 'failed' = gave up after retries. Surfaces a "Retry failed" affordance
-    // and reassures the AM a big send is progressing, not stuck.
-    const { rows: deliv } = await pool.query(
-      `SELECT
-          COUNT(*) FILTER (WHERE status = 'sent')::int                         AS sent,
-          COUNT(*) FILTER (WHERE status IN ('pending', 'sending'))::int        AS in_flight,
-          COUNT(*) FILTER (WHERE status = 'failed')::int                       AS failed,
-          COUNT(*) FILTER (WHERE status = 'cancelled')::int                    AS cancelled
-         FROM outreach_sends WHERE campaign_id = $1`,
+    // engagement. A press campaign queues one row per (recipient × sequence
+    // step) up front, so a naive "pending" count lumps the first-email blast
+    // in with follow-ups that are scheduled days out and only ever sent to
+    // journalists who engage. That made "still going out" read ~4× the
+    // audience and baffled the AM. So we break delivery down by step: step 1
+    // is the actual send-out ("going out" = pending & due now), steps > 1 are
+    // follow-ups ("scheduled" = pending & dated for the future). 'sending' =
+    // due right now; 'scheduled' = waiting for its send date.
+    const { rows: stepRows } = await pool.query(
+      `SELECT COALESCE(seq.step_number, 1) AS step_number,
+          COUNT(*) FILTER (WHERE os.status = 'sent')::int                                          AS sent,
+          COUNT(*) FILTER (WHERE os.status IN ('pending','sending') AND os.scheduled_at <= NOW())::int AS sending,
+          COUNT(*) FILTER (WHERE os.status IN ('pending','sending') AND os.scheduled_at >  NOW())::int AS scheduled,
+          COUNT(*) FILTER (WHERE os.status = 'failed')::int                                         AS failed,
+          COUNT(*) FILTER (WHERE os.status = 'cancelled')::int                                      AS cancelled
+         FROM outreach_sends os
+         LEFT JOIN outreach_sequences seq ON seq.id = os.sequence_id
+        WHERE os.campaign_id = $1
+        GROUP BY COALESCE(seq.step_number, 1)
+        ORDER BY 1`,
       [release.campaign_id]
     );
-    const delivery = deliv[0] || { sent: 0, in_flight: 0, failed: 0, cancelled: 0 };
+    const zero = () => ({ sent: 0, sending: 0, scheduled: 0, failed: 0, cancelled: 0 });
+    const first = zero();       // the first email (step 1) — the actual blast
+    const followups = zero();   // every later step, rolled up
+    for (const r of stepRows) {
+      const bucket = Number(r.step_number) <= 1 ? first : followups;
+      bucket.sent += r.sent; bucket.sending += r.sending; bucket.scheduled += r.scheduled;
+      bucket.failed += r.failed; bucket.cancelled += r.cancelled;
+    }
+    // first-email "total" = everyone this campaign is (or was) trying to reach
+    first.total = first.sent + first.sending + first.scheduled + first.failed + first.cancelled;
+    followups.total = followups.sent + followups.sending + followups.scheduled + followups.failed + followups.cancelled;
+    // Back-compat top-level fields (older clients read these). in_flight now
+    // means "first emails still going out", NOT the whole queue.
+    // Per-step rows for the UI's breakdown ("Follow-up 1: 10,689 scheduled").
+    // Step 1 is the first email; the rest are follow-ups in order.
+    const steps = stepRows.map(r => {
+      const sent = r.sent, sending = r.sending, scheduled = r.scheduled, failed = r.failed, cancelled = r.cancelled;
+      return {
+        step_number: Number(r.step_number),
+        is_first: Number(r.step_number) <= 1,
+        sent, sending, scheduled, failed, cancelled,
+        total: sent + sending + scheduled + failed + cancelled,
+      };
+    });
+    const delivery = {
+      sent: first.sent,
+      in_flight: first.sending + first.scheduled,
+      failed: first.failed,
+      cancelled: first.cancelled,
+      active_sending: first.sending > 0, // something is due & draining right now
+      first,
+      followups,
+      steps,
+    };
 
     res.json({
       campaign_id: release.campaign_id,
@@ -636,6 +710,13 @@ router.patch('/releases/:id', async (req, res) => {
     if (typeof req.body?.boilerplate === 'string') {
       params.push(req.body.boilerplate.slice(0, 100000) || null);
       updates.push(`boilerplate = $${params.length}`);
+    }
+    // Friendly campaign nickname (list display). Empty string clears it so the
+    // UI falls back to the release headline.
+    if (typeof req.body?.display_name === 'string') {
+      const dn = req.body.display_name.trim().slice(0, 200);
+      params.push(dn || null);
+      updates.push(`display_name = $${params.length}`);
     }
     if (updates.length) {
       params.push(req.params.id);

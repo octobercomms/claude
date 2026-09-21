@@ -114,22 +114,89 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         </div>
       </div>
 
-      {/* Delivery health — the send queue, distinct from engagement above. Only
-          shown once a send exists; the failed count carries the retry action. */}
-      {data?.delivery && (data.delivery.sent + data.delivery.in_flight + data.delivery.failed + data.delivery.cancelled > 0) && (
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', padding: '8px 14px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
-          <span style={{ fontWeight: 600 }}>Delivery</span>
-          <span style={{ color: 'var(--positive, #15803d)' }}>✓ {data.delivery.sent} sent</span>
-          {data.delivery.in_flight > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {data.delivery.in_flight} still going out</span>}
-          {data.delivery.failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {data.delivery.failed} failed</span>}
-          {data.delivery.cancelled > 0 && <span style={{ color: 'var(--text-subtle)' }}>{data.delivery.cancelled} skipped (bounced/unsub)</span>}
-          {data.delivery.failed > 0 && (
-            <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} onClick={retryFailed} disabled={retrying}>
-              {retrying ? 'Re-queueing…' : `Retry ${data.delivery.failed} failed`}
-            </button>
-          )}
-        </div>
-      )}
+      {/* Delivery health — the send queue, distinct from engagement above.
+          Split into the first-email blast (what "sending status" really means)
+          and follow-ups (scheduled for later, conditional on engagement), so a
+          10k send doesn't read as "39,604 still going out". Per-step rows spell
+          out each email's own progress; a spinner shows when a batch is live. */}
+      {(() => {
+        const d = data?.delivery;
+        if (!d) return null;
+        const first = d.first || { sent: d.sent || 0, sending: d.in_flight || 0, scheduled: 0, failed: d.failed || 0, cancelled: d.cancelled || 0, total: 0 };
+        const fu = d.followups || { sent: 0, sending: 0, scheduled: 0, failed: 0, cancelled: 0, total: 0 };
+        const firstTotal = first.total || (first.sent + first.sending + first.scheduled + first.failed + first.cancelled);
+        const totalFailed = (first.failed || 0) + (fu.failed || 0);
+        if (firstTotal + (fu.total || 0) === 0) return null;
+        const num = (n) => (n || 0).toLocaleString();
+        const pct = firstTotal ? Math.round((first.sent / firstTotal) * 100) : 0;
+        const going = (first.sending || 0) + (first.scheduled || 0);
+        const fuPending = (fu.sending || 0) + (fu.scheduled || 0);
+        const active = d.active_sending;
+        // Per-step rows. Fall back to a synthesised first-email row if the
+        // backend didn't send the breakdown (older API).
+        const steps = (d.steps && d.steps.length) ? d.steps
+          : [{ step_number: 1, is_first: true, ...first, total: firstTotal }];
+        const stepName = (s) => s.is_first ? 'First email' : `Follow-up ${s.step_number - 1}`;
+        const Bar = ({ done, total, color }) => (
+          <div style={{ flex: 1, height: 6, background: 'var(--accent-soft, #eee)', borderRadius: 999, overflow: 'hidden', minWidth: 60 }}>
+            <div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%`, height: '100%', background: color, borderRadius: 999, transition: 'width .3s' }} />
+          </div>
+        );
+        return (
+          <div style={{ padding: '12px 14px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
+            {/* Headline: first-email blast */}
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                {active && <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} aria-label="sending" />}
+                {active ? 'Sending now' : 'Sending'}
+              </span>
+              <span style={{ color: 'var(--positive, #15803d)' }}>✓ {num(first.sent)} of {num(firstTotal)} emailed</span>
+              {going > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(going)} still going out{active ? ' (~500/hr)' : ''}</span>}
+              {first.failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {num(first.failed)} failed</span>}
+              {first.cancelled > 0 && <span style={{ color: 'var(--text-subtle)' }}>{num(first.cancelled)} skipped (bounced/unsub)</span>}
+              {totalFailed > 0 && (
+                <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} onClick={retryFailed} disabled={retrying}>
+                  {retrying ? 'Re-queueing…' : `Retry ${num(totalFailed)} failed`}
+                </button>
+              )}
+            </div>
+            {/* Overall first-email progress bar */}
+            {firstTotal > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Bar done={first.sent} total={firstTotal} color="var(--positive, #15803d)" />
+                <span style={{ color: 'var(--text-subtle)', minWidth: 34, textAlign: 'right' }}>{pct}%</span>
+              </div>
+            )}
+
+            {/* Per-step breakdown — "each email send amount" */}
+            <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+              {steps.map(s => {
+                const done = s.sent;
+                const stotal = s.total || (s.sent + s.sending + s.scheduled + s.failed + s.cancelled);
+                const spct = stotal ? Math.round((done / stotal) * 100) : 0;
+                const label = s.is_first
+                  ? `${num(done)} sent`
+                  : (s.sent > 0 ? `${num(done)} sent · ${num(s.scheduled + s.sending)} scheduled` : `${num(s.scheduled + s.sending)} scheduled`);
+                return (
+                  <div key={s.step_number} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 92, flexShrink: 0, color: 'var(--text-muted)' }}>{stepName(s)}</span>
+                    <Bar done={done} total={stotal} color={s.is_first ? 'var(--positive, #15803d)' : 'var(--accent, #6366f1)'} />
+                    <span style={{ minWidth: 150, textAlign: 'right', color: 'var(--text-subtle)' }}>{label}</span>
+                    <span style={{ width: 34, textAlign: 'right', color: 'var(--text-subtle)' }}>{spct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Plain-language explainer for the follow-up rows */}
+            {fuPending > 0 && (
+              <div style={{ marginTop: 10, paddingTop: 8, borderTop: 'var(--border-w) solid var(--card-border)', color: 'var(--text-subtle)', lineHeight: 1.5 }}>
+                📆 The follow-up rows above are <strong>scheduled, not queued to blast</strong> — each goes out on its own day (set by the sequence delay) and only to journalists who’ve opened. Most of these numbers will shrink, never all send at once.
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Warm threshold */}
       {cfg && (

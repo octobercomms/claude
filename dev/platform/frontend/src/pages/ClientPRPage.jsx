@@ -409,13 +409,37 @@ export default function ClientPRPage() {
     api.get(`/press/clients/${id}/releases`).then((r) => setPressReleases(Array.isArray(r) ? r : (r.items || []))).catch(() => {});
   }
   async function deletePressCampaign(r) {
-    if (!confirm(`Delete the press campaign "${r.title || 'untitled'}"? This removes the release, its sequence and all queued sends. Emails already sent aren't recalled.`)) return;
+    if (!confirm(`Delete the press campaign "${r.display_name || r.title || 'untitled'}"? This removes the release, its sequence and all queued sends. Emails already sent aren't recalled.`)) return;
     try {
       await api.delete(`/press/releases/${r.id}`);
       toast('Campaign deleted.', 'success');
       if (openPressCampaign && r.campaign_id === openPressCampaign) setOpenPressCampaign(null);
       reloadPress();
     } catch (e) { toast(e.message, 'error'); }
+  }
+  // Inline rename: which release is being renamed + its draft text.
+  const [renamingPR, setRenamingPR] = useState(null); // release id
+  const [renameText, setRenameText] = useState('');
+  const [expandedPR, setExpandedPR] = useState(null);  // release id whose stats are open
+  function startRename(r) { setRenamingPR(r.id); setRenameText(r.display_name || r.title || ''); }
+  async function saveRename(r) {
+    const next = renameText.trim();
+    setRenamingPR(null);
+    if (next === (r.display_name || '')) return; // no change
+    // Optimistic: update the row locally, then persist.
+    setPressReleases((list) => list.map((x) => x.id === r.id ? { ...x, display_name: next || null } : x));
+    try { await api.patch(`/press/releases/${r.id}`, { display_name: next }); }
+    catch (e) { toast(e.message, 'error'); reloadPress(); }
+  }
+  async function togglePausePR(r) {
+    if (!r.campaign_id) return;
+    const paused = r.campaign_status === 'paused';
+    const verb = paused ? 'resume' : 'pause';
+    setPressReleases((list) => list.map((x) => x.id === r.id ? { ...x, campaign_status: paused ? 'active' : 'paused' } : x));
+    try {
+      await api.post(`/outreach/campaigns/${r.campaign_id}/${verb}`, {});
+      toast(paused ? 'Sending resumed.' : 'Sending paused — nothing further goes out until you resume.', 'success');
+    } catch (e) { toast(e.message, 'error'); reloadPress(); }
   }
   useEffect(() => { loadData(); }, [id]);
   // ESC closes whichever modal is open. Skip while a save is mid-flight so
@@ -651,19 +675,80 @@ export default function ClientPRPage() {
               <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>No press campaigns yet — start one from a downloadfor.press URL.</p>
             ) : (
               <table className="table">
-                <thead><tr><th>Release</th><th>Created</th><th></th><th></th></tr></thead>
+                <thead><tr><th>Campaign</th><th>Created</th><th style={{ textAlign: 'right' }}>Sending</th><th></th><th></th></tr></thead>
                 <tbody>
-                  {pressReleases.map((r) => (
-                    <tr key={r.id} style={{ cursor: r.campaign_id ? 'pointer' : 'default' }} onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}>
-                      <td>{r.title || '(untitled release)'}</td>
+                  {pressReleases.map((r) => {
+                    const paused = r.campaign_status === 'paused';
+                    const sent = r.stat_sent || 0, firstTotal = r.stat_first_total || 0;
+                    const pending = r.stat_pending || 0, opened = r.stat_opened || 0, clicked = r.stat_clicked || 0, failed = r.stat_failed || 0;
+                    const pct = firstTotal ? Math.round((sent / firstTotal) * 100) : 0;
+                    const expanded = expandedPR === r.id;
+                    const num = (n) => (n || 0).toLocaleString();
+                    return (
+                    <React.Fragment key={r.id}>
+                    <tr style={{ cursor: r.campaign_id ? 'pointer' : 'default' }} onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}>
+                      <td onClick={(e) => e.stopPropagation()} style={{ cursor: 'default' }}>
+                        {renamingPR === r.id ? (
+                          <input className="input" autoFocus value={renameText}
+                            onChange={(e) => setRenameText(e.target.value)}
+                            onBlur={() => saveRename(r)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveRename(r); if (e.key === 'Escape') setRenamingPR(null); }}
+                            style={{ minWidth: 260, padding: '4px 8px', fontSize: 13 }} />
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                            <button className="link-btn" title="Open campaign"
+                              onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}
+                              style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, font: 'inherit', textAlign: 'left', fontWeight: r.display_name ? 600 : 400 }}>
+                              {r.display_name || r.title || '(untitled release)'}
+                            </button>
+                            <button className="btn btn-secondary btn-sm" title="Rename campaign" aria-label="Rename"
+                              {...roWrite(readOnly, { onClick: () => startRename(r) })} style={{ padding: '1px 6px', fontSize: 12 }}>✎</button>
+                          </span>
+                        )}
+                        {r.display_name && renamingPR !== r.id && (
+                          <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>{r.title}</div>
+                        )}
+                      </td>
                       <td>{fmtDate(r.created_at)}</td>
-                      <td style={{ textAlign: 'right' }}>{r.campaign_id ? <span className="chip chip-accent">open →</span> : <span className="chip">draft</span>}</td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
+                        {r.campaign_id && firstTotal > 0 ? (
+                          <button className="link-btn" onClick={() => setExpandedPR(expanded ? null : r.id)}
+                            title="Click for stats"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', color: 'var(--text)' }}>
+                            {pending > 0 ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2, display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }} /> : null}
+                            {num(sent)}/{num(firstTotal)} · {pct}% {expanded ? '▲' : '▾'}
+                          </button>
+                        ) : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
+                      </td>
+                      <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                        {r.campaign_id
+                          ? <button className="btn btn-secondary btn-sm" title={paused ? 'Resume sending' : 'Pause sending'}
+                              {...roWrite(readOnly, { onClick: () => togglePausePR(r) })}>{paused ? '▶ Resume' : '⏸ Pause'}</button>
+                          : <span className="chip">draft</span>}
+                      </td>
+                      <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
                         <button className="btn btn-danger btn-sm" title="Delete campaign"
-                          {...roWrite(readOnly, { onClick: (e) => { e.stopPropagation(); deletePressCampaign(r); } })}>Delete</button>
+                          {...roWrite(readOnly, { onClick: () => deletePressCampaign(r) })}>Delete</button>
                       </td>
                     </tr>
-                  ))}
+                    {expanded && (
+                      <tr>
+                        <td colSpan={5} style={{ background: 'var(--surface-raised)' }}>
+                          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center', padding: '4px 2px', fontSize: 13 }}>
+                            <span><strong>{num(sent)}</strong> <span style={{ color: 'var(--text-subtle)' }}>of {num(firstTotal)} emailed</span></span>
+                            {pending > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(pending)} still going out</span>}
+                            {failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {num(failed)} failed</span>}
+                            <span><strong>{num(opened)}</strong> <span style={{ color: 'var(--text-subtle)' }}>opened</span></span>
+                            <span><strong>{num(clicked)}</strong> <span style={{ color: 'var(--text-subtle)' }}>clicked</span></span>
+                            {paused && <span className="chip" style={{ color: 'var(--negative)' }}>paused</span>}
+                            <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}
+                              onClick={() => { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); }}>Open full results →</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
+                  );})}
                 </tbody>
               </table>
             )}
