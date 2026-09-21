@@ -23,21 +23,22 @@ final class Reconcile {
 
     /**
      * @return array{
-     *   days:int, checked:int, matched:int,
+     *   days:int, checked:int, matched:int, other_site:int,
      *   orphans:array<int,array{id:string,created:int,amount_cents:int,currency:string,email:string,event:string,repaired:bool}>,
      *   repaired:int, partial:bool, ran_at:int, ready:bool
      * }
      */
     public static function run(int $days = 14, bool $backfill = false): array {
         $result = [
-            'days'     => max(1, min(90, $days)),
-            'checked'  => 0,
-            'matched'  => 0,
-            'orphans'  => [],
-            'repaired' => 0,
-            'partial'  => false,
-            'ran_at'   => time(),
-            'ready'    => StripeConnector::is_ready(),
+            'days'       => max(1, min(90, $days)),
+            'checked'    => 0,
+            'matched'    => 0,
+            'other_site' => 0,
+            'orphans'    => [],
+            'repaired'   => 0,
+            'partial'    => false,
+            'ran_at'     => time(),
+            'ready'      => StripeConnector::is_ready(),
         ];
         if (! $result['ready']) {
             return $result;
@@ -47,6 +48,12 @@ final class Reconcile {
         $result['partial'] = (bool) $sweep['partial'];
 
         foreach ($sweep['intents'] as $pi) {
+            // Both October sites share one Stripe account, so the sweep sees the
+            // other site's ticket payments too. Only reconcile this site's own.
+            if (! OrderFactory::belongs_here((array) $pi['meta'])) {
+                $result['other_site']++;
+                continue;
+            }
             $result['checked']++;
             $id = (string) $pi['id'];
             if (Orders::by_payment($id)) {

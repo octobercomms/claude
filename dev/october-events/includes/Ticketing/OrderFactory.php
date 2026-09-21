@@ -27,6 +27,12 @@ final class OrderFactory {
         if (Orders::by_payment($intent_id)) {
             return ['tickets' => Orders::ticket_dtos_for($intent_id)];
         }
+        // Both October sites share one Stripe account, so a payment from the other
+        // site can reach this handler (its webhook fires for every event on the
+        // account). Never build an order here for a sale that isn't this site's.
+        if (! self::belongs_here($meta)) {
+            return null;
+        }
         $event_id = (int) ($meta['event_id'] ?? 0);
 
         // Rebuild the cart from metadata (single type_key/qty for older intents).
@@ -85,5 +91,54 @@ final class OrderFactory {
             Abandonment::mark_recovered($buyer['email'], $event_id);
         }
         return is_wp_error($order) ? null : $order;
+    }
+
+    /**
+     * The host that identifies this WordPress site, stamped onto every ticket
+     * PaymentIntent's metadata (`site`) at creation. Both October sites share one
+     * Stripe account, so this is what lets a sweep of the account tell one site's
+     * ticket sales from the other's.
+     */
+    public static function site_tag(): string {
+        return (string) (wp_parse_url(home_url(), PHP_URL_HOST) ?: '');
+    }
+
+    /**
+     * Whether a ticket PaymentIntent belongs to THIS site. New payments carry a
+     * `site` stamp and match on that host exactly. Payments made before the stamp
+     * existed fall back to whether the purchased ticket type actually resolves on
+     * this install — TicketTypes reads the event's own post meta, so no other
+     * site's event/type resolves here.
+     */
+    public static function belongs_here(array $meta): bool {
+        $site = isset($meta['site']) ? (string) $meta['site'] : '';
+        if ($site !== '') {
+            $host = (string) (wp_parse_url($site, PHP_URL_HOST) ?: $site);
+            return strcasecmp($host, self::site_tag()) === 0;
+        }
+        return self::resolves_here($meta);
+    }
+
+    /** Legacy fallback: does the purchased ticket type exist on this install? */
+    private static function resolves_here(array $meta): bool {
+        $event_id = (int) ($meta['event_id'] ?? 0);
+        if ($event_id <= 0) {
+            return false;
+        }
+        $keys = [];
+        if (! empty($meta['cart'])) {
+            $decoded = json_decode((string) $meta['cart'], true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $c) { $keys[] = (string) ($c['type_key'] ?? ''); }
+            }
+        } elseif (! empty($meta['type_key'])) {
+            $keys[] = (string) $meta['type_key'];
+        }
+        foreach ($keys as $k) {
+            if ($k !== '' && TicketTypes::type($event_id, $k)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -110,6 +110,13 @@ final class Settings {
                 (int) $r['days']
             );
         }
+        if ((int) ($r['other_site'] ?? 0) > 0) {
+            $summary .= ' ' . sprintf(
+                /* translators: %d: payments ignored because they belong to the other site on the shared Stripe account */
+                _n('%d payment from the other site was ignored.', '%d payments from the other site were ignored.', (int) $r['other_site'], 'october-events'),
+                (int) $r['other_site']
+            );
+        }
         if (! empty($r['partial'])) {
             $summary .= ' ' . __('(window capped — narrow the days for a full pass.)', 'october-events');
         }

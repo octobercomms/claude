@@ -808,6 +808,7 @@ final class RestApi {
 
         $meta = [
             'kind'      => 'ticket',
+            'site'      => \OE\Ticketing\OrderFactory::site_tag(),
             'event_id'  => $priced['event_id'],
             'cart'      => $this->cart_meta($priced['lines']),
             'email'     => $buyer['email'],
@@ -882,6 +883,7 @@ final class RestApi {
         while (strlen($att_json) > 480 && $attendees) { array_pop($attendees); $att_json = wp_json_encode($attendees) ?: '[]'; }
         $meta = [
             'kind'      => 'ticket',
+            'site'      => \OE\Ticketing\OrderFactory::site_tag(),
             'event_id'  => $priced['event_id'],
             'cart'      => $this->cart_meta($priced['lines']),
             'email'     => $buyer['email'],
@@ -960,6 +962,7 @@ final class RestApi {
         }
         $meta = [
             'kind'     => 'ticket',
+            'site'     => \OE\Ticketing\OrderFactory::site_tag(),
             'event_id' => $priced['event_id'],
             'cart'     => $this->cart_meta($priced['lines']),
             'email'    => $buyer['email'],
@@ -1034,6 +1037,7 @@ final class RestApi {
 
         $meta = [
             'kind'     => 'ticket',
+            'site'     => \OE\Ticketing\OrderFactory::site_tag(),
             'event_id' => $priced['event_id'],
             'cart'     => $this->cart_meta($priced['lines']),
             'email'    => $buyer['email'],
@@ -1200,6 +1204,7 @@ final class RestApi {
         // Rebuild meta in the same shape create_ticket_order_from_meta expects.
         $meta = [
             'kind'      => 'ticket',
+            'site'      => \OE\Ticketing\OrderFactory::site_tag(),
             'event_id'  => (int) ($pending['event_id'] ?? 0),
             'cart'      => (string) ($pending['cart'] ?? ''),
             'email'     => (string) ($pending['email'] ?? ''),
