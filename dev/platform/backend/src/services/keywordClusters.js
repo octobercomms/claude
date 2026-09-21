@@ -19,6 +19,7 @@ const claudeService = require('./claude');
 const dataForSEO = require('../connectors/dataforseo');
 const brandVoice = require('./brandVoice');
 const playbooks = require('./playbooks');
+const { parseJsonLoose } = require('../utils/jsonParse');
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -86,10 +87,9 @@ Group these into topic clusters. Return the JSON only.`;
     system: CLUSTER_SYSTEM,
     user: userPrompt,
   });
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
   let parsed;
-  try { parsed = JSON.parse(cleaned); }
-  catch { throw new Error('Claude returned malformed cluster JSON: ' + cleaned.slice(0, 200)); }
+  try { parsed = parseJsonLoose(raw); }
+  catch { throw new Error('Claude returned malformed cluster JSON: ' + String(raw).slice(0, 200)); }
   const clusters = Array.isArray(parsed.clusters) ? parsed.clusters : [];
   return {
     clusters: clusters.map(c => ({
@@ -207,13 +207,12 @@ Return ONLY the JSON object.`;
 
   const raw = await claudeService.callClaude({
     model: MODEL,
-    max_tokens: 3000,
+    max_tokens: 4096,   // a full cluster brief is large — headroom so it isn't truncated mid-JSON
     system: BRIEF_SYSTEM,
     user: userPrompt,
   });
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
-  try { return JSON.parse(cleaned); }
-  catch { throw new Error('Claude returned malformed brief JSON: ' + cleaned.slice(0, 200)); }
+  try { return parseJsonLoose(raw); }
+  catch { throw new Error('Claude returned malformed brief JSON: ' + String(raw).slice(0, 200)); }
 }
 
 module.exports = { clusterKeywords, briefForCluster };
