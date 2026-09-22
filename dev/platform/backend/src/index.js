@@ -156,6 +156,9 @@ const pixelLimiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 app.use('/api/unsubscribe', require('./routes/unsubscribe'));
 // SES bounce/complaint webhook — mounted before auth so SNS can POST to it.
 app.use('/api/ses', require('./routes/sesWebhook'));
+// MailFlow out-of-office suggestion ingest — no session auth; a shared bearer
+// token (MAILFLOW_INGEST_TOKEN) gates it. Before auth so MailFlow can POST.
+app.use('/api/ooo', require('./routes/oooSuggestions'));
 // Public Selective Outreach opt-out — no auth, token-gated. Before auth so a
 // recipient can always unsubscribe (natural-language link + one-click header).
 app.use('/api/prospecting-optout', require('./routes/prospectingOptout'));
