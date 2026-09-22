@@ -606,6 +606,94 @@ Return ONLY the email body paragraphs (no greeting, no sign-off, no Subject:). $
   })).trim();
 }
 
+// ONE shared pitch for the whole list — the cost fix for a big blast.
+// Instead of an Opus call per recipient (10k people = 10k calls ≈ $350), this
+// writes a single strong, journalist-agnostic pitch ONCE. The send path then
+// reuses it for everyone via author mode (fillTemplate honours {{merge}} tags,
+// buildEmailHtml still adds the "Firstname," greeting + sign-off per recipient),
+// so the whole campaign costs one call (~$0.03). Best for large or broadly
+// targeted sends; per-journalist personalisation stays available for small,
+// cold pitch lists where it earns its cost. No greeting/sign-off/URL — the
+// platform adds those, exactly as with the per-recipient pitch.
+async function generateSharedPitch({ release, brandBriefing, sender }) {
+  const senderName = sender?.first_name || sender?.name?.split(' ')[0] || 'Daniel';
+  const releaseText = (release.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1800);
+
+  const prompt = `You're a PR consultant writing ONE pitch email that will be sent to a whole list of journalists at once (not personalised per person). Your style is direct, personal, short — like an email a real human wrote in 2 minutes. Never marketing-speak. Never "I hope this email finds you well".
+
+Because this one email goes to everyone, DON'T reference a specific outlet, beat or named journalist — lead with the story itself and why it's worth covering, in a way that lands for any relevant reporter.
+
+The email body must:
+ - Open with the single strongest, most specific hook from the release. Lead with the angle/news, not the brand.
+ - Be 3-5 short sentences, total under 110 words, BROKEN INTO 2-3 short paragraphs with a blank line between them (never one dense block).
+ - Mention a concrete asset / interview / data offer once.
+ - No greeting line (the platform adds "Firstname,"), no sign-off (the platform adds the sender), no "Press release 👉" line (the platform adds it).
+
+Brand: ${brandBriefing || '(no briefing supplied)'}
+Sender: ${senderName} at October Communications
+
+Press release headline: ${release.title}
+${release.dateline ? `Dateline: ${release.dateline}` : ''}
+Release body:
+${releaseText}
+
+Return ONLY the email body paragraphs (no greeting, no sign-off, no Subject:). ${localeGuide(release)}`;
+
+  return (await claude.callClaude({
+    max_tokens: 500, system: PRESS_SYSTEM, user: prompt,
+    feature: 'press_pitch', clientId: release.client_id || null,
+  })).trim();
+}
+
+// Three shared follow-ups for the whole list (journalist-agnostic), mirroring
+// generateFollowUps but written once for everyone. Returns [{subject, body}].
+async function generateSharedFollowUps({ release, brandBriefing, sender }) {
+  const senderName = sender?.first_name || sender?.name?.split(' ')[0] || 'Daniel';
+  const releaseText = (release.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1200);
+
+  const prompt = `You're writing three follow-up emails that chase a whole list of journalists who haven't replied. ONE set of three, sent to everyone — so DON'T reference a specific outlet, beat or named person. Each one is short, personal, and uses a DIFFERENT angle — never "just bumping this up".
+
+CRITICAL: the reader may NOT have read the first email, so EACH follow-up must READ AS A STANDALONE PITCH. In the first sentence, re-anchor what the story is in plain terms (who + the one-line hook). Then add the new angle.
+
+Day 5: re-anchor the story, then add one new piece of value — a fresh quote, an asset, a stat.
+Day 10: re-anchor the story, then re-frame it with an alternative angle.
+Day 16: the closing email. This is a PITCH, not an apology. Do NOT apologise or say "I'll stop filling your inbox". Re-anchor the story, remind them of one concrete reason it's worth covering, and END with EXACTLY this options block (keep the numbers and line breaks):
+
+Even a one-line reply helps me plan — just hit reply with a number:
+1 — I need more time
+2 — Not right for me at the moment
+3 — I'm going to feature it
+
+Each email body must:
+ - Be 3-5 short sentences (Day 16 can be a touch longer to fit the options).
+ - No greeting (the platform adds "Firstname,"). No sign-off.
+ - Plain text with blank lines between paragraphs.
+
+Brand: ${brandBriefing || '(no briefing supplied)'}
+Sender: ${senderName} at October Communications
+
+Press release headline: ${release.title}
+Release body:
+${releaseText}
+
+Return ONLY a JSON array of three objects: [{ "subject": "...", "body": "..." }, ...]. Subjects under 60 characters. ${localeGuide(release)} No preamble.`;
+
+  const text = (await claude.callClaude({
+    max_tokens: 1500, system: PRESS_SYSTEM, user: prompt,
+    feature: 'press_followups', clientId: release.client_id || null,
+  })).trim();
+  let followUps;
+  try { followUps = parseJsonLoose(text); }
+  catch { throw new Error('Claude returned malformed follow-up JSON'); }
+  if (Array.isArray(followUps) && followUps.length) {
+    const last = followUps[followUps.length - 1];
+    if (last && typeof last.body === 'string' && !hasReplyOptions(last.body)) {
+      last.body = `${last.body.replace(/\s+$/, '')}\n\n${REPLY_OPTIONS_BLOCK}`;
+    }
+  }
+  return followUps;
+}
+
 // Three follow-ups on a 5 / 10 / 16-day cadence. Each is a separate
 // short personal email with a DIFFERENT angle so the journalist doesn't
 // feel hounded.
@@ -844,6 +932,8 @@ module.exports = {
   clientSignature,
   generatePitch,
   generateFollowUps,
+  generateSharedPitch,
+  generateSharedFollowUps,
   getOrGenerateEmails,
   createReleaseWithCampaign,
   generateSubjectLines,

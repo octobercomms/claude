@@ -517,6 +517,28 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     try { await api.patch(`/press/releases/${release.id}`, { followups_ai: aiOn }); if (previewing) preview(previewing, true); }
     catch (err) { toast(err.message, 'error'); }
   }
+  // "One email to all" — AI writes the campaign's email(s) ONCE (one call, ~$0.03)
+  // and switches the campaign into author mode so the send reuses them for
+  // everyone with no per-recipient AI. Safe mid-send: remaining recipients get
+  // the shared email. Overwrites any body already in the editors, so warn first.
+  const [draftingShared, setDraftingShared] = useState(false);
+  async function draftSharedEmail() {
+    const hasBody = (release.custom_release_body || '').trim().length > 0;
+    if (hasBody && !window.confirm('Replace the current first-email body (and follow-ups) with one AI-written version used for everyone?')) return;
+    setDraftingShared(true);
+    try {
+      const r = await api.post(`/press/releases/${release.id}/shared-pitch`, { with_followups: true });
+      setRelease(prev => ({
+        ...prev,
+        custom_release_body: r.custom_release_body || '',
+        custom_followups: Array.isArray(r.custom_followups) ? r.custom_followups : [],
+        followups_ai: false,
+      }));
+      if (previewing) preview(previewing, true);
+      toast('Wrote one shared email for the whole list. It’s now in the editors below — edit if you like, then resume. No more per-person AI cost.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setDraftingShared(false); }
+  }
 
   return (
     <div>
@@ -743,8 +765,16 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.followups_ai === false}
                 onChange={e => setFollowupsAi(!e.target.checked)} />
-              <span><strong>Write every email myself (no AI).</strong> <span style={{ color: 'var(--text-subtle)' }}>On = you write the first email AND the follow-ups above; each is sent to everyone as-is — no AI, no per-person variation, no AI cost, and no “press release” framing. Best for a plain invitation or announcement. Off (default) = AI writes a personalised pitch + follow-ups per journalist.</span></span>
+              <span><strong>One email for everyone (no per-person AI).</strong> <span style={{ color: 'var(--text-subtle)' }}>On = one first email AND one set of follow-ups, sent to everyone as-is ({'{{first_name}}'} / {'{{company}}'} still personalise) — no per-person AI and no per-person cost. You can write them in the boxes above, or have AI draft them once with the button below. Best for a big blast or a plain invite. Off (default) = AI writes a unique pitch per journalist (most expensive — best for small, targeted cold lists).</span></span>
             </label>
+            {release.followups_ai === false && (
+              <div style={{ marginLeft: 26, marginTop: 6, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: draftSharedEmail, disabled: draftingShared })}>
+                  {draftingShared ? '✨ Writing one email…' : '✨ Draft one shared email with AI'}
+                </button>
+                <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>One AI call (~$0.03) for the whole list — fills the boxes above; edit freely.</span>
+              </div>
+            )}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.include_release_link !== false}
                 onChange={async e => { const next = e.target.checked; setRelease(r => ({ ...r, include_release_link: next })); try { await api.patch(`/press/releases/${release.id}`, { include_release_link: next }); if (previewing) preview(previewing, true); } catch (err) { toast(err.message, 'error'); } }} />
