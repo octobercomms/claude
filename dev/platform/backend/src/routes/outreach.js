@@ -1048,6 +1048,41 @@ router.post('/clients/:clientId/contacts/:contactId/resubscribe', async (req, re
   }
 });
 
+// Manually mark a contact unsubscribed for this client — the AM's belt-and
+// -braces for a journalist who opted out some way OMI can't auto-detect (told
+// them in person, replied "take me off", etc.). Mirrors the public one-click
+// route: flips the membership timestamp and cancels this client's pending
+// sends to them, so they never receive another email. Per-client only;
+// `do_not_contact: true` in the body also flags the contact globally (opts them
+// out of every client). Reversible via the resubscribe endpoint above.
+router.post('/clients/:clientId/contacts/:contactId/unsubscribe', async (req, res) => {
+  try {
+    const { clientId, contactId } = req.params;
+    await assertClientAccess(req, clientId);
+    await pool.query(
+      `INSERT INTO outreach_contact_clients (contact_id, client_id, unsubscribed_at)
+         VALUES ($1, $2, NOW())
+       ON CONFLICT (contact_id, client_id)
+         DO UPDATE SET unsubscribed_at = COALESCE(outreach_contact_clients.unsubscribed_at, NOW())`,
+      [contactId, clientId]
+    );
+    await pool.query(
+      `UPDATE outreach_sends s SET status = 'cancelled'
+         FROM outreach_campaigns c
+        WHERE s.campaign_id = c.id AND c.client_id = $1
+          AND s.contact_id = $2 AND s.status = 'pending'`,
+      [clientId, contactId]
+    );
+    if (req.body?.do_not_contact === true) {
+      await pool.query("UPDATE outreach_contacts SET status = 'do_not_contact' WHERE id = $1", [contactId]);
+      await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE contact_id = $1 AND status = 'pending'", [contactId]);
+    }
+    res.json({ ok: true, do_not_contact: req.body?.do_not_contact === true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // Clear a hard bounce on a contact. Use when the AM has confirmed the
 // address is actually fine (the bounce was a temporary mail-server
 // hiccup, or they got a new working address). Doesn't touch the

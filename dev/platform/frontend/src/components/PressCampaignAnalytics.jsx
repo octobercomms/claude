@@ -78,8 +78,22 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     setSort(s => ({ key, dir: s.key === key && s.dir === 'desc' ? 'asc' : 'desc' }));
   }
   // A single ordered rank for the Status column so it sorts sensibly — failed
-  // at the top (desc), then warm, bounced, replied, opened, nothing.
-  const statusRank = (r) => r.failed_count ? 5 : r.warm_at ? 4 : r.bounced ? 3 : r.replied ? 2 : r.opened ? 1 : 0;
+  // at the top (desc), then unsubscribed, warm, bounced, replied, opened, none.
+  const statusRank = (r) => r.failed_count ? 6 : r.unsubscribed_at ? 5 : r.warm_at ? 4 : r.bounced ? 3 : r.replied ? 2 : r.opened ? 1 : 0;
+
+  // Manually mark a journalist unsubscribed for this client (belt-and-braces
+  // for opt-outs OMI can't auto-detect). Cancels their pending sends.
+  const [unsubBusy, setUnsubBusy] = useState(null); // contact_id in flight
+  async function unsubscribeContact(r) {
+    if (!window.confirm(`Mark ${r.name || r.email} as unsubscribed? They won’t receive any further emails for this client, and any queued sends to them are cancelled.`)) return;
+    setUnsubBusy(r.contact_id);
+    try {
+      await api.post(`/outreach/clients/${clientId}/contacts/${r.contact_id}/unsubscribe`, {});
+      setData(d => ({ ...d, recipients: (d.recipients || []).map(x => x.contact_id === r.contact_id ? { ...x, unsubscribed_at: new Date().toISOString() } : x) }));
+      toast('Marked unsubscribed — any pending emails to them are cancelled.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setUnsubBusy(null); }
+  }
   const rows = (data?.recipients || []).map(r => ({ ...r, _status: statusRank(r) })).sort((a, b) => {
     const dir = sort.dir === 'desc' ? -1 : 1;
     const av = a[sort.key] ?? 0, bv = b[sort.key] ?? 0;
@@ -254,12 +268,22 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                 <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: r.clicks ? 700 : 400, color: r.clicks ? 'var(--accent)' : 'inherit' }}>{r.clicks || 0}</td>
                 <td style={{ padding: '6px 8px', textAlign: 'right' }}>{r.interest_score || 0}</td>
                 <td style={{ padding: '6px 8px' }}>
-                  {r.failed_count ? <span className="chip" style={{ background: '#fde8e8', color: 'var(--negative)' }} title={r.fail_reason || 'The email could not be sent.'}>✕ failed</span>
-                    : r.warm_at ? <span className="chip" style={{ background: '#fff2e8', color: '#c2410c' }}>🔥 warm</span>
-                    : r.bounced ? <span className="chip" style={{ color: 'var(--negative)' }}>bounced</span>
-                    : r.replied ? <span className="chip chip-accent">replied</span>
-                    : r.opened ? <span className="chip">opened</span>
-                    : <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>—</span>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {r.unsubscribed_at ? <span className="chip" style={{ background: '#eee', color: 'var(--text-muted)' }}>unsubscribed</span>
+                      : r.failed_count ? <span className="chip" style={{ background: '#fde8e8', color: 'var(--negative)' }} title={r.fail_reason || 'The email could not be sent.'}>✕ failed</span>
+                      : r.warm_at ? <span className="chip" style={{ background: '#fff2e8', color: '#c2410c' }}>🔥 warm</span>
+                      : r.bounced ? <span className="chip" style={{ color: 'var(--negative)' }}>bounced</span>
+                      : r.replied ? <span className="chip chip-accent">replied</span>
+                      : r.opened ? <span className="chip">opened</span>
+                      : <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>—</span>}
+                    {!r.unsubscribed_at && (
+                      <button className="btn btn-link btn-sm" title="Mark this journalist unsubscribed"
+                        onClick={() => unsubscribeContact(r)} disabled={unsubBusy === r.contact_id}
+                        style={{ padding: 0, fontSize: 11, color: 'var(--text-subtle)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                        {unsubBusy === r.contact_id ? '…' : 'unsubscribe'}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
