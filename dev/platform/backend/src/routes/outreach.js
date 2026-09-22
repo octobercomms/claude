@@ -2419,7 +2419,28 @@ router.post('/campaigns/:id/resume-all-followups', async (req, res) => {
     if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
     await assertClientAccess(req, camps[0].client_id);
     await pool.query('UPDATE outreach_campaigns SET followups_paused_at = NULL WHERE id = $1', [id]);
-    res.json({ ok: true, followups_paused: false });
+    // Re-anchor pending follow-ups to each contact's OWN first-email date, so
+    // resuming doesn't blast follow-ups that were mis-dated from the launch
+    // date. For everyone who already got email 1, set each pending follow-up to
+    // their first send + that step's delay_days (5/10/16 days after THEIR first
+    // email). Contacts who haven't had email 1 yet get anchored when it sends
+    // (see scheduler). Nothing already sent is touched.
+    const { rowCount: reanchored } = await pool.query(
+      `UPDATE outreach_sends os
+          SET scheduled_at = first.sent_at + make_interval(days => seq.delay_days)
+         FROM outreach_sequences seq,
+              (SELECT contact_id, MIN(sent_at) AS sent_at
+                 FROM outreach_sends
+                WHERE campaign_id = $1 AND status = 'sent' AND sent_at IS NOT NULL
+                GROUP BY contact_id) first
+        WHERE seq.id = os.sequence_id
+          AND os.campaign_id = $1
+          AND os.contact_id = first.contact_id
+          AND os.status = 'pending'
+          AND COALESCE(seq.step_number, 1) > 1`,
+      [id]
+    );
+    res.json({ ok: true, followups_paused: false, reanchored });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
