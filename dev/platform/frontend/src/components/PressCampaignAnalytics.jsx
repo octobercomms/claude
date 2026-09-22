@@ -54,7 +54,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     finally { setRetrying(false); }
   }
   async function loadSuppression() {
-    try { setSupp(await api.get(`/press/clients/${clientId}/suppression`)); }
+    try { setSupp(await api.get(`/press/releases/${release.id}/suppression`)); }
     catch (e) { toast(e.message, 'error'); }
   }
 
@@ -274,18 +274,18 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         ) : (
           <div>
           <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 6 }}>
-            Client-wide suppression — everyone who’s opted out or is do-not-contact/bounced for this client, across <em>all</em> campaigns. They’re never emailed, which is why they don’t appear in the results above.
+            From this campaign’s recipients — anyone who unsubscribed or is do-not-contact/bounced, so they weren’t (or won’t be) delivered.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div className="field-label">Unsubscribed · client-wide ({supp.unsubscribed.length})</div>
+              <div className="field-label">Unsubscribed ({supp.unsubscribed.length})</div>
               <div style={{ maxHeight: 180, overflowY: 'auto', fontSize: 12 }}>
                 {!supp.unsubscribed.length && <div className="text-subtle">None.</div>}
                 {supp.unsubscribed.map(u => <div key={u.id} style={{ padding: '3px 0' }}>{u.name || u.email} <span className="text-subtle">· {u.email}</span></div>)}
               </div>
             </div>
             <div>
-              <div className="field-label">Do-not-contact / bounced · client-wide ({supp.do_not_contact.length})</div>
+              <div className="field-label">Do-not-contact / bounced ({supp.do_not_contact.length})</div>
               <div style={{ maxHeight: 180, overflowY: 'auto', fontSize: 12 }}>
                 {!supp.do_not_contact.length && <div className="text-subtle">None.</div>}
                 {supp.do_not_contact.map(u => <div key={u.id} style={{ padding: '3px 0' }}>{u.name || u.email} <span className="text-subtle">· {u.email}</span></div>)}
