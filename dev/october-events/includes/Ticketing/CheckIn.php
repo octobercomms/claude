@@ -102,11 +102,27 @@ final class CheckIn {
                 return ['status' => 'wrong_venue', 'type' => (string) $ticket->ticket_type_label];
             }
         }
-        $already = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM " . Schema::checkins() . " WHERE ticket_id = %d AND venue_name = %s",
+        $prior = $wpdb->get_row($wpdb->prepare(
+            "SELECT COUNT(*) AS n, MIN(scanned_at) AS first_at FROM " . Schema::checkins() . " WHERE ticket_id = %d AND venue_name = %s",
             $ticket->id,
             $venue
-        )) > 0;
+        ));
+        $already = $prior && (int) $prior->n > 0;
+
+        // Already scanned at this door. Unless the event allows re-entry, block it —
+        // a shared ticket must not get a second person in. Nothing is recorded, so
+        // the admission count stays honest; the attempt is logged for the door
+        // history. A DIFFERENT door is still a fresh valid check-in above.
+        if ($already && ! TicketTypes::reentry_allowed($event_id)) {
+            AuditLog::record('ticket_reentry_blocked', (int) $ticket->id, 'ticket', $venue);
+            return [
+                'status'   => 'blocked',
+                'attendee' => (string) $ticket->attendee_name,
+                'type'     => (string) $ticket->ticket_type_label,
+                'count'    => (int) $prior->n,
+                'first_at' => (string) ($prior->first_at ?? ''),
+            ];
+        }
 
         $wpdb->insert(Schema::checkins(), [
             'ticket_id'  => (int) $ticket->id,
@@ -147,6 +163,7 @@ final class CheckIn {
                     'type'       => __('Test ticket', 'october-events'),
                 ]],
                 'checked_in' => [],
+                'reentry'    => true, // the scanner-check test ticket never blocks
                 'generated'  => current_time('mysql', true),
             ];
         }
@@ -189,6 +206,9 @@ final class CheckIn {
         return [
             'tickets'    => $tickets,
             'checked_in' => $checked,
+            // So an offline scanner enforces the same door policy: false = block a
+            // repeat at the same door, true = allow re-entry (advisory flag only).
+            'reentry'    => TicketTypes::reentry_allowed($event_id),
             'generated'  => current_time('mysql', true),
         ];
     }

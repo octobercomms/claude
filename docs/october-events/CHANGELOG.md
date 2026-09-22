@@ -5,6 +5,25 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.161.0 — Block a second check-in at the same door (anti ticket-sharing)
+
+- A ticket already scanned at a door is now **blocked** from scanning in again
+  there. The scanner shows a red "Already checked in — do not admit" with the
+  attendee and the time of the first scan, and records nothing, so a shared or
+  screenshotted ticket can't get a second person in. Previously a repeat was only
+  an advisory "already" flag and staff could still wave them through.
+- A **different** door is still a fresh valid check-in — the multi-location tour
+  pass is unchanged. The block is per ticket, per door.
+- Per-event override: a new "Allow re-entry at the same door" switch (event →
+  Tickets, by the check-in PIN) restores the old advisory behaviour for open-house
+  venues where an attendee legitimately steps out and returns. Off by default, so
+  every existing event locks down on update; tick it where you need re-entry.
+- Works offline: the scanner's cached manifest carries the per-event policy, so an
+  offline device blocks a same-door repeat too. The server also blocks on sync, so
+  a duplicate queued on another device never creates a second admission. (Two
+  offline devices at one door can't see each other until they sync — the same
+  limitation the advisory flag always had.)
+
 ## 1.160.0 — Reconcile is now per-site (shared Stripe account fix)
 
 - Both October sites (festival + tours) share one Stripe account, so the 1.159.0
