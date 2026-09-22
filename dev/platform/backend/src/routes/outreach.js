@@ -1083,6 +1083,29 @@ router.post('/clients/:clientId/contacts/:contactId/unsubscribe', async (req, re
   }
 });
 
+// ── MailFlow out-of-office suggestions — the review queue (authenticated) ──
+// Ingest is the public token-gated /api/ooo route; these are the AM-facing
+// review/apply/dismiss endpoints. OMI owns the queue and the apply decision.
+const ooo = require('../services/oooSuggestions');
+router.get('/ooo/suggestions', async (req, res) => {
+  try {
+    const status = req.query.status === 'all' ? null : (req.query.status || 'pending');
+    const [items, counts] = await Promise.all([
+      ooo.listSuggestions({ status, limit: parseInt(req.query.limit, 10) || 300 }),
+      ooo.counts(),
+    ]);
+    res.json({ suggestions: items, counts });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/ooo/suggestions/:id/apply', async (req, res) => {
+  try { res.json(await ooo.applySuggestion(req.params.id, { altIndexes: req.body?.alt_indexes })); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.post('/ooo/suggestions/:id/dismiss', async (req, res) => {
+  try { res.json(await ooo.dismissSuggestion(req.params.id)); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 // Clear a hard bounce on a contact. Use when the AM has confirmed the
 // address is actually fine (the bounce was a temporary mail-server
 // hiccup, or they got a new working address). Doesn't touch the
