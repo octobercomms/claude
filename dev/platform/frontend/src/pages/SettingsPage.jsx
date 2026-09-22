@@ -2366,6 +2366,17 @@ function ContactsLibrary() {
       setErr(e.message);
     }
   }
+  // Manually opt a journalist out (do-not-contact, workspace-wide) — the AM's
+  // belt-and-braces for someone who unsubscribed a way OMI can't detect.
+  async function optOutOne(r) {
+    if (!confirm(`Mark ${r.name || r.email || 'this journalist'} do-not-contact? They won't be emailed for ANY client, any queued sends are cancelled, and they're kept out of future audiences. You can undo this.`)) return;
+    try { await api.post(`/outreach/contacts/${r.id}/do-not-contact`, {}); await reload(); }
+    catch (e) { setErr(e.message); }
+  }
+  async function allowOne(r) {
+    try { await api.post(`/outreach/contacts/${r.id}/allow`, {}); await reload(); }
+    catch (e) { setErr(e.message); }
+  }
 
   function addBulkTag(t) {
     const norm = String(t || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -2599,7 +2610,7 @@ function ContactsLibrary() {
                   <th style={{ textAlign: 'left' }}>Tags</th>
                   <th style={{ textAlign: 'left' }}>Attached to</th>
                   <th style={{ textAlign: 'left' }}>Engagement</th>
-                  <th style={{ width: 28  }}></th>
+                  <th style={{ textAlign: 'right' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -2644,9 +2655,16 @@ function ContactsLibrary() {
                           {r.total_sent ? `${r.total_sent} sent · ${r.total_opened || 0} opened` : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
                         </div>
                       </td>
-                      <td  onClick={e => e.stopPropagation()}>
+                      <td  onClick={e => e.stopPropagation()} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {r.status === 'do_not_contact'
+                          ? <span title="Opted out of all email" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              opted out · <button onClick={() => allowOne(r)} title="Allow contact again"
+                                style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', font: 'inherit', textDecoration: 'underline', padding: 0 }}>allow</button>
+                            </span>
+                          : <button onClick={() => optOutOne(r)} title="Mark do-not-contact (unsubscribe from everything)"
+                              style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', padding: 0 }}>unsubscribe</button>}
                         <button onClick={() => destroyOne(r.id)} title="Delete from library"
-                          style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
+                          style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px', marginLeft: 8 }}>
                           ×
                         </button>
                       </td>
