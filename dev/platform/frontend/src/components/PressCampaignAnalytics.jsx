@@ -247,6 +247,17 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         const steps = (d.steps && d.steps.length) ? d.steps
           : [{ step_number: 1, is_first: true, ...first, total: firstTotal }];
         const stepName = (s) => s.is_first ? 'First email' : `Follow-up ${s.step_number - 1}`;
+        const fmtDate = (d) => { try { return new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); } catch { return ''; } };
+        // Plain-English timing for a step: what its configured delay is and when
+        // it actually sends — so "why has Follow-up 1 already sent?" is answerable
+        // at a glance (and a wrongly-early send is obvious).
+        const timing = (s) => {
+          const bits = [];
+          if (s.delay_days != null) bits.push(s.is_first ? 'goes out immediately' : `set to send ${s.delay_days} day${s.delay_days === 1 ? '' : 's'} after launch`);
+          if (s.first_sent_at) bits.push(`started sending ${fmtDate(s.first_sent_at)}`);
+          else if (s.next_scheduled_at) bits.push(`next goes out ${fmtDate(s.next_scheduled_at)}`);
+          return bits.join(' · ');
+        };
         const Bar = ({ done, total, color }) => (
           <div style={{ flex: 1, height: 6, background: 'var(--accent-soft, #eee)', borderRadius: 999, overflow: 'hidden', minWidth: 60 }}>
             <div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%`, height: '100%', background: color, borderRadius: 999, transition: 'width .3s' }} />
@@ -287,12 +298,18 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                 const label = s.is_first
                   ? `${num(done)} sent`
                   : (s.sent > 0 ? `${num(done)} sent · ${num(s.scheduled + s.sending)} scheduled` : `${num(s.scheduled + s.sending)} scheduled`);
+                const tinfo = timing(s);
                 return (
-                  <div key={s.step_number} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ width: 92, flexShrink: 0, color: 'var(--text-muted)' }}>{stepName(s)}</span>
-                    <Bar done={done} total={stotal} color={s.is_first ? 'var(--positive, #15803d)' : 'var(--accent, #6366f1)'} />
-                    <span style={{ minWidth: 150, textAlign: 'right', color: 'var(--text-subtle)' }}>{label}</span>
-                    <span style={{ width: 34, textAlign: 'right', color: 'var(--text-subtle)' }}>{spct}%</span>
+                  <div key={s.step_number}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ width: 92, flexShrink: 0, color: 'var(--text-muted)' }}>{stepName(s)}</span>
+                      <Bar done={done} total={stotal} color={s.is_first ? 'var(--positive, #15803d)' : 'var(--accent, #6366f1)'} />
+                      <span style={{ minWidth: 150, textAlign: 'right', color: 'var(--text-subtle)' }}>{label}</span>
+                      <span style={{ width: 34, textAlign: 'right', color: 'var(--text-subtle)' }}>{spct}%</span>
+                    </div>
+                    {tinfo && (
+                      <div style={{ marginLeft: 102, marginTop: 2, fontSize: 11, color: 'var(--text-subtle)' }}>{tinfo}</div>
+                    )}
                   </div>
                 );
               })}
