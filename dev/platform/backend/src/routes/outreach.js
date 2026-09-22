@@ -1103,6 +1103,38 @@ router.post('/contacts/:id/clear-bounce', async (req, res) => {
   }
 });
 
+// Workspace-wide "do not contact" for a journalist from the media database —
+// the AM's manual opt-out for someone who unsubscribed a way OMI can't detect.
+// Durable: sets the global do-not-contact status (so they're kept OUT of future
+// audiences too), marks every client membership unsubscribed, and cancels all
+// their pending sends. Reversible via the /allow endpoint below.
+router.post('/contacts/:id/do-not-contact', async (req, res) => {
+  try {
+    await pool.query("UPDATE outreach_contacts SET status = 'do_not_contact', updated_at = NOW() WHERE id = $1", [req.params.id]);
+    await pool.query("UPDATE outreach_contact_clients SET unsubscribed_at = COALESCE(unsubscribed_at, NOW()) WHERE contact_id = $1", [req.params.id]);
+    await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE contact_id = $1 AND status = 'pending'", [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Undo do-not-contact — put the journalist back in play everywhere: clear the
+// global status and every client-membership unsubscribe. Does NOT re-queue any
+// cancelled sends (those stay cancelled); it only makes them contactable again.
+router.post('/contacts/:id/allow', async (req, res) => {
+  try {
+    await pool.query(
+      "UPDATE outreach_contacts SET status = CASE WHEN status = 'do_not_contact' THEN 'active' ELSE status END, updated_at = NOW() WHERE id = $1",
+      [req.params.id]
+    );
+    await pool.query("UPDATE outreach_contact_clients SET unsubscribed_at = NULL WHERE contact_id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Detach a contact from a specific client without deleting the library row.
 // The contact keeps existing for other clients; only this client's
 // membership row + any pending sends for this client's campaigns go away.
