@@ -909,7 +909,8 @@ async function runOutreachSends() {
             con.bounced_at, con.status AS contact_status,
             cam.client_id, cam.kind,
             cl.outreach_sending,
-            m.unsubscribed_at
+            m.unsubscribed_at,
+            cc.stopped_at
        FROM outreach_sends s
        JOIN outreach_sequences seq ON seq.id = s.sequence_id
        JOIN outreach_contacts con ON con.id = s.contact_id
@@ -917,6 +918,8 @@ async function runOutreachSends() {
        JOIN clients cl ON cl.id = cam.client_id
        LEFT JOIN outreach_contact_clients m
          ON m.contact_id = s.contact_id AND m.client_id = cam.client_id
+       LEFT JOIN outreach_campaign_contacts cc
+         ON cc.campaign_id = s.campaign_id AND cc.contact_id = s.contact_id
       WHERE s.status = 'pending'
         AND s.scheduled_at <= NOW()
         AND cam.status = 'active'
@@ -935,6 +938,14 @@ async function runOutreachSends() {
     // Stop the sequence if the contact has already replied to this campaign,
     // or has unsubscribed from this specific client since the queue was built.
     if (row.unsubscribed_at) {
+      await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
+      continue;
+    }
+    // Per-recipient STOP flag (the Mautic pattern): the AM marked "stop
+    // follow-ups" for this journalist on this campaign. Durable — checked
+    // before every send, so it blocks all remaining follow-ups even if a row
+    // is re-queued later. They stay a contact; clearing stopped_at resumes.
+    if (row.stopped_at) {
       await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
       continue;
     }

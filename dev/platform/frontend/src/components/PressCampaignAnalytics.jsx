@@ -95,6 +95,16 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     } catch (e) { toast(e.message, 'error'); }
     finally { setStopBusy(null); }
   }
+  async function resumeFollowups(r) {
+    if (!data?.campaign_id) return;
+    setStopBusy(r.contact_id);
+    try {
+      await api.post(`/outreach/campaigns/${data.campaign_id}/contacts/${r.contact_id}/resume-followups`, {});
+      setData(d => ({ ...d, recipients: (d.recipients || []).map(x => x.contact_id === r.contact_id ? { ...x, followups_stopped: false } : x) }));
+      toast('Follow-ups resumed for this journalist.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setStopBusy(null); }
+  }
   // Manually mark a journalist unsubscribed for this client (belt-and-braces
   // for opt-outs OMI can't auto-detect). Cancels their pending sends.
   const [unsubBusy, setUnsubBusy] = useState(null); // contact_id in flight
@@ -291,7 +301,13 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                       : r.opened ? <span className="chip">opened</span>
                       : <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>—</span>}
                     {r.followups_stopped ? (
-                      <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>follow-ups stopped</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+                        follow-ups stopped · <button className="btn btn-link btn-sm" title="Put them back in the sequence"
+                          onClick={() => resumeFollowups(r)} disabled={stopBusy === r.contact_id}
+                          style={{ padding: 0, fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                          {stopBusy === r.contact_id ? '…' : 'resume'}
+                        </button>
+                      </span>
                     ) : !r.unsubscribed_at && (
                       <>
                         <button className="btn btn-link btn-sm" title="Stop this campaign's follow-ups to them (keeps them as a contact)"

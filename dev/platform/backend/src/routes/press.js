@@ -548,12 +548,14 @@ router.get('/releases/:id/analytics', async (req, res) => {
                 WHERE s2.campaign_id = $1 AND s2.contact_id = oc.id)::int AS clicks,
               (SELECT array_agg(DISTINCT cl.url) FROM outreach_clicks cl JOIN outreach_sends s2 ON s2.id = cl.send_id
                 WHERE s2.campaign_id = $1 AND s2.contact_id = oc.id) AS clicked_urls,
-              occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at
+              occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at,
+              (cc.stopped_at IS NOT NULL) AS followups_stopped
          FROM outreach_sends s
          JOIN outreach_contacts oc ON oc.id = s.contact_id
          LEFT JOIN outreach_contact_clients occ ON occ.contact_id = oc.id AND occ.client_id = $2
+         LEFT JOIN outreach_campaign_contacts cc ON cc.campaign_id = $1 AND cc.contact_id = oc.id
         WHERE s.campaign_id = $1
-        GROUP BY oc.id, oc.name, oc.email, oc.company, occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at
+        GROUP BY oc.id, oc.name, oc.email, oc.company, occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at, cc.stopped_at
         ORDER BY occ.interest_score DESC NULLS LAST, opens DESC`,
       [release.campaign_id, release.client_id]
     );
