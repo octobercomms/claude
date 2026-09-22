@@ -89,7 +89,11 @@ export default function ClientPRPage() {
   const fileRef = useRef(null);
   const combinedRef = useRef(null);
   const [client, setClient] = useState(null);
-  const [tab, setTab] = useState('overview');
+  // Remember the active tab (and any open campaign) across a refresh, per
+  // client, so a reload lands you back where you were instead of Overview.
+  // Wrapped in try/catch — localStorage can throw in private mode.
+  const lsGet = (k) => { try { return localStorage.getItem(`omi.earned.${id}.${k}`); } catch { return null; } };
+  const [tab, setTab] = useState(() => lsGet('tab') || 'overview');
   // Which Health / Build accordion sections are open. A real toggle Set (like
   // Owned's) so clicking an open header collapses it — the tab-derived open
   // state used before could never close the one open section.
@@ -114,7 +118,7 @@ export default function ClientPRPage() {
   // send/preview/autopilot/results view is the PressCampaignDetail component.
   const [pressReleases, setPressReleases] = useState([]);
   const [pressContacts, setPressContacts] = useState([]);
-  const [openPressCampaign, setOpenPressCampaign] = useState(null); // campaign_id
+  const [openPressCampaign, setOpenPressCampaign] = useState(() => lsGet('campaign') || null); // campaign_id
   const [pressAutoBuild, setPressAutoBuild] = useState(false); // auto-build audience on land (fresh campaigns only)
   const [showPressWizard, setShowPressWizard] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -452,6 +456,14 @@ export default function ClientPRPage() {
     } catch (e) { toast(e.message, 'error'); reloadPress(); }
   }
   useEffect(() => { loadData(); }, [id]);
+  // Persist the active tab + open campaign so a refresh restores your place.
+  useEffect(() => { try { localStorage.setItem(`omi.earned.${id}.tab`, tab); } catch { /* private mode */ } }, [tab, id]);
+  useEffect(() => {
+    try {
+      if (openPressCampaign) localStorage.setItem(`omi.earned.${id}.campaign`, openPressCampaign);
+      else localStorage.removeItem(`omi.earned.${id}.campaign`);
+    } catch { /* private mode */ }
+  }, [openPressCampaign, id]);
   // Live sending: while any campaign is actively draining, re-poll the list
   // every 15s so the progress bar, counts and ETA tick up on their own. Stops
   // as soon as nothing is going out (keyed on that boolean so it doesn't reset
