@@ -640,11 +640,15 @@ router.get('/releases/:id/analytics', async (req, res) => {
     // due right now; 'scheduled' = waiting for its send date.
     const { rows: stepRows } = await pool.query(
       `SELECT COALESCE(seq.step_number, 1) AS step_number,
+          MAX(seq.delay_days)::int                                                                  AS delay_days,
           COUNT(*) FILTER (WHERE os.status = 'sent')::int                                          AS sent,
           COUNT(*) FILTER (WHERE os.status IN ('pending','sending') AND os.scheduled_at <= NOW())::int AS sending,
           COUNT(*) FILTER (WHERE os.status IN ('pending','sending') AND os.scheduled_at >  NOW())::int AS scheduled,
           COUNT(*) FILTER (WHERE os.status = 'failed')::int                                         AS failed,
-          COUNT(*) FILTER (WHERE os.status = 'cancelled')::int                                      AS cancelled
+          COUNT(*) FILTER (WHERE os.status = 'cancelled')::int                                      AS cancelled,
+          MIN(os.scheduled_at) FILTER (WHERE os.status IN ('pending','sending'))                    AS next_scheduled_at,
+          MIN(os.sent_at)                                                                           AS first_sent_at,
+          MAX(os.sent_at)                                                                           AS last_sent_at
          FROM outreach_sends os
          LEFT JOIN outreach_sequences seq ON seq.id = os.sequence_id
         WHERE os.campaign_id = $1
@@ -672,6 +676,10 @@ router.get('/releases/:id/analytics', async (req, res) => {
       return {
         step_number: Number(r.step_number),
         is_first: Number(r.step_number) <= 1,
+        delay_days: r.delay_days == null ? null : Number(r.delay_days),
+        next_scheduled_at: r.next_scheduled_at,   // earliest still-to-send date for this step
+        first_sent_at: r.first_sent_at,           // when this step actually started sending
+        last_sent_at: r.last_sent_at,
         sent, sending, scheduled, failed, cancelled,
         total: sent + sending + scheduled + failed + cancelled,
       };
