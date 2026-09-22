@@ -314,7 +314,20 @@ router.get('/clients/:clientId/releases', async (req, res) => {
         LIMIT 50`,
       [req.params.clientId]
     );
-    res.json(rows);
+    // Estimated time to finish the first-email send-out, from the paced cron
+    // cadence (scheduler.js sends OUTREACH_BATCH emails every OUTREACH_INTERVAL
+    // minutes across the whole platform). It's an upper-bound estimate — other
+    // active campaigns share the same batch — so the UI shows it as "~". Only
+    // meaningful while the campaign is actively draining.
+    const OUTREACH_BATCH = 25, OUTREACH_INTERVAL_MIN = 3;
+    const perMinute = OUTREACH_BATCH / OUTREACH_INTERVAL_MIN; // ~8.3/min = 500/hr
+    const enriched = rows.map(r => ({
+      ...r,
+      stat_eta_seconds: (r.campaign_status === 'active' && r.stat_pending > 0)
+        ? Math.round((r.stat_pending / perMinute) * 60)
+        : null,
+    }));
+    res.json(enriched);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

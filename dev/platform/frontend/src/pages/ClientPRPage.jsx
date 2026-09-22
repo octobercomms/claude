@@ -71,6 +71,16 @@ function fmtDate(d) {
 }
 const dateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
+// Humanise an ETA in seconds → "~15h 20m", "~45m", "~2m", "under a minute".
+function fmtEta(secs) {
+  if (secs == null || secs <= 0) return null;
+  const m = Math.round(secs / 60);
+  if (m < 1) return 'under a minute';
+  if (m < 60) return `~${m}m`;
+  const h = Math.floor(m / 60), rem = m % 60;
+  return rem ? `~${h}h ${rem}m` : `~${h}h`;
+}
+
 export default function ClientPRPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -442,6 +452,16 @@ export default function ClientPRPage() {
     } catch (e) { toast(e.message, 'error'); reloadPress(); }
   }
   useEffect(() => { loadData(); }, [id]);
+  // Live sending: while any campaign is actively draining, re-poll the list
+  // every 15s so the progress bar, counts and ETA tick up on their own. Stops
+  // as soon as nothing is going out (keyed on that boolean so it doesn't reset
+  // the timer on every poll).
+  const anySending = pressReleases.some((r) => r.campaign_status === 'active' && (r.stat_pending || 0) > 0);
+  useEffect(() => {
+    if (!anySending || openPressCampaign) return undefined; // pause polling while a campaign detail is open
+    const t = setInterval(() => reloadPress(), 15000);
+    return () => clearInterval(t);
+  }, [anySending, openPressCampaign]); // eslint-disable-line react-hooks/exhaustive-deps
   // ESC closes whichever modal is open. Skip while a save is mid-flight so
   // the AM can't accidentally cancel an in-progress request.
   useEffect(() => {
@@ -708,6 +728,33 @@ export default function ClientPRPage() {
                         {r.display_name && renamingPR !== r.id && (
                           <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>{r.title}</div>
                         )}
+                        {/* Live sending visual — a bar under the campaign name with
+                            status, live counts and an ETA. Auto-refreshes while
+                            anything is going out (see the poll effect above). */}
+                        {r.campaign_id && firstTotal > 0 && (() => {
+                          const sending = !paused && pending > 0;
+                          const complete = pending === 0 && sent > 0;
+                          const eta = fmtEta(r.stat_eta_seconds);
+                          const statusColor = sending ? 'var(--positive, #15803d)' : paused ? 'var(--warning, #b45309)' : complete ? 'var(--positive, #15803d)' : 'var(--text-muted)';
+                          const statusText = sending ? 'Sending' : paused ? 'Paused' : complete ? 'Sent ✓' : 'Idle';
+                          return (
+                            <div style={{ marginTop: 8, maxWidth: 620 }}>
+                              <div style={{ height: 7, background: 'var(--accent-soft, #eee)', borderRadius: 999, overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: paused ? 'var(--warning, #b45309)' : 'var(--positive, #15803d)', borderRadius: 999, transition: 'width .4s' }} />
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4, fontSize: 11.5, color: 'var(--text-subtle)' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: statusColor }}>
+                                  {sending && <span className="spinner" style={{ width: 10, height: 10, borderWidth: 2 }} />}
+                                  {statusText}
+                                </span>
+                                <span>· {num(sent)} of {num(firstTotal)} ({pct}%)</span>
+                                {pending > 0 && <span>· {num(pending)} to go</span>}
+                                {sending && eta && <span>· {eta} left</span>}
+                                {failed > 0 && <span style={{ color: 'var(--negative)' }}>· {num(failed)} failed</span>}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td>{fmtDate(r.created_at)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
