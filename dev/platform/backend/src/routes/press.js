@@ -491,6 +491,38 @@ router.get('/clients/:clientId/suppression', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Campaign-scoped suppression — only this campaign's own recipients who
+// unsubscribed or are do-not-contact/bounced. Unlike the client-wide list
+// above, this answers "who in THIS send won't/didn't receive it", which is
+// what the results view wants. Scoped by the campaign's outreach_sends rows.
+router.get('/releases/:id/suppression', async (req, res) => {
+  try {
+    const { rows: rel } = await pool.query('SELECT client_id, campaign_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rel.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rel[0].client_id);
+    const { client_id, campaign_id } = rel[0];
+    if (!campaign_id) return res.json({ unsubscribed: [], do_not_contact: [] });
+    const { rows: unsub } = await pool.query(
+      `SELECT DISTINCT oc.id, oc.name, oc.email, oc.company, occ.unsubscribed_at
+         FROM outreach_sends s
+         JOIN outreach_contacts oc ON oc.id = s.contact_id
+         JOIN outreach_contact_clients occ ON occ.contact_id = oc.id AND occ.client_id = $2
+        WHERE s.campaign_id = $1 AND occ.unsubscribed_at IS NOT NULL
+        ORDER BY occ.unsubscribed_at DESC LIMIT 500`,
+      [campaign_id, client_id]
+    );
+    const { rows: dnc } = await pool.query(
+      `SELECT DISTINCT oc.id, oc.name, oc.email, oc.company
+         FROM outreach_sends s
+         JOIN outreach_contacts oc ON oc.id = s.contact_id
+        WHERE s.campaign_id = $1 AND (oc.status = 'do_not_contact' OR oc.bounced_at IS NOT NULL)
+        ORDER BY oc.name LIMIT 500`,
+      [campaign_id]
+    );
+    res.json({ unsubscribed: unsub, do_not_contact: dnc });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 // Campaign analytics — opens/clicks per journalist (repeat-open counts, what they
 // clicked, warm flag + interest score) plus rolled-up rates. The client sorts the
 // table however they like. Powers the "24/7 watcher" view.
