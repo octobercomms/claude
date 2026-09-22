@@ -78,6 +78,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [boilerplateDraft, setBoilerplateDraft] = useState('');
   const [savingBody, setSavingBody] = useState(false);
   const [sending, setSending] = useState(false);
+  const [draftingShared, setDraftingShared] = useState(false); // "one email to all" AI draft in flight
 
   // Preview / edit one recipient's email.
   const [previewing, setPreviewing] = useState(null);
@@ -521,7 +522,8 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   // and switches the campaign into author mode so the send reuses them for
   // everyone with no per-recipient AI. Safe mid-send: remaining recipients get
   // the shared email. Overwrites any body already in the editors, so warn first.
-  const [draftingShared, setDraftingShared] = useState(false);
+  // (State declared with the other hooks above, before the `!release` early
+  // return, so hook order stays stable.)
   async function draftSharedEmail() {
     const hasBody = (release.custom_release_body || '').trim().length > 0;
     if (hasBody && !window.confirm('Replace the current first-email body (and follow-ups) with one AI-written version used for everyone?')) return;
