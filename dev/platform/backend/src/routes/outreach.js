@@ -2357,11 +2357,39 @@ router.post('/campaigns/:id/contacts/:contactId/stop-followups', async (req, res
     const { rows: camps } = await pool.query('SELECT client_id FROM outreach_campaigns WHERE id = $1', [id]);
     if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
     await assertClientAccess(req, camps[0].client_id);
+    // Durable STOP flag on the campaign membership (checked before every send in
+    // scheduler.runOutreachSends), PLUS cancel anything already queued so it
+    // takes effect immediately. Upsert so the flag exists even if the membership
+    // row somehow doesn't yet.
+    await pool.query(
+      `INSERT INTO outreach_campaign_contacts (campaign_id, contact_id, stopped_at)
+         VALUES ($1, $2, NOW())
+       ON CONFLICT (campaign_id, contact_id) DO UPDATE SET stopped_at = NOW()`,
+      [id, contactId]
+    );
     const { rowCount } = await pool.query(
       "UPDATE outreach_sends SET status = 'cancelled' WHERE campaign_id = $1 AND contact_id = $2 AND status = 'pending'",
       [id, contactId]
     );
-    res.json({ ok: true, cancelled: rowCount });
+    res.json({ ok: true, stopped: true, cancelled: rowCount });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// Undo a stop — clear the STOP flag so the journalist is back in the sequence.
+// (Does not re-queue already-cancelled sends; it only stops blocking them.)
+router.post('/campaigns/:id/contacts/:contactId/resume-followups', async (req, res) => {
+  try {
+    const { id, contactId } = req.params;
+    const { rows: camps } = await pool.query('SELECT client_id FROM outreach_campaigns WHERE id = $1', [id]);
+    if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
+    await assertClientAccess(req, camps[0].client_id);
+    await pool.query(
+      'UPDATE outreach_campaign_contacts SET stopped_at = NULL WHERE campaign_id = $1 AND contact_id = $2',
+      [id, contactId]
+    );
+    res.json({ ok: true, stopped: false });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
