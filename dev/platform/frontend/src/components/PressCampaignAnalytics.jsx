@@ -81,6 +81,20 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   // at the top (desc), then unsubscribed, warm, bounced, replied, opened, none.
   const statusRank = (r) => r.failed_count ? 6 : r.unsubscribed_at ? 5 : r.warm_at ? 4 : r.bounced ? 3 : r.replied ? 2 : r.opened ? 1 : 0;
 
+  // Stop the remaining follow-ups to one journalist for THIS campaign only —
+  // the move when they reply "not for me". Doesn't unsubscribe them.
+  const [stopBusy, setStopBusy] = useState(null);
+  async function stopFollowups(r) {
+    if (!data?.campaign_id) return;
+    if (!window.confirm(`Stop the remaining follow-up emails to ${r.name || r.email} for this campaign? They stay a contact — this only cancels this campaign's follow-ups.`)) return;
+    setStopBusy(r.contact_id);
+    try {
+      const res = await api.post(`/outreach/campaigns/${data.campaign_id}/contacts/${r.contact_id}/stop-followups`, {});
+      setData(d => ({ ...d, recipients: (d.recipients || []).map(x => x.contact_id === r.contact_id ? { ...x, followups_stopped: true } : x) }));
+      toast(res.cancelled ? `Follow-ups stopped (${res.cancelled} cancelled).` : 'No pending follow-ups — nothing to stop.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setStopBusy(null); }
+  }
   // Manually mark a journalist unsubscribed for this client (belt-and-braces
   // for opt-outs OMI can't auto-detect). Cancels their pending sends.
   const [unsubBusy, setUnsubBusy] = useState(null); // contact_id in flight
@@ -276,12 +290,21 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                       : r.replied ? <span className="chip chip-accent">replied</span>
                       : r.opened ? <span className="chip">opened</span>
                       : <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>—</span>}
-                    {!r.unsubscribed_at && (
-                      <button className="btn btn-link btn-sm" title="Mark this journalist unsubscribed"
-                        onClick={() => unsubscribeContact(r)} disabled={unsubBusy === r.contact_id}
-                        style={{ padding: 0, fontSize: 11, color: 'var(--text-subtle)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-                        {unsubBusy === r.contact_id ? '…' : 'unsubscribe'}
-                      </button>
+                    {r.followups_stopped ? (
+                      <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>follow-ups stopped</span>
+                    ) : !r.unsubscribed_at && (
+                      <>
+                        <button className="btn btn-link btn-sm" title="Stop this campaign's follow-ups to them (keeps them as a contact)"
+                          onClick={() => stopFollowups(r)} disabled={stopBusy === r.contact_id}
+                          style={{ padding: 0, fontSize: 11, color: 'var(--text-subtle)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                          {stopBusy === r.contact_id ? '…' : 'stop follow-ups'}
+                        </button>
+                        <button className="btn btn-link btn-sm" title="Mark this journalist unsubscribed (all this client's emails)"
+                          onClick={() => unsubscribeContact(r)} disabled={unsubBusy === r.contact_id}
+                          style={{ padding: 0, fontSize: 11, color: 'var(--text-subtle)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                          {unsubBusy === r.contact_id ? '…' : 'unsubscribe'}
+                        </button>
+                      </>
                     )}
                   </div>
                 </td>
