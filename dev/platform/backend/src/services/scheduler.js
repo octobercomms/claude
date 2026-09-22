@@ -778,7 +778,11 @@ function getPeriodDates(reportType) {
   return { start: toYmdLocal(lastMonday), end: toYmdLocal(lastSunday) };
 }
 
-// Outreach — send due campaign emails every 3 minutes, in small batches.
+// Outreach — send due campaign emails every 3 minutes, in batches of 100
+// (~2,000/hr, shared across all active campaigns). Paced deliberately for
+// email deliverability — SES can send far faster, but bursting a big list from
+// one domain hurts inbox placement. Keep this batch size and the ETA constant
+// in routes/press.js (OUTREACH_BATCH) in sync.
 cron.schedule('*/3 * * * *', async () => {
   try { await runOutreachSends(); }
   catch (err) { console.error('Outreach send job failed:', err.message); }
@@ -917,7 +921,7 @@ async function runOutreachSends() {
         AND s.scheduled_at <= NOW()
         AND cam.status = 'active'
       ORDER BY s.scheduled_at
-      LIMIT 25`
+      LIMIT 100`
   );
 
   for (const row of due) {
