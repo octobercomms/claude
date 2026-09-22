@@ -2395,6 +2395,36 @@ router.post('/campaigns/:id/contacts/:contactId/resume-followups', async (req, r
   }
 });
 
+// Campaign-level "hold ALL follow-ups": stamp followups_paused_at so the send
+// loop stops dispatching every step > 1 (the first email keeps finishing). The
+// move when the whole sequence is firing when it shouldn't. Reversible — resume
+// clears the flag and the still-pending follow-ups flow again. Nothing is
+// cancelled, so no audience is lost.
+router.post('/campaigns/:id/pause-followups', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows: camps } = await pool.query('SELECT client_id FROM outreach_campaigns WHERE id = $1', [id]);
+    if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
+    await assertClientAccess(req, camps[0].client_id);
+    await pool.query('UPDATE outreach_campaigns SET followups_paused_at = NOW() WHERE id = $1', [id]);
+    res.json({ ok: true, followups_paused: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+router.post('/campaigns/:id/resume-all-followups', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows: camps } = await pool.query('SELECT client_id FROM outreach_campaigns WHERE id = $1', [id]);
+    if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
+    await assertClientAccess(req, camps[0].client_id);
+    await pool.query('UPDATE outreach_campaigns SET followups_paused_at = NULL WHERE id = $1', [id]);
+    res.json({ ok: true, followups_paused: false });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // Re-queue every send that gave up ('failed') for this campaign so a transient
 // provider wobble (SES throttle, a brief outage, a timeout) doesn't leave anyone
 // unsent. Contacts that are genuinely terminal — hard-bounced or unsubscribed —
