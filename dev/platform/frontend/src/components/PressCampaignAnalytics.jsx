@@ -61,9 +61,11 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   function exportCsv() {
     const rows = (data?.recipients || []).map(r => [
       r.name, r.email, r.company, r.opens, r.clicks, r.warm_at ? 'warm' : '',
-      r.replied ? 'replied' : '', r.bounced ? 'bounced' : '', (r.clicked_urls || []).join(' | '),
+      r.replied ? 'replied' : '', r.bounced ? 'bounced' : '',
+      r.failed_count ? 'failed' : '', r.failed_count ? (r.fail_reason || '') : '',
+      (r.clicked_urls || []).join(' | '),
     ]);
-    const header = ['Name', 'Email', 'Outlet', 'Opens', 'Clicks', 'Warm', 'Replied', 'Bounced', 'Clicked URLs'];
+    const header = ['Name', 'Email', 'Outlet', 'Opens', 'Clicks', 'Warm', 'Replied', 'Bounced', 'Failed', 'Fail reason', 'Clicked URLs'];
     const csv = [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
@@ -75,7 +77,10 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   function sortBy(key) {
     setSort(s => ({ key, dir: s.key === key && s.dir === 'desc' ? 'asc' : 'desc' }));
   }
-  const rows = [...(data?.recipients || [])].sort((a, b) => {
+  // A single ordered rank for the Status column so it sorts sensibly — failed
+  // at the top (desc), then warm, bounced, replied, opened, nothing.
+  const statusRank = (r) => r.failed_count ? 5 : r.warm_at ? 4 : r.bounced ? 3 : r.replied ? 2 : r.opened ? 1 : 0;
+  const rows = (data?.recipients || []).map(r => ({ ...r, _status: statusRank(r) })).sort((a, b) => {
     const dir = sort.dir === 'desc' ? -1 : 1;
     const av = a[sort.key] ?? 0, bv = b[sort.key] ?? 0;
     if (typeof av === 'string' || typeof bv === 'string') return String(av).localeCompare(String(bv)) * dir;
@@ -223,7 +228,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
             <Th k="opens" right>Opens</Th>
             <Th k="clicks" right>Clicks</Th>
             <Th k="interest_score" right>Interest</Th>
-            <Th k="warm_at">Status</Th>
+            <Th k="_status">Status</Th>
           </tr></thead>
           <tbody>
             {!rows.length && <tr><td colSpan={5} style={{ padding: 14, color: 'var(--text-subtle)' }}>No sends yet — results appear once the campaign goes out.</td></tr>}
@@ -249,7 +254,8 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                 <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: r.clicks ? 700 : 400, color: r.clicks ? 'var(--accent)' : 'inherit' }}>{r.clicks || 0}</td>
                 <td style={{ padding: '6px 8px', textAlign: 'right' }}>{r.interest_score || 0}</td>
                 <td style={{ padding: '6px 8px' }}>
-                  {r.warm_at ? <span className="chip" style={{ background: '#fff2e8', color: '#c2410c' }}>🔥 warm</span>
+                  {r.failed_count ? <span className="chip" style={{ background: '#fde8e8', color: 'var(--negative)' }} title={r.fail_reason || 'The email could not be sent.'}>✕ failed</span>
+                    : r.warm_at ? <span className="chip" style={{ background: '#fff2e8', color: '#c2410c' }}>🔥 warm</span>
                     : r.bounced ? <span className="chip" style={{ color: 'var(--negative)' }}>bounced</span>
                     : r.replied ? <span className="chip chip-accent">replied</span>
                     : r.opened ? <span className="chip">opened</span>
@@ -266,21 +272,26 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         {!supp ? (
           <button className="btn btn-link btn-sm" onClick={loadSuppression}>Show unsubscribes &amp; do-not-contact</button>
         ) : (
+          <div>
+          <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 6 }}>
+            Client-wide suppression — everyone who’s opted out or is do-not-contact/bounced for this client, across <em>all</em> campaigns. They’re never emailed, which is why they don’t appear in the results above.
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div className="field-label">Unsubscribed ({supp.unsubscribed.length})</div>
+              <div className="field-label">Unsubscribed · client-wide ({supp.unsubscribed.length})</div>
               <div style={{ maxHeight: 180, overflowY: 'auto', fontSize: 12 }}>
                 {!supp.unsubscribed.length && <div className="text-subtle">None.</div>}
                 {supp.unsubscribed.map(u => <div key={u.id} style={{ padding: '3px 0' }}>{u.name || u.email} <span className="text-subtle">· {u.email}</span></div>)}
               </div>
             </div>
             <div>
-              <div className="field-label">Do-not-contact / bounced ({supp.do_not_contact.length})</div>
+              <div className="field-label">Do-not-contact / bounced · client-wide ({supp.do_not_contact.length})</div>
               <div style={{ maxHeight: 180, overflowY: 'auto', fontSize: 12 }}>
                 {!supp.do_not_contact.length && <div className="text-subtle">None.</div>}
                 {supp.do_not_contact.map(u => <div key={u.id} style={{ padding: '3px 0' }}>{u.name || u.email} <span className="text-subtle">· {u.email}</span></div>)}
               </div>
             </div>
+          </div>
           </div>
         )}
       </div>

@@ -478,10 +478,14 @@ router.get('/clients/:clientId/suppression', async (req, res) => {
         ORDER BY occ.unsubscribed_at DESC LIMIT 500`,
       [req.params.clientId]
     );
+    // Scope to THIS client's contacts (via the client relationship) so the
+    // panel shows only Indiewalls' suppressed contacts, not every client's.
     const { rows: dnc } = await pool.query(
-      `SELECT id, name, email, company FROM outreach_contacts
-        WHERE status = 'do_not_contact' OR bounced_at IS NOT NULL
-        ORDER BY name LIMIT 500`
+      `SELECT oc.id, oc.name, oc.email, oc.company FROM outreach_contacts oc
+         JOIN outreach_contact_clients occ ON occ.contact_id = oc.id AND occ.client_id = $1
+        WHERE oc.status = 'do_not_contact' OR oc.bounced_at IS NOT NULL
+        ORDER BY oc.name LIMIT 500`,
+      [req.params.clientId]
     );
     res.json({ unsubscribed: unsub, do_not_contact: dnc });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -504,6 +508,8 @@ router.get('/releases/:id/analytics', async (req, res) => {
               BOOL_OR(s.opened_at IS NOT NULL) AS opened,
               MAX(s.last_opened_at) AS last_opened_at,
               COUNT(*) FILTER (WHERE s.status = 'sent')::int AS sent_count,
+              COUNT(*) FILTER (WHERE s.status = 'failed')::int AS failed_count,
+              MAX(s.last_error) FILTER (WHERE s.status = 'failed') AS fail_reason,
               BOOL_OR(s.replied_at IS NOT NULL) AS replied,
               BOOL_OR(s.bounced_at IS NOT NULL) AS bounced,
               (SELECT COUNT(*) FROM outreach_clicks cl JOIN outreach_sends s2 ON s2.id = cl.send_id
