@@ -1,0 +1,19 @@
+{
+  "name": "october-accounting-support-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "October Accounting Support - background poller. Pulls unreconciled Xero lines, classifies them, and queues them for review.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.5",
+    "node-cron": "^4.4.1",
+    "pg": "^8.13.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
