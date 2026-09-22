@@ -718,7 +718,7 @@ export default function ClientPRPage() {
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                             <button className="link-btn" title="Open campaign"
                               onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}
-                              style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, font: 'inherit', textAlign: 'left', fontWeight: r.display_name ? 600 : 400 }}>
+                              style={{ background: 'none', border: 'none', color: 'var(--text)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit', textAlign: 'left', fontWeight: r.display_name ? 600 : 400 }}>
                               {r.display_name || r.title || '(untitled release)'}
                             </button>
                             <button className="btn btn-secondary btn-sm" title="Rename campaign" aria-label="Rename"
