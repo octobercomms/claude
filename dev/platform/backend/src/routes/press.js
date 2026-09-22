@@ -534,6 +534,13 @@ router.get('/releases/:id/analytics', async (req, res) => {
     assertClientAccess(req, release.client_id);
     if (!release.campaign_id) return res.json({ totals: { recipients: 0 }, recipients: [] });
 
+    // Authoritative campaign timeline — when the campaign row was created vs.
+    // when it was first flipped to 'active' (launched_at, set on first send).
+    // Lets the UI show the real launch date instead of inferring it.
+    const { rows: campRows } = await pool.query(
+      'SELECT created_at, launched_at, status, followups_paused_at FROM outreach_campaigns WHERE id = $1', [release.campaign_id]);
+    const campaignMeta = campRows[0] || {};
+
     // Pagination + search. A 10k-recipient campaign can't return every row with
     // per-row click subqueries — that's what made Results hang. So: totals come
     // from cheap aggregates, and the table is a searchable, paginated page.
@@ -685,6 +692,11 @@ router.get('/releases/:id/analytics', async (req, res) => {
       };
     });
     const delivery = {
+      created_at: campaignMeta.created_at || null,
+      launched_at: campaignMeta.launched_at || null,
+      first_sent_at: (steps.find(s => s.is_first) || {}).first_sent_at || null,
+      campaign_status: campaignMeta.status || null,
+      followups_paused: !!campaignMeta.followups_paused_at,
       sent: first.sent,
       in_flight: first.sending + first.scheduled,
       failed: first.failed,

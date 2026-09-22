@@ -77,6 +77,23 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     finally { setLoadingMore(false); }
   }
 
+  // Campaign-level hold on ALL follow-ups (steps 2+). The first email keeps
+  // finishing; every follow-up waits until resumed. Nothing is cancelled.
+  const [holdBusy, setHoldBusy] = useState(false);
+  async function toggleFollowupHold() {
+    const campaignId = summary?.campaign_id;
+    if (!campaignId) return;
+    const paused = summary?.delivery?.followups_paused;
+    if (!paused && !window.confirm('Hold ALL follow-ups for this campaign? The first email keeps finishing, but no follow-up (step 2+) will go out until you resume. Nothing is cancelled — you can resume any time.')) return;
+    setHoldBusy(true);
+    try {
+      await api.post(`/outreach/campaigns/${campaignId}/${paused ? 'resume-all-followups' : 'pause-followups'}`, {});
+      setSummary(s => ({ ...s, delivery: { ...s.delivery, followups_paused: !paused } }));
+      toast(paused ? 'Follow-ups resumed — pending ones will start going out again.' : 'Follow-ups held — no more will go out until you resume.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setHoldBusy(false); }
+  }
+
   const [retrying, setRetrying] = useState(false);
   async function saveCfg(next) {
     setCfg(next);
@@ -263,8 +280,18 @@ export default function PressCampaignAnalytics({ clientId, release }) {
             <div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%`, height: '100%', background: color, borderRadius: 999, transition: 'width .3s' }} />
           </div>
         );
+        const fmtDT = (d) => { try { return new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return ''; } };
         return (
           <div style={{ padding: '12px 14px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
+            {/* Campaign timeline — authoritative created / launched / first-send
+                dates, so "when did this actually start?" is unambiguous. */}
+            {(d.launched_at || d.created_at || d.first_sent_at) && (
+              <div style={{ marginBottom: 10, paddingBottom: 8, borderBottom: 'var(--border-w) solid var(--card-border)', color: 'var(--text-subtle)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                {d.launched_at && <span><strong style={{ color: 'var(--text-muted)' }}>Launched</strong> {fmtDT(d.launched_at)}</span>}
+                {d.first_sent_at && <span><strong style={{ color: 'var(--text-muted)' }}>First email sent</strong> {fmtDT(d.first_sent_at)}</span>}
+                {d.created_at && <span><strong style={{ color: 'var(--text-muted)' }}>Created</strong> {fmtDT(d.created_at)}</span>}
+              </div>
+            )}
             {/* Headline: first-email blast */}
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
@@ -275,12 +302,25 @@ export default function PressCampaignAnalytics({ clientId, release }) {
               {going > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(going)} still going out{active ? ' (~2,000/hr)' : ''}</span>}
               {first.failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {num(first.failed)} failed</span>}
               {first.cancelled > 0 && <span style={{ color: 'var(--text-subtle)' }}>{num(first.cancelled)} skipped (bounced/unsub)</span>}
-              {totalFailed > 0 && (
-                <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} onClick={retryFailed} disabled={retrying}>
-                  {retrying ? 'Re-queueing…' : `Retry ${num(totalFailed)} failed`}
-                </button>
-              )}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                {(fuPending > 0 || fu.sent > 0 || d.followups_paused) && (
+                  <button className="btn btn-secondary btn-sm" onClick={toggleFollowupHold} disabled={holdBusy}
+                    title={d.followups_paused ? 'Let follow-ups start going out again' : 'Stop every follow-up (steps 2+) going out — the first email still finishes'}>
+                    {holdBusy ? '…' : d.followups_paused ? '▶ Resume follow-ups' : '⏸ Hold follow-ups'}
+                  </button>
+                )}
+                {totalFailed > 0 && (
+                  <button className="btn btn-primary btn-sm" onClick={retryFailed} disabled={retrying}>
+                    {retrying ? 'Re-queueing…' : `Retry ${num(totalFailed)} failed`}
+                  </button>
+                )}
+              </div>
             </div>
+            {d.followups_paused && (
+              <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 'var(--r-sm)', background: '#fff7ed', color: '#c2410c', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                ⏸ Follow-ups are on hold — no step-2+ emails will go out until you resume. The first email still finishes.
+              </div>
+            )}
             {/* Overall first-email progress bar */}
             {firstTotal > 0 && (
               <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>

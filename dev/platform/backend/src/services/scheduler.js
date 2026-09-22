@@ -923,6 +923,9 @@ async function runOutreachSends() {
       WHERE s.status = 'pending'
         AND s.scheduled_at <= NOW()
         AND cam.status = 'active'
+        -- Campaign-level "hold follow-ups": while followups_paused_at is set,
+        -- only the first email (step 1) may go out; every follow-up waits.
+        AND (COALESCE(seq.step_number, 1) = 1 OR cam.followups_paused_at IS NULL)
       ORDER BY s.scheduled_at
       LIMIT 100`
   );
