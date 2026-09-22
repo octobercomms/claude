@@ -397,6 +397,14 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
 
   let subject, html, text;
   if (kind === 'release') {
+    // Guard: in "one email for everyone" mode the first email comes from the
+    // author/shared body. If that's empty (e.g. the mode was switched on before
+    // a body was written or AI-drafted), DON'T fall back to blasting the bare
+    // release title to everyone — block deterministically so the AM notices and
+    // writes/drafts the email. Non-retrying: a title-only email is never wanted.
+    if (authorMode && !(authorReleaseBody || '').trim()) {
+      throw new Error('Send blocked: "one email for everyone" is on but the first email is empty. Write it or click "Draft one shared email with AI", then resume.');
+    }
     ({ subject, html, text } = renderRelease(editedSubject || release.title));
   } else {
     // Open-aware follow-up. If the journalist has ALREADY OPENED an earlier email

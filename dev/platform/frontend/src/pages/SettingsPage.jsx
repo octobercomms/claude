@@ -3163,18 +3163,27 @@ function SpendControlsPanel() {
   const [daily, setDaily] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [loadErr, setLoadErr] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = React.useCallback(() => {
+    setLoading(true); setLoadErr(null);
     api.get('/settings/usage/spend-controls').then((d) => {
       setData(d);
       setCap(d.monthly_cap_usd != null ? String(d.monthly_cap_usd) : '');
       setDaily(d.daily_alert_usd != null ? String(d.daily_alert_usd) : '');
-    }).catch((e) => setMsg(e.message));
+    }).catch((e) => {
+      // Don't leave the panel stuck on "Loading…": show the error and still
+      // render the controls (with empty defaults) so a cap can be set anyway.
+      setLoadErr(e.message || 'Could not load current spend.');
+      setData((prev) => prev || {});
+    }).finally(() => setLoading(false));
   }, []);
+  useEffect(() => { load(); }, [load]);
 
-  const mtd = data?.month_to_date_usd ?? 0;
+  const mtd = data?.month_to_date_usd ?? null;
   const capNum = parseFloat(cap);
-  const capBelowMtd = Number.isFinite(capNum) && capNum > 0 && capNum <= mtd;
+  const capBelowMtd = Number.isFinite(capNum) && capNum > 0 && mtd != null && capNum <= mtd;
 
   async function save() {
     setSaving(true); setMsg(null);
@@ -3194,11 +3203,16 @@ function SpendControlsPanel() {
     <div className="card" style={{ marginBottom: 16 }}>
       <h2 className="caption">Spend controls</h2>
       <p className="body-sm text-muted">Cap AI spend and get warned before it runs away. The cap pauses all AI features in OMI once month-to-date spend reaches it; it resets on the 1st.</p>
-      {!data ? <p className="body-sm text-muted">Loading…</p> : (
+      {loading && !data ? <p className="body-sm text-muted">Loading…</p> : (
         <>
+          {loadErr && (
+            <div className="callout callout-danger" style={{ margin: '10px 0', fontSize: 13 }}>
+              ⚠️ Couldn’t read this month’s spend ({loadErr}). You can still set a cap below — it’ll take effect straight away. <button className="btn btn-link btn-sm" onClick={load} style={{ padding: 0 }}>Retry</button>
+            </div>
+          )}
           <div style={{ margin: '10px 0 14px' }}>
             <span style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>This month so far</span>
-            <div style={{ fontSize: 22, fontWeight: 800 }}>{fmt(mtd)}</div>
+            <div style={{ fontSize: 22, fontWeight: 800 }}>{mtd == null ? '—' : fmt(mtd)}</div>
           </div>
           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>

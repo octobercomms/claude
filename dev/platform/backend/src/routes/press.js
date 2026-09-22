@@ -374,6 +374,49 @@ router.post('/releases/:id/subjects', async (req, res) => {
   }
 });
 
+// "One email to all" — write the whole campaign's email(s) with a SINGLE AI
+// call instead of one per recipient. Generates one shared pitch (and, by
+// default, one shared set of follow-ups), stores them as the author-mode
+// bodies, and flips followups_ai=false so the send path reuses them for
+// everyone with NO further per-recipient AI cost. This is the fix for a big
+// blast: 10k recipients cost ~$0.03 total instead of ~$350. Safe to call on a
+// campaign that's mid-send (paused or not) — subsequent sends immediately use
+// the shared bodies; recipients already sent keep what they got.
+router.post('/releases/:id/shared-pitch', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    const release = rows[0];
+    assertClientAccess(req, release.client_id);
+
+    const withFollowUps = req.body?.with_followups !== false; // default true
+    const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
+    const body = await pressRelease.generateSharedPitch({ release, brandBriefing: release.briefing_field, sender });
+    let followUps = [];
+    if (withFollowUps) {
+      try { followUps = await pressRelease.generateSharedFollowUps({ release, brandBriefing: release.briefing_field, sender }); }
+      catch (e) { console.error('[press] shared follow-ups failed (pitch kept):', e.message); }
+    }
+    const leanFollowUps = (Array.isArray(followUps) ? followUps : []).slice(0, 10).map(c => ({
+      subject: typeof c?.subject === 'string' ? c.subject.slice(0, 300) : null,
+      body: typeof c?.body === 'string' ? c.body.slice(0, 20000) : '',
+    }));
+
+    await pool.query(
+      `UPDATE outreach_press_releases
+          SET custom_release_body = $1,
+              custom_followups = $2::jsonb,
+              followups_ai = FALSE
+        WHERE id = $3`,
+      [body.slice(0, 40000), JSON.stringify(leanFollowUps), req.params.id]
+    );
+    res.json({ custom_release_body: body, custom_followups: leanFollowUps, followups_ai: false });
+  } catch (err) {
+    console.error('[press] shared pitch generation failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // Per-client "what counts as warm" threshold (the slider). GET returns the
 // effective config (defaults merged); PUT saves an override.
 router.get('/clients/:clientId/warm-config', async (req, res) => {

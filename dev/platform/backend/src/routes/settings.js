@@ -487,20 +487,24 @@ router.get('/usage/cost-log', async (req, res) => {
 // month-to-date total so the operator can set the cap safely (a cap below the
 // current MTD pauses AI immediately, so we show MTD next to the field).
 router.get('/usage/spend-controls', async (req, res) => {
+  // Never 500 the whole panel over one failing read — each field is computed
+  // independently and falls back, so the AM can always open the panel and set
+  // a cap even if the live month-to-date total can't be read this instant.
+  const budget = require('../services/budget');
+  let cap = null, monthToDate = null, daily = 25, partial = false;
+  try { cap = await budget.hardCapUsd(); } catch { partial = true; }
+  try { monthToDate = await budget.monthlySpendUsd({ fresh: true }); } catch { partial = true; }
   try {
-    const budget = require('../services/budget');
-    const [cap, monthToDate] = await Promise.all([
-      budget.hardCapUsd(),
-      budget.monthlySpendUsd({ fresh: true }),
-    ]);
     const dailyRaw = await getSetting('AI_DAILY_ALERT_USD');
-    const daily = parseFloat(dailyRaw != null ? dailyRaw : (process.env.AI_DAILY_ALERT_USD || ''));
-    res.json({
-      monthly_cap_usd: cap,                                   // null = no cap
-      daily_alert_usd: Number.isFinite(daily) && daily > 0 ? daily : 25,
-      month_to_date_usd: monthToDate,
-    });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const d = parseFloat(dailyRaw != null ? dailyRaw : (process.env.AI_DAILY_ALERT_USD || ''));
+    if (Number.isFinite(d) && d > 0) daily = d;
+  } catch { partial = true; }
+  res.json({
+    monthly_cap_usd: cap,                                   // null = no cap
+    daily_alert_usd: daily,
+    month_to_date_usd: monthToDate,                         // null = couldn't read
+    partial,                                                // true = a field fell back
+  });
 });
 
 router.put('/usage/spend-controls', async (req, res) => {
