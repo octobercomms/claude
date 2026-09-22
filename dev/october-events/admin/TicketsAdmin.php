@@ -215,6 +215,13 @@ final class TicketsAdmin {
             <input type="text" name="oe_checkin_pin" value="<?php echo esc_attr($pin); ?>" maxlength="6" size="8"></label>
             <span class="description"><?php esc_html_e('Auto-generated and ready to give to door staff. Change it to your own 4–6 digits any time.', 'october-events'); ?></span></p>
 
+        <?php $reentry = TicketTypes::reentry_allowed($post->ID); ?>
+        <p style="margin:10px 0 4px">
+            <label><input type="checkbox" name="oe_checkin_reentry" value="1" <?php checked($reentry); ?>>
+                <strong><?php esc_html_e('Allow re-entry at the same door', 'october-events'); ?></strong></label>
+            <span class="description" style="display:block;margin:2px 0 0"><?php esc_html_e('Off by default: a ticket already scanned at a door is blocked from scanning in again there, so a shared ticket can’t get a second person in. Tick this only for open-house venues where the same person legitimately leaves and comes back. A different door is always a fresh valid check-in either way (the multi-location pass).', 'october-events'); ?></span>
+        </p>
+
         <?php
         $logo_id  = (int) get_post_meta($post->ID, TicketTypes::META_LOGO, true);
         $logo_url = $logo_id ? (string) wp_get_attachment_image_url($logo_id, 'medium') : '';
@@ -440,6 +447,7 @@ final class TicketsAdmin {
         update_post_meta($post_id, TicketTypes::META_PIN, preg_replace('/\D/', '', (string) ($_POST['oe_checkin_pin'] ?? '')));
         update_post_meta($post_id, TicketTypes::META_LOGO, absint($_POST['oe_ticket_logo'] ?? 0));
         update_post_meta($post_id, TicketTypes::META_IRREGULAR, empty($_POST['oe_irregular_schedule']) ? 0 : 1);
+        update_post_meta($post_id, TicketTypes::META_REENTRY, empty($_POST['oe_checkin_reentry']) ? 0 : 1);
         // Event-wide capacity (blank/0 = unlimited).
         update_post_meta($post_id, TicketTypes::META_CAPACITY, max(0, absint($_POST['oe_event_capacity'] ?? 0)));
 

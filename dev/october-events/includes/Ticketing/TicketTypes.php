@@ -21,6 +21,7 @@ final class TicketTypes {
     public const META_LOGO       = '_oe_ticket_logo'; // attachment id for the per-event ticket/email logo
     public const META_CAPACITY   = '_oe_event_capacity'; // event-wide ticket capacity (0/empty = unlimited)
     public const META_IRREGULAR  = '_oe_irregular_schedule'; // event runs different dates/times per day
+    public const META_REENTRY    = '_oe_checkin_reentry'; // 1 = a ticket may scan in again at the same door (open-house re-entry); default block
 
     /**
      * Whether the organiser flagged this event's schedule as irregular (different
@@ -271,6 +272,17 @@ final class TicketTypes {
      * but it is NEVER derived from the post ID (which is public and guessable). A
      * PIN typed into the meta box overrides it.
      */
+    /**
+     * Whether the same ticket may check in again at the SAME door. Off by default,
+     * so a shared ticket can't get a second person in: the second scan at a door is
+     * blocked. Turn it on per event for open-house venues where an attendee
+     * legitimately steps out and returns. A different door is always a fresh valid
+     * check-in (the multi-location tour pass), whatever this setting.
+     */
+    public static function reentry_allowed(int $event_id): bool {
+        return $event_id > 0 && (int) get_post_meta($event_id, self::META_REENTRY, true) === 1;
+    }
+
     public static function pin(int $event_id): string {
         if ($event_id <= 0) {
             return '';

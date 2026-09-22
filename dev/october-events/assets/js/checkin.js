@@ -31,6 +31,12 @@
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
         });
     }
+    // A server UTC datetime ("YYYY-MM-DD HH:MM:SS") shown as the local HH:MM.
+    function fmtTime(utc) {
+        var d = new Date(String(utc).replace(' ', 'T') + 'Z');
+        if (isNaN(d.getTime())) { return ''; }
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
     function go(step) {
         root.querySelectorAll('.oe-ci-step').forEach(function (s) {
             s.classList.toggle('is-active', s.dataset.step === step);
@@ -124,7 +130,9 @@
             if (typeof c === 'string') { checked[c + '|'] = true; checked[c] = true; }
             else if (c && c.token_hash) { checked[c.token_hash + '|' + (c.venue || '')] = true; }
         });
-        return { tokens: tokens, checked: checked, generated: data.generated || '' };
+        // reentry defaults to false (block a repeat at the same door) unless the
+        // event opts in. Older manifests without the flag block by default too.
+        return { tokens: tokens, checked: checked, reentry: !!data.reentry, generated: data.generated || '' };
     }
     function loadManifest() {
         // Fetch fresh if online; always fall back to the cached copy.
@@ -374,6 +382,12 @@
             // door is a fresh valid check-in (matches the online behaviour).
             var key = h + '|' + state.venue;
             var already = !!manifest.checked[key];
+            // Repeat at this door and the event blocks re-entry: reject, record
+            // nothing, don't count it. Matches the server, which also blocks on sync.
+            if (already && !manifest.reentry) {
+                overlay('blocked', { attendee: t.attendee, type: t.type, offline: true });
+                return;
+            }
             manifest.checked[key] = true; // remember locally so a repeat here flags too
             enqueue(token);               // queue the RAW token; the server re-validates on sync
             if (!already) { state.count++; document.getElementById('oe-ci-count').textContent = state.count; }
@@ -401,9 +415,11 @@
         var o = document.getElementById('oe-ci-overlay');
         var inner = o.querySelector('.oe-ci-overlay-inner');
         var off = info && info.offline ? ' · offline' : '';
+        var seen = info.first_at ? fmtTime(info.first_at) : '';
         var map = {
             valid: ['ok', '✓ Welcome', (info.attendee || info.type || '') + off],
             already: ['warn', '⚠ Already scanned', (info.attendee || '') + ' · ' + (info.count || 0) + ' scans'],
+            blocked: ['bad', '✗ Already checked in — do not admit', (info.attendee || 'This ticket') + (seen ? ' · in at ' + seen : '') + off],
             wrong_event: ['bad', '✗ Wrong event', 'This ticket is for another event'],
             wrong_venue: ['warn', '✗ Not valid at this door', (info.type ? info.type + ' — ' : '') + 'valid at another door only'],
             invalid: ['bad', '✗ Invalid', 'Ticket not recognised'],
