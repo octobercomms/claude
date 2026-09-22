@@ -534,7 +534,53 @@ router.get('/releases/:id/analytics', async (req, res) => {
     assertClientAccess(req, release.client_id);
     if (!release.campaign_id) return res.json({ totals: { recipients: 0 }, recipients: [] });
 
-    const { rows } = await pool.query(
+    // Pagination + search. A 10k-recipient campaign can't return every row with
+    // per-row click subqueries — that's what made Results hang. So: totals come
+    // from cheap aggregates, and the table is a searchable, paginated page.
+    const q = (req.query.q || '').trim();
+    const like = q ? `%${q.replace(/[%_\\]/g, m => '\\' + m)}%` : null;
+    const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit, 10) || 100));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const SORTS = {
+      interest: 'occ.interest_score DESC NULLS LAST, opens DESC',
+      opens: 'opens DESC, occ.interest_score DESC NULLS LAST',
+      name: 'oc.name ASC NULLS LAST',
+      publication: 'oc.company ASC NULLS LAST, oc.name ASC NULLS LAST',
+      email: 'oc.email ASC NULLS LAST',
+      recent: 'MAX(s.last_opened_at) DESC NULLS LAST',
+    };
+    const orderBy = SORTS[req.query.sort] || SORTS.interest;
+
+    // Fast totals — aggregates, no per-row work.
+    const [tAgg, cAgg, wAgg] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(DISTINCT contact_id)::int AS recipients,
+                COUNT(DISTINCT contact_id) FILTER (WHERE opened_at IS NOT NULL)::int AS opened,
+                COUNT(DISTINCT contact_id) FILTER (WHERE replied_at IS NOT NULL)::int AS replied
+           FROM outreach_sends WHERE campaign_id = $1`, [release.campaign_id]),
+      pool.query(
+        `SELECT COUNT(DISTINCT s.contact_id)::int AS clicked
+           FROM outreach_clicks cl JOIN outreach_sends s ON s.id = cl.send_id
+          WHERE s.campaign_id = $1`, [release.campaign_id]),
+      pool.query(
+        `SELECT COUNT(DISTINCT occ.contact_id)::int AS warm
+           FROM outreach_contact_clients occ
+          WHERE occ.client_id = $2 AND occ.warm_at IS NOT NULL
+            AND occ.contact_id IN (SELECT contact_id FROM outreach_sends WHERE campaign_id = $1)`,
+        [release.campaign_id, release.client_id]),
+    ]);
+    const recipients = tAgg.rows[0].recipients;
+    const opened = tAgg.rows[0].opened, replied = tAgg.rows[0].replied;
+    const clicked = cAgg.rows[0].clicked, warm = wAgg.rows[0].warm;
+    const pct = (n) => (recipients ? Math.round((n / recipients) * 100) : 0);
+
+    // The page of recipients matching the search — no click subquery here.
+    const pageParams = [release.campaign_id, release.client_id];
+    let whereQ = '';
+    if (like) { pageParams.push(like); whereQ = `AND (oc.name ILIKE $${pageParams.length} OR oc.email ILIKE $${pageParams.length} OR oc.company ILIKE $${pageParams.length})`; }
+    pageParams.push(limit); const limIdx = pageParams.length;
+    pageParams.push(offset); const offIdx = pageParams.length;
+    const { rows: pageRows } = await pool.query(
       `SELECT oc.id AS contact_id, oc.name, oc.email, oc.company,
               COALESCE(SUM(s.open_count), 0)::int AS opens,
               BOOL_OR(s.opened_at IS NOT NULL) AS opened,
@@ -544,28 +590,44 @@ router.get('/releases/:id/analytics', async (req, res) => {
               MAX(s.last_error) FILTER (WHERE s.status = 'failed') AS fail_reason,
               BOOL_OR(s.replied_at IS NOT NULL) AS replied,
               BOOL_OR(s.bounced_at IS NOT NULL) AS bounced,
-              (SELECT COUNT(*) FROM outreach_clicks cl JOIN outreach_sends s2 ON s2.id = cl.send_id
-                WHERE s2.campaign_id = $1 AND s2.contact_id = oc.id)::int AS clicks,
-              (SELECT array_agg(DISTINCT cl.url) FROM outreach_clicks cl JOIN outreach_sends s2 ON s2.id = cl.send_id
-                WHERE s2.campaign_id = $1 AND s2.contact_id = oc.id) AS clicked_urls,
               occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at,
               (cc.stopped_at IS NOT NULL) AS followups_stopped
          FROM outreach_sends s
          JOIN outreach_contacts oc ON oc.id = s.contact_id
          LEFT JOIN outreach_contact_clients occ ON occ.contact_id = oc.id AND occ.client_id = $2
          LEFT JOIN outreach_campaign_contacts cc ON cc.campaign_id = $1 AND cc.contact_id = oc.id
-        WHERE s.campaign_id = $1
+        WHERE s.campaign_id = $1 ${whereQ}
         GROUP BY oc.id, oc.name, oc.email, oc.company, occ.warm_at, occ.warm_reason, occ.interest_score, occ.unsubscribed_at, cc.stopped_at
-        ORDER BY occ.interest_score DESC NULLS LAST, opens DESC`,
-      [release.campaign_id, release.client_id]
+        ORDER BY ${orderBy}
+        LIMIT $${limIdx} OFFSET $${offIdx}`,
+      pageParams
     );
+    // Clicks only for the returned page's contacts (keeps it cheap).
+    const pageIds = pageRows.map(r => r.contact_id);
+    const clickMap = {};
+    if (pageIds.length) {
+      const { rows: clk } = await pool.query(
+        `SELECT s.contact_id, COUNT(*)::int AS clicks, array_agg(DISTINCT cl.url) AS clicked_urls
+           FROM outreach_clicks cl JOIN outreach_sends s ON s.id = cl.send_id
+          WHERE s.campaign_id = $1 AND s.contact_id = ANY($2::uuid[])
+          GROUP BY s.contact_id`,
+        [release.campaign_id, pageIds]
+      );
+      for (const r of clk) clickMap[r.contact_id] = r;
+    }
+    const rows = pageRows.map(r => ({ ...r, clicks: clickMap[r.contact_id]?.clicks || 0, clicked_urls: clickMap[r.contact_id]?.clicked_urls || null }));
 
-    const recipients = rows.length;
-    const opened = rows.filter(r => r.opened).length;
-    const clicked = rows.filter(r => r.clicks > 0).length;
-    const replied = rows.filter(r => r.replied).length;
-    const warm = rows.filter(r => r.warm_at).length;
-    const pct = (n) => (recipients ? Math.round((n / recipients) * 100) : 0);
+    // Count matching the search (for "showing N of M" + load-more).
+    let recipientTotal = recipients;
+    if (like) {
+      const { rows: rt } = await pool.query(
+        `SELECT COUNT(DISTINCT s.contact_id)::int AS n
+           FROM outreach_sends s JOIN outreach_contacts oc ON oc.id = s.contact_id
+          WHERE s.campaign_id = $1 AND (oc.name ILIKE $2 OR oc.email ILIKE $2 OR oc.company ILIKE $2)`,
+        [release.campaign_id, like]
+      );
+      recipientTotal = rt[0].n;
+    }
 
     // Delivery health: how the actual send queue is doing, distinct from
     // engagement. A press campaign queues one row per (recipient × sequence
@@ -633,6 +695,8 @@ router.get('/releases/:id/analytics', async (req, res) => {
       },
       delivery,
       recipients: rows,
+      recipient_total: recipientTotal,
+      page: { limit, offset, q, sort: req.query.sort || 'interest', returned: rows.length },
     });
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });

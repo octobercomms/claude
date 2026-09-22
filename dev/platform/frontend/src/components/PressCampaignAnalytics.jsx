@@ -11,30 +11,71 @@ function linkLabel(u) {
   catch { return String(u || '').replace(/^https?:\/\//, '').split('/')[0] || u; }
 }
 
+const PAGE = 100;
+// The header columns that map to a server-side sort (full-dataset ordering).
+// Other columns (clicks, status) can only reorder the rows already loaded.
+const SERVER_SORT = { name: 'name', company: 'publication', email: 'email', opens: 'opens', interest_score: 'interest' };
+
 // Results + the 24/7 watcher view for a press campaign: open/click rates, a
-// sortable per-journalist table (repeat-open counts, what they clicked, warm
-// flag), the warm threshold, and the suppression lists. Reads
-// /press/releases/:id/analytics + /press/clients/:clientId/*.
+// searchable, paginated per-journalist table (repeat-open counts, what they
+// clicked, warm flag), the warm threshold, and the suppression lists.
+// A 10k-recipient campaign is served in pages — totals come from cheap
+// aggregates, the table loads 100 at a time, and search hits the server so you
+// can jump straight to one journalist to stop their follow-ups.
 export default function PressCampaignAnalytics({ clientId, release }) {
   const toast = useToast();
-  const [data, setData] = useState(null);
+  const [summary, setSummary] = useState(null);   // totals + delivery + recipient_total
+  const [recipients, setRecipients] = useState([]); // accumulated page rows
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [qInput, setQInput] = useState('');
+  const [query, setQuery] = useState('');          // debounced search term
+  const [serverSort, setServerSort] = useState('interest');
   const [sort, setSort] = useState({ key: 'interest_score', dir: 'desc' });
   const [cfg, setCfg] = useState(null);
   const [supp, setSupp] = useState(null);
 
+  // Debounce the search box so typing doesn't fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(qInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [qInput]);
+
+  // Warm-config loads once — it doesn't change with search/paging.
+  useEffect(() => {
+    let alive = true;
+    api.get(`/press/clients/${clientId}/warm-config`).then(c => { if (alive) setCfg(c); }).catch(() => {});
+    return () => { alive = false; };
+  }, [clientId]);
+
+  const fetchPage = useCallback(async (offset) => {
+    const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset), sort: serverSort });
+    if (query) params.set('q', query);
+    return api.get(`/press/releases/${release.id}/analytics?${params.toString()}`);
+  }, [release.id, serverSort, query]);
+
+  // (Re)load from the top — runs on mount and whenever search or server sort
+  // changes (fetchPage identity depends on both).
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [a, c] = await Promise.all([
-        api.get(`/press/releases/${release.id}/analytics`),
-        api.get(`/press/clients/${clientId}/warm-config`).catch(() => null),
-      ]);
-      setData(a); setCfg(c);
+      const a = await fetchPage(0);
+      setSummary(a);
+      setRecipients(a.recipients || []);
     } catch (e) { toast(e.message, 'error'); }
     finally { setLoading(false); }
-  }, [release.id, clientId, toast]);
+  }, [fetchPage, toast]);
   useEffect(() => { load(); }, [load]);
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const a = await fetchPage(recipients.length);
+      setRecipients(prev => [...prev, ...(a.recipients || [])]);
+      setSummary(s => ({ ...s, ...a, recipients: undefined })); // keep fresh totals, drop the page copy
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setLoadingMore(false); }
+  }
 
   const [retrying, setRetrying] = useState(false);
   async function saveCfg(next) {
@@ -43,7 +84,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     catch (e) { toast(e.message, 'error'); }
   }
   async function retryFailed() {
-    const campaignId = data?.campaign_id;
+    const campaignId = summary?.campaign_id;
     if (!campaignId) return;
     setRetrying(true);
     try {
@@ -58,24 +99,43 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     catch (e) { toast(e.message, 'error'); }
   }
 
-  function exportCsv() {
-    const rows = (data?.recipients || []).map(r => [
-      r.name, r.email, r.company, r.opens, r.clicks, r.warm_at ? 'warm' : '',
-      r.replied ? 'replied' : '', r.bounced ? 'bounced' : '',
-      r.failed_count ? 'failed' : '', r.failed_count ? (r.fail_reason || '') : '',
-      (r.clicked_urls || []).join(' | '),
-    ]);
-    const header = ['Name', 'Email', 'Outlet', 'Opens', 'Clicks', 'Warm', 'Replied', 'Bounced', 'Failed', 'Fail reason', 'Clicked URLs'];
-    const csv = [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `press-results-${(release.title || 'campaign').replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}.csv`;
-    a.click();
+  const [exporting, setExporting] = useState(false);
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      // Export the whole set (respecting any active search), not just the
+      // rows currently loaded on screen.
+      const params = new URLSearchParams({ limit: '100000', offset: '0', sort: serverSort });
+      if (query) params.set('q', query);
+      const full = await api.get(`/press/releases/${release.id}/analytics?${params.toString()}`);
+      const src = full.recipients || [];
+      const rows = src.map(r => [
+        r.name, r.email, r.company, r.opens, r.clicks, r.warm_at ? 'warm' : '',
+        r.replied ? 'replied' : '', r.bounced ? 'bounced' : '',
+        r.failed_count ? 'failed' : '', r.failed_count ? (r.fail_reason || '') : '',
+        (r.clicked_urls || []).join(' | '),
+      ]);
+      const header = ['Name', 'Email', 'Outlet', 'Opens', 'Clicks', 'Warm', 'Replied', 'Bounced', 'Failed', 'Fail reason', 'Clicked URLs'];
+      const csv = [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `press-results-${(release.title || 'campaign').replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}.csv`;
+      a.click();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setExporting(false); }
   }
 
   function sortBy(key) {
-    setSort(s => ({ key, dir: s.key === key && s.dir === 'desc' ? 'asc' : 'desc' }));
+    const srv = SERVER_SORT[key];
+    if (srv) {
+      // Server-sortable column — reorder the whole dataset from the top.
+      setServerSort(srv);
+      setSort({ key, dir: 'desc' });
+    } else {
+      // No server equivalent — reorder just the rows already loaded.
+      setSort(s => ({ key, dir: s.key === key && s.dir === 'desc' ? 'asc' : 'desc' }));
+    }
   }
   // A single ordered rank for the Status column so it sorts sensibly — failed
   // at the top (desc), then unsubscribed, warm, bounced, replied, opened, none.
@@ -85,22 +145,22 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   // the move when they reply "not for me". Doesn't unsubscribe them.
   const [stopBusy, setStopBusy] = useState(null);
   async function stopFollowups(r) {
-    if (!data?.campaign_id) return;
+    if (!summary?.campaign_id) return;
     if (!window.confirm(`Stop the remaining follow-up emails to ${r.name || r.email} for this campaign? They stay a contact — this only cancels this campaign's follow-ups.`)) return;
     setStopBusy(r.contact_id);
     try {
-      const res = await api.post(`/outreach/campaigns/${data.campaign_id}/contacts/${r.contact_id}/stop-followups`, {});
-      setData(d => ({ ...d, recipients: (d.recipients || []).map(x => x.contact_id === r.contact_id ? { ...x, followups_stopped: true } : x) }));
+      const res = await api.post(`/outreach/campaigns/${summary.campaign_id}/contacts/${r.contact_id}/stop-followups`, {});
+      setRecipients(prev => prev.map(x => x.contact_id === r.contact_id ? { ...x, followups_stopped: true } : x));
       toast(res.cancelled ? `Follow-ups stopped (${res.cancelled} cancelled).` : 'No pending follow-ups — nothing to stop.', 'success');
     } catch (e) { toast(e.message, 'error'); }
     finally { setStopBusy(null); }
   }
   async function resumeFollowups(r) {
-    if (!data?.campaign_id) return;
+    if (!summary?.campaign_id) return;
     setStopBusy(r.contact_id);
     try {
-      await api.post(`/outreach/campaigns/${data.campaign_id}/contacts/${r.contact_id}/resume-followups`, {});
-      setData(d => ({ ...d, recipients: (d.recipients || []).map(x => x.contact_id === r.contact_id ? { ...x, followups_stopped: false } : x) }));
+      await api.post(`/outreach/campaigns/${summary.campaign_id}/contacts/${r.contact_id}/resume-followups`, {});
+      setRecipients(prev => prev.map(x => x.contact_id === r.contact_id ? { ...x, followups_stopped: false } : x));
       toast('Follow-ups resumed for this journalist.', 'success');
     } catch (e) { toast(e.message, 'error'); }
     finally { setStopBusy(null); }
@@ -113,19 +173,26 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     setUnsubBusy(r.contact_id);
     try {
       await api.post(`/outreach/clients/${clientId}/contacts/${r.contact_id}/unsubscribe`, {});
-      setData(d => ({ ...d, recipients: (d.recipients || []).map(x => x.contact_id === r.contact_id ? { ...x, unsubscribed_at: new Date().toISOString() } : x) }));
+      setRecipients(prev => prev.map(x => x.contact_id === r.contact_id ? { ...x, unsubscribed_at: new Date().toISOString() } : x));
       toast('Marked unsubscribed — any pending emails to them are cancelled.', 'success');
     } catch (e) { toast(e.message, 'error'); }
     finally { setUnsubBusy(null); }
   }
-  const rows = (data?.recipients || []).map(r => ({ ...r, _status: statusRank(r) })).sort((a, b) => {
+
+  // Rows for display. Server-sorted columns keep the order the server (and
+  // load-more accumulation) gave; client-only columns reorder what's loaded.
+  const isServerKey = !!SERVER_SORT[sort.key];
+  const decorated = (recipients || []).map(r => ({ ...r, _status: statusRank(r) }));
+  const rows = isServerKey ? decorated : decorated.sort((a, b) => {
     const dir = sort.dir === 'desc' ? -1 : 1;
     const av = a[sort.key] ?? 0, bv = b[sort.key] ?? 0;
     if (typeof av === 'string' || typeof bv === 'string') return String(av).localeCompare(String(bv)) * dir;
     return (av - bv) * dir;
   });
 
-  const t = data?.totals || {};
+  const t = summary?.totals || {};
+  const recipientTotal = summary?.recipient_total ?? t.recipients ?? 0;
+  const hasMore = recipients.length < recipientTotal;
   const Stat = ({ n, label, sub }) => (
     <div style={{ minWidth: 90 }}>
       <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{n ?? '—'}</div>
@@ -138,7 +205,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     </th>
   );
 
-  if (loading) return <div className="text-subtle" style={{ padding: 16 }}>Loading results…</div>;
+  if (loading && !summary) return <div className="text-subtle" style={{ padding: 16 }}>Loading results…</div>;
 
   return (
     <div className="stack" style={{ marginTop: 8 }}>
@@ -153,7 +220,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
-          <button className="btn btn-secondary btn-sm" onClick={exportCsv}>Export CSV</button>
+          <button className="btn btn-secondary btn-sm" onClick={exportCsv} disabled={exporting}>{exporting ? 'Exporting…' : 'Export CSV'}</button>
         </div>
       </div>
 
@@ -163,7 +230,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
           10k send doesn't read as "39,604 still going out". Per-step rows spell
           out each email's own progress; a spinner shows when a batch is live. */}
       {(() => {
-        const d = data?.delivery;
+        const d = summary?.delivery;
         if (!d) return null;
         const first = d.first || { sent: d.sent || 0, sending: d.in_flight || 0, scheduled: 0, failed: d.failed || 0, cancelled: d.cancelled || 0, total: 0 };
         const fu = d.followups || { sent: 0, sending: 0, scheduled: 0, failed: 0, cancelled: 0, total: 0 };
@@ -194,7 +261,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                 {active ? 'Sending now' : 'Sending'}
               </span>
               <span style={{ color: 'var(--positive, #15803d)' }}>✓ {num(first.sent)} of {num(firstTotal)} emailed</span>
-              {going > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(going)} still going out{active ? ' (~500/hr)' : ''}</span>}
+              {going > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(going)} still going out{active ? ' (~2,000/hr)' : ''}</span>}
               {first.failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {num(first.failed)} failed</span>}
               {first.cancelled > 0 && <span style={{ color: 'var(--text-subtle)' }}>{num(first.cancelled)} skipped (bounced/unsub)</span>}
               {totalFailed > 0 && (
@@ -232,9 +299,9 @@ export default function PressCampaignAnalytics({ clientId, release }) {
             </div>
 
             {/* Plain-language explainer for the follow-up rows */}
-            {fuPending > 0 && (
+            {(fuPending > 0 || fu.sent > 0) && (
               <div style={{ marginTop: 10, paddingTop: 8, borderTop: 'var(--border-w) solid var(--card-border)', color: 'var(--text-subtle)', lineHeight: 1.5 }}>
-                📆 The follow-up rows above are <strong>scheduled, not queued to blast</strong> — each goes out on its own day (set by the sequence delay) and only to journalists who’ve opened. Most of these numbers will shrink, never all send at once.
+                📆 Follow-ups go to <strong>every journalist</strong> — it often takes a few emails to land — each on its own day (set by the sequence delay), <strong>not</strong> all at once. They’re skipped only for anyone who’s been marked <em>stop</em>, unsubscribed, bounced, or already replied, so these counts shrink as people drop out.
               </div>
             )}
           </div>
@@ -258,38 +325,59 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         </div>
       )}
 
+      {/* Search — jump straight to a journalist to stop their follow-ups. */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          type="search"
+          value={qInput}
+          onChange={e => setQInput(e.target.value)}
+          placeholder="Search name, email or outlet…"
+          style={{ flex: 1, minWidth: 220, padding: '7px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 13 }}
+        />
+        {qInput && <button className="btn btn-link btn-sm" onClick={() => setQInput('')}>Clear</button>}
+        <span style={{ fontSize: 12, color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>
+          {loading ? 'Searching…' : `Showing ${rows.length.toLocaleString()} of ${recipientTotal.toLocaleString()}${query ? ' matching' : ''}`}
+        </span>
+      </div>
+
       {/* Per-recipient table */}
       <div style={{ overflowX: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ borderBottom: 'var(--border-w) solid var(--card-border)' }}>
             <Th k="name">Journalist</Th>
+            <Th k="company">Publication</Th>
+            <Th k="email">Email</Th>
             <Th k="opens" right>Opens</Th>
-            <Th k="clicks" right>Clicks</Th>
+            <Th k="clicks">Clicked</Th>
             <Th k="interest_score" right>Interest</Th>
             <Th k="_status">Status</Th>
           </tr></thead>
           <tbody>
-            {!rows.length && <tr><td colSpan={5} style={{ padding: 14, color: 'var(--text-subtle)' }}>No sends yet — results appear once the campaign goes out.</td></tr>}
+            {!rows.length && <tr><td colSpan={7} style={{ padding: 14, color: 'var(--text-subtle)' }}>{query ? 'No journalists match that search.' : 'No sends yet — results appear once the campaign goes out.'}</td></tr>}
             {rows.map(r => (
               <tr key={r.contact_id} style={{ borderTop: 'var(--border-w) solid var(--accent-soft)' }}>
-                <td style={{ padding: '6px 8px' }}>
-                  <div style={{ fontWeight: 600 }}>{r.name || r.email}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{r.company || ''}{r.company && r.email ? ' · ' : ''}{r.email}</div>
-                  {r.clicked_urls?.length ? (
-                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>
-                      clicked{' '}
-                      {r.clicked_urls.slice(0, 3).map((u, i) => (
-                        <React.Fragment key={i}>
-                          {i ? <span> · </span> : null}
-                          <a href={u} target="_blank" rel="noreferrer" title={u} style={{ color: 'var(--accent)' }}>{linkLabel(u)}</a>
-                        </React.Fragment>
-                      ))}
-                      {r.clicked_urls.length > 3 ? <span> +{r.clicked_urls.length - 3} more</span> : null}
-                    </div>
-                  ) : null}
-                </td>
+                <td style={{ padding: '6px 8px', fontWeight: 600 }}>{r.name || <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>—</span>}</td>
+                <td style={{ padding: '6px 8px' }}>{r.company || <span style={{ color: 'var(--text-subtle)' }}>—</span>}</td>
+                <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>{r.email}</td>
                 <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: r.opens >= 3 ? 700 : 400 }}>{r.opens || 0}</td>
-                <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: r.clicks ? 700 : 400, color: r.clicks ? 'var(--accent)' : 'inherit' }}>{r.clicks || 0}</td>
+                <td style={{ padding: '6px 8px' }}>
+                  {r.clicks ? (
+                    <div>
+                      <span style={{ fontWeight: 700 }}>{r.clicks}</span>
+                      {r.clicked_urls?.length ? (
+                        <div style={{ fontSize: 11, marginTop: 2 }}>
+                          {r.clicked_urls.slice(0, 3).map((u, i) => (
+                            <React.Fragment key={i}>
+                              {i ? <span style={{ color: 'var(--text-subtle)' }}> · </span> : null}
+                              <a href={u} target="_blank" rel="noreferrer" title={u} style={{ color: 'var(--text)', textDecoration: 'underline' }}>{linkLabel(u)}</a>
+                            </React.Fragment>
+                          ))}
+                          {r.clicked_urls.length > 3 ? <span style={{ color: 'var(--text-subtle)' }}> +{r.clicked_urls.length - 3} more</span> : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : <span style={{ color: 'var(--text-subtle)' }}>0</span>}
+                </td>
                 <td style={{ padding: '6px 8px', textAlign: 'right' }}>{r.interest_score || 0}</td>
                 <td style={{ padding: '6px 8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -329,6 +417,15 @@ export default function PressCampaignAnalytics({ clientId, release }) {
           </tbody>
         </table>
       </div>
+
+      {/* Load more */}
+      {hasMore && (
+        <div style={{ textAlign: 'center' }}>
+          <button className="btn btn-secondary btn-sm" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? 'Loading…' : `Load more (${(recipientTotal - recipients.length).toLocaleString()} left)`}
+          </button>
+        </div>
+      )}
 
       {/* Suppression */}
       <div>
