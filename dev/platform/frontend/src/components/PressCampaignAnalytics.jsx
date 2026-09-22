@@ -84,12 +84,16 @@ export default function PressCampaignAnalytics({ clientId, release }) {
     const campaignId = summary?.campaign_id;
     if (!campaignId) return;
     const paused = summary?.delivery?.followups_paused;
+    if (paused && !window.confirm('Resume follow-ups? Each pending follow-up is re-dated to 5 / 10 / 16 days after THAT journalist’s own first email (not the launch date), so nobody gets one too soon. Then they go out on their own schedule.')) return;
     if (!paused && !window.confirm('Hold ALL follow-ups for this campaign? The first email keeps finishing, but no follow-up (step 2+) will go out until you resume. Nothing is cancelled — you can resume any time.')) return;
     setHoldBusy(true);
     try {
-      await api.post(`/outreach/campaigns/${campaignId}/${paused ? 'resume-all-followups' : 'pause-followups'}`, {});
+      const r = await api.post(`/outreach/campaigns/${campaignId}/${paused ? 'resume-all-followups' : 'pause-followups'}`, {});
       setSummary(s => ({ ...s, delivery: { ...s.delivery, followups_paused: !paused } }));
-      toast(paused ? 'Follow-ups resumed — pending ones will start going out again.' : 'Follow-ups held — no more will go out until you resume.', 'success');
+      toast(paused
+        ? `Follow-ups resumed${r?.reanchored ? ` — ${r.reanchored.toLocaleString()} re-dated to each journalist’s own first-email + 5/10/16 days` : ''}.`
+        : 'Follow-ups held — no more will go out until you resume.', 'success');
+      await load();
     } catch (e) { toast(e.message, 'error'); }
     finally { setHoldBusy(false); }
   }
@@ -287,9 +291,9 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                 dates, so "when did this actually start?" is unambiguous. */}
             {(d.launched_at || d.created_at || d.first_sent_at) && (
               <div style={{ marginBottom: 10, paddingBottom: 8, borderBottom: 'var(--border-w) solid var(--card-border)', color: 'var(--text-subtle)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                {d.launched_at && <span><strong style={{ color: 'var(--text-muted)' }}>Launched</strong> {fmtDT(d.launched_at)}</span>}
-                {d.first_sent_at && <span><strong style={{ color: 'var(--text-muted)' }}>First email sent</strong> {fmtDT(d.first_sent_at)}</span>}
-                {d.created_at && <span><strong style={{ color: 'var(--text-muted)' }}>Created</strong> {fmtDT(d.created_at)}</span>}
+                {d.created_at && <span title="When you first built this campaign (before any send)."><strong style={{ color: 'var(--text-muted)' }}>Created</strong> {fmtDT(d.created_at)}</span>}
+                {d.launched_at && <span title="When the campaign was first switched on to send. Follow-up delays used to count from here — now they count from each journalist's own first email instead."><strong style={{ color: 'var(--text-muted)' }}>First activated</strong> {fmtDT(d.launched_at)}</span>}
+                {d.first_sent_at && <span title="The earliest email that actually went out — often an initial small batch, before the full send."><strong style={{ color: 'var(--text-muted)' }}>First email out</strong> {fmtDT(d.first_sent_at)}</span>}
               </div>
             )}
             {/* Headline: first-email blast */}

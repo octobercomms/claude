@@ -904,7 +904,7 @@ async function runOutreachSends() {
 
   const { rows: due } = await pool.query(
     `SELECT s.id AS send_id, s.contact_id, s.campaign_id, s.attempts,
-            seq.subject, seq.body,
+            seq.subject, seq.body, COALESCE(seq.step_number, 1) AS step_number,
             con.id AS con_id, con.name, con.email, con.company,
             con.bounced_at, con.status AS contact_status,
             cam.client_id, cam.kind,
@@ -1003,6 +1003,25 @@ async function runOutreachSends() {
         "UPDATE outreach_sends SET status = 'sent', sent_at = NOW(), last_error = NULL, provider_message_id = $2 WHERE id = $1",
         [row.send_id, result?.providerMessageId || null]
       );
+      // Anchor this contact's follow-ups to when THEY got the first email, not
+      // to the campaign launch date. A big blast is paced over hours/days and
+      // people can be added after launch, so a follow-up dated from launch would
+      // land too soon (or immediately) for anyone emailed later. When the first
+      // email (step 1) actually goes out, (re)schedule each of this contact's
+      // pending follow-ups to first_email_time + that step's delay_days. Keyed
+      // off step 1 only, so later steps don't keep pushing the schedule out.
+      if (Number(row.step_number) === 1) {
+        await pool.query(
+          `UPDATE outreach_sends os
+              SET scheduled_at = NOW() + make_interval(days => seq.delay_days)
+             FROM outreach_sequences seq
+            WHERE seq.id = os.sequence_id
+              AND os.campaign_id = $1 AND os.contact_id = $2
+              AND os.status = 'pending'
+              AND COALESCE(seq.step_number, 1) > 1`,
+          [row.campaign_id, row.contact_id]
+        );
+      }
     } catch (err) {
       console.error(`Outreach send ${row.send_id} failed:`, err.message);
       const msg = String(err.message || '').slice(0, 500);
