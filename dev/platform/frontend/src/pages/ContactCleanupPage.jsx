@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
+import OooReviewPanel from '../components/OooReviewPanel';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 
@@ -167,9 +168,12 @@ export default function ContactCleanupPage() {
         { key: 'duplicates', label: `Duplicates${byTab.duplicates.clusters ? ` (${countRemaining(byTab.duplicates)})` : ''}`, active: tab === 'duplicates', onClick: () => setTab('duplicates') },
         { key: 'coverage', label: `Coverage matchups${byTab.coverage.clusters ? ` (${countRemaining(byTab.coverage)})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
         { key: 'tidy', label: 'Tidy fixes', active: tab === 'tidy', onClick: () => setTab('tidy') },
+        { key: 'ooo', label: 'Contact updates', active: tab === 'ooo', onClick: () => setTab('ooo') },
         { groupLabel: 'Publications' },
         { key: 'pubdupes', label: 'Duplicates', active: tab === 'pubdupes', onClick: () => setTab('pubdupes') },
       ]} />
+
+      {tab === 'ooo' && <OooReviewPanel />}
 
       {tab === 'duplicates' && (
         <div>
