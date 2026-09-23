@@ -9,7 +9,7 @@ import OverviewChat from '../components/OverviewChat';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, Link } from 'react-router-dom';
-import SuiteTabs from '../components/SuiteTabs';
+import PageShell from '../components/shells/PageShell';
 import StatStrip from '../components/shells/StatStrip';
 import StepRail from '../components/shells/StepRail';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
@@ -430,17 +430,11 @@ export default function ClientAdsPage() {
 
   return (
     <div className="suite-paid">
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Paid</span></div>
-      <header className="hero">
-        <div>
-          <h1 className="display mt-2">Paid</h1>
-        </div>
-      </header>
-      <SuiteTabs tabs={[
+      <PageShell title="Paid" subtitle={client?.name} tabs={[
         { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setTab('overview') },
         { key: 'health',   label: 'Health', fn: 'measure',   active: currentGroup === 'health',   onClick: () => setTab('health') },
         { key: 'build',    label: 'Build', fn: 'create',    active: currentGroup === 'build',    onClick: () => setTab('brief') },
-      ]} />
+      ]}>
       {currentGroup === 'health' && (
         <Accordion open={healthOpen} onToggle={toggleHealth}>
           <AccordionItem id="measure" fn="measure" title="Measure" subtitle="Spend, ROAS & profit per campaign">
@@ -541,6 +535,7 @@ export default function ClientAdsPage() {
           </div>
         </>
       )}
+      </PageShell>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
-import SuiteTabs from '../components/SuiteTabs';
+import PageShell from '../components/shells/PageShell';
 import SuiteOverview from '../components/SuiteOverview';
 import StatStrip from '../components/shells/StatStrip';
 import DataFlowMap from '../components/DataFlowMap';
@@ -143,20 +143,13 @@ export default function ClientSalesTrafficPage() {
 
   return (
     <div className="suite-sales" ref={scopeRef}>
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Data</span></div>
-      <header className="hero">
-        <div>
-          <h1 className="display mt-2">Data</h1>
-        </div>
-      </header>
-
-      <SuiteTabs tabs={[
+      <PageShell title="Data" subtitle={client?.name} tabs={[
         { key: 'overview',  label: 'Overview',     active: tab === 'overview',  onClick: () => setTab('overview') },
         { key: 'dashboard', label: 'Measure', fn: 'measure', active: tab === 'dashboard', onClick: () => setTab('dashboard') },
         // Strategist (cross-PESO briefing) and Analyse (private AI chat) are agency-only.
         ...(readOnly ? [] : [{ key: 'strategist', label: 'Strategist', fn: 'strategy', active: tab === 'strategist', onClick: () => setTab('strategist') }]),
         ...(readOnly ? [] : [{ key: 'analyst', label: 'Analyse', fn: 'research', active: tab === 'analyst', onClick: () => setTab('analyst') }]),
-      ]} />
+      ]}>
 
       {tab === 'strategist' && !readOnly && <StrategistBriefingPanel clientId={id} />}
       {tab === 'analyst' && !readOnly && <ClientChatPage embedded clientId={id} />}
@@ -321,6 +314,7 @@ export default function ClientSalesTrafficPage() {
         </>
       ) : null}
       </>}
+      </PageShell>
     </div>
   );
 }
