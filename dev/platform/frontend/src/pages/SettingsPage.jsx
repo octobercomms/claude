@@ -8,6 +8,7 @@ import ManageUsersPage from './ManageUsersPage';
 import LeadsPage from './LeadsPage';
 import ProposalsPage from './ProposalsPage';
 import ProofLibraryPage from './ProofLibraryPage';
+import BookingSettingsPage from './BookingSettingsPage';
 import SecurityPanel from '../components/SecurityPanel';
 import StrategyTemplatesPanel from '../components/StrategyTemplatesPanel';
 import TendersPanel from '../components/TendersPanel';
@@ -342,6 +343,7 @@ const SECTIONS = [
     { k: 'leads', label: 'Leads' },
     { k: 'proposals', label: 'Proposals' },
     { k: 'proof', label: 'Proof library' },
+    { k: 'booking', label: 'Booking' },
     { k: 'tenders', label: 'Tenders' },
   ] },
   { key: 'account', label: 'Account', subs: [
@@ -608,6 +610,7 @@ export default function SettingsPage() {
       {tab === 'leads' && <LeadsPage embedded />}
       {tab === 'proposals' && <ProposalsPage />}
       {tab === 'proof' && <ProofLibraryPage />}
+      {tab === 'booking' && <BookingSettingsPage />}
       {tab === 'tenders' && <TendersPanel />}
       {tab === 'security' && <SecurityPanel />}
       {tab === 'strategy' && <StrategyTemplatesPanel />}

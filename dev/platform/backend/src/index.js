@@ -171,6 +171,9 @@ app.use('/api/public/watch', require('./routes/watchPublic'));
 // Public proposal page data + engagement tracking + accept. No auth; the
 // unguessable token is the access control. See routes/publicProposal.js.
 app.use('/api/public/proposal', require('./routes/publicProposal'));
+// Public book-a-call widget + manage link (Google Calendar / Meet). No auth;
+// strict limiters and a lock-guarded slot re-check live in the route/service.
+app.use('/api/public/booking', require('./routes/publicBooking'));
 // Public integration artifacts (GTM container template — no secrets). Before
 // auth so a plain download link works.
 app.use('/api/integrations', require('./routes/integrations'));
@@ -227,6 +230,7 @@ app.use('/api/audiences', require('./routes/audiences'));
 app.use('/api/paid', require('./routes/paid'));
 app.use('/api/leads', require('./routes/leads'));
 app.use('/api/proposals', require('./routes/proposals'));
+app.use('/api/booking', require('./routes/booking'));
 app.use('/api/video', require('./routes/video'));
 app.use('/api/ai-visibility', require('./routes/aiVisibility'));
 app.use('/api/ai-seo', require('./routes/aiSeo'));
