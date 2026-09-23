@@ -34,6 +34,30 @@ final class Shortcodes {
         $a    = shortcode_atts(['city' => '', 'year' => ''], (array) $atts, 'guided_gate');
         $tour = Rest::tour_key(sanitize_text_field($a['city']) . '|' . sanitize_text_field($a['year']));
         self::enqueue($tour);
+
+        // Before the release date, the whole tour is closed: show a countdown in
+        // place of the unlock form. The reserve endpoint enforces this too, so the
+        // countdown is a courtesy, not the lock.
+        $release_ts = Releases::release_ts($tour);
+        if ($release_ts > time()) {
+            ob_start(); ?>
+            <div class="oe-gt-gate oe-gt-gate--pre" data-oe-gt-gate data-release-at="<?php echo esc_attr((string) ($release_ts * 1000)); ?>">
+                <div class="oe-gt-release" data-oe-gt-release>
+                    <p class="oe-gt-release__title"><?php esc_html_e('Booking opens soon', 'october-events'); ?></p>
+                    <div class="oe-gt-countdown" data-oe-gt-countdown aria-live="polite"></div>
+                    <p class="oe-gt-release__sub">
+                        <?php printf(
+                            /* translators: %s: release date and time */
+                            esc_html__('Times open on %s. If you have a ticket, we’ll email you the moment booking is live.', 'october-events'),
+                            '<strong>' . esc_html(wp_date('l F j, g:i A', $release_ts)) . '</strong>'
+                        ); ?>
+                    </p>
+                </div>
+            </div>
+            <?php
+            return (string) ob_get_clean();
+        }
+
         $unlocked = Eligibility::unlocked_email($tour) !== '';
 
         ob_start(); ?>
@@ -129,10 +153,14 @@ final class Shortcodes {
         wp_enqueue_script('oe-guided');
         // Print the shared config once (the gate defines the tour for the page).
         if ($tour !== '') {
+            $release_ts = Releases::release_ts($tour);
             wp_localize_script('oe-guided', 'OE_GT', [
-                'rest'  => esc_url_raw(rest_url('oe/v1/guided/')),
-                'nonce' => wp_create_nonce('oe_gt'),
-                'tour'  => $tour,
+                'rest'      => esc_url_raw(rest_url('oe/v1/guided/')),
+                'nonce'     => wp_create_nonce('oe_gt'),
+                'tour'      => $tour,
+                // Milliseconds so the browser can drive the countdown / lock the
+                // slot buttons until booking opens. 0 = open now.
+                'releaseAt' => $release_ts > time() ? $release_ts * 1000 : 0,
             ]);
         }
     }

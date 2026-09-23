@@ -37,6 +37,8 @@ final class Admin {
         add_action('admin_post_oe_gt_reservation_remove', [$this, 'handle_gt_reservation_remove']);
         add_action('admin_post_oe_gt_reservation_add', [$this, 'handle_gt_reservation_add']);
         add_action('admin_post_oe_preview_guided_email', [$this, 'handle_preview_guided_email']);
+        add_action('admin_post_oe_gt_release_save', [$this, 'handle_gt_release_save']);
+        add_action('admin_post_oe_gt_release_delete', [$this, 'handle_gt_release_delete']);
         add_action('admin_post_oe_membership_repair', [$this, 'handle_membership_repair']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
@@ -477,11 +479,67 @@ final class Admin {
         $location     = isset($_GET['building']) ? absint($_GET['building']) : 0;
         $buildings    = \OE\GuidedTours\Slots::locations_with_slots();
         $reservations = \OE\GuidedTours\Reservations::all($location);
+        $releases     = \OE\GuidedTours\Releases::all();
         $notice       = get_transient('oe_gt_notice_' . get_current_user_id());
         if ($notice) {
             delete_transient('oe_gt_notice_' . get_current_user_id());
         }
         require OE_DIR . 'admin/views/guided-tours.php';
+    }
+
+    /** Save (or update) a tour's release schedule. */
+    public function handle_gt_release_save(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_gt_release_save');
+        $city = sanitize_text_field((string) wp_unslash($_POST['city'] ?? ''));
+        $year = preg_replace('/[^0-9]/', '', (string) ($_POST['year'] ?? ''));
+        $tour = \OE\GuidedTours\Rest::tour_key($city . '|' . $year);
+        if ($city === '' || $year === '') {
+            $this->gt_notice(__('Enter a city and year for the tour.', 'october-events'));
+            $this->redirect_guided();
+        }
+        // The datetime-local field is in the site's timezone; store UTC unix.
+        $local = sanitize_text_field((string) ($_POST['release_at'] ?? ''));
+        $ts    = 0;
+        if ($local !== '') {
+            try {
+                $ts = (new \DateTime($local, wp_timezone()))->getTimestamp();
+            } catch (\Throwable $e) {
+                $ts = 0;
+            }
+        }
+        \OE\GuidedTours\Releases::save($tour, [
+            'city'        => $city,
+            'year'        => $year,
+            'event_id'    => absint($_POST['event_id'] ?? 0),
+            'release_at'  => $ts,
+            'booking_url' => esc_url_raw((string) wp_unslash($_POST['booking_url'] ?? '')),
+        ]);
+        $this->gt_notice(__('Tour release schedule saved.', 'october-events'));
+        $this->redirect_guided();
+    }
+
+    /** Remove a tour's release schedule (booking reverts to always-open). */
+    public function handle_gt_release_delete(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        $tour = \OE\GuidedTours\Rest::tour_key((string) wp_unslash($_REQUEST['tour'] ?? ''));
+        check_admin_referer('oe_gt_release_delete_' . $tour);
+        \OE\GuidedTours\Releases::delete($tour);
+        $this->gt_notice(__('Tour release schedule removed.', 'october-events'));
+        $this->redirect_guided();
+    }
+
+    private function gt_notice(string $msg): void {
+        set_transient('oe_gt_notice_' . get_current_user_id(), ['ok' => $msg], 60);
+    }
+
+    private function redirect_guided(): void {
+        wp_safe_redirect(admin_url('admin.php?page=oe-tickets&tab=guided'));
+        exit;
     }
 
     /** Cancel a guided-tour reservation (promotes the waitlist if it held a seat). */

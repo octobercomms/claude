@@ -80,8 +80,13 @@ final class Eligibility {
         return max(1, $count);
     }
 
-    /** The event id mapped to a tour key in settings, or 0 for "any paid ticket". */
+    /** The event id for a tour key: the release schedule's event takes precedence,
+     *  then the legacy settings map, else 0 for "any paid ticket". */
     private static function mapped_event(string $tour_key): int {
+        $ev = Releases::event_for($tour_key);
+        if ($ev > 0) {
+            return $ev;
+        }
         $map = Settings::get('guided_ticket_map', []);
         return is_array($map) ? (int) ($map[$tour_key] ?? 0) : 0;
     }

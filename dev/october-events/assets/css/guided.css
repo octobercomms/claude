@@ -13,4 +13,42 @@
            oe-gt-mine, oe-gt-mine__item, oe-gt-mine__label,
            oe-gt-mine__change, oe-gt-mine__cancel
    Party size selector: oe-gt-party, oe-gt-party__label, oe-gt-party__select
-   Body flag while unlocked: body.oe-gt-unlocked */
+   Body flag while unlocked: body.oe-gt-unlocked
+   Pre-release: oe-gt-gate--pre, oe-gt-release, oe-gt-release__title,
+           oe-gt-countdown, oe-gt-release__sub; panel .oe-gt-locked while closed.
+           These carry a light default look (below) since they are brand new —
+           override freely in your theme. */
+
+/* Pre-release countdown alert. Minimal, self-contained, easy to override. */
+.oe-gt-release {
+    border: 2px solid currentColor;
+    border-radius: 12px;
+    padding: 20px 22px;
+    text-align: center;
+    max-width: 34em;
+    margin: 0 auto;
+}
+.oe-gt-release__title {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+}
+.oe-gt-countdown {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    line-height: 1.1;
+    margin: 6px 0 10px;
+}
+.oe-gt-release__sub {
+    margin: 0;
+    font-size: .95rem;
+    opacity: .8;
+}
+/* Slots shown but not yet bookable: dim and block pointer interaction. */
+.oe-gt-slots.oe-gt-locked .oe-gt-pills,
+.oe-gt-slots.oe-gt-locked .oe-gt-party {
+    opacity: .5;
+    pointer-events: none;
+}

@@ -34,6 +34,12 @@ final class Mailer {
         Transactional::send('gt_reconfirm', ['email' => (string) $row->email, 'name' => (string) $row->name], [], $b['subject'], $b['html']);
     }
 
+    /** Booking is now open for a released tour — sent once to every ticket holder. */
+    public static function release_announcement(string $email, string $name, string $tour_label, string $booking_url): void {
+        $b = self::build_release($name, $tour_label, $booking_url);
+        Transactional::send('gt_release', ['email' => $email, 'name' => $name], [], $b['subject'], $b['html']);
+    }
+
     /**
      * Render an email with sample data for the admin preview, wrapped in the same
      * brand shell recipients see, with the subject shown above it. $type is one of
@@ -64,6 +70,9 @@ final class Mailer {
                     'email' => 'alex@example.com', 'name' => $name,
                 ]);
                 break;
+            case 'release':
+                $b = self::build_release($name, __('Architecture Tours, Metro Atlanta', 'october-events'), home_url('/'));
+                break;
             case 'reserved':
             default:
                 $b = self::build_reserved($loc, $uid, $name, false, $token);
@@ -77,6 +86,23 @@ final class Mailer {
     }
 
     /* ---- body builders (shared by send + preview) ---- */
+
+    /** @return array{subject:string,html:string} */
+    private static function build_release(string $name, string $tour_label, string $booking_url): array {
+        $label = $tour_label !== '' ? $tour_label : __('the guided tours', 'october-events');
+        $html  = self::p(sprintf(__('Good news %s — booking for %s is now open.', 'october-events'),
+                self::name($name), '<strong>' . esc_html($label) . '</strong>'))
+            . self::p(__('Choose your building time slots before they fill up. Spaces at each building are limited.', 'october-events'));
+        if ($booking_url !== '' && filter_var($booking_url, FILTER_VALIDATE_URL)) {
+            $html .= '<p style="margin:18px 0">'
+                . '<a href="' . esc_url($booking_url) . '" style="background:#111;color:#fff;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:8px;display:inline-block">'
+                . esc_html__('Book your tour times', 'october-events') . '</a></p>';
+        }
+        return [
+            'subject' => sprintf(__('Booking is now open — %s', 'october-events'), $label),
+            'html'    => $html,
+        ];
+    }
 
     /** @return array{subject:string,html:string} */
     private static function build_reserved(int $location_id, string $slot_uid, string $name, bool $waitlisted, string $token, int $party = 1): array {
