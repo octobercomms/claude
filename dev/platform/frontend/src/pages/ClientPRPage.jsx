@@ -960,7 +960,7 @@ export default function ClientPRPage() {
                     <td>{j.published}</td>
                     <td>{j.hit_rate == null ? '—' : Math.round(j.hit_rate * 100) + '%'}</td>
                     <td>{fmtDate(j.last_featured)}</td>
-                    <td><span className="chip chip-accent">{j.strength} · {j.strength_label}</span>{j.warm ? <span className="chip" style={{ marginLeft: 'var(--s2)', background: '#fff2e8', color: '#c2410c' }} title={j.warm_reason || 'engaging with a live campaign'}>🔥 warm</span> : null}{j.gone_quiet ? <span className="chip" style={{ marginLeft: 'var(--s2)' }}>quiet</span> : null}</td>
+                    <td><span className="chip chip-accent">{j.strength} · {j.strength_label}</span>{j.warm ? <span className="chip chip-warm" style={{ marginLeft: 'var(--s2)' }} title={j.warm_reason || 'engaging with a live campaign'}>🔥 warm</span> : null}{j.gone_quiet ? <span className="chip" style={{ marginLeft: 'var(--s2)' }}>quiet</span> : null}</td>
                   </tr>
                 ))}
                 {!journalists.length && <tr><td colSpan={7} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
@@ -1334,7 +1334,7 @@ export default function ClientPRPage() {
               </p>
               <div className="task-row">
                 {warmJournalists.slice(0, 8).map((w) => (
-                  <span key={w.id} className="chip" style={{ background: '#fff2e8', color: '#c2410c' }}>
+                  <span key={w.id} className="chip chip-warm">
                     {w.name}{w.outlet ? ` · ${w.outlet}` : ''}{w.warm_reason ? ` — ${w.warm_reason}` : ''}
                   </span>
                 ))}

@@ -8,7 +8,7 @@ import { useToast } from '../context/ToastContext';
 // named — that a person approves before anything is written to a contact.
 
 const CLASS_STYLE = {
-  journalist: { bg: '#fff2e8', color: '#c2410c' },
+  journalist: { bg: 'var(--warm-soft)', color: 'var(--warm)' },
   client: { bg: '#e8f0ff', color: '#1d4ed8' },
   prospect: { bg: '#f3e8ff', color: '#7c3aed' },
   supplier: { bg: '#eef2f4', color: '#334155' },

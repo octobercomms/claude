@@ -236,7 +236,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         <Stat n={t.clicked} label="clicked" sub={t.click_rate} />
         <Stat n={t.replied} label="replied" sub={t.reply_rate} />
         <div style={{ minWidth: 90 }}>
-          <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1, color: t.warm ? '#c2410c' : 'var(--text)' }}>{t.warm ?? 0}</div>
+          <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1, color: t.warm ? 'var(--warm)' : 'var(--text)' }}>{t.warm ?? 0}</div>
           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>🔥 warm</div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s2)' }}>
@@ -321,7 +321,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
               </div>
             </div>
             {d.followups_paused && (
-              <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-sm)', background: '#fff7ed', color: '#c2410c', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+              <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-sm)', background: 'var(--warm-soft)', color: 'var(--warm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
                 ⏸ Follow-ups are on hold — no step-2+ emails will go out until you resume. The first email still finishes.
               </div>
             )}
@@ -444,7 +444,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
                     {r.unsubscribed_at ? <span className="chip" style={{ background: '#eee', color: 'var(--text-muted)' }}>unsubscribed</span>
                       : r.failed_count ? <span className="chip" style={{ background: '#fde8e8', color: 'var(--negative)' }} title={r.fail_reason || 'The email could not be sent.'}>✕ failed</span>
-                      : r.warm_at ? <span className="chip" style={{ background: '#fff2e8', color: '#c2410c' }}>🔥 warm</span>
+                      : r.warm_at ? <span className="chip chip-warm">🔥 warm</span>
                       : r.bounced ? <span className="chip" style={{ color: 'var(--negative)' }}>bounced</span>
                       : r.replied ? <span className="chip chip-accent">replied</span>
                       : r.opened ? <span className="chip">opened</span>

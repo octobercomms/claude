@@ -46,6 +46,10 @@
   --negative-soft: rgba(198, 40, 40, 0.10);
   --warning: #b86e00;
   --warning-soft: rgba(255, 187, 6, 0.16);
+  /* "Warm" — the 🔥 warm-journalist / warm-lead concept. A first-class OMI
+     status, distinct from --warning (amber). Single source for every warm tag. */
+  --warm: #c2410c;
+  --warm-soft: #fff2e8;
 
   /* Function pips — the wayfinding colour language. The SAME colour tags the
      SAME kind of work everywhere (Research is always indigo, Create always
@@ -587,6 +591,7 @@ button { font-family: inherit; }
 .chip-outline { background: transparent; color: var(--text); border-color: var(--card-border); }
 .chip-success { background: var(--positive-soft); color: var(--positive); border-color: var(--positive); }
 .chip-warning { background: var(--warning-soft);  color: var(--warning);  border-color: var(--warning); }
+.chip-warm    { background: var(--warm-soft);     color: var(--warm);     border-color: var(--warm); }
 .chip-danger  { background: var(--negative-soft); color: var(--negative); border-color: var(--negative); }
 
 /* Standalone semantic text helpers — for delta numbers, profit, etc.
