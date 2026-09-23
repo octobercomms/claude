@@ -39,6 +39,7 @@ final class Admin {
         add_action('admin_post_oe_preview_guided_email', [$this, 'handle_preview_guided_email']);
         add_action('admin_post_oe_gt_release_save', [$this, 'handle_gt_release_save']);
         add_action('admin_post_oe_gt_release_delete', [$this, 'handle_gt_release_delete']);
+        add_action('admin_post_oe_event_broadcast', [$this, 'handle_event_broadcast']);
         add_action('admin_post_oe_membership_repair', [$this, 'handle_membership_repair']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
@@ -236,6 +237,8 @@ final class Admin {
             TicketsAdmin::get_instance()->render_transactions();
         } elseif ($tab === 'guided') {
             $this->render_guided();
+        } elseif ($tab === 'message') {
+            $this->render_message_attendees();
         } else {
             TicketsAdmin::get_instance()->render_registrations();
         }
@@ -254,6 +257,7 @@ final class Admin {
             'failed'   => [__('Failed payments', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=failed')],
             'abandoned' => [__('Abandoned carts', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=abandoned')],
             'guided'   => [__('Guided tours', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=guided')],
+            'message'  => [__('Message attendees', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=message')],
         ];
         echo '<h2 class="nav-tab-wrapper">';
         foreach ($tabs as $key => $t) {
@@ -535,6 +539,117 @@ final class Admin {
 
     private function gt_notice(string $msg): void {
         set_transient('oe_gt_notice_' . get_current_user_id(), ['ok' => $msg], 60);
+    }
+
+    /* ----------------------------------------------------------------- *
+     * Message attendees — broadcast an email to an event's registrations
+     * ----------------------------------------------------------------- */
+
+    /** The "Message attendees" tab on the Tickets screen. */
+    public function render_message_attendees(): void {
+        // Ticketed events, each with its live registration count for the picker.
+        // Counts are fetched in a single grouped query to avoid a COUNT per event.
+        $picker = [];
+        foreach (\OE\Ticketing\CheckIn::events() as $e) {
+            if ((int) $e['id'] === \OE\Ticketing\CheckIn::TEST_EVENT_ID) {
+                continue;
+            }
+            $picker[] = ['id' => (int) $e['id'], 'title' => (string) $e['title']];
+        }
+        $counts = \OE\Ticketing\Orders::event_recipient_counts(array_column($picker, 'id'));
+        $events = [];
+        foreach ($picker as $e) {
+            $events[] = [
+                'id'    => $e['id'],
+                'title' => $e['title'],
+                'count' => $counts[$e['id']] ?? 0,
+            ];
+        }
+        $result = get_transient('oe_evt_msg_' . get_current_user_id());
+        if ($result) {
+            delete_transient('oe_evt_msg_' . get_current_user_id());
+        }
+        require OE_DIR . 'admin/views/message-attendees.php';
+    }
+
+    /** Send (or test) a broadcast email to one event's registrations. */
+    public function handle_event_broadcast(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_event_broadcast');
+
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $subject  = sanitize_text_field(wp_unslash((string) ($_POST['subject'] ?? '')));
+        $body     = sanitize_textarea_field(wp_unslash((string) ($_POST['body'] ?? '')));
+        $mode     = (($_POST['oe_do'] ?? 'send') === 'test') ? 'test' : 'send';
+
+        $back = admin_url('admin.php?page=oe-tickets&tab=message' . ($event_id ? '&event=' . $event_id : ''));
+        $fail = static function (string $msg) use ($back): void {
+            set_transient('oe_evt_msg_' . get_current_user_id(), ['error' => $msg], 60);
+            wp_safe_redirect($back);
+            exit;
+        };
+
+        if ($subject === '') {
+            $fail(__('Add a subject.', 'october-events'));
+        }
+        if ($body === '') {
+            $fail(__('Write a message first.', 'october-events'));
+        }
+        if ($event_id <= 0) {
+            $fail(__('Pick an event.', 'october-events'));
+        }
+        $event_title = get_the_title($event_id) ?: '';
+
+        // Test: send only to the addresses typed, with sample merge values.
+        if ($mode === 'test') {
+            $raw = (string) ($_POST['test_to'] ?? '');
+            $recipients = array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $raw) ?: [])));
+            if (! $recipients) {
+                $fail(__('Enter at least one test address.', 'october-events'));
+            }
+            $sent = $failed = 0;
+            foreach ($recipients as $to) {
+                if (! is_email($to)) { $failed++; continue; }
+                $subj = $this->broadcast_merge($subject, __('there', 'october-events'), $event_title);
+                $html = nl2br(esc_html($this->broadcast_merge($body, __('there', 'october-events'), $event_title)));
+                if (\OE\Mail\Transactional::send('event_broadcast', ['email' => $to, 'name' => ''], [], $subj, $html)) { $sent++; } else { $failed++; }
+            }
+            set_transient('oe_evt_msg_' . get_current_user_id(), ['test' => true, 'sent' => $sent, 'failed' => $failed], 60);
+            wp_safe_redirect($back);
+            exit;
+        }
+
+        // Guard against a double-send: a slow send + an impatient second click,
+        // or a retry after a mid-send timeout, must not re-mail the list. One
+        // send per event is allowed to run at a time; the lock clears when it
+        // finishes (or expires, so a genuinely stuck send can be retried later).
+        $lock = 'oe_evt_msg_lock_' . $event_id;
+        if (get_transient($lock)) {
+            $fail(__('A send for this event is already in progress. Give it a minute, then check the result before sending again.', 'october-events'));
+        }
+        set_transient($lock, 1, 10 * MINUTE_IN_SECONDS);
+
+        $sent = $failed = 0;
+        foreach (\OE\Ticketing\Orders::event_recipients($event_id) as $r) {
+            if (! is_email($r['email'])) { continue; }
+            $name = (string) $r['name'];
+            $subj = $this->broadcast_merge($subject, $name, $event_title);
+            $html = nl2br(esc_html($this->broadcast_merge($body, $name, $event_title)));
+            if (\OE\Mail\Transactional::send('event_broadcast', ['email' => $r['email'], 'name' => $name], [], $subj, $html)) { $sent++; } else { $failed++; }
+        }
+        delete_transient($lock);
+        \OE\AuditLog::record('event_broadcast', $event_id, 'event', 'sent:' . $sent);
+        set_transient('oe_evt_msg_' . get_current_user_id(), ['sent' => $sent, 'failed' => $failed, 'event' => $event_title], 60);
+        wp_safe_redirect($back);
+        exit;
+    }
+
+    /** Fill {name} and {event} in broadcast subject/body. */
+    private function broadcast_merge(string $text, string $name, string $event_title): string {
+        $name = trim($name) !== '' ? trim($name) : __('there', 'october-events');
+        return str_replace(['{name}', '{event}'], [$name, $event_title], $text);
     }
 
     private function redirect_guided(): void {

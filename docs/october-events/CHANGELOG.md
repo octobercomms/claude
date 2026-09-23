@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.164.0 — Message attendees: email everyone registered for an event
+
+- New **Tickets → Message attendees** screen: pick an event, write a subject and
+  message, and email everyone registered for it — a change of venue, an added
+  tour location, any update. Each registration's email is contacted once;
+  cancelled and refunded orders are excluded.
+- Sent as an operational message through the plugin's transactional mail (the
+  same path as ticket confirmations), so it reaches every ticket-holder including
+  anyone who opted out of marketing — the right behaviour for essential event
+  info. Wrapped in the brand email template.
+- Merge tags `{name}` and `{event}`, a "send test" to yourself first, a live
+  recipient count on the picker, and a confirmation before the real send. A
+  per-event lock blocks an accidental double-send.
+
 ## 1.163.0 — Guided tours: scheduled release with countdown + announcement email
 
 - A guided tour (city + year) can now be set to open for booking on a future
