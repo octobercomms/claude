@@ -201,7 +201,7 @@ button { font-family: inherit; }
 .stat .stat-sub.warn { color: var(--warning); font-weight: 600; }
 .stat.feature { background: var(--text); border-color: var(--text); }
 .stat.feature .stat-label, .stat.feature .stat-sub { color: rgba(255, 255, 255, 0.6); }
-.stat.feature .stat-value { color: var(--text); }
+.stat.feature .stat-value { color: #fff; }
 
 /* ─── Hero ───────────────────────────────────────────────────────── */
 
@@ -1228,6 +1228,10 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 }
 .input::placeholder, .textarea::placeholder { color: var(--text-subtle); }
 .textarea { min-height: 80px; resize: vertical; }
+/* Dropdowns are pill-shaped (matches the pill button/tab language). The
+   select.input / select.select forms out-specify the shared r-sm rule above. */
+select, .select, select.input, select.select { border-radius: var(--r-pill); }
+select:hover:not(:disabled), .select:hover:not(:disabled) { border-color: var(--text); }
 
 /* Generic light-mode form-control defaults so legacy inline-styled
    inputs read on the new white shell. */
@@ -1684,7 +1688,7 @@ select, textarea {
   font: inherit; font-size: 13px; font-weight: 600;
   color: var(--text);
   cursor: pointer;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  border-radius: var(--r-pill);
   max-width: 280px;
 }
 .client-switcher-trigger:hover { border-color: var(--text); }

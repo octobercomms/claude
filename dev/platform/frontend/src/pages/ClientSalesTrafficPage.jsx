@@ -52,6 +52,12 @@ export default function ClientSalesTrafficPage() {
   const accent = useCssVar('--accent', '#20A39E', scopeRef);
   const text = useCssVar('--text', '#1a1a1a', scopeRef);
   const subtle = useCssVar('--text-subtle', '#888', scopeRef);
+  // Chart series colours — from the function-colour palette, each with strong
+  // contrast on the white card so two lines never blur into one.
+  const cRevenue = useCssVar('--fn-strategy', '#0d9488', scopeRef);   // teal
+  const cOrders = useCssVar('--fn-approve', '#db2777', scopeRef);     // pink
+  const cSessions = useCssVar('--fn-distribute', '#0284c7', scopeRef); // blue
+  const cUsers = useCssVar('--fn-create', '#7c3aed', scopeRef);       // violet
   const [tab, setTab] = useTabParam('overview', ['overview', 'dashboard', 'analyst', 'strategist']);
   const [client, setClient] = useState(null);
   const [data, setData] = useState(null);
@@ -203,7 +209,7 @@ export default function ClientSalesTrafficPage() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {[7, 14, 30, 90].map(d => (
             <button key={d} onClick={() => selectDays(d)}
-              style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid ' + (activeKey === 'd' + d ? 'var(--text)' : 'var(--card-border)'), background: activeKey === 'd' + d ? 'var(--text)' : 'var(--surface)', color: activeKey === 'd' + d ? '#fff' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              className={`tab ${activeKey === 'd' + d ? 'active' : ''}`}>
               {d}d
             </button>
           ))}
@@ -246,8 +252,8 @@ export default function ClientSalesTrafficPage() {
                     <YAxis yAxisId="o" orientation="right" tick={{ fontSize: 10 }} allowDecimals={false} />
                     <Tooltip labelFormatter={fmtDay} />
                     <Legend />
-                    <Line yAxisId="r" type="monotone" dataKey="revenue" name="Revenue" stroke={text} strokeWidth={2} dot={false} />
-                    <Line yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke={subtle} strokeWidth={2} dot={false} />
+                    <Line yAxisId="r" type="monotone" dataKey="revenue" name="Revenue" stroke={cRevenue} strokeWidth={2.5} dot={false} />
+                    <Line yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke={cOrders} strokeWidth={2.5} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No sales trend data.</p>}
@@ -261,8 +267,8 @@ export default function ClientSalesTrafficPage() {
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip labelFormatter={fmtDay} />
                     <Legend />
-                    <Line type="monotone" dataKey="sessions" name="Sessions" stroke={text} strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="users" name="Users" stroke={subtle} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="sessions" name="Sessions" stroke={cSessions} strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey="users" name="Users" stroke={cUsers} strokeWidth={2.5} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No traffic data.</p>}
@@ -277,7 +283,7 @@ export default function ClientSalesTrafficPage() {
                   <XAxis type="number" tick={{ fontSize: 10 }} />
                   <YAxis type="category" dataKey="channel" tick={{ fontSize: 11 }} width={120} />
                   <Tooltip />
-                  <Bar dataKey="sessions" name="Sessions" fill={text} />
+                  <Bar dataKey="sessions" name="Sessions" fill={cSessions} radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No channel data.</p>}
