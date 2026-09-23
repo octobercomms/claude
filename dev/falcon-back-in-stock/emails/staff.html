@@ -1,0 +1,36 @@
+<!--
+  Brevo template: Falcon – Staff alert
+  Used by: all stores (internal only; sent to SHOPS[store].staff_email).
+  Subject:      {{ params.subject }}
+  Preview text: {{ params.intro }}
+
+  rows_html is inserted as raw HTML. The Worker builds it and must HTML-escape
+  every value it puts inside (product titles, customer names, notes).
+-->
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ params.subject }}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="padding:20px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;">
+        <tr>
+          <td style="font-family:Arial, Helvetica, sans-serif; color:#1d1d1d; font-size:15px; line-height:22px;">
+            <p style="margin:0 0 4px 0; font-size:12px; line-height:18px; color:#555555; text-transform:uppercase; letter-spacing:1px;">Falcon stock system</p>
+            <h1 style="margin:0 0 12px 0; font-size:20px; line-height:26px; color:#243588;">{{ params.subject }}</h1>
+            <p style="margin:0 0 16px 0;">{{ params.intro }}</p>
+            {% autoescape off %}{{ params.rows_html }}{% endautoescape %}
+            <p style="margin:24px 0 0 0; font-size:12px; line-height:18px; color:#555555;">Sent automatically by the falcon-stock Worker. Do not reply to customers from this thread.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

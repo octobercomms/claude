@@ -1,0 +1,167 @@
+<!--
+  Brevo template: Falcon – Preorder delay notice (US)
+  Used by: US store. American English.
+  When: FIRST delay with a definite new date no more than 30 days after the old date
+        (FTC Mail Order Rule, 16 CFR 435.2(b)(1): silence counts as consent).
+        Also used with earlier=true when the date moves EARLIER on a US order (no consent wording).
+  Subject (VERIFY Brevo evaluates if-conditions in subjects, see README):
+    {% if params.earlier %}Good news: your preorder {{ params.order_name }} will ship sooner{% else %}Your preorder {{ params.order_name }}: new ship date {{ params.new_date }}{% endif %}
+  Preview text:
+    Later date:   Keep your order or cancel for a full refund. Your choice.
+    Earlier date: Now expected to ship by {{ params.new_date }}.
+
+  Legal notice. Do not shorten the consent sentence, the refund timing or the cancel option.
+-->
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<title>Your preorder {{ params.order_name }}</title>
+<style>
+  body { margin: 0; padding: 0; }
+  a { color: #243588; }
+  @media only screen and (max-width: 620px) {
+    .wrap { width: 100% !important; }
+    .pad { padding-left: 20px !important; padding-right: 20px !important; }
+    .btn-cell, .btn-cell a { display: block !important; width: 100% !important; box-sizing: border-box; }
+  }
+</style>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f4f2;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f4f4f2;">{% if params.earlier %}Now expected to ship by {{ params.new_date }}.{% else %}Keep your order or cancel for a full refund. Your choice.{% endif %}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f2;">
+  <tr>
+    <td align="center" style="padding:24px 0;">
+      <table role="presentation" class="wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#ffffff;">
+
+        <!-- Logo -->
+        <tr>
+          <td align="center" class="pad" style="padding:28px 40px 20px 40px; border-bottom:3px solid #243588;">
+            <img src="{% if params.logo_url %}{{ params.logo_url }}{% else %}https://REPLACE_ME.example.com/falcon-logo.png{% endif %}" width="180" alt="Falcon Enamelware" style="display:block; width:180px; max-width:180px; height:auto; border:0; font-family:Arial, Helvetica, sans-serif; font-size:20px; font-weight:bold; color:#243588;">
+          </td>
+        </tr>
+
+        <!-- Intro -->
+        <tr>
+          <td class="pad" style="padding:32px 40px 8px 40px; font-family:Arial, Helvetica, sans-serif; color:#1d1d1d;">
+            {% if params.earlier %}
+            <h1 style="margin:0 0 12px 0; font-size:24px; line-height:30px; font-weight:bold; color:#243588;">Your preorder will ship sooner</h1>
+            <p style="margin:0 0 12px 0; font-size:16px; line-height:24px;">Hello,</p>
+            <p style="margin:0; font-size:16px; line-height:24px;">Good news. We now expect to ship the item on your preorder {{ params.order_name }} earlier than we said.</p>
+            {% else %}
+            <h1 style="margin:0 0 12px 0; font-size:24px; line-height:30px; font-weight:bold; color:#243588;">Your preorder has a new ship date</h1>
+            <p style="margin:0 0 12px 0; font-size:16px; line-height:24px;">Hello,</p>
+            <p style="margin:0; font-size:16px; line-height:24px;">We're sorry. We can't ship the item on your preorder {{ params.order_name }} by the date we gave you. You can keep your order with the new date, or cancel it for a full refund.</p>
+            {% endif %}
+          </td>
+        </tr>
+
+        <!-- Dates -->
+        <tr>
+          <td class="pad" style="padding:20px 40px 8px 40px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #d9dcea; border-radius:4px;">
+              <tr>
+                <td style="padding:16px 20px; font-family:Arial, Helvetica, sans-serif; color:#1d1d1d;">
+                  <p style="margin:0 0 2px 0; font-size:16px; line-height:22px; font-weight:bold;">{{ params.product_title }}</p>
+                  {% if params.variant_title %}<p style="margin:0 0 12px 0; font-size:15px; line-height:21px; color:#555555;">{{ params.variant_title }}</p>{% endif %}
+                  <p style="margin:0 0 4px 0; font-size:15px; line-height:22px;">Original ship date: <span style="text-decoration:line-through; color:#555555;">{{ params.old_date }}</span></p>
+                  <p style="margin:0; font-size:17px; line-height:24px; font-weight:bold; color:#243588;">New ship date: by {{ params.new_date }}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {% if params.reason %}
+        <!-- Reason (optional) -->
+        <tr>
+          <td class="pad" style="padding:16px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; color:#1d1d1d;">
+            <p style="margin:0; font-size:16px; line-height:24px;"><strong>Why the date changed:</strong> {{ params.reason }}</p>
+          </td>
+        </tr>
+        {% endif %}
+
+        {% if params.earlier %}
+        <!-- Earlier date: no consent needed -->
+        <tr>
+          <td class="pad" style="padding:20px 40px 8px 40px; font-family:Arial, Helvetica, sans-serif; color:#1d1d1d;">
+            <p style="margin:0 0 12px 0; font-size:16px; line-height:24px;">You don't need to do anything. We'll email you when it ships.</p>
+            <p style="margin:0; font-size:16px; line-height:24px;">You can still cancel for a full refund, including shipping, at any time before it ships. If you cancel, we'll refund you within 7 business days.</p>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" class="pad" style="padding:16px 40px 8px 40px; font-family:Arial, Helvetica, sans-serif;">
+            <p style="margin:0; font-size:15px; line-height:22px;"><a href="{{ params.order_status_url }}" style="color:#243588; text-decoration:underline;">View your order</a> &nbsp;|&nbsp; <a href="{{ params.cancel_url }}" style="color:#243588; text-decoration:underline;">Cancel for a full refund</a></p>
+          </td>
+        </tr>
+        {% else %}
+        <!-- Two equal options -->
+        <tr>
+          <td class="pad" style="padding:24px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; color:#1d1d1d;">
+            <p style="margin:0 0 12px 0; font-size:17px; line-height:24px; font-weight:bold; color:#243588;">Your two options</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="pad" style="padding:0 40px 0 40px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:16px 20px; border:1px solid #d9dcea; border-radius:4px; font-family:Arial, Helvetica, sans-serif; color:#1d1d1d;">
+                  <p style="margin:0 0 6px 0; font-size:16px; line-height:22px; font-weight:bold;">1. Keep your order</p>
+                  <p style="margin:0; font-size:15px; line-height:22px;">You don't need to do anything. We'll ship it by {{ params.new_date }} and email you when it's on its way.</p>
+                </td>
+              </tr>
+              <tr><td style="height:12px; line-height:12px; font-size:12px;">&nbsp;</td></tr>
+              <tr>
+                <td style="padding:16px 20px; border:1px solid #d9dcea; border-radius:4px; font-family:Arial, Helvetica, sans-serif; color:#1d1d1d;">
+                  <p style="margin:0 0 6px 0; font-size:16px; line-height:22px; font-weight:bold;">2. Cancel for a full refund</p>
+                  <p style="margin:0 0 14px 0; font-size:15px; line-height:22px;">We'll refund you in full, including shipping, within 7 business days of your cancellation.</p>
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td class="btn-cell" align="center" bgcolor="#243588" style="background-color:#243588; border-radius:4px;">
+                        <a href="{{ params.cancel_url }}" style="display:inline-block; padding:12px 28px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:20px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:4px;">Cancel my order</a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Required FTC sentence -->
+        <tr>
+          <td class="pad" style="padding:20px 40px 8px 40px; font-family:Arial, Helvetica, sans-serif; color:#1d1d1d;">
+            <p style="margin:0; font-size:16px; line-height:24px; font-weight:bold;">If we don't receive your cancellation before we ship your order and before {{ params.new_date }}, we'll treat that as your agreement to the delay.</p>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" class="pad" style="padding:12px 40px 8px 40px; font-family:Arial, Helvetica, sans-serif;">
+            <p style="margin:0; font-size:15px; line-height:22px;"><a href="{{ params.order_status_url }}" style="color:#243588; text-decoration:underline;">View your order</a></p>
+          </td>
+        </tr>
+        {% endif %}
+
+        <!-- Reply-to -->
+        <tr>
+          <td class="pad" style="padding:24px 40px 32px 40px; font-family:Arial, Helvetica, sans-serif; color:#1d1d1d;">
+            <p style="margin:0 0 16px 0; font-size:16px; line-height:24px;">Questions? Reply to this email and our team will get back to you. You can also cancel by replying.</p>
+            <p style="margin:0; font-size:16px; line-height:24px;">{% if params.earlier %}Thank you for your order,{% else %}Thank you for your patience,{% endif %}<br>Falcon Enamelware</p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td class="pad" style="padding:20px 40px 24px 40px; background-color:#f0f2f8; font-family:Arial, Helvetica, sans-serif; color:#555555;">
+            <p style="margin:0 0 8px 0; font-size:13px; line-height:20px;">We're sending you this because you have a preorder with us ({{ params.order_name }}) and its ship date has changed.</p>
+            <p style="margin:0; font-size:13px; line-height:20px;"><strong style="color:#243588;">Falcon Enamelware</strong> &nbsp;|&nbsp; <a href="https://us.falconenamelware.com" style="color:#555555; text-decoration:underline;">us.falconenamelware.com</a> &nbsp;|&nbsp; <a href="mailto:hello@falconenamelware.com" style="color:#555555; text-decoration:underline;">hello@falconenamelware.com</a></p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
