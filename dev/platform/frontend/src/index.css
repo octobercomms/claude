@@ -1878,6 +1878,9 @@ a:hover > .card-stat,
 
 /* L6 · ChatCanvas — converse left, live artifact right. */
 .ds-chatcanvas { display: grid; grid-template-columns: 1fr 1.1fr; gap: var(--gap-comp); align-items: start; }
+/* fill variant — a height-filling flex row for the AI-builder modals; the two
+   panes carry their own flex ratios (chat wider than canvas). */
+.ds-chatcanvas--fill { display: flex; gap: var(--s4); flex: 1; min-height: 0; }
 
 @media (max-width: 820px) {
   .ds-workbench, .ds-chatcanvas { grid-template-columns: 1fr; }

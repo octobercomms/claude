@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
+import ChatCanvas from './shells/ChatCanvas';
 
 // Conversational social post planner. Pattern matches ReportTemplateChat:
 // chat on the left, live plan preview on the right, lock & save when ready.
@@ -275,7 +276,9 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
           Describe the post idea (platform, audience, angle). Claude proposes a structured plan with scenes, equipment, captions and approval gates. Iterate, then lock to save and download.
         </p>
 
-        <div className="row" style={{ gap: 'var(--s4)', flex: 1, minHeight: 0 }}>
+        <ChatCanvas
+          fill
+          chat={(
           <div style={{ flex: 1.2, display: "flex", flexDirection: "column", minHeight: 0 }}>
             <div className="card" style={{ flex: 1, padding: 'var(--s3)', overflowY: "auto", minHeight: 220, maxHeight: "50vh" }} ref={scrollRef}>
               {!history.length && (
@@ -332,7 +335,8 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
               </div>
             </div>
           </div>
-
+          )}
+          canvas={(
           <div className="card" style={{ flex: 1, padding: 'var(--s3)', overflowY: "auto", maxHeight: "60vh", position: "relative" }}>
             <div className="caption mb-2">
               {sending ? 'Drafting…' : proposed ? (proposedDiffers ? 'Draft — not yet locked' : 'Locked plan') : 'No draft yet'}
@@ -345,7 +349,8 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
               </div>
             )}
           </div>
-        </div>
+          )}
+        />
 
         {/* Autopilot — only meaningful after the plan is locked. The
             scheduler picks the plan up at scheduled_at, reads the

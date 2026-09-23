@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
+import ChatCanvas from './shells/ChatCanvas';
 
 // Modal — conversational template builder for a client's weekly or monthly
 // report. The AM describes what they want; Claude proposes a JSON template
@@ -136,7 +137,9 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
           Iterate until it's right, then lock to save.
         </p>
 
-        <div className="row" style={{ gap: 'var(--s4)', flex: 1, minHeight: 0 }}>
+        <ChatCanvas
+          fill
+          chat={(
           <div style={{ flex: 1.2, display: "flex", flexDirection: "column", minHeight: 0 }}>
             <div className="card" style={{ flex: 1, padding: 'var(--s3)', overflowY: "auto", minHeight: 220, maxHeight: "50vh" }} ref={scrollRef}>
               {!history.length && (
@@ -201,7 +204,8 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
               </div>
             </div>
           </div>
-
+          )}
+          canvas={(
           <div className="card" style={{ flex: 1, padding: 'var(--s3)', overflowY: "auto", maxHeight: "60vh", position: "relative" }}>
             <div className="caption mb-2">
               {sending
@@ -219,7 +223,8 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
               </div>
             )}
           </div>
-        </div>
+          )}
+        />
 
         {error && <div className="callout callout-danger">{error}</div>}
 
