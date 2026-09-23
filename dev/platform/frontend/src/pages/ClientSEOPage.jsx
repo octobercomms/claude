@@ -19,6 +19,7 @@ import SuiteOverview from '../components/SuiteOverview';
 import OverviewChat from '../components/OverviewChat';
 import StepRail from '../components/shells/StepRail';
 import StatStrip from '../components/shells/StatStrip';
+import PageShell from '../components/shells/PageShell';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import FindPanel from '../components/organic/FindPanel';
 import TopicMapPanel from '../components/organic/TopicMapPanel';
@@ -1125,12 +1126,7 @@ export default function ClientSEOPage() {
 
   return (
     <div className="suite-organic">
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Owned</span></div>
-      <header className="hero">
-        <div>
-          <h1 className="display mt-2">Owned</h1>
-        </div>
-      </header>
+      <PageShell title="Owned" subtitle={client?.name}>
 
       {/* Five top-level groups by job-to-be-done, each fanning out into the
           existing tab content via a sub-strip (no JSX guards below change):
@@ -1465,6 +1461,7 @@ export default function ClientSEOPage() {
         <BacklinksPanel clientId={id} clientName={client?.name} domain={client?.domain} />
       )}
 
+      </PageShell>
     </div>
   );
 }

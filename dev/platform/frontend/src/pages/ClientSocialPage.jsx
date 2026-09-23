@@ -9,6 +9,7 @@ import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
 import StepRail from '../components/shells/StepRail';
+import PageShell from '../components/shells/PageShell';
 import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
@@ -461,17 +462,11 @@ export default function ClientSocialPage() {
     <div className="suite-social">
       {/* HERO — always visible across tabs. Tab-specific actions sit
           inside each tab's section head instead of a global toolbar. */}
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Shared</span></div>
-      <header className="hero">
-        <div>
-          <h1 className="display mt-2">Shared</h1>
-        </div>
-        <div className="hero-actions">
-          <UiButton variant="secondary" size="sm" {...roWrite(readOnly, { onClick: toggleAutopilotPaused })}>
-            {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
-          </UiButton>
-        </div>
-      </header>
+      <PageShell title="Shared" subtitle={client?.name} actions={
+        <UiButton variant="secondary" size="sm" {...roWrite(readOnly, { onClick: toggleAutopilotPaused })}>
+          {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
+        </UiButton>
+      }>
 
       {/* Four top groups in workflow order: Overview / Create / Engage / Measure.
           Create is now the whole factory — Ideas → Brief → Workbench → Plan →
@@ -669,6 +664,7 @@ export default function ClientSocialPage() {
           onScheduled={() => { setBulkOpen(false); setPlansRefreshKey(k => k + 1); loadPostsAndStatus(); }}
         />
       )}
+      </PageShell>
     </div>
   );
 

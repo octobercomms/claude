@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import SuiteTabs from '../components/SuiteTabs';
+import PageShell from '../components/shells/PageShell';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import SuiteOverview from '../components/SuiteOverview';
 import OverviewChat from '../components/OverviewChat';
@@ -1234,11 +1234,6 @@ export default function ClientPRPage() {
 
   return (
     <div className="suite-client-pr">
-      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Earned</span></div>
-      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--s3)' }}>
-        <h1 className="display">Earned</h1>
-      </header>
-
       {/* Tab labels show natural totals (coverage rows / journalist heads)
           rather than workflow-queue counts — the previous "(N)" badges on
           Coverage and Journalists were the number of items in the
@@ -1246,11 +1241,11 @@ export default function ClientPRPage() {
           which read as "Journalists (2)" but meant "2 thank-yous pending"
           and was confusing. Workflow nudges are surfaced on the Overview
           page's "needs attention" rail instead. */}
-      <SuiteTabs tabs={[
+      <PageShell title="Earned" subtitle={client?.name} tabs={[
         { key: 'overview', label: 'Overview', active: suiteGroup === 'overview', onClick: () => setTab('overview') },
         { key: 'health',   label: 'Health',   fn: 'measure', active: suiteGroup === 'health',   onClick: () => setTab('coverage') },
         { key: 'build',    label: 'Build',    fn: 'create',  active: suiteGroup === 'build',    onClick: () => setTab('journalists') },
-      ]} />
+      ]}>
 
       {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>Loading…</p></div>}
 
@@ -1456,6 +1451,7 @@ export default function ClientPRPage() {
           }}
         />
       )}
+      </PageShell>
     </div>
   );
 }
