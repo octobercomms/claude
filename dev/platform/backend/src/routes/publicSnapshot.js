@@ -80,7 +80,9 @@ function taste(lead, { full }) {
     summary: Array.isArray(d.summary) ? d.summary : [],
     sections: full ? (Array.isArray(d.sections) ? d.sections : []) : undefined,
     unlocked: !!full,
-    book_url: BOOK_URL(),
+    // Carry the snapshot token to the booking page so the booking lands on
+    // this same lead (the booking widget's loader reads ?snapshot=).
+    book_url: BOOK_URL() + (BOOK_URL().includes('?') ? '&' : '?') + 'snapshot=' + encodeURIComponent(lead.public_token || ''),
   };
 }
 

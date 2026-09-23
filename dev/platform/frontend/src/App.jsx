@@ -31,6 +31,7 @@ import PublicCoveragePage from './pages/PublicCoveragePage';
 import PressReviewPage from './pages/PressReviewPage';
 import WatchPage from './pages/WatchPage';
 import ProposalPublicPage from './pages/ProposalPublicPage';
+import BookingManagePage from './pages/BookingManagePage';
 import ProposalEditorPage from './pages/ProposalEditorPage';
 import ClientVideoTab from './pages/ClientVideoTab';
 import DesignSystemPage from './pages/DesignSystemPage';
@@ -84,6 +85,7 @@ export default function App() {
           <Route path="/share/:token" element={<WatchPage />} />
           <Route path="/watch/:token" element={<WatchPage />} />
           <Route path="/p/:token" element={<ProposalPublicPage />} />
+          <Route path="/b/:token" element={<BookingManagePage />} />
           <Route path="/set-password/:token" element={<SetPasswordPage />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<DashboardPage />} />

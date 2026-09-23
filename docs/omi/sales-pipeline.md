@@ -68,7 +68,7 @@ AI models: the proposal draft runs on Opus by default and the call brief on the 
 In order of return:
 
 1. **Pull Meet notes automatically.** Gemini "Take notes for me" writes a Google Doc to Drive after each Meet. OMI already holds a Drive scope. Match the doc to the lead by attendee email and fill in the call notes, which removes the only manual paste in the flow.
-2. **Detect bookings.** Add `calendar.readonly` and poll every 15 minutes for events whose attendee email matches a lead. That sets `call_at` and triggers the brief, so there is no "Mark call booked" click.
+2. **Detect bookings.** Done, see `booking.md`. The custom booking widget writes each booking straight onto the lead and triggers the call brief.
 3. **Detect replies.** Reuse the IMAP poller in `outreachReplies` to spot a reply from the recipient's address and mark the proposal replied. Until then, "Mark replied" is manual and the alerts assume no reply.
 4. **GoCardless Billing Requests API.** Prefill the customer's name and email and receive the mandate webhook, so "won" means the mandate is live rather than "clicked accept".
 5. **Client portal space on sign-up.** Create the `clients` row and a folder when the mandate completes.

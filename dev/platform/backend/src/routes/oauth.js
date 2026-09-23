@@ -132,6 +132,16 @@ router.get('/oauth/start-url', async (req, res) => {
 
 // ─── Google OAuth ───────────────────────────────────────────────
 
+// October's own Google Calendar for the book-a-call widget (admin only).
+// Shares the Google OAuth client + redirect URI; the signed state carries
+// purpose=calendar so the callback below stores it platform-wide instead of
+// on a client connector.
+router.get('/google/calendar/start', authenticate, (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).send('Admin only');
+  const state = signOAuthState({ purpose: 'calendar' });
+  res.redirect(require('../services/googleCalendar').getAuthUrl(state));
+});
+
 router.get('/google/start', (req, res) => {
   const { client_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');
@@ -145,7 +155,12 @@ router.get('/google/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const { client_id } = ((await consumeOAuthState(state)) || (() => { throw new Error('Invalid, expired, or already-used OAuth state'); })());
+    const payload = ((await consumeOAuthState(state)) || (() => { throw new Error('Invalid, expired, or already-used OAuth state'); })());
+    if (payload.purpose === 'calendar') {
+      const email = await require('../services/googleCalendar').handleCallback(code);
+      return res.send(oauthPopupHtml('success', `Google Calendar connected${email ? ` (${email})` : ''}.`, 'google_calendar'));
+    }
+    const { client_id } = payload;
     const tokens = await googleConnector.exchangeCode(code);
     const encrypted = encrypt(tokens);
 
