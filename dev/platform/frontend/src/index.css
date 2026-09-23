@@ -1912,6 +1912,13 @@ a:hover > .card-stat,
 .ds-stat__delta { font-size: var(--fs-caption); font-weight: 700; margin-top: 3px; color: var(--text-subtle); }
 .ds-stat__delta.up { color: var(--positive); }
 .ds-stat__delta.down { color: var(--negative); }
+.ds-stat__sub { font-size: var(--fs-caption); color: var(--text-subtle); margin-top: 4px; }
+/* Feature tile — one highlighted stat (dark fill, white ink), for the headline
+   metric in a strip. Supersedes the old .stat.feature. */
+.ds-stat--feature { background: var(--text); border-color: var(--text); }
+.ds-stat--feature .ds-stat__value,
+.ds-stat--feature .ds-stat__label,
+.ds-stat--feature .ds-stat__sub { color: #fff; }
 
 /* L4 · StepRail — the one step indicator (merges Stepper + ProcessRail). */
 .ds-steprail { display: flex; align-items: flex-start; gap: 0; flex-wrap: wrap; }

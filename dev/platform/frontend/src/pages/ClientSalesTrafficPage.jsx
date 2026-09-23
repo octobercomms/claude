@@ -4,6 +4,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Responsi
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
+import StatStrip from '../components/shells/StatStrip';
 import DataFlowMap from '../components/DataFlowMap';
 import ClientChatPage from './ClientChatPage';
 import StrategistBriefingPanel from '../components/StrategistBriefingPanel';
@@ -231,13 +232,8 @@ export default function ClientSalesTrafficPage() {
         <div style={{ color: 'var(--negative)', padding: 'var(--s5)' }}>{data.error}</div>
       ) : data ? (
         <>
-          <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 'var(--s5)' }}>
-            {cards.map((c, i) => (
-              <div key={c.label} className={'stat' + (i === 0 ? ' feature' : '')}>
-                <div className="stat-label">{c.label}</div>
-                <div className="stat-value">{c.value}</div>
-              </div>
-            ))}
+          <div style={{ marginBottom: 'var(--s5)' }}>
+            <StatStrip items={cards.map((c, i) => ({ ...c, feature: i === 0 }))} />
           </div>
 
           <div className="grid grid-2" style={{ marginBottom: 'var(--s4)' }}>
@@ -290,14 +286,8 @@ export default function ClientSalesTrafficPage() {
 
           {hasEcom && (
             <div style={{ marginTop: 'var(--s4)' }}>
-              <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 'var(--s5)' }}>
-                {ecomCards.map(c => (
-                  <div key={c.label} className="stat">
-                    <div className="stat-label">{c.label}</div>
-                    <div className="stat-value">{c.value}</div>
-                    {c.sub && <div className="body-sm text-subtle" style={{ marginTop: 'var(--s1)' }}>{c.sub}</div>}
-                  </div>
-                ))}
+              <div style={{ marginBottom: 'var(--s5)' }}>
+                <StatStrip items={ecomCards} />
               </div>
               {ecom.topProducts && ecom.topProducts.length > 0 && (
                 <div className="card">
