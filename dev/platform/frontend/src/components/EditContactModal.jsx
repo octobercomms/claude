@@ -11,7 +11,7 @@ const KIND_OPTIONS = [
 ];
 function fmtDate(d) { if (!d) return '—'; const t = new Date(d); return isNaN(t) ? d : t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
-export default function EditContactModal({ contact, onClose, onSaved, entityLabel = 'contact' }) {
+export default function EditContactModal({ contact, onClose, onSaved, entityLabel = 'contact', embedded = false }) {
   const toast = useToast();
   const Cap = entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1);
   const isPress = (contact.kind || 'media') !== 'prospect';
@@ -73,21 +73,22 @@ export default function EditContactModal({ contact, onClose, onSaved, entityLabe
       const updated = await api.put(`/outreach/contacts/${contact.id}`, { ...form, name: combinedName, role: form.title });
       toast(`${Cap} saved`, 'success');
       onSaved(updated);
-      onClose();
+      if (!embedded) onClose();
     } catch (err) { toast(err.message, 'error'); }
     finally { setSaving(false); }
   }
 
-  // Close on Escape
+  // Close on Escape (modal mode only — in an embedded pane there's nothing to
+  // dismiss and the key belongs to the page).
   useEffect(() => {
+    if (embedded) return;
     function onKey(e) { if (e.key === 'Escape') onClose(); }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, embedded]);
 
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal modal-wide">
+  const content = (
+    <>
         <div className="modal-head">
           <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>{contact.name || contact.email || Cap}</h2>
           <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
@@ -179,7 +180,15 @@ export default function EditContactModal({ contact, onClose, onSaved, entityLabe
             <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : `Save ${Cap}`}</button>
           )}
         </div>
-      </form>
+    </>
+  );
+
+  if (embedded) {
+    return <form onSubmit={save} className="card" style={{ margin: 0 }}>{content}</form>;
+  }
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal modal-wide">{content}</form>
     </div>
   );
 }
