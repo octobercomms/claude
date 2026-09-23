@@ -65,7 +65,7 @@ export default function StrategyTemplatesPanel() {
       <div style={{ maxWidth: 760 }}>
         <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
           <h3 className="h3">{editing.id ? 'Edit template' : 'New template'}</h3>
-          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>← Back</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>Back</button>
         </div>
         <div className="field"><label className="field-label">Name</label>
           <input className="input" value={editing.name} onChange={e => set({ name: e.target.value })} placeholder="e.g. Retail · Launch" /></div>
@@ -89,7 +89,7 @@ export default function StrategyTemplatesPanel() {
           <div key={pi} className="card" style={{ marginBottom: 'var(--s3)' }}>
             <div className="row" style={{ gap: 'var(--s2)' }}>
               <input className="input" style={{ flex: 1, fontWeight: 600 }} value={ph.title} onChange={e => setPhase(pi, { title: e.target.value })} placeholder="Phase title (e.g. Foundations)" />
-              <button className="btn btn-secondary btn-sm" onClick={() => delPhase(pi)}>✕ phase</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => delPhase(pi)}>phase</button>
             </div>
             <div className="stack stack-sm" style={{ marginTop: 'var(--s2)' }}>
               {ph.items.map((it, ii) => (

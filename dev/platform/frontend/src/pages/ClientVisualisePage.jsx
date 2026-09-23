@@ -243,7 +243,7 @@ function Studio({ clientId, projectId, onBack }) {
 
   return (
     <div>
-      <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 'var(--s3)' }}>← Library</button>
+      <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 'var(--s3)' }}>Library</button>
       <div className="row between center wrap mb-4" style={{ gap: 'var(--s3)' }}>
         <div>
           <h1 className="h1">{project.name}</h1>
@@ -335,7 +335,7 @@ function Studio({ clientId, projectId, onBack }) {
                     <div className="row center" style={{ gap: 'var(--s2)' }}>
                       {variant.locked_step_id === activeStep.id
                         ? <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>✓ Locked</span>
-                        : <button className="btn btn-secondary btn-sm" onClick={() => lock(activeStep.id)}>🔒 Lock this</button>}
+                        : <button className="btn btn-secondary btn-sm" onClick={() => lock(activeStep.id)}>Lock this</button>}
                       <button className="btn btn-primary btn-sm" onClick={doExport} disabled={!variant.locked_step_id || exporting}>
                         {exporting ? 'Upscaling…' : '⬇ Export 4K'}
                       </button>
@@ -541,7 +541,7 @@ function InputsPanel({ clientId, project, preset, onChange }) {
           <div key={slot.kind} style={{ marginBottom: 'var(--s3)' }}>
             <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
               <span className="body-xs text-muted">{slot.label}{slot.required ? ' *' : ''}</span>
-              <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => { setKind(slot.kind); fileRef.current?.click(); }}>⬆ Add</button>
+              <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => { setKind(slot.kind); fileRef.current?.click(); }}>Add</button>
             </div>
             {items.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: 'var(--s2)' }}>

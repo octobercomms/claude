@@ -352,9 +352,12 @@ button { font-family: inherit; }
 }
 .btn-secondary:hover:not(:disabled) { background: var(--text); border-color: var(--text); color: #fff; }
 
+/* Deprecated alias — folded into .btn-secondary (one button size). Kept so the
+   ~110 existing `.btn-ghost` usages render identically without a markup sweep;
+   prefer .btn-secondary in new code. */
 .btn-ghost {
   background: var(--surface); color: var(--text);
-  border-color: var(--border-neutral); padding: 6px 10px;
+  border-color: var(--border-neutral);
 }
 .btn-ghost:hover:not(:disabled) { background: var(--text); border-color: var(--text); color: #fff; }
 
@@ -364,6 +367,24 @@ button { font-family: inherit; }
   border-color: var(--negative);
 }
 .btn-danger:hover:not(:disabled) { background: var(--text); border-color: var(--text); color: #fff; }
+
+/* Icon button — a single glyph action with no label (✕ close/remove, ✓ confirm,
+   ＋ / −, ✎ edit). Round, transparent, inherits colour; on hover it fills black
+   with a white glyph, the same invert as the filled buttons. `.danger` tints the
+   glyph red at rest (e.g. a destructive ✕). Not a .btn — no pill/border chrome. */
+.btn-icon {
+  display: inline-grid; place-items: center;
+  width: 30px; height: 30px; padding: 0; flex: none;
+  border: none; border-radius: var(--r-pill);
+  background: none; color: var(--text);
+  font-size: var(--fs-title); line-height: 1; cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.btn-icon.danger { color: var(--negative); }
+.btn-icon:hover:not(:disabled) { background: var(--text); color: #fff; }
+.btn-icon:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Small variant for tight table cells / inline rows. */
+.btn-icon.btn-icon-sm { width: 24px; height: 24px; font-size: var(--fs-body); }
 
 /* Quiet utility link — text only, no fill or border. For utilities that
    aren't primary actions (copy a link, run a check). Keeps accent = action:
@@ -378,15 +399,16 @@ button { font-family: inherit; }
 .btn-link:hover:not(:disabled) { color: var(--link-hover); }
 .btn-link:disabled { opacity: 0.5; cursor: default; }
 
-/* A <button> that reads exactly like an inline text link — used where a name in
-   a table opens a card in place instead of navigating. Mirrors the global <a>
-   style (neutral at rest, accent + underline on hover) so it's visually a link. */
-.link-btn {
+/* Row trigger — a <button> wrapping clickable *content* (a name, a title, a
+   whole row) that opens its record in place. Reads as data (no underline) until
+   hover, then underlines. A distinct job from .btn-link (which is a link that
+   looks like a link); this is content that happens to be clickable. */
+.row-trigger {
   background: none; border: none; padding: 0; margin: 0;
   font: inherit; color: var(--text); text-align: left; cursor: pointer;
 }
-.link-btn:hover { color: var(--link-hover); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.link-btn:focus-visible { outline: var(--border-w) solid var(--accent); outline-offset: 2px; }
+.row-trigger:hover { color: var(--link-hover); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.row-trigger:focus-visible { outline: var(--border-w) solid var(--accent); outline-offset: 2px; }
 
 /* Dropdown menu — a button that reveals a small bordered panel of actions.
    Used to group related actions (e.g. the two CSV imports) behind one control. */
@@ -1184,6 +1206,24 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 }
 .tab:hover:not(.active) { color: var(--text); background: var(--surface-sunken); }
 .tab.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+/* Binary switch — two labels flank a track; the active one inks up and the knob
+   slides to it. For true 2-way toggles only (sort A/B, filter all/starred). Any
+   choice with 3+ options uses .tab. Toggle .switch-track.on to flip. */
+.switch { display: inline-flex; align-items: center; gap: var(--s3); font-weight: 700; font-size: var(--fs-body); user-select: none; }
+.switch-label { color: var(--text-subtle); transition: color 0.15s ease; cursor: pointer; }
+.switch-label.on { color: var(--text); }
+.switch-track {
+  width: 46px; height: 26px; flex: none; position: relative; cursor: pointer;
+  border: none; padding: 0; border-radius: var(--r-pill); background: var(--text);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.switch-knob {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: left 0.18s cubic-bezier(0.4, 0.1, 0.3, 1.4);
+}
+.switch-track.on .switch-knob { left: 23px; }
 
 .hero:has(+ .tabs) { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
 

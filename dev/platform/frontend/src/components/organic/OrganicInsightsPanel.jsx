@@ -89,8 +89,7 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
           )}
           {onOpenKeywords && (
             <button onClick={onOpenKeywords} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s3)' }}>
-              See all keywords →
-            </button>
+              See all keywords</button>
           )}
         </div>
 
@@ -154,8 +153,7 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
               </div>
               {onOpenAiVisibility && (
                 <button onClick={onOpenAiVisibility} className="btn btn-ghost btn-sm" style={{ marginTop: 'var(--s3)', color: 'var(--text)', padding: 0 }}>
-                  See AI visibility →
-                </button>
+                  See AI visibility</button>
               )}
             </>
           )}

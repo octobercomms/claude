@@ -616,7 +616,7 @@ export default function ClientPRPage() {
             <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: sendReportNow })}>Send report now</button>
           </div>
           <div style={{ marginTop: 'var(--s4)', borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 'var(--s4)' }}>
-            <button className="btn-link" onClick={copyPortalLink}>🔗 Copy client coverage link</button>
+            <button className="btn-link" onClick={copyPortalLink}>Copy client coverage link</button>
             <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)', marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
           </div>
         </div>
@@ -628,7 +628,7 @@ export default function ClientPRPage() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                 <h3 className="h3" style={{ margin: 0 }}>{pr.title || 'New press release'}</h3>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setPr(null); loadReleases(); }}>← All releases</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setPr(null); loadReleases(); }}>All releases</button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
                 <label className="field"><span className="field-label">Headline / working title</span><input className="input" value={pr.title || ''} onChange={(e) => setPr((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Forgeworks unveils House of Wood Shingle" /></label>
@@ -643,7 +643,7 @@ export default function ClientPRPage() {
                 <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Published URL (once live)</span><input className="input" value={pr.url || ''} onChange={(e) => setPr((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
               </div>
               <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginBottom: 'var(--s3)', alignItems: 'center' }}>
-                <button className="btn btn-secondary" onClick={copyReviewLink}>🔗 Client approval link</button>
+                <button className="btn btn-secondary" onClick={copyReviewLink}>Client approval link</button>
                 {pr.approved_at && <span className="chip chip-accent">✓ Approved by {pr.approved_by || 'client'}</span>}
                 {['approved', 'sent'].includes(pr.status) && (
                   <button className="btn btn-primary" {...roWrite(readOnly, { onClick: createPitchCampaign, title: 'Pitch this release to journalists in the Email tab' })}>{pr.campaign_id ? 'Open pitch campaign →' : '📣 Create pitch campaign →'}</button>
@@ -666,7 +666,7 @@ export default function ClientPRPage() {
                 <tbody>
                   {releases.map((r) => (
                     <tr key={r.id}>
-                      <td><button className="link-btn" onClick={() => openRelease(r.id)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', padding: 0, font: 'inherit' }}>{r.title || '(untitled)'}</button></td>
+                      <td><button className="row-trigger" onClick={() => openRelease(r.id)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', padding: 0, font: 'inherit' }}>{r.title || '(untitled)'}</button></td>
                       <td>{r.brand || '—'}</td>
                       <td><span className="chip">{({ draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' })[r.status] || r.status}</span></td>
                       <td>{fmtDate(r.created_at)}</td>
@@ -728,7 +728,7 @@ export default function ClientPRPage() {
                             style={{ minWidth: 260, padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-body)' }} />
                         ) : (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' }}>
-                            <button className="link-btn" title="Open campaign"
+                            <button className="row-trigger" title="Open campaign"
                               onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}
                               style={{ background: 'none', border: 'none', color: 'var(--text)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit', textAlign: 'left', fontWeight: r.display_name ? 600 : 400 }}>
                               {r.display_name || r.title || '(untitled release)'}
@@ -771,7 +771,7 @@ export default function ClientPRPage() {
                       <td>{fmtDate(r.created_at)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
                         {r.campaign_id && firstTotal > 0 ? (
-                          <button className="link-btn" onClick={() => setExpandedPR(expanded ? null : r.id)}
+                          <button className="row-trigger" onClick={() => setExpandedPR(expanded ? null : r.id)}
                             title="Click for stats"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', color: 'var(--text)' }}>
                             {pending > 0 ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2, display: 'inline-block', verticalAlign: 'middle', marginRight: 'var(--s2)' }} /> : null}
@@ -801,7 +801,7 @@ export default function ClientPRPage() {
                             <span><strong>{num(clicked)}</strong> <span style={{ color: 'var(--text-subtle)' }}>clicked</span></span>
                             {paused && <span className="chip" style={{ color: 'var(--negative)' }}>paused</span>}
                             <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}
-                              onClick={() => { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); }}>Open full results →</button>
+                              onClick={() => { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); }}>Open full results</button>
                           </div>
                         </td>
                       </tr>
@@ -830,7 +830,7 @@ export default function ClientPRPage() {
                     <tbody>
                       {pitchResult.targets.map((t) => (
                         <tr key={t.id}>
-                          <td><button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'journalist', id: t.id })}>{t.name}</button>{t.strength_label ? <span className="chip" style={{ marginLeft: 'var(--s2)' }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 'var(--s2)' }}>no email</span>}</td>
+                          <td><button type="button" className="row-trigger" onClick={() => setProfileTarget({ type: 'journalist', id: t.id })}>{t.name}</button>{t.strength_label ? <span className="chip" style={{ marginLeft: 'var(--s2)' }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 'var(--s2)' }}>no email</span>}</td>
                           <td>{t.outlet || '—'}</td>
                           <td>{t.tier ? `T${t.tier}` : '—'}</td>
                           <td style={{ fontSize: 'var(--fs-body)' }}>{t.reason}</td>
@@ -954,7 +954,7 @@ export default function ClientPRPage() {
               <tbody>
                 {journalists.map((j) => (
                   <tr key={j.id}>
-                    <td><button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'journalist', id: j.id })}>{j.name}</button></td>
+                    <td><button type="button" className="row-trigger" onClick={() => setProfileTarget({ type: 'journalist', id: j.id })}>{j.name}</button></td>
                     <td>{j.outlet || '—'}</td>
                     <td>{j.tier ? <span className="chip">T{j.tier}</span> : '—'}</td>
                     <td>{j.published}</td>
@@ -1024,7 +1024,7 @@ export default function ClientPRPage() {
           <div className="row between center wrap" style={{ gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
             <div className="row wrap" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
               <button className="btn btn-primary" onClick={() => startEdit(null)}>+ Add entry</button>
-              <button className="btn btn-secondary" onClick={() => setUrlModal(true)} title="Paste a coverage URL — AI pulls the publication, journalist, headline and date, then asks to merge with a pending pitch or log as new">🔗 From a link</button>
+              <button className="btn btn-secondary" onClick={() => setUrlModal(true)} title="Paste a coverage URL — AI pulls the publication, journalist, headline and date, then asks to merge with a pending pitch or log as new">From a link</button>
               <div className="menu-anchor" ref={importMenuRef}>
                 <button className="btn btn-secondary" disabled={importing} aria-haspopup="menu" aria-expanded={importOpen}
                   onClick={() => setImportOpen(o => !o)}>{importing ? 'Importing…' : '↑ Import ▾'}</button>
@@ -1045,7 +1045,7 @@ export default function ClientPRPage() {
               </div>
             </div>
             <div className="row" style={{ gap: 'var(--s4)', alignItems: 'center' }}>
-              <button className="btn-link" onClick={copyPortalLink} title="Copy the read-only public coverage URL for sharing with the client">🔗 Copy coverage link</button>
+              <button className="btn-link" onClick={copyPortalLink} title="Copy the read-only public coverage URL for sharing with the client">Copy coverage link</button>
               <button className="btn-link" disabled={checkingLinks} onClick={checkLinks} title="HEAD every story URL — flags 404s and DNS failures so you can hunt for the new link">{checkingLinks ? 'Checking…' : '🔍 Check links'}</button>
             </div>
           </div>
@@ -1116,9 +1116,9 @@ export default function ClientPRPage() {
                   );
                   return sorted.map((r) => (
                     <tr key={r.id}>
-                      <td title={r.outlet || ''}>{r.outlet_id && r.outlet ? <button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'outlet', id: r.outlet_id })}>{r.outlet}</button> : (r.outlet || '—')}</td>
+                      <td title={r.outlet || ''}>{r.outlet_id && r.outlet ? <button type="button" className="row-trigger" onClick={() => setProfileTarget({ type: 'outlet', id: r.outlet_id })}>{r.outlet}</button> : (r.outlet || '—')}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{r.country || '—'}</td>
-                      <td title={r.journalist || ''}>{r.contact_id && r.journalist ? <button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'journalist', id: r.contact_id })}>{r.journalist}</button> : (r.journalist || '—')}</td>
+                      <td title={r.journalist || ''}>{r.contact_id && r.journalist ? <button type="button" className="row-trigger" onClick={() => setProfileTarget({ type: 'journalist', id: r.contact_id })}>{r.journalist}</button> : (r.journalist || '—')}</td>
                       <td style={{ whiteSpace: 'nowrap' }}><StatusPill status={r.status} label={r.status_label || r.status} /></td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.issue_date)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.request_date)}</td>
@@ -1185,7 +1185,7 @@ export default function ClientPRPage() {
               {queueSel.size > 0 && (
                 <span style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
                   <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{queueSel.size} selected</span>
-                  <button className="btn btn-primary btn-sm" disabled={bulkBusy} onClick={() => bulkReview('published')}>✓ Confirm selected</button>
+                  <button className="btn btn-primary btn-sm" disabled={bulkBusy} onClick={() => bulkReview('published')}>Confirm selected</button>
                   <button className="btn btn-secondary btn-sm" disabled={bulkBusy} onClick={() => bulkReview('dismissed')}>Dismiss selected</button>
                 </span>
               )}
@@ -1204,7 +1204,7 @@ export default function ClientPRPage() {
                     <td>{fmtDate(r.issue_date)}</td>
                     <td>{r.source === 'alerts' ? 'Alerts' : 'News'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-primary btn-sm" onClick={() => reviewItem(r.id, 'published')}>✓ Confirm</button>{' '}
+                      <button className="btn btn-primary btn-sm" onClick={() => reviewItem(r.id, 'published')}>Confirm</button>{' '}
                       <button className="btn btn-secondary btn-sm" onClick={() => reviewItem(r.id, 'dismissed')}>Dismiss</button>
                     </td>
                   </tr>

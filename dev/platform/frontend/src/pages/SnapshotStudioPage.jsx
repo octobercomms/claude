@@ -125,7 +125,7 @@ export default function SnapshotStudioPage() {
 
   return (
     <div>
-      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/leads')} style={{ marginBottom: 'var(--s3)' }}>← All leads</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/leads')} style={{ marginBottom: 'var(--s3)' }}>All leads</button>
       <div className="row between center wrap" style={{ gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
         <div style={{ minWidth: 0 }}>
           <div className="kicker"><span className="pip" />Snapshot Studio</div>
@@ -136,7 +136,7 @@ export default function SnapshotStudioPage() {
           <button className="btn btn-secondary" onClick={() => gather()} disabled={busy === 'gather'}>
             {busy === 'gather' ? 'Drafting…' : (hasDraft ? '↻ Re-draft' : '⚡ Draft')}
           </button>
-          <button className="btn btn-secondary" onClick={downloadPdf} disabled={!hasDraft}>↓ PDF</button>
+          <button className="btn btn-secondary" onClick={downloadPdf} disabled={!hasDraft}>PDF</button>
           {lead.status !== 'sent' && <button className="btn btn-primary" onClick={() => patch({ status: 'sent' })} disabled={!hasDraft}>Mark sent</button>}
           {lead.status === 'sent' && <button className="btn btn-primary" onClick={() => patch({ status: 'booked' })}>Mark booked</button>}
         </div>
@@ -171,7 +171,7 @@ export default function SnapshotStudioPage() {
           <div className="card">
             <div className="row between center mb-3">
               <div className="caption">Images — tick to feature</div>
-              <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()}>⬆ Upload</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()}>Upload</button>
               <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
                 onChange={e => { uploadImage(e.target.files?.[0]); e.target.value = ''; }} />
             </div>

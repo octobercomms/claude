@@ -598,7 +598,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
                 <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recent Campaigns</div>
-                {campaigns.length > 5 && <button onClick={() => setTab('campaigns')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', padding: 0 }}>View all →</button>}
+                {campaigns.length > 5 && <button onClick={() => setTab('campaigns')} className="btn-link" style={{ fontSize: 'var(--fs-caption)' }}>View all</button>}
               </div>
               {recentCampaigns.length === 0 ? (
                 <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 0 }}>No campaigns yet — use “+ New Campaign” above to create one.</p>
@@ -628,8 +628,8 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
           <div className="row wrap" style={{ gap: 'var(--s2)' }}>
             <button onClick={() => setShowAddContact(v => !v)} className="btn btn-primary">{showAddContact ? 'Cancel' : '+ Add lead'}</button>
             <button onClick={() => setShowFinder(v => !v)} className="btn btn-secondary">{showFinder ? 'Close finder' : '⌕ Find leads'}</button>
-            <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
-            <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
+            <button onClick={() => setShowImport(true)} className="btn btn-secondary">Import CSV</button>
+            <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">Export CSV</button>
             <VerifyAllButton clientId={id} onDone={() => { /* parent refresh via badge in place */ }} disabled={contacts.length === 0} />
             {selectedContacts.size > 0 && (
               <button onClick={handleBulkDelete} className="btn btn-danger">Delete {selectedContacts.size} selected</button>
@@ -679,7 +679,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                         <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>{d.domain}</div>
                         {d.title && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>}
                       </div>
-                      <button onClick={() => { setFindDomain(d.domain); runFind(d.domain); }} className="btn btn-secondary">Find emails →</button>
+                      <button onClick={() => { setFindDomain(d.domain); runFind(d.domain); }} className="btn btn-secondary">Find emails</button>
                     </div>
                   ))}
                 </div>

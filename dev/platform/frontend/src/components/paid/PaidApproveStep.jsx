@@ -49,7 +49,7 @@ export default function PaidApproveStep({ pipeline, onNext, onBack }) {
               <input value={shareUrl} readOnly onFocus={e => e.target.select()}
                 style={{ flex: 1, padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} />
               <button onClick={() => navigator.clipboard.writeText(shareUrl)} className="btn btn-primary btn-sm">Copy</button>
-              <button onClick={() => setShareUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--positive)' }}>×</button>
+              <button onClick={() => setShareUrl(null)} className="btn-icon" aria-label="Close">×</button>
             </div>
           )}
         </>

@@ -107,7 +107,7 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
                 )}
                 {isActive && (
                   <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                    <button onClick={(e) => { e.stopPropagation(); onNext?.(); }} className="btn btn-primary btn-sm">Open concepts →</button>
+                    <button onClick={(e) => { e.stopPropagation(); onNext?.(); }} className="btn btn-primary btn-sm">Open concepts</button>
                     <button onClick={(e) => { e.stopPropagation(); deleteBatch(b.id); }} className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
                   </div>
                 )}

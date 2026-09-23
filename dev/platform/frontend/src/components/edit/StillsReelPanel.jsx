@@ -110,8 +110,8 @@ export default function StillsReelPanel({ clientId, onSubmitted }) {
                     <img src={im.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     <span style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(0,0,0,.7)', color: '#fff', fontWeight: 800, fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s2)' }}>{i + 1}</span>
                     <div style={{ position: 'absolute', bottom: 4, left: 4, right: 4, display: 'flex', gap: 'var(--s1)', justifyContent: 'center' }}>
-                      <button className="btn btn-secondary btn-sm" disabled={i === 0} onClick={() => move(im.id, -1)} style={{ padding: '0 var(--s2)' }} title="Earlier">←</button>
-                      <button className="btn btn-secondary btn-sm" disabled={i === images.length - 1} onClick={() => move(im.id, 1)} style={{ padding: '0 var(--s2)' }} title="Later">→</button>
+                      <button className="btn btn-secondary btn-sm" disabled={i === 0} onClick={() => move(im.id, -1)} style={{ padding: '0 var(--s2)' }} title="Earlier"></button>
+                      <button className="btn btn-secondary btn-sm" disabled={i === images.length - 1} onClick={() => move(im.id, 1)} style={{ padding: '0 var(--s2)' }} title="Later"></button>
                       <button className="btn btn-secondary btn-sm" onClick={() => removeImg(im.id)} style={{ padding: '0 var(--s2)', color: 'var(--negative)' }} title="Remove">×</button>
                     </div>
                   </div>

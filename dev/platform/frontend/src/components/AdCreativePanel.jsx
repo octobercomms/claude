@@ -194,7 +194,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
             style={{ flex: 1, padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} />
           <button onClick={() => navigator.clipboard.writeText(shareUrl)}
             style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>Copy</button>
-          <button onClick={() => setShareUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--positive)' }}>×</button>
+          <button onClick={() => setShareUrl(null)} className="btn-icon" aria-label="Close">×</button>
         </div>
       )}
 
@@ -496,7 +496,7 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
           <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{creative.framework}</span>
           <span className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)' }}>{creative.angle}</span>
         </div>
-        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', fontSize: 'var(--fs-title)', lineHeight: 1 }}>×</button>
+        <button onClick={onDelete} className="btn-icon danger" aria-label="Delete">×</button>
       </div>
 
       <div style={{ marginTop: 'var(--s3)' }}>
@@ -634,7 +634,7 @@ function ImageThumb({ img, onDelete, onFanOut }) {
       <button onClick={onDelete} className="text-negative" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "var(--surface)", border: "var(--border-w) solid var(--card-border)", cursor: "pointer", fontSize: 'var(--fs-caption)', lineHeight: 1 }}>×</button>
       {!isVideo && hovered && onFanOut && (
         <button onClick={() => onFanOut(img.id)} title="Adobe Photoshop generative resize — fan out to every other aspect ratio"
-          style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", background: "var(--text)", border: "none", cursor: "pointer", fontSize: 'var(--fs-body)', lineHeight: 1, color: "var(--surface)", fontWeight: 700 }}>↔</button>
+          style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", background: "var(--text)", border: "none", cursor: "pointer", fontSize: 'var(--fs-body)', lineHeight: 1, color: "var(--surface)", fontWeight: 700 }}></button>
       )}
     </div>
   );

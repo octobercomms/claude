@@ -326,11 +326,10 @@ export default function ImportWizard({
             )}
 
             <div style={footer}>
-              <button onClick={() => setStep(1)} style={ghostBtn}>← Back</button>
+              <button onClick={() => setStep(1)} style={ghostBtn}>Back</button>
               <div style={{ flex: 1 }} />
               <button onClick={() => setStep(3)} disabled={!mappingHasEmail || !builtRows.length || !kindReady} style={btn}>
-                Continue →
-              </button>
+                Continue</button>
             </div>
             {!mappingHasEmail && (
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 'var(--s2)' }}>Map one column to Email to continue.</div>
@@ -358,7 +357,7 @@ export default function ImportWizard({
             </div>
 
             <div style={footer}>
-              <button onClick={() => setStep(2)} style={ghostBtn} disabled={importing}>← Back</button>
+              <button onClick={() => setStep(2)} style={ghostBtn} disabled={importing}>Back</button>
               <div style={{ flex: 1 }} />
               <button onClick={runImport} disabled={importing} style={importing ? { ...btn, opacity: 0.6 } : btn}>
                 {importing ? 'Importing…' : `Import ${builtRows.length} ${entityLabel}${builtRows.length === 1 ? '' : 's'}`}

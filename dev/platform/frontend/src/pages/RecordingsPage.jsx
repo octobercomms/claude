@@ -639,8 +639,8 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                       {!clients.length && <span className="body-sm text-subtle">No clients found.</span>}
                     </div>
                     <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
-                      <button onClick={saveClients} style={{ padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700, fontSize: 'var(--fs-body)', cursor: 'pointer' }}>Save</button>
-                      <button onClick={() => setEditClients(null)} style={{ padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontWeight: 600, fontSize: 'var(--fs-body)', cursor: 'pointer' }}>Cancel</button>
+                      <button onClick={saveClients} className="btn btn-primary btn-sm">Save</button>
+                      <button onClick={() => setEditClients(null)} className="btn btn-secondary btn-sm">Cancel</button>
                     </div>
                   </div>
                 )}
@@ -655,11 +655,11 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                   const label = fmt.toUpperCase();
                   if (has) return (
                     <button key={fmt} onClick={() => downloadExport(r, fmt)} title={`Download ${label}`}
-                      style={{ padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' }}>⬇ {label}</button>
+                      className="btn btn-secondary btn-sm">{label}</button>
                   );
                   if (r.export_status === 'processing') return (
                     <button key={fmt} disabled title="Rendering…"
-                      style={{ padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, opacity: 0.6, cursor: 'default' }}>… {label}</button>
+                      className="btn btn-secondary btn-sm">… {label}</button>
                   );
                   return (
                     <button key={fmt} onClick={() => exportRec(r, fmt)} title={`Render a shareable ${label}`}

@@ -98,7 +98,7 @@ export default function KeywordFootprintPanel({ clientId, onSendToPipeline }) {
                       {p.page_url.replace(/^https?:\/\//, '')}
                     </a>
                     {onSendToPipeline && (
-                      <button onClick={() => onSendToPipeline(p)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)' }}>Refresh in Pipeline →</button>
+                      <button onClick={() => onSendToPipeline(p)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)' }}>Refresh in Pipeline</button>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>

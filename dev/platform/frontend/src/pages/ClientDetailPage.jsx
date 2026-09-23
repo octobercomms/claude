@@ -1124,7 +1124,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                 ? <span style={getLabelStyle(connector.store_label)}>{getCountryFlag(connector.store_label)} {connector.store_label}</span>
                 : <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', cursor: 'pointer' }} onClick={() => setEditingLabel(true)}>+ add label</span>
               }
-              {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', padding: 0 }} title="Edit label">✎</button>}
+              {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} className="btn-icon btn-icon-sm" title="Edit label">✎</button>}
             </span>
           )}
           <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: isActive ? 'var(--positive)' : (statusColor[connector.status] || 'var(--text-subtle)') }}>
@@ -1165,7 +1165,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
         <div style={{ marginTop: 'var(--s3)', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-caption)', fontFamily: 'monospace' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--s2)' }}>
             <strong style={{ fontSize: 'var(--fs-caption)', fontFamily: 'sans-serif', textTransform: 'uppercase', letterSpacing: 0.5 }}>Diagnosis</strong>
-            <button onClick={() => setDiagnoseResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>×</button>
+            <button onClick={() => setDiagnoseResult(null)} className="btn-icon btn-icon-sm" aria-label="Close">×</button>
           </div>
           {/* Credentials stored */}
           {diagnoseResult.credentials && (

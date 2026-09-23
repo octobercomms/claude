@@ -177,8 +177,7 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
                     </div>
                     {category === 'thin_content' && onSendToPipeline && (
                       <button onClick={() => onSendToPipeline({ category, urls: rows.map(r => r.page_url) })} className="btn btn-secondary btn-sm">
-                        Send all to Pipeline →
-                      </button>
+                        Send all to Pipeline</button>
                     )}
                   </div>
                   <table className="table">
@@ -204,7 +203,7 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
                             {r.status === 'open' && (
                               <>
                                 {category === 'thin_content' && onSendToPipeline && (
-                                  <button onClick={() => onSendToPipeline({ category, urls: [r.page_url], single: true })} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 var(--s2)' }}>Refresh →</button>
+                                  <button onClick={() => onSendToPipeline({ category, urls: [r.page_url], single: true })} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 var(--s2)' }}>Refresh</button>
                                 )}
                                 <button onClick={() => setIssueStatus(r, 'done')} className="btn btn-ghost btn-sm" style={{ color: 'var(--positive)', padding: '0 var(--s2)' }}>Done</button>
                                 <button onClick={() => setIssueStatus(r, 'dismissed')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 var(--s2)' }}>Skip</button>

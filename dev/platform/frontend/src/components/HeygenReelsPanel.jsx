@@ -367,7 +367,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                       {r.avatar_name || r.avatar_id}{r.duration_s ? ` · ${Math.round(r.duration_s)}s` : ''}
                     </div>
                     <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s2)' }}>
-                      {(done || r.status === 'failed') && <button className="btn btn-ghost btn-sm" {...roWrite(readOnly, { onClick: () => editReel(r) })} title="Edit the script and regenerate">✎ Edit script</button>}
+                      {(done || r.status === 'failed') && <button className="btn btn-ghost btn-sm" {...roWrite(readOnly, { onClick: () => editReel(r) })} title="Edit the script and regenerate">Edit script</button>}
                       {r.status === 'failed' && <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => retry(r.id) })}>Retry</button>}
                       {r.status === 'processing' && <button className="btn btn-ghost btn-sm" {...roWrite(readOnly, { onClick: () => refresh(r.id) })}>Refresh</button>}
                     </div>
@@ -394,8 +394,8 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
             <video src={modalReel.video_url} controls autoPlay
               style={{ width: '100%', borderRadius: 'var(--r-sm)', background: '#000', maxHeight: '64vh' }} />
             <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
-              <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => schedule(modalReel.id) })}>📅 Schedule</button>
-              <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => editReel(modalReel) })} title="Edit the script and regenerate">✎ Edit script</button>
+              <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => schedule(modalReel.id) })}>Schedule</button>
+              <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => editReel(modalReel) })} title="Edit the script and regenerate">Edit script</button>
               <a className="btn btn-secondary btn-sm" href={modalReel.video_url} target="_blank" rel="noreferrer" download>Download</a>
               <button className="btn btn-ghost btn-sm" onClick={() => { remove(modalReel.id); setModalReel(null); }}>Delete</button>
             </div>

@@ -261,8 +261,8 @@ export default function FormsTab({ clientId, connectors }) {
                   Page {page + 1} of {Math.ceil(submissionsTotal / PAGE_SIZE)}
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                  <button disabled={page === 0} onClick={() => { const p = page - 1; setPage(p); loadSubmissions(credentials, p); }} style={btnSmStyle}>← Prev</button>
-                  <button disabled={(page + 1) * PAGE_SIZE >= submissionsTotal} onClick={() => { const p = page + 1; setPage(p); loadSubmissions(credentials, p); }} style={btnSmStyle}>Next →</button>
+                  <button disabled={page === 0} onClick={() => { const p = page - 1; setPage(p); loadSubmissions(credentials, p); }} style={btnSmStyle}>Prev</button>
+                  <button disabled={(page + 1) * PAGE_SIZE >= submissionsTotal} onClick={() => { const p = page + 1; setPage(p); loadSubmissions(credentials, p); }} style={btnSmStyle}>Next</button>
                 </div>
               </div>
             )}

@@ -130,7 +130,7 @@ export default function AudiencesPanel({ clientId }) {
         title="Segments"
         action={(
           <div className="row wrap">
-            <Button variant="secondary" onClick={() => setShowUpload(true)}>↑ Upload customer list</Button>
+            <Button variant="secondary" onClick={() => setShowUpload(true)}>Upload customer list</Button>
             <Button onClick={() => setEditing({ name: '', description: '', filters: {} })}>
               + New segment
             </Button>
@@ -160,7 +160,7 @@ export default function AudiencesPanel({ clientId }) {
                 </p>
                 <div className="row mt-5 wrap">
                   <Button variant="secondary" size="sm" onClick={() => setEditing(s)}>Edit</Button>
-                  <Button variant="secondary" size="sm" onClick={() => exportSegment(s)}>↓ Meta CSV</Button>
+                  <Button variant="secondary" size="sm" onClick={() => exportSegment(s)}>Meta CSV</Button>
                   <Button variant="danger" size="sm" onClick={() => deleteSegment(s)}>Delete</Button>
                 </div>
               </Card>
@@ -299,7 +299,7 @@ function GetStartedModal({ hasStore, onUpload, onConnectStore, onClose, refreshi
                 <h3 className="h3">1 · Upload a customer list</h3>
                 <p className="body-sm mt-1">A CSV of buyers (email / phone). Hashed on upload, exported as a Meta Custom Audience — seed your 1% lookalike from it. <strong>Best first move.</strong></p>
               </div>
-              <Button onClick={onUpload}>↑ Upload list</Button>
+              <Button onClick={onUpload}>Upload list</Button>
             </div>
           </Card>
           <Card>

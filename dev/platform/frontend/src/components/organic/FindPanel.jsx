@@ -212,7 +212,7 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
                           {onBuildContent && (
                             <td style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right', whiteSpace: 'nowrap' }}>
                               <button className="btn btn-secondary btn-sm" title="Write content for this keyword"
-                                {...roWrite(readOnly, { onClick: () => onBuildContent(k.keyword) })}>✍ Build</button>
+                                {...roWrite(readOnly, { onClick: () => onBuildContent(k.keyword) })}>Build</button>
                             </td>
                           )}
                         </tr>
@@ -415,7 +415,7 @@ function SxoMode({ clientId, onBuildContent }) {
                 <div className="row between center mb-3" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
                   <div className="caption">Recommended wireframe{data.recommended_page_type ? ` · ${data.recommended_page_type}` : ''}</div>
                   {onBuildContent && (
-                    <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => onBuildContent(data.seed_query) })}>✍ Build content</button>
+                    <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => onBuildContent(data.seed_query) })}>Build content</button>
                   )}
                 </div>
                 <ol style={{ margin: 0, paddingLeft: 'var(--s5)', display: 'grid', gap: 'var(--s2)' }}>

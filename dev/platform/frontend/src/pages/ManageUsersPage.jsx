@@ -55,7 +55,7 @@ export default function ManageUsersPage({ embedded = false } = {}) {
         {!embedded && <h1 className="h2">Manage users</h1>}
         {embedded && <div className="h3">Users &amp; access</div>}
         <div className="row" style={{ gap: 'var(--s2)' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowInvite(true)}>✉ Invite client</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowInvite(true)}>Invite client</button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>+ Add user</button>
         </div>
       </div>

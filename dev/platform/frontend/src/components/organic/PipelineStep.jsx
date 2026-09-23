@@ -15,8 +15,7 @@ export default function PipelineStep({ num, title, tagline, onNext, nextLabel, b
         </div>
         {onNext && (
           <button onClick={onNext} className="btn btn-secondary btn-sm" style={{ flex: '0 0 auto' }}>
-            {nextLabel || 'Next step'} →
-          </button>
+            {nextLabel || 'Next step'}</button>
         )}
       </div>
       {banner}

@@ -466,7 +466,7 @@ export default function ClientSEOPage() {
         <td >{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
         <td onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', gap: 'var(--s2)', justifyContent: 'flex-end' }}>
-            <button onClick={() => buildFromKeyword(kw.keyword)} className="btn btn-secondary btn-sm" title="Write content for this keyword">✍ Build</button>
+            <button onClick={() => buildFromKeyword(kw.keyword)} className="btn btn-secondary btn-sm" title="Write content for this keyword">Build</button>
             <button onClick={() => setHistoryKeyword(kw)} className="btn btn-secondary btn-sm">History</button>
             <button onClick={() => handleDelete(kw.id)} className="btn btn-danger btn-sm">Delete</button>
           </div>

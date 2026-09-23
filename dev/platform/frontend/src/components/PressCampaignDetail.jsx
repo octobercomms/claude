@@ -417,7 +417,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   if (loadError) {
     return (
       <div>
-        <button onClick={onExit} className="btn btn-secondary btn-sm">← Back to campaigns</button>
+        <button onClick={onExit} className="btn btn-secondary btn-sm">Back to campaigns</button>
         <div style={{ padding: 'var(--s5)', background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 'var(--r-sm)', color: 'var(--warning)' }}>
           <div style={{ fontWeight: 700, marginBottom: 'var(--s2)' }}>This campaign isn't linked to a press release</div>
           <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5 }}>It's tagged as a press campaign but has no parsed release attached. Delete it and start a new one via <strong>+ New press campaign</strong>.</div>
@@ -544,7 +544,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
   return (
     <div>
-      <button onClick={onExit} className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s4)' }}>← Back to campaigns</button>
+      <button onClick={onExit} className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s4)' }}>Back to campaigns</button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s3)' }}>
         <div>
@@ -853,7 +853,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                   <button className="btn btn-secondary btn-sm" onClick={() => stepPreview(1)}>next ›</button>
                 </span>
               )}
-              {previewing && <button className="btn btn-link btn-sm" onClick={() => preview(previewing, true)}>↻ regenerate</button>}
+              {previewing && <button className="btn btn-link btn-sm" onClick={() => preview(previewing, true)}>regenerate</button>}
               <button {...roWrite(readOnly, { onClick: doRefetch, disabled: refetching })} className="btn btn-link btn-sm" title="Re-pull the release from its source page (fixes duplicated/stale embedded content)">{refetching ? 're-fetching…' : '⟳ re-fetch release'}</button>
               <button className="btn btn-link btn-sm" onClick={openHtmlEdit} title="Hand-edit the embedded release HTML to fix anything the scrape got wrong">{showHtmlEdit ? '✕ close HTML' : '✎ edit release HTML'}</button>
             </div>
@@ -887,7 +887,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                     </button>
                   ))}
                   <div style={{ flex: 1 }} />
-                  <button className="btn btn-secondary btn-sm" onClick={openInNewTab}>↗ Open in new tab</button>
+                  <button className="btn btn-secondary btn-sm" onClick={openInNewTab}>Open in new tab</button>
                 </div>
 
                 <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>

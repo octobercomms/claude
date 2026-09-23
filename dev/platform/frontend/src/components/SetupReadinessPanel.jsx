@@ -53,7 +53,7 @@ export default function SetupReadinessPanel({ clientId }) {
                 </div>
                 <div className="body-xs text-muted" style={{ marginTop: 'var(--s1)' }}>{c.detail}</div>
               </div>
-              {c.link && <button className="btn btn-secondary btn-sm" onClick={() => go(c.link)}>Set up →</button>}
+              {c.link && <button className="btn btn-secondary btn-sm" onClick={() => go(c.link)}>Set up</button>}
             </div>
           ))}
         </div>
