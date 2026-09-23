@@ -607,10 +607,10 @@ button { font-family: inherit; }
   background: var(--surface); color: var(--text);
 }
 .chip-neutral { background: var(--surface-sunken); color: var(--text-muted); border-color: var(--surface-sunken); }
-/* Chips are labels, not buttons — never yellow. chip-accent is now a strong
-   neutral (ink text on a light fill); chip-outline a plain bordered label. */
-.chip-accent  { background: var(--surface-sunken); color: var(--text); border-color: var(--border-neutral); font-weight: 700; }
-.chip-outline { background: transparent; color: var(--text); border-color: var(--card-border); }
+/* chip-accent and chip-outline are folded into the base neutral chip — one
+   non-semantic label style. Kept as aliases so their ~50 usages need no sweep;
+   the four semantic chips (success/warning/warm/danger) still carry meaning. */
+.chip-accent, .chip-outline { background: var(--surface-sunken); color: var(--text-muted); border-color: var(--surface-sunken); }
 .chip-success { background: var(--positive-soft); color: var(--positive); border-color: var(--positive); }
 .chip-warning { background: var(--warning-soft);  color: var(--warning);  border-color: var(--warning); }
 .chip-warm    { background: var(--warm-soft);     color: var(--warm);     border-color: var(--warm); }
@@ -1280,8 +1280,9 @@ button.smap-node:focus-visible { outline: var(--border-w) solid var(--text); out
 .input::placeholder, .textarea::placeholder { color: var(--text-subtle); }
 .textarea { min-height: 80px; resize: vertical; }
 /* Dropdowns are pill-shaped (matches the pill button/tab language). The
-   select.input / select.select forms out-specify the shared r-sm rule above. */
-select, .select, select.input, select.select { border-radius: var(--r-pill); }
+   select.input / select.select forms out-specify the shared r-sm rule above.
+   Extra right padding keeps the native chevron clear of the pill's curve. */
+select, .select, select.input, select.select { border-radius: var(--r-pill); padding-right: var(--s6); }
 select:hover:not(:disabled), .select:hover:not(:disabled) { border-color: var(--text); }
 
 /* Generic light-mode form-control defaults so legacy inline-styled
@@ -1297,6 +1298,10 @@ select, textarea {
   border: var(--border-w) solid var(--card-border);
   font-family: inherit;
 }
+
+/* Checkboxes & radios — one global rule so every tick is the brand accent,
+   whether or not the control is wrapped in a class. */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 
 .field { margin-bottom: var(--s4); }
 .field-label {
