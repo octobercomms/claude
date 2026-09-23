@@ -1841,3 +1841,54 @@ a:hover > .card-stat,
 /* Edit studio — split editor layout: big preview left, settings right. */
 .edit-split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 900px) { .edit-split { grid-template-columns: 1fr; } }
+
+/* ══ Design system v1 — L1–L6 shell components ═══════════════════════
+   Namespaced `ds-*` so they never collide with legacy page classes.
+   These are the reusable page shells: PageShell (L1), StatStrip (L3),
+   StepRail (L4), ListDetail (L5), ChatCanvas (L6), Launchpad (L2). */
+
+/* L1 · PageShell — the frame body (nav + tabs live in Layout/SuiteTabs). */
+.ds-shell__head { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; margin-bottom: var(--gap-comp); }
+.ds-shell__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
+.ds-shell__sub { font-size: var(--fs-caption); color: var(--text-subtle); }
+.ds-shell__spacer { margin-left: auto; }
+.ds-shell__body { display: flex; flex-direction: column; gap: var(--gap-comp); }
+
+/* L2 · Launchpad — kicker + headline + one primary action. */
+.ds-launchpad { display: flex; flex-direction: column; gap: var(--s3); }
+.ds-launchpad__kicker { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-caption); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle); }
+.ds-launchpad__headline { font-size: var(--fs-display); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.ds-launchpad__pip { width: 9px; height: 9px; border-radius: 50%; }
+
+/* L3 · StatStrip — one metric tile, one stat row (supersedes the 4 variants). */
+.ds-stats { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+.ds-stat { border: var(--border-w) solid var(--card-border); border-radius: var(--r-sm); background: var(--surface); padding: 12px 14px; }
+.ds-stat__value { font-size: var(--fs-display); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.ds-stat__label { font-size: var(--fs-caption); color: var(--text-subtle); margin-top: 6px; }
+.ds-stat__delta { font-size: var(--fs-caption); font-weight: 700; margin-top: 3px; color: var(--text-subtle); }
+.ds-stat__delta.up { color: var(--positive); }
+.ds-stat__delta.down { color: var(--negative); }
+
+/* L4 · StepRail — the one step indicator (merges Stepper + ProcessRail). */
+.ds-steprail { display: flex; align-items: flex-start; gap: 0; flex-wrap: wrap; }
+.ds-steprail__step { flex: 1 1 84px; min-width: 76px; display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; position: relative; padding: 0; font-family: inherit; }
+.ds-steprail__step:disabled { cursor: default; }
+.ds-steprail__line { position: absolute; top: 15px; left: 50%; width: 100%; height: 2px; background: var(--card-border); z-index: 0; }
+.ds-steprail__dot { position: relative; z-index: 1; width: 30px; height: 30px; border-radius: 50%; border: var(--border-w) solid var(--card-border); background: var(--surface); display: grid; place-items: center; font-weight: 800; font-size: 13px; color: var(--text-subtle); }
+.ds-steprail__cap { font-size: var(--fs-caption); font-weight: 700; color: var(--text-subtle); text-align: center; }
+.ds-steprail__step.done .ds-steprail__dot { background: var(--positive); border-color: var(--positive); color: #fff; }
+.ds-steprail__step.done .ds-steprail__line { background: var(--positive); }
+.ds-steprail__step.active .ds-steprail__dot { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
+.ds-steprail__step.active .ds-steprail__cap,
+.ds-steprail__step.done .ds-steprail__cap { color: var(--text); }
+.ds-steprail__step:hover:not(:disabled) .ds-steprail__cap { color: var(--text); }
+
+/* L5 · ListDetail — searchable list + detail drawer. */
+.ds-workbench { display: grid; grid-template-columns: 1.25fr 1fr; gap: var(--gap-comp); align-items: start; }
+
+/* L6 · ChatCanvas — converse left, live artifact right. */
+.ds-chatcanvas { display: grid; grid-template-columns: 1fr 1.1fr; gap: var(--gap-comp); align-items: start; }
+
+@media (max-width: 820px) {
+  .ds-workbench, .ds-chatcanvas { grid-template-columns: 1fr; }
+}
