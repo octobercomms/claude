@@ -49,7 +49,7 @@ export default function ProcessRail({ steps, activeKey, onStep, numbered = false
         <span className="stepper-meta">
           <span className="stepper-t">
             {s.title}
-            {isNext && !isActive && <span style={{ color: 'var(--accent)', fontWeight: 700 }}> · next</span>}
+            {isNext && !isActive && <span style={{ color: 'var(--text)', fontWeight: 700 }}> · next</span>}
           </span>
           {s.sub && <span className="stepper-s">{s.sub}</span>}
         </span>

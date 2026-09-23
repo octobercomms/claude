@@ -160,7 +160,7 @@ function PrBacklinkLeaderboard() {
             {rows.map(c => (
               <tr key={c.press_release_id}>
                 <td style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || '(untitled release)'}</td>
-                <td><Link to={`/clients/${c.client_id}/pr`} className="text-accent">{c.client_name}</Link></td>
+                <td><Link to={`/clients/${c.client_id}/pr`} className="text-ink underline">{c.client_name}</Link></td>
                 <td><strong className="text-ink">{c.new_rds}</strong></td>
                 <td className="text-subtle">{c.dofollow_rds}</td>
                 <td className="text-subtle">{c.recipients}</td>
@@ -192,7 +192,7 @@ function StrategyOverview() {
           <tbody>
             {rows.map(s => (
               <tr key={s.client_id}>
-                <td><Link to={`/clients/${s.client_id}`} className="text-accent">{s.client_name}</Link></td>
+                <td><Link to={`/clients/${s.client_id}`} className="text-ink underline">{s.client_name}</Link></td>
                 <td className="text-subtle" style={{ textTransform: 'capitalize' }}>{[s.business_type, s.lifecycle_stage].filter(Boolean).join(' · ') || '—'}</td>
                 <td>{s.template_name || '—'}</td>
                 <td>
@@ -217,7 +217,7 @@ function Stat({ label, value, sub, subTone, feature = false, fn }) {
   return (
     <div className={`border rounded-md p-s5 flex flex-col gap-s3 min-h-[140px] ${feature ? 'bg-ink border-ink' : 'bg-surface border-cardborder'}`}>
       <div className={`text-[11px] font-bold tracking-[0.12em] uppercase ${feature ? 'text-white/60' : 'text-muted'}`}>{fn && <Pip fn={fn} />}{label}</div>
-      <div className={`text-[46px] font-extrabold leading-[0.9] tracking-[-2px] mt-auto ${feature ? 'text-accent' : 'text-ink'}`}>{value}</div>
+      <div className={`text-[46px] font-extrabold leading-[0.9] tracking-[-2px] mt-auto ${feature ? 'text-white' : 'text-ink'}`}>{value}</div>
       <div className={`text-[12px] flex items-center gap-1.5 ${feature ? 'text-white/60' : subTone === 'warn' ? 'text-warning font-semibold' : 'text-subtle'}`}>{sub}</div>
     </div>
   );
@@ -315,7 +315,7 @@ function ApiSpendBanner({ spend }) {
           </span>
         )}
       </span>
-      <Link to="/settings" className="ml-auto text-[12px] font-bold text-accent no-underline">Breakdown →</Link>
+      <Link to="/settings" className="ml-auto text-[12px] font-bold text-white underline">Breakdown →</Link>
     </div>
   );
 }

@@ -102,7 +102,7 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
               <label className="field-label" style={{ margin: 0 }}>Body</label>
               <button type="button" onClick={() => setShowBodyHtml(v => !v)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 11 }}>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 11 }}>
                 {showBodyHtml ? 'Show formatted preview' : 'Edit HTML'}
               </button>
             </div>

@@ -2659,7 +2659,7 @@ function ContactsLibrary() {
                         {r.status === 'do_not_contact'
                           ? <span title="Opted out of all email" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                               opted out · <button onClick={() => allowOne(r)} title="Allow contact again"
-                                style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', font: 'inherit', textDecoration: 'underline', padding: 0 }}>allow</button>
+                                style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', font: 'inherit', textDecoration: 'underline', padding: 0 }}>allow</button>
                             </span>
                           : <button onClick={() => optOutOne(r)} title="Mark do-not-contact (unsubscribe from everything)"
                               style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', padding: 0 }}>unsubscribe</button>}

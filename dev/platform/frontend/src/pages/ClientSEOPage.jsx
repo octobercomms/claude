@@ -165,7 +165,7 @@ function WhyItRanks({ kw }) {
       {kw.ranking_url && (
         <div style={{ fontSize: 12, marginBottom: 10 }}>
           <span style={{ color: 'var(--text-subtle)' }}>Ranking page: </span>
-          <a href={kw.ranking_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>{stripProto(kw.ranking_url)}</a>
+          <a href={kw.ranking_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{stripProto(kw.ranking_url)}</a>
           {kw.target_url && normUrl(kw.ranking_url) !== normUrl(kw.target_url) && (
             <span className="chip chip-warning" style={{ fontSize: 9, padding: '1px 5px', marginLeft: 6 }} title={`Your target URL is ${kw.target_url}`}>≠ your target page</span>
           )}
@@ -233,7 +233,7 @@ function DeepDiveResult({ dive }) {
               {dive.footprint.slice(0, 15).map((f, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--card-border)' }}>
                   <td style={{ padding: '3px 6px' }}>{f.keyword}</td>
-                  <td style={{ padding: '3px 6px', textAlign: 'right', color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>#{f.position ?? '—'}</td>
+                  <td style={{ padding: '3px 6px', textAlign: 'right', color: 'var(--text)', fontWeight: 600, whiteSpace: 'nowrap' }}>#{f.position ?? '—'}</td>
                   <td style={{ padding: '3px 6px', textAlign: 'right', color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>{f.search_volume != null ? `${fmtVolume(f.search_volume)}/mo` : '—'}</td>
                 </tr>
               ))}
@@ -421,7 +421,7 @@ export default function ClientSEOPage() {
               <span style={{ color: 'var(--text-subtle)' }}>↳</span>
               <a href={kw.ranking_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                 title={kw.ranking_url}
-                style={{ color: 'var(--accent)', maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                style={{ color: 'var(--text)', maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {stripProto(kw.ranking_url)}
               </a>
               {kw.target_url && normUrl(kw.ranking_url) !== normUrl(kw.target_url) && (
@@ -462,7 +462,7 @@ export default function ClientSEOPage() {
           )}
         </td>
         <td >{kw.previous_position || '—'}</td>
-        <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{kw.best_position || '—'}</td>
+        <td style={{ color: 'var(--text)', fontWeight: 600 }}>{kw.best_position || '—'}</td>
         <td >{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
         <td onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

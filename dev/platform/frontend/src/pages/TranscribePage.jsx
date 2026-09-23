@@ -198,7 +198,7 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
                 <div style={{ maxHeight: 520, overflow: 'auto', paddingRight: 6 }}>
                   {(current.segments || []).map((s, i) => (
                     <div key={i} style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
                         {labelFor(s.speaker, current.speaker_names, speakers)}
                         {s.start != null && <span style={{ color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 6 }}>{fmtTime(s.start)}</span>}
                       </div>

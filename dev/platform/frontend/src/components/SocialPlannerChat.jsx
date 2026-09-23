@@ -495,7 +495,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                         <span style={{ color: pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : 'var(--text-muted)' }}>
                           {pub.status === 'posted' ? '✓ posted' : pub.status === 'failed' ? '✗ failed' : pub.status}
                         </span>
-                        {pub.posted_url && <a href={pub.posted_url} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', color: 'var(--accent)' }}>view →</a>}
+                        {pub.posted_url && <a href={pub.posted_url} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', color: 'var(--text)' }}>view →</a>}
                         {pub.error_message && <span style={{ color: 'var(--negative)', fontSize: 11, marginLeft: 'auto' }}>{pub.error_message}</span>}
                       </div>
                     ))}

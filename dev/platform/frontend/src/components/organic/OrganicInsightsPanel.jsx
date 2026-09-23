@@ -153,7 +153,7 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
                 Brand cited on <strong style={{ color: 'var(--positive)' }}>{aioCited}</strong> of those.
               </div>
               {onOpenAiVisibility && (
-                <button onClick={onOpenAiVisibility} className="btn btn-ghost btn-sm" style={{ marginTop: 'var(--s3)', color: 'var(--accent)', padding: 0 }}>
+                <button onClick={onOpenAiVisibility} className="btn btn-ghost btn-sm" style={{ marginTop: 'var(--s3)', color: 'var(--text)', padding: 0 }}>
                   See AI visibility →
                 </button>
               )}

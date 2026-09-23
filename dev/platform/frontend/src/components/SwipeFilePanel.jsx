@@ -161,7 +161,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                         <button className="btn btn-ghost btn-sm" title="Rename" style={{ padding: '0 4px', lineHeight: 1 }}
                           onClick={e => { e.stopPropagation(); startRename(it, name); }}>✎</button>
                         <a href={it.url} target="_blank" rel="noreferrer" title="Open original reel"
-                          onClick={e => e.stopPropagation()} style={{ fontSize: 12, color: 'var(--accent)' }}>↗</a>
+                          onClick={e => e.stopPropagation()} style={{ fontSize: 12, color: 'var(--text)' }}>↗</a>
                       </div>
                     )}
                     <div className="body-xs text-subtle" style={{ marginTop: 2, overflowWrap: 'anywhere' }}>

@@ -420,7 +420,7 @@ function ToolResult({ tool, output }) {
               <CopyButton text={p.body} label="Copy post" />
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.body}</div>
-            {p.cta && <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6, color: 'var(--accent)' }}>{p.cta}</div>}
+            {p.cta && <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6, color: 'var(--text)' }}>{p.cta}</div>}
           </div>
         ))}
       </>

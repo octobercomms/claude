@@ -664,7 +664,7 @@ export function PlanningTab({ clientId, seed }) {
         </button>
       </div>
       {seeded && !brief && (
-        <p style={{ fontSize: 12, color: 'var(--accent)', margin: '8px 0 0' }}>
+        <p style={{ fontSize: 12, color: 'var(--text)', margin: '8px 0 0' }}>
           Loaded from your keyword list — review the target, then generate the brief.
         </p>
       )}
@@ -937,7 +937,7 @@ export function FanoutTab({ clientId, onBuildContent }) {
                               {pos ? `#${pos}` : 'Not ranking'}
                             </td>
                             <td style={{ color: 'var(--text-subtle)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {q.client_url ? <a href={q.client_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>{q.client_url.replace(/^https?:\/\//, '').slice(0, 60)}</a> : '—'}
+                              {q.client_url ? <a href={q.client_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{q.client_url.replace(/^https?:\/\//, '').slice(0, 60)}</a> : '—'}
                             </td>
                             {onBuildContent && (
                               <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>

@@ -204,7 +204,7 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
                             {r.status === 'open' && (
                               <>
                                 {category === 'thin_content' && onSendToPipeline && (
-                                  <button onClick={() => onSendToPipeline({ category, urls: [r.page_url], single: true })} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)', padding: '0 6px' }}>Refresh →</button>
+                                  <button onClick={() => onSendToPipeline({ category, urls: [r.page_url], single: true })} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 6px' }}>Refresh →</button>
                                 )}
                                 <button onClick={() => setIssueStatus(r, 'done')} className="btn btn-ghost btn-sm" style={{ color: 'var(--positive)', padding: '0 6px' }}>Done</button>
                                 <button onClick={() => setIssueStatus(r, 'dismissed')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 6px' }}>Skip</button>

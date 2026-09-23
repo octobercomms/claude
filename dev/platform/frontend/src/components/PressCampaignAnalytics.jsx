@@ -453,7 +453,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                       <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
                         follow-ups stopped · <button className="btn btn-link btn-sm" title="Put them back in the sequence"
                           onClick={() => resumeFollowups(r)} disabled={stopBusy === r.contact_id}
-                          style={{ padding: 0, fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                          style={{ padding: 0, fontSize: 11, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                           {stopBusy === r.contact_id ? '…' : 'resume'}
                         </button>
                       </span>

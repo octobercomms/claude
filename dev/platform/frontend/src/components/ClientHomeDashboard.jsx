@@ -101,7 +101,7 @@ export default function ClientHomeDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 26 }}>
           {liveStats.map(s => (
             <div key={s.label} className="card" style={s.primary ? { borderColor: 'var(--accent)' } : undefined}>
-              <div className="metric" style={s.primary ? { color: 'var(--accent)' } : undefined}>
+              <div className="metric" style={s.primary ? { color: 'var(--text)' } : undefined}>
                 {kpiState === 'loading' ? '…' : s.value}
               </div>
               <div className="caption">{s.label}</div>
@@ -153,7 +153,7 @@ export default function ClientHomeDashboard() {
                   <div className="body-xs text-subtle" style={{ marginTop: 2, display: 'flex', gap: 8 }}>
                     <span style={{ textTransform: 'capitalize' }}>{p.platform}</span>
                     {p.published_at && <span>· {fmtDate(p.published_at)}</span>}
-                    {p.published_url && <a href={p.published_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>· view ↗</a>}
+                    {p.published_url && <a href={p.published_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>· view ↗</a>}
                   </div>
                 </div>
               ))}
@@ -169,7 +169,7 @@ export default function ClientHomeDashboard() {
           <Link key={s.label} to={s.to} className="card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
             <div style={{ fontSize: 15, fontWeight: 700 }}>{s.label}</div>
             <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{s.sub}</div>
-            <div className="body-xs" style={{ marginTop: 8, color: 'var(--accent)' }}>Open →</div>
+            <div className="body-xs" style={{ marginTop: 8, color: 'var(--text)' }}>Open →</div>
           </Link>
         ))}
       </div>

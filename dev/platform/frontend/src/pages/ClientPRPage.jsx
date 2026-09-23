@@ -666,7 +666,7 @@ export default function ClientPRPage() {
                 <tbody>
                   {releases.map((r) => (
                     <tr key={r.id}>
-                      <td><button className="link-btn" onClick={() => openRelease(r.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, font: 'inherit' }}>{r.title || '(untitled)'}</button></td>
+                      <td><button className="link-btn" onClick={() => openRelease(r.id)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', padding: 0, font: 'inherit' }}>{r.title || '(untitled)'}</button></td>
                       <td>{r.brand || '—'}</td>
                       <td><span className="chip">{({ draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' })[r.status] || r.status}</span></td>
                       <td>{fmtDate(r.created_at)}</td>

@@ -392,7 +392,7 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
                 <ul style={{ paddingLeft: 18, margin: 0 }}>
                   {data.files.map((f, i) => (
                     <li key={i} style={{ marginBottom: 4 }}>
-                      <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)' }}>
                         {f.filename || f.name || f.url}
                       </a>
                       {f.size && <span style={{ color: 'var(--text-subtle)', fontSize: 11, marginLeft: 6 }}>({Math.round(f.size / 1024)} KB)</span>}
