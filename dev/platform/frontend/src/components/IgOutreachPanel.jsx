@@ -222,13 +222,13 @@ export default function IgOutreachPanel({ clientId }) {
           </div>
           <div className="body-xs" style={{ marginBottom: 'var(--s4)', color: sel.outreach_goal ? 'var(--text-muted)' : 'var(--text-subtle)' }}>
             <strong>Outreach goal:</strong> {sel.outreach_goal || 'not set — drafts will be a generic intro.'}{' '}
-            <button onClick={() => editGoal(sel)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>{sel.outreach_goal ? 'edit' : 'set goal'}</button>
+            <button onClick={() => editGoal(sel)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>{sel.outreach_goal ? 'edit' : 'set goal'}</button>
           </div>
 
           {unassigned > 0 && (
             <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)' }}>
               {unassigned} earlier prospect{unassigned === 1 ? '' : 's'} {unassigned === 1 ? "isn't" : "aren't"} attached to any search (from before saved searches, or a deleted one).{' '}
-              <button onClick={() => reclaim(sel.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Add {unassigned === 1 ? 'it' : 'them'} to “{sel.name}”</button>
+              <button onClick={() => reclaim(sel.id)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Add {unassigned === 1 ? 'it' : 'them'} to “{sel.name}”</button>
             </div>
           )}
 
@@ -340,7 +340,7 @@ export default function IgOutreachPanel({ clientId }) {
                   <div style={{ marginTop: 'var(--s4)' }}>
                     <div className="callout callout-warning" style={{ marginBottom: 8 }}>
                       {detachedWorked.length} worked prospect{detachedWorked.length === 1 ? '' : 's'} {detachedWorked.length === 1 ? "isn't" : "aren't"} attached to any search (from a deleted or reorganised search). They're safe — re-home them here so they show in this search's Done.{' '}
-                      <button onClick={() => reclaim(sel.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Attach to “{sel.name}”</button>
+                      <button onClick={() => reclaim(sel.id)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Attach to “{sel.name}”</button>
                     </div>
                     <div className="stack stack-sm">
                       {detachedWorked.map(p => {

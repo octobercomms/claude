@@ -34,7 +34,7 @@ export default function PaidApproveStep({ pipeline, onNext, onBack }) {
             {totalImages === 0 && (
               <p className="body-sm text-muted mt-2">
                 Nothing rendered yet — clients usually need at least one rendered asset per concept to approve.
-                Go back to <button onClick={() => window.history.back()} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)', padding: 0 }}>Step 3 · Render</button> first.
+                Go back to <button onClick={() => window.history.back()} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: 0 }}>Step 3 · Render</button> first.
               </p>
             )}
           </div>

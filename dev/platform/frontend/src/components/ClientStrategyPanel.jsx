@@ -329,7 +329,7 @@ export default function ClientStrategyPanel({ clientId }) {
           <div className="caption" style={{ marginBottom: 10 }}>The SOSTAC plan</div>
           <div className="stack stack-lg">
             {(strat.phases || []).map((ph, pi) => {
-              const s = SOSTAC[ph.title] || { n: pi + 1, color: 'var(--accent)', tint: 'var(--accent-soft)' };
+              const s = SOSTAC[ph.title] || { n: pi + 1, color: 'var(--text)', tint: 'var(--accent-soft)' };
               return (
                 <div key={pi} className="card" style={{ padding: 0, overflow: 'hidden', borderLeft: `5px solid ${s.color}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', background: s.tint, borderBottom: '1px solid var(--card-border)' }}>

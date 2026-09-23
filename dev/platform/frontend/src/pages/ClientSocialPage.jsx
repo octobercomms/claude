@@ -814,11 +814,11 @@ function BrainstormTab({
               {p.status === 'published' && <span className="chip chip-success" style={{ fontSize: 9 }}>published</span>}
             </div>
             <div className="row between center" style={{ gap: 8 }}>
-              <span className="body-xs" style={{ color: 'var(--accent)' }}>Open to edit →</span>
+              <span className="body-xs" style={{ color: 'var(--text)' }}>Open to edit →</span>
               <span role="button" tabIndex={0} title="Produce this post"
                 onClick={(e) => { e.stopPropagation(); startProduce(p); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); startProduce(p); } }}
-                className="body-xs" style={{ color: 'var(--accent)', fontWeight: 700, cursor: 'pointer' }}>✦ Produce →</span>
+                className="body-xs" style={{ color: 'var(--text)', fontWeight: 700, cursor: 'pointer' }}>✦ Produce →</span>
             </div>
           </button>
         );
@@ -1659,13 +1659,13 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
                   );
                 })}
                 {hasEng && (
-                  <span style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)' }}>
+                  <span style={{ fontSize: 11, color: 'var(--text)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)' }}>
                     {eng.reach ? `${formatNum(eng.reach)} reach · ` : ''}{formatNum(eng.likes)} ♡ · {formatNum(eng.comments)} 💬{eng.shares ? ` · ${formatNum(eng.shares)} ↗` : ''}
                   </span>
                 )}
                 {p.scheduled_at && !pubs.some(x => x.status === 'posted') && editingPlanId !== p.id && (
                   <button type="button" onClick={() => beginEdit(p)}
-                    style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
+                    style={{ fontSize: 11, color: 'var(--text)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
                     title="Click to reschedule">
                     ⏰ {new Date(p.scheduled_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                     {p.target_platforms?.length ? ` · ${p.target_platforms.join(', ')}` : ''}
@@ -1963,7 +1963,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
           {refreshing ? 'Pulling…' : 'Refresh'}
         </button>
         {sounds.length > 5 && (
-          <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 11 }}>
+          <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 11 }}>
             {open ? 'collapse' : `show all ${sounds.length}`}
           </button>
         )}
@@ -2286,7 +2286,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
               <a href={u} target="_blank" rel="noreferrer">
                 <img src={u} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--card-border)" }} />
               </a>
-              <a href={u} download target="_blank" rel="noreferrer" style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 700 }}>↓</a>
+              <a href={u} download target="_blank" rel="noreferrer" style={{ fontSize: 10, color: 'var(--text)', fontWeight: 700 }}>↓</a>
             </div>
           ))}
         </div>
@@ -2312,7 +2312,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
                 <video src={v.url} controls style={{ width: 180, borderRadius: 'var(--r-sm)', background: '#000' }} />
                 <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
               </div>
-              <a href={v.url} download target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>↓ Download</a>
+              <a href={v.url} download target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--text)', fontWeight: 700 }}>↓ Download</a>
             </div>
           ))}
           {audios.map(a => (
@@ -2321,7 +2321,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
                 <audio src={a.url} controls style={{ width: '100%' }} />
                 <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
               </div>
-              <a href={a.url} download target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>↓ Download</a>
+              <a href={a.url} download target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--text)', fontWeight: 700 }}>↓ Download</a>
             </div>
           ))}
         </div>
@@ -2436,7 +2436,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
                   <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.on_screen_text || ''}</td>
                   <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>
                     {f.voiceover || ''}
-                    {f.delivery && <div style={{ marginTop: 4, fontSize: 10, color: 'var(--accent)', fontStyle: 'italic' }}>🎬 {f.delivery}</div>}
+                    {f.delivery && <div style={{ marginTop: 4, fontSize: 10, color: 'var(--text)', fontStyle: 'italic' }}>🎬 {f.delivery}</div>}
                   </td>
                 </tr>
               ))}

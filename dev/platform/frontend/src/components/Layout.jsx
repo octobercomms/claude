@@ -61,20 +61,20 @@ export default function Layout() {
   function handleLogout() { logout(); navigate('/login'); }
 
   const linkStyle = (isActive) => ({
-    display: 'block', padding: '11px 24px', color: isActive ? 'var(--accent)' : 'var(--surface)',
+    display: 'block', padding: '11px 24px', color: isActive ? '#fff' : 'var(--surface)',
     textDecoration: 'none', fontSize: 16, fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2, background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
   });
 
   const subLinkStyle = (isActive) => ({
-    display: 'block', padding: '8px 24px 8px 36px', color: isActive ? 'var(--accent)' : 'rgba(255,255,255,0.78)',
+    display: 'block', padding: '8px 24px 8px 36px', color: isActive ? '#fff' : 'rgba(255,255,255,0.78)',
     textDecoration: 'none', fontSize: 14, fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
   });
   const subSubLinkStyle = (isActive) => ({
-    display: 'block', padding: '6px 24px 6px 56px', color: isActive ? 'var(--accent)' : 'rgba(255,255,255,0.62)',
+    display: 'block', padding: '6px 24px 6px 56px', color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
     textDecoration: 'none', fontSize: 13, fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,

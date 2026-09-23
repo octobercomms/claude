@@ -286,7 +286,7 @@ export function ExampleConcept({ clientName, onDismiss }) {
           </div>
           <div style={{ marginTop: 8 }}>
             <div className="field">CTA</div>
-            <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>Shop the range</div>
+            <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 700 }}>Shop the range</div>
           </div>
           <div style={{ marginTop: 10 }}>
             <div className="field">VISUAL CONCEPT</div>
@@ -511,7 +511,7 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
 
       <div style={{ marginTop: 8 }}>
         <div className="field">CTA</div>
-        <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>{creative.cta}</div>
+        <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 700 }}>{creative.cta}</div>
       </div>
 
       <div style={{ marginTop: 10 }}>

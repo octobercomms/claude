@@ -551,7 +551,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
           <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 4 }}>press release</div>
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{release.title}</h2>
           {release.dateline && <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{release.dateline}</div>}
-          {release.source_url && <a href={release.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--accent)', display: 'inline-block', marginTop: 6 }}>↗ source page</a>}
+          {release.source_url && <a href={release.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--text)', display: 'inline-block', marginTop: 6 }}>↗ source page</a>}
         </div>
         <button onClick={togglePause} disabled={pausing}
           className={`btn btn-sm ${paused ? 'btn-primary' : 'btn-secondary'}`}
@@ -661,7 +661,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             </div>
 
             <div style={{ marginTop: 12, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)', display: 'flex', alignItems: 'baseline', gap: 10 }}>
-              <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--accent)' }}>{resolving ? '…' : totalRecipients.toLocaleString()}</div>
+              <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{resolving ? '…' : totalRecipients.toLocaleString()}</div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>recipients{selTags.size ? ` · ${selTags.size} tag${selTags.size === 1 ? '' : 's'}` : ''}{extras.size ? ` · ${extras.size} added by hand` : ''}</div>
             </div>
 

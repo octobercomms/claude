@@ -99,7 +99,7 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
                 <div className="caption mt-3 mb-2">Try:</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {suggestions.map((s, i) => (
-                    <button key={i} onClick={() => setDraftInput(s)} className="btn btn-ghost btn-sm" style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '4px 8px', color: 'var(--accent)' }}>{s}</button>
+                    <button key={i} onClick={() => setDraftInput(s)} className="btn btn-ghost btn-sm" style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '4px 8px', color: 'var(--text)' }}>{s}</button>
                   ))}
                 </div>
               </>

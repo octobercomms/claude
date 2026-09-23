@@ -56,7 +56,7 @@ function ChangeList({ title, colour, dateLabel, rows, dateKey, empty }) {
               <tr key={d.domain + i} style={{ borderBottom: '1px solid var(--border-subtle, var(--border))' }}>
                 <td style={{ padding: '6px 8px' }}>
                   <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 3, background: colour, marginRight: 6, verticalAlign: 'middle' }} />
-                  <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{d.domain}</a>
+                  <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)' }}>{d.domain}</a>
                 </td>
                 <td style={{ padding: '6px 8px', textAlign: 'right' }}>{d.rank == null ? '—' : d.rank}</td>
                 <td style={{ padding: '6px 8px' }}>{fmtDate(d[dateKey])}</td>
@@ -224,7 +224,7 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
                   {rds.domains.map((d, i) => (
                     <tr key={d.domain + i} style={{ borderBottom: '1px solid var(--border-subtle, var(--border))' }}>
                       <td style={{ padding: '6px 8px' }}>
-                        <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{d.domain}</a>
+                        <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)' }}>{d.domain}</a>
                       </td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>{d.rank == null ? '—' : d.rank}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmt(d.backlinks_count)}</td>

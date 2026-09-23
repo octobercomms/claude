@@ -79,11 +79,13 @@
      The flat two-tone system stays; these just lift surfaces off the page
      a touch and give overlays a modern frosted feel. Tuned faint on
      purpose — depth, not drop-shadow theatrics. */
-  --shadow-xs: 0 1px 3px rgba(20, 20, 20, 0.07);
-  --shadow-sm: 0 1px 2px rgba(20, 20, 20, 0.06), 0 5px 14px rgba(20, 20, 20, 0.09);
-  --shadow-md: 0 4px 10px rgba(20, 20, 20, 0.09), 0 20px 46px rgba(20, 20, 20, 0.14);
-  --shadow-lg: 0 24px 64px rgba(20, 20, 20, 0.20);
-  --shadow-accent: 0 3px 14px rgba(231, 205, 65, 0.42);
+  /* Flat two-tone — no drop shadows on content surfaces. Only a real
+     floating overlay (modal / dropdown menu) keeps a soft shadow. */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 24px 64px rgba(20, 20, 20, 0.18);
+  --shadow-accent: none;
 
   /* ── Design system v1 ───────────────────────────────────────────
      Rationalised type scale — 4 sizes, hierarchy from size + weight
@@ -573,8 +575,10 @@ button { font-family: inherit; }
   background: var(--surface); color: var(--text);
 }
 .chip-neutral { background: var(--surface-sunken); color: var(--text-muted); border-color: var(--surface-sunken); }
-.chip-accent  { background: var(--accent); color: var(--accent-on); border-color: var(--accent); font-weight: 700; }
-.chip-outline { background: transparent; color: var(--text); border-color: var(--accent); }
+/* Chips are labels, not buttons — never yellow. chip-accent is now a strong
+   neutral (ink text on a light fill); chip-outline a plain bordered label. */
+.chip-accent  { background: var(--surface-sunken); color: var(--text); border-color: var(--border-neutral); font-weight: 700; }
+.chip-outline { background: transparent; color: var(--text); border-color: var(--card-border); }
 .chip-success { background: var(--positive-soft); color: var(--positive); border-color: var(--positive); }
 .chip-warning { background: var(--warning-soft);  color: var(--warning);  border-color: var(--warning); }
 .chip-danger  { background: var(--negative-soft); color: var(--negative); border-color: var(--negative); }
@@ -1753,46 +1757,26 @@ select, textarea {
 
 /* Surfaces — soft elevation. Cards, stats and status pills now lift a
    touch off the canvas. Smooth transitions so hover states feel alive. */
+/* Flat surfaces — border-only, no shadow, no hover lift (the lift caused a
+   hover flicker at tile edges). Hover just darkens the border. */
 .card,
 .stat,
 .metric-card {
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.15s ease;
+  transition: border-color 0.15s ease;
 }
-.suite-status-item { box-shadow: var(--shadow-xs); }
-
-/* Interactive tiles — a gentle lift on hover signals "clickable" without
-   shouting. Only things that actually navigate get the motion. */
 .suite-cap {
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.15s ease;
+  transition: border-color 0.15s ease;
 }
-.suite-cap:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--text);
-}
-/* Dashboard / overview list cards are links — give them the same lift so
-   the whole bento responds, not just the capability tiles. */
-.card-stat { transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.15s ease; }
+.suite-cap:hover { border-color: var(--text); }
+.card-stat { transition: border-color 0.15s ease; }
 a:hover > .card-stat,
-.card-stat:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-}
-.briefing-card { box-shadow: var(--shadow-xs); }
-.briefing-card:hover { box-shadow: var(--shadow-sm); }
+.card-stat:hover { border-color: var(--text); }
+.briefing-card:hover { border-color: var(--text); }
 
-/* Primary button — a faint vertical sheen + soft accent-tinted shadow,
-   and a 1px hover lift. Still yellow fill, black text, pill shape. */
-.btn-primary {
-  background: linear-gradient(180deg, #efda6a 0%, var(--accent) 100%);
-  box-shadow: var(--shadow-accent);
-}
+/* Primary button — flat yellow fill, black text. Hover inverts to black. */
+.btn-primary { background: var(--accent); }
 .btn-primary:hover:not(:disabled) {
   background: var(--text); border-color: var(--text); color: #fff;
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
 }
 
 /* Overlays — frosted glass. The modal backdrop and the client switcher

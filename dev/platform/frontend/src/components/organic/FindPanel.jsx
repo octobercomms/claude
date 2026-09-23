@@ -385,7 +385,7 @@ function SxoMode({ clientId, onBuildContent }) {
                   <div className="h2" style={{ marginTop: 4, textTransform: 'capitalize' }}>{data.dominant_page_type || '—'}</div>
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-                  padding: '3px 8px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  padding: '3px 8px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text)' }}>
                   {data.confidence || '—'} confidence
                 </span>
               </div>
@@ -436,7 +436,7 @@ function SxoMode({ clientId, onBuildContent }) {
             <div className="stack" style={{ gap: 6 }}>
               {data.serp.map(r => (
                 <div key={r.rank} className="card" style={{ padding: 8, background: r.is_client ? 'var(--accent-soft)' : 'var(--surface)', borderColor: r.is_client ? 'var(--accent)' : 'var(--card-border)' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>{r.rank}. {r.title || '(no title)'}{r.is_client && <span style={{ color: 'var(--accent)' }}> · you</span>}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>{r.rank}. {r.title || '(no title)'}{r.is_client && <span style={{ color: 'var(--text)' }}> · you</span>}</div>
                   <div style={{ fontSize: 10, color: 'var(--text-subtle)', wordBreak: 'break-all', marginTop: 2 }}>{(r.url || '').replace(/^https?:\/\//, '').slice(0, 54)}</div>
                 </div>
               ))}

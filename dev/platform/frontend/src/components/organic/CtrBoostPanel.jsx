@@ -97,7 +97,7 @@ export default function CtrBoostPanel({ clientId }) {
                     <span style={{ background: 'var(--positive-soft)', color: 'var(--positive)', padding: '2px 8px', borderRadius: 'var(--r-pill)', fontWeight: 700 }}>+{o.missed_clicks.toLocaleString()}</span>
                   </td>
                   <td style={{ padding: '8px 10px', textAlign: 'right' }}>
-                    <button onClick={() => setActive(o)} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)', padding: '0 6px' }}>Rewrite →</button>
+                    <button onClick={() => setActive(o)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 6px' }}>Rewrite →</button>
                   </td>
                 </tr>
               ))}

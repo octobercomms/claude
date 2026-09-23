@@ -519,7 +519,7 @@ function ProgrammaticMode({ clientId }) {
                             {b.status === 'complete' && (
                               b.content_draft_id
                                 ? <span style={{ fontSize: 11, color: 'var(--positive)', fontWeight: 700 }}>✓ in Pipeline</span>
-                                : <button onClick={() => promote(b)} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)' }}>Send to Pipeline →</button>
+                                : <button onClick={() => promote(b)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)' }}>Send to Pipeline →</button>
                             )}
                           </td>
                         </tr>

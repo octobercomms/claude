@@ -112,7 +112,7 @@ export default function QuickWinsPanel({ clientId, onRefresh }) {
                     {!w.dismissed_at ? (
                       <>
                         {onRefresh && w.target_url && (
-                          <button onClick={() => onRefresh(w)} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)', padding: '0 6px' }}>Refresh →</button>
+                          <button onClick={() => onRefresh(w)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 6px' }}>Refresh →</button>
                         )}
                         <button onClick={() => dismiss(w, 'actioned')} className="btn btn-ghost btn-sm" style={{ color: 'var(--positive)', padding: '0 6px' }}>Done</button>
                         <button onClick={() => dismiss(w, 'not_relevant')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 6px' }}>Skip</button>

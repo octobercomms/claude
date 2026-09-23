@@ -109,7 +109,7 @@ export default function SuitePerformanceHub({
                 {step.detail && <div className="body-xs text-muted mt-2">{step.detail}</div>}
               </div>
               {i < flow.length - 1 && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 22, fontWeight: 700, marginTop: -8 }}>→</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', fontSize: 22, fontWeight: 700, marginTop: -8 }}>→</div>
               )}
             </React.Fragment>
           ))}
@@ -129,7 +129,7 @@ export default function SuitePerformanceHub({
                   onClick={c.onClick}
                   style={{
                     background: 'none', border: 'none', padding: 0, marginTop: 'var(--s2)',
-                    color: 'var(--accent)', fontWeight: 700, fontSize: 13,
+                    color: 'var(--text)', fontWeight: 700, fontSize: 13,
                     textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
                   }}>
                   Open {c.label} →
