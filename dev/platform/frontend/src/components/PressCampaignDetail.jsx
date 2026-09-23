@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 import PressCampaignAnalytics from './PressCampaignAnalytics';
+import StepRail from './shells/StepRail';
 
 // Detail view for one press_release campaign, run as a clear five-step flow:
 //   1 · Who     — build the audience from tags (scales to thousands) + adds.
@@ -449,27 +450,18 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const goBack = () => { const i = STEPS.findIndex(s => s.key === step); if (i > 0) setStep(STEPS[i - 1].key); };
 
   const Stepper = () => (
-    <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s5)' }}>
-      {STEPS.map((s, i) => {
-        const active = s.key === step;
-        const isDone = done[s.key];
-        return (
-          <button key={s.key} type="button" onClick={() => setStep(s.key)}
-            style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', cursor: 'pointer',
-              borderRadius: 'var(--r-sm)', border: `1px solid ${active ? 'var(--accent)' : 'var(--card-border)'}`,
-              background: active ? 'var(--accent-soft)' : 'var(--surface)', flex: '1 1 120px', minWidth: 0, textAlign: 'left' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 'var(--r-md)', flexShrink: 0,
-              background: isDone ? 'var(--success, #1a9d5a)' : (active ? 'var(--accent)' : 'var(--card-border)'),
-              color: isDone || active ? '#fff' : 'var(--text-subtle)', fontSize: 'var(--fs-caption)', fontWeight: 700 }}>
-              {isDone ? '✓' : i + 1}
-            </span>
-            <span style={{ minWidth: 0 }}>
-              <span style={{ fontSize: 'var(--fs-body)', fontWeight: active ? 700 : 600, color: 'var(--text)', display: 'block' }}>{s.label}</span>
-              <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{s.hint}</span>
-            </span>
-          </button>
-        );
-      })}
+    <div style={{ marginTop: 'var(--s5)' }}>
+      <StepRail
+        numbered
+        activeKey={step}
+        onStep={setStep}
+        steps={STEPS.map((s) => ({
+          key: s.key,
+          label: s.label,
+          sub: s.hint,
+          status: done[s.key] ? 'done' : 'todo',
+        }))}
+      />
     </div>
   );
 

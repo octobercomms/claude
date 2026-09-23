@@ -2,7 +2,7 @@ import React from 'react';
 
 // Step header used by every Pipeline step panel — a section title, an optional
 // one-line subtitle, and an optional "Next step →" hand-off button. The step
-// number/navigation now lives in the shared <Stepper> above the panel, so we no
+// number/navigation now lives in the shared <StepRail> above the panel, so we no
 // longer draw a competing numbered badge here. `num` is accepted (and ignored)
 // for backwards-compatible call sites.
 export default function PipelineStep({ num, title, tagline, onNext, nextLabel, banner, children }) {

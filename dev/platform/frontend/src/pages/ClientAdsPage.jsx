@@ -11,7 +11,7 @@ import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import StatStrip from '../components/shells/StatStrip';
-import Stepper from '../components/Stepper';
+import StepRail from '../components/shells/StepRail';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import { useTabParam } from '../hooks/useTabParam';
 import { api } from '../utils/api';
@@ -456,10 +456,16 @@ export default function ClientAdsPage() {
       )}
       {isPipelineGroup && (
         <div className="stepper-block">
-          <Stepper
-            steps={PIPELINE_META}
-            current={Math.max(1, PIPELINE_STEPS.indexOf(pipelineStep) + 1)}
-            onStep={n => setTab(PIPELINE_STEPS[n - 1])}
+          <StepRail
+            numbered
+            activeKey={pipelineStep}
+            onStep={setTab}
+            steps={PIPELINE_META.map((m, i) => ({
+              key: PIPELINE_STEPS[i],
+              label: m.title,
+              sub: m.sub,
+              status: i < Math.max(0, PIPELINE_STEPS.indexOf(pipelineStep)) ? 'done' : 'todo',
+            }))}
           />
         </div>
       )}

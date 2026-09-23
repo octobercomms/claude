@@ -8,7 +8,7 @@ import { roWrite, READ_ONLY_MSG } from '../utils/readOnly';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
-import Stepper from '../components/Stepper';
+import StepRail from '../components/shells/StepRail';
 import { SocialPublishContent } from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
@@ -828,7 +828,17 @@ function BrainstormTab({
 
   return (
     <div>
-      <Stepper steps={steps} current={step} onStep={goStep} />
+      <StepRail
+        numbered
+        activeKey={step}
+        onStep={goStep}
+        steps={steps.map((s, i) => ({
+          key: i + 1,
+          label: s.title,
+          sub: s.sub,
+          status: (i + 1) < step ? 'done' : 'todo',
+        }))}
+      />
 
       {/* STAGE 1 — CREATE (full-width brief-left / options-right; past batches
           now live on Review) */}
