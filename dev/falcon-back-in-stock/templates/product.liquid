@@ -1,0 +1,387 @@
+{% render 'shogun-products', content: product %}
+{{product.metafields.shogun.above}}
+
+
+  {% if product.selected_or_first_available_variant != blank %}
+    {% assign current_variant = product.selected_or_first_available_variant %}
+  {% else %}
+    {% assign current_variant = product.variants.first %}
+  {% endif %}
+
+  {% assign variant_loop = product.selected_or_first_available_variant.metafields.variant %}
+  {% for attribute in variant_loop %}
+    {% assign key = attribute.first | replace: "_", " " %}
+    {% assign value = attribute.last %}
+    {% assign combine_value = key | append: ", " | append: value %}
+    {% assign promo_string =  promo_string | append: '|' | append: combine_value %}
+  {% endfor %}
+  {% assign promoArray = promo_string | split : '|' %}
+
+
+	{% comment %}
+		The data for products is integrated via the TradeGecko app. We will split
+		the product description in to an array, so that we can use it in parts throughout
+		the DOM.
+	{% endcomment %}
+
+	{% assign description = product.description | split: '<!-- split -->'  %}
+
+
+<section class="c-product js-product">
+	<div class="o-container c-homepage__row">
+
+		{% include 'breadcrumbs' %}
+
+		<div class="c-product__main o-layout">
+			<div class="c-product__column c-product__column--images o-layout__item u-width-2/3@md u-padding-right-large@md">
+				<div class="c-product-slider u-clearfix u-margin-bottom c-slider c-slider--has-fade js-product-slider">
+
+					{% for image in product.images %}
+						<div class="c-product-slider__image c-slider__item u-img-full">
+							<img
+								data-flickity-lazyload-srcset="
+									{{ image | img_url: '450x' }} 450w,
+									{{ image | img_url: '600x' }} 600w,
+									{{ image | img_url: '896x' }} 896w,
+									{{ image | img_url: '1200x' }} 1200w,
+									{{ image | img_url: '1792x' }} 1792w,
+									{{ image | img_url: '2400x' }} 2400w"
+								sizes="
+									(min-width: 1400px) 896px
+									(min-width: 767px) 66vw,
+									100vw"
+								data-flickity-lazyload-src="{{ image | img_url: '896x' }}"
+								alt="{{ image.alt }}"
+							/>
+						</div>
+					{% endfor %}
+
+				</div>
+
+				<div class="c-product-thumbs-slider js-product-thumbs-slider u-margin-bottom">
+
+					{% for image in product.images %}
+						<div
+							class="c-product-thumbs-slider__image u-img-full"
+							data-variant-image-id="{{ image.id }}"
+						>
+							<img
+								data-flickity-lazyload-src="{{ image | img_url: '500x' }}"
+								data-flickity-lazyload-srcset="{{ image | img_url: '500x', scale: 2 }} 2x"
+								alt="{{ image.alt }}"
+							/>
+						</div>
+					{% endfor %}
+
+				</div>
+
+				{% render 'product-lifestyle-images', product: product, classname: 'u-hide-completely@md-down' %}
+
+			</div>
+
+			<div class="c-product__column c-product__column--info u-ta-c o-layout__item u-width-1/3@md">
+				<div class="c-product-info">
+
+					<div class="c-product-info__section c-product-info__section--title">
+						<h2 class="c-product__title u-margin-bottom-none">
+							{{ product.title }}
+						</h2>
+
+						<p class="c-product__price">
+
+							{% if current_variant.compare_at_price and current_variant.compare_at_price > current_variant.price %}
+							From
+							{% endif %}
+
+							<span class="c-price c-price--current js-product-price">
+								{{ current_variant.price | money }}
+							</span>
+
+						</p>
+
+						<div class="c-product__description">
+							{{ description[0] }}
+						</div>
+					</div>
+
+					<div class="c-product-info__section c-product-info__section--variants">
+
+						{% unless product.variants.size == 1 %}
+
+						{% assign optionsLabel = '' %}
+						{% for option in product.options %}
+							{% assign optionsLabel = optionsLabel | append: ' / ' | append: option %}
+						{% endfor %}
+						{% assign optionsLabel = optionsLabel | remove_first: ' / ' %}
+						{% assign optionsLabel = optionsLabel | replace: 'Color', 'Colour' %}
+
+						<div class="c-product__variants u-t-uppercase">
+							<h4 class="c-variant-swatch__title u-margin-bottom-small u-dis-b">{{ optionsLabel }}: <span class="js-current-variant-title" data-selected-variant-title="{{ current_variant.title }}">{{ current_variant.title }}</span></h4>
+							{% include 'variant-swatches' %}
+						</div>
+
+						{% endunless %}
+
+						<p class="c-product__price c-product__price--lg e-h1 u-f-secondary">
+							<span class="u-t-lt js-compare-product-price" style="display: none;">{{ current_variant.compare_at_price | money }}</span>
+							<span class="js-product-price js-product-price-hightlight">{{ current_variant.price | money }}</span>
+						</p>
+
+						<div class="c-product__reviews">
+							{% include 'reviews' %}
+						</div>
+					</div>
+
+					<div class="c-product-info__section c-product-info__section--checkout">
+						<div class="c-product__variants">
+
+							{% render 'restock-notify-form', product: product, current_variant: current_variant %}
+
+							<form
+								action="/cart/add"
+								method="post"
+								enctype="multipart/form-data"
+								class="c-product__form u-margin-bottom js-add-to-cart-form">
+
+								<div class="c-product-variants u-hide-visually">
+									<select class="js-variant-select" id="product-select" name="id">
+										{% for variant in product.variants %}
+										  <option{% if variant == product.selected_or_first_available_variant %} selected{% endif %} value="{{ variant.id }}">
+										  	{{ variant.title }} - {{ variant.price | money }}
+										  </option>
+										{% endfor %}
+									</select>
+								</div>
+
+								<div class="c-product-quantity u-margin-bottom"{% unless current_variant.available %} style="display:none;"{% endunless %}>
+									<label for="quantity" class="c-product-quantity__title u-margin-bottom-small">Quantity</label>
+									<span class="c-quantity-selector">
+										<span class="c-quantity-selector__action c-quantity-selector__action--decrement js-decrease-quantity">
+											<span class="c-quantity-selector__icon">
+												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M 10,50 L 60,100 L 60,90 L 20,50  L 60,10 L 60,0 Z" class="arrow" fill="currentColor"></path></svg>
+											</span>
+											<span class="u-hide-visually">Decrease quantity</span>
+										</span>
+										<input class="c-quantity-selector__input js-quantity-input" name="quantity" type="number" value="1" min="1" />
+										<span class="c-quantity-selector__action c-quantity-selector__action--increment js-increase-quantity">
+											<span class="c-quantity-selector__icon">
+												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M 10,50 L 60,100 L 60,90 L 20,50  L 60,10 L 60,0 Z" class="arrow" transform="translate(100, 100) rotate(180) " fill="currentColor"></path></svg>
+											</span>
+											<span class="u-hide-visually">Increase quantity</span>
+										</span>
+									</span>
+								</div>
+
+								<div class="c-product__btn">
+									<input type="submit" value="Add to cart" class="c-btn c-btn--brand e-h4 u-width-1/1 js-add-to-cart"{% unless current_variant.available %} style="display:none;"{% endunless %}
+										onclick="dataLayer.push({ 'ecommerce': null });dataLayer.push({
+'event': 'add_to_cart',
+'ecommerce': {
+	'items': [{
+	'item_id': '{{ product.id }}',
+	'item_name': '{{ product.title | remove: "'" | remove: '"' }}',
+	'item_brand': '{{ product.vendor | remove: "'" | remove: '"' }}',
+	'item_category': '{{ product.collections[0].title | remove: "'" | remove: '"' }}',
+	'item_variant': '{{ product.selected_variant.sku }}',
+	'currency': '{{ shop.currency }}',
+	'price': '{{ product.price | times: 0.01}}'
+	}]
+}
+});"
+									/>
+								</div>
+
+								<div class="c-klarna">
+									<!--Klarna-->
+									<klarna-placement
+									  data-key="credit-promotion-badge"
+									  data-locale="en-GB"
+									  data-purchase-amount="{{ variant.price | money }}"
+									>
+									</klarna-placement>
+									<script> window.KlarnaOnsiteService = window.KlarnaOnsiteService || []; window.KlarnaOnsiteService.push({ eventName: 'refresh-placements' }); </script>
+									<!--Klarna-->
+								</div>
+							</form>
+
+							<div class="c-product__delivery u-tt-uppercase u-no-last-margin">
+								{{ settings.product_shipping_info }}
+							</div>
+
+						</div>
+					</div>
+
+					<div class="c-product__accordion c-accordion u-width-1/1 js-accordion">
+						<div class="js-accordion-tab c-accordion__tab">
+							<h3 class="js-accordion-label c-accordion__label">
+								{{ settings.product_info_tab_1_label }}
+							</h3>
+							<div class="js-accordion-content c-accordion__main">{{ description[1] }}</div>
+						</div>
+						{% unless product.type == 'Aprons' or product.type == 'Tea towels' %}
+							<div class="js-accordion-tab c-accordion__tab">
+								<h3 class="js-accordion-label c-accordion__label">{{ settings.product_info_tab_2_label }}</h3>
+								<div class="js-accordion-content c-accordion__main">
+									{% if settings.product_info_tab_2_content == 'care-use' %}
+									<ul class="c-icon-grid o-list-clean">
+										<li class="c-icon-grid-item">
+											<figure>
+												<span class="c-icon-grid-item__image u-img-full">
+													<img src="{{ 'icon-oven-safe.svg' | asset_url }}">
+												</span>
+												<figcaption><p>Oven-safe up to 530F / 270C</p></figcaption>
+											</figure>
+										</li>
+										<li class="c-icon-grid-item">
+											<figure>
+												<span class="c-icon-grid-item__image u-img-full">
+													<img src="{{ 'icon-dishwasher-safe.svg' | asset_url }}">
+												</span>
+												<figcaption><p>Dishwasher <br/>safe</p></figcaption>
+											</figure>
+										</li>
+										<li class="c-icon-grid-item">
+											<figure>
+												<span class="c-icon-grid-item__image u-img-full">
+													<img src="{{ 'icon-freezer-safe.svg' | asset_url }}">
+												</span>
+												<figcaption><p>Freezer <br/>friendly</p></figcaption>
+											</figure>
+										</li>
+										<li class="c-icon-grid-item">
+											<figure>
+												<span class="c-icon-grid-item__image u-img-full">
+													<img src="{{ 'icon-hob-safe.svg' | asset_url }}">
+												</span>
+												<figcaption><p>Suitable for gas and electric hobs</p></figcaption>
+											</figure>
+										</li>
+										<li class="c-icon-grid-item">
+											<figure>
+												<span class="c-icon-grid-item__image u-img-full">
+													<img src="{{ 'icon-microwave.svg' | asset_url }}">
+												</span>
+												<figcaption><p>Not safe for microwaves</p></figcaption>
+											</figure>
+										</li>
+										<li class="c-icon-grid-item">
+											<figure>
+												<span class="c-icon-grid-item__image u-img-full">
+													<img src="{{ 'icon-chemical-free.svg' | asset_url }}">
+												</span>
+												<figcaption><p>Chemically safe</p></figcaption>
+											</figure>
+										</li>
+									</ul>
+									{% endif %}
+									{{ pages[settings.product_info_tab_2_content].content }}
+								</div>
+							</div>
+						{% endunless %}
+						<div class="js-accordion-tab c-accordion__tab">
+							<h3 class="js-accordion-label c-accordion__label">{{ settings.product_info_tab_3_label }}</h3>
+							<div class="js-accordion-content c-accordion__main">{{ pages[settings.product_info_tab_3_content].content }}</div>
+						</div>
+					</div>
+
+					{% render 'product-lifestyle-images', product: product, classname: 'c-lifestyle-mobile-only' %}
+
+					<div class="c-product-share u-margin-top u-width-1/1">
+						<h3 class="u-color-brand u-margin-bottom-small">Share this product</h3>
+						<ul class="c-product-share__menu o-list-clean">
+							<li class="c-product-share__item">
+								<a class="c-product-share__link" target="_blank" rel="noopener" href="https://www.facebook.com/sharer/sharer.php?u=https://{{ shop.domain }}{{ product.url }}">
+									<span class="c-product-share__icon c-product-share__icon--facebook"></span>
+								</a>
+							</li>
+							<li class="c-product-share__item">
+								<a class="c-product-share__link" target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=https://{{ shop.domain }}{{ product.url }}">
+									<span class="c-product-share__icon c-product-share__icon--twitter"></span>
+								</a>
+							</li>
+							<li class="c-product-share__item">
+								<a class="c-product-share__link" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/button/?url=https://{{ shop.domain }}{{ product.url }}&media=https://{{ product.featured_image.src | img_url: '1024x' }}&description={{ product.description | strip_html | escape }}">
+									<span class="c-product-share__icon c-product-share__icon--pinterest"></span>
+								</a>
+							</li>
+						</ul>
+					</div>
+
+				</div>
+			</div>
+		</div>
+
+	</div>
+
+<script type="text/javascript">
+
+    (function defer() {
+        // option_selection.js (Shopify.OptionSelectors) and jQuery both load
+        // before this runs on a normal page, but wait for both to be safe.
+        if (!window.jQuery || !window.Shopify || !Shopify.OptionSelectors) {
+            setTimeout(defer, 50)
+            return
+        }
+
+        jQuery(function($) {
+            var baseUrl = window.location.href.split(/[?#]/)[0]
+
+            function showAddToCart() {
+                $('.js-add-to-cart').show().removeAttr('disabled').val('Add to Cart')
+                $('.c-product-quantity').show()
+                $('.js-notify-wrap').hide()
+            }
+
+            function showNotify(variant) {
+                $('.js-add-to-cart').hide()
+                $('.c-product-quantity').hide()
+                $('.js-notify-wrap').show()
+                $('.js-notify-tags').val('restock-request, restock-' + variant.id)
+                $('.js-notify-return-url').val(baseUrl + '?variant=' + variant.id)
+            }
+
+            if ($('#product-select').length) {
+                new Shopify.OptionSelectors('product-select', {
+                    product: {{ product | json }},
+                    onVariantSelected: function(variant, selector) {
+                        if (variant) {
+                            if (variant.available) {
+                                showAddToCart()
+                            } else {
+                                showNotify(variant)
+                            }
+                            $('.js-product-sku').text(variant.sku)
+                            $('.js-product-price').text(Shopify.formatMoney(variant.price))
+                        } else {
+                            $('.js-add-to-cart').hide()
+                            $('.js-notify-wrap').hide()
+                        }
+                    },
+                    enableHistoryState: true
+                })
+            }
+
+            // Read by theme.liquid after the redirect to swap the thank-you
+            // modal copy to the back-in-stock message.
+            $(document).on('submit', '.js-notify-form', function() {
+                try { sessionStorage.setItem('restockNotifySubmitted', '1') } catch (e) {}
+            })
+        })
+    })()
+
+</script>
+
+</section>
+
+{% assign actual_product = product %}
+
+{% include 'reviews-product-rich-snippet' %}
+{% include 'related-products' %}
+{% include 'recently-viewed-products' %}
+
+{% assign product = actual_product %}
+
+<script async="async" type="text/javascript" src="//cdn.feedoptimise.com/fo.js#1230"></script>
+
+{{product.metafields.shogun.below}}
+{{ product.metafields.shogun.optimizer }}
