@@ -1,0 +1,54 @@
+{%- comment -%}
+  Falcon stock system: per-store settings. THE ONLY FILE THAT DIFFERS PER STORE.
+
+  Load it with `include` (not `render`), so the assigned variables are visible
+  to the template that loads it:
+    {% include 'falcon-config' %}
+  Snippets rendered with `render` cannot see these variables; pass the values
+  they need as parameters.
+
+  Values per store:
+
+    Setting                   UK                   US                    EU
+    falcon_store              'uk'                 'us'                  'eu'
+    falcon_preorder_label     'Pre-order'          'Preorder'            'Pre-order'
+    falcon_date_format        '%-d %B %Y'          '%B %-d, %Y'          '%-d %B %Y'
+                              (12 November 2026)   (November 12, 2026)   (12 November 2026)
+    falcon_add_label          'Add to cart'        'Add to cart'         'Add to cart'
+    falcon_worker_url         same Worker URL on all three stores
+    falcon_turnstile_sitekey  same Turnstile site key on all three stores, as long
+                              as the widget's hostname list includes all three
+                              domains (Cloudflare dashboard, Turnstile, widget settings)
+
+  REPLACE_ME: before install, replace the two placeholder values below:
+    1. falcon_worker_url: the Worker's real URL, no trailing slash,
+       for example https://falcon-stock.falcon-enamelware.workers.dev
+    2. falcon_turnstile_sitekey: the Turnstile widget's site key (the public
+       one, starts with 0x). Never the secret key.
+{%- endcomment -%}
+
+{%- comment -%} UK store {%- endcomment -%}
+{%- assign falcon_store = 'uk' -%}
+{%- assign falcon_preorder_label = 'Pre-order' -%}
+{%- assign falcon_date_format = '%-d %B %Y' -%}
+{%- assign falcon_add_label = 'Add to cart' -%}
+
+{%- comment -%} REPLACE_ME: Worker URL, no trailing slash {%- endcomment -%}
+{%- assign falcon_worker_url = 'https://falcon-stock.<account>.workers.dev' -%}
+
+{%- comment -%} REPLACE_ME: Turnstile site key (public, starts with 0x) {%- endcomment -%}
+{%- assign falcon_turnstile_sitekey = 'REPLACE_ME_TURNSTILE_SITEKEY' -%}
+
+{%- comment -%}
+  US store: use these lines instead of the UK block above.
+    assign falcon_store = 'us'
+    assign falcon_preorder_label = 'Preorder'
+    assign falcon_date_format = '%B %-d, %Y'
+    assign falcon_add_label = 'Add to cart'
+
+  EU store: use these lines instead of the UK block above.
+    assign falcon_store = 'eu'
+    assign falcon_preorder_label = 'Pre-order'
+    assign falcon_date_format = '%-d %B %Y'
+    assign falcon_add_label = 'Add to cart'
+{%- endcomment -%}

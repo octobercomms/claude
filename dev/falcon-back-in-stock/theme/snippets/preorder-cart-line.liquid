@@ -1,0 +1,76 @@
+{%- comment -%}
+  Preorder display in the cart and quick cart.
+
+  Mode 1 (default): a cart line's visible line item properties, for example
+  "Pre-order: Ships from 12 November 2026". Properties whose name starts
+  with "_" (such as _preorder_date) and blank values are skipped. Place it
+  under the line's product / variant title, inside the cart items loop:
+    {% render 'preorder-cart-line', item: item %}
+
+  Mode 2: the basket notice, shown once when any line has _preorder_date.
+  Place it once, outside the items loop (above the checkout button works well):
+    {% render 'preorder-cart-line', mode: 'notice', cart: cart %}
+
+  Optional in both modes: `store: falcon_store` ('uk'|'us'|'eu'). If not
+  passed, the store is worked out from shop.currency (GBP uk, USD us, EUR eu),
+  so the cart template does not have to include falcon-config.
+
+  Quick cart / cart modal (theme.liquid): the `.js-quick-cart-item` loop over
+  cart.items is server-rendered, so the same two calls work there. Rows that
+  app.js builds from the `js-quick-cart-ghost` template after an AJAX add are
+  filled in by JavaScript we cannot see, so they will not show properties or
+  the notice until the page reloads. See INSTALL-THEME.md.
+{%- endcomment -%}
+{%- assign pcl_store = store -%}
+{%- if pcl_store == blank -%}
+	{%- case shop.currency -%}
+		{%- when 'USD' -%}{%- assign pcl_store = 'us' -%}
+		{%- when 'EUR' -%}{%- assign pcl_store = 'eu' -%}
+		{%- else -%}{%- assign pcl_store = 'uk' -%}
+	{%- endcase -%}
+{%- endif -%}
+
+{%- if mode == 'notice' -%}
+	{%- assign pcl_has_preorder = false -%}
+	{%- for pcl_item in cart.items -%}
+		{%- for pcl_prop in pcl_item.properties -%}
+			{%- if pcl_prop.first == '_preorder_date' and pcl_prop.last != blank -%}
+				{%- assign pcl_has_preorder = true -%}
+			{%- endif -%}
+		{%- endfor -%}
+	{%- endfor -%}
+	{%- if pcl_has_preorder -%}
+		<p class="c-preorder-notice js-preorder-notice" style="margin:0 0 12px;padding:10px 12px;border:2px solid currentColor;font-size:14px;line-height:1.4;text-align:left;">
+			{%- if pcl_store == 'us' -%}
+				Preorder items ship separately when they arrive. Anything in stock ships now.
+			{%- else -%}
+				Pre-order items ship separately when they arrive. Anything in stock ships now.
+			{%- endif -%}
+		</p>
+	{%- endif -%}
+{%- else -%}
+	{%- assign pcl_visible = 0 -%}
+	{%- for pcl_prop in item.properties -%}
+		{%- assign pcl_first_char = pcl_prop.first | slice: 0 -%}
+		{%- if pcl_prop.last != blank and pcl_first_char != '_' -%}
+			{%- assign pcl_visible = pcl_visible | plus: 1 -%}
+		{%- endif -%}
+	{%- endfor -%}
+	{%- if pcl_visible > 0 -%}
+		<ul class="c-cart-line-properties o-list-clean" style="margin:4px 0 0;font-size:13px;">
+			{%- for pcl_prop in item.properties -%}
+				{%- assign pcl_first_char = pcl_prop.first | slice: 0 -%}
+				{%- if pcl_prop.last != blank and pcl_first_char != '_' -%}
+					<li class="c-cart-line-properties__item">
+						<strong>{{ pcl_prop.first | escape }}:</strong>
+						{% if pcl_prop.last contains '/uploads/' %}
+							<a href="{{ pcl_prop.last }}">{{ pcl_prop.last | split: '/' | last | escape }}</a>
+						{% else %}
+							{{ pcl_prop.last | escape }}
+						{% endif %}
+					</li>
+				{%- endif -%}
+			{%- endfor -%}
+		</ul>
+	{%- endif -%}
+{%- endif -%}

@@ -1,0 +1,97 @@
+{%- comment -%}
+  Falcon stock system: preorder block for the native ORDER CONFIRMATION email.
+  Settings > Notifications > Customer notifications > Order confirmation > Edit code.
+  Paste this whole file once, just above the "Order summary" section (see
+  INSTALL-THEME.md). Renders nothing when the order has no preorder lines.
+
+  Reads the `_preorder_date` line item property (the date promised at
+  checkout), not the variant metafield. Works on all three stores: the
+  store is chosen from shop.currency (GBP uk, USD us, EUR eu).
+
+  Line item properties are read defensively: `line.properties`, falling back
+  to `line.line_item.properties`, and both hash-style and name/value pairs.
+{%- endcomment -%}
+{%- assign fpo_store = 'uk' -%}
+{%- case shop.currency -%}
+	{%- when 'USD' -%}{%- assign fpo_store = 'us' -%}
+	{%- when 'EUR' -%}{%- assign fpo_store = 'eu' -%}
+{%- endcase -%}
+{%- if fpo_store == 'us' -%}
+	{%- assign fpo_date_format = '%B %-d, %Y' -%}
+	{%- assign fpo_label = 'Preorder' -%}
+{%- else -%}
+	{%- assign fpo_date_format = '%-d %B %Y' -%}
+	{%- assign fpo_label = 'Pre-order' -%}
+{%- endif -%}
+
+{%- assign fpo_pre_count = 0 -%}
+{%- assign fpo_other_count = 0 -%}
+{%- capture fpo_rows -%}
+	{%- for line in line_items -%}
+		{%- assign fpo_props = line.properties -%}
+		{%- if fpo_props == blank -%}{%- assign fpo_props = line.line_item.properties -%}{%- endif -%}
+		{%- assign fpo_date = '' -%}
+		{%- if fpo_props['_preorder_date'] != blank -%}
+			{%- assign fpo_date = fpo_props['_preorder_date'] -%}
+		{%- else -%}
+			{%- for fpo_prop in fpo_props -%}
+				{%- assign fpo_key = fpo_prop.first -%}
+				{%- assign fpo_val = fpo_prop.last -%}
+				{%- if fpo_prop.name != blank -%}
+					{%- assign fpo_key = fpo_prop.name -%}
+					{%- assign fpo_val = fpo_prop.value -%}
+				{%- endif -%}
+				{%- if fpo_key == '_preorder_date' and fpo_val != blank -%}{%- assign fpo_date = fpo_val -%}{%- endif -%}
+			{%- endfor -%}
+		{%- endif -%}
+
+		{%- if fpo_date != blank -%}
+			{%- assign fpo_pre_count = fpo_pre_count | plus: 1 -%}
+			{%- assign fpo_title = line.product.title | default: line.title -%}
+			{%- assign fpo_variant = line.variant.title | default: line.variant_title -%}
+			<tr>
+				<td style="padding:0 0 12px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#333333;">
+					<strong>{{ fpo_title | escape }}</strong>{% if fpo_variant != blank and fpo_variant != 'Default Title' %} ({{ fpo_variant | escape }}){% endif %} &times; {{ line.quantity }}<br>
+					{{ fpo_label }}: expected to ship from {{ fpo_date | date: fpo_date_format }}.
+				</td>
+			</tr>
+		{%- else -%}
+			{%- assign fpo_other_count = fpo_other_count | plus: 1 -%}
+		{%- endif -%}
+	{%- endfor -%}
+{%- endcapture -%}
+
+{%- if fpo_pre_count > 0 -%}
+<table class="row section" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border-spacing:0;">
+	<tr>
+		<td class="section__cell" style="padding:24px 0 8px 0;">
+			<center>
+				<table class="container" role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:100%;text-align:left;border-collapse:collapse;border-spacing:0;margin:0 auto;">
+					<tr>
+						<td style="padding:16px;border:2px solid #333333;">
+							<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border-spacing:0;">
+								<tr>
+									<td style="padding:0 0 12px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:18px;line-height:1.3;font-weight:bold;color:#333333;">
+										{%- if fpo_store == 'us' -%}About your preorder{%- else -%}About your pre-order{%- endif -%}
+									</td>
+								</tr>
+								{{ fpo_rows }}
+								<tr>
+									<td style="padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#333333;">
+										{%- if fpo_store == 'us' -%}
+											We'll email you when {% if fpo_pre_count > 1 %}each item is{% else %}it's{% endif %} on its way. If the date changes we'll tell you right away, and you can cancel for a full refund at any time before it ships.
+										{%- else -%}
+											We'll email you when {% if fpo_pre_count > 1 %}each item is{% else %}it's{% endif %} on its way. If the date changes we'll tell you straight away, and you can cancel for a full refund at any time before it's dispatched.
+										{%- endif -%}
+										{%- if fpo_other_count > 0 %} Anything else in this order that's in stock ships now.{%- endif -%}
+									</td>
+								</tr>
+							</table>
+						</td>
+					</tr>
+				</table>
+			</center>
+		</td>
+	</tr>
+</table>
+{%- endif -%}
