@@ -591,7 +591,7 @@ export function ContentGapsTab({ clientId, onBuildContent }) {
                       {onBuildContent && (
                         <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <button className="btn btn-secondary btn-sm" title="Write content for this keyword"
-                            {...roWrite(readOnly, { onClick: () => onBuildContent(g.keyword) })}>✍ Build</button>
+                            {...roWrite(readOnly, { onClick: () => onBuildContent(g.keyword) })}>Build</button>
                         </td>
                       )}
                     </tr>
@@ -942,7 +942,7 @@ export function FanoutTab({ clientId, onBuildContent }) {
                             {onBuildContent && (
                               <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                                 <button className="btn btn-secondary btn-sm" title="Write content for this query"
-                                  {...roWrite(readOnly, { onClick: () => onBuildContent(q.query) })}>✍ Build</button>
+                                  {...roWrite(readOnly, { onClick: () => onBuildContent(q.query) })}>Build</button>
                               </td>
                             )}
                           </tr>

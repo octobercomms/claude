@@ -352,7 +352,7 @@ export default function RankingsPage() {
           <div  onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--s4)' }}>
               <h3 style={{ margin: 0, fontSize: 'var(--fs-body)' }}>{historyModal.keyword}</h3>
-              <button onClick={() => setHistoryModal(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--text-subtle)' }}>×</button>
+              <button onClick={() => setHistoryModal(null)} className="btn-icon" aria-label="Close">×</button>
             </div>
             {history.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>

@@ -74,7 +74,7 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
-        <button onClick={onExit} className="btn btn-secondary">← Campaigns</button>
+        <button onClick={onExit} className="btn btn-secondary">Campaigns</button>
         <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)' }}>{campaign.name || 'New campaign'}</div>
         <div style={{ width: 100 }} />
       </div>
@@ -276,15 +276,14 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
       )}
 
       <Footer>
-        <button onClick={onBack} className="btn btn-secondary">← Back</button>
+        <button onClick={onBack} className="btn btn-secondary">Back</button>
         <button onClick={async () => {
           if (refined) {
             await api.put(`/outreach/campaigns/${campaign.id}`, { refined_audience: refined, audience_description: audience });
           }
           onNext();
         }} disabled={!refined} className="btn btn-primary">
-          Next: Find Contacts →
-        </button>
+          Next: Find Contacts</button>
       </Footer>
     </div>
   );
@@ -490,7 +489,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
       )}
 
       <Footer>
-        <button onClick={onBack} className="btn btn-secondary">← Back</button>
+        <button onClick={onBack} className="btn btn-secondary">Back</button>
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{totalSelected} selected</span>
         <button onClick={saveAndContinue} disabled={saving || totalSelected === 0} className="btn btn-primary">
           {saving ? 'Saving…' : 'Next: Write Emails →'}
@@ -607,8 +606,8 @@ function StepEmails({ campaign, onBack, onNext }) {
         </div>
       ))}
       <Footer>
-        <button onClick={onBack} className="btn btn-secondary">← Back</button>
-        <button onClick={onNext} disabled={!steps || steps.length === 0} className="btn btn-primary">Next: Launch →</button>
+        <button onClick={onBack} className="btn btn-secondary">Back</button>
+        <button onClick={onNext} disabled={!steps || steps.length === 0} className="btn btn-primary">Next: Launch</button>
       </Footer>
 
       {previewStep && (
@@ -626,7 +625,7 @@ function StepEmails({ campaign, onBack, onNext }) {
                   </div>
                 )}
               </div>
-              <button onClick={() => setPreviewStep(null)} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-section)', cursor: 'pointer', color: 'var(--text-subtle)' }}>×</button>
+              <button onClick={() => setPreviewStep(null)} className="btn-icon" aria-label="Close">×</button>
             </div>
             {previewLoading || !previewStep.html ? (
               <div style={{ padding: 'var(--s7)', textAlign: 'center', color: 'var(--text-subtle)' }}>Rendering…</div>
@@ -735,7 +734,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
       )}
 
       <Footer>
-        <button onClick={onBack} className="btn btn-secondary">← Back</button>
+        <button onClick={onBack} className="btn btn-secondary">Back</button>
         <button onClick={launch}
           disabled={busy || loading || !campaign.contact_count || blockers.length > 0}
           title={blockers.length ? 'Resolve blockers before launching' : undefined}
@@ -826,7 +825,7 @@ function Tag({ children, onRemove }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 'var(--s1) var(--s2) var(--s1) var(--s3)', fontSize: 'var(--fs-caption)' }}>
       {children}
-      <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 0 }} title="Remove">×</button>
+      <button onClick={onRemove} className="btn-icon btn-icon-sm" title="Remove">×</button>
     </span>
   );
 }

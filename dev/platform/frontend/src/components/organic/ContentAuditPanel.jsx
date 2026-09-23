@@ -189,7 +189,7 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
                   </div>
                   <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                     {onRefresh && (
-                      <button onClick={() => onRefresh(active)} className="btn btn-primary btn-sm">Refresh in Pipeline →</button>
+                      <button onClick={() => onRefresh(active)} className="btn btn-primary btn-sm">Refresh in Pipeline</button>
                     )}
                     <button onClick={() => deleteAudit(active.id)} className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
                   </div>

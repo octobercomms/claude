@@ -132,8 +132,7 @@ export default function SuitePerformanceHub({
                     color: 'var(--text)', fontWeight: 700, fontSize: 'var(--fs-body)',
                     textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
                   }}>
-                  Open {c.label} →
-                </button>
+                  Open {c.label}</button>
               )}
             </div>
           ))}

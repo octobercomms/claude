@@ -16,7 +16,7 @@ export default function SocialLearnStep({ children, onBack, onOpenHookVault }) {
     >
       {onOpenHookVault && (
         <div className="row end mb-3">
-          <button onClick={onOpenHookVault} className="btn btn-secondary">✦ Open Hook Vault</button>
+          <button onClick={onOpenHookVault} className="btn btn-secondary">Open Hook Vault</button>
         </div>
       )}
       {children}

@@ -360,8 +360,8 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
                     optimistic placeholder we render mid-send). */}
                 {msg.role === 'assistant' && msg.id && !msg.isError && (
                   <div className="row mt-2" style={{ gap: 'var(--s2)', paddingLeft: 'var(--s1)' }}>
-                    <button type="button" onClick={() => downloadMessage(msg.id, 'pdf')} className="btn btn-secondary btn-sm" title="Download as PDF">↓ PDF</button>
-                    <button type="button" onClick={() => downloadMessage(msg.id, 'docx')} className="btn btn-secondary btn-sm" title="Download as Word">↓ Word</button>
+                    <button type="button" onClick={() => downloadMessage(msg.id, 'pdf')} className="btn btn-secondary btn-sm" title="Download as PDF">PDF</button>
+                    <button type="button" onClick={() => downloadMessage(msg.id, 'docx')} className="btn btn-secondary btn-sm" title="Download as Word">Word</button>
                   </div>
                 )}
               </div>

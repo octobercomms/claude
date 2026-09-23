@@ -118,8 +118,7 @@ function GrammarOverview({ tagline, description, benefits = [], primary, readout
           <div className="oview-cta-row">
             {primary && primary.onCta && (
               <button type="button" className="btn btn-primary" onClick={primary.onCta}>
-                {primary.ctaLabel || primary.title} →
-              </button>
+                {primary.ctaLabel || primary.title}</button>
             )}
             {actions}
           </div>
@@ -174,8 +173,7 @@ function Hero({ tagline, description, ctaLabel, onCta }) {
       {ctaLabel && onCta && (
         <button onClick={onCta} className="btn mt-6"
           style={{ background: 'var(--surface)', color: 'var(--text)', borderColor: 'var(--surface)' }}>
-          {ctaLabel} →
-        </button>
+          {ctaLabel}</button>
       )}
     </div>
   );

@@ -336,7 +336,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                     <div key={s.id} style={{ marginTop: 'var(--s3)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s1)' }}>
                         <span style={{ fontWeight: 700 }}>Cut {i + 1}</span>
-                        {segments.length > 1 && <button onClick={() => removeSeg(s.id)} style={{ border: 'none', background: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-caption)', padding: 0 }}>remove</button>}
+                        {segments.length > 1 && <button onClick={() => removeSeg(s.id)} className="btn-link">remove</button>}
                       </div>
                       <div className="trim-slider">
                         <div style={{ position: 'absolute', top: 14, left: 0, right: 0, height: 4, borderRadius: 'var(--r-sm)', background: 'var(--card-border)' }} />
@@ -371,8 +371,8 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                         <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
                         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{c.duration ? fmt(c.duration) : '…'}</div>
                       </div>
-                      <button className="btn btn-secondary btn-sm" disabled={i === 0} onClick={() => move(c.id, -1)} title="Move up">↑</button>
-                      <button className="btn btn-secondary btn-sm" disabled={i === clips.length - 1} onClick={() => move(c.id, 1)} title="Move down">↓</button>
+                      <button className="btn btn-secondary btn-sm" disabled={i === 0} onClick={() => move(c.id, -1)} title="Move up"></button>
+                      <button className="btn btn-secondary btn-sm" disabled={i === clips.length - 1} onClick={() => move(c.id, 1)} title="Move down"></button>
                       <button className="btn btn-secondary btn-sm" onClick={() => removeClip(c.id)} style={{ color: 'var(--negative)' }} title="Remove">×</button>
                     </div>
                   ))}

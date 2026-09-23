@@ -268,8 +268,7 @@ function ClusterCard({ cluster, ci, chosenId, onChoose, onMerge, onDelete, busy 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
         <span className={`chip ${b.cls}`}>{b.label}</span>
         <button className="btn btn-primary btn-sm" onClick={onMerge} disabled={busy || !chosenId}>
-          Merge {cluster.members.length - 1} into selected →
-        </button>
+          Merge {cluster.members.length - 1} into selected</button>
       </div>
       <table className="table" style={{ width: '100%', fontSize: 'var(--fs-body)' }}>
         <thead>
@@ -382,7 +381,7 @@ function TidyFixesTab({ onChanged }) {
           Claude reads every journalist in your library and proposes fixes — capitalisation, missing company derived from email domain, lowercase emails, URL schemes, name splits. You review each suggestion before anything changes; every applied change writes an audit row.
         </p>
         <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
-          {phase === 'idle' && <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: start })}>✦ Start analysis</button>}
+          {phase === 'idle' && <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: start })}>Start analysis</button>}
           {phase === 'done' && <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: start })}>Run again</button>}
           <button className="btn btn-secondary btn-sm" onClick={repairImportedNames} disabled={repairing}
             title="Strip leftover (https://app.notion.com/…) fragments from journalist + outlet names — a one-shot fix for older Notion-export imports.">
@@ -578,8 +577,7 @@ function PublicationDupesTab() {
               {(() => { const b = pubBadge(c.method, c.confidence); return <span className={`chip ${b.cls}`}>{b.label}</span>; })()}
               <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                 <button className="btn btn-primary btn-sm" onClick={() => merge(ci)} disabled={busy || !chosen[ci]}>
-                  Merge {c.members.length - 1} into selected →
-                </button>
+                  Merge {c.members.length - 1} into selected</button>
                 <button className="btn btn-secondary btn-sm" onClick={() => dismiss(ci)}
                   title="These aren't the same publication — record it so future scans don't suggest this cluster again.">
                   ✗ Not duplicates

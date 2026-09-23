@@ -210,7 +210,7 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
             {runs.map(r => (
               <div key={r.id} className="card" style={{ padding: 'var(--s2) var(--s3)' }}>
                 <div className="row between center" style={{ gap: 'var(--s2)' }}>
-                  <button className="body-sm" style={{ fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }} onClick={() => open(r.id)}>
+                  <button className="row-trigger body-sm" style={{ fontWeight: 600 }} onClick={() => open(r.id)}>
                     r/{r.subreddit}{r.focus ? ` · ${r.focus}` : ''}
                   </button>
                   <div className="row center" style={{ gap: 'var(--s2)' }}>

@@ -154,7 +154,7 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
             <div style={{ padding: 'var(--s3)', background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>
               Transcription failed: {current.error || 'unknown error'}
             </div>
-            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: retry })}>↻ Try again</button>
+            <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: retry })}>Try again</button>
           </div>
         )}
 
@@ -191,9 +191,9 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
             ) : (
               <div style={{ marginTop: 'var(--s3)' }}>
                 <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
-                  <button className="btn btn-secondary btn-sm" onClick={copyText}>📋 Copy</button>
-                  <button className="btn btn-secondary btn-sm" onClick={downloadText}>⬇ Download .txt</button>
-                  <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => { setNames(current.speaker_names || {}); setEditingNames(true); } })}>✎ Edit names</button>
+                  <button className="btn btn-secondary btn-sm" onClick={copyText}>Copy</button>
+                  <button className="btn btn-secondary btn-sm" onClick={downloadText}>Download .txt</button>
+                  <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => { setNames(current.speaker_names || {}); setEditingNames(true); } })}>Edit names</button>
                 </div>
                 <div style={{ maxHeight: 520, overflow: 'auto', paddingRight: 'var(--s2)' }}>
                   {(current.segments || []).map((s, i) => (

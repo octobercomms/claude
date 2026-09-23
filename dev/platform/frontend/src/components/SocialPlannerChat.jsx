@@ -512,8 +512,8 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
           <button type="button" onClick={onClose} className="btn btn-secondary">Close</button>
           {planRowId && saved && !proposedDiffers && (
             <>
-              <button type="button" onClick={() => downloadPlan('pdf')} className="btn btn-secondary">↓ PDF</button>
-              <button type="button" onClick={() => downloadPlan('docx')} className="btn btn-secondary">↓ Word</button>
+              <button type="button" onClick={() => downloadPlan('pdf')} className="btn btn-secondary">PDF</button>
+              <button type="button" onClick={() => downloadPlan('docx')} className="btn btn-secondary">Word</button>
             </>
           )}
           <button

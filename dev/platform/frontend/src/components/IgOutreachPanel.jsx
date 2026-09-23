@@ -194,7 +194,7 @@ export default function IgOutreachPanel({ clientId }) {
         <div className="stack stack-sm" style={{ marginBottom: 'var(--s6)' }}>
           {searches.map(s => (
             <div key={s.id} className="card" style={{ padding: 'var(--s3) var(--s4)', borderColor: s.id === selected ? 'var(--text)' : 'var(--card-border)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
-              <button onClick={() => selectSearch(s.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <button onClick={() => selectSearch(s.id)} className="row-trigger" style={{ flex: 1, minWidth: 0 }}>
                 <div className="body-sm" style={{ fontWeight: 700 }}>{s.name}</div>
                 <div className="body-xs text-subtle">{[s.icp, s.location].filter(Boolean).join(' · ')} · {s.prospect_count} found{s.last_run_at ? ` · last run ${new Date(s.last_run_at).toLocaleDateString('en-GB')}` : ''}</div>
               </button>
@@ -222,13 +222,13 @@ export default function IgOutreachPanel({ clientId }) {
           </div>
           <div className="body-xs" style={{ marginBottom: 'var(--s4)', color: sel.outreach_goal ? 'var(--text-muted)' : 'var(--text-subtle)' }}>
             <strong>Outreach goal:</strong> {sel.outreach_goal || 'not set — drafts will be a generic intro.'}{' '}
-            <button onClick={() => editGoal(sel)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>{sel.outreach_goal ? 'edit' : 'set goal'}</button>
+            <button onClick={() => editGoal(sel)} className="btn-link">{sel.outreach_goal ? 'edit' : 'set goal'}</button>
           </div>
 
           {unassigned > 0 && (
             <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)' }}>
               {unassigned} earlier prospect{unassigned === 1 ? '' : 's'} {unassigned === 1 ? "isn't" : "aren't"} attached to any search (from before saved searches, or a deleted one).{' '}
-              <button onClick={() => reclaim(sel.id)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Add {unassigned === 1 ? 'it' : 'them'} to “{sel.name}”</button>
+              <button onClick={() => reclaim(sel.id)} className="btn-link">Add {unassigned === 1 ? 'it' : 'them'} to “{sel.name}”</button>
             </div>
           )}
 
@@ -325,7 +325,7 @@ export default function IgOutreachPanel({ clientId }) {
                             {p.status !== 'messaged' && p.status !== 'replied' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'messaged')}>Mark messaged</button>}
                             {p.status === 'messaged' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'replied')}>Mark replied</button>}
                             {p.status === 'skipped' ? (
-                              <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'new')}>↩ Restore to queue</button>
+                              <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'new')}>Restore to queue</button>
                             ) : (
                               <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'skipped')}>Skip</button>
                             )}
@@ -340,7 +340,7 @@ export default function IgOutreachPanel({ clientId }) {
                   <div style={{ marginTop: 'var(--s4)' }}>
                     <div className="callout callout-warning" style={{ marginBottom: 'var(--s2)' }}>
                       {detachedWorked.length} worked prospect{detachedWorked.length === 1 ? '' : 's'} {detachedWorked.length === 1 ? "isn't" : "aren't"} attached to any search (from a deleted or reorganised search). They're safe — re-home them here so they show in this search's Done.{' '}
-                      <button onClick={() => reclaim(sel.id)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Attach to “{sel.name}”</button>
+                      <button onClick={() => reclaim(sel.id)} className="btn-link">Attach to “{sel.name}”</button>
                     </div>
                     <div className="stack stack-sm">
                       {detachedWorked.map(p => {

@@ -206,8 +206,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                     {onUseAsBrief && (
                       <button className="btn btn-primary btn-sm" style={{ marginTop: 'var(--s3)' }}
                         onClick={() => onUseAsBrief(ideaToBrief(it, card))}>
-                        ✦ Use as brief →
-                      </button>
+                        ✦ Use as brief</button>
                     )}
                   </div>
                 )}

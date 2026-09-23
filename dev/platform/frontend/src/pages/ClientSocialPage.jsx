@@ -575,7 +575,7 @@ export default function ClientSocialPage() {
           Reels are absorbed as a per-post "Produce" overlay (createView). */}
       {inCreate && (createView === 'reels' ? (
         <div>
-          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 'var(--s4)' }} onClick={() => setCreateView(null)}>← Back to Make</button>
+          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 'var(--s4)' }} onClick={() => setCreateView(null)}>Back to Make</button>
           <HeygenReelsPanel clientId={id} draft={reelDraft} editReelId={editReelId} onEditConsumed={() => setEditReelId(null)} onScheduled={() => { setCreateView(null); setSocialTab('plans'); }} />
         </div>
       ) : (
@@ -869,7 +869,7 @@ function BrainstormTab({
             </div>
             <div className="row wrap center" style={{ gap: 'var(--s2)' }}>
               <UiButton variant="ghost" {...roWrite(readOnly, { onClick: onShareForApproval, disabled: !posts.length })}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
-              <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Produce →</UiButton>
+              <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Produce</UiButton>
             </div>
           </div>
           {shareUrl && <ShareLinkBanner url={shareUrl} onDismiss={onDismissShare} />}
@@ -925,7 +925,7 @@ function BrainstormTab({
                     Pick a format — a reel, image or voiceover. It starts rendering and lines up in the board below, where you can leave and come back to it.
                   </p>
                 </div>
-                <UiButton variant="ghost" onClick={() => setProducePostId(null)}>← All production</UiButton>
+                <UiButton variant="ghost" onClick={() => setProducePostId(null)}>All production</UiButton>
               </div>
               <div style={{ maxWidth: 560 }}>
                 <PostCard post={producePost} clientId={clientId} engagement={engagement[producePost.id]} media={mediaByPost[producePost.id] || []}
@@ -958,7 +958,7 @@ function BrainstormTab({
               </p>
             </div>
             <div className="row wrap" style={{ gap: 'var(--s2)' }}>
-              <UiButton variant="primary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>📅 Bulk schedule</UiButton>
+              <UiButton variant="primary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>Bulk schedule</UiButton>
             </div>
           </div>
           {!hasAutopilotSupported && (
@@ -1043,8 +1043,8 @@ function ProduceBoard({ clientId, onOpenReels, onEditReel, onNext }) {
           </p>
         </div>
         <div className="row wrap center" style={{ gap: 'var(--s2)' }}>
-          {onOpenReels && <UiButton variant="secondary" onClick={onOpenReels}>🎬 New avatar reel</UiButton>}
-          <UiButton variant="primary" onClick={onNext}>Schedule →</UiButton>
+          {onOpenReels && <UiButton variant="secondary" onClick={onOpenReels}>New avatar reel</UiButton>}
+          <UiButton variant="primary" onClick={onNext}>Schedule</UiButton>
         </div>
       </div>
       {data?.producing > 0 && (
@@ -1077,7 +1077,7 @@ function ProduceBoard({ clientId, onOpenReels, onEditReel, onNext }) {
                   <div style={{ marginTop: 'auto', display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                     {it.url && it.status === 'ready' && <button className="btn btn-secondary btn-sm" onClick={() => setPreview(it)}>Preview</button>}
                     {it.kind === 'reel' && onEditReel && (it.status === 'ready' || it.status === 'failed') && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => onEditReel(it.key.replace('reel-', ''))} title="Edit the script and regenerate">✎ Edit script</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => onEditReel(it.key.replace('reel-', ''))} title="Edit the script and regenerate">Edit script</button>
                     )}
                     {(it.status === 'processing' || it.status === 'queued') && <span className="body-xs text-subtle">In the render queue…</span>}
                   </div>
@@ -1194,7 +1194,7 @@ function EditableText({ label, value, multiline, placeholder, onSave }) {
     <div style={{ marginTop: 'var(--s3)' }}>
       <div className="caption mb-2" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
         <span>{label}</span>
-        {!editing && <button type="button" onClick={() => setEditing(true)} className="inline-edit-btn">✎ edit</button>}
+        {!editing && <button type="button" onClick={() => setEditing(true)} className="inline-edit-btn">edit</button>}
       </div>
       {editing ? (
         <div>
@@ -1317,7 +1317,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
       <div style={{ background: 'white', borderRadius: 'var(--r-sm)', width: 720, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 'var(--s5)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)' }}>
           <h2 style={{ margin: 0, fontSize: 'var(--fs-title)' }}>Bulk schedule {selected.size} of {posts.length} posts</h2>
-          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-title)', cursor: 'pointer' }}>×</button>
+          <button type="button" onClick={onClose} className="btn-icon" aria-label="Close">×</button>
         </div>
         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s4)' }}>
           Each ticked post becomes its own plan. The autopilot picks them up one per scheduled slot — fetches captions, reads the Drive folder, posts to the platforms below.
@@ -1465,8 +1465,7 @@ function HookVaultList({ clientId, onUse }) {
               </div>
               <button type="button" onClick={() => onUse(h.hook)}
                 style={{ background: 'var(--text)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                Use this →
-              </button>
+                Use this</button>
             </div>
           ))}
         </div>
@@ -1484,7 +1483,7 @@ function HookVaultModal({ clientId, onClose, onUse }) {
             <h2 style={{ margin: 0, fontSize: 'var(--fs-title)' }}>Hook Vault</h2>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>Every hook this client has used, sorted by best reach.</div>
           </div>
-          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-title)', cursor: 'pointer' }}>×</button>
+          <button type="button" onClick={onClose} className="btn-icon" aria-label="Close">×</button>
         </div>
         <HookVaultList clientId={clientId} onUse={onUse} />
       </div>
@@ -1643,7 +1642,7 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
           const hasEng = Number(eng.likes || 0) + Number(eng.comments || 0) + Number(eng.shares || 0) > 0;
           return (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s2) var(--s3)', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-              <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 'var(--fs-body)', fontWeight: 600, padding: 0, color: 'var(--text)' }}>
+              <button type="button" onClick={() => onOpen(p.id)} className="row-trigger" style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>
                 {p.title || '(untitled)'}
               </button>
               <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -1686,9 +1685,9 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
                   </span>
                 )}
                 <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
-                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>↓ PDF</button>
-                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>↓ Word</button>
-                <button type="button" onClick={() => deletePlan(p.id)} title="Delete plan" style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--negative)', cursor: 'pointer' }}>✕</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} className="btn btn-secondary btn-sm">PDF</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} className="btn btn-secondary btn-sm">Word</button>
+                <button type="button" onClick={() => deletePlan(p.id)} title="Delete plan" className="btn-icon btn-icon-sm danger">✕</button>
               </div>
             </div>
           );
@@ -1734,9 +1733,9 @@ function PlansCalendar({ plans, onOpen }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s2)' }}>
-        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>← Prev</button>
+        <button type="button" onClick={() => shift(-1)} className="btn btn-secondary btn-sm">Prev</button>
         <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>{monthLabel}</div>
-        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>Next →</button>
+        <button type="button" onClick={() => shift(1)} className="btn btn-secondary btn-sm">Next</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 'var(--s1)' }}>
         {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
@@ -1959,11 +1958,11 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
           {sounds.length ? `${sounds.length} cached` : '(none pulled yet — click Refresh)'}
         </span>
-        <button {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} style={{ marginLeft: 'auto', padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', borderRadius: 'var(--r-pill)', cursor: 'pointer' }}>
+        <button {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}>
           {refreshing ? 'Pulling…' : 'Refresh'}
         </button>
         {sounds.length > 5 && (
-          <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--fs-caption)' }}>
+          <button onClick={() => setOpen(o => !o)} className="btn-link" style={{ fontSize: 'var(--fs-caption)' }}>
             {open ? 'collapse' : `show all ${sounds.length}`}
           </button>
         )}
@@ -2211,7 +2210,7 @@ function ShareLinkBanner({ url, onDismiss }) {
         style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
         {copied ? 'Copied' : 'Copy'}
       </button>
-      <button onClick={onDismiss} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--positive)' }}>×</button>
+      <button onClick={onDismiss} className="btn-icon" aria-label="Dismiss">×</button>
     </div>
   );
 }
@@ -2267,7 +2266,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
           <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{post.kind}</span>
           <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{post.status}</span>
         </div>
-        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', fontSize: 'var(--fs-title)', lineHeight: 1 }}>×</button>
+        <button onClick={onDelete} className="btn-icon danger" aria-label="Delete">×</button>
       </div>
 
       <EditableText label="HOOK" value={post.hook} onSave={v => onChange({ hook: v })} />
@@ -2300,7 +2299,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
           {engagement.comments != null && <span><strong>{engagement.comments.toLocaleString()}</strong> comments</span>}
           {engagement.shares != null && <span><strong>{engagement.shares.toLocaleString()}</strong> shares</span>}
           {engagement.saves != null && <span><strong>{engagement.saves.toLocaleString()}</strong> saves</span>}
-          <button {...roWrite(readOnly, { onClick: onRefreshInsights })} style={{ background: 'none', border: 'none', color: 'var(--warning)', textDecoration: 'underline', cursor: 'pointer', fontSize: 'var(--fs-caption)', padding: 0 }}>refresh</button>
+          <button {...roWrite(readOnly, { onClick: onRefreshInsights })} className="btn-link" style={{ fontSize: 'var(--fs-caption)' }}>refresh</button>
         </div>
       )}
 
@@ -2328,7 +2327,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
       )}
 
       <div style={{ marginTop: 'var(--s3)' }}>
-        <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">🎬 Produce {showProd ? '▴' : '▾'}</button>
+        <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">Produce {showProd ? '▴' : '▾'}</button>
         {showProd && (() => {
           const acg = (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style)).length;
           return (

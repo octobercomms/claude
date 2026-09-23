@@ -1072,10 +1072,10 @@ function PublicationsPanel() {
                   <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
                     {rssBusy === o.id ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>…</span>
                       : o.rss_status === 'found' && o.rss_url
-                        ? <a href={o.rss_url} target="_blank" rel="noopener noreferrer" title={`Feed: ${o.rss_url}`} style={{ color: '#e8871e', textDecoration: 'none', fontSize: 'var(--fs-body)' }}>🛰</a>
+                        ? <a href={o.rss_url} target="_blank" rel="noopener noreferrer" title={`Feed: ${o.rss_url}`} className="btn-link" style={{ fontSize: 'var(--fs-caption)' }}>feed</a>
                         : o.rss_status === 'none'
-                          ? <button onClick={() => findRss(o)} title="No feed found — click to try again" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>—</button>
-                          : <button onClick={() => findRss(o)} title="Find this publication's RSS feed" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>＋</button>}
+                          ? <button onClick={() => findRss(o)} title="No feed found — click to try again" className="btn-icon btn-icon-sm">—</button>
+                          : <button onClick={() => findRss(o)} title="Find this publication's RSS feed" className="btn-icon btn-icon-sm">＋</button>}
                   </td>
                   <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.coverage}</td>
                   <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.contacts || 0}</td>
@@ -2448,7 +2448,7 @@ function ContactsLibrary() {
               title={total ? `Download ${total.toLocaleString()} journalist${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
               ↓ Export CSV
             </button>
-            <button onClick={() => setImportOpen(true)} className="btn btn-primary btn-sm">↑ Import CSV</button>
+            <button onClick={() => setImportOpen(true)} className="btn btn-primary btn-sm">Import CSV</button>
           </div>
         </div>
 
@@ -2797,7 +2797,7 @@ function TagsManager() {
               <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>
                 Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
               </div>
-              <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--text-subtle)' }}>×</button>
+              <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} className="btn-icon" aria-label="Close">×</button>
             </div>
             <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)'  }}>
               Untick anything you disagree with, then apply. Each operation rewrites tags on journalists and can't be undone in one click.
@@ -2849,8 +2849,11 @@ function TagsManager() {
           />
           <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
             Sort:
-            <button onClick={() => setSort('count')} className="chip" style={{ cursor: 'pointer', border: 'var(--border-w) solid ' + (sort === 'count' ? 'var(--text)' : 'var(--card-border)'), background: sort === 'count' ? 'var(--text)' : 'var(--surface)', color: sort === 'count' ? '#fff' : 'var(--text)' }}>by count</button>
-            <button onClick={() => setSort('name')} className="chip" style={{ cursor: 'pointer', border: 'var(--border-w) solid ' + (sort === 'name' ? 'var(--text)' : 'var(--card-border)'), background: sort === 'name' ? 'var(--text)' : 'var(--surface)', color: sort === 'name' ? '#fff' : 'var(--text)' }}>A → Z</button>
+            <span className="switch">
+              <span className={`switch-label ${sort === 'count' ? 'on' : ''}`} onClick={() => setSort('count')}>by count</span>
+              <button type="button" className={`switch-track ${sort === 'name' ? 'on' : ''}`} onClick={() => setSort(sort === 'count' ? 'name' : 'count')} aria-label="Toggle sort order"><span className="switch-knob" /></button>
+              <span className={`switch-label ${sort === 'name' ? 'on' : ''}`} onClick={() => setSort('name')}>A → Z</span>
+            </span>
           </div>
         </div>
 

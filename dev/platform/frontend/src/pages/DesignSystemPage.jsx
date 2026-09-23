@@ -97,11 +97,11 @@ export default function DesignSystemPage() {
           </div>
           <div style={{ display: 'flex', gap: 'var(--s2)', border: 'var(--border-w) solid var(--border-neutral)', borderRadius: 'var(--r-pill)', padding: 'var(--s1) var(--s2) var(--s1) var(--s4)', alignItems: 'center' }}>
             <span className="ds-shell__sub" style={{ flex: 1 }}>Tell Earned what to do…</span>
-            <button className="btn btn-primary btn-sm">↑</button>
+            <button className="btn btn-primary btn-sm"></button>
           </div>
         </div>
         <Launchpad kicker="Primary next step" pipColor="var(--fn-approve)" headline="Sign off the Q4 trends release"
-          cta={<div><button className="btn btn-primary">Open in Build →</button></div>}>
+          cta={<div><button className="btn btn-primary">Open in Build</button></div>}>
           <StatStrip items={[
             { label: 'Published', value: 3, delta: '+2 this month', dir: 'up' },
             { label: 'Tracked', value: 12 },

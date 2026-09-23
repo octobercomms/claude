@@ -51,7 +51,7 @@ export default function PressReviewPage() {
             <>
               <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
                 <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name" style={{ padding: 'var(--s2) var(--s3)', border: '1px solid #d1d5db', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)' }} />
-                <button onClick={approve} disabled={submitting} style={{ background: '#166534', color: '#fff', border: 'none', padding: 'var(--s3) var(--s5)', borderRadius: 'var(--r-sm)', cursor: 'pointer', fontSize: 'var(--fs-body)' }}>{submitting ? 'Approving…' : 'Approve this release'}</button>
+                <button onClick={approve} disabled={submitting} className="btn btn-primary">{submitting ? 'Approving…' : 'Approve this release'}</button>
               </div>
               <p style={{ fontSize: 'var(--fs-body)', color: '#6b7280', marginTop: 'var(--s3)' }}>Spotted something? Reply to the email this link came from and we'll revise it.</p>
             </>
