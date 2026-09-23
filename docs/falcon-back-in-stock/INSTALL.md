@@ -29,7 +29,7 @@ Source files are in `dev/falcon-back-in-stock/` of the same repo. To copy a file
 2. **Public values are fine to report:** Worker URL, Turnstile **site key** (starts `0x`), Brevo template IDs, myshopify domains, Flow names.
 3. **Order of stores:** do every phase on **UK first**, then US, then EU, unless a step says "once".
 4. **No customer email until Phase 9.** `DRY_RUN` stays `"true"` until Phase 9 step 9.2. While it is on, every customer email goes to the store's staff address.
-5. **Do not change live-store behaviour without the phase that says so.** Theme work happens on a duplicate theme. The only live changes before Phase 9 are notification templates (Phase 6), metafield definitions (Phase 4) and Flows (Phase 7), each of which is inert until a preorder exists.
+5. **Do not change live-store behaviour without the phase that says so.** Theme work happens on a duplicate theme. The only live changes before Phase 9 are notification templates (Phase 6), metafield definitions (Phase 4) and Flows (Phase 7). The first two are inert until a preorder exists. The order Flow is not: it sends **every** new order to the Worker, which tags (and alerts staff about) any order that takes a variant below zero, for example a Purple Dot preorder (see Phase 7.2).
 6. **Never cancel, refund or change marketing consent** for any real customer. Test orders you placed yourself are the only exception.
 7. **If what you see differs from this runbook** (a menu label, a field, a missing option), do not improvise on anything touching payments, consent, DNS or secrets. Record exactly what you see and STOP. For cosmetic label differences, carry on and note the real label in your report.
 8. Keep a running **install log** (a plain text note, no secrets) with: date, store, phase, step, result, and every value marked "record" below.
@@ -280,7 +280,7 @@ These are generated in the browser and pasted straight into their fields in Phas
 1. On the Worker page click **Edit code**.
 2. In a second tab open `dev/falcon-back-in-stock/worker/worker.js` on github.com (`octobercomms/claude`, branch as agreed). Click **Copy raw file**.
 3. Back in the Cloudflare editor, click in the main file (`worker.js` or `index.js`), select all (Ctrl/Cmd+A) and paste.
-4. Check: the file starts with `/**` and ` * Falcon stock Worker (`falcon-stock`)`, contains `export default {`, and ends with `};`. The editor shows about 1,847 lines.
+4. Check: the file starts with `/**` and ` * Falcon stock Worker (`falcon-stock`)`, contains `export default {`, and ends with `};`. The editor shows about 2,290 lines.
 5. Click **Deploy** (or **Save and deploy**).
 6. Expected: no build error. If the editor reports a syntax error, the paste was cut short: repeat steps 2 to 5.
 7. Open `<WORKER_URL>/`. Expected: plain text `falcon-stock ok`.
@@ -312,6 +312,7 @@ Steps:
      "uk": {
        "domain": "<UK_MYSHOPIFY>",
        "storefront": "https://www.falconenamelware.com",
+       "origins": ["https://www.falconenamelware.com", "https://<UK_MYSHOPIFY>"],
        "sender": { "name": "Falcon Enamelware", "email": "<UK_SENDER>" },
        "reply_to": { "email": "<REPLY_TO>", "name": "Falcon Enamelware" },
        "templates": { "bis": 0, "delay_uk": 0, "delay_us_notice": 0, "delay_us_consent": 0, "staff": 0 },
@@ -322,6 +323,7 @@ Steps:
      "us": {
        "domain": "<US_MYSHOPIFY>",
        "storefront": "https://us.falconenamelware.com",
+       "origins": ["https://us.falconenamelware.com", "https://<US_MYSHOPIFY>"],
        "sender": { "name": "Falcon Enamelware", "email": "<US_SENDER>" },
        "reply_to": { "email": "<REPLY_TO>", "name": "Falcon Enamelware" },
        "templates": { "bis": 0, "delay_uk": 0, "delay_us_notice": 0, "delay_us_consent": 0, "staff": 0 },
@@ -332,6 +334,7 @@ Steps:
      "eu": {
        "domain": "<EU_MYSHOPIFY>",
        "storefront": "https://eu.falconenamelware.com",
+       "origins": ["https://eu.falconenamelware.com", "https://<EU_MYSHOPIFY>"],
        "sender": { "name": "Falcon Enamelware", "email": "<EU_SENDER>" },
        "reply_to": { "email": "<REPLY_TO>", "name": "Falcon Enamelware" },
        "templates": { "bis": 0, "delay_uk": 0, "delay_us_notice": 0, "delay_us_consent": 0, "staff": 0 },
@@ -341,7 +344,11 @@ Steps:
      }
    }
    ```
-   Notes: `domain` is the `.myshopify.com` domain, not the storefront. `storefront` must be exactly the origin the browser shows (scheme + host, no path, no trailing slash); it is the only origin allowed to call `/subscribe` for that store. If `<LOGO_URL>` is not known yet, remove the `logo_url` line for now (Phase 3 sets it). If the EU withdrawal page does not exist (Phase 0.6), put `null` and add it to the legal list.
+   Notes:
+   - `domain` is the `.myshopify.com` domain (no `https://`), not the storefront.
+   - `storefront` is the public storefront address (scheme + host, no path, no trailing slash). The Worker uses it to build product links in back-in-stock emails.
+   - `origins` (exact key name, a list) is every browser origin allowed to call `/subscribe` for that store: the storefront, `https://<store>.myshopify.com`, and a theme-preview origin only if Daniel asks for one. Each entry is scheme + host, exactly as the browser address bar shows it, no path, no trailing slash. If `origins` is missing, only `storefront` is allowed. An origin in this list still needs its hostname in the Turnstile widget (Phase 1.2) for the notify form to work there.
+   - If `<LOGO_URL>` is not known yet, remove the `logo_url` line for now (Phase 3 sets it). If the EU withdrawal page does not exist (Phase 0.6), put `null` and add it to the legal list.
 5. Before saving `SHOPS`, check it is valid JSON: paste it into the DevTools console as `JSON.parse(\`...\`)` and confirm no error. (It contains no secrets.)
 6. Add `ADMIN_TOKEN_UK` as **Secret**: with the UK custom app page open (Phase 1.8), reveal the token, copy, paste into the value field, **Save**. Repeat for US and EU.
 7. Add `BREVO_API_KEY` as **Secret** from the open Brevo dialog.
@@ -375,10 +382,10 @@ Run each fetch in the DevTools **Console**. Record the printed status and JSON.
    ```
 3. Expected: `200 {ok: false, error: "bot"}`. This proves CORS works (the browser let the page read the answer) and the Turnstile secret is set (the fake token was rejected). In the **Network** tab an `OPTIONS` request to `/subscribe` returned **204**.
 4. In the same console, change `store: 'uk'` to `store: 'us'` and run again.
-5. Expected: a CORS error in the console (for example "blocked by CORS policy" or "Failed to fetch"). The UK origin may not subscribe to the US store. This is a pass.
+5. Expected: a CORS error in the console (for example "blocked by CORS policy" or "Failed to fetch"), and a `subscribe_bad_origin` line in the Worker **Logs**. The UK origin may not subscribe to the US store. This is a pass.
 6. Repeat steps 1 to 3 on `https://us.falconenamelware.com` with `store: 'us'` and on `https://eu.falconenamelware.com` with `store: 'eu'`.
 
-If step 3 shows a CORS error instead: `SHOPS.<store>.storefront` does not match the address bar origin exactly. Fix `SHOPS` and deploy.
+If step 3 shows a CORS error instead: the address bar origin is not in `SHOPS.<store>.origins` exactly (check `https://`, `www.` and no trailing slash). The Worker **Logs** show `subscribe_bad_origin` with the origin it received. Fix `SHOPS` and deploy.
 If step 3 shows `{ok:false, error:"server"}` or `500`: open the Worker **Logs** and report the `subscribe_error` or `unhandled_error` line.
 
 **B. Hooks refuse calls without the key (once)**
@@ -446,7 +453,8 @@ Repeat for each row. Source files are in `dev/falcon-back-in-stock/emails/`.
 2. If the editor offers a box for sample parameters (JSON), paste the sample JSON for that template from `EMAILS.md` (the blocks under each template heading; the `delay-uk` sample is EU; for UK also try `"withdrawal_url": ""`). Send the test to your own test inbox or `<UK_STAFF>`.
 3. If no parameter box is offered, send the test anyway and note that parameters render blank. Full parameter rendering is checked in Phase 8 through the Worker.
 4. For each test email check: it arrives (not spam), the logo shows, no `{{` or `{%` text is visible, no `REPLACE_ME` text shows except in the logo URL fallback when `logo_url` is empty, and links point where expected.
-5. Record pass/fail per template.
+5. For one customer template (for example `bis.html`), add `"dry_run_banner": "DRY RUN: test"` to the sample JSON and send again. Expected: a yellow bar with that text at the top. Without the parameter there is no bar. This is how every customer email looks while `DRY_RUN` is on (Phase 8).
+6. Record pass/fail per template.
 
 ### 3.5 Put the template IDs into SHOPS
 
@@ -487,7 +495,7 @@ Additions to `INSTALL-THEME.md` for this runbook:
 
 1. In `falcon-config`, use `<WORKER_URL>` and `<TURNSTILE_SITE_KEY>`.
 2. **Test product.** Create it per `INSTALL-THEME.md` section 8, named `Falcon system test (do not buy)`. Make it reachable by URL but not listed: status **Unlisted** if the store offers it, otherwise **Active** but in no collection, with every sales channel except **Online Store** turned off (keep it out of Google, Meta and any feed). Record the variant IDs as `<A>`, `<B>`, `<C>`, `<D>` (in the variant URL or `?variant=` on the storefront).
-3. **Preview on the storefront domain.** The address bar must show the store's own domain (`www.`, `us.` or `eu.falconenamelware.com`) with `?preview_theme_id=...`. A `shopifypreview.com` or `.myshopify.com` preview will fail the notify form (CORS and Turnstile hostname). If Shopify's **Preview** opens another domain, copy the `preview_theme_id` value and open `https://<store domain>/products/<test handle>?preview_theme_id=<id>` instead.
+3. **Preview on the storefront domain.** The address bar must show the store's own domain (`www.`, `us.` or `eu.falconenamelware.com`) with `?preview_theme_id=...`. A `shopifypreview.com` or `.myshopify.com` preview will fail the notify form: its hostname is not in the Turnstile widget, and a `shopifypreview.com` origin is not in `SHOPS.origins` either. If Shopify's **Preview** opens another domain, copy the `preview_theme_id` value and open `https://<store domain>/products/<test handle>?preview_theme_id=<id>` instead.
 4. Tests 9.14 and 9.15 call the real Worker. After each, check the Worker **Logs** for a `subscribed` event with the right `store` and `variant_id`.
 5. Do **not** publish the theme at the end of `INSTALL-THEME.md`. Publishing is Phase 9.
 
@@ -512,6 +520,8 @@ Notification templates go live on save. The blocks only show for lines carrying 
 
 Three workflows per store. Replace `uk` with `us` or `eu` in every body on those stores.
 
+What each Flow's **Run history** should show from the Worker: `Falcon – preorder order` **200** (or **500** when a hold failed: Flow retries and staff get one alert), `Falcon – inventory changed` **202** (the Worker accepts the call and finishes the work in the background), `Falcon – run daily check now` **200**. **401** means the Flow secret does not match `FLOW_KEY`; **400** means a bad store code or id in the body. Any status outside 200 to 299 is a failure.
+
 ### 7.1 Flow secret
 
 1. Go to **Apps** > **Shopify Flow**.
@@ -524,8 +534,8 @@ Three workflows per store. Replace `uk` with `us` or `eu` in every body on those
 
 1. **Create workflow**. Rename it `Falcon – preorder order`.
 2. **Select a trigger:** **Order created**.
-3. Add **Condition**. Build: **Order** > **Line items** > **Custom attributes** > **Key** **is equal to** `_preorder_date`. Where Flow asks how to treat the list, choose **At least one of**.
-4. On the **Then** (true) branch add action **Send HTTP request**:
+3. Do **not** add a condition. The Flow must call the Worker for **every** order: the Worker also catches orders that took an in-stock variant below zero without the pre-order label (for example the same item added to the cart twice), which a `_preorder_date` condition would miss. A normal order costs the Worker one quick lookup and changes nothing.
+4. Directly after the trigger, add action **Send HTTP request**:
    - **HTTP method:** `POST`
    - **URL:** `<WORKER_URL>/hooks/order`
    - **Headers:** `Content-Type` = `application/json`; `X-Falcon-Key` = `{{secrets.falcon_worker_key}}`
@@ -534,9 +544,11 @@ Three workflows per store. Replace `uk` with `us` or `eu` in every body on those
      {"store":"uk","order_id":"{{order.id}}"}
      ```
 5. `{{order.id}}` gives a GID like `gid://shopify/Order/1234567890`. The Worker takes the trailing digits, so the GID is fine; `{{order.legacyResourceId}}` also works.
-6. Leave the **Otherwise** branch empty.
+6. If this workflow already exists with a `_preorder_date` condition (built from an earlier version of this runbook), delete the condition so the action runs straight after the trigger.
 7. **Turn on workflow**.
-8. Expected: Flow shows the workflow **On** with no validation errors. If Flow cannot build the condition in step 3, remove the condition (the Worker ignores orders with no `_preorder_date`) and record it.
+8. Expected: Flow shows the workflow **On** with no validation errors and no condition.
+9. Place no order to test it yet (Phase 8 does). Once real orders arrive, open **Run history**: they show runs with status **200**. The Worker **Logs** show nothing for a normal order unless something needs attention.
+10. **Purple Dot orders from now on:** a Purple Dot preorder carries no `_preorder_date` and takes its variant below zero, so the Worker tags it `oversold-v<variant id>` and emails staff "Oversold, not held" (it does not hold or change the order). This is expected until Phase 10. Tell Daniel before turning the Flow on, so staff know to ignore these alerts for Purple Dot orders.
 
 ### 7.3 Flow 2: `Falcon – inventory changed`
 
@@ -554,6 +566,7 @@ Three workflows per store. Replace `uk` with `us` or `eu` in every body on those
      ```
 6. The Worker needs only `store` and `variant_id` (GID or number). The two quantities are logged only, and are quoted so an empty value cannot break the JSON.
 7. **Turn on workflow**.
+8. Expected when it runs (Phase 8.5): **Run history** shows status **202**. A 202 only means the Worker accepted the call; the result is in the Worker **Logs** (`inventory_hook`, then `inventory_hook_done`).
 
 ### 7.4 Flow 3: `Falcon – run daily check now`
 
@@ -575,22 +588,24 @@ Lets staff (and you, in Phase 8) run the daily job on one store without handling
 
 ### 7.5 Check
 
-1. Expected per store: three workflows **On**, each using `{{secrets.falcon_worker_key}}` (never the raw key), each with the right store code in the body.
+1. Expected per store: three workflows **On**, each using `{{secrets.falcon_worker_key}}` (never the raw key), each with the right store code in the body. `Falcon – preorder order` has **no** condition.
 2. Take a screenshot of each workflow's canvas (the key is not visible there) for the report.
 
-**STOP (per store):** report the three workflows, which condition variant you used in 7.2 and 7.3, the Flow secret label, and the 7.4 test result.
+**STOP (per store):** report the three workflows, confirm 7.2 has no condition, which condition variant you used in 7.3, the Flow secret label, the 7.4 test result, and how many `oversold-v` alerts real orders (for example Purple Dot) produced since 7.2 was turned on.
 
 ---
 
 ## Phase 8: end-to-end tests with DRY_RUN on (per store)
 
-`DRY_RUN` is `"true"`. What it does (from `WORKER.md`):
+`DRY_RUN` is `"true"`. What it does (from `WORKER.md` and `worker.js`):
 
-- Every customer email goes to the store's `staff_email` instead. **The email content looks exactly like the customer version** (the templates do not print the `dry_run_banner` parameter). To see who it would have gone to, open the Worker **Logs** and find the `email_sent` event: `to` is the masked real recipient, `dry_run: true`.
-- It does **not** add the "customer was told" tags and metafields: no `restock-{id}` to `restock-notified-{id}` swap, no `preorder-notice-...`, `preorder-delay-{n}` or `preorder-keep-by-...` tags, no `notified_date` or `delay_count` update after a change. So a repeated run emails staff again.
-- It caps each batch at 5 emails.
-- Holds, releases, the cap, cancel/keep tags and staff alerts run for real.
-- Brevo drops a repeat of the same email within 30 minutes (same idempotency key). If a repeated test produces no email, look for `email_duplicate_suppressed` in the Worker logs: that is a pass. The daily digest has one key per store per day, so wait 30 minutes between two digest checks.
+- **Every customer email goes to the store's `staff_email` instead**, with a yellow bar at the top: "DRY RUN: this email would have gone to {real address}. Links in it do not change anything." Staff alerts and the daily check email have no bar (they go to staff anyway); the daily check intro says DRY_RUN is on. In the Worker **Logs**, the `email_sent` event shows `to` (the masked real recipient) and `dry_run: true`.
+- **Links in dry-run emails are marked as tests.** Opening a remove, keep or cancel link (GET) shows the normal page. Pressing its button shows "Test link: nothing changed" and changes nothing: no tags, no staff alert. So the real remove, keep and cancel actions cannot be tested here. They are tested on your own addresses and your own test order after `DRY_RUN` is off (Phase 9.3 and 9.4).
+- **It does not record that a customer was told:** no `restock-{id}` to `restock-notified-{id}` swap; no `preorder-notice-v...`, `preorder-delay-v{id}-{n}` or `preorder-keep-by-v{id}-{date}` tags; no `notified_date` or `delay_count` update after a date change; `delay_reason` is not cleared. So every later run sends the same dry-run emails to staff again.
+- **One exception:** when a variant is checked for the first time (`notified_date` empty) and no open order needs telling, `notified_date` is set to `expected_date` even in DRY_RUN (that tells no one anything). Setup step 2 relies on this. If open orders have a different checkout date, they get dry-run emails and `notified_date` stays empty.
+- It caps each batch at 5 emails (per variant, per run).
+- **Runs for real:** order tags (`preorder`, `preorder-v{id}`, `preorder-unlabelled`, `oversold-v{id}`, `preorder-hold-failed`, `preorder-over-cap`, `preorder-released-v{id}`), holds and releases, turning **Continue selling** off at the cap, `preorder-cancel-due-v{id}` from the US deadline check, and every staff alert.
+- Brevo drops a repeat of the same email within 30 minutes (same idempotency key). If a repeated test produces no email, look for `email_duplicate_suppressed` in the Worker logs: that is a pass. The daily digest has one key per store per day, so wait 30 minutes between two digest checks. Dry-run sends use their own keys, so the first real send after DRY_RUN is off is never dropped as a duplicate.
 
 **Setup (per store):**
 
@@ -600,7 +615,7 @@ Lets staff (and you, in Phase 8) run the daily job on one store without handling
 4. Use the storefront domain preview of the duplicate theme for every storefront step.
 5. Keep the Worker **Logs** tab open (filter by `store`).
 
-**Tests.** Record pass/fail and notes in the table at the end of this phase.
+**Tests, part 1.** Record pass/fail and notes in the table at the end of this phase.
 
 | # | Test | Steps | Expected |
 |---|---|---|---|
@@ -608,32 +623,49 @@ Lets staff (and you, in Phase 8) run the daily job on one store without handling
 | 8.2 | Notify, existing customer, marketing ticked | On D, submit with the existing test address, box ticked | Tags `restock-request`, `restock-<D>` added; any earlier tags kept. **Email marketing: Subscribed**. Log `subscribed` with `marketing: true` |
 | 8.3 | Notify, existing customer, second variant, unticked | On C, submit with the existing address, box unticked | `restock-<C>` added, `restock-<D>` kept. Consent unchanged (stays Subscribed: the Worker never downgrades) |
 | 8.4 | Notify, bad email and bot | Submit `abc@` | Inline error, no request in Network. (Bot rejection was proven in 2.6) |
-| 8.5 | Back-in-stock fan-out | Set C **Available** to 5 (**Products** > test product > C > quantity) | Flow `Falcon – inventory changed` run shows HTTP 200. Log `inventory_hook`, then `email_sent` template `bis` (up to 2 lines, masked test addresses), `dry_run_keep_waitlist_tags`, `fanout_done`. `<XX_STAFF>` receives "Back in stock: Falcon system test..." with product, variant, price in store currency, image, correct storefront link, "Remove me" link. Customer tags **unchanged** (DRY_RUN) |
-| 8.6 | Remove-me link | In the 8.5 email, open the remove link | GET shows "Stop back-in-stock emails?" with a **Remove me** button and changes nothing (tags unchanged). Click **Remove me**: page "You have been removed"; that customer's `restock-<id>` tags are all gone, `restock-request` stays |
-| 8.7 | Reset C | Set C back to 0. Re-subscribe the new test address on C (for Phase 9) | Tag `restock-<C>` back |
+| 8.5 | Back-in-stock fan-out | Set C **Available** to 5 (**Products** > test product > C > quantity) | Flow `Falcon – inventory changed` run shows HTTP **202**. Log `inventory_hook`, then `email_sent` template `bis` (up to 2 lines, masked test addresses, `dry_run: true`), `dry_run_keep_waitlist_tags`, `fanout_done`, `inventory_hook_done`. `<XX_STAFF>` receives "Back in stock: Falcon system test..." with the yellow DRY RUN bar naming the test address, product, variant, price in store currency, image, correct storefront link, "Remove me" link. Customer tags **unchanged** (DRY_RUN) |
+| 8.6 | Remove-me link (dry run) | In the 8.5 email, open the remove link, then click **Remove me** | GET shows "Stop back-in-stock emails?" with a **Remove me** button. Clicking it shows "Test link: nothing changed". Tags unchanged. Log `link_dry_run_post`. The real removal is tested in Phase 9.3 |
+| 8.7 | Reset C | Set C back to 0 | The new test address still has `restock-<C>` (DRY_RUN kept it). Leave it: Phase 9.3 uses it |
 | 8.8 | Preorder purchase, preorder only | On B, click **Pre-order**, qty 1, check out (payment as agreed in Phase 6) | Order created. Flow `Falcon – preorder order` run 200. Order tags `preorder`, `preorder-v<B>`. Order page: B's line **On hold** with reason note "Pre-order, expected {date}". Line shows property "Pre-order: Ships from {date}" (US "Preorder: ..."). B's quantity now -1 |
 | 8.9 | Mixed basket | Add A (qty 1) and B (qty 1), check out | Tags `preorder`, `preorder-v<B>`. **Only B is on hold**; A sits in its own **Unfulfilled** fulfillment order ready to ship. B quantity -2. Order confirmation email has the pre-order box and "Anything else ... ships now" |
 | 8.10 | Cap reached, policy set to Deny | Order B again, qty 1 (B reaches -3 = limit) | Order held as 8.8. Log `mutation_ok` action `productVariantsBulkUpdate`. B's **Continue selling when out of stock** is now **off**. Storefront B now shows the notify form, not Pre-order |
-| 8.11 | Over cap (optional) | Only if Daniel wants it: re-enable continue selling on B and order 1 more | Order tagged `preorder-over-cap`, staff alert "Pre-order order ... needs attention" with row "Over cap". Afterwards set continue selling off again |
-| 8.12 | Partial release, oldest first | B is at -3 with three held orders (8.8 oldest, 8.9, 8.10; if you ran 8.11, cancel that order first so B is back at -3). Set B **Available** to -1 (2 units arrived) | Flow inventory run 200. Log `release_plan` with `held_units: 3`, `stock_for_preorders: 2`, releasing the 8.8 and 8.9 orders. Those two orders: hold released, tag `preorder-released-v<B>`, B line now fulfillable. 8.10 order still **On hold** |
+| 8.11 | Over cap (optional) | Only if Daniel wants it. The storefront no longer sells B, so: tick **Continue selling** on B again, then create the order in the admin (**Orders** > **Create order**, add B qty 1, the test customer, payment as agreed in Phase 6) | Order tagged `preorder`, `preorder-v<B>`, `preorder-unlabelled` (an admin order has no `_preorder_date`) and `preorder-over-cap`. B's line **On hold**. One staff alert "Pre-order order ... needs attention" with rows "Pre-order sold without a date shown" and "Over cap". **Continue selling** is off again (the Worker turned it off). Cancel this order before 8.12 |
+| 8.12 | Partial release, oldest first | B is at -3 with three held orders (8.8 oldest, 8.9, 8.10; if you ran 8.11, cancel that order first with restock so B is back at -3). Set B **Available** to -1 (2 units arrived) | Flow inventory run **202**. Log `release_plan` with `held_units: 3`, `stock_for_preorders: 2`, releasing the 8.8 and 8.9 orders. Those two orders: hold released, tag `preorder-released-v<B>`, B line now fulfillable. 8.10 order still **On hold** |
 | 8.13 | Date change, later, no reason | On B set `expected_date` 10 days later than `notified_date`. Leave `delay_reason` empty. Run 7.4 | No customer email (unless the old date is within 2 days). Staff digest row "Date moved later but no delay_reason" |
-| 8.14 | Date change, later, with reason | Set `delay_reason` to "The shipment from our factory left two weeks late." Run 7.4 (wait 30 minutes after 8.13 if you need to see a new digest) | One email to `<XX_STAFF>` for the 8.10 order only (released orders are skipped). UK/EU: template `Falcon – Pre-order date change (UK/EU)`, subject "Your pre-order #... has a new date", old and new dates in `12 November 2026` form, the reason, a **cancel** link; EU also shows the **withdrawal** block linking to `withdrawal_url`, UK does not. US: `Falcon – Preorder delay notice (US)`, dates `November 12, 2026`, the "silence means you agree" sentence, 7 business days. Log `email_sent` with the right `template`. B's `notified_date` and `delay_reason` **unchanged** (DRY_RUN) |
+| 8.14 | Date change, later, with reason | Set `delay_reason` to "The shipment from our factory left two weeks late." Run 7.4 (wait 30 minutes after 8.13 if you need to see a new digest) | One email to `<XX_STAFF>`, with the yellow DRY RUN bar, for the 8.10 order only (released orders are skipped). UK/EU: template `Falcon – Pre-order date change (UK/EU)`, subject "Your pre-order #... has a new date", old and new dates in `12 November 2026` form, the reason, a **cancel** link; EU also shows the **withdrawal** block linking to `withdrawal_url`, UK does not. US: `Falcon – Preorder delay notice (US)`, dates `November 12, 2026`, the "silence means you agree" sentence, 7 business days. Log `email_sent` with the right `template`. B's `notified_date` and `delay_reason` **unchanged**, no `preorder-notice-...` or `preorder-delay-...` tag on the order (DRY_RUN) |
 | 8.15 | US only: long delay needs consent | Set B `expected_date` 45 days after `notified_date`. Run 7.4 | Template `Falcon – Preorder delay, action needed (US)`, subject "Action needed by {date}: ...", keep-by date = the old date, or 7 days from today if the old date is sooner, **Keep my order** and **cancel** links |
 | 8.16 | Date moved earlier | Set B `expected_date` 5 days **before** `notified_date` (still in the future). Run 7.4 | UK/EU: "Good news: your pre-order ... is coming sooner", no apology. US: notice template with the "ship sooner" wording |
-| 8.17 | US only: keep link | DRY_RUN adds no delay tags, so first add by hand to the 8.10 order the tags a live run would add: `preorder-delay-1` and `preorder-keep-by-<old date as YYYY-MM-DD>`. Open the **Keep my order** link from the 8.15 email | GET shows "Keep your preorder?" with a **Keep my order** button and changes nothing. Click it: "Thank you, your order is kept"; order tag `preorder-kept-1` added. Opening the link again shows "Your order is kept" |
-| 8.18 | US only: consent deadline passed | On the 8.10 order remove `preorder-kept-1` and change the keep-by tag to yesterday: `preorder-keep-by-<yesterday>`. Run 7.4 | Order tagged `preorder-cancel-due`. Staff alert "Cancel and refund #... by {date}" with a date 7 business days ahead. Opening the old keep link now shows "This link can no longer be used". The Worker did **not** cancel or refund |
-| 8.19 | Cancel link | Open the **cancel** link from the 8.14 email | GET shows "Cancel this pre-order?" (US "preorder") and a button; order unchanged. Click it: page "We have your cancellation request"; order tags `preorder-cancel-requested` and `preorder-cancel-requested-on-<today>`; staff alert "Cancel request: #..., refund by {date}" (UK/EU today + 14 days, US + 7 business days). Order **not** cancelled |
-| 8.20 | Config alert digest | Make sure D is still continue selling with no metafields. On the 8.19 order add tag `preorder-cancel-requested-on-<date 5 days ago>`. Wait 30 minutes after the last digest, run 7.4 | One staff email "Falcon XX \| Daily check: N items need attention" with rows "Continue selling without pre-order setup" (D), "Cancel request still open after 3 days" (the 8.19 order) and any real-catalogue problems |
-| 8.21 | Logs clean | Worker **Logs** for this store's tests | No `unhandled_error`, `shopify_graphql_error`, `hook_error`, `email_failed` or `turnstile_wrong_action`. Any of these: copy the log line (it has no secrets) into the report |
-| 8.22 | Brevo logs | Brevo > **Transactional** > **Logs** (or **Statistics** > **Logs**) | Every email above shows **Delivered** to `<XX_STAFF>`, sender = this store's sender |
+| 8.17 | US only: keep link (dry run) | DRY_RUN adds no delay tags, and a keep link only opens when its delay number matches the order's latest. So first add by hand to the 8.10 order the tags a live run would have added: `preorder-delay-v<B>-1` and `preorder-keep-by-v<B>-<keep-by date from the 8.15 email as YYYY-MM-DD>`. Open the **Keep my order** link from the 8.15 email, then click **Keep my order** | GET shows "Keep your preorder?" naming the item, with a **Keep my order** button. Clicking it shows "Test link: nothing changed". No `preorder-kept-...` tag. The real keep is tested in Phase 9.4 |
+| 8.18 | US only: consent deadline passed | On the 8.10 order remove the keep-by tag from 8.17 and add `preorder-keep-by-v<B>-<date two days ago>` (yesterday is not enough: the deadline counts in US time, so it passes only after the following UTC day). Run 7.4 | Order tagged `preorder-cancel-due-v<B>`. Staff alert "Cancel and refund #... (<item>) by {date}" with a date 7 business days ahead, naming the item. Opening the 8.15 keep link now shows "This link can no longer be used". The Worker did **not** cancel or refund |
+| 8.19 | Cancel link (dry run) | Open the **cancel** link from the 8.14 email, then click the button | GET shows "Cancel this pre-order?" (US "preorder") naming the item and order, with a button; order unchanged. Clicking it shows "Test link: nothing changed": no tags, no staff alert. The real cancel is tested in Phase 9.4 |
+| 8.20 | Config alert digest | Make sure D is still continue selling with no metafields. On the 8.10 order add by hand `preorder-cancel-requested-v<B>-on-<date 5 days ago>`. Wait 30 minutes after the last digest, run 7.4 | One staff email "Falcon XX \| Daily check: N items need attention" with rows "Continue selling without pre-order setup" (D), "Cancel request still open after 3 days" (the 8.10 order, B's item), on US also "Cancel due (still open)", and any real-catalogue problems |
+| 8.21 | Cancel link on a dispatched item | On the 8.10 order: **Release hold** on B's fulfillment order, then **Mark as fulfilled** with **Send shipment details to your customer** unticked (no 3PL, no tracking). Open the 8.14 **cancel** link again | Page "This item has already been dispatched", pointing to the returns process. No button, no tags, no staff alert. Log `preorder_cancel_refused_fulfilled` |
+
+**Reset before part 2 (per store):**
+
+1. Cancel and refund the 8.8, 8.9 and 8.11 orders (your own). Leave the 8.10 order for the Phase 8 clean-up (its fulfilment must be cancelled first).
+2. Set by hand: A quantity 5. B quantity 0, tick **Continue selling** again (8.10 turned it off), `expected_date` = the date shown in B's `SYSTEM Falcon: notified date`, `delay_reason` empty.
+3. **Orders**, filter tag `preorder-v<B>`: no open, unfulfilled order may remain other than the 8.10 order.
+
+**Tests, part 2.**
+
+| # | Test | Steps | Expected |
+|---|---|---|---|
+| 8.22 | Unlabelled oversell, held | Set B quantity **1** (the storefront now shows **Add to cart**, not Pre-order). On B add qty 1 to the cart, then add qty 1 again (the cart shows 2: the theme caps each add, not the cart total). Check out | Flow order run 200. Order tags `preorder`, `preorder-v<B>`, `preorder-unlabelled`. **One** unit of B **On hold** with reason note "Pre-order, expected {date} (customer not shown a date)"; the other unit in an **Unfulfilled** fulfillment order ready to ship. B quantity -1. Staff alert "Pre-order order #... needs attention" with row "Pre-order sold without a date shown" (contact the customer). Log `order_hook_done` with `unlabelled` listing B. The order confirmation has no pre-order box (the line has no date) |
+| 8.23 | Unlabelled oversell, no pre-order setup | Set A quantity **1** and tick **Continue selling** on A (A has no Falcon fields). Add A qty 1 twice, check out. Straight after: untick **Continue selling** on A, and cancel and refund this order before the 3PL can take it (it is **not** held) | Order tag `oversold-v<A>`; no `preorder` tag; nothing on hold. Staff alert with row "Oversold, not held". Log `order_hook_oversold` |
+| 8.24 | Two pre-order variants: separate holds | Cancel and refund the 8.22 order. Set A: quantity 0, **Continue selling** on, `expected_date` 8+ weeks ahead (a different date from B), `preorder_limit` 2. Set B quantity 0. Run 7.4 once (records A's `notified_date`). Add A (**Pre-order**, qty 1) and B (**Pre-order**, qty 1), check out | Order tags `preorder`, `preorder-v<A>`, `preorder-v<B>`. **Two** separate **On hold** fulfillment orders, one holding only A, one holding only B, each with its own date in the reason note. A and B each at -1. Log `order_hook_done` with both variants |
+| 8.25 | Independent release | Set A **Available** to 0 (1 unit arrived) | Flow inventory run **202**. Log `release_plan` for A only. A's fulfillment order released, order tag `preorder-released-v<A>`. B's fulfillment order still **On hold**; no `preorder-released-v<B>` |
+| 8.26 | Independent date change and cancel | Set B's `delay_reason`, move B's `expected_date` 10 days later, run 7.4 (30 minutes after the last digest if you want to see it). Open the cancel link in the resulting email, but do not press the button. **US only:** then add by hand `preorder-delay-v<B>-1` and `preorder-keep-by-v<B>-<date two days ago>` and run 7.4 again | One dry-run date-change email for this order, about B only (A is not mentioned). The cancel page names B's item only. US: only `preorder-cancel-due-v<B>` is added (nothing for A), and the staff alert names B's item and says other items are not affected |
+| 8.27 | Logs clean | Worker **Logs** for this store's tests | No `unhandled_error`, `shopify_graphql_error`, `hook_error`, `email_failed`, `link_page_error`, `staff_alert_failed`, `daily_store_error` or `turnstile_wrong_action`. `mutation_user_errors` only where a test expected a refusal. Any unexpected line: copy it (it has no secrets) into the report |
+| 8.28 | Brevo logs | Brevo > **Transactional** > **Logs** (or **Statistics** > **Logs**) | Every email above shows **Delivered** to `<XX_STAFF>`, sender = this store's sender |
 
 **Clean up (per store):**
 
-1. Cancel and refund every Phase 8 test order (your own orders only).
+1. Cancel and refund every remaining Phase 8 test order (your own orders only). For the 8.10 order, first cancel its manual fulfilment from 8.21 (on the order, the fulfilment's **...** menu > **Cancel fulfillment**) if Shopify will not cancel the order otherwise.
 2. Release any remaining hold on them first if Shopify requires it.
-3. Remove test tags from the test customers; keep the customers for Phase 9.
-4. Reset the test product: A 5, B 0 with continue selling on, `expected_date` back to the original, `delay_reason` empty, C 0, D as before.
-5. Do not edit B's `notified_date` or `delay_count`. If they no longer match `expected_date`, record it and tell Daniel; he will decide whether to delete the test product and make a fresh one.
+3. Remove test tags from the test customers, **except** `restock-request` and `restock-<C>` on the new test address (Phase 9.3 uses them). Keep both customers for Phase 9.
+4. Reset the test product: A quantity 5, **Continue selling** off, `expected_date` and `preorder_limit` cleared. B quantity 0, **Continue selling** on, `expected_date` = the date in B's `SYSTEM Falcon: notified date`, `delay_reason` empty. C 0. D as before.
+5. Do not edit any variant's `notified_date` or `delay_count` (A keeps the `notified_date` set in 8.24). If B's `notified_date` is not the original `expected_date` from Setup step 2, record it and tell Daniel; he will decide whether to delete the test product and make a fresh one.
 
 **Pass/fail table (fill in per store):**
 
@@ -643,8 +675,8 @@ Lets staff (and you, in Phase 8) run the daily job on one store without handling
 | 8.2 notify existing, ticked | | | | |
 | 8.3 existing, second variant | | | | |
 | 8.4 bad email | | | | |
-| 8.5 back-in-stock fan-out | | | | |
-| 8.6 remove-me link | | | | |
+| 8.5 back-in-stock fan-out, 202 | | | | |
+| 8.6 remove-me link, dry run | | | | |
 | 8.8 preorder only, hold | | | | |
 | 8.9 mixed basket, only preorder held | | | | |
 | 8.10 cap reached, Deny | | | | |
@@ -654,12 +686,18 @@ Lets staff (and you, in Phase 8) run the daily job on one store without handling
 | 8.14 later date with reason, right template | | | | |
 | 8.15 long delay consent | n/a | | n/a | |
 | 8.16 earlier date | | | | |
-| 8.17 keep link | n/a | | n/a | |
+| 8.17 keep link, dry run | n/a | | n/a | |
 | 8.18 consent deadline | n/a | | n/a | |
-| 8.19 cancel link | | | | |
+| 8.19 cancel link, dry run | | | | |
 | 8.20 config digest | | | | |
-| 8.21 Worker logs clean | | | | |
-| 8.22 Brevo delivered | | | | |
+| 8.21 cancel refused, dispatched | | | | |
+| 8.22 unlabelled oversell, held | | | | |
+| 8.23 unlabelled oversell, not held | | | | |
+| 8.24 two variants, separate holds | | | | |
+| 8.25 independent release | | | | |
+| 8.26 independent date change and cancel | | | | |
+| 8.27 Worker logs clean | | | | |
+| 8.28 Brevo delivered | | | | |
 
 **STOP (per store):** send Daniel the table, screenshots of one email per template, and every failing log line.
 
@@ -682,31 +720,49 @@ Do one store at a time, UK first. Only start when Daniel has approved that store
 1. Cloudflare > `falcon-stock` > **Settings** > **Variables and Secrets** > `DRY_RUN` > **Edit** > `false` > **Save** > **Deploy**.
 2. Expected: `DRY_RUN` shows `false`.
 
-### 9.3 First real back-in-stock send on the test product (per store)
+### 9.3 First real back-in-stock send and remove link on the test product (per store)
 
 1. Confirm only your test addresses carry `restock-<C>` (**Customers** > filter tag `restock-<C>`).
-2. Set C **Available** to 1.
-3. Expected: your test inbox (not staff) receives "Back in stock: ...". The customer's tags change: `restock-<C>` removed, `restock-notified-<C>` added. Log `email_sent` with `dry_run: false`.
-4. Set C back to 0.
+2. Sign the new test address up on D as well (notify form on the live D page), so the remove link has a second list to clear. Expected: tags `restock-<C>` and `restock-<D>`.
+3. Set C **Available** to 1.
+4. Expected: your test inbox (not staff) receives "Back in stock: ...", with **no** yellow DRY RUN bar. The customer's tags change: `restock-<C>` removed, `restock-notified-<C>` added. Log `email_sent` with `dry_run: false`.
+5. In that email open the **Remove me** link. Expected: "Stop back-in-stock emails?" with a **Remove me** button; tags unchanged.
+6. Click **Remove me**. Expected: page "You have been removed". Every `restock-<id>` tag on that customer is gone (here `restock-<D>`); `restock-request` and `restock-notified-<C>` stay. Log `waitlist_removed`.
+7. Set C back to 0.
 
-### 9.4 First real waitlist (per store)
+### 9.4 Live keep and cancel links on your own test order (per store)
+
+The keep and cancel links cannot act while `DRY_RUN` is on (Phase 8), so they are tested here, for real, on an order you place yourself with your own test address. With `DRY_RUN` off, a date change on B emails **every** customer with an open B pre-order, so step 1 must pass first.
+
+1. **Orders**, filter tag `preorder-v<B>`. No open, unfulfilled order may exist except your own test orders. If any other customer's order appears, **STOP** and report.
+2. Check B: quantity 0, **Continue selling** on, `expected_date` 6+ weeks ahead, `preorder_limit` 3, `delay_reason` empty. B's `SYSTEM Falcon: notified date` must equal `expected_date`; if not, set `expected_date` to the `notified_date` value.
+3. On the live storefront, pre-order B (qty 1) with the new test address and pay as agreed in Phase 6. Expected: tags `preorder`, `preorder-v<B>`; B's line **On hold**.
+4. **Date change, later.** Set B's `delay_reason` to "The shipment from our factory left two weeks late." and move `expected_date` 10 days later. Run `Falcon – run daily check now`.
+5. Expected: your test inbox receives the date-change email (UK/EU "Your pre-order #... has a new date"; US "Your preorder #...: new ship date ..."), with no yellow bar. The order gains `preorder-notice-v<B>-0-<old date>-<new date>` and `preorder-delay-v<B>-1`. B's `notified_date` is now the new date, `delay_count` is 1 and `delay_reason` is empty. Run the check again: no second email.
+6. **US only, second delay needs consent.** Set `delay_reason` again and move `expected_date` 5 more days later. Run the check. Expected: "Action needed by {date}: your preorder #..." (any second delay needs consent). Order gains `preorder-delay-v<B>-2` and `preorder-keep-by-v<B>-<date>`.
+7. **US only, keep link.** Open **Keep my order** from the step 6 email. Expected: "Keep your preorder?" naming the item; order unchanged. Click **Keep my order**. Expected: "Thank you, your order is kept"; tag `preorder-kept-v<B>-2`. Open the link again. Expected: "Your order is kept". Log `preorder_kept`.
+8. **Cancel link.** Open the **cancel** link from the latest date-change email. Expected: "Cancel this pre-order?" (US "preorder") naming the item; order unchanged. Click the button. Expected: "We have your cancellation request"; order tags `preorder-cancel-requested`, `preorder-cancel-requested-v<B>` and `preorder-cancel-requested-v<B>-on-<today>`; staff alert "Cancel request: #..., <item> (<B>), refund by {date}" (UK/EU today + 14 days, US + 7 business days). The order is **not** cancelled. Open the link again. Expected: "We have your request".
+9. Clean up: cancel and refund the order (it is yours; this is exactly what staff would do for a real request). Leave B's `expected_date` as it is now (it matches `notified_date`); empty `delay_reason` if set. Record pass/fail for steps 3 to 8.
+
+### 9.5 First real waitlist (per store)
 
 1. From the Phase 0 export, pick with Daniel one real variant with a small waitlist (under 20 customers) that is about to be restocked.
-2. When stock is added (by Falcon's normal route), watch Flow run history, the Worker logs (`fanout_done` with `sent` = waitlist size) and Brevo logs (delivered, bounces, spam complaints).
+2. When stock is added (by Falcon's normal route), watch Flow run history (status **202**), the Worker logs (`fanout_done` with `sent` = waitlist size) and Brevo logs (delivered, bounces, spam complaints).
 3. Expected: every waiting customer emailed once, tags swapped.
-4. Report counts to Daniel. Large waitlists may take several runs: each invocation sends at most 400, the rest go at the next inventory change or the 07:00 UTC daily run.
+4. Report counts to Daniel. Large waitlists may take several runs: each invocation sends at most 400 (and stops after about 25 seconds), the rest go at the next inventory change or the 07:00 UTC daily run.
 
-### 9.5 Monitoring (tell Daniel and staff where to look)
+### 9.6 Monitoring (tell Daniel and staff where to look)
 
 | What | Where | Look for |
 |---|---|---|
-| Worker activity | Cloudflare > Workers & Pages > `falcon-stock` > **Logs** | `event` values: `email_failed`, `mutation_user_errors`, `mutation_failed`, `hook_error`, `unhandled_error`, `daily_store_error`, `hook_unauthorised`, `turnstile_failed` (spam bursts) |
+| Worker activity | Cloudflare > Workers & Pages > `falcon-stock` > **Logs** | `event` values: `email_failed`, `mutation_user_errors`, `mutation_failed`, `hook_error`, `unhandled_error`, `daily_store_error`, `date_change_error`, `link_page_error`, `staff_alert_failed`, `staff_alert_no_address`, `subscribe_error`, `hook_unauthorised`, `subscribe_bad_origin`, `turnstile_failed` (spam bursts) |
+| Inventory runs | Same | `inventory_hook_done` after each `inventory_hook` (Flow only sees 202; the result is here). `release_incomplete: true` or `fanout.more: true` means the daily run finishes the rest |
 | Daily run | Same, around 07:00 UTC | `daily_done` for each store |
 | Email delivery | Brevo > **Transactional** > **Logs** / **Statistics** | Bounces, blocked, spam complaints, "unrecognised IP" errors |
-| Flow runs | Shopify > **Apps** > **Flow** > each workflow > **Run history** | Failed HTTP requests (non-200) |
+| Flow runs | Shopify > **Apps** > **Flow** > each workflow > **Run history** | Any status outside 200 to 299 is a failure. Normal: order Flow 200, inventory Flow 202, daily check 200. Order Flow 500 = a hold failed (Flow retries; staff alerted once) |
 | Staff alerts | Each store's `staff_email` inbox | Subjects starting `Falcon UK |`, `Falcon US |`, `Falcon EU |` |
 
-### 9.6 Staff operating guide (give this section to Falcon staff)
+### 9.7 Staff operating guide (give this section to Falcon staff)
 
 **Put a variant on pre-order**
 
@@ -718,39 +774,49 @@ Do one store at a time, UK first. Only start when Daniel has approved that store
 6. Optional: `Falcon: pre-order note`.
 7. Last: tick **Continue selling when out of stock**. Never tick it without the date and the limit.
 8. **Save**.
-9. Run the check: open `Falcon system check (do not publish)` > **More actions** > **Run Flow automation** > `Falcon – run daily check now`. This records the date customers are being shown. (If you skip this, it happens at 07:00 UTC the next day. Do not change the date before then.)
+9. Run the check: open `Falcon system check (do not publish)` > **More actions** > **Run Flow automation** > `Falcon – run daily check now`. This records the date customers are being shown. If you skip this, it happens at 07:00 UTC the next day. If you change the date before then, customers who already ordered at the old date are emailed the change as normal, so follow "Change the expected date" below.
 10. When the limit is reached, the system turns **Continue selling** off by itself. To sell more, raise the limit, then tick **Continue selling** again.
 
 **Change the expected date**
 
 1. First fill in `Falcon: delay reason`: one plain, customer-facing sentence, no dashes as punctuation (for example "The shipment from our factory left two weeks late.").
 2. Then change `Falcon: expected dispatch date`. **Save**.
-3. Customers are emailed at the next 07:00 UTC check, or straight away if you run `Falcon – run daily check now`.
+3. Customers are emailed at the next 07:00 UTC check, or straight away if you run `Falcon – run daily check now`. Each customer is told about the date they were last given (their checkout date, or the date in their last update email).
 4. A later date without a reason is held back and flagged in the daily email until 2 days before the old date, then sent without a reason.
 5. An earlier date sends a "good news" email; no reason needed.
 6. Never edit `SYSTEM Falcon: notified date` or `SYSTEM Falcon: delay count`.
 
 **Stock arrives**
 
-1. Receive stock the normal way. Held pre-order lines are released automatically, oldest order first, as far as the stock covers whole orders. Released orders get tag `preorder-released-v<variant id>`.
+1. Receive stock the normal way. Held pre-order lines are released automatically, oldest order first, as far as the stock covers whole orders. Each variant in an order is held and released on its own. Released orders get tag `preorder-released-v<variant id>`.
 2. If a release fails, a staff alert says which order; release the hold by hand (order > fulfillment order > **Release hold**).
-3. When the pre-order run is over: untick **Continue selling**, clear the expected date and the limit.
+3. A hold you placed by hand (for example after "Hold failed") is never released by the system: release it yourself when the stock is in.
+4. When the pre-order run is over: untick **Continue selling**, clear the expected date and the limit.
 
-**Cancellation requests**
+**Order tags and alerts that need action**
+
+Tags are per item: `<id>` is the numeric variant id, which the order also carries as `preorder-v<id>`. An order with two pre-order items can have a request, delay or deadline on one item only; act on that item only.
 
 | Tag / alert | Meaning | Do this | Deadline |
 |---|---|---|---|
-| `preorder-cancel-requested` (+ alert "Cancel request: ...") | Customer clicked cancel in a date-change email | Cancel the pre-order item(s) and refund in full. UK/EU: include delivery. Then remove the `preorder-cancel-requested` tag (keep the `...-on-<date>` tag as a record) | UK/EU: 14 days from the request. US: 7 business days |
-| `preorder-cancel-due` (US only, alert "Cancel and refund ...") | US customer did not confirm "Keep my order" by the deadline | Cancel and refund in full. The customer does not need to ask | 7 business days (date in the alert) |
-| Reply to a delay email asking to cancel | Same as a click | Add tags `preorder-cancel-requested` and `preorder-cancel-requested-on-<YYYY-MM-DD>` and process as above | As above |
-| US reply saying "keep it" | Express consent | Add tag `preorder-kept-<n>` where n is the highest `preorder-delay-<n>` on the order | Before the keep-by date |
+| `preorder-cancel-requested` and `preorder-cancel-requested-v<id>` (+ `...-v<id>-on-<date>`), alert "Cancel request: #..., item, refund by ..." | Customer clicked cancel in a date-change email for that item | Cancel that item only and refund it in full. UK/EU: include delivery. Leave the tags as a record: the daily check stops chasing once the item is no longer unfulfilled | UK/EU: 14 days from the request. US: 7 business days. Date in the alert |
+| `preorder-cancel-due-v<id>` (US only), alert "Cancel and refund #... (item) by ..." | US customer did not confirm "Keep my order" for that item by the deadline | Cancel that item and refund it in full. The customer does not need to ask | 7 business days (date in the alert) |
+| Reply to a delay email asking to cancel | Same as a click | Add tags `preorder-cancel-requested`, `preorder-cancel-requested-v<id>` and `preorder-cancel-requested-v<id>-on-<YYYY-MM-DD>` (today) for the item named in the email, and process as above | As above |
+| US reply saying "keep it" | Express consent for that item | Add tag `preorder-kept-v<id>-<n>` where n is the highest `preorder-delay-v<id>-<n>` on the order | Before the date in `preorder-keep-by-v<id>-<date>` |
+| `preorder-unlabelled`, alert row "Pre-order sold without a date shown" | The order took an in-stock item below zero (for example the same item added twice) and the item is on pre-order. Those units are held like a pre-order, but the customer was **not** shown a dispatch date | Email the customer: the expected date, and that they may cancel for a full refund | As soon as possible |
+| `oversold-v<id>`, alert row "Oversold, not held" | The order took an item below zero and the item has no valid pre-order setup. Nothing is held, so it may go to the warehouse | Decide whether it can be fulfilled. If not, hold it by hand and contact the customer. Purple Dot orders before Phase 10 produce this too: ignore those | Straight away |
+| `preorder-hold-failed`, alert "Pre-order order ... needs attention" with "Hold failed" | Shopify refused the hold (often another app already holds the order). The system retries daily and does not email again | If the daily email still lists it, hold the pre-order line(s) by hand (**Fulfillment** > **Hold**), remove `preorder-hold-failed`, and release by hand when stock arrives | Before the warehouse picks the order |
 | `preorder-over-cap` | An order took the variant past its limit | Decide whether it can be fulfilled; if not, contact the customer | As soon as possible |
+
+Tags the system manages (never add or remove them by hand): `preorder`, `preorder-v<id>`, `preorder-released-v<id>`, `preorder-delay-v<id>-<n>`, `preorder-keep-by-v<id>-<date>`, `preorder-notice-v<id>-...`, and customer tags `restock-<id>`, `restock-notified-<id>`. The only exceptions are the reply rows in the table above.
+
+A cancel link for an item that has already been dispatched shows the customer a page pointing to returns; no tag is added and no alert is sent.
 
 The system never cancels, refunds or changes marketing consent. Staff do.
 
 **Where alerts arrive:** the store's staff inbox (`<UK_STAFF>`, `<US_STAFF>`, `<EU_STAFF>`), subject starting `Falcon UK |`, `Falcon US |` or `Falcon EU |`. The daily check email arrives after 07:00 UTC only when something needs attention.
 
-**STOP (per store):** report 9.1 to 9.4 results to Daniel.
+**STOP (per store):** report 9.1 to 9.5 results to Daniel.
 
 ---
 
@@ -760,13 +826,13 @@ Start only after Phase 9 is complete on the store and Daniel has approved the pl
 
 1. Freeze: agree with Daniel a switch date for each Purple Dot preorder product.
 2. On the switch date, for one product: in the Purple Dot dashboard, turn off preorders for that product (label varies; record it).
-3. On the Shopify variant, set the Falcon fields as in 9.6 "Put a variant on pre-order": `expected_date` = the current real date, `preorder_limit` = remaining units Falcon is willing to sell (Daniel supplies it; subtract units already sold through Purple Dot if stock is shared).
+3. On the Shopify variant, set the Falcon fields as in 9.7 "Put a variant on pre-order": `expected_date` = the current real date; `preorder_limit` counts **every** unit below zero, including those Purple Dot sold. So set it to the units currently below zero plus the further units Falcon is willing to sell (Daniel supplies the second number). Example: quantity -12 and 8 more to sell: limit 20.
 4. Check **Continue selling** and the quantity. If Purple Dot left the quantity at an odd value (for example a reserved or negative amount), **STOP** and report before saving.
 5. Run `Falcon – run daily check now`.
 6. On the live storefront, check the variant shows **Pre-order** with the right date and the Purple Dot widget is gone for it.
-7. Place no test order on real products. Watch the first real Falcon pre-order: it must be tagged `preorder` and held (9.5 monitoring).
+7. Place no test order on real products. Watch the first real Falcon pre-order: it must be tagged `preorder` and held (9.6 monitoring).
 8. Repeat steps 2 to 7 for each Purple Dot product.
-9. Existing Purple Dot orders stay with Purple Dot. They carry no `_preorder_date`, so the Worker does not hold, release or email them. Purple Dot keeps handling them until they ship.
+9. Existing Purple Dot orders stay with Purple Dot. The Worker never holds, releases or emails them: orders placed before Phase 7.2 were never sent to it, and those placed after only got an `oversold-v<id>` tag and a staff alert (no hold). Purple Dot keeps handling them until they ship. Those tags can stay.
 10. Each week, re-check the list of open Purple Dot orders and their payment state. Report the count to Daniel.
 11. When every Purple Dot order has shipped and every payment is captured (none **Authorized** or **Pending**), **STOP** and ask Daniel for approval to switch Purple Dot off.
 12. Export Purple Dot's order and waitlist data again and save it where Daniel names.
@@ -786,17 +852,17 @@ Each item: how to check it from the browser, and what to do if it fails. Most ar
 | # | Item | How to check | If it fails |
 |---|---|---|---|
 | V1 | Customer tag search `tag:'restock-123'` may also match `restock-1234` | Phase 8: the Worker re-checks exact tags, so check the result, not the search. Create a customer with tag `restock-<C>1` (an extra digit) and run 8.5: that customer must not be emailed | STOP and report; code fix |
-| V2 | Order tag search with hyphens (`tag:'preorder-v<id>' AND status:open`) | 8.12 and 8.14 find the right orders | STOP; code fix |
+| V2 | Order tag search with hyphens (`tag:'preorder-v<id>' AND status:open`) | 8.12, 8.14 and 8.25 find the right orders | STOP; code fix |
 | V3 | `Customer.defaultEmailAddress { emailAddress marketingState }` on 2026-07 | 8.1 to 8.3 succeed, no `shopify_graphql_error` | STOP; code fix |
 | V4 | `customerCreate` with `email` + `tags`, and no account invite email sent | 8.1: customer created; your test inbox gets no account invite | If an invite is sent, report it (Daniel decides) |
 | V5 | `customerEmailMarketingConsentUpdate` input shape | 8.2: consent becomes Subscribed; no `mutation_user_errors` | STOP; code fix |
-| V6 | `fulfillmentOrderHold` with `handle` and `fulfillmentOrderLineItems`; non-held lines move to a new open fulfillment order | 8.9: only B held, A shippable | STOP; this is core behaviour |
-| V7 | `fulfillmentOrderReleaseHold(holdIds:)` releases only Falcon holds | 8.12 | STOP; code fix. Release by hand meanwhile |
+| V6 | `fulfillmentOrderHold` with `handle` and `fulfillmentOrderLineItems`; non-held lines and units move to a new open fulfillment order | 8.9: only B held, A shippable. 8.22: one unit of a two-unit line held. 8.24: one held fulfillment order per variant | STOP; this is core behaviour |
+| V7 | `fulfillmentOrderReleaseHold(holdIds:)` releases only Falcon holds | 8.12 and 8.25 | STOP; code fix. Release by hand meanwhile |
 | V8 | Flow condition can compare `inventoryQuantity` with `inventoryQuantityPrior` | Phase 7.3 | Run without condition (allowed) and record |
-| V9 | Flow **Send HTTP request** 30-second limit and retry on non-2xx; daily run within 30 s | 7.4 run history; `daily_done` in logs | If the daily check always times out, report; the cron still runs it daily |
+| V9 | Flow **Send HTTP request** 30-second limit, treats 202 as success, retries on non-2xx; daily run within 30 s | 7.4 run history; 8.5 inventory run shows 202 as successful; `daily_done` in logs | If the daily check always times out, report; the cron still runs it daily. If Flow marks 202 as failed, report (code change) |
 | V10 | Brevo idempotency header name (`idempotencyKey` inside `headers`) | Repeat 8.14 within 30 minutes: second attempt logs `email_duplicate_suppressed`, no second email | If a second email arrives, report (duplicate protection falls back to Shopify tags only) |
 | V11 | Brevo evaluates `{% if %}` in the subject field | Phase 3.3 and 8.14 / 8.16 subjects | Use the fixed subjects in 3.3 and report |
-| V12 | `{% autoescape off %}` renders `rows_html` in `staff.html` | 8.19 alert shows a table, not raw `<table>` text | Report; template fix |
+| V12 | `{% autoescape off %}` renders `rows_html` in `staff.html` | 8.18 or 8.20 alert shows a table, not raw `<table>` text | Report; template fix |
 | V13 | `ProductVariant.media` and `Product.featuredMedia` image URL | 8.5 email shows the product image | If blank, report (email still works) |
 | V14 | Brevo authorised IP blocking | First Worker email in 8.5 | If logs show `email_failed` with an IP message, turn off IP blocking (1.7 step 4) |
 | V15 | Notification Liquid reads `line.properties` (order) and `line.line_item.properties` (shipping) | `INSTALL-THEME.md` 9.17 to 9.20 | Report; template fix |
@@ -806,7 +872,7 @@ Each item: how to check it from the browser, and what to do if it fails. Most ar
 | V19 | Custom app route and non-expiring token | Phase 1.8 | STOP at 1.8 |
 | V20 | `read_all_orders` granted | Phase 1.8 scope list; later, a date change on a preorder older than 60 days | STOP; request the scope |
 | V21 | Self-serve cancellation (new customer accounts) available per store | **Settings** > **Customer accounts** / **Returns** | Informational for legal review (EU withdrawal function) |
-| V22 | Apex `falconenamelware.com` serves pages without redirecting to `www` | Phase 0.1 step 4 | Add it to Turnstile hostnames; ask Daniel about a redirect (the Worker allows only the `www` origin for UK) |
+| V22 | Apex `falconenamelware.com` serves pages without redirecting to `www` | Phase 0.1 step 4 | Add it to Turnstile hostnames and add `https://falconenamelware.com` to `SHOPS.uk.origins`; ask Daniel about a redirect (the Worker allows only origins listed in `origins`) |
 | V23 | Feedoptimise can map `availability=preorder` and `availability_date` from `falcon.expected_date` | Ask Daniel / Feedoptimise support | Report; feeds keep showing out of stock until solved |
 | V24 | Flow metafield-changed trigger now exists | Flow trigger picker: search "metafield" | Informational only; the daily check covers date changes |
 
@@ -816,12 +882,12 @@ Each item: how to check it from the browser, and what to do if it fails. Most ar
 |---|---|---|
 | L1 | **US keep-by date rule:** the customer must click "Keep my order" by the currently promised date, or by 7 days after the notice if that is sooner. Counsel to confirm this meets "before the current deadline" in 16 CFR 435.2(c) | Worker `classifyDelay`; `delay-us-consent.html` |
 | L2 | **FTC wording:** silence-equals-consent sentence in the first-delay notice (definite date, 30 days or less); cancel as an equal option; refund within 7 business days (the Worker counts Monday to Friday and ignores public holidays) | `delay-us-notice.html`, `delay-us-consent.html` |
-| L3 | **US reply handling:** replies are treated as keep or cancel by staff; the reply-to inbox must be monitored | `EMAILS.md` setup notes, 9.6 |
+| L3 | **US reply handling:** replies are treated as keep or cancel by staff; the reply-to inbox must be monitored | `EMAILS.md` setup notes, 9.7 |
 | L4 | **EU withdrawal button:** the EU date-change email links to `https://eu.falconenamelware.com/pages/withdrawal`. Falcon must confirm that page is a working "withdraw from contract here" function (Directive 2023/2673, from 19 June 2026), not just information | `SHOPS.eu.withdrawal_url`; EU store pages |
 | L5 | **UK/EU cancellation wording:** cancellation stated as a legal right, full refund including delivery within 14 days | `delay-uk.html`, order confirmation block |
 | L6 | **Back-in-stock email as a solicited service message:** neutral, single product, no marketing | `bis.html` |
 | L7 | **Existing waitlist consent remediation** (Phase 0.3 options) | Falcon decision |
-| L8 | **Reasonable basis for dates:** expected dates must come from real supplier ETAs with evidence kept | Staff guide 9.6 |
+| L8 | **Reasonable basis for dates:** expected dates must come from real supplier ETAs with evidence kept | Staff guide 9.7 |
 | L9 | **Postal address in email footers** (not currently included) | `EMAILS.md` setup notes |
 
 ## Appendix C: rollback plan
@@ -830,8 +896,8 @@ Use the smallest step that fixes the problem. Report to Daniel before and after.
 
 | Problem | Rollback |
 |---|---|
-| Wrong or unwanted customer emails | Cloudflare: set `DRY_RUN` to `true`, **Deploy**. Customer emails stop at once (they go to staff) |
-| Worker misbehaving generally | Turn off the three Falcon Flows on the affected store (Flow > workflow > **Turn off**). Remove the cron trigger in Cloudflare. The storefront notify form keeps working if the Worker is up; preorder orders will then not be held automatically, so also do the theme rollback |
+| Wrong or unwanted customer emails | Cloudflare: set `DRY_RUN` to `true`, **Deploy**. Customer emails stop at once (they go to staff). Links in emails already sent keep working |
+| Worker misbehaving generally | Turn off the three Falcon Flows on the affected store (Flow > workflow > **Turn off**). Remove the cron trigger in Cloudflare. The storefront notify form keeps working if the Worker is up; preorder orders will then not be held automatically and oversold orders are not caught, so also do the theme rollback |
 | Storefront problem | **Online Store** > **Themes** > previous theme > **Publish** |
 | Notification emails wrong | **Settings** > **Notifications** > template > **Edit code**: paste the saved original, **Save** |
 | Preorders must stop now | On each preorder variant untick **Continue selling when out of stock** (or clear `preorder_limit`) |
@@ -847,4 +913,4 @@ Use the smallest step that fixes the problem. Report to Daniel before and after.
 | `BREVO_API_KEY` | Brevo > **SMTP & API** > generate a new key; paste into Cloudflare; **Deploy**; delete the old key |
 | `TURNSTILE_SECRET` | Turnstile widget > **Rotate secret key**; paste into Cloudflare; **Deploy** |
 | `FLOW_KEY` | Generate (1.9); paste into Cloudflare and **Deploy**; then update `falcon_worker_key` in all three stores' Flow secrets and the password manager. Flows fail with 401 in between, so do it in one sitting |
-| `LINK_SECRET` | Generate (1.9); paste; **Deploy**. Every link already emailed (remove, keep, cancel) stops working. Avoid unless exposed |
+| `LINK_SECRET` | Generate (1.9); paste; **Deploy**. Every link already emailed (remove, keep, cancel) stops working and shows "This link has expired". Avoid unless exposed |

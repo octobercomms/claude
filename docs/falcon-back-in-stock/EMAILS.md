@@ -43,7 +43,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 | `remove_url` | yes | `https://falcon-stock.example.workers.dev/u?t=eyJzIjoidWsi...` | Signed `/u` link |
 | `logo_url` | no | `https://img.mailinblue.com/.../falcon-logo.png` | See setup notes |
 
-**Copy note.** The Worker removes the `restock-{id}` tag when it sends this email, so the "Remove me" link is worded as "Didn't ask for this, or don't want back-in-stock emails from us?". For that to be true, `POST /u` should remove **all** `restock-*` tags from the customer (not only this variant's). If `/u` stays per-variant, change the footer line to match.
+**Copy note.** The Worker removes the `restock-{id}` tag when it sends this email, so the "Remove me" link is worded as "Didn't ask for this, or don't want back-in-stock emails from us?". `POST /u` removes **all** of the customer's `restock-{id}` tags, so the wording holds.
 
 ```json
 {

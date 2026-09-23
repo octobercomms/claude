@@ -13,7 +13,9 @@ crons = ["0 7 * * *"] # daily 07:00 UTC
 API_VERSION = "2026-07"
 DRY_RUN = "true" # set to "false" only after install testing
 WORKER_URL = "https://falcon-stock.REPLACE_ME.workers.dev"
-# SHOPS is a JSON var; see README.md. In the dashboard paste it as a JSON variable.
+# SHOPS is a JSON var (per store: domain, storefront, origins, sender, templates, ...).
+# Template and field notes: docs/falcon-back-in-stock/INSTALL.md, Phase 2, step 2.3.
+# In the dashboard paste it as a JSON variable.
 # SHOPS = '{"uk":{...},"us":{...},"eu":{...}}'
 
 # Secrets (dashboard → Settings → Variables and secrets, type Secret, or `wrangler secret put`):

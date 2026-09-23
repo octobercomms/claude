@@ -4,16 +4,16 @@
 **Replaces:** Purple Dot
 **Code:** `dev/falcon-back-in-stock/` (theme files, Cloudflare Worker, Brevo email templates)
 
-A sold-out variant shows either a "Notify me" form or, when it has an expected date and a cap, a "Pre-order" button with full payment at checkout. Shopify Flow sends order and inventory events to a Cloudflare Worker (`falcon-stock`), which tags customers and orders, holds only the preorder lines, releases them oldest order first when stock arrives, and sends back-in-stock, date-change and staff emails through Brevo. A daily job at 07:00 UTC handles date changes, US consent deadlines and configuration alerts.
+A sold-out variant shows either a "Notify me" form or, when it has an expected date and a cap, a "Pre-order" button with full payment at checkout. Shopify Flow sends every order and inventory changes to a Cloudflare Worker (`falcon-stock`), which tags customers and orders, holds only the preorder lines (including units sold below zero without the preorder label), releases them oldest order first and per variant when stock arrives, and sends back-in-stock, date-change and staff emails through Brevo. A daily job at 07:00 UTC handles date changes, US consent deadlines and configuration alerts.
 
 ## Documents
 
 | Document | What it is for |
 |---|---|
-| [`INSTALL.md`](INSTALL.md) | **Start here to install.** Master runbook for Claude in Chrome: pre-flight audit, accounts and secrets, Worker, Brevo, metafields, theme, notifications, Flows, tests, go-live, staff guide, Purple Dot switch-off, VERIFY list, legal items, rollback |
+| [`INSTALL.md`](INSTALL.md) | **Start here to install.** Master runbook for Claude in Chrome: pre-flight audit, accounts and secrets, Worker (including the `SHOPS` template), Brevo, metafields, theme, notifications, Flows, DRY_RUN tests, go-live with live link tests, staff guide (tags and alerts), Purple Dot switch-off, VERIFY list, legal items, rollback |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | The design: data model (metafields, tags, line item properties), components, Worker endpoints, email rules, Flows |
 | [`INSTALL-THEME.md`](INSTALL-THEME.md) | Step-by-step theme and notification template edits, with the storefront test checklist. Used by `INSTALL.md` phases 5 and 6 |
-| [`WORKER.md`](WORKER.md) | Worker code notes: environment, endpoints, DRY_RUN, idempotency, tests |
+| [`WORKER.md`](WORKER.md) | Worker code notes: environment, endpoints, unlabelled oversell, per-variant tags, DRY_RUN, idempotency, tests |
 | [`EMAILS.md`](EMAILS.md) | Brevo template names, subjects, parameters and sample data |
 | [`research/shopify.md`](research/shopify.md) | Shopify platform research behind the design (Flow, holds, selling plans, customer form) |
 | [`research/brevo-compliance.md`](research/brevo-compliance.md) | Brevo API and UK/US/EU legal research behind the email rules |
