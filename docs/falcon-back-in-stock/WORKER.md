@@ -7,7 +7,7 @@ Code-level notes only. The design is `docs/falcon-back-in-stock/ARCHITECTURE.md`
 | File | What |
 |---|---|
 | `worker.js` | The whole Worker. One ES module, no imports. Paste into the Cloudflare dashboard editor as-is. `export default { fetch, scheduled }`; the named exports are pure helpers for tests (Cloudflare ignores them). |
-| `tests/worker.test.mjs` | Node built-in test runner. Pure helpers plus mocked-fetch end-to-end tests of `/subscribe`, `/hooks/order` and `/c`. |
+| `tests/worker.test.mjs`, `tests/review-fixes.test.mjs` | Node built-in test runner. Pure helpers plus mocked-fetch end-to-end tests of `/subscribe`, `/hooks/order` and `/c`. |
 | `tests/index.js` | Lets `node --test tests/` work on Node 22, which does not expand directories. |
 | `package.json` | Only `"type": "module"` so Node loads `worker.js` as ESM. No dependencies. |
 | `wrangler.toml` | Reference only. |
@@ -51,16 +51,16 @@ Needs Node 19 or later (global `crypto.subtle`, `fetch`, `Request`, `Response`, 
 
 ## Behaviour worth knowing (including where this goes beyond §6)
 
-- **Idempotency.** Brevo `headers.idempotencyKey` = UUID v5 of a key string (`bis|store|variant|customer|date`, `delay|store|variant|order|delayCount|newDate`, `staff|store|...`). Brevo's window is 30 minutes, so Shopify tags are the real record.
+- **Idempotency.** Brevo `headers.idempotencyKey` = UUID v5 of a key string (`bis|store|variant|customer|date`, `delay|store|variant|order|delayCount|oldDate|newDate`, `staff|store|...`). Brevo's window is 30 minutes, so Shopify tags are the real record.
 - **Order hook ordering.** `preorder-v{id}` tags first, then one `fulfillmentOrderHold` per preorder variant (so each variant sits on its own held fulfillment order and can be released on its own), then the cap check, then `preorder` last. The `preorder` tag (the idempotency marker) is only added once every hold succeeded.
 - **Release.** Only holds with handle `falcon-preorder` are released (`holdIds`). A held fulfillment order that also carries other items is never released automatically.
-- **Waitlist.** Send, then one request that adds `restock-notified-{id}` and removes `restock-{id}`. A customer found with both tags is cleaned up without a second email. `/subscribe` removes an old `restock-notified-{id}` so a re-subscriber is emailed next time.
+- **Waitlist.** Skipped (everyone stays waiting) while the product is not ACTIVE. Send, then one request that adds `restock-notified-{id}` and removes `restock-{id}`. A customer found with both tags is cleaned up without a second email. `/subscribe` removes an old `restock-notified-{id}` so a re-subscriber is emailed next time.
 - **`/u` removes every `restock-{id}` tag** (all waitlists), per the email copy. Token payload is `{s, a:"u", c}`.
-- **Date-change markers.** Each order emailed about a change gets `preorder-notice-v{id}-{delayCount}-{newDate}` (new tag type) so a crashed or repeated run never emails twice. Delay numbers `n` and `delay_count_before` are counted per order from its `preorder-delay-{n}` tags. An order whose `_preorder_date` already equals the new date is skipped. `notified_date` / `delay_count` are only updated when every email for that change succeeded.
+- **Date-change markers.** Each order emailed about a change gets `preorder-notice-v{id}-{delayCount}-{oldDate}-{newDate}` (new tag type) so a crashed or repeated run never emails twice (the old date is in it because an earlier move and a later move back can share a count and new date). Delay numbers `n` and `delay_count_before` are counted per order from its `preorder-delay-{n}` tags. The old date used per order is its `_preorder_date` if it has had no notice for that variant yet, otherwise `notified_date`; an order whose old date already equals the new date is skipped. `notified_date` / `delay_count` are only updated when every email for that change succeeded. An order with no email address is listed in the digest but does not block that update.
 - **Missing `delay_reason`.** For a later date the job waits (and flags it in the digest) until 2 days before the old date, then sends without a reason.
 - **Cancel requests** add `preorder-cancel-requested` plus `preorder-cancel-requested-on-{YYYY-MM-DD}` (new tag type), which the 3-day digest check reads.
-- **US deadlines.** The latest `preorder-keep-by-{date}` is compared with `preorder-kept-{max n}`. `/k` refuses a stale `n`, a passed deadline or `preorder-cancel-due`.
-- **DRY_RUN.** Customer emails go to `staff_email` with a `dry_run_banner` param. It also skips the tags and metafields that record "customer was told" (waitlist swap, delay markers, `notified_date` updates) so real customers are still emailed after DRY_RUN is turned off, and caps each batch at 5 emails. Holds, releases and staff alerts run normally.
+- **US deadlines.** The latest `preorder-keep-by-{date}` is compared with `preorder-kept-{max n}`. A deadline counts as passed only after the following UTC day (US customers read "by {date}" in their own time zone), for both `/k` and the daily `preorder-cancel-due` check. Orders whose pre-order variants are all `preorder-released-v{id}` are not flagged. `/k` refuses a stale `n`, a passed deadline or `preorder-cancel-due`.
+- **DRY_RUN.** On for `true`, `1`, `yes` or `on` (any case). Customer emails go to `staff_email` with a `dry_run_banner` param (fails closed if `staff_email` is missing), under their own Brevo idempotency keys (`dry|...`) so the real send after DRY_RUN is switched off is not dropped as a duplicate. Links in dry-run emails carry `d:1` and a POST with them changes nothing. It also skips the tags and metafields that record "customer was told" (waitlist swap, delay markers, `notified_date` updates) so real customers are still emailed after DRY_RUN is turned off, and caps each batch at 5 emails. Holds, releases and staff alerts run normally.
 - **Never automatic:** cancellation, refunds, consent downgrades.
 - **Logging.** One JSON line per action (`event` field); emails are masked (`j***@example.com`).
 

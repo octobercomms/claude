@@ -64,7 +64,7 @@
 					<li class="c-cart-line-properties__item">
 						<strong>{{ pcl_prop.first | escape }}:</strong>
 						{% if pcl_prop.last contains '/uploads/' %}
-							<a href="{{ pcl_prop.last }}">{{ pcl_prop.last | split: '/' | last | escape }}</a>
+							<a href="{{ pcl_prop.last | escape }}">{{ pcl_prop.last | split: '/' | last | escape }}</a>
 						{% else %}
 							{{ pcl_prop.last | escape }}
 						{% endif %}

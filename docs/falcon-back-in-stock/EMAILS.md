@@ -21,6 +21,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 - **Raw HTML in `staff.html`.** Brevo escapes params by default. The template uses `{% autoescape off %}{{ params.rows_html }}{% endautoescape %}`, which Brevo documents (help article 4402386448530). The pongo2 filter `{{ params.rows_html | safe }}` should also work but is **VERIFY**. The Worker must HTML-escape every value it puts inside `rows_html`.
 - **Postal address.** No postal address is in the footers. If Falcon wants one (good practice; required by CAN-SPAM only for commercial mail, which these are not), add a line to each footer.
 - **Reply-to.** The delay emails invite replies and the US notice says customers can cancel by replying. Set `replyTo` to a monitored inbox (e.g. `hello@falconenamelware.com`) and make sure a reply asking to cancel is handled like a click on `cancel_url` (tag `preorder-cancel-requested`). A US reply saying "keep it" counts as express consent: tag `preorder-kept-{n}` by hand.
+- **DRY_RUN banner.** While the Worker's `DRY_RUN` is on, customer emails go to `staff_email` with a `dry_run_banner` param naming the real recipient; each customer template shows it in a yellow bar under the preheader (nothing renders when it is absent). Links in dry-run emails are marked as tests and the Worker makes no change when they are used.
 - **Brevo settings.** Do not enable syncing marketing unsubscribes to transactional (research §1). One sender per store.
 
 ---

@@ -296,6 +296,17 @@ export function preorderLinesFromOrder(order) {
   return out;
 }
 
+/**
+ * Has a US keep-by deadline passed? The email says "by {date}" and US
+ * customers read that in their own time zone, which is up to 10 hours behind
+ * UTC. So the date counts as passed only once the whole following UTC day is
+ * over: the /k link still works for them late on the deadline day, and the
+ * daily job never flags an order while it is still the deadline day in the US.
+ */
+export function keepByPassed(keepBy, today) {
+  return !!keepBy && isIsoDate(keepBy) && today > addDays(keepBy, 1);
+}
+
 /** Refund deadline for a cancellation request received on `today`. */
 export function refundDeadline(store, today) {
   return store === 'us' ? addWorkingDays(today, 7) : addDays(today, 14);
@@ -411,6 +422,15 @@ export function getShops(env) {
   return env.__shops;
 }
 
+/**
+ * DRY_RUN is on for "true", "1", "yes" or "on" (any case, surrounding spaces
+ * ignored), so a value typed slightly differently in the dashboard never
+ * silently turns customer email on.
+ */
+export function isDryRun(env) {
+  return ['true', '1', 'yes', 'on'].includes(String((env && env.DRY_RUN) || '').trim().toLowerCase());
+}
+
 function makeCtx(env, store, { baseUrl = '', waitUntil = null } = {}) {
   const shops = getShops(env);
   const shop = shops[store];
@@ -423,12 +443,17 @@ function makeCtx(env, store, { baseUrl = '', waitUntil = null } = {}) {
     shop,
     token,
     apiVersion: env.API_VERSION || DEFAULT_API_VERSION,
-    dryRun: String(env.DRY_RUN || '').toLowerCase() === 'true',
+    dryRun: isDryRun(env),
     baseUrl: String(env.WORKER_URL || baseUrl || '').replace(/\/+$/, ''),
     today: todayUtc(),
     waitUntil,
     cache: {},
   };
+}
+
+/** Sign an email link. DRY_RUN links carry `d:1` and never change anything on POST. */
+async function linkToken(ctx, payload) {
+  return signToken(ctx.dryRun ? { ...payload, d: 1 } : payload, ctx.env.LINK_SECRET);
 }
 
 function linkUrl(ctx, path, token) {
@@ -754,9 +779,15 @@ export async function buildBrevoPayload({ shop, store, template, to, params, ide
   if (to.name) recipient.name = String(to.name).slice(0, 70);
   const finalParams = { ...params };
   if (shop.logo_url && finalParams.logo_url === undefined) finalParams.logo_url = shop.logo_url;
+  let key = idempotencyKey;
   if (dryRun && template !== 'staff') {
-    finalParams.dry_run_banner = `DRY RUN: this email would have gone to ${to.email}`;
+    if (!shop.staff_email) throw new Error(`DRY_RUN is on but ${store}.staff_email is not set`);
+    finalParams.dry_run_banner = `DRY RUN: this email would have gone to ${to.email}. Links in it do not change anything.`;
     recipient = { email: shop.staff_email, name: 'Falcon staff (dry run)' };
+    // Own idempotency namespace: otherwise the real send after DRY_RUN is
+    // switched off (same key, inside Brevo's window) would be dropped as a
+    // duplicate while the Worker records the customer as told.
+    key = `dry|${idempotencyKey}`;
   }
   const body = {
     templateId: Number(templateId),
@@ -764,7 +795,7 @@ export async function buildBrevoPayload({ shop, store, template, to, params, ide
     to: [recipient],
     params: finalParams,
     tags: ['falcon', store, template],
-    headers: { idempotencyKey: await uuidV5(idempotencyKey) }, // VERIFY: Brevo header name idempotencyKey vs Idempotency-Key
+    headers: { idempotencyKey: await uuidV5(key) }, // VERIFY: Brevo header name idempotencyKey vs Idempotency-Key
   };
   if (shop.reply_to) body.replyTo = shop.reply_to;
   return body;
@@ -1223,6 +1254,11 @@ export async function fanOutWaitlist(ctx, variant, budget) {
   const notifiedTag = `restock-notified-${vid}`;
   const stats = { variant_id: vid, sent: 0, cleaned: 0, skipped: 0, failed: 0, more: false };
   if (!(variant.qty > 0)) return stats;
+  if (variant.productStatus && variant.productStatus !== 'ACTIVE') {
+    // Draft or archived: the product link would 404. Keep everyone on the list.
+    log('fanout_skip_inactive_product', { store: ctx.store, variant_id: vid, status: variant.productStatus });
+    return stats;
+  }
   if (budget.emails <= 0) {
     stats.more = true;
     return stats;
@@ -1272,7 +1308,7 @@ export async function fanOutWaitlist(ctx, variant, budget) {
       return;
     }
     budget.emails--;
-    const removeToken = await signToken({ s: ctx.store, a: 'u', c: cid }, ctx.env.LINK_SECRET);
+    const removeToken = await linkToken(ctx, { s: ctx.store, a: 'u', c: cid });
     const sent = await sendEmail(ctx, {
       template: 'bis',
       to: { email, name: c.firstName || '' },
@@ -1326,6 +1362,11 @@ function lineForVariant(order, vid) {
   return ((order.lineItems && order.lineItems.nodes) || []).find((li) => li.variant && numericId(li.variant.id) === String(vid) && Number(li.unfulfilledQuantity) > 0);
 }
 
+/** Order tag recording that one date-change notice for a variant was sent. */
+export function changeMarker(variantId, delayCount, oldDate, newDate) {
+  return `preorder-notice-v${variantId}-${delayCount}-${oldDate}-${newDate}`;
+}
+
 /** Orders still waiting on this variant: tagged, not released, line unfulfilled. */
 function pendingOrdersForVariant(orders, vid) {
   return orders.filter(
@@ -1365,28 +1406,43 @@ export async function processDateChange(ctx, v, rows, orders = null) {
   // Query by the per-variant tag (not the `preorder` tag): an order whose hold
   // failed has no `preorder` tag yet, and its customer must still be told.
   const pending = pendingOrdersForVariant(orders || (await listOpenOrdersWithTag(ctx, `preorder-v${v.id}`)), v.id);
-  // One marker per (variant, delay run, new date): never email the same change twice.
-  const marker = `preorder-notice-v${v.id}-${v.delayCount}-${newDate}`;
+  // One marker per change event (variant, delay count, old date, new date):
+  // never email the same change twice. The old date is part of it because an
+  // earlier move and a later move back can share a delay count and new date
+  // (B to C earlier, C to D earlier, D to C later), and the second is news.
+  const marker = changeMarker(v.id, v.delayCount, oldDate, newDate);
   let failures = 0;
   let sent = 0;
   let dryRunCount = 0;
   for (const order of pending) {
     if (hasExactTag(order.tags, marker)) continue;
     const line = lineForVariant(order, v.id);
-    const promised = ((line.customAttributes || []).find((a) => a.key === '_preorder_date') || {}).value;
-    if (promised === newDate) continue; // ordered after the date changed: already told this date
+    const promised = String(((line.customAttributes || []).find((a) => a.key === '_preorder_date') || {}).value || '').trim();
+    // The date this customer was last given: the checkout date, unless they
+    // have since had a date-change email for this variant (then notified_date).
+    // Comparing only the checkout date would skip a customer who was told an
+    // earlier date and whose date then moved back to the checkout date.
+    const toldBefore = parseTags(order.tags).some((t) => t.toLowerCase().startsWith(`preorder-notice-v${v.id}-`));
+    const orderOld = !toldBefore && isIsoDate(promised) ? promised : oldDate;
+    if (orderOld === newDate) continue; // this customer already has this date
+    if (!order.email) {
+      // Permanent, so not a failure: counting it would block notified_date forever.
+      rows.push(['Pre-order customer has no email', order.name, `Tell the customer by hand: ${item} now expected ${formatDate(newDate, ctx.store)}`]);
+      continue;
+    }
     if (ctx.dryRun && dryRunCount >= DRY_RUN_MAX_PER_BATCH) break;
+    const orderLater = newDate > orderOld;
     const priorDelays = maxDelayNumber(order.tags);
-    const cls = classifyDelay({ store: ctx.store, old_date: oldDate, new_date: newDate, delay_count_before: priorDelays, has_definite_date: true, today: ctx.today });
-    const n = later ? priorDelays + 1 : priorDelays;
+    const cls = classifyDelay({ store: ctx.store, old_date: orderOld, new_date: newDate, delay_count_before: priorDelays, has_definite_date: true, today: ctx.today });
+    const n = orderLater ? priorDelays + 1 : priorDelays;
     const oid = numericId(order.id);
-    const cancelToken = await signToken({ s: ctx.store, a: 'c', o: oid, v: v.id, n }, ctx.env.LINK_SECRET);
+    const cancelToken = await linkToken(ctx, { s: ctx.store, a: 'c', o: oid, v: v.id, n });
     const params = {
       order_name: order.name,
       order_status_url: order.statusPageUrl || '',
       product_title: (line.product && line.product.title) || v.productTitle,
       variant_title: cleanVariantTitle(line.variantTitle || v.title),
-      old_date: formatDate(oldDate, ctx.store),
+      old_date: formatDate(orderOld, ctx.store),
       new_date: formatDate(newDate, ctx.store),
       reason: v.delayReason || '',
       cancel_url: linkUrl(ctx, '/c', cancelToken),
@@ -1397,21 +1453,16 @@ export async function processDateChange(ctx, v, rows, orders = null) {
     } else if (cls.template === 'delay_us_notice') {
       params.earlier = cls.earlier;
     } else {
-      const keepToken = await signToken({ s: ctx.store, a: 'k', o: oid, v: v.id, n }, ctx.env.LINK_SECRET);
+      const keepToken = await linkToken(ctx, { s: ctx.store, a: 'k', o: oid, v: v.id, n });
       params.keep_url = linkUrl(ctx, '/k', keepToken);
       params.keep_by_date = formatDate(cls.keep_by_date, ctx.store);
-    }
-    if (!order.email) {
-      failures++;
-      rows.push(['Pre-order customer has no email', order.name, 'Tell the customer about the new date by hand']);
-      continue;
     }
     dryRunCount++;
     const res = await sendEmail(ctx, {
       template: cls.template,
       to: { email: order.email, name: (order.customer && order.customer.firstName) || '' },
       params,
-      key: `delay|${ctx.store}|${v.id}|${oid}|${v.delayCount}|${newDate}`,
+      key: `delay|${ctx.store}|${v.id}|${oid}|${v.delayCount}|${oldDate}|${newDate}`,
     });
     if (!res.ok) {
       failures++;
@@ -1421,7 +1472,7 @@ export async function processDateChange(ctx, v, rows, orders = null) {
     sent++;
     if (ctx.dryRun) continue; // the real customer was not told; record nothing
     const tags = [marker];
-    if (later) tags.push(`preorder-delay-${n}`);
+    if (orderLater) tags.push(`preorder-delay-${n}`);
     if (cls.template === 'delay_us_consent') tags.push(`preorder-keep-by-${cls.keep_by_date}`);
     let t = await addTags(ctx, order.id, tags, { order: order.name, variant_id: v.id, template: cls.template });
     if (!t.ok) t = await addTags(ctx, order.id, tags, { order: order.name, variant_id: v.id, retry: true });
@@ -1450,7 +1501,11 @@ export async function checkConsentDeadlines(ctx, orders, rows) {
     const dates = keepByDates(order.tags);
     if (!dates.length) continue;
     const latest = dates[dates.length - 1];
-    if (latest >= ctx.today) continue;
+    if (!keepByPassed(latest, ctx.today)) continue;
+    // Every pre-order line already released for shipping (stock came in before
+    // the deadline): nothing is left to cancel.
+    const preVariants = parseTags(order.tags).map((t) => t.match(/^preorder-v(\d+)$/i)).filter(Boolean).map((m) => m[1]);
+    if (preVariants.length && preVariants.every((id) => hasExactTag(order.tags, `preorder-released-v${id}`))) continue;
     const n = maxDelayNumber(order.tags);
     if (hasExactTag(order.tags, `preorder-kept-${n}`)) continue;
     const refundBy = formatDate(addWorkingDays(ctx.today, 7), ctx.store);
@@ -1690,6 +1745,11 @@ async function handleLinkPage(request, env, action) {
   }
   const store = payload.s;
   const c = copyFor(store);
+  if (payload.d && request.method !== 'GET') {
+    // Link from a DRY_RUN email (sent to staff, built for a real customer or order): never act on it.
+    log('link_dry_run_post', { action, store });
+    return renderPage({ store, title: 'Test link: nothing changed', paragraphs: ['This link came from a DRY_RUN test email, so nothing was changed for the customer or order.'] });
+  }
   const ctx = makeCtx(env, store, { baseUrl: new URL(request.url).origin });
   const contact = ctx.shop.sender && ctx.shop.sender.email ? ctx.shop.sender.email : '';
   const helpLine = contact ? `If you have any questions, email ${contact}.` : '';
@@ -1723,7 +1783,7 @@ async function handleLinkPage(request, env, action) {
       return renderPage({ store, title: 'Your order is kept', paragraphs: [`You have already told us to keep ${orderName}. Thank you.`, helpLine] });
     }
     const keepBy = keepByDates(order.tags).pop();
-    const tooLate = order.cancelledAt || hasExactTag(order.tags, 'preorder-cancel-due') || (keepBy && keepBy < ctx.today) || n !== maxDelayNumber(order.tags);
+    const tooLate = order.cancelledAt || hasExactTag(order.tags, 'preorder-cancel-due') || keepByPassed(keepBy, ctx.today) || n !== maxDelayNumber(order.tags);
     if (tooLate) {
       return renderPage({ store, title: 'This link can no longer be used', paragraphs: [`We could not record your answer for ${orderName} online, because the deadline has passed or there is a newer update about this order.`, helpLine || 'Please contact us.'] });
     }
