@@ -136,37 +136,37 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
           Iterate until it's right, then lock to save.
         </p>
 
-        <div className="row" style={{ gap: 16, flex: 1, minHeight: 0 }}>
+        <div className="row" style={{ gap: 'var(--s4)', flex: 1, minHeight: 0 }}>
           <div style={{ flex: 1.2, display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <div className="card" style={{ flex: 1, padding: 10, overflowY: "auto", minHeight: 220, maxHeight: "50vh" }} ref={scrollRef}>
+            <div className="card" style={{ flex: 1, padding: 'var(--s3)', overflowY: "auto", minHeight: 220, maxHeight: "50vh" }} ref={scrollRef}>
               {!history.length && (
                 <div className="body-sm text-muted">
                   Tell Claude what to include. Examples:
-                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 'var(--fs-caption)' }}>
+                  <ul style={{ margin: 'var(--s2) 0 0 var(--s5)', padding: 0, fontSize: 'var(--fs-caption)' }}>
                     <li>"B2C revenue summary across all stores, then B2B, then Google Ads ROAS."</li>
                     <li>"Same as last month, but add a Meta Ads block and drop the SEO table."</li>
                     <li>"Just three things: total spend, total revenue, and net per channel."</li>
                   </ul>
-                  <div style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+                  <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                     Or attach a PDF/image of an old report (📎) and Claude will recreate it as a template.
                   </div>
-                  <div style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+                  <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                     Connectors available: {connectors.length ? connectors.map(c => `${c.type}${c.storeLabel ? ` (${c.storeLabel})` : ''}`).join(', ') : '(none configured)'}
                   </div>
                 </div>
               )}
               {history.map((m, i) => (
-                <div key={i} className={`chat-bubble ${m.role === "user" ? "user" : "assistant"}`} style={{ marginBottom: 10 }}>
+                <div key={i} className={`chat-bubble ${m.role === "user" ? "user" : "assistant"}`} style={{ marginBottom: 'var(--s3)' }}>
                   <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>{m.role === 'user' ? 'You' : 'Claude'}</div>
                   <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</div>
                 </div>
               ))}
-              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 10 }}><div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Claude</div><div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
+              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 'var(--s3)' }}><div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Claude</div><div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
             </div>
             {attachment && (
-              <div className="chip chip-accent" style={{ marginTop: 8 }}>
+              <div className="chip chip-accent" style={{ marginTop: 'var(--s2)' }}>
                 <span style={{ fontSize: 'var(--fs-caption)' }}>📎 {attachment.name} <span style={{ color: 'var(--text-subtle)' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
-                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 'var(--fs-title)', padding: "0 2px" }} title="Remove attachment">×</button>
+                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 'var(--fs-title)', padding: "0 var(--s1)" }} title="Remove attachment">×</button>
               </div>
             )}
             <div className="chat-input-row">
@@ -178,7 +178,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
                 placeholder={attachment ? 'Optional — describe how to use this file, or just send' : 'Describe a change, or attach a PDF/image. ⌘↩ to send'}
                 disabled={sending}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -202,10 +202,10 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
             </div>
           </div>
 
-          <div className="card" style={{ flex: 1, padding: 12, overflowY: "auto", maxHeight: "60vh", position: "relative" }}>
+          <div className="card" style={{ flex: 1, padding: 'var(--s3)', overflowY: "auto", maxHeight: "60vh", position: "relative" }}>
             <div className="caption mb-2">
               {sending
-                ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><GeneratingDots /> Generating draft…</span>
+                ? <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}><GeneratingDots /> Generating draft…</span>
                 : proposed ? (proposedDiffers ? 'Draft — not yet locked' : 'Locked template') : 'No draft yet'}
             </div>
             {sending && (
@@ -242,7 +242,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
 
 function GeneratingDots() {
   return (
-    <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
+    <span style={{ display: 'inline-flex', gap: 'var(--s1)', alignItems: 'center' }}>
       {[0, 1, 2].map(i => (
         <span key={i} style={{
           width: 5, height: 5, borderRadius: '50%', background: 'var(--text-subtle)', display: 'inline-block',
@@ -266,23 +266,23 @@ function TemplatePreview({ template, onChange }) {
   return (
     <div style={{ fontSize: 'var(--fs-caption)' }}>
       {sections.map((s, i) => (
-        <div key={s.id || i} className="card" style={{ padding: "8px 10px", marginBottom: 6 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <div key={s.id || i} className="card" style={{ padding: "var(--s2) var(--s3)", marginBottom: 'var(--s2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s2)' }}>
             <strong>{s.title || s.id}</strong>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' }}>
               <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{s.type}</span>
               {onChange && (
                 <button
                   type="button"
                   onClick={() => removeSection(s.id)}
-                  className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 'var(--fs-body)', padding: "0 4px" }}
+                  className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 'var(--fs-body)', padding: "0 var(--s1)" }}
                   title="Remove this section"
                 >×</button>
               )}
             </span>
           </div>
           {s.sources && (
-            <div style={{ color: 'var(--text-muted)', marginTop: 3 }}>
+            <div style={{ color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>
               sources: {Array.isArray(s.sources)
                 ? s.sources.map(src => typeof src === 'string' ? src : `${src.type}${src.storeLabel ? `:${src.storeLabel}` : ''}`).join(', ')
                 : String(s.sources)}
@@ -290,12 +290,12 @@ function TemplatePreview({ template, onChange }) {
           )}
           {s.metrics && <div style={{ color: 'var(--text-muted)' }}>metrics: {s.metrics.join(', ')}{s.aggregate ? ` (${s.aggregate})` : ''}</div>}
           {s.dimension && <div style={{ color: 'var(--text-muted)' }}>dimension: {s.dimension} / {s.metric}</div>}
-          {s.compare === 'yoy' && <div style={{ color: 'var(--positive)', marginTop: 2, fontWeight: 600 }}>compare: year-on-year</div>}
-          {s.prompt && <div style={{ color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>"{s.prompt}"</div>}
+          {s.compare === 'yoy' && <div style={{ color: 'var(--positive)', marginTop: 'var(--s1)', fontWeight: 600 }}>compare: year-on-year</div>}
+          {s.prompt && <div style={{ color: 'var(--text-muted)', marginTop: 'var(--s1)', fontStyle: 'italic' }}>"{s.prompt}"</div>}
           {/* Per-section auto-insight toggle — only relevant for non-narrative
               section types (narrative sections ARE the prose themselves). */}
           {onChange && s.type !== 'narrative' && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', marginTop: 'var(--s2)', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
               <input
                 type="checkbox"
                 checked={s.insight !== false}

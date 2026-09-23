@@ -168,16 +168,16 @@ export default function TenderWorkspacePage() {
       {/* Notice header */}
       <div className="card">
         <div className="oview-grplabel">Bid workspace</div>
-        <h2 className="h3" style={{ margin: '2px 0 6px' }}>{notice?.title || 'Loading…'}</h2>
-        <div className="body-sm text-muted" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <h2 className="h3" style={{ margin: 'var(--s1) 0 var(--s2)' }}>{notice?.title || 'Loading…'}</h2>
+        <div className="body-sm text-muted" style={{ display: 'flex', gap: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center' }}>
           <span><strong>Buyer:</strong> {notice?.buyer_name || '—'}{notice?.buyer_country ? ` (${notice.buyer_country})` : ''}</span>
           <span><strong>Value:</strong> {val}</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' }}>
             <strong>Closes:</strong>
             {editingClose ? (
               <>
                 <input type="date" value={closeDraft} onChange={e => setCloseDraft(e.target.value)}
-                  style={{ padding: '3px 6px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                  style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
                 <button className="btn btn-primary btn-sm" onClick={saveClose}>Save</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setEditingClose(false)}>Cancel</button>
               </>
@@ -193,24 +193,24 @@ export default function TenderWorkspacePage() {
           </span>
           {notice?.url && <a href={notice.url} target="_blank" rel="noopener noreferrer">Open the notice ↗</a>}
         </div>
-        {notice?.description && <p className="body-sm" style={{ margin: '10px 0 0', color: 'var(--text-subtle)' }}>{notice.description}</p>}
+        {notice?.description && <p className="body-sm" style={{ margin: 'var(--s3) 0 0', color: 'var(--text-subtle)' }}>{notice.description}</p>}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 'var(--s4)', alignItems: 'start' }}>
         {/* Chat */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', minHeight: 460 }}>
           <div className="oview-grplabel">Work with Claude</div>
-          <div ref={scrollRef} style={{ overflowY: 'auto', flex: 1, minHeight: 300, maxHeight: '62vh', paddingRight: 4 }}>
+          <div ref={scrollRef} style={{ overflowY: 'auto', flex: 1, minHeight: 300, maxHeight: '62vh', paddingRight: 'var(--s1)' }}>
             {messages.length === 0 && !sending && (
-              <div className="empty" style={{ padding: 14 }}>
-                <div style={{ marginBottom: 10 }}>Ask Claude to assess this tender and produce the bid. It reads your uploaded files and October’s bid profile.</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div className="empty" style={{ padding: 'var(--s4)' }}>
+                <div style={{ marginBottom: 'var(--s3)' }}>Ask Claude to assess this tender and produce the bid. It reads your uploaded files and October’s bid profile.</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                   {SUGGESTIONS.map(s => <button key={s} className="btn btn-secondary btn-sm" style={{ textAlign: 'left', justifyContent: 'flex-start' }} onClick={() => send(s)}>{s}</button>)}
                 </div>
               </div>
             )}
             {messages.map(m => (
-              <div key={m.id} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
+              <div key={m.id} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 'var(--s3)' }}>
                 <div className={m.role === 'user' ? '' : 'card body-sm'} style={{
                   maxWidth: m.role === 'user' ? '80%' : '96%',
                   background: m.role === 'user' ? 'var(--text)' : undefined, color: m.role === 'user' ? '#fff' : undefined,
@@ -222,7 +222,7 @@ export default function TenderWorkspacePage() {
                     : <>
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{m.content || ''}</ReactMarkdown>
                         {!String(m.id).startsWith('tmp-') && (
-                          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                          <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
                             <button className="btn btn-ghost btn-sm" onClick={() => downloadBlob(`/tender/notices/${id}/chat/${m.id}/export?format=docx`, 'bid.docx', toast)}>Download Word</button>
                             <button className="btn btn-ghost btn-sm" onClick={() => downloadBlob(`/tender/notices/${id}/chat/${m.id}/export?format=pdf`, 'bid.pdf', toast)}>Download PDF</button>
                           </div>
@@ -231,20 +231,20 @@ export default function TenderWorkspacePage() {
                 </div>
               </div>
             ))}
-            {sending && <div className="caption" style={{ color: 'var(--text-subtle)', padding: '4px 2px' }}>Thinking…</div>}
+            {sending && <div className="caption" style={{ color: 'var(--text-subtle)', padding: 'var(--s1) var(--s1)' }}>Thinking…</div>}
           </div>
           {/* One-click deliverables — produce the full document, then Download Word/PDF on the reply. */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-            <span className="caption" style={{ color: 'var(--text-subtle)', alignSelf: 'center', marginRight: 2 }}>Produce:</span>
+          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s3)' }}>
+            <span className="caption" style={{ color: 'var(--text-subtle)', alignSelf: 'center', marginRight: 'var(--s1)' }}>Produce:</span>
             {DELIVERABLES.map(d => (
               <button key={d.label} className="btn btn-secondary btn-sm" disabled={sending} onClick={() => send(d.prompt)}>{d.label}</button>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)', alignItems: 'flex-end' }}>
             <textarea value={input} onChange={e => setInput(e.target.value)} rows={2}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Ask for fit, a plan, or a drafted deliverable… (Enter to send)"
-              style={{ flex: 1, resize: 'vertical', padding: '10px 12px', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              style={{ flex: 1, resize: 'vertical', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
             <button className="btn btn-primary" disabled={sending || !input.trim()} onClick={() => send()}>{sending ? 'Sending…' : 'Send'}</button>
           </div>
         </div>
@@ -253,12 +253,12 @@ export default function TenderWorkspacePage() {
         <div className="stack stack-md">
           <div className="card">
             <div className="oview-grplabel">Files</div>
-            <p className="caption" style={{ margin: '0 0 8px', color: 'var(--text-subtle)' }}>RFP pack, past bids, capability decks. Claude reads PDFs, images and text.</p>
+            <p className="caption" style={{ margin: '0 0 var(--s2)', color: 'var(--text-subtle)' }}>RFP pack, past bids, capability decks. Claude reads PDFs, images and text.</p>
             <input ref={fileRef} type="file" multiple onChange={onUpload} style={{ display: 'none' }} />
             <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? 'Uploading…' : 'Upload files'}</button>
-            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
               {files.map(f => (
-                <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-body)' }}>
+                <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)' }}>
                   <button className="btn-link" onClick={() => downloadBlob(`/tender/files/${f.id}/download`, f.filename, toast)}
                     style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', flex: 1, cursor: 'pointer', color: 'var(--link, #06c)', textDecoration: 'underline' }}>
                     {f.filename}
@@ -275,17 +275,17 @@ export default function TenderWorkspacePage() {
             <button className="oview-grplabel" onClick={() => setProfileOpen(o => !o)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
               October bid profile {profileOpen ? '▾' : '▸'}
             </button>
-            <p className="caption" style={{ margin: '4px 0 0', color: 'var(--text-subtle)' }}>Shared across every bid — Claude reads this and gets sharper as you add wins, losses and reusable boilerplate.</p>
+            <p className="caption" style={{ margin: 'var(--s1) 0 0', color: 'var(--text-subtle)' }}>Shared across every bid — Claude reads this and gets sharper as you add wins, losses and reusable boilerplate.</p>
 
             {/* Learn from this bid — Claude proposes durable additions from the chat. */}
-            <button className="btn btn-secondary btn-sm" onClick={learnFromBid} disabled={learning} style={{ marginTop: 8 }}>
+            <button className="btn btn-secondary btn-sm" onClick={learnFromBid} disabled={learning} style={{ marginTop: 'var(--s2)' }}>
               {learning ? 'Reviewing…' : 'Learn from this bid'}
             </button>
             {learn?.suggestion && (
-              <div className="card" style={{ marginTop: 8, padding: 10, background: 'var(--surface-2, #f7f7f5)' }}>
-                <div className="caption" style={{ color: 'var(--text-subtle)', marginBottom: 6 }}>Claude suggests adding to the profile:</div>
+              <div className="card" style={{ marginTop: 'var(--s2)', padding: 'var(--s3)', background: 'var(--surface-2, #f7f7f5)' }}>
+                <div className="caption" style={{ color: 'var(--text-subtle)', marginBottom: 'var(--s2)' }}>Claude suggests adding to the profile:</div>
                 <div className="body-sm"><ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{learn.suggestion}</ReactMarkdown></div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
                   <button className="btn btn-primary btn-sm" onClick={acceptLearn}>Add to profile</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setLearn(null)}>Dismiss</button>
                 </div>
@@ -293,10 +293,10 @@ export default function TenderWorkspacePage() {
             )}
 
             {profileOpen && (
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 'var(--s3)' }}>
                 <textarea value={profileMd} onChange={e => setProfileMd(e.target.value)} rows={12}
-                  style={{ width: '100%', resize: 'vertical', padding: '8px 10px', fontSize: 'var(--fs-body)', fontFamily: 'ui-monospace, monospace', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
-                <button className="btn btn-primary btn-sm" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: 8 }}>{savingProfile ? 'Saving…' : 'Save profile'}</button>
+                  style={{ width: '100%', resize: 'vertical', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', fontFamily: 'ui-monospace, monospace', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                <button className="btn btn-primary btn-sm" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: 'var(--s2)' }}>{savingProfile ? 'Saving…' : 'Save profile'}</button>
               </div>
             )}
           </div>
@@ -307,14 +307,14 @@ export default function TenderWorkspacePage() {
 }
 
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '10px 0 8px' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '12px 0 6px' }} {...p} />,
-  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '10px 0 5px' }} {...p} />,
-  p: ({ node, ...p }) => <p style={{ margin: '0 0 10px', lineHeight: 1.55 }} {...p} />,
-  ul: ({ node, ...p }) => <ul style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
-  ol: ({ node, ...p }) => <ol style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
-  li: ({ node, ...p }) => <li style={{ marginBottom: 5, lineHeight: 1.5 }} {...p} />,
+  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s3) 0 var(--s2)' }} {...p} />,
+  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s3) 0 var(--s2)' }} {...p} />,
+  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s3) 0 var(--s1)' }} {...p} />,
+  p: ({ node, ...p }) => <p style={{ margin: '0 0 var(--s3)', lineHeight: 1.55 }} {...p} />,
+  ul: ({ node, ...p }) => <ul style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s5)' }} {...p} />,
+  ol: ({ node, ...p }) => <ol style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s5)' }} {...p} />,
+  li: ({ node, ...p }) => <li style={{ marginBottom: 'var(--s1)', lineHeight: 1.5 }} {...p} />,
   table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }} {...p} /></div>,
-  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
-  td: ({ node, ...p }) => <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--card-border)' }} {...p} />,
+  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: 'var(--s2) var(--s2)', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
+  td: ({ node, ...p }) => <td style={{ padding: 'var(--s2) var(--s2)', borderBottom: '1px solid var(--card-border)' }} {...p} />,
 };

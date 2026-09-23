@@ -287,8 +287,8 @@ function AccordionItem({ section, isOpen, onToggle }) {
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
       <button onClick={onToggle} style={{
-        width: '100%', textAlign: 'left', padding: '16px 20px', background: 'transparent',
-        border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14,
+        width: '100%', textAlign: 'left', padding: 'var(--s4) var(--s5)', background: 'transparent',
+        border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s4)',
       }}>
         <div>
           <div className="h3">{section.title}</div>
@@ -297,11 +297,11 @@ function AccordionItem({ section, isOpen, onToggle }) {
         <span className="text-muted" style={{ fontSize: 'var(--fs-title)', flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
       </button>
       {isOpen && (
-        <div style={{ padding: '4px 20px 20px', borderTop: 'var(--border-w) solid var(--card-border)' }}>
+        <div style={{ padding: 'var(--s1) var(--s5) var(--s5)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
           {section.workflow && <WorkflowDiagram workflow={section.workflow} />}
-          <ul className="body-sm" style={{ margin: 0, padding: '8px 0 0 18px', lineHeight: 1.65 }}>
+          <ul className="body-sm" style={{ margin: 0, padding: 'var(--s2) 0 0 var(--s5)', lineHeight: 1.65 }}>
             {section.body.map((line, i) => (
-              <li key={i} style={{ marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: bolden(line) }} />
+              <li key={i} style={{ marginBottom: 'var(--s1)' }} dangerouslySetInnerHTML={{ __html: bolden(line) }} />
             ))}
           </ul>
         </div>
@@ -315,17 +315,17 @@ function AccordionItem({ section, isOpen, onToggle }) {
 // using CSS flex-wrap so it renders cleanly on phones too.
 function WorkflowDiagram({ workflow }) {
   return (
-    <div style={{ margin: '10px 0 14px', padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+    <div style={{ margin: 'var(--s3) 0 var(--s4)', padding: 'var(--s4)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>
         Workflow — {workflow.title}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 6 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 'var(--s2)' }}>
         {workflow.steps.map((step, i) => (
           <React.Fragment key={i}>
             <div style={{
               flex: '1 1 130px', minWidth: 120, maxWidth: 200,
-              padding: '10px 12px', background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)',
-              display: 'flex', flexDirection: 'column', gap: 4,
+              padding: 'var(--s3) var(--s3)', background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)',
+              display: 'flex', flexDirection: 'column', gap: 'var(--s1)',
             }}>
               <div style={{
                 fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5,
@@ -352,6 +352,6 @@ function bolden(s) {
 }
 
 const chip = {
-  padding: '5px 12px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
+  padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
   cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: 600,
 };

@@ -10,7 +10,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { getCountryFlag, getLabelStyle } from '../utils/connectorLabels';
 
-const ROW = { padding: '10px 12px', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', border: '1px solid var(--card-border)' };
+const ROW = { padding: 'var(--s3) var(--s3)', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', border: '1px solid var(--card-border)' };
 
 export default function ClarityConnectorCard({ clientId }) {
   const toast = useToast();
@@ -57,29 +57,29 @@ export default function ClarityConnectorCard({ clientId }) {
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)' }}>
         <h3 style={{ margin: 0, fontSize: 'var(--fs-body)', fontWeight: 700 }}>Behaviour Analytics</h3>
       </div>
 
       {sites === null ? (
         <div className="body-xs text-subtle">Checking…</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
           {sites.map(s => {
             const flag = getCountryFlag(s.label);
             return (
-              <div key={s.id} style={{ ...ROW, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 999, flex: '0 0 auto', background: 'var(--positive)' }} />
+              <div key={s.id} style={{ ...ROW, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', minWidth: 0 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 'var(--r-pill)', flex: '0 0 auto', background: 'var(--positive)' }} />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>Microsoft Clarity</span>
                       <span style={getLabelStyle(s.label)}>{flag ? `${flag} ` : ''}{s.label}</span>
                     </div>
-                    <div className="body-xs text-subtle" style={{ marginTop: 2 }}>Connected · powers the CRO / Funnel scan</div>
+                    <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>Connected · powers the CRO / Funnel scan</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                   <button className="btn btn-secondary btn-sm" onClick={() => rename(s)}>Rename</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => remove(s)}>Disconnect</button>
                   <Link to={`/clients/${clientId}/sales-traffic?tab=cro`} className="btn btn-secondary btn-sm">Open CRO scan</Link>
@@ -90,11 +90,11 @@ export default function ClarityConnectorCard({ clientId }) {
 
           {showForm ? (
             <div style={ROW}>
-              <div className="body-xs text-muted" style={{ marginBottom: 8 }}>
+              <div className="body-xs text-muted" style={{ marginBottom: 'var(--s2)' }}>
                 In Clarity, open <strong>Settings → Data Export</strong>, generate an API token, and paste it here. One Clarity project = one site.
                 Give each a short label (e.g. <em>DTC</em>, <em>Trade</em>, <em>UK</em>) so it's clear which site each scan is for.
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                 <input className="input" style={{ flex: '0 0 160px' }} placeholder="Label (e.g. DTC)"
                   value={label} onChange={e => setLabel(e.target.value)} />
                 <input className="input" style={{ flex: 1, minWidth: 180 }} type="password" placeholder="Clarity API token"

@@ -63,7 +63,7 @@ export default function BrandVoicePanel({ clientId }) {
         <textarea
           value={urlsText} onChange={e => setUrlsText(e.target.value)} rows={6}
           placeholder="https://yoursite.com/blog/post-that-sounds-most-like-the-brand\nhttps://yoursite.com/about\nhttps://yoursite.com/blog/another-on-brand-post"
-          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--fs-body)', lineHeight: 1.5, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
+          style={{ width: '100%', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', lineHeight: 1.5, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
         />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">{urlCount} URL{urlCount === 1 ? '' : 's'} · {urlCount < 1 ? 'paste at least 1' : urlCount > 12 ? 'max 12' : 'ready'}</span>
@@ -74,7 +74,7 @@ export default function BrandVoicePanel({ clientId }) {
       </div>
 
       {loading && !profile ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading…</div>
       ) : !profile ? (
         <div className="card">
           <p className="body-sm text-subtle">
@@ -135,9 +135,9 @@ function ProfileView({ profile }) {
       {!!tones.length && (
         <div className="card mb-4">
           <div className="caption mb-2">Tone</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
             {tones.map(t => (
-              <span key={t} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--r-pill)', background: 'var(--accent)', color: 'var(--accent-on)' }}>{t}</span>
+              <span key={t} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, padding: 'var(--s1) var(--s3)', borderRadius: 'var(--r-pill)', background: 'var(--accent)', color: 'var(--accent-on)' }}>{t}</span>
             ))}
           </div>
         </div>
@@ -147,7 +147,7 @@ function ProfileView({ profile }) {
         {!!vocab.length && (
           <div className="card">
             <div className="caption mb-2">Vocabulary patterns</div>
-            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', lineHeight: 1.7 }}>
+            <ul style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-body)', lineHeight: 1.7 }}>
               {vocab.map((v, i) => <li key={i}>{v}</li>)}
             </ul>
           </div>
@@ -156,16 +156,16 @@ function ProfileView({ profile }) {
           {!!signature.length && (
             <>
               <div className="caption mb-2" style={{ color: 'var(--positive)' }}>Signature phrases</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 'var(--s3)' }}>
-                {signature.map((s, i) => <span key={i} style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', borderRadius: 'var(--r-sm)', background: 'var(--positive-soft)', color: 'var(--positive)' }}>"{s}"</span>)}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
+                {signature.map((s, i) => <span key={i} style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', background: 'var(--positive-soft)', color: 'var(--positive)' }}>"{s}"</span>)}
               </div>
             </>
           )}
           {!!avoid.length && (
             <>
               <div className="caption mb-2" style={{ color: 'var(--negative)' }}>Avoid</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {avoid.map((s, i) => <span key={i} style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', borderRadius: 'var(--r-sm)', background: 'var(--negative-soft)', color: 'var(--negative)' }}>"{s}"</span>)}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
+                {avoid.map((s, i) => <span key={i} style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', background: 'var(--negative-soft)', color: 'var(--negative)' }}>"{s}"</span>)}
               </div>
             </>
           )}
@@ -176,7 +176,7 @@ function ProfileView({ profile }) {
         {!!dos.length && (
           <div className="card">
             <div className="caption mb-2" style={{ color: 'var(--positive)' }}>Do — sounds like this brand</div>
-            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', lineHeight: 1.7 }}>
+            <ul style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-body)', lineHeight: 1.7 }}>
               {dos.map((s, i) => <li key={i} style={{ color: 'var(--text)' }}>✓ {s}</li>)}
             </ul>
           </div>
@@ -184,7 +184,7 @@ function ProfileView({ profile }) {
         {!!donts.length && (
           <div className="card">
             <div className="caption mb-2" style={{ color: 'var(--negative)' }}>Don't — would feel off-brand</div>
-            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', lineHeight: 1.7 }}>
+            <ul style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-body)', lineHeight: 1.7 }}>
               {donts.map((s, i) => <li key={i} style={{ color: 'var(--text-muted)' }}>✗ {s}</li>)}
             </ul>
           </div>
@@ -198,7 +198,7 @@ function StatCard({ label, value }) {
   return (
     <div className="card">
       <div className="caption">{label}</div>
-      <div className="metric" style={{ marginTop: 4 }}>{value}</div>
+      <div className="metric" style={{ marginTop: 'var(--s1)' }}>{value}</div>
     </div>
   );
 }

@@ -577,16 +577,16 @@ export default function SettingsPage() {
         }
         const byKey = Object.fromEntries(section.subs.map(x => [x.k, x]));
         const pill = (active) => ({
-          padding: '6px 12px', borderRadius: 'var(--r-pill)', cursor: 'pointer', fontSize: 'var(--fs-body)', fontWeight: 600,
+          padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-pill)', cursor: 'pointer', fontSize: 'var(--fs-body)', fontWeight: 600,
           fontFamily: 'inherit', border: 'var(--border-w) solid ' + (active ? 'var(--accent)' : 'var(--card-border)'),
           background: active ? 'var(--accent)' : 'var(--surface)', color: active ? 'var(--accent-on)' : 'var(--text)',
         });
         return (
-          <div className="stepper-grouped" style={{ marginBottom: 18 }}>
+          <div className="stepper-grouped" style={{ marginBottom: 'var(--s5)' }}>
             {groups.map(g => (
               <div key={g.label} className="stepper-group-card">
                 <div className="stepper-group-heading">{g.label}</div>
-                <div className="row wrap" style={{ gap: 6 }}>
+                <div className="row wrap" style={{ gap: 'var(--s2)' }}>
                   {g.subs.filter(k => byKey[k]).map(k => (
                     <button key={k} onClick={() => switchTab(k)} style={pill(tab === k)}>
                       {byKey[k].label}
@@ -627,7 +627,7 @@ export default function SettingsPage() {
         <input type="text" name="username" style={{ display: 'none' }} autoComplete="username" readOnly />
         <input type="password" name="password" style={{ display: 'none' }} autoComplete="current-password" readOnly />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--s4)', alignItems: 'start' }}>
           {CATEGORIES.filter(cat => SUBTAB_CATS[tab].includes(cat.title)).map(cat => {
             const groupsInCat = KEY_GROUPS.filter(g => g.category === cat.title);
             const open = openCategories[cat.title] !== false;
@@ -644,14 +644,14 @@ export default function SettingsPage() {
                     <div className="h3">{cat.title}</div>
                     {cat.description && <div className="body-sm text-muted">{cat.description}</div>}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
                     <span className={`chip ${configuredCount === groupsInCat.length ? 'chip-success' : 'chip-accent'}`}>{configuredCount} / {groupsInCat.length}</span>
                     <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
                   </div>
                 </button>
 
                 {open && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 16 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s5)', marginTop: 'var(--s4)' }}>
                     {groupsInCat.map(group => {
                       // "Set" = every required key (those without "optional" in the
                       // label) is stored. Turns the section green, like a connected
@@ -659,8 +659,8 @@ export default function SettingsPage() {
                       const reqKeys = group.keys.filter(k => !/optional/i.test(k.label));
                       const groupSet = reqKeys.length > 0 && reqKeys.every(k => values[k.key] === '••••••••');
                       return (
-                      <div key={group.title} style={{ borderLeft: `4px solid ${groupSet ? 'var(--positive)' : 'var(--card-border)'}`, background: groupSet ? 'var(--positive-soft)' : 'var(--surface-raised)', borderRadius: 'var(--r-sm)', padding: '14px 16px' }}>
-                        <div className="row between center" style={{ marginBottom: 8 }}>
+                      <div key={group.title} style={{ borderLeft: `4px solid ${groupSet ? 'var(--positive)' : 'var(--card-border)'}`, background: groupSet ? 'var(--positive-soft)' : 'var(--surface-raised)', borderRadius: 'var(--r-sm)', padding: 'var(--s4) var(--s4)' }}>
+                        <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
                           <div className="h3" style={{ margin: 0 }}>{group.title}</div>
                           {groupSet && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>✓ Set</span>}
                         </div>
@@ -669,7 +669,7 @@ export default function SettingsPage() {
                           <div className="callout callout-warning"><strong>Developer app required.</strong> {group.note}</div>
                         )}
                         {group.scopes && <ScopesBlock scopes={group.scopes} />}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: group.hint || group.note ? 12 : 0 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)', marginTop: group.hint || group.note ? 12 : 0 }}>
                           {group.keys.map(({ key, label, placeholder, type, note }) => {
                             // Each row turns green on its own once stored, so a
                             // group with one field deliberately left blank still
@@ -678,11 +678,11 @@ export default function SettingsPage() {
                             const fieldSet = values[key] === '••••••••';
                             return (
                             <div key={key} className="field" style={{ borderLeft: `3px solid ${fieldSet && !groupSet ? 'var(--positive)' : 'transparent'}`, background: fieldSet && !groupSet ? 'var(--positive-soft)' : 'transparent', borderRadius: 'var(--r-sm)', padding: fieldSet && !groupSet ? '8px 10px' : '0', marginLeft: fieldSet && !groupSet ? '-10px' : '0', transition: 'background .15s, border-color .15s' }}>
-                              <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
                                 {label}
                                 {fieldSet && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>✓ set</span>}
                               </label>
-                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
                                 <input
                                   type={visibleKeys[key] ? 'text' : type}
                                   className="input" style={{ flex: 1 }}
@@ -703,16 +703,16 @@ export default function SettingsPage() {
                                 )}
                               </div>
                               <span className="body-xs text-subtle"><code>{key}</code></span>
-                              {note && <p className="body-xs text-muted" style={{ marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{note}</p>}
+                              {note && <p className="body-xs text-muted" style={{ marginTop: 'var(--s2)', lineHeight: 1.5, whiteSpace: 'pre-line' }}>{note}</p>}
                             </div>
                             );
                           })}
                         </div>
                         {group.test === 'dataforseo' && (
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <div style={{ marginTop: 'var(--s3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                               <button type="button" onClick={handleTestDataForSEO} disabled={testingDfs}
-                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
+                                className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)' }}>
                                 {testingDfs ? 'Testing…' : 'Test connection'}
                               </button>
                               {dfsTestMsg && (
@@ -722,17 +722,17 @@ export default function SettingsPage() {
                               )}
                             </div>
                             {dfsTestMsg && dfsTestMsg.sent && (
-                              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)', lineHeight: 1.5 }}>
                                 Sent login <code>{dfsTestMsg.sent.login}</code>, password {dfsTestMsg.sent.passwordLength} chars ({dfsTestMsg.sent.passwordPreview}){dfsTestMsg.code != null ? `. DataForSEO code ${dfsTestMsg.code}` : ''}.
                               </div>
                             )}
                           </div>
                         )}
                         {group.test === 'flaresolverr' && (
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <div style={{ marginTop: 'var(--s3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                               <button type="button" onClick={handleTestFlareSolverr} disabled={testingFs}
-                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
+                                className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)' }}>
                                 {testingFs ? 'Testing… (can take ~15s)' : 'Test connection'}
                               </button>
                               {fsTestMsg && (
@@ -741,16 +741,16 @@ export default function SettingsPage() {
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)', lineHeight: 1.5 }}>
                               Pings the service and solves a sample page end-to-end. Save the URL first if you've just changed it.
                             </div>
                           </div>
                         )}
                         {group.test === 'pagespeed' && (
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <div style={{ marginTop: 'var(--s3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                               <button type="button" onClick={handleTestPageSpeed} disabled={testingPsi}
-                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
+                                className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)' }}>
                                 {testingPsi ? 'Testing… (~10s)' : 'Test connection'}
                               </button>
                               {psiTestMsg && (
@@ -759,16 +759,16 @@ export default function SettingsPage() {
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)', lineHeight: 1.5 }}>
                               Save the key first, then this runs a real PageSpeed check against a sample URL.
                             </div>
                           </div>
                         )}
                         {group.test === 'heygen' && (
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <div style={{ marginTop: 'var(--s3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                               <button type="button" onClick={handleTestHeyGen} disabled={testingHg}
-                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
+                                className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)' }}>
                                 {testingHg ? 'Testing… (up to ~20s)' : 'Test connection'}
                               </button>
                               {hgTestMsg && (
@@ -777,14 +777,14 @@ export default function SettingsPage() {
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)', lineHeight: 1.5 }}>
                               Pings HeyGen with the saved key. Save the key first if you've just changed it. Tells you if it's the key (✗ rejected) or the connection (✗ didn't respond).
                             </div>
                           </div>
                         )}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginTop: 'var(--s4)' }}>
                           <button type="button" onClick={() => handleSaveSection(group)} disabled={savingSection === group.title}
-                            className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
+                            className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)' }}>
                             {savingSection === group.title ? 'Saving…' : 'Save'}
                           </button>
                           {sectionResult && sectionResult.title === group.title && (
@@ -798,20 +798,20 @@ export default function SettingsPage() {
                     })}
 
                     {cat.hasTestEmail && (
-                      <div style={{ borderTop: "2px solid var(--accent-soft)", paddingTop: 14 }}>
+                      <div style={{ borderTop: "2px solid var(--accent-soft)", paddingTop: 'var(--s4)' }}>
                         <div className="h3 mb-2">Send Test Email</div>
                         <p className="body-sm text-muted">Verify your email provider after saving credentials above.</p>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
                           <input
                             type="email" placeholder="Send test email to…"
                             value={testEmail} onChange={e => setTestEmail(e.target.value)}
                             className="input" style={{ flex: '1 1 200px' }}
                           />
-                          <button type="button" {...roWrite(readOnly, { onClick: handleTestEmail, disabled: sendingTest })} className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
+                          <button type="button" {...roWrite(readOnly, { onClick: handleTestEmail, disabled: sendingTest })} className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)' }}>
                             {sendingTest ? 'Sending…' : 'Send Test'}
                           </button>
                         </div>
-                        {testMsg && <div style={{ marginTop: 6, fontSize: 'var(--fs-caption)', color: testMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{testMsg}</div>}
+                        {testMsg && <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: testMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{testMsg}</div>}
                       </div>
                     )}
                   </div>
@@ -837,8 +837,8 @@ function ScopesBlock({ scopes }) {
     } catch {}
   }
   return (
-    <div className="card" style={{ marginTop: 12, padding: "10px 12px", background: "var(--surface-raised)" }}>
-      <div className="row between" style={{ gap: 10, marginBottom: 8, alignItems: "flex-start" }}>
+    <div className="card" style={{ marginTop: 'var(--s3)', padding: "var(--s3) var(--s3)", background: "var(--surface-raised)" }}>
+      <div className="row between" style={{ gap: 'var(--s3)', marginBottom: 'var(--s2)', alignItems: "flex-start" }}>
         <div>
           <div className="caption">{scopes.label}</div>
           {scopes.help && <div className="body-xs text-muted mt-2">{scopes.help}</div>}
@@ -847,8 +847,8 @@ function ScopesBlock({ scopes }) {
           {copied ? '✓ Copied' : 'Copy all'}
         </button>
       </div>
-      <code className="card" style={{ display: "block", fontSize: 'var(--fs-caption)', fontFamily: "monospace", padding: "6px 8px", wordBreak: "break-all" }}>{csv}</code>
-      <div className="row wrap mt-3" style={{ gap: 4 }}>
+      <code className="card" style={{ display: "block", fontSize: 'var(--fs-caption)', fontFamily: "monospace", padding: "var(--s2) var(--s2)", wordBreak: "break-all" }}>{csv}</code>
+      <div className="row wrap mt-3" style={{ gap: 'var(--s1)' }}>
         {scopes.values.map(s => (
           <span key={s} className="chip chip-outline" style={{ fontFamily: "monospace", fontSize: 'var(--fs-caption)' }}>{s}</span>
         ))}
@@ -1002,8 +1002,8 @@ function PublicationsPanel() {
 
   return (
     <>
-    <Card style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+    <Card style={{ marginBottom: 'var(--s4)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 280px', minWidth: 0 }}>
           <CardTitle>Publications</CardTitle>
           <p className="body-sm text-muted">
@@ -1012,7 +1012,7 @@ function PublicationsPanel() {
             publication's; a journalist inherits it.)
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
           <Link to="/contacts/cleanup?tab=pubdupes" className="btn btn-secondary btn-sm"
             title="Find duplicate publications, merge them, dismiss false-positive suggestions — same Cleanup Centre as Journalists.">
             🧹 Cleanup Centre
@@ -1027,10 +1027,10 @@ function PublicationsPanel() {
           </button>
         </div>
       </div>
-      <input className="input" placeholder="Search publications…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)} style={{ maxWidth: 320, margin: '10px 0' }} />
+      <input className="input" placeholder="Search publications…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)} style={{ maxWidth: 320, margin: 'var(--s3) 0' }} />
 
       {outlets && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '8px 0 12px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap', margin: 'var(--s2) 0 var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
           <span>{selected.size} selected · Showing {shownCount.toLocaleString()} of {totalCount.toLocaleString()} matching</span>
           <div style={{ flex: 1 }} />
           {selected.size > 0 && (
@@ -1090,18 +1090,18 @@ function PublicationsPanel() {
                   </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                     <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete"
-                      style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-title)', lineHeight: 1, padding: '2px 6px' }}>
+                      style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-title)', lineHeight: 1, padding: 'var(--s1) var(--s2)' }}>
                       ×
                     </button>
                   </td>
                 </tr>
               ))}
-              {!visibleOutlets.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 20 }}>No publications{outletSearch ? ' match that search' : ' yet'}.</td></tr>}
+              {!visibleOutlets.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>No publications{outletSearch ? ' match that search' : ' yet'}.</td></tr>}
             </tbody>
           </table>
         </div>
       )}
-      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginTop: 8 }}>{err}</div>}
+      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)' }}>{err}</div>}
     </Card>
     {openOutlet && (
       <OutletEditModal
@@ -1152,7 +1152,7 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
   if (!data || !form) {
     return (
       <div className="modal-backdrop" onClick={onClose}>
-        <div onClick={(e) => e.stopPropagation()} className="modal" style={{ padding: 24 }}>
+        <div onClick={(e) => e.stopPropagation()} className="modal" style={{ padding: 'var(--s6)' }}>
           {err ? <p style={{ color: 'var(--negative)' }}>{err}</p> : <p style={{ color: 'var(--text-subtle)' }}>Loading…</p>}
         </div>
       </div>
@@ -1200,7 +1200,7 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
           <button type="button" onClick={onClose} className="modal-close">×</button>
         </div>
 
-        {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', padding: '0 0 8px' }}>{err}</div>}
+        {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', padding: '0 0 var(--s2)' }}>{err}</div>}
 
         <div className="grid">
           <MSection title="Publication">
@@ -1226,15 +1226,15 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
           </MSection>
 
           <MSection title="Activity">
-            <div style={{ display: 'flex', gap: 18, marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 'var(--s5)', marginBottom: 'var(--s4)' }}>
               <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Published</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{published}</div></div>
               <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Tracked</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{(data.coverage || []).length}</div></div>
               <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Journalists</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{(data.journalists || []).length}</div></div>
             </div>
             {(data.journalists || []).length > 0 && (
               <>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Journalists here</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 'var(--s1)' }}>Journalists here</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
                   {(data.journalists || []).slice(0, 20).map((j) => (
                     <Link key={j.id} to={`/media/journalist/${j.id}`} onClick={onClose}
                       className="chip" style={{ textDecoration: 'none', fontSize: 'var(--fs-caption)' }}>{j.name}</Link>
@@ -1244,10 +1244,10 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
             )}
             {(data.coverage || []).length > 0 && (
               <>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Recent coverage</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 'var(--s1)' }}>Recent coverage</div>
                 <div style={{ maxHeight: 220, overflowY: 'auto', fontSize: 'var(--fs-caption)' }}>
                   {(data.coverage || []).slice(0, 12).map((r, i) => (
-                    <div key={i} style={{ padding: '4px 0', borderBottom: '1px solid var(--card-border)' }}>
+                    <div key={i} style={{ padding: 'var(--s1) 0', borderBottom: '1px solid var(--card-border)' }}>
                       <span style={{ fontWeight: 600 }}>{r.client || '—'}</span>
                       <span style={{ color: 'var(--text-muted)' }}> · {r.journalist || '—'} · </span>
                       <span style={{ color: 'var(--text-subtle)' }}>{r.status}</span>
@@ -1259,7 +1259,7 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
           </MSection>
         </div>
 
-        <div className="row end" style={{ gap: 8 }}>
+        <div className="row end" style={{ gap: 'var(--s2)' }}>
           <button type="button" onClick={deleteOutlet}
             className="btn btn-sm"
             style={{ background: 'var(--negative)', color: '#fff', border: 'none' }}
@@ -1304,17 +1304,17 @@ function PrAddonPanel() {
   const masked = key ? '•'.repeat(Math.min(40, key.length)) : '';
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+    <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--s3)' }}>
         <div>
           <h2 className="caption">PR · Gmail add-on</h2>
           <p className="body-sm text-muted">Connect the OMI for Gmail add-on so you can look up journalists, log threads, and capture contacts from your inbox. Paste these two values into the add-on's setup.</p>
         </div>
-        <button {...roWrite(readOnly, { onClick: regenerate, disabled: busy })} className="btn btn-primary" style={{ padding: '6px 14px' }}>{busy ? 'Generating…' : (key ? 'Regenerate' : 'Generate key')}</button>
+        <button {...roWrite(readOnly, { onClick: regenerate, disabled: busy })} className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)' }}>{busy ? 'Generating…' : (key ? 'Regenerate' : 'Generate key')}</button>
       </div>
-      <div className="field" style={{ marginBottom: 10 }}>
+      <div className="field" style={{ marginBottom: 'var(--s3)' }}>
         <label className="field-label">API base URL</label>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)' }}>
           <input className="input" readOnly value={base} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-caption)' }} />
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(base)}>Copy</button>
         </div>
@@ -1322,7 +1322,7 @@ function PrAddonPanel() {
       <div className="field">
         <label className="field-label">API key (X-OMI-Key)</label>
         {key ? (
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
             <input className="input" readOnly value={reveal ? key : masked} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-caption)' }} />
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReveal((r) => !r)}>{reveal ? 'Hide' : 'Reveal'}</button>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(key)}>Copy</button>
@@ -1377,45 +1377,45 @@ function CostsPanel() {
     : 0;
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 12, flexWrap: 'wrap' }}>
+    <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--s3)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div>
           <h2 className="caption">Costs &amp; usage</h2>
           <p className="body-sm text-muted">Latest balance / usage reading from each pay-per-use provider. Auto-refreshes every night at 02:00.</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)' }}>
           {totalThisMonth > 0 && (
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Total spent this month</div>
               <div style={{ fontSize: 'var(--fs-title)', fontWeight: 800 }}>
                 ${totalThisMonth.toFixed(2)}
-                {gbpPerUsd ? <span style={{ fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text-subtle)', marginLeft: 8 }}>≈ £{(totalThisMonth * gbpPerUsd).toFixed(2)}</span> : null}
+                {gbpPerUsd ? <span style={{ fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text-subtle)', marginLeft: 'var(--s2)' }}>≈ £{(totalThisMonth * gbpPerUsd).toFixed(2)}</span> : null}
               </div>
             </div>
           )}
-          <button onClick={refresh} disabled={refreshing} className="btn btn-primary" style={{ padding: '6px 14px' }}>
+          <button onClick={refresh} disabled={refreshing} className="btn btn-primary" style={{ padding: 'var(--s2) var(--s4)' }}>
             {refreshing ? 'Polling…' : 'Refresh now'}
           </button>
         </div>
       </div>
-      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 8 }}>{err}</div>}
-      {!rows && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: 10 }}>Loading…</div>}
+      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s2)' }}>{err}</div>}
+      {!rows && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: 'var(--s3)' }}>Loading…</div>}
       {rows && (() => {
         const configured = r => !r.snapshot || r.snapshot.status !== 'no_credentials';
         const live = rows.filter(r => !r.manual && configured(r));
         const manual = rows.filter(r => r.manual && configured(r));
         return (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--s3)' }}>
               {live.map(r => <ProviderCard key={r.name} entry={r} />)}
             </div>
             {manual.length > 0 && (
-              <div style={{ marginTop: 18, paddingTop: 16, borderTop: 'var(--border-w) solid var(--card-border)' }}>
-                <div className="caption" style={{ marginBottom: 4 }}>No balance API — estimated from a manual checkpoint</div>
-                <p className="body-sm text-muted" style={{ marginBottom: 10 }}>
+              <div style={{ marginTop: 'var(--s5)', paddingTop: 'var(--s4)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                <div className="caption" style={{ marginBottom: 'var(--s1)' }}>No balance API — estimated from a manual checkpoint</div>
+                <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>
                   These providers don’t expose a balance to read. Enter your current dashboard balance in each provider’s settings above and OMI ticks it down by what it generates. It’s an estimate — exact only if OMI is the only thing using that key.
                 </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--s3)' }}>
                   {manual.map(r => <ProviderCard key={r.name} entry={r} />)}
                 </div>
               </div>
@@ -1441,36 +1441,36 @@ function KeywordSpendPanel() {
   }, []);
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ marginBottom: 10 }}>
+    <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+      <div style={{ marginBottom: 'var(--s3)' }}>
         <h2 className="caption">DataForSEO keyword spend</h2>
         <p className="body-sm text-muted">
           Projected from every active keyword the scheduler checks — rank checks every 4 days plus weekly AI Overview.
           Use it to size a daily spending cap on the DataForSEO dashboard as a runaway-cost backstop.
         </p>
       </div>
-      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 8 }}>{err}</div>}
-      {!data && !err && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: 10 }}>Loading…</div>}
+      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s2)' }}>{err}</div>}
+      {!data && !err && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: 'var(--s3)' }}>Loading…</div>}
       {data && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-            <div className="card" style={{ padding: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 'var(--s3)' }}>
+            <div className="card" style={{ padding: 'var(--s3)' }}>
               <div className="caption mb-2">Active keywords</div>
               <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700 }}>{data.active_keywords.toLocaleString()}</div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>across {data.active_clients} active client{data.active_clients === 1 ? '' : 's'}</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>across {data.active_clients} active client{data.active_clients === 1 ? '' : 's'}</div>
             </div>
-            <div className="card" style={{ padding: 12 }}>
+            <div className="card" style={{ padding: 'var(--s3)' }}>
               <div className="caption mb-2">Est. spend / month</div>
               <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700 }}>{fmtCurrency(data.est_monthly_gbp, 'GBP')}</div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>≈ {fmtCurrency(data.est_monthly_usd, 'USD')} · rank {fmtCurrency(data.rank.monthly_usd, 'USD')} + AIO {fmtCurrency(data.aio.monthly_usd, 'USD')}</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>≈ {fmtCurrency(data.est_monthly_usd, 'USD')} · rank {fmtCurrency(data.rank.monthly_usd, 'USD')} + AIO {fmtCurrency(data.aio.monthly_usd, 'USD')}</div>
             </div>
-            <div className="card success" style={{ padding: 12 }}>
+            <div className="card success" style={{ padding: 'var(--s3)' }}>
               <div className="caption mb-2">Suggested daily cap</div>
-              <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700 }}>{fmtCurrency(data.recommended_daily_cap_usd, 'USD')}<span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>/ day</span></div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>3× peak run-day ({fmtCurrency(data.peak_day_usd, 'USD')})</div>
+              <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700 }}>{fmtCurrency(data.recommended_daily_cap_usd, 'USD')}<span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 'var(--s1)' }}>/ day</span></div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>3× peak run-day ({fmtCurrency(data.peak_day_usd, 'USD')})</div>
             </div>
           </div>
-          <div className="callout" style={{ marginTop: 12, fontSize: 'var(--fs-caption)', lineHeight: 1.6 }}>
+          <div className="callout" style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-caption)', lineHeight: 1.6 }}>
             <strong>Set the backstop:</strong> DataForSEO dashboard → <em>API Settings → Spending limits</em> → set the
             <strong> General Daily Limit</strong> to <strong>{fmtCurrency(data.recommended_daily_cap_usd, 'USD')}</strong>.
             Spend is spiky (every keyword is checked on one run day every 4 days), so this sits ~3× above a normal sweep —
@@ -1500,7 +1500,7 @@ function ProviderCard({ entry }) {
         {s.cost_this_period != null && (
           <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, color: 'var(--text)' }}>
             {fmtCurrency(s.cost_this_period, s.currency)}
-            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>this month</span>
+            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 'var(--s1)' }}>this month</span>
           </div>
         )}
         {s.cost_this_period == null && s.balance_remaining != null && (
@@ -1511,9 +1511,9 @@ function ProviderCard({ entry }) {
               <>
                 <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, color: 'var(--text)' }}>
                   {fmtCurrency(entry.spend_this_month, s.currency)}
-                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>this month</span>
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 'var(--s1)' }}>this month</span>
                 </div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                   {fmtCurrency(s.balance_remaining, s.currency)} remaining in pool
                 </div>
               </>
@@ -1523,13 +1523,13 @@ function ProviderCard({ entry }) {
               // snapshot lands, spend swaps in.
               <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, color: 'var(--text)' }}>
                 {fmtCurrency(s.balance_remaining, s.currency)}
-                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>remaining</span>
+                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 'var(--s1)' }}>remaining</span>
               </div>
             )}
           </>
         )}
         {s.units_used != null && (
-          <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', marginTop: 2 }}>
+          <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', marginTop: 'var(--s1)' }}>
             {s.units_used.toLocaleString()}{s.units_limit ? ` / ${s.units_limit.toLocaleString()}` : ''}{' '}
             <span style={{ color: 'var(--text-subtle)' }}>{s.unit_label || ''}</span>
           </div>
@@ -1539,7 +1539,7 @@ function ProviderCard({ entry }) {
             {s.raw?.note || 'Configured — no balance API.'}
           </div>
         )}
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6 }}>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>
           {s.snapshot_at ? `Updated ${new Date(s.snapshot_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
         </div>
       </div>
@@ -1557,8 +1557,8 @@ function ProviderCard({ entry }) {
   const diag = s?.raw;
   const hasDiag = diag && (diag._by_model || diag._by_workspace || diag._top_5_amounts);
   return (
-    <div className={`card ${statusClass}`} style={{ padding: 12 }}>
-      <div className="caption mb-2" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div className={`card ${statusClass}`} style={{ padding: 'var(--s3)' }}>
+      <div className="caption mb-2" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
         <span>{entry.label}</span>
         {hasDiag && (
           <button type="button" onClick={() => setShowDiag((v) => !v)}
@@ -1570,39 +1570,39 @@ function ProviderCard({ entry }) {
       </div>
       {body}
       {showDiag && hasDiag && (
-        <div style={{ marginTop: 10, padding: 8, background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>Workspaces seen ({(diag._workspaces_seen || []).length})</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', wordBreak: 'break-all', marginBottom: 8 }}>{(diag._workspaces_seen || []).join(', ') || '(none)'}</div>
+        <div style={{ marginTop: 'var(--s3)', padding: 'var(--s2)', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+          <div style={{ fontWeight: 700, marginBottom: 'var(--s1)' }}>Workspaces seen ({(diag._workspaces_seen || []).length})</div>
+          <div style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', wordBreak: 'break-all', marginBottom: 'var(--s2)' }}>{(diag._workspaces_seen || []).join(', ') || '(none)'}</div>
           {diag._by_cost_type && Object.keys(diag._by_cost_type).length > 0 && (
             <>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>By cost type</div>
-              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_cost_type, null, 2)}</pre>
+              <div style={{ fontWeight: 700, marginBottom: 'var(--s1)' }}>By cost type</div>
+              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 'var(--s2)', whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_cost_type, null, 2)}</pre>
             </>
           )}
           {diag._by_model && Object.keys(diag._by_model).length > 0 && (
             <>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>By model</div>
-              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_model, null, 2)}</pre>
+              <div style={{ fontWeight: 700, marginBottom: 'var(--s1)' }}>By model</div>
+              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 'var(--s2)', whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_model, null, 2)}</pre>
             </>
           )}
           {diag._by_workspace && Object.keys(diag._by_workspace).length > 0 && (
             <>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>By workspace</div>
-              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_workspace, null, 2)}</pre>
+              <div style={{ fontWeight: 700, marginBottom: 'var(--s1)' }}>By workspace</div>
+              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 'var(--s2)', whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_workspace, null, 2)}</pre>
             </>
           )}
           {diag._top_5_amounts && diag._top_5_amounts.length > 0 && (
             <>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Top 5 individual amounts</div>
-              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._top_5_amounts, null, 2)}</pre>
+              <div style={{ fontWeight: 700, marginBottom: 'var(--s1)' }}>Top 5 individual amounts</div>
+              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 'var(--s2)', whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._top_5_amounts, null, 2)}</pre>
             </>
           )}
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>Counters</div>
+          <div style={{ fontWeight: 700, marginBottom: 'var(--s1)' }}>Counters</div>
           <div style={{ fontSize: 'var(--fs-caption)', fontFamily: 'monospace' }}>
             unique_lines={diag._aggregated_unique_lines} · buckets={diag._aggregated_buckets} · pages={diag._aggregated_pages}
           </div>
           {diag._bucket_samples && (
-            <details style={{ marginTop: 8 }}>
+            <details style={{ marginTop: 'var(--s2)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 700 }}>First 2 buckets verbatim</summary>
               <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._bucket_samples, null, 2)}</pre>
             </details>
@@ -1636,7 +1636,7 @@ function Field({ label, children }) {
 }
 function InfoRow({ label, value }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: 'var(--fs-body)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--s2) 0', borderBottom: '1px solid #f0f0f0', fontSize: 'var(--fs-body)' }}>
       <span style={{ color: 'var(--text-muted)' }}>{label}</span>
       <code style={{ color: 'var(--text)' }}>{value}</code>
     </div>
@@ -1706,10 +1706,10 @@ function MediaAssistant() {
         </p>
 
         {messages.length > 0 && (
-          <div style={{ maxHeight: 340, overflow: 'auto', border: '1px solid var(--card-border, #eee)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
+          <div style={{ maxHeight: 340, overflow: 'auto', border: '1px solid var(--card-border, #eee)', borderRadius: 'var(--r-sm)', padding: 'var(--s3)', marginBottom: 'var(--s3)' }}>
             {messages.map((m, i) => (
-              <div key={i} style={{ marginBottom: 8, textAlign: m.role === 'user' ? 'right' : 'left' }}>
-                <span style={{ display: 'inline-block', maxWidth: '85%', padding: '7px 11px', borderRadius: 10, fontSize: 'var(--fs-body)', whiteSpace: 'pre-wrap',
+              <div key={i} style={{ marginBottom: 'var(--s2)', textAlign: m.role === 'user' ? 'right' : 'left' }}>
+                <span style={{ display: 'inline-block', maxWidth: '85%', padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', whiteSpace: 'pre-wrap',
                   background: m.role === 'user' ? 'var(--accent, #2d6cdf)' : 'var(--surface-raised, #f4f4f5)',
                   color: m.role === 'user' ? '#fff' : 'var(--text)' }}>{m.content}</span>
               </div>
@@ -1719,20 +1719,20 @@ function MediaAssistant() {
         )}
 
         {actions.length > 0 && (
-          <div style={{ border: '1px solid var(--accent, #2d6cdf)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div style={{ border: '1px solid var(--accent, #2d6cdf)', borderRadius: 'var(--r-sm)', padding: 'var(--s3)', marginBottom: 'var(--s3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s2)' }}>
               <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>Proposed changes — untick anything you don’t want</div>
               <button className="btn btn-secondary btn-sm" onClick={() => setSel(sel.size === actions.length ? new Set() : new Set(actions.map((_, i) => i)))}>
                 {sel.size === actions.length ? 'Untick all' : 'Tick all'}
               </button>
             </div>
             {actions.map((a, i) => (
-              <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 'var(--fs-body)', padding: '5px 0', borderTop: i ? '1px solid #f2f2f2' : 'none', cursor: 'pointer', opacity: sel.has(i) ? 1 : 0.5 }}>
-                <input type="checkbox" checked={sel.has(i)} onChange={() => toggleAction(i)} style={{ marginTop: 2 }} />
+              <label key={i} style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start', fontSize: 'var(--fs-body)', padding: 'var(--s1) 0', borderTop: i ? '1px solid #f2f2f2' : 'none', cursor: 'pointer', opacity: sel.has(i) ? 1 : 0.5 }}>
+                <input type="checkbox" checked={sel.has(i)} onChange={() => toggleAction(i)} style={{ marginTop: 'var(--s1)' }} />
                 <span>{actionLabel(a)}{a.why ? <span className="text-muted" style={{ fontSize: 'var(--fs-caption)' }}> — {a.why}</span> : null}</span>
               </label>
             ))}
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 'var(--s2)' }}>
               <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: apply, disabled: applying || sel.size === 0 })}>{applying ? 'Applying…' : `Approve & apply ${sel.size}`}</button>{' '}
               <button className="btn btn-secondary btn-sm" onClick={() => { setActions([]); setSel(new Set()); }}>Discard all</button>
             </div>
@@ -1740,7 +1740,7 @@ function MediaAssistant() {
         )}
 
         {applied && (
-          <div style={{ marginBottom: 10, fontSize: 'var(--fs-body)' }}>
+          <div style={{ marginBottom: 'var(--s3)', fontSize: 'var(--fs-body)' }}>
             {applied.map((r, i) => (
               <div key={i} style={{ color: r.ok ? 'var(--positive, #157a3f)' : 'var(--danger, #c62828)' }}>
                 {r.ok ? '✓' : '✕'} {actionLabel(r)} — {r.detail}
@@ -1749,7 +1749,7 @@ function MediaAssistant() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-end' }}>
           <textarea className="input" rows={2} value={input} onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
             placeholder="Dump websites, contacts, or notes…  (⌘/Ctrl+Enter to send)" style={{ flex: 1 }} />
@@ -1933,13 +1933,13 @@ function JournalistTasks() {
 
   return (
     <div className="stack stack-lg">
-      {err && <div style={{ padding: 8, background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)' }}>{err}</div>}
+      {err && <div style={{ padding: 'var(--s2)', background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)' }}>{err}</div>}
 
-      <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', background: 'var(--surface-raised, #fafafa)' }}>
+      <div className="card" style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', background: 'var(--surface-raised, #fafafa)' }}>
         <div className="body-sm text-muted" style={{ flex: 1, minWidth: 220 }}>
           📬 Every Monday you get a digest of everything below — new journalists, gone-quiet, duplicates, moves, bad emails — so you never have to remember to check. Preview it now:
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: embedNow, disabled: embedBusy })}
             title="Build 'meaning fingerprints' for journalists with a topic profile, so the best-contacts matcher can rank by meaning. Runs nightly too.">
             {embedBusy ? 'Embedding…' : '🧠 Enable semantic matching'}
@@ -1952,13 +1952,13 @@ function JournalistTasks() {
 
       {/* Find new journalists */}
       <div className="card">
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 'var(--s3)', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 240, flex: 1 }}>
             <div className="h3 mb-2">🔭 Find new journalists</div>
-            <div className="body-sm text-muted" style={{ marginBottom: 8 }}>
+            <div className="body-sm text-muted" style={{ marginBottom: 'var(--s2)' }}>
               Two ways in: <strong>scout the web</strong> for journalists who cover a client’s beats, or <strong>mine your RSS feeds</strong> for new bylines already appearing at outlets you track. Nothing’s added until you approve it.
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
               <select className="input" style={{ maxWidth: 260 }} value={scoutClientId} onChange={(e) => setScoutClientId(e.target.value)}>
                 <option value="">Choose a client…</option>
                 {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1973,8 +1973,8 @@ function JournalistTasks() {
           </div>
         </div>
         {suggestions.length > 0 && (
-          <div style={{ marginTop: 14 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ marginTop: 'var(--s4)' }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s2)' }}>
               <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
               <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve', true) })}>Add all {suggestions.length}</button>
               {selSugg.size > 0 && <>
@@ -1992,7 +1992,7 @@ function JournalistTasks() {
                       <td>
                         <div style={{ fontWeight: 600 }}>
                           {s.name}
-                          {s.source === 'rss' && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 6 }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
+                          {s.source === 'rss' && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 'var(--s2)' }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
                         </div>
                         {s.email
                           ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{s.email}</div>
@@ -2009,7 +2009,7 @@ function JournalistTasks() {
                       </td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => approveSuggestion(s.id) })}>Add</button>
-                        <button className="btn btn-secondary btn-sm" style={{ marginLeft: 4 }} onClick={() => dismissSuggestion(s.id)} title="Dismiss">✕</button>
+                        <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'var(--s1)' }} onClick={() => dismissSuggestion(s.id)} title="Dismiss">✕</button>
                       </td>
                     </tr>
                   ))}
@@ -2027,10 +2027,10 @@ function JournalistTasks() {
           <p className="body-sm text-muted" style={{ margin: 0 }}>Nothing to review — the overnight sweep hasn’t flagged anyone as gone quiet.</p>
         ) : (
           <>
-            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>No coverage in 12 months and no recent byline found online. People move on — archive the ones who've left (reversible), keep the rest.</p>
+            <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>No coverage in 12 months and no recent byline found online. People move on — archive the ones who've left (reversible), keep the rest.</p>
             <div style={{ maxHeight: 320, overflow: 'auto' }}>
               {archiveReview.slice(0, 100).map((c) => (
-                <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                <div key={c.id} style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s2) 0', borderTop: '1px solid var(--card-border, #eee)' }}>
                   <div style={{ fontSize: 'var(--fs-body)' }}><strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''}</div>
                   <div style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'archive')}>Archive</button>{' '}
@@ -2050,11 +2050,11 @@ function JournalistTasks() {
           <p className="body-sm text-muted" style={{ margin: 0 }}>No fresh articles from your key journalists to react to right now.</p>
         ) : (
           <>
-            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>Read it, then send a genuine note. Claude drafts one specific to the article — you approve and send. (Tier-1 / strong-relationship journalists only.)</p>
+            <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>Read it, then send a genuine note. Claude drafts one specific to the article — you approve and send. (Tier-1 / strong-relationship journalists only.)</p>
             <div style={{ maxHeight: 360, overflow: 'auto' }}>
               {nudges.slice(0, 50).map((n) => (
-                <div key={n.id} style={{ padding: '8px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <div key={n.id} style={{ padding: 'var(--s2) 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                  <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: 'var(--fs-body)', flex: 1, minWidth: 200 }}>
                       <strong>{n.name || '—'}</strong>{n.outlet ? ` · ${n.outlet}` : ''}<br />
                       <a href={n.article_url} target="_blank" rel="noreferrer">{(n.article_title || n.article_url).slice(0, 90)}</a>
@@ -2066,13 +2066,13 @@ function JournalistTasks() {
                     </div>
                   </div>
                   {nudgeDraft && nudgeDraft.id === n.id && (
-                    <div style={{ marginTop: 8, paddingLeft: 4 }}>
+                    <div style={{ marginTop: 'var(--s2)', paddingLeft: 'var(--s1)' }}>
                       {nudgeDraft.loading ? <p className="body-sm text-muted">Drafting…</p> : (
                         <>
-                          {!nudgeDraft.to && <div className="body-sm" style={{ color: 'var(--negative)', marginBottom: 6 }}>No real email on file — can't send.</div>}
-                          <input className="input" style={{ marginBottom: 6 }} value={nudgeDraft.subject} onChange={(e) => setNudgeDraft((d) => ({ ...d, subject: e.target.value }))} placeholder="Subject" />
-                          <textarea className="input" rows={5} style={{ marginBottom: 6 }} value={nudgeDraft.body} onChange={(e) => setNudgeDraft((d) => ({ ...d, body: e.target.value }))} />
-                          <div style={{ display: 'flex', gap: 8 }}>
+                          {!nudgeDraft.to && <div className="body-sm" style={{ color: 'var(--negative)', marginBottom: 'var(--s2)' }}>No real email on file — can't send.</div>}
+                          <input className="input" style={{ marginBottom: 'var(--s2)' }} value={nudgeDraft.subject} onChange={(e) => setNudgeDraft((d) => ({ ...d, subject: e.target.value }))} placeholder="Subject" />
+                          <textarea className="input" rows={5} style={{ marginBottom: 'var(--s2)' }} value={nudgeDraft.body} onChange={(e) => setNudgeDraft((d) => ({ ...d, body: e.target.value }))} />
+                          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                             <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: sendNudge, disabled: nudgeBusy || !nudgeDraft.to || !nudgeDraft.subject || !nudgeDraft.body })}>{nudgeBusy ? 'Sending…' : 'Send'}</button>
                             <button className="btn btn-secondary btn-sm" onClick={() => setNudgeDraft(null)}>Cancel</button>
                           </div>
@@ -2091,10 +2091,10 @@ function JournalistTasks() {
       {moves.length > 0 && (
         <div className="card">
           <div className="h3 mb-2">🔀 Possible outlet moves · {moves.length}</div>
-          <p className="body-sm text-muted" style={{ marginBottom: 10 }}>Spotted in the feeds: a journalist you know is now bylined at a different outlet. Apply to move them, or dismiss if it's a namesake.</p>
+          <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>Spotted in the feeds: a journalist you know is now bylined at a different outlet. Apply to move them, or dismiss if it's a namesake.</p>
           <div style={{ maxHeight: 320, overflow: 'auto' }}>
             {moves.map((m) => (
-              <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+              <div key={m.id} style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s2) 0', borderTop: '1px solid var(--card-border, #eee)' }}>
                 <div style={{ fontSize: 'var(--fs-body)' }}>
                   <strong>{m.name || '—'}</strong> · {m.from_outlet || '—'} <span className="text-muted">→</span> <strong>{m.to_outlet || '—'}</strong>
                   {m.article_url && <> · <a href={m.article_url} target="_blank" rel="noreferrer">{(m.article_title || 'byline').slice(0, 60)} ↗</a></>}
@@ -2113,22 +2113,22 @@ function JournalistTasks() {
       {dupes.length > 0 && (
         <div className="card">
           <div className="h3 mb-2">👥 Duplicate journalists · {dupes.length}</div>
-          <p className="body-sm text-muted" style={{ marginBottom: 10 }}>Likely the same person imported twice. Merge keeps all coverage and client links on one record; the suggested keeper has the most history.</p>
+          <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>Likely the same person imported twice. Merge keeps all coverage and client links on one record; the suggested keeper has the most history.</p>
           <div style={{ maxHeight: 380, overflow: 'auto' }}>
             {dupes.map((c) => (
-              <div key={c.cluster_key} style={{ padding: '8px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
-                <div className="body-sm text-muted" style={{ marginBottom: 4 }}>{c.method === 'exact_email' ? 'Same email' : c.method === 'name_and_outlet' ? 'Same name & outlet' : 'Same name & domain'}</div>
+              <div key={c.cluster_key} style={{ padding: 'var(--s2) 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                <div className="body-sm text-muted" style={{ marginBottom: 'var(--s1)' }}>{c.method === 'exact_email' ? 'Same email' : c.method === 'name_and_outlet' ? 'Same name & outlet' : 'Same name & domain'}</div>
                 {c.members.map((m) => (
-                  <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '2px 0' }}>
+                  <div key={m.id} style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s1) 0' }}>
                     <div style={{ fontSize: 'var(--fs-body)' }}>
-                      {m.id === c.suggested && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginRight: 6 }}>keep</span>}
+                      {m.id === c.suggested && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginRight: 'var(--s2)' }}>keep</span>}
                       <strong>{m.name}</strong>{m.email ? ` · ${m.email}` : ''}{m.outlet ? ` · ${m.outlet}` : ''}
                       <span className="text-muted" style={{ fontSize: 'var(--fs-caption)' }}> · {m.coverage} coverage · {m.clients} client{m.clients === 1 ? '' : 's'}</span>
                     </div>
                     <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => mergeDupe(c, m.id) })} title="Merge the others into this record">Keep this</button>
                   </div>
                 ))}
-                <div style={{ marginTop: 4 }}>
+                <div style={{ marginTop: 'var(--s1)' }}>
                   <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => mergeDupe(c, c.suggested) })}>Merge (keep suggested)</button>{' '}
                   <button className="btn btn-secondary btn-sm" onClick={() => dismissDupe(c)}>Not duplicates</button>
                 </div>
@@ -2144,10 +2144,10 @@ function JournalistTasks() {
           <div className="h3 mb-2">✉️ Email attention {attention.bounced.length + attention.guessed.length ? `· ${attention.bounced.length + attention.guessed.length}` : ''}</div>
           {attention.bounced.length > 0 && (
             <>
-              <div className="body-sm" style={{ fontWeight: 600, marginBottom: 4 }}>Bounced — kept out of sends until fixed ({attention.bounced.length})</div>
-              <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 12 }}>
+              <div className="body-sm" style={{ fontWeight: 600, marginBottom: 'var(--s1)' }}>Bounced — kept out of sends until fixed ({attention.bounced.length})</div>
+              <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 'var(--s3)' }}>
                 {attention.bounced.slice(0, 100).map((c) => (
-                  <div key={c.id} style={{ fontSize: 'var(--fs-body)', padding: '4px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                  <div key={c.id} style={{ fontSize: 'var(--fs-body)', padding: 'var(--s1) 0', borderTop: '1px solid var(--card-border, #eee)' }}>
                     <strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''} · <span style={{ color: 'var(--danger, #c62828)' }}>{c.email}</span>
                     {c.bounce_reason && <span className="text-muted" style={{ fontSize: 'var(--fs-caption)' }}> · {String(c.bounce_reason).slice(0, 50)}</span>}
                   </div>
@@ -2157,11 +2157,11 @@ function JournalistTasks() {
           )}
           {attention.guessed.length > 0 && (
             <>
-              <div className="body-sm" style={{ fontWeight: 600, marginBottom: 4 }}>Unconfirmed (guessed) addresses ({attention.guessed.length})</div>
-              <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 6 }}>Guessed from the outlet's pattern — worth confirming before a big send.</p>
+              <div className="body-sm" style={{ fontWeight: 600, marginBottom: 'var(--s1)' }}>Unconfirmed (guessed) addresses ({attention.guessed.length})</div>
+              <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 'var(--s2)' }}>Guessed from the outlet's pattern — worth confirming before a big send.</p>
               <div style={{ maxHeight: 200, overflow: 'auto' }}>
                 {attention.guessed.slice(0, 100).map((c) => (
-                  <div key={c.id} style={{ fontSize: 'var(--fs-body)', padding: '4px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                  <div key={c.id} style={{ fontSize: 'var(--fs-body)', padding: 'var(--s1) 0', borderTop: '1px solid var(--card-border, #eee)' }}>
                     <strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''} · <span style={{ color: 'var(--danger, #c62828)' }}>{c.email}</span>
                   </div>
                 ))}
@@ -2430,7 +2430,7 @@ function ContactsLibrary() {
         onApplied={async () => { await reload(); }}
       />
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s3)', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
             <CardTitle>Journalists</CardTitle>
             <p className="body-sm text-muted">
@@ -2439,7 +2439,7 @@ function ContactsLibrary() {
               to the others.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
             <Link to="/contacts/cleanup" className="btn btn-secondary btn-sm"
               title="Find and merge duplicates, fold orphaned coverage onto the right person, fix capitalisation/emails/companies, and strip leftover Notion-URL fragments — all in one place.">
               🧹 Cleanup Centre
@@ -2453,7 +2453,7 @@ function ContactsLibrary() {
         </div>
 
 
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 'var(--s4)' }}>
           <input
             placeholder="Search by name, email or outlet…"
             value={search} onChange={e => setSearch(e.target.value)}
@@ -2470,14 +2470,14 @@ function ContactsLibrary() {
             const visible = showAll ? filtered : filtered.slice(0, COLLAPSED);
             const hiddenCount = filtered.length - visible.length;
             return (
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 'var(--s3)' }}>
                 <input
                   placeholder={`Filter ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
                   value={tagSearch}
                   onChange={e => setTagSearch(e.target.value)}
-                  className="input" style={{ padding: '5px 9px', fontSize: 'var(--fs-caption)', maxWidth: 280, marginBottom: 8 }}
+                  className="input" style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', maxWidth: 280, marginBottom: 'var(--s2)' }}
                 />
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, width: '100%' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s1)', width: '100%' }}>
                   {visible.map(t => {
                     const on = activeTags.has(t.tag);
                     return (
@@ -2508,12 +2508,12 @@ function ContactsLibrary() {
           })()}
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 'var(--fs-caption)' }}>{err}</div>}
-        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 'var(--fs-caption)' }}>{info}</div>}
+        {err && <div style={{ marginTop: 'var(--s3)', padding: 'var(--s2)', background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 'var(--fs-caption)' }}>{err}</div>}
+        {info && <div style={{ marginTop: 'var(--s3)', padding: 'var(--s2)', background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 'var(--fs-caption)' }}>{info}</div>}
 
-        {!filtered && <div style={{ marginTop: 16, color: 'var(--text-subtle)' }}>Loading…</div>}
+        {!filtered && <div style={{ marginTop: 'var(--s4)', color: 'var(--text-subtle)' }}>Loading…</div>}
         {filtered && !filtered.length && (
-          <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
+          <div style={{ marginTop: 'var(--s4)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
             {search.trim() || activeTags.size
               ? 'No journalists match this filter.'
               : `No journalists yet. Use ↑ Import CSV above, or add them from a client's Earned → Pitch — they'll show up here automatically.`}
@@ -2521,8 +2521,8 @@ function ContactsLibrary() {
         )}
 
         {filtered && !!filtered.length && (
-          <div style={{ marginTop: 14, overflowX: 'auto' }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+          <div style={{ marginTop: 'var(--s4)', overflowX: 'auto' }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s2)', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                 {selected.size} selected
                 {total > filtered.length
@@ -2548,11 +2548,11 @@ function ContactsLibrary() {
             </div>
 
             {bulkTagsOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 8 }}>
+              <div style={{ marginBottom: 'var(--s3)', padding: 'var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
                   Add tags to the {selected.size} selected journalist{selected.size === 1 ? '' : 's'}:
                 </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--s2)' }}>
                   {Array.from(bulkTagsToAdd).map(t => (
                     <span key={t} className="chip chip-accent" onClick={() => setBulkTagsToAdd(prev => { const n = new Set(prev); n.delete(t); return n; })}>{t} ×</span>
                   ))}
@@ -2565,7 +2565,7 @@ function ContactsLibrary() {
                   />
                 </div>
                 {!!tags.length && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s1)', marginBottom: 'var(--s2)' }}>
                     {tags.slice(0, 16).filter(t => !bulkTagsToAdd.has(t.tag)).map(t => (
                       <button key={t.tag} onClick={() => addBulkTag(t.tag)} className="chip chip-outline">
                         {t.tag} <span style={{ opacity: 0.5 }}>· {t.count}</span>
@@ -2573,7 +2573,7 @@ function ContactsLibrary() {
                     ))}
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                   <button onClick={applyBulkTags} disabled={!bulkTagsToAdd.size} className="btn btn-primary">
                     Apply to {selected.size}
                   </button>
@@ -2585,9 +2585,9 @@ function ContactsLibrary() {
             )}
 
             {attachOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 8 }}>Attach the {selected.size} selected journalist{selected.size === 1 ? '' : 's'} to:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ marginBottom: 'var(--s3)', padding: 'var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>Attach the {selected.size} selected journalist{selected.size === 1 ? '' : 's'} to:</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                   {clients.map(c => (
                     <button key={c.id} onClick={() => attachTo(c.id)} className="btn btn-secondary btn-sm">
                       {c.name}
@@ -2637,9 +2637,9 @@ function ContactsLibrary() {
                         </span>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s1)' }}>
                           {(r.tags || []).map(t => (
-                            <span key={t} style={{ cursor: 'default', padding: '1px 7px', fontSize: 'var(--fs-caption)', color: '#111', border: '1px solid #d1d5db', borderRadius: 20, background: 'transparent' }}>{t}</span>
+                            <span key={t} style={{ cursor: 'default', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', color: '#111', border: '1px solid #d1d5db', borderRadius: 'var(--r-lg)', background: 'transparent' }}>{t}</span>
                           ))}
                         </div>
                       </td>
@@ -2664,7 +2664,7 @@ function ContactsLibrary() {
                           : <button onClick={() => optOutOne(r)} title="Mark do-not-contact (unsubscribe from everything)"
                               style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', fontSize: 'var(--fs-caption)', textDecoration: 'underline', padding: 0 }}>unsubscribe</button>}
                         <button onClick={() => destroyOne(r.id)} title="Delete from library"
-                          style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-title)', lineHeight: 1, padding: '2px 6px', marginLeft: 8 }}>
+                          style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-title)', lineHeight: 1, padding: 'var(--s1) var(--s2)', marginLeft: 'var(--s2)' }}>
                           ×
                         </button>
                       </td>
@@ -2674,7 +2674,7 @@ function ContactsLibrary() {
               </tbody>
             </table>
             {filtered.length < total && (
-              <div style={{ textAlign: 'center', marginTop: 14 }}>
+              <div style={{ textAlign: 'center', marginTop: 'var(--s4)' }}>
                 <button onClick={loadMore} disabled={loadingMore} className="btn btn-secondary btn-sm">
                   {loadingMore ? 'Loading…' : `Load more (${(total - filtered.length).toLocaleString()} more)`}
                 </button>
@@ -2767,7 +2767,7 @@ function TagsManager() {
     finally { setBusy(false); }
   }
 
-  if (!tags) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>;
+  if (!tags) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading…</div>;
 
   const q = search.trim().toLowerCase();
   let filtered = q ? tags.filter(t => t.tag.toLowerCase().includes(q)) : tags;
@@ -2777,7 +2777,7 @@ function TagsManager() {
   return (
     <div>
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s3)' }}>
           <div>
             <CardTitle>Tags</CardTitle>
             <p className="body-sm text-muted">
@@ -2792,14 +2792,14 @@ function TagsManager() {
         </div>
 
         {plan && plan.operations && plan.operations.length > 0 && (
-          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 'var(--r-md)', background: 'var(--warning-soft)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ marginTop: 'var(--s4)', padding: 'var(--s4)', border: '1px solid #ddd6a8', borderRadius: 'var(--r-md)', background: 'var(--warning-soft)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
               <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>
                 Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
               </div>
               <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--text-subtle)' }}>×</button>
             </div>
-            <p className="body-sm text-muted" style={{ marginBottom: 12  }}>
+            <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)'  }}>
               Untick anything you disagree with, then apply. Each operation rewrites tags on journalists and can't be undone in one click.
             </p>
             <div style={{ maxHeight: 380, overflowY: 'auto', borderTop: '1px solid #eee' }}>
@@ -2807,8 +2807,8 @@ function TagsManager() {
                 const ticked = selectedOps.has(i);
                 return (
                   <label key={i} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10,
-                    padding: '10px 0', borderBottom: '1px solid #f0eccd', cursor: 'pointer',
+                    display: 'flex', alignItems: 'flex-start', gap: 'var(--s3)',
+                    padding: 'var(--s3) 0', borderBottom: '1px solid #f0eccd', cursor: 'pointer',
                   }}>
                     <input type="checkbox" checked={ticked} onChange={() => {
                       setSelectedOps(prev => {
@@ -2816,10 +2816,10 @@ function TagsManager() {
                         if (n.has(i)) n.delete(i); else n.add(i);
                         return n;
                       });
-                    }} style={{ marginTop: 3 }} />
+                    }} style={{ marginTop: 'var(--s1)' }} />
                     <div style={{ flex: 1, fontSize: 'var(--fs-caption)' }}>
-                      <div style={{ marginBottom: 3 }}>
-                        <span className="chip chip-outline" style={{ padding: '1px 8px', fontSize: 'var(--fs-caption)', marginRight: 6  }}>{op.type}</span>
+                      <div style={{ marginBottom: 'var(--s1)' }}>
+                        <span className="chip chip-outline" style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', marginRight: 'var(--s2)'  }}>{op.type}</span>
                         <OpSummary op={op} />
                       </div>
                       {op.why && <div style={{ color: 'var(--text-subtle)', fontStyle: 'italic' }}>{op.why}</div>}
@@ -2828,7 +2828,7 @@ function TagsManager() {
                 );
               })}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
               <button onClick={() => setSelectedOps(new Set(plan.operations.map((_, i) => i)))} className="btn btn-secondary btn-sm">Tick all</button>
               <button onClick={() => setSelectedOps(new Set())} className="btn btn-secondary btn-sm">Untick all</button>
               <div style={{ flex: 1 }} />
@@ -2841,28 +2841,28 @@ function TagsManager() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
           <input
             placeholder={`Search ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
             value={search} onChange={e => setSearch(e.target.value)}
             className="input" style={{ flex: '1 1 240px' }}
           />
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
             Sort:
             <button onClick={() => setSort('count')} className="chip" style={{ cursor: 'pointer', border: 'var(--border-w) solid ' + (sort === 'count' ? 'var(--text)' : 'var(--card-border)'), background: sort === 'count' ? 'var(--text)' : 'var(--surface)', color: sort === 'count' ? '#fff' : 'var(--text)' }}>by count</button>
             <button onClick={() => setSort('name')} className="chip" style={{ cursor: 'pointer', border: 'var(--border-w) solid ' + (sort === 'name' ? 'var(--text)' : 'var(--card-border)'), background: sort === 'name' ? 'var(--text)' : 'var(--surface)', color: sort === 'name' ? '#fff' : 'var(--text)' }}>A → Z</button>
           </div>
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 'var(--fs-caption)' }}>{err}</div>}
-        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 'var(--fs-caption)' }}>{info}</div>}
+        {err && <div style={{ marginTop: 'var(--s3)', padding: 'var(--s2)', background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 'var(--fs-caption)' }}>{err}</div>}
+        {info && <div style={{ marginTop: 'var(--s3)', padding: 'var(--s2)', background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 'var(--fs-caption)' }}>{info}</div>}
 
         {!filtered.length ? (
-          <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
+          <div style={{ marginTop: 'var(--s4)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
             {q ? `No tags match "${search}".` : 'No tags yet.'}
           </div>
         ) : (
-          <div style={{ marginTop: 14, overflowX: 'auto' }}>
+          <div style={{ marginTop: 'var(--s4)', overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -2875,7 +2875,7 @@ function TagsManager() {
                 {filtered.map(t => (
                   <tr key={t.tag}>
                     <td >
-                      <span className="chip chip-outline" style={{ cursor: 'default', padding: '2px 9px'  }}>{t.tag}</span>
+                      <span className="chip chip-outline" style={{ cursor: 'default', padding: 'var(--s1) var(--s2)'  }}>{t.tag}</span>
                     </td>
                     <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums'  }}>
                       {t.count.toLocaleString()}
@@ -2885,7 +2885,7 @@ function TagsManager() {
                         Rename
                       </button>
                       <button onClick={() => deleteTag(t.tag, t.count)} disabled={busy}
-                        className="btn btn-danger btn-sm" style={{ marginLeft: 6  }}>
+                        className="btn btn-danger btn-sm" style={{ marginLeft: 'var(--s2)'  }}>
                         Delete
                       </button>
                     </td>
@@ -3009,7 +3009,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             </p>
             <div style={tidyStyles.summary}>
               <div><strong>{(totalInFilter || 0).toLocaleString()}</strong> journalists will be analysed</div>
-              <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 4 }}>
+              <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s1)' }}>
                 Runs in the background — you can close this modal and come back. Roughly ~$1 per 500 journalists in Claude API spend.
               </div>
             </div>
@@ -3022,11 +3022,11 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         )}
 
         {phase === 'analysing' && (
-          <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: 'var(--fs-body)', marginBottom: 10 }}>
+          <div style={{ padding: 'var(--s7)', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>
               Claude is reading the journalists in batches of 40 — {progress.processed.toLocaleString()} of {(progress.total || totalInFilter || 0).toLocaleString()} done.
             </div>
-            <div style={{ background: 'var(--surface-raised)', borderRadius: 999, height: 8, overflow: 'hidden', margin: '8px auto 12px', maxWidth: 420 }}>
+            <div style={{ background: 'var(--surface-raised)', borderRadius: 'var(--r-pill)', height: 8, overflow: 'hidden', margin: 'var(--s2) auto var(--s3)', maxWidth: 420 }}>
               <div style={{
                 background: 'var(--accent)',
                 height: '100%',
@@ -3045,33 +3045,33 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             <div style={tidyStyles.summary}>
               <div>Analysed <strong>{result.analysed.toLocaleString()}</strong> journalist{result.analysed === 1 ? '' : 's'} — Claude proposes <strong>{result.suggestions.length}</strong> change{result.suggestions.length === 1 ? '' : 's'} across <strong>{grouped.length}</strong> record{grouped.length === 1 ? '' : 's'}.</div>
               {result.capped && (
-                <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 4 }}>
+                <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s1)' }}>
                   Hit the 500-journalist cap — re-run with a narrower filter to cover the rest.
                 </div>
               )}
             </div>
             {!result.suggestions.length ? (
-              <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', textAlign: 'center' }}>
+              <div style={{ padding: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', textAlign: 'center' }}>
                 Nothing to clean up — the records in this filter look healthy.
               </div>
             ) : (
               <div style={{ maxHeight: 460, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 0 }}>
                 {grouped.map(g => (
-                  <div key={g.id} style={{ padding: '10px 12px', borderBottom: '1px solid #f1f1f1' }}>
-                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700, marginBottom: 6 }}>
+                  <div key={g.id} style={{ padding: 'var(--s3) var(--s3)', borderBottom: '1px solid #f1f1f1' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700, marginBottom: 'var(--s2)' }}>
                       {g.label}
                     </div>
                     {g.suggestions.map(({ idx, s }) => {
                       const ticked = selected.has(idx);
                       return (
-                        <label key={idx} style={{ display: 'flex', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 'var(--fs-caption)' }}>
+                        <label key={idx} style={{ display: 'flex', gap: 'var(--s2)', padding: 'var(--s1) 0', cursor: 'pointer', fontSize: 'var(--fs-caption)' }}>
                           <input type="checkbox" checked={ticked} onChange={() => {
                             setSelected(prev => {
                               const n = new Set(prev);
                               if (n.has(idx)) n.delete(idx); else n.add(idx);
                               return n;
                             });
-                          }} style={{ marginTop: 3 }} />
+                          }} style={{ marginTop: 'var(--s1)' }} />
                           <div style={{ flex: 1 }}>
                             <div>
                               <code style={tidyStyles.fieldChip}>{s.field}</code>{' '}
@@ -3106,12 +3106,12 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         )}
 
         {phase === 'applying' && (
-          <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-body)' }}>Applying…</div>
+          <div style={{ padding: 'var(--s7)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-body)' }}>Applying…</div>
         )}
 
         {phase === 'done' && (
           <div>
-            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-md)', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
+            <div style={{ padding: 'var(--s4)', background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-md)', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
               ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The journalist audit history records what changed, by whom, and why.
             </div>
             <div style={tidyStyles.footer}>
@@ -3146,24 +3146,24 @@ const tidyStyles = {
   // The yellow modal sat on a half-opaque black scrim against a light page,
   // and from a distance the body copy looked greyed-out and unreadable.
   // Solid white modal + a darker, blurred scrim gives proper contrast.
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(20,20,24,0.72)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
-  modal: { background: '#fff', color: 'var(--text)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid var(--card-border)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  eyebrow: { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 'var(--fs-section)', cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(20,20,24,0.72)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1100, overflowY: 'auto' },
+  modal: { background: '#fff', color: 'var(--text)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 760, padding: 'var(--s6)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid var(--card-border)' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)' },
+  eyebrow: { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 'var(--s1)' },
+  closeBtn: { background: 'none', border: 'none', fontSize: 'var(--fs-section)', cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 'var(--s1)' },
   hint: { fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 },
-  summary: { background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 14, fontSize: 'var(--fs-body)', marginTop: 12 },
-  footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
-  btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: '8px 16px', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' },
-  ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '7px 14px', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer' },
-  err: { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', marginBottom: 12 },
-  fieldChip: { background: 'var(--warning-soft)', padding: '1px 6px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
+  summary: { background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 'var(--s4)', fontSize: 'var(--fs-body)', marginTop: 'var(--s3)' },
+  footer: { display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginTop: 'var(--s4)', paddingTop: 'var(--s3)', borderTop: '1px solid #eee' },
+  btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' },
+  ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer' },
+  err: { padding: 'var(--s3)', background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s3)' },
+  fieldChip: { background: 'var(--warning-soft)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
 };
 
 // Human-readable summary of a single tag-tidy operation. Rendered
 // alongside the checkbox in the plan panel.
 function OpSummary({ op }) {
-  const chip = (txt) => <code style={{ background: 'var(--warning-soft)', padding: '1px 5px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>{txt}</code>;
+  const chip = (txt) => <code style={{ background: 'var(--warning-soft)', padding: 'var(--s1) var(--s1)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>{txt}</code>;
   if (op.type === 'rename') return <span>Rename {chip(op.from)} → {chip(op.to)}</span>;
   if (op.type === 'merge') return <span>Merge {op.from.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}{chip(t)}</React.Fragment>)} → {chip(op.into)}</span>;
   if (op.type === 'delete') return <span>Delete {chip(op.tag)} everywhere</span>;
@@ -3218,38 +3218,38 @@ function SpendControlsPanel() {
 
   const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
+    <div className="card" style={{ marginBottom: 'var(--s4)' }}>
       <h2 className="caption">Spend controls</h2>
       <p className="body-sm text-muted">Cap AI spend and get warned before it runs away. The cap pauses all AI features in OMI once month-to-date spend reaches it; it resets on the 1st.</p>
       {loading && !data ? <p className="body-sm text-muted">Loading…</p> : (
         <>
           {loadErr && (
-            <div className="callout callout-danger" style={{ margin: '10px 0', fontSize: 'var(--fs-body)' }}>
+            <div className="callout callout-danger" style={{ margin: 'var(--s3) 0', fontSize: 'var(--fs-body)' }}>
               ⚠️ Couldn’t read this month’s spend ({loadErr}). You can still set a cap below — it’ll take effect straight away. <button className="btn btn-link btn-sm" onClick={load} style={{ padding: 0 }}>Retry</button>
             </div>
           )}
-          <div style={{ margin: '10px 0 14px' }}>
+          <div style={{ margin: 'var(--s3) 0 var(--s4)' }}>
             <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>This month so far</span>
             <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{mtd == null ? '—' : fmt(mtd)}</div>
           </div>
-          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 'var(--s5)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
-              <div style={{ marginBottom: 4 }}>Monthly hard cap ($) — blank / 0 = off</div>
+              <div style={{ marginBottom: 'var(--s1)' }}>Monthly hard cap ($) — blank / 0 = off</div>
               <input className="input" type="number" min="0" step="10" value={cap} onChange={(e) => setCap(e.target.value)} placeholder="e.g. 100" style={{ width: 140 }} />
             </label>
             <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
-              <div style={{ marginBottom: 4 }}>Daily alert email over ($)</div>
+              <div style={{ marginBottom: 'var(--s1)' }}>Daily alert email over ($)</div>
               <input className="input" type="number" min="0" step="5" value={daily} onChange={(e) => setDaily(e.target.value)} placeholder="25" style={{ width: 140 }} />
             </label>
             <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
           </div>
           {capBelowMtd && (
-            <div className="callout callout-danger" style={{ marginTop: 12, fontSize: 'var(--fs-body)' }}>
+            <div className="callout callout-danger" style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-body)' }}>
               ⚠️ You've already spent {fmt(mtd)} this month, which is at or above this cap. Saving it will <strong>pause all AI in OMI until the 1st</strong>. Set a higher number for this month if you don't want that.
             </div>
           )}
-          {msg && <p className="body-sm" style={{ marginTop: 10, color: msg.startsWith('Error') ? 'var(--negative)' : 'var(--text-muted)' }}>{msg}</p>}
-          <p className="body-xs text-subtle" style={{ marginTop: 10 }}>Per-feature model choice (a bigger lever than the cap) lives in <strong>Settings → AI models</strong>.</p>
+          {msg && <p className="body-sm" style={{ marginTop: 'var(--s3)', color: msg.startsWith('Error') ? 'var(--negative)' : 'var(--text-muted)' }}>{msg}</p>}
+          <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>Per-feature model choice (a bigger lever than the cap) lives in <strong>Settings → AI models</strong>.</p>
         </>
       )}
     </div>
@@ -3279,8 +3279,8 @@ function CostLogPanel() {
   const flagColor = burnFlag === 'red' ? 'var(--negative)' : burnFlag === 'amber' ? 'var(--warning)' : 'var(--positive)';
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+    <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
         <div>
           <h2 className="caption">Cost log · where credits are going</h2>
           <p className="body-sm text-muted">Per-call API spend grouped by feature. Captures Claude (chat, report narratives, contact tidy, briefings) and grows as more providers are instrumented.</p>
@@ -3295,16 +3295,16 @@ function CostLogPanel() {
       {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)' }}>{err}</div>}
       {!data ? <p className="body-sm text-muted">Loading…</p> : (
         <>
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
             <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Total · last {days} days</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{fmt(totalUsd)}</div></div>
-            <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Daily average</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, color: flagColor }}>{fmt(dailyAvg)}<span style={{ fontSize: 'var(--fs-caption)', marginLeft: 8, color: flagColor }}>● {burnFlag}</span></div></div>
+            <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Daily average</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, color: flagColor }}>{fmt(dailyAvg)}<span style={{ fontSize: 'var(--fs-caption)', marginLeft: 'var(--s2)', color: flagColor }}>● {burnFlag}</span></div></div>
           </div>
 
           <h3 className="h3 mb-2">By feature</h3>
           {data.by_feature.length === 0 ? (
             <p className="body-sm text-muted">No cost events recorded yet in this window. Once features run (a report, a chat, a tidy sweep), they'll show up here with their spend.</p>
           ) : (
-            <table className="table" style={{ marginBottom: 14 }}>
+            <table className="table" style={{ marginBottom: 'var(--s4)' }}>
               <thead><tr><th>Provider</th><th>Feature</th><th style={{ textAlign: 'right' }}>Calls</th><th style={{ textAlign: 'right' }}>Spend</th></tr></thead>
               <tbody>
                 {data.by_feature.map((r) => (

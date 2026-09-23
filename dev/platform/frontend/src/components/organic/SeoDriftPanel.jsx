@@ -80,7 +80,7 @@ export default function SeoDriftPanel({ clientId }) {
       {/* Plain-language how-it-works, because "baseline / drift" isn't obvious. */}
       <div className="card mb-5" style={{ background: 'var(--surface-sunken)' }}>
         <div className="caption mb-3">How it works</div>
-        <ol className="body-sm" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8, maxWidth: 820 }}>
+        <ol className="body-sm" style={{ margin: 0, paddingLeft: 'var(--s5)', display: 'grid', gap: 'var(--s2)', maxWidth: 820 }}>
           <li><strong>Capture a baseline before a risky change</strong> — a site migration, a redesign, or a big content rewrite. Give it a name like "Pre-migration" so you remember what it marks.</li>
           <li><strong>Make your change</strong> and let a week or two pass for rankings to settle.</li>
           <li><strong>Hit "Compare to now"</strong> — it checks today's rankings, audit health, backlinks and authority against the snapshot and flags anything that dropped, colour-coded by how serious it is.</li>
@@ -93,10 +93,10 @@ export default function SeoDriftPanel({ clientId }) {
 
       <div className="card mb-5">
         <div className="caption mb-2">Capture a baseline</div>
-        <div className="row between center" style={{ gap: 10, flexWrap: 'wrap' }}>
-          <div className="row" style={{ gap: 8, flex: 1, minWidth: 260 }}>
+        <div className="row between center" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
+          <div className="row" style={{ gap: 'var(--s2)', flex: 1, minWidth: 260 }}>
             <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Name it — e.g. Pre-migration, Before redesign"
-              style={{ flex: 1, padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
             <button className="btn btn-primary" {...roWrite(readOnly, { onClick: capture, disabled: busy })}>
               {busy ? 'Working…' : '⦿ Capture baseline'}
             </button>
@@ -107,18 +107,18 @@ export default function SeoDriftPanel({ clientId }) {
       {err && <div className="callout callout-danger mb-3">{err}</div>}
 
       {loading ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading…</div>
       ) : !baselines.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           No baselines yet. Capture one above — it takes a snapshot of the current SEO signals to compare against later.
         </div>
       ) : (
         <>
-          <div className="row between center mb-4" style={{ gap: 10, flexWrap: 'wrap' }}>
-            <div className="row center" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <div className="row between center mb-4" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
+            <div className="row center" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
               <span className="body-sm text-muted">Compare against</span>
               <select value={selected} onChange={e => setSelected(e.target.value)} className="input"
-                style={{ padding: '6px 10px', fontSize: 'var(--fs-body)', minWidth: 260 }}>
+                style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', minWidth: 260 }}>
                 {baselines.map(b => (
                   <option key={b.id} value={b.id}>{b.label ? `${b.label} — ` : ''}{fmtDate(b.captured_at)}</option>
                 ))}
@@ -139,19 +139,19 @@ export default function SeoDriftPanel({ clientId }) {
               <>
                 <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--s3)', marginBottom: 'var(--s4)', maxWidth: 420 }}>
                   {['critical', 'warning', 'info'].map(s => (
-                    <div key={s} className="card" style={{ padding: '10px 12px' }}>
+                    <div key={s} className="card" style={{ padding: 'var(--s3) var(--s3)' }}>
                       <div className="caption">{SEV[s].label}</div>
-                      <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, marginTop: 2, color: SEV[s].tone }}>{report.summary[s] || 0}</div>
+                      <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, marginTop: 'var(--s1)', color: SEV[s].tone }}>{report.summary[s] || 0}</div>
                     </div>
                   ))}
                 </div>
                 <p className="body-xs text-subtle mb-3">
                   vs <strong>{report.baseline.label || 'baseline'}</strong> captured {fmtDate(report.baseline.captured_at)}.
                 </p>
-                <div className="stack" style={{ gap: 6 }}>
+                <div className="stack" style={{ gap: 'var(--s2)' }}>
                   {report.changes.map((c, i) => (
-                    <div key={i} className="card" style={{ padding: '10px 12px', borderLeft: `3px solid ${SEV[c.severity].tone}` }}>
-                      <div className="row between center" style={{ gap: 10 }}>
+                    <div key={i} className="card" style={{ padding: 'var(--s3) var(--s3)', borderLeft: `3px solid ${SEV[c.severity].tone}` }}>
+                      <div className="row between center" style={{ gap: 'var(--s3)' }}>
                         <div style={{ minWidth: 0 }}>
                           <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-subtle)' }}>{c.area}</span>
                           <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>{c.metric}</div>

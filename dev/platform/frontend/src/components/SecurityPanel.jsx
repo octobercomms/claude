@@ -72,8 +72,8 @@ export default function SecurityPanel() {
     catch { toast('Could not copy to clipboard.', 'error'); }
   }
 
-  if (loading) return <div className="text-subtle" style={{ padding: 20 }}>Running checks…</div>;
-  if (!data?.latest) return <div className="text-subtle" style={{ padding: 20 }}>No audit yet.</div>;
+  if (loading) return <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Running checks…</div>;
+  if (!data?.latest) return <div className="text-subtle" style={{ padding: 'var(--s5)' }}>No audit yet.</div>;
 
   const { latest, check_count } = data;
   const findings = latest.findings || [];
@@ -91,19 +91,19 @@ export default function SecurityPanel() {
   return (
     <div style={{ maxWidth: 900 }}>
       {/* Header card */}
-      <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', borderLeft: `4px solid ${risk.color}` }}>
+      <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--s4)', flexWrap: 'wrap', borderLeft: `4px solid ${risk.color}` }}>
         <div>
           <div className="caption">Security posture</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-            <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: risk.color, background: risk.bg, padding: '3px 10px', borderRadius: 999 }}>{risk.label}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginTop: 'var(--s1)' }}>
+            <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: risk.color, background: risk.bg, padding: 'var(--s1) var(--s3)', borderRadius: 'var(--r-pill)' }}>{risk.label}</span>
             <span className="body-sm text-muted">{risk.blurb}</span>
           </div>
-          <div className="body-xs text-subtle" style={{ marginTop: 8 }}>
+          <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
             Last run {fmt(latest.created_at)} · {latest.trigger === 'cron' ? 'scheduled (daily)' : 'manual'} · {check_count} checks
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)' }}>
+          <div style={{ display: 'flex', gap: 'var(--s3)' }}>
             <Tally n={latest.pass_count} label="pass" color={STATUS_COLOR.pass} />
             <Tally n={latest.warn_count} label="warn" color={STATUS_COLOR.warn} />
             <Tally n={latest.fail_count} label="fail" color={STATUS_COLOR.fail} />
@@ -114,14 +114,14 @@ export default function SecurityPanel() {
 
       {/* Flagged summary */}
       {flagged.length > 0 && (
-        <div className="card" style={{ marginTop: 14, background: 'rgba(154,107,0,0.06)' }}>
-          <div className="row between center" style={{ marginBottom: 6 }}>
+        <div className="card" style={{ marginTop: 'var(--s4)', background: 'rgba(154,107,0,0.06)' }}>
+          <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
             <div className="caption">{flagged.length} item{flagged.length === 1 ? '' : 's'} to review</div>
             <button className="btn btn-secondary btn-sm" onClick={() => copyText(buildAllFixPrompt(flagged), 'Fix prompt for all flagged items')}>Copy fix prompt for all</button>
           </div>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
+          <ul style={{ margin: 0, paddingLeft: 'var(--s5)' }}>
             {flagged.map(f => (
-              <li key={f.id} className="body-sm" style={{ marginBottom: 2 }}>
+              <li key={f.id} className="body-sm" style={{ marginBottom: 'var(--s1)' }}>
                 <strong>{f.title}</strong> — {f.detail}
               </li>
             ))}
@@ -130,28 +130,28 @@ export default function SecurityPanel() {
       )}
 
       {/* Full checklist by area */}
-      <div style={{ marginTop: 18 }}>
+      <div style={{ marginTop: 'var(--s5)' }}>
         {areas.map(area => (
-          <div key={area} style={{ marginBottom: 18 }}>
-            <h3 className="h3" style={{ marginBottom: 8 }}>{area}</h3>
+          <div key={area} style={{ marginBottom: 'var(--s5)' }}>
+            <h3 className="h3" style={{ marginBottom: 'var(--s2)' }}>{area}</h3>
             <div className="stack stack-sm">
               {byArea[area].map(f => (
-                <div key={f.id} className="card" style={{ padding: '10px 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <div key={f.id} className="card" style={{ padding: 'var(--s3) var(--s4)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--s3)' }}>
                     <span style={{ color: STATUS_COLOR[f.status], fontWeight: 700, fontSize: 'var(--fs-body)', lineHeight: '20px', width: 16, textAlign: 'center' }}>{STATUS_ICON[f.status] || '–'}</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                         <span className="body" style={{ fontWeight: 600 }}>{f.title}</span>
                         {f.status !== 'pass' && f.severity !== 'info' && (
                           <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: SEV_COLOR[f.severity] || 'var(--text-muted)' }}>{f.severity}</span>
                         )}
                       </div>
-                      <div className="body-sm text-muted" style={{ marginTop: 2 }}>{f.detail}</div>
+                      <div className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>{f.detail}</div>
                       {f.recommendation && f.status !== 'pass' && (
-                        <div className="body-xs" style={{ marginTop: 4, color: 'var(--text-muted)' }}><strong>Fix:</strong> {f.recommendation}</div>
+                        <div className="body-xs" style={{ marginTop: 'var(--s1)', color: 'var(--text-muted)' }}><strong>Fix:</strong> {f.recommendation}</div>
                       )}
                       {(f.status === 'warn' || f.status === 'fail') && (
-                        <button className="btn btn-secondary btn-sm" style={{ marginTop: 6 }} onClick={() => copyText(buildFixPrompt(f), `Fix prompt for ${f.id}`)}>Copy fix prompt</button>
+                        <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }} onClick={() => copyText(buildFixPrompt(f), `Fix prompt for ${f.id}`)}>Copy fix prompt</button>
                       )}
                     </div>
                   </div>
@@ -162,7 +162,7 @@ export default function SecurityPanel() {
         ))}
       </div>
 
-      <p className="body-xs text-subtle" style={{ marginTop: 8 }}>
+      <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
         Checks run nightly. You're emailed only when a new actionable issue appears (not the steady-state hardening items). To fix one, hit <strong>Copy fix prompt</strong> and paste it into Claude Code — it makes the change on a branch and opens a PR for you to review. For a deeper review, run the full SECURITY_AUDIT.md prompt against the codebase periodically; these checks cover the reliably-automatable areas, not every vulnerability class.
       </p>
     </div>

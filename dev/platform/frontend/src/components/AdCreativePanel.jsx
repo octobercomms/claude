@@ -168,16 +168,16 @@ export default function AdCreativePanel({ clientId, clientName }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--s5)' }}>
         <div>
           <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 700, margin: 0 }}>Ad Creative — {clientName}</h1>
-          <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: '4px 0 0', maxWidth: 760, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: 'var(--s1) 0 0', maxWidth: 760, lineHeight: 1.5 }}>
             Generate batches of ad concepts using direct-response frameworks (PAS, AIDA, Before/After…),
             grounded in the brand assets and the brief you supply. Then render image variants per concept
             across any aspect ratios you need — 1:1, 4:5, 9:16, 16:9.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)' }}>
           {activeBatchId && (
             <button className="btn btn-secondary" onClick={shareBatchForApproval}>Share for approval</button>
           )}
@@ -188,18 +188,18 @@ export default function AdCreativePanel({ clientId, clientName }) {
       </div>
 
       {shareUrl && (
-        <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 'var(--r-sm)', marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', marginTop: 'var(--s3)', marginBottom: 'var(--s2)', display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
           <strong style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)' }}>Approval link ready —</strong>
           <input value={shareUrl} readOnly onFocus={e => e.target.select()}
-            style={{ flex: 1, padding: '4px 8px', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} />
+            style={{ flex: 1, padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} />
           <button onClick={() => navigator.clipboard.writeText(shareUrl)}
-            style={{ padding: '4px 12px', fontSize: 'var(--fs-caption)', background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>Copy</button>
+            style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>Copy</button>
           <button onClick={() => setShareUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--positive)' }}>×</button>
         </div>
       )}
 
       {!assets.length && (
-        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 12, borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', marginBottom: 16 }}>
+        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 'var(--s3)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', marginBottom: 'var(--s4)' }}>
           No brand assets uploaded yet — visit the <strong>Brand</strong> tab on the sidebar and add logos, product photos, palette
           and guidelines so generations look on-brand.
         </div>
@@ -215,15 +215,15 @@ export default function AdCreativePanel({ clientId, clientName }) {
         />
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22, marginTop: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 'var(--s6)', marginTop: 'var(--s5)' }}>
         <div>
           <div className="h3">Past batches</div>
           {!batches.length && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Nothing yet — click Generate.</div>}
           {batches.map(b => (
-            <div key={b.id} className="card" style={{ padding: 10, marginBottom: 8, cursor: "pointer", background: b.id === activeBatchId ? "var(--accent-soft)" : "var(--surface)" }} onClick={() => selectBatch(b.id)}>
+            <div key={b.id} className="card" style={{ padding: 'var(--s3)', marginBottom: 'var(--s2)', cursor: "pointer", background: b.id === activeBatchId ? "var(--accent-soft)" : "var(--surface)" }} onClick={() => selectBatch(b.id)}>
               <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>{new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{b.creative_count} concepts · {b.platform}</div>
-              {b.brief && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4, lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
+              {b.brief && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)', lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
               {b.id === activeBatchId && (
                 <button onClick={(e) => { e.stopPropagation(); deleteBatch(b.id); }} className="btn btn-danger btn-sm">Delete batch</button>
               )}
@@ -236,9 +236,9 @@ export default function AdCreativePanel({ clientId, clientName }) {
             <ExampleConcept clientName={clientName} onDismiss={dismissSample} />
           )}
           {!creatives.length && (batches.length > 0 || sampleDismissed) && (
-            <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Pick a batch, or generate a new one.</div>
+            <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Pick a batch, or generate a new one.</div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 'var(--s4)' }}>
             {creatives.map(c => (
               <CreativeCard key={c.id} creative={c}
                 onDelete={() => deleteCreative(c.id)}
@@ -261,34 +261,34 @@ export default function AdCreativePanel({ clientId, clientName }) {
 // before generating anything.
 export function ExampleConcept({ clientName, onDismiss }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+    <div style={{ marginBottom: 'var(--s4)' }}>
+      <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 'var(--s3) var(--s4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
         <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.5 }}>
           <strong>This is an example.</strong> Click <strong>Generate ad concepts</strong> to create real ones for {clientName || 'this client'} — each render is editable and exportable.
         </div>
         <button onClick={onDismiss} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap' }}>Got it</button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 'var(--s4)' }}>
         <div className="card" style={{ position: 'relative', opacity: 0.92 }}>
-          <div style={{ position: 'absolute', top: 10, right: 10, fontSize: 'var(--fs-caption)', fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-subtle)', background: 'var(--surface-sunken)', padding: '2px 8px', borderRadius: 'var(--r-sm)' }}>Example</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ position: 'absolute', top: 10, right: 10, fontSize: 'var(--fs-caption)', fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-subtle)', background: 'var(--surface-sunken)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)' }}>Example</div>
+          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
             <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>PAS</span>
             <span className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)' }}>Problem / Solution</span>
           </div>
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 'var(--s3)' }}>
             <div className="field">HEADLINE</div>
             <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>Still reheating the same flat coffee?</div>
           </div>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 'var(--s2)' }}>
             <div className="field">BODY</div>
             <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.55 }}>The double-walled ceramic keeps your brew at temperature for hours — no microwave, no waste. Designed in the studio, made to last.</div>
           </div>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 'var(--s2)' }}>
             <div className="field">CTA</div>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>Shop the range</div>
           </div>
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 'var(--s3)' }}>
             <div className="field">VISUAL CONCEPT</div>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5 }}>Overhead shot of the mug on a sunlit kitchen counter, steam rising, warm editorial 35mm film tones, brand palette in the props.</div>
           </div>
@@ -332,10 +332,10 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 12px', fontSize: 'var(--fs-title)', fontWeight: 700 }}>Generate ad concepts</h2>
+        <h2 style={{ margin: '0 0 var(--s3)', fontSize: 'var(--fs-title)', fontWeight: 700 }}>Generate ad concepts</h2>
 
         {onSubmitMatrix && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)' }}>
             <button type="button" onClick={() => setMode('batch')}
               className={`btn btn-sm ${mode === 'batch' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }}>
               Batch
@@ -347,7 +347,7 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
           </div>
         )}
         {matrix && (
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12, background: 'var(--accent-soft)', padding: 10, borderRadius: 'var(--r-sm)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 'var(--s3)', background: 'var(--accent-soft)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)' }}>
             One brief, up to <strong>100</strong> deliberately different on-brand ads — spread across funnel stage, framework and format. Built in rounds so each variant is distinct, not a reworded copy. Render and resize the ones you like exactly as a normal batch.
           </div>
         )}
@@ -356,7 +356,7 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
         <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={4} style={modalStyles.textarea}
           placeholder="e.g. We're launching a new mug colour next week — UK + US targets, emphasise the studio kitchens crowd. Avoid heavy discount language." />
 
-        <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 'var(--s4)', marginTop: 'var(--s2)' }}>
           <div style={{ flex: 1 }}>
             <label style={modalStyles.label}>Platform</label>
             <select value={platform} onChange={e => setPlatform(e.target.value)} style={modalStyles.input}>
@@ -385,7 +385,7 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
         {!assets.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No brand assets uploaded yet.</div>}
         <div style={{ maxHeight: 220, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
           {assets.map(a => (
-            <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>
+            <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: '1px solid #f5f5f5', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>
               <input type="checkbox" checked={selectedAssets.has(a.id)} onChange={() => toggle(a.id)} />
               <span style={{ fontWeight: 600 }}>{a.name}</span>
               <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{a.kind.replace('_', ' ')}</span>
@@ -393,18 +393,18 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
           ))}
         </div>
 
-        {sampleErr && <div style={{ marginTop: 10, fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>{sampleErr}</div>}
+        {sampleErr && <div style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>{sampleErr}</div>}
         {sample && (
-          <div className="card" style={{ marginTop: 12, background: 'var(--accent-soft)' }}>
-            <div className="row between center" style={{ gap: 8 }}>
+          <div className="card" style={{ marginTop: 'var(--s3)', background: 'var(--accent-soft)' }}>
+            <div className="row between center" style={{ gap: 'var(--s2)' }}>
               <div className="caption">Sample ad{sample.framework ? ` · ${sample.framework}` : ''}</div>
               {sample.angle && <span className="body-xs text-subtle">{sample.angle}</span>}
             </div>
-            {sample.headline && <div style={{ fontWeight: 800, fontSize: 'var(--fs-body)', marginTop: 6 }}>{sample.headline}</div>}
-            {sample.body && <div className="body-sm" style={{ marginTop: 4, lineHeight: 1.5 }}>{sample.body}</div>}
-            {sample.cta && <div style={{ marginTop: 6 }}><span className="chip" style={{ background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700 }}>{sample.cta}</span></div>}
-            {sample.visual_concept && <div className="body-xs text-muted" style={{ marginTop: 8, lineHeight: 1.5 }}><strong>Visual:</strong> {sample.visual_concept}</div>}
-            <div className="body-xs text-subtle" style={{ marginTop: 8 }}>This is a throwaway preview. Hit {matrix ? `Build matrix for ${matrixCount} distinct variants` : `Generate for the full batch of ${count} concepts`}.</div>
+            {sample.headline && <div style={{ fontWeight: 800, fontSize: 'var(--fs-body)', marginTop: 'var(--s2)' }}>{sample.headline}</div>}
+            {sample.body && <div className="body-sm" style={{ marginTop: 'var(--s1)', lineHeight: 1.5 }}>{sample.body}</div>}
+            {sample.cta && <div style={{ marginTop: 'var(--s2)' }}><span className="chip" style={{ background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700 }}>{sample.cta}</span></div>}
+            {sample.visual_concept && <div className="body-xs text-muted" style={{ marginTop: 'var(--s2)', lineHeight: 1.5 }}><strong>Visual:</strong> {sample.visual_concept}</div>}
+            <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>This is a throwaway preview. Hit {matrix ? `Build matrix for ${matrixCount} distinct variants` : `Generate for the full batch of ${count} concepts`}.</div>
           </div>
         )}
 
@@ -491,40 +491,40 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s2)' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
           <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{creative.framework}</span>
           <span className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)' }}>{creative.angle}</span>
         </div>
         <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', fontSize: 'var(--fs-title)', lineHeight: 1 }}>×</button>
       </div>
 
-      <div style={{ marginTop: 10 }}>
+      <div style={{ marginTop: 'var(--s3)' }}>
         <div className="field">HEADLINE</div>
         <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>{creative.headline}</div>
       </div>
 
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 'var(--s2)' }}>
         <div className="field">BODY</div>
         <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
       </div>
 
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 'var(--s2)' }}>
         <div className="field">CTA</div>
         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>{creative.cta}</div>
       </div>
 
-      <div style={{ marginTop: 10 }}>
+      <div style={{ marginTop: 'var(--s3)' }}>
         <div className="field">VISUAL CONCEPT</div>
         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{creative.visual_concept}</div>
       </div>
 
       {creative.notes && (
-        <div style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{creative.notes}</div>
+        <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{creative.notes}</div>
       )}
 
       {(creative.images || []).length > 0 && (
-        <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ marginTop: 'var(--s3)', display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           {creative.images.map(img => (
             <ImageThumb key={img.id} img={img} onDelete={() => onDeleteImage(img.id)} onFanOut={onFanOut} />
           ))}
@@ -532,7 +532,7 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
       )}
 
       {(onUpload || renderMode === 'auto') && renderMode !== 'hidden' && (
-        <div style={{ marginTop: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 'var(--s3)', display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
           {renderMode === 'auto' && (
             <button onClick={() => setShowRender(s => !s)} className="btn btn-secondary btn-sm">
               {showRender ? 'Cancel' : 'Render'}
@@ -550,9 +550,9 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
       )}
 
       {showRender && renderMode !== 'hidden' && (
-        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+        <div style={{ marginTop: 'var(--s3)', padding: 'var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
           <div className="field">MODE</div>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
             {['image', 'video'].map(m => (
               <button key={m} onClick={() => setMode(m)} type="button" className={`btn ${mode === m ? "btn-primary" : "btn-secondary"} btn-sm`}>{m}</button>
             ))}
@@ -560,13 +560,13 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
 
           {mode === 'image' && <>
             <div className="field">PROVIDER</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
               {['replicate', 'ideogram', 'adobe'].map(p => (
                 <button key={p} onClick={() => setProvider(p)} type="button" className={`btn ${provider === p ? "btn-primary" : "btn-secondary"} btn-sm`}>{p}</button>
               ))}
             </div>
             <div className="field">ASPECT RATIOS</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s2)', flexWrap: 'wrap' }}>
               {['1:1', '4:5', '9:16', '16:9'].map(a => (
                 <button key={a} onClick={() => toggleAspect(a)} type="button" className={`btn ${aspects.has(a) ? "btn-primary" : "btn-secondary"} btn-sm`}>{a}</button>
               ))}
@@ -575,13 +575,13 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
 
           {mode === 'video' && <>
             <div className="field">ASPECT</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
               {['1:1', '9:16', '16:9'].map(a => (
                 <button key={a} onClick={() => setVideoAspect(a)} type="button" className={`btn ${videoAspect === a ? "btn-primary" : "btn-secondary"} btn-sm`}>{a}</button>
               ))}
             </div>
             <div className="field">DURATION</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
               {[5, 10].map(d => (
                 <button key={d} onClick={() => setDuration(d)} type="button" className={`btn ${duration === d ? "btn-primary" : "btn-secondary"} btn-sm`}>{d}s</button>
               ))}
@@ -590,7 +590,7 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
               <>
                 <div className="field">SEED FROM IMAGE (OPTIONAL)</div>
                 <select value={fromImageId} onChange={e => setFromImageId(e.target.value)}
-                  style={{ width: '100%', padding: '6px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', fontFamily: 'inherit', boxSizing: 'border-box' }}>
                   <option value="">Text-to-video (Seedance)</option>
                   {seedableImages.map(i => (
                     <option key={i.id} value={i.id}>Image-to-video from {i.aspect_ratio} ({i.provider})</option>
@@ -598,14 +598,14 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
                 </select>
               </>
             )}
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 8, lineHeight: 1.4 }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s2)', lineHeight: 1.4 }}>
               ~${(duration === 5 ? 0.40 : 0.80).toFixed(2)} per render via Replicate. Takes 30–90s.
             </div>
           </>}
 
           <input value={styleBrief} onChange={e => setStyleBrief(e.target.value)}
             placeholder="Optional style brief (e.g. 'editorial 35mm film')"
-            style={{ width: '100%', padding: '6px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
+            style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
           <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: go, disabled: rendering || (mode === 'image' && !aspects.size) })}>
             {rendering
               ? (mode === 'video' ? 'Rendering video…' : 'Rendering…')
@@ -628,7 +628,7 @@ function ImageThumb({ img, onDelete, onFanOut }) {
           ? <video src={img.url} muted loop autoPlay playsInline style={thumbStyle} />
           : <img src={img.url} alt="" style={thumbStyle} />}
       </a>
-      <div style={{ position: "absolute", bottom: 2, left: 2, padding: "1px 6px", background: "rgba(0,0,0,0.65)", color: "var(--surface)", fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', fontWeight: 700 }}>
+      <div style={{ position: "absolute", bottom: 2, left: 2, padding: "var(--s1) var(--s2)", background: "rgba(0,0,0,0.65)", color: "var(--surface)", fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', fontWeight: 700 }}>
         {isVideo ? `▶ ${img.aspect_ratio}${img.duration_seconds ? ` · ${img.duration_seconds}s` : ''}` : img.aspect_ratio}
       </div>
       <button onClick={onDelete} className="text-negative" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "var(--surface)", border: "var(--border-w) solid var(--card-border)", cursor: "pointer", fontSize: 'var(--fs-caption)', lineHeight: 1 }}>×</button>
@@ -687,11 +687,11 @@ export function GeneratingModal({ title = 'Generating ad concepts', clientName }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div style={modalStyles.overlay}>
-      <div style={{ ...modalStyles.modal, maxWidth: 420, textAlign: 'center', padding: '40px 28px' }}>
+      <div style={{ ...modalStyles.modal, maxWidth: 420, textAlign: 'center', padding: 'var(--s8) var(--s7)' }}>
         <div className="spinner" style={{ margin: '0 auto' }} />
-        <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)', marginTop: 20 }}>{title}</div>
-        <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 8, minHeight: 20 }}>{steps[i]}</div>
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 14, lineHeight: 1.5 }}>
+        <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)', marginTop: 'var(--s5)' }}>{title}</div>
+        <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 'var(--s2)', minHeight: 20 }}>{steps[i]}</div>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s4)', lineHeight: 1.5 }}>
           This usually takes 20–40 seconds. You can keep this open — the concepts appear as soon as they're ready.
         </div>
       </div>
@@ -700,10 +700,10 @@ export function GeneratingModal({ title = 'Generating ad concepts', clientName }
 }
 
 const modalStyles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
-  modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
-  input: { width: '100%', padding: '7px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
-  textarea: { width: '100%', padding: '8px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1000 },
+  modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 'var(--s6)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 'var(--s3)', marginBottom: 'var(--s1)' },
+  input: { width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
+  textarea: { width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)', marginTop: 'var(--s4)' },
 };

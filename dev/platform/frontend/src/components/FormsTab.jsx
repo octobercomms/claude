@@ -128,7 +128,7 @@ export default function FormsTab({ clientId, connectors }) {
   if (!formsConnector) {
     return (
       <div style={cardStyle}>
-        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 8 }}>October Forms not connected</div>
+        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>October Forms not connected</div>
         <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: 0 }}>
           Add an October Forms connector for this client under the <strong>Connectors</strong> tab to see form analytics here.
         </p>
@@ -139,7 +139,7 @@ export default function FormsTab({ clientId, connectors }) {
   if (!formId) {
     return (
       <div style={cardStyle}>
-        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 8 }}>No form selected</div>
+        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>No form selected</div>
         <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: 0 }}>
           The October Forms connector is configured, but no form has been picked yet. Open the connector in the <strong>Connectors</strong> tab and choose which form belongs to this client.
         </p>
@@ -148,15 +148,15 @@ export default function FormsTab({ clientId, connectors }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
       {/* Header */}
       <div style={cardStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--s3)' }}>
           <div>
             <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</div>
             <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)' }}>{formLabel || `Form ${formId}`}</div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
             <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>From</label>
             <input type="date" value={range.from} onChange={e => setRange(r => ({ ...r, from: e.target.value }))}
               style={dateInputStyle} />
@@ -173,15 +173,15 @@ export default function FormsTab({ clientId, connectors }) {
         </div>
       )}
 
-      {loading && !stats && <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center' }}>Loading…</div>}
+      {loading && !stats && <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', textAlign: 'center' }}>Loading…</div>}
 
       {/* KPI row */}
       {stats && (
         <div style={cardStyle}>
-          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s4)' }}>
             Performance — {range.from} to {range.to}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--s3)' }}>
             <Kpi label="Views" value={num(stats.views)} />
             <Kpi label="Starts" value={num(stats.starts)} />
             <Kpi label="Partials" value={num(stats.partials)} />
@@ -197,7 +197,7 @@ export default function FormsTab({ clientId, connectors }) {
       {/* Funnel */}
       {funnel?.steps?.length > 0 && (
         <div style={cardStyle}>
-          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Funnel — step drop-off</div>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s4)' }}>Funnel — step drop-off</div>
           <FunnelBars steps={funnel.steps} />
         </div>
       )}
@@ -205,18 +205,18 @@ export default function FormsTab({ clientId, connectors }) {
       {/* Timeseries */}
       {timeseries?.days?.length > 0 && (
         <div style={cardStyle}>
-          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Daily volume</div>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s4)' }}>Daily volume</div>
           <Sparkline days={timeseries.days} />
         </div>
       )}
 
       {/* Submissions */}
       <div style={cardStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)' }}>
           <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Submissions {submissionsTotal ? `(${submissionsTotal.toLocaleString()})` : ''}
           </div>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...dateInputStyle, padding: '6px 10px' }}>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...dateInputStyle, padding: 'var(--s2) var(--s3)' }}>
             <option value="">All statuses</option>
             <option value="complete">Complete</option>
             <option value="partial">Partial</option>
@@ -256,11 +256,11 @@ export default function FormsTab({ clientId, connectors }) {
               </tbody>
             </table>
             {submissionsTotal > PAGE_SIZE && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--s3)' }}>
                 <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                   Page {page + 1} of {Math.ceil(submissionsTotal / PAGE_SIZE)}
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                   <button disabled={page === 0} onClick={() => { const p = page - 1; setPage(p); loadSubmissions(credentials, p); }} style={btnSmStyle}>← Prev</button>
                   <button disabled={(page + 1) * PAGE_SIZE >= submissionsTotal} onClick={() => { const p = page + 1; setPage(p); loadSubmissions(credentials, p); }} style={btnSmStyle}>Next →</button>
                 </div>
@@ -283,8 +283,8 @@ export default function FormsTab({ clientId, connectors }) {
 
 function Kpi({ label, value, accent = false }) {
   return (
-    <div style={{ padding: '12px 14px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: accent ? 'var(--warning-soft)' : 'var(--surface-raised)' }}>
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontWeight: 600 }}>{label}</div>
+    <div style={{ padding: 'var(--s3) var(--s4)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: accent ? 'var(--warning-soft)' : 'var(--surface-raised)' }}>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)', fontWeight: 600 }}>{label}</div>
       <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700 }}>{value}</div>
     </div>
   );
@@ -294,17 +294,17 @@ function FunnelBars({ steps }) {
   const max = Math.max(...steps.map(s => s.reached || 0), 1);
   const start = steps[0]?.reached || 1;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
       {steps.map((s, i) => {
         const w = ((s.reached || 0) / max) * 100;
         const dropPct = i > 0 ? ((steps[i - 1].reached - s.reached) / (steps[i - 1].reached || 1)) * 100 : 0;
         return (
           <div key={s.step_id || i}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', marginBottom: 3 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s1)' }}>
               <span><strong>{i + 1}.</strong> {s.title || s.step_id}</span>
               <span style={{ color: 'var(--text-muted)' }}>
                 {(s.reached || 0).toLocaleString()} ({((s.reached / start) * 100).toFixed(1)}%)
-                {i > 0 && dropPct > 0 && <span style={{ color: 'var(--negative)', marginLeft: 8 }}>−{dropPct.toFixed(1)}%</span>}
+                {i > 0 && dropPct > 0 && <span style={{ color: 'var(--negative)', marginLeft: 'var(--s2)' }}>−{dropPct.toFixed(1)}%</span>}
               </span>
             </div>
             <div style={{ height: 14, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
@@ -334,10 +334,10 @@ function Sparkline({ days }) {
         {series('starts', 'var(--accent)')}
         {series('completes', 'var(--positive)')}
       </svg>
-      <div style={{ display: 'flex', gap: 16, fontSize: 'var(--fs-caption)', marginTop: 6, color: 'var(--text-muted)' }}>
-        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--text-subtle)', marginRight: 5, verticalAlign: 'middle' }} />Views</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--accent)', marginRight: 5, verticalAlign: 'middle' }} />Starts</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--positive)', marginRight: 5, verticalAlign: 'middle' }} />Completes</span>
+      <div style={{ display: 'flex', gap: 'var(--s4)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)', color: 'var(--text-muted)' }}>
+        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--text-subtle)', marginRight: 'var(--s1)', verticalAlign: 'middle' }} />Views</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--accent)', marginRight: 'var(--s1)', verticalAlign: 'middle' }} />Starts</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--positive)', marginRight: 'var(--s1)', verticalAlign: 'middle' }} />Completes</span>
         <span style={{ marginLeft: 'auto' }}>{days[0]?.date} → {days[days.length - 1]?.date}</span>
       </div>
     </div>
@@ -356,15 +356,15 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
   return (
     <div style={modalOverlay} onClick={onClose}>
       <div style={{ ...modalStyle, maxWidth: 720 }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
           <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)' }}>Submission <code style={{ fontSize: 'var(--fs-body)' }}>{submissionId}</code></div>
           <button onClick={onClose} style={btnSmStyle}>Close</button>
         </div>
         {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>{err}</div>}
         {!data && !err && <div style={{ color: 'var(--text-subtle)' }}>Loading…</div>}
         {data && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 'var(--fs-body)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s2)', fontSize: 'var(--fs-body)' }}>
               <div><strong>Status:</strong> {data.status}</div>
               <div><strong>Step reached:</strong> {data.step_reached ?? '—'}</div>
               <div><strong>Created:</strong> {data.created_at ? new Date(data.created_at).toLocaleString('en-GB') : '—'}</div>
@@ -373,13 +373,13 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
             </div>
             {data.answers_table?.length > 0 && (
               <div>
-                <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 6 }}>Answers</div>
+                <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>Answers</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-caption)' }}>
                   <tbody>
                     {data.answers_table.map((a, i) => (
                       <tr key={i} style={{ borderTop: i ? '1px solid #f0f0f0' : 'none' }}>
-                        <td style={{ padding: '6px 8px 6px 0', width: '40%', color: 'var(--text-muted)' }}>{a.label}</td>
-                        <td style={{ padding: '6px 0' }}>{Array.isArray(a.value) ? a.value.join(', ') : String(a.value ?? '—')}</td>
+                        <td style={{ padding: 'var(--s2) var(--s2) var(--s2) 0', width: '40%', color: 'var(--text-muted)' }}>{a.label}</td>
+                        <td style={{ padding: 'var(--s2) 0' }}>{Array.isArray(a.value) ? a.value.join(', ') : String(a.value ?? '—')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -388,14 +388,14 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
             )}
             {data.files?.length > 0 && (
               <div>
-                <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 6 }}>Files</div>
-                <ul style={{ paddingLeft: 18, margin: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>Files</div>
+                <ul style={{ paddingLeft: 'var(--s5)', margin: 0 }}>
                   {data.files.map((f, i) => (
-                    <li key={i} style={{ marginBottom: 4 }}>
+                    <li key={i} style={{ marginBottom: 'var(--s1)' }}>
                       <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)' }}>
                         {f.filename || f.name || f.url}
                       </a>
-                      {f.size && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginLeft: 6 }}>({Math.round(f.size / 1024)} KB)</span>}
+                      {f.size && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginLeft: 'var(--s2)' }}>({Math.round(f.size / 1024)} KB)</span>}
                     </li>
                   ))}
                 </ul>
@@ -408,11 +408,11 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
   );
 }
 
-const cardStyle = { background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 20 };
-const dateInputStyle = { padding: '5px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' };
-const thStyle = { textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 };
-const tdStyle = { padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' };
-const statusPill = { fontSize: 'var(--fs-caption)', fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-md)', textTransform: 'capitalize' };
-const btnSmStyle = { background: 'var(--surface)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '6px 14px', fontSize: 'var(--fs-caption)', cursor: 'pointer', fontWeight: 600 };
+const cardStyle = { background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s5)' };
+const dateInputStyle = { padding: 'var(--s1) var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' };
+const thStyle = { textAlign: 'left', padding: 'var(--s1) var(--s3) var(--s2) 0', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 };
+const tdStyle = { padding: 'var(--s2) var(--s3) var(--s2) 0', borderTop: '1px solid #f5f5f5' };
+const statusPill = { fontSize: 'var(--fs-caption)', fontWeight: 600, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-md)', textTransform: 'capitalize' };
+const btnSmStyle = { background: 'var(--surface)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', cursor: 'pointer', fontWeight: 600 };
 const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const modalStyle = { background: 'white', borderRadius: 'var(--r-sm)', padding: 24, width: '100%', maxWidth: 720, maxHeight: '90vh', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' };
+const modalStyle = { background: 'white', borderRadius: 'var(--r-sm)', padding: 'var(--s6)', width: '100%', maxWidth: 720, maxHeight: '90vh', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' };

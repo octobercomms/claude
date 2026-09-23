@@ -46,7 +46,7 @@ export default function ManageUsersPage({ embedded = false } = {}) {
   }
 
   if (user?.role !== 'admin') {
-    return <div className="text-subtle" style={{ padding: 32 }}>Admin only.</div>;
+    return <div className="text-subtle" style={{ padding: 'var(--s7)' }}>Admin only.</div>;
   }
 
   return (
@@ -54,7 +54,7 @@ export default function ManageUsersPage({ embedded = false } = {}) {
       <div className="row between center mb-2">
         {!embedded && <h1 className="h2">Manage users</h1>}
         {embedded && <div className="h3">Users &amp; access</div>}
-        <div className="row" style={{ gap: 8 }}>
+        <div className="row" style={{ gap: 'var(--s2)' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowInvite(true)}>✉ Invite client</button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>+ Add user</button>
         </div>
@@ -66,7 +66,7 @@ export default function ManageUsersPage({ embedded = false } = {}) {
 
       {error && <div className="callout callout-danger">{error}</div>}
       {loading ? (
-        <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>
+        <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>
       ) : (
         <div className="card" style={{ padding: 0 }}>
           <table className="table">
@@ -87,7 +87,7 @@ export default function ManageUsersPage({ embedded = false } = {}) {
                   <tr key={u.id}>
                     <td>
                       <strong>{u.username}</strong>
-                      {isSelf && <span className="caption" style={{ marginLeft: 6 }}>you</span>}
+                      {isSelf && <span className="caption" style={{ marginLeft: 'var(--s2)' }}>you</span>}
                     </td>
                     <td>
                       <span className={`chip chip-${u.role === 'admin' ? 'accent' : 'neutral'}`}>{u.role}</span>
@@ -99,7 +99,7 @@ export default function ManageUsersPage({ embedded = false } = {}) {
                     </td>
                     <td>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
                     <td className="num" style={{ whiteSpace: 'nowrap' }}>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(u)} style={{ marginRight: 6 }}>Edit</button>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(u)} style={{ marginRight: 'var(--s2)' }}>Edit</button>
                       {!isSelf && (
                         <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDelete(u)}>Delete</button>
                       )}
@@ -224,7 +224,7 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
             <option value="admin">Admin (sees everything, manages users)</option>
           </select>
           {role === 'client' && (
-            <p className="body-xs text-subtle" style={{ marginTop: 6 }}>
+            <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
               A client login can browse everything on their assigned account but cannot change anything or trigger any AI generation — every write is blocked server-side.
             </p>
           )}
@@ -233,9 +233,9 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
         {(role === 'viewer' || role === 'client') && (
           <div className="field">
             <label className="field-label">Assigned client{role === 'client' ? '' : 's'}</label>
-            <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 4, background: 'var(--surface-raised)' }}>
+            <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 'var(--s1)', background: 'var(--surface-raised)' }}>
               {clients.map(c => (
-                <label key={c.id} className="row center" style={{ gap: 8, padding: '6px 8px', fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
+                <label key={c.id} className="row center" style={{ gap: 'var(--s2)', padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
                   <input
                     type="checkbox"
                     checked={clientIds.has(c.id)}
@@ -244,17 +244,17 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
                   <span>{c.name}</span>
                 </label>
               ))}
-              {!clients.length && <div className="text-subtle" style={{ padding: 8 }}>No clients in the system yet.</div>}
+              {!clients.length && <div className="text-subtle" style={{ padding: 'var(--s2)' }}>No clients in the system yet.</div>}
             </div>
           </div>
         )}
 
         <div className="field">
-          <label className="row center" style={{ gap: 8, cursor: 'pointer' }}>
+          <label className="row center" style={{ gap: 'var(--s2)', cursor: 'pointer' }}>
             <input type="checkbox" checked={canVisualise} onChange={e => setCanVisualise(e.target.checked)} />
             <span className="field-label" style={{ margin: 0 }}>Enable Visualise (image studio)</span>
           </label>
-          <p className="body-xs text-subtle" style={{ marginTop: 6 }}>
+          <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
             Grants access to the Visualise studio. For a read-only <strong>client</strong> login this is the one place they can create and generate — scoped to Visualise only; every other write stays blocked.
           </p>
         </div>
@@ -309,38 +309,38 @@ function InviteClientModal({ clients, onClose, onDone }) {
 
         {result ? (
           <div>
-            <div className="callout" style={{ marginBottom: 12 }}>
+            <div className="callout" style={{ marginBottom: 'var(--s3)' }}>
               {result.emailed
                 ? <>Invite emailed to <strong>{result.user.email}</strong>. They'll set a password and land on their read-only dashboard.</>
                 : <>User created, but the email didn't send{result.emailError ? ` (${result.emailError})` : ''}. Copy the link below and send it to them.</>}
             </div>
             <label className="field-label">Set-password link</label>
             <input className="input" readOnly value={result.link} onFocus={e => e.target.select()} style={{ fontSize: 'var(--fs-caption)' }} />
-            <div className="row" style={{ gap: 8, marginTop: 14 }}>
+            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s4)' }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigator.clipboard?.writeText(result.link)}>Copy link</button>
               <button type="button" className="btn btn-primary btn-sm" onClick={onClose}>Done</button>
             </div>
           </div>
         ) : (
           <>
-            {error && <div className="callout callout-warning" style={{ marginBottom: 12, fontSize: 'var(--fs-body)' }}>{error}</div>}
+            {error && <div className="callout callout-warning" style={{ marginBottom: 'var(--s3)', fontSize: 'var(--fs-body)' }}>{error}</div>}
             <div className="field">
               <label className="field-label">Client's email</label>
               <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com" autoFocus />
-              <p className="body-xs text-subtle" style={{ marginTop: 6 }}>They log in with this email. Read-only — they can view everything but change nothing and spend nothing.</p>
+              <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>They log in with this email. Read-only — they can view everything but change nothing and spend nothing.</p>
             </div>
             <div className="field">
               <label className="field-label">Give them access to</label>
-              <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 4, background: 'var(--surface-raised)' }}>
+              <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 'var(--s1)', background: 'var(--surface-raised)' }}>
                 {clients.map(c => (
-                  <label key={c.id} className="row center" style={{ gap: 8, padding: '6px 8px', fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
+                  <label key={c.id} className="row center" style={{ gap: 'var(--s2)', padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
                     <input type="checkbox" checked={clientIds.has(c.id)} onChange={() => toggle(c.id)} />
                     <span>{c.name}</span>
                   </label>
                 ))}
               </div>
             </div>
-            <div className="row" style={{ gap: 8, marginTop: 14 }}>
+            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s4)' }}>
               <button type="button" className="btn btn-primary" {...roWrite(readOnly, { onClick: send, disabled: saving })}>{saving ? 'Sending…' : '✉ Send invite'}</button>
               <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             </div>

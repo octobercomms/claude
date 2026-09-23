@@ -70,7 +70,7 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
     <div className="stack stack-lg">
       <div>
         <div className="h2 mt-2">Subreddit research</div>
-        <p className="body-sm text-muted" style={{ maxWidth: 680, marginTop: 4 }}>
+        <p className="body-sm text-muted" style={{ maxWidth: 680, marginTop: 'var(--s1)' }}>
           Point it at the subreddit where this client's buyers actually gather. It reads the top posts, finds the biggest
           repeated pain point with real evidence, and turns it into blog topics, reel hooks, and a reel script with a
           comment-keyword CTA — which drops straight into the DM bot's comment-to-DM.
@@ -78,8 +78,8 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
       </div>
 
       {/* Run form */}
-      <div className="card stack" style={{ gap: 12 }}>
-        <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div className="card stack" style={{ gap: 'var(--s3)' }}>
+        <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: '1 1 200px' }}>
             <label className="field-label">Subreddit</label>
             <input className="input" value={subreddit} onChange={e => setSubreddit(e.target.value)} placeholder="Architects" onKeyDown={e => { if (e.key === 'Enter') run(); }} />
@@ -99,7 +99,7 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
           </div>
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: running })}>{running ? 'Researching…' : 'Research'}</button>
         </div>
-        <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: suggest, disabled: suggesting })}>{suggesting ? 'Thinking…' : '✨ Suggest subreddits'}</button>
           {suggested.map(s => (
             <button key={s.name} className="chip chip-neutral" title={s.why || ''} style={{ cursor: 'pointer' }} onClick={() => setSubreddit(s.name)}>r/{s.name}</button>
@@ -114,7 +114,7 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
           <div className="card accent">
             <div className="caption">Biggest pain point · r/{res.subreddit}</div>
             <div className="h3 mt-2">{res.top_pain || '—'}</div>
-            {res.analysis_note && <div className="body-xs text-subtle" style={{ marginTop: 6 }}>{res.analysis_note}</div>}
+            {res.analysis_note && <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>{res.analysis_note}</div>}
           </div>
 
           {res.pain_points?.length > 0 && (
@@ -122,12 +122,12 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
               <div className="caption mb-2">Pain points — with evidence from the threads</div>
               <div className="stack stack-sm">
                 {res.pain_points.map((p, i) => (
-                  <div key={i} className="card" style={{ padding: '10px 14px' }}>
+                  <div key={i} className="card" style={{ padding: 'var(--s3) var(--s4)' }}>
                     <div className="row between center"><span className="body-sm" style={{ fontWeight: 700 }}>{p.pain}</span>
                       <span className="chip chip-neutral">{p.severity}</span></div>
                     {p.evidence?.length > 0 && (
-                      <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-                        {p.evidence.map((e, j) => <li key={j} className="body-xs text-muted" style={{ marginBottom: 2 }}>{e}</li>)}
+                      <ul style={{ margin: 'var(--s2) 0 0', paddingLeft: 'var(--s5)' }}>
+                        {p.evidence.map((e, j) => <li key={j} className="body-xs text-muted" style={{ marginBottom: 'var(--s1)' }}>{e}</li>)}
                       </ul>
                     )}
                   </div>
@@ -136,18 +136,18 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
             </div>
           )}
 
-          <div className="grid grid-2" style={{ gap: 16 }}>
+          <div className="grid grid-2" style={{ gap: 'var(--s4)' }}>
             {res.blog_topics?.length > 0 && (
               <div>
                 <div className="caption mb-2">Blog topics</div>
                 <div className="stack stack-sm">
                   {res.blog_topics.map((b, i) => (
-                    <div key={i} className="card" style={{ padding: '8px 12px' }}>
-                      <div className="row between center" style={{ gap: 8 }}>
+                    <div key={i} className="card" style={{ padding: 'var(--s2) var(--s3)' }}>
+                      <div className="row between center" style={{ gap: 'var(--s2)' }}>
                         <span className="body-sm" style={{ fontWeight: 600 }}>{b.title}</span>
                         {onUseAsBrief && <button className="btn btn-secondary btn-sm" onClick={() => onUseAsBrief(`Blog post: ${b.title}${b.angle ? `\nAngle: ${b.angle}` : ''}`)}>Use as brief</button>}
                       </div>
-                      {b.angle && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{b.angle}</div>}
+                      {b.angle && <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>{b.angle}</div>}
                     </div>
                   ))}
                 </div>
@@ -158,8 +158,8 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
                 <div className="caption mb-2">Reel hooks</div>
                 <div className="stack stack-sm">
                   {res.reel_hooks.map((h, i) => (
-                    <div key={i} className="card" style={{ padding: '8px 12px' }}>
-                      <div className="row between center" style={{ gap: 8 }}>
+                    <div key={i} className="card" style={{ padding: 'var(--s2) var(--s3)' }}>
+                      <div className="row between center" style={{ gap: 'var(--s2)' }}>
                         <span className="body-sm" style={{ fontWeight: 600 }}>{h.hook}</span>
                         {onUseAsBrief && <button className="btn btn-secondary btn-sm" onClick={() => onUseAsBrief(`Reel hook: ${h.hook}${h.angle ? `\nAngle: ${h.angle}` : ''}`)}>Use as brief</button>}
                       </div>
@@ -173,16 +173,16 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
           {res.reel_script && (
             <div className="card">
               <div className="row between center"><div className="caption">Reel script</div><CopyBtn text={`${res.reel_script.hook}\n\n${res.reel_script.body}\n\n${res.reel_script.cta}\n\n${res.reel_script.caption}`} label="Copy script" /></div>
-              <div className="stack stack-sm" style={{ marginTop: 8 }}>
+              <div className="stack stack-sm" style={{ marginTop: 'var(--s2)' }}>
                 <div><span className="field-label">Hook</span><div className="body-sm">{res.reel_script.hook}</div></div>
                 <div><span className="field-label">Body</span><div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{res.reel_script.body}</div></div>
                 <div><span className="field-label">CTA</span><div className="body-sm">{res.reel_script.cta}</div></div>
                 {res.reel_script.caption && <div><span className="field-label">Caption</span><div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{res.reel_script.caption}</div></div>}
               </div>
               {res.reel_script.keyword && (
-                <div className="callout" style={{ marginTop: 10, background: 'var(--accent-soft)', padding: 12, borderRadius: 'var(--r-sm)' }}>
+                <div className="callout" style={{ marginTop: 'var(--s3)', background: 'var(--accent-soft)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)' }}>
                   <div className="body-sm">Comment keyword: <strong style={{ fontSize: 'var(--fs-title)', letterSpacing: 1 }}>{res.reel_script.keyword}</strong></div>
-                  <div className="body-xs text-subtle" style={{ marginTop: 4 }}>Set this as a comment trigger keyword under <strong>Engage → DM bot → Live auto-send</strong>, and anyone who comments it gets the lead magnet auto-DM'd.</div>
+                  <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>Set this as a comment trigger keyword under <strong>Engage → DM bot → Live auto-send</strong>, and anyone who comments it gets the lead magnet auto-DM'd.</div>
                 </div>
               )}
             </div>
@@ -193,8 +193,8 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
               <div className="caption">Lead magnet — {res.lead_magnet.format}</div>
               <div className="h3 mt-2">{res.lead_magnet.title}</div>
               {res.lead_magnet.outline?.length > 0 && (
-                <ol style={{ margin: '8px 0 0', paddingLeft: 20 }}>
-                  {res.lead_magnet.outline.map((o, i) => <li key={i} className="body-sm" style={{ marginBottom: 3 }}>{o}</li>)}
+                <ol style={{ margin: 'var(--s2) 0 0', paddingLeft: 'var(--s5)' }}>
+                  {res.lead_magnet.outline.map((o, i) => <li key={i} className="body-sm" style={{ marginBottom: 'var(--s1)' }}>{o}</li>)}
                 </ol>
               )}
             </div>
@@ -208,12 +208,12 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
           <div className="caption mb-2">Past research</div>
           <div className="stack stack-sm">
             {runs.map(r => (
-              <div key={r.id} className="card" style={{ padding: '8px 12px' }}>
-                <div className="row between center" style={{ gap: 8 }}>
+              <div key={r.id} className="card" style={{ padding: 'var(--s2) var(--s3)' }}>
+                <div className="row between center" style={{ gap: 'var(--s2)' }}>
                   <button className="body-sm" style={{ fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }} onClick={() => open(r.id)}>
                     r/{r.subreddit}{r.focus ? ` · ${r.focus}` : ''}
                   </button>
-                  <div className="row center" style={{ gap: 8 }}>
+                  <div className="row center" style={{ gap: 'var(--s2)' }}>
                     <span className="body-xs text-subtle">{new Date(r.created_at).toLocaleDateString('en-GB')}</span>
                     <button className="btn btn-secondary btn-sm" onClick={() => remove(r.id)}>Delete</button>
                   </div>

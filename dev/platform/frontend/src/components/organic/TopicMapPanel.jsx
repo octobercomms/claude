@@ -87,14 +87,14 @@ export default function TopicMapPanel({ clientId }) {
     <PipelineStep num={1} title="Topic map" nextLabel={null}
       tagline="Grow a whole content plan from one seed. Claude expands it into a keyword universe (grounded in this client's brief and tracked keywords), then clusters it into pieces — one question answered by a series of keywords each. Every cluster is a planned piece you can brief and track.">
 
-      <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card" style={{ marginBottom: 'var(--s5)' }}>
         <div className="caption mb-2">Grow a topic map from a seed</div>
-        <div className="row wrap" style={{ gap: 8 }}>
+        <div className="row wrap" style={{ gap: 'var(--s2)' }}>
           <input value={seed} onChange={e => setSeed(e.target.value)} placeholder="Seed theme — e.g. 'enamel camping mugs'"
             onKeyDown={e => { if (e.key === 'Enter') build(); }}
-            style={{ flex: 2, minWidth: 220, padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box' }} />
+            style={{ flex: 2, minWidth: 220, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box' }} />
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Map name (optional)"
-            style={{ flex: 1, minWidth: 160, padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box' }} />
+            style={{ flex: 1, minWidth: 160, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box' }} />
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: build, disabled: building || !seed.trim() })}>
             {building ? 'Building… (~30s)' : '🌱 Build topic map'}
           </button>
@@ -104,7 +104,7 @@ export default function TopicMapPanel({ clientId }) {
       {err && <div className="callout callout-danger mb-3">{err}</div>}
 
       {maps.length > 0 && (
-        <div className="row wrap mb-4" style={{ gap: 6 }}>
+        <div className="row wrap mb-4" style={{ gap: 'var(--s2)' }}>
           {maps.map(m => (
             <button key={m.id} type="button" onClick={() => openMap(m.id)}
               className={`btn btn-sm ${map?.id === m.id ? 'btn-primary' : 'btn-secondary'}`} title={m.seed || ''}>
@@ -116,7 +116,7 @@ export default function TopicMapPanel({ clientId }) {
 
       {map && (
         <div>
-          <div className="row between center mb-3" style={{ gap: 12 }}>
+          <div className="row between center mb-3" style={{ gap: 'var(--s3)' }}>
             <div>
               <div className="h3">{map.name}</div>
               <div className="body-xs text-subtle mt-1">
@@ -133,9 +133,9 @@ export default function TopicMapPanel({ clientId }) {
               const sm = statusMeta(c.status);
               return (
                 <div key={c.id} className="card">
-                  <div className="row between center wrap" style={{ marginBottom: 'var(--s3)', gap: 8 }}>
+                  <div className="row between center wrap" style={{ marginBottom: 'var(--s3)', gap: 'var(--s2)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                      <div className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
                         <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: sm.color }}>● {sm.label}</span>
                         <span className="caption" style={{ color: 'var(--text-subtle)' }}>{c.intent}</span>
                       </div>
@@ -143,9 +143,9 @@ export default function TopicMapPanel({ clientId }) {
                       {c.core_question && <div className="body-sm mt-1" style={{ fontWeight: 600 }}>❓ {c.core_question}</div>}
                       <div className="body-xs text-muted mt-1">Primary: <strong style={{ color: 'var(--text)' }}>{c.primary_keyword}</strong></div>
                     </div>
-                    <div className="row" style={{ gap: 8 }}>
+                    <div className="row" style={{ gap: 'var(--s2)' }}>
                       <select value={c.status} onChange={e => setStatus(c, e.target.value)} disabled={readOnly}
-                        style={{ fontSize: 'var(--fs-caption)', padding: '4px 8px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)' }}>
+                        style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)' }}>
                         {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                       </select>
                       <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => generateBrief(c), disabled: !!busy[c.id] })}>
@@ -153,9 +153,9 @@ export default function TopicMapPanel({ clientId }) {
                       </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                     {(Array.isArray(c.secondary) ? c.secondary : []).map((k, j) => (
-                      <span key={j} style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{k}</span>
+                      <span key={j} style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{k}</span>
                     ))}
                   </div>
                   {brief && <BriefView brief={brief} />}
@@ -167,7 +167,7 @@ export default function TopicMapPanel({ clientId }) {
       )}
 
       {!map && !maps.length && !building && (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           No topic maps yet. Enter a seed theme above and Claude will grow you a full content plan.
         </div>
       )}

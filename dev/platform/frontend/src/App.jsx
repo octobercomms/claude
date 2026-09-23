@@ -35,7 +35,7 @@ import DesignSystemPage from './pages/DesignSystemPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: '80px', color: 'var(--text-muted)' }}>Loading…</div>;
+  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--s10)', color: 'var(--text-muted)' }}>Loading…</div>;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 

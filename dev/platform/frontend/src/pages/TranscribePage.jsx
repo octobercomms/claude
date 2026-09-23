@@ -110,7 +110,7 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
       <div>
         <div className="card" style={{ marginBottom: 'var(--s4)' }}>
           <h3 className="h3 mb-2">Transcribe audio</h3>
-          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 10px' }}>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 var(--s3)' }}>
             Upload a recording (m4a, mp3, wav…). We transcribe it and separate each speaker — then you name the voices.
           </p>
           <input ref={fileRef} type="file" accept="audio/*,.m4a,.mp3,.wav,.ogg,.flac,.webm" style={{ display: 'none' }} onChange={onPick} />
@@ -119,11 +119,11 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
           </button>
         </div>
 
-        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 6px' }}>Recent</div>
+        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 var(--s2)' }}>Recent</div>
         {!list.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No transcripts yet.</div>}
         {list.map((t) => (
           <div key={t.id} onClick={() => open(t.id)}
-            style={{ padding: '9px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', marginBottom: 6, cursor: 'pointer',
+            style={{ padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', marginBottom: 'var(--s2)', cursor: 'pointer',
               background: current?.id === t.id ? 'var(--surface-raised)' : 'var(--surface)' }}>
             <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
@@ -151,7 +151,7 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
         {current && current.status === 'error' && (
           <div className="card">
             <h3 className="h3 mb-2">{current.title}</h3>
-            <div style={{ padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', marginBottom: 10 }}>
+            <div style={{ padding: 'var(--s3)', background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>
               Transcription failed: {current.error || 'unknown error'}
             </div>
             <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: retry })}>↻ Try again</button>
@@ -160,7 +160,7 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
 
         {current && current.status === 'ready' && (
           <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s3)', flexWrap: 'wrap' }}>
               <h3 className="h3" style={{ margin: 0 }}>{current.title}</h3>
               <button type="button" title="Delete" onClick={() => remove(current.id)}
                 style={{ border: 'none', background: 'none', color: 'var(--danger,#c0392b)', cursor: 'pointer', fontSize: 'var(--fs-body)' }}>Delete</button>
@@ -168,39 +168,39 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
 
             {/* Name the voices step */}
             {(editingNames || !current.named) ? (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 4 }}>Name the voices</div>
-                <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 10px' }}>
+              <div style={{ marginTop: 'var(--s3)' }}>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 'var(--s1)' }}>Name the voices</div>
+                <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 var(--s3)' }}>
                   We detected {speakers.length} distinct voice{speakers.length === 1 ? '' : 's'}. Name each one — a sample of what they said is shown to help.
                 </p>
                 {speakers.map((sp, i) => (
-                  <div key={sp} style={{ marginBottom: 10 }}>
-                    <label className="field" style={{ marginBottom: 2 }}>
+                  <div key={sp} style={{ marginBottom: 'var(--s3)' }}>
+                    <label className="field" style={{ marginBottom: 'var(--s1)' }}>
                       <span className="field-label">Speaker {i + 1}</span>
                       <input className="input" value={names[sp] || ''} placeholder={`e.g. ${i === 0 ? 'Daniel' : 'Jane'}`}
                         onChange={(e) => setNames((n) => ({ ...n, [sp]: e.target.value }))} />
                     </label>
-                    {current.speaker_samples?.[sp] && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic', paddingLeft: 2 }}>“{current.speaker_samples[sp]}…”</div>}
+                    {current.speaker_samples?.[sp] && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic', paddingLeft: 'var(--s1)' }}>“{current.speaker_samples[sp]}…”</div>}
                   </div>
                 ))}
-                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
                   <button className="btn btn-primary" {...roWrite(readOnly, { onClick: saveNames })}>Save names &amp; view transcript</button>
                   {current.named && <button className="btn btn-secondary" onClick={() => setEditingNames(false)}>Cancel</button>}
                 </div>
               </div>
             ) : (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              <div style={{ marginTop: 'var(--s3)' }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
                   <button className="btn btn-secondary btn-sm" onClick={copyText}>📋 Copy</button>
                   <button className="btn btn-secondary btn-sm" onClick={downloadText}>⬇ Download .txt</button>
                   <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => { setNames(current.speaker_names || {}); setEditingNames(true); } })}>✎ Edit names</button>
                 </div>
-                <div style={{ maxHeight: 520, overflow: 'auto', paddingRight: 6 }}>
+                <div style={{ maxHeight: 520, overflow: 'auto', paddingRight: 'var(--s2)' }}>
                   {(current.segments || []).map((s, i) => (
-                    <div key={i} style={{ marginBottom: 12 }}>
+                    <div key={i} style={{ marginBottom: 'var(--s3)' }}>
                       <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text)' }}>
                         {labelFor(s.speaker, current.speaker_names, speakers)}
-                        {s.start != null && <span style={{ color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 6 }}>{fmtTime(s.start)}</span>}
+                        {s.start != null && <span style={{ color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 'var(--s2)' }}>{fmtTime(s.start)}</span>}
                       </div>
                       <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5 }}>{s.text}</div>
                     </div>

@@ -14,10 +14,10 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
+      <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 'var(--s2)', pointerEvents: 'none' }}>
         {toasts.map(t => (
           <div key={t.id} style={{
-            padding: '11px 18px',
+            padding: 'var(--s3) var(--s5)',
             borderRadius: 'var(--r-sm)',
             fontSize: 'var(--fs-body)',
             fontWeight: 500,

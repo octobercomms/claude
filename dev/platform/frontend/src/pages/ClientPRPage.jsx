@@ -34,7 +34,7 @@ function StatusPill({ status, label }) {
     ? { background: s.bg, color: s.fg, border: `1px solid ${s.border}`, fontWeight: 700 }
     : { background: '#f1f1f1', color: '#595959', border: '1px solid #d4d4d4', fontWeight: 600 };
   return (
-    <span className="chip" style={{ ...style, padding: '2px 10px', fontSize: 'var(--fs-caption)', letterSpacing: 0.2, whiteSpace: 'nowrap' }}>
+    <span className="chip" style={{ ...style, padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', letterSpacing: 0.2, whiteSpace: 'nowrap' }}>
       {label || status}
     </span>
   );
@@ -608,16 +608,16 @@ export default function ClientPRPage() {
   const renderShare = () => (
         <div className="card">
           <h3 className="h3 mb-2">Automated reports &amp; alerts</h3>
-          <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 10 }}>Email the client a coverage digest on a schedule, and a "you've been featured" alert when a piece is marked published.</p>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>Email the client a coverage digest on a schedule, and a "you've been featured" alert when a piece is marked published.</p>
+          <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label className="field" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}><span className="field-label">Report / alert email</span><input className="input" value={reports.alert_email || ''} onChange={(e) => setReports((r) => ({ ...r, alert_email: e.target.value }))} placeholder="client@example.com" /></label>
             <label className="field" style={{ marginBottom: 0 }}><span className="field-label">Cadence</span><select className="input" value={reports.report_cadence || 'off'} onChange={(e) => setReports((r) => ({ ...r, report_cadence: e.target.value }))}><option value="off">Off</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
             <button className="btn btn-primary" disabled={savingReports} onClick={saveReports}>{savingReports ? 'Saving…' : 'Save'}</button>
             <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: sendReportNow })}>Send report now</button>
           </div>
-          <div style={{ marginTop: 16, borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 16 }}>
+          <div style={{ marginTop: 'var(--s4)', borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 'var(--s4)' }}>
             <button className="btn-link" onClick={copyPortalLink}>🔗 Copy client coverage link</button>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 8, marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)', marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
           </div>
         </div>
   );
@@ -626,23 +626,23 @@ export default function ClientPRPage() {
         <div className="card">
           {pr ? (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                 <h3 className="h3" style={{ margin: 0 }}>{pr.title || 'New press release'}</h3>
                 <button className="btn btn-secondary btn-sm" onClick={() => { setPr(null); loadReleases(); }}>← All releases</button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
                 <label className="field"><span className="field-label">Headline / working title</span><input className="input" value={pr.title || ''} onChange={(e) => setPr((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Forgeworks unveils House of Wood Shingle" /></label>
                 <label className="field"><span className="field-label">Brand</span><input className="input" value={pr.brand || ''} onChange={(e) => setPr((p) => ({ ...p, brand: e.target.value }))} /></label>
                 <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Angle / why it's newsworthy</span><textarea className="input" rows={2} value={pr.angle || ''} onChange={(e) => setPr((p) => ({ ...p, angle: e.target.value }))} placeholder="The hook a journalist would care about." /></label>
                 <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Key facts</span><textarea className="input" rows={4} value={pr.key_facts || ''} onChange={(e) => setPr((p) => ({ ...p, key_facts: e.target.value }))} placeholder="Who, what, where, when, numbers, quotes…" /></label>
               </div>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', margin: '12px 0' }}>
+              <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end', margin: 'var(--s3) 0' }}>
                 <button className="btn btn-primary" {...roWrite(readOnly, { onClick: draftPR, disabled: prDrafting })}>{prDrafting ? 'Writing…' : '✍️ Draft with Claude'}</button>
                 <label className="field"><span className="field-label">Status</span><select className="input" value={pr.status || 'draft'} onChange={(e) => setPr((p) => ({ ...p, status: e.target.value }))}><option value="draft">Draft</option><option value="in_review">In review</option><option value="approved">Approved</option><option value="sent">Sent</option></select></label>
                 <label className="field"><span className="field-label">Embargo until (optional)</span><input className="input" type="datetime-local" value={pr.embargo_at ? new Date(pr.embargo_at).toISOString().slice(0, 16) : ''} onChange={(e) => setPr((p) => ({ ...p, embargo_at: e.target.value }))} /></label>
                 <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Published URL (once live)</span><input className="input" value={pr.url || ''} onChange={(e) => setPr((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginBottom: 'var(--s3)', alignItems: 'center' }}>
                 <button className="btn btn-secondary" onClick={copyReviewLink}>🔗 Client approval link</button>
                 {pr.approved_at && <span className="chip chip-accent">✓ Approved by {pr.approved_by || 'client'}</span>}
                 {['approved', 'sent'].includes(pr.status) && (
@@ -650,14 +650,14 @@ export default function ClientPRPage() {
                 )}
               </div>
               <label className="field"><span className="field-label">Release body <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>— Claude marks assumptions in [brackets] to fill in</span></span><textarea className="input" rows={16} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-body)' }} value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} /></label>
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
                 <button className="btn btn-primary" disabled={prSaving} onClick={() => savePR()}>{prSaving ? 'Saving…' : 'Save'}</button>
                 <button className="btn btn-secondary" onClick={() => { setPr(null); loadReleases(); }}>Cancel</button>
               </div>
             </div>
           ) : (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                 <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>Write a release from a brief, have Claude draft it, then send a client approval link for sign-off.</p>
                 <button className="btn btn-primary" onClick={newRelease}>+ New press release</button>
               </div>
@@ -676,7 +676,7 @@ export default function ClientPRPage() {
                       </td>
                     </tr>
                   ))}
-                  {!releases.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No press releases yet. Start from a brief and let Claude draft the release.</td></tr>}
+                  {!releases.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>No press releases yet. Start from a brief and let Claude draft the release.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -696,7 +696,7 @@ export default function ClientPRPage() {
         <div>
           {/* Press campaigns — the front door: pitch a release to journalists. */}
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--s3)' }}>
               <div>
                 <h3 className="h3 mb-2">Press campaigns</h3>
                 <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>Pitch a release to journalists — paste a URL, ✨ auto-build the audience, personalise every email, then send and watch who’s interested.</p>
@@ -725,20 +725,20 @@ export default function ClientPRPage() {
                             onChange={(e) => setRenameText(e.target.value)}
                             onBlur={() => saveRename(r)}
                             onKeyDown={(e) => { if (e.key === 'Enter') saveRename(r); if (e.key === 'Escape') setRenamingPR(null); }}
-                            style={{ minWidth: 260, padding: '4px 8px', fontSize: 'var(--fs-body)' }} />
+                            style={{ minWidth: 260, padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-body)' }} />
                         ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' }}>
                             <button className="link-btn" title="Open campaign"
                               onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}
                               style={{ background: 'none', border: 'none', color: 'var(--text)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit', textAlign: 'left', fontWeight: r.display_name ? 600 : 400 }}>
                               {r.display_name || r.title || '(untitled release)'}
                             </button>
                             <button className="btn btn-secondary btn-sm" title="Rename campaign" aria-label="Rename"
-                              {...roWrite(readOnly, { onClick: () => startRename(r) })} style={{ padding: '1px 6px', fontSize: 'var(--fs-caption)' }}>✎</button>
+                              {...roWrite(readOnly, { onClick: () => startRename(r) })} style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)' }}>✎</button>
                           </span>
                         )}
                         {r.display_name && renamingPR !== r.id && (
-                          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>{r.title}</div>
+                          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{r.title}</div>
                         )}
                         {/* Live sending visual — a bar under the campaign name with
                             status, live counts and an ETA. Auto-refreshes while
@@ -750,12 +750,12 @@ export default function ClientPRPage() {
                           const statusColor = sending ? 'var(--positive, #15803d)' : paused ? 'var(--warning, #b45309)' : complete ? 'var(--positive, #15803d)' : 'var(--text-muted)';
                           const statusText = sending ? 'Sending' : paused ? 'Paused' : complete ? 'Sent ✓' : 'Idle';
                           return (
-                            <div style={{ marginTop: 8, maxWidth: 620 }}>
-                              <div style={{ height: 7, background: 'var(--accent-soft, #eee)', borderRadius: 999, overflow: 'hidden' }}>
-                                <div style={{ width: `${pct}%`, height: '100%', background: paused ? 'var(--warning, #b45309)' : 'var(--positive, #15803d)', borderRadius: 999, transition: 'width .4s' }} />
+                            <div style={{ marginTop: 'var(--s2)', maxWidth: 620 }}>
+                              <div style={{ height: 7, background: 'var(--accent-soft, #eee)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: paused ? 'var(--warning, #b45309)' : 'var(--positive, #15803d)', borderRadius: 'var(--r-pill)', transition: 'width .4s' }} />
                               </div>
-                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: statusColor }}>
+                              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center', marginTop: 'var(--s1)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', fontWeight: 600, color: statusColor }}>
                                   {sending && <span className="spinner" style={{ width: 10, height: 10, borderWidth: 2 }} />}
                                   {statusText}
                                 </span>
@@ -774,7 +774,7 @@ export default function ClientPRPage() {
                           <button className="link-btn" onClick={() => setExpandedPR(expanded ? null : r.id)}
                             title="Click for stats"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', color: 'var(--text)' }}>
-                            {pending > 0 ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2, display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }} /> : null}
+                            {pending > 0 ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2, display: 'inline-block', verticalAlign: 'middle', marginRight: 'var(--s2)' }} /> : null}
                             {num(sent)}/{num(firstTotal)} · {pct}% {expanded ? '▲' : '▾'}
                           </button>
                         ) : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
@@ -793,7 +793,7 @@ export default function ClientPRPage() {
                     {expanded && (
                       <tr>
                         <td colSpan={5} style={{ background: 'var(--surface-raised)' }}>
-                          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center', padding: '4px 2px', fontSize: 'var(--fs-body)' }}>
+                          <div style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', alignItems: 'center', padding: 'var(--s1) var(--s1)', fontSize: 'var(--fs-body)' }}>
                             <span><strong>{num(sent)}</strong> <span style={{ color: 'var(--text-subtle)' }}>of {num(firstTotal)} emailed</span></span>
                             {pending > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(pending)} still going out</span>}
                             {failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {num(failed)} failed</span>}
@@ -815,22 +815,22 @@ export default function ClientPRPage() {
 
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your journalists' beats and your relationship history to build a targeted list.</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>Paste a press-release URL or a short brief — Claude mines your journalists' beats and your relationship history to build a targeted list.</p>
+            <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--s2)' }}>
               <label className="field" style={{ flex: 1, minWidth: 240 }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
               <button className="btn btn-primary" {...roWrite(readOnly, { onClick: findTargets, disabled: pitchLoading })}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
             </div>
             <label className="field"><span className="field-label">…or paste a brief</span><textarea className="input" rows={2} value={pitch.brief} onChange={(e) => setPitch((p) => ({ ...p, brief: e.target.value }))} placeholder="What's the story?" /></label>
             {pitchResult && (
-              <div style={{ marginTop: 12 }}>
-                {pitchResult.angle && <p style={{ fontSize: 'var(--fs-body)', marginBottom: 8 }}><strong>Angle:</strong> {pitchResult.angle}</p>}
+              <div style={{ marginTop: 'var(--s3)' }}>
+                {pitchResult.angle && <p style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}><strong>Angle:</strong> {pitchResult.angle}</p>}
                 {pitchResult.targets && pitchResult.targets.length ? (
                   <table className="table">
                     <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Why</th></tr></thead>
                     <tbody>
                       {pitchResult.targets.map((t) => (
                         <tr key={t.id}>
-                          <td><button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'journalist', id: t.id })}>{t.name}</button>{t.strength_label ? <span className="chip" style={{ marginLeft: 6 }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 6 }}>no email</span>}</td>
+                          <td><button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'journalist', id: t.id })}>{t.name}</button>{t.strength_label ? <span className="chip" style={{ marginLeft: 'var(--s2)' }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 'var(--s2)' }}>no email</span>}</td>
                           <td>{t.outlet || '—'}</td>
                           <td>{t.tier ? `T${t.tier}` : '—'}</td>
                           <td style={{ fontSize: 'var(--fs-body)' }}>{t.reason}</td>
@@ -845,20 +845,20 @@ export default function ClientPRPage() {
 
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <h3 className="h3 mb-2">🎯 Best contacts for a story</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginTop: 0, marginBottom: 8 }}>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginTop: 0, marginBottom: 'var(--s2)' }}>
               Paste the release (or describe the story). OMI ranks journalists by what they actually write about — from their real recent articles, not just old tags — and who’s covered {client?.name || 'this client'} before.
             </p>
-            <textarea className="input" rows={4} value={matchText} onChange={(e) => setMatchText(e.target.value)} placeholder="Paste your press release or a sentence about the story…" style={{ marginBottom: 8 }} />
+            <textarea className="input" rows={4} value={matchText} onChange={(e) => setMatchText(e.target.value)} placeholder="Paste your press release or a sentence about the story…" style={{ marginBottom: 'var(--s2)' }} />
             <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: runMatch, disabled: matchBusy })}>
               {matchBusy ? 'Matching…' : '🎯 Find best contacts'}
             </button>
             {matchTerms.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 6 }}>
+              <div style={{ marginTop: 'var(--s3)' }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
                   {matchMode === 'semantic'
                     ? <span title="Ranked by meaning — understands related topics even when the exact words differ.">🧠 Semantic match · </span>
                     : <span title="Ranked by shared topic/word overlap. Add an OpenAI key in Settings to enable meaning-based matching.">Keyword match · </span>}
-                  key themes: {matchTerms.map((t, i) => <span key={i} className="chip" style={{ fontSize: 'var(--fs-caption)', marginRight: 4 }}>{t}</span>)}
+                  key themes: {matchTerms.map((t, i) => <span key={i} className="chip" style={{ fontSize: 'var(--fs-caption)', marginRight: 'var(--s1)' }}>{t}</span>)}
                 </div>
                 {matchItems.length === 0 ? (
                   <p className="body-sm text-muted" style={{ margin: 0 }}>No strong matches on file yet — this sharpens as the feeds learn more journalists.</p>
@@ -878,7 +878,7 @@ export default function ClientPRPage() {
                             <td style={{ fontSize: 'var(--fs-caption)' }}>{m.outlet || '—'}{m.tier ? ` · T${m.tier}` : ''}</td>
                             <td style={{ fontSize: 'var(--fs-caption)' }}>
                               {(m.matched || []).slice(0, 4).join(', ')}
-                              {m.covered_client && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 6 }}>covered before</span>}
+                              {m.covered_client && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 'var(--s2)' }}>covered before</span>}
                             </td>
                             <td><span className="chip">{m.fit != null ? `${m.fit}%` : m.score}</span></td>
                           </tr>
@@ -892,7 +892,7 @@ export default function ClientPRPage() {
           </div>
 
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: suggestions.length ? 12 : 0 }}>
+            <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: suggestions.length ? 12 : 0 }}>
               <div style={{ flex: 1, minWidth: 240 }}>
                 <h3 className="h3 mb-2">🔭 Find new journalists</h3>
                 <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>
@@ -905,7 +905,7 @@ export default function ClientPRPage() {
             </div>
             {suggestions.length > 0 && (
               <>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s2)' }}>
                   <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
                   <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve', suggestions.map((s) => s.id)) })}>Add all {suggestions.length}</button>
                   {selSugg.size > 0 && <>
@@ -922,7 +922,7 @@ export default function ClientPRPage() {
                         <td>
                           <div style={{ fontWeight: 600 }}>
                             {s.name}
-                            {s.source === 'rss' && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 6 }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
+                            {s.source === 'rss' && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 'var(--s2)' }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
                           </div>
                           {s.email
                             ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{s.email}</div>
@@ -938,7 +938,7 @@ export default function ClientPRPage() {
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => approveSuggestion(s.id) })}>Add</button>
-                          <button className="btn btn-secondary btn-sm" style={{ marginLeft: 4 }} onClick={() => dismissSuggestion(s.id)} title="Dismiss">✕</button>
+                          <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'var(--s1)' }} onClick={() => dismissSuggestion(s.id)} title="Dismiss">✕</button>
                         </td>
                       </tr>
                     ))}
@@ -960,16 +960,16 @@ export default function ClientPRPage() {
                     <td>{j.published}</td>
                     <td>{j.hit_rate == null ? '—' : Math.round(j.hit_rate * 100) + '%'}</td>
                     <td>{fmtDate(j.last_featured)}</td>
-                    <td><span className="chip chip-accent">{j.strength} · {j.strength_label}</span>{j.warm ? <span className="chip" style={{ marginLeft: 6, background: '#fff2e8', color: '#c2410c' }} title={j.warm_reason || 'engaging with a live campaign'}>🔥 warm</span> : null}{j.gone_quiet ? <span className="chip" style={{ marginLeft: 6 }}>quiet</span> : null}</td>
+                    <td><span className="chip chip-accent">{j.strength} · {j.strength_label}</span>{j.warm ? <span className="chip chip-warm" style={{ marginLeft: 'var(--s2)' }} title={j.warm_reason || 'engaging with a live campaign'}>🔥 warm</span> : null}{j.gone_quiet ? <span className="chip" style={{ marginLeft: 'var(--s2)' }}>quiet</span> : null}</td>
                   </tr>
                 ))}
-                {!journalists.length && <tr><td colSpan={7} style={{ color: 'var(--text-subtle)', padding: 24 }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
+                {!journalists.length && <tr><td colSpan={7} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
               </tbody>
             </table>
           </div>
 
           <div className="card">
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 'var(--s3)' }}>
               <div style={{ flex: 1, minWidth: 240 }}>
                 <h3 className="h3 mb-2">Thank-yous</h3>
                 <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>
@@ -986,7 +986,7 @@ export default function ClientPRPage() {
               )}
             </div>
             {thankSettings && thankSettings.record && (thankSettings.record.approved + thankSettings.record.edited + thankSettings.record.rejected + thankSettings.record.auto > 0) && (
-              <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginBottom: 12 }}>
+              <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s3)' }}>
                 Track record: {thankSettings.record.approved} approved · {thankSettings.record.edited} edited · {thankSettings.record.auto} auto-sent · {thankSettings.record.rejected} skipped.
                 {thankSettings.thank_stage === 'assist' ? ' Once the approvals build up, switch on supervised or auto sending above.' : ''}
               </p>
@@ -1006,7 +1006,7 @@ export default function ClientPRPage() {
                     </td>
                   </tr>
                 ))}
-                {!thanks.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No thank-yous waiting. They appear here once a piece is marked Published and the journalist has an email on file.</td></tr>}
+                {!thanks.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>No thank-yous waiting. They appear here once a piece is marked Published and the journalist has an email on file.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -1021,8 +1021,8 @@ export default function ClientPRPage() {
               reads as a clear hierarchy rather than six equal pills. */}
           <input ref={fileRef} type="file" accept=".csv" onChange={(e) => doImport(e, false)} style={{ display: 'none' }} />
           <input ref={combinedRef} type="file" accept=".csv" onChange={(e) => doImport(e, true)} style={{ display: 'none' }} />
-          <div className="row between center wrap" style={{ gap: 12, marginBottom: 'var(--s4)' }}>
-            <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
+          <div className="row between center wrap" style={{ gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
+            <div className="row wrap" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
               <button className="btn btn-primary" onClick={() => startEdit(null)}>+ Add entry</button>
               <button className="btn btn-secondary" onClick={() => setUrlModal(true)} title="Paste a coverage URL — AI pulls the publication, journalist, headline and date, then asks to merge with a pending pitch or log as new">🔗 From a link</button>
               <div className="menu-anchor" ref={importMenuRef}>
@@ -1044,14 +1044,14 @@ export default function ClientPRPage() {
                 )}
               </div>
             </div>
-            <div className="row" style={{ gap: 16, alignItems: 'center' }}>
+            <div className="row" style={{ gap: 'var(--s4)', alignItems: 'center' }}>
               <button className="btn-link" onClick={copyPortalLink} title="Copy the read-only public coverage URL for sharing with the client">🔗 Copy coverage link</button>
               <button className="btn-link" disabled={checkingLinks} onClick={checkLinks} title="HEAD every story URL — flags 404s and DNS failures so you can hunt for the new link">{checkingLinks ? 'Checking…' : '🔍 Check links'}</button>
             </div>
           </div>
 
-          <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="caption" style={{ marginRight: 4 }}>Status</span>
+          <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', gap: 'var(--s4)', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="caption" style={{ marginRight: 'var(--s1)' }}>Status</span>
             <div className="filter-bar">
               {[['all', 'All'], ...STATUSES].map(([v, l]) => {
                 const count = v === 'all' ? log.length : log.filter(r => r.status === v).length;
@@ -1084,7 +1084,7 @@ export default function ClientPRPage() {
           {combinedResult && (
             <div className="card" style={{ marginBottom: 'var(--s4)', borderLeft: '3px solid var(--accent)' }}>
               <strong>{combinedResult.skipped} rows skipped.</strong> Unmatched client names (no platform client with that name):
-              <div style={{ marginTop: 6, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{combinedResult.unmatched.join(', ')}</div>
+              <div style={{ marginTop: 'var(--s2)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{combinedResult.unmatched.join(', ')}</div>
             </div>
           )}
 
@@ -1110,7 +1110,7 @@ export default function ClientPRPage() {
                     return new Date(b.issue_date || 0) - new Date(a.issue_date || 0);
                   });
                   if (!sorted.length) return (
-                    <tr><td colSpan={9} style={{ color: 'var(--text-subtle)', padding: 24 }}>
+                    <tr><td colSpan={9} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>
                       {log.length ? (q ? `No coverage matches “${coverageQuery.trim()}”.` : `No coverage matches "${coverageFilter}".`) : 'No coverage yet. Add an entry, or import your editorial log CSV.'}
                     </td></tr>
                   );
@@ -1136,7 +1136,7 @@ export default function ClientPRPage() {
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}
                         <button type="button" title="Delete this coverage entry" aria-label="Delete" onClick={() => deleteEntry(r)}
-                          style={{ border: 'none', background: 'none', color: 'var(--danger, #c0392b)', cursor: 'pointer', fontSize: 'var(--fs-body)', lineHeight: 1, padding: '4px 6px', borderRadius: 4 }}>✕</button>
+                          style={{ border: 'none', background: 'none', color: 'var(--danger, #c0392b)', cursor: 'pointer', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)' }}>✕</button>
                       </td>
                     </tr>
                   ));
@@ -1147,21 +1147,21 @@ export default function ClientPRPage() {
 
           <div className="card">
             <h3 className="h3 mb-2">Coverage monitor</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 12 }}>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>
               Saved searches check Google News (via Serper) and your Google Alerts RSS on a schedule (twice daily). New hits land in the review queue below for you to confirm or dismiss.
             </p>
             {!serperOn && (
-              <div className="card" style={{ background: 'var(--warning-soft)', color: 'var(--warning)', fontSize: 'var(--fs-body)', marginBottom: 12, padding: '10px 12px' }}>
+              <div className="card" style={{ background: 'var(--warning-soft)', color: 'var(--warning)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)', padding: 'var(--s3) var(--s3)' }}>
                 <strong>Google News is off.</strong> No Serper API key is set, so News searches return nothing — add one in <strong>Settings → October Outreach</strong>. Google Alerts RSS searches still work without it.
               </div>
             )}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--s3)' }}>
               <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Google News query</span><input className="input" value={newSearch.query} onChange={(e) => setNewSearch((s) => ({ ...s, query: e.target.value }))} placeholder='e.g. "Forgeworks" architecture' /></label>
               <label className="field" style={{ minWidth: 220 }}><span className="field-label">Google Alerts RSS (optional)</span><input className="input" value={newSearch.alerts_rss} onChange={(e) => setNewSearch((s) => ({ ...s, alerts_rss: e.target.value }))} placeholder="https://www.google.com/alerts/feeds/…" /></label>
               <label className="field"><span className="field-label">Frequency</span><select className="input" value={newSearch.cadence} onChange={(e) => setNewSearch((s) => ({ ...s, cadence: e.target.value }))}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
               <button className="btn btn-primary" onClick={addSearch}>Add search</button>
             </div>
-            <table className="table" style={{ marginBottom: 24 }}>
+            <table className="table" style={{ marginBottom: 'var(--s6)' }}>
               <thead><tr><th>Query</th><th>Sources</th><th>Frequency</th><th>Last run</th><th></th></tr></thead>
               <tbody>
                 {searches.map((s) => (
@@ -1176,14 +1176,14 @@ export default function ClientPRPage() {
                     </td>
                   </tr>
                 ))}
-                {!searches.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No saved searches. Add one above — it checks Google News + your Alerts feed on a schedule.</td></tr>}
+                {!searches.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>No saved searches. Add one above — it checks Google News + your Alerts feed on a schedule.</td></tr>}
               </tbody>
             </table>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s2)' }}>
               <h3 className="h3" style={{ margin: 0 }}>Review queue {queue.length ? `(${queue.length})` : ''}</h3>
               {queueSel.size > 0 && (
-                <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
                   <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{queueSel.size} selected</span>
                   <button className="btn btn-primary btn-sm" disabled={bulkBusy} onClick={() => bulkReview('published')}>✓ Confirm selected</button>
                   <button className="btn btn-secondary btn-sm" disabled={bulkBusy} onClick={() => bulkReview('dismissed')}>Dismiss selected</button>
@@ -1209,7 +1209,7 @@ export default function ClientPRPage() {
                     </td>
                   </tr>
                 ))}
-                {!queue.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>Nothing awaiting review. Run a search or wait for the scheduled check.</td></tr>}
+                {!queue.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>Nothing awaiting review. Run a search or wait for the scheduled check.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -1236,7 +1236,7 @@ export default function ClientPRPage() {
   return (
     <div className="suite-client-pr">
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Earned</span></div>
-      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
+      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--s3)' }}>
         <h1 className="display">Earned</h1>
       </header>
 
@@ -1253,7 +1253,7 @@ export default function ClientPRPage() {
         { key: 'build',    label: 'Build',    fn: 'create',  active: suiteGroup === 'build',    onClick: () => setTab('journalists') },
       ]} />
 
-      {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p></div>}
+      {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>Loading…</p></div>}
 
       {!loading && suiteGroup === 'health' && (
         <Accordion open={healthOpen} onToggle={(sid) => setHealthOpen(prev => {
@@ -1329,12 +1329,12 @@ export default function ClientPRPage() {
           {warmCount ? (
             <div className="card" style={{ borderColor: '#f0a868', background: '#fff8f2' }}>
               <h3 className="h3 mb-2">🔥 Showing interest</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', margin: '0 0 10px' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', margin: '0 0 var(--s3)' }}>
                 {warmCount} journalist{warmCount === 1 ? ' is' : 's are'} engaging with your press outreach right now — a great moment for a personal follow-up.
               </p>
               <div className="task-row">
                 {warmJournalists.slice(0, 8).map((w) => (
-                  <span key={w.id} className="chip" style={{ background: '#fff2e8', color: '#c2410c' }}>
+                  <span key={w.id} className="chip chip-warm">
                     {w.name}{w.outlet ? ` · ${w.outlet}` : ''}{w.warm_reason ? ` — ${w.warm_reason}` : ''}
                   </span>
                 ))}
@@ -1369,7 +1369,7 @@ export default function ClientPRPage() {
               <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>{editing.id ? 'Edit entry' : 'New entry'}</h2>
               <button type="button" onClick={() => setEditing(null)} className="modal-close" aria-label="Close">×</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
               <label className="field"><span className="field-label">Story title</span><input className="input" value={f.story_title} onChange={(e) => setF('story_title', e.target.value)} /></label>
               <label className="field"><span className="field-label">Status</span><select className="input" value={f.status} onChange={(e) => setF('status', e.target.value)}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
               <label className="field"><span className="field-label">Journalist</span><input className="input" value={f.press_contact} onChange={(e) => setF('press_contact', e.target.value)} placeholder="Journalist name" /></label>
@@ -1384,7 +1384,7 @@ export default function ClientPRPage() {
               <div className="field" style={{ gridColumn: '1/-1' }}>
                 <span className="field-label">Attachment (PDF — magazine scan, cutout, advance copy)</span>
                 {editing.id ? (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
                     {f.attachment_url ? (
                       <>
                         <a href={f.attachment_url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">📎 {f.attachment_filename || 'View PDF'}</a>
@@ -1403,7 +1403,7 @@ export default function ClientPRPage() {
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s4)', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
               <button className="btn btn-primary" disabled={saving} onClick={saveEntry}>{saving ? 'Saving…' : 'Save'}</button>
             </div>
@@ -1412,24 +1412,24 @@ export default function ClientPRPage() {
       )}
 
       {thankDraft && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={() => !sendingThank && setThankDraft(null)}>
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 'var(--s4)' }} onClick={() => !sendingThank && setThankDraft(null)}>
           <div className="card" style={{ maxWidth: 560, width: '100%', maxHeight: '90vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <h3 className="h3 mb-2">Thank {thankDraft.journalist || 'journalist'}{thankDraft.outlet ? ` · ${thankDraft.outlet}` : ''}</h3>
             {drafting ? (
-              <p style={{ color: 'var(--text-subtle)', padding: 24 }}>Drafting…</p>
+              <p style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>Drafting…</p>
             ) : (
               <>
                 {thankDraft.tone || thankDraft.confidence ? (
-                  <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginBottom: 10 }}>
+                  <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s3)' }}>
                     {thankDraft.tone ? <>Tone: <strong>{thankDraft.tone}</strong>. </> : null}
                     {thankDraft.confidence ? <>Claude confidence: <strong>{Math.round(thankDraft.confidence * 100)}%</strong></> : null}
                   </p>
                 ) : null}
-                {!thankDraft.to && <div className="card" style={{ borderLeft: '3px solid var(--accent)', marginBottom: 10, fontSize: 'var(--fs-body)' }}>No real email on file for this journalist — can't send.</div>}
-                <label className="field" style={{ marginBottom: 10 }}><span className="field-label">To</span><input className="input" value={thankDraft.to} readOnly placeholder="—" /></label>
-                <label className="field" style={{ marginBottom: 10 }}><span className="field-label">Subject</span><input className="input" value={thankDraft.subject} onChange={(e) => setThankDraft((t) => ({ ...t, subject: e.target.value, edited: true }))} /></label>
-                <label className="field" style={{ marginBottom: 10 }}><span className="field-label">Message</span><textarea className="input" rows={8} value={thankDraft.body} onChange={(e) => setThankDraft((t) => ({ ...t, body: e.target.value, edited: true }))} /></label>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                {!thankDraft.to && <div className="card" style={{ borderLeft: '3px solid var(--accent)', marginBottom: 'var(--s3)', fontSize: 'var(--fs-body)' }}>No real email on file for this journalist — can't send.</div>}
+                <label className="field" style={{ marginBottom: 'var(--s3)' }}><span className="field-label">To</span><input className="input" value={thankDraft.to} readOnly placeholder="—" /></label>
+                <label className="field" style={{ marginBottom: 'var(--s3)' }}><span className="field-label">Subject</span><input className="input" value={thankDraft.subject} onChange={(e) => setThankDraft((t) => ({ ...t, subject: e.target.value, edited: true }))} /></label>
+                <label className="field" style={{ marginBottom: 'var(--s3)' }}><span className="field-label">Message</span><textarea className="input" rows={8} value={thankDraft.body} onChange={(e) => setThankDraft((t) => ({ ...t, body: e.target.value, edited: true }))} /></label>
+                <div style={{ display: 'flex', gap: 'var(--s2)', justifyContent: 'flex-end' }}>
                   <button className="btn btn-secondary" disabled={sendingThank} onClick={() => setThankDraft(null)}>Cancel</button>
                   <button className="btn btn-primary" {...roWrite(readOnly, { onClick: sendThank, disabled: sendingThank || !thankDraft.to || !thankDraft.subject || !thankDraft.body })}>{sendingThank ? 'Sending…' : 'Send thank-you'}</button>
                 </div>

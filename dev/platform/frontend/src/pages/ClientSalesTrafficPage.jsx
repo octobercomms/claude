@@ -194,19 +194,19 @@ export default function ClientSalesTrafficPage() {
 
       {tab === 'dashboard' && <>
       {showCustom && (
-        <div className="row mb-4" style={{ alignItems: 'center', gap: 6 }}>
+        <div className="row mb-4" style={{ alignItems: 'center', gap: 'var(--s2)' }}>
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            style={{ padding: '5px 8px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)' }} />
+            style={{ padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)' }} />
           <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            style={{ padding: '5px 8px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)' }} />
+            style={{ padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)' }} />
           <button onClick={applyCustom}
-            style={{ padding: '6px 16px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' }}>Apply</button>
+            style={{ padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' }}>Apply</button>
         </div>
       )}
-      <div className="row mb-4" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <div className="row mb-4" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--s3)' }}>
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{fmtDay(start)} – {fmtDay(end)}</span>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
           {[7, 14, 30, 90].map(d => (
             <button key={d} onClick={() => selectDays(d)}
               className={`tab ${activeKey === 'd' + d ? 'active' : ''}`}>
@@ -215,7 +215,7 @@ export default function ClientSalesTrafficPage() {
           ))}
           <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
             onChange={e => selectPreset(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             <option value="">Period…</option>
             <option value="mtd">Month to date</option>
             <option value="ytd">Year to date</option>
@@ -227,9 +227,9 @@ export default function ClientSalesTrafficPage() {
         </div>
       </div>
       {loading ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>
       ) : data && data.error ? (
-        <div style={{ color: 'var(--negative)', padding: 20 }}>{data.error}</div>
+        <div style={{ color: 'var(--negative)', padding: 'var(--s5)' }}>{data.error}</div>
       ) : data ? (
         <>
           <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 'var(--s5)' }}>
@@ -241,7 +241,7 @@ export default function ClientSalesTrafficPage() {
             ))}
           </div>
 
-          <div className="grid grid-2" style={{ marginBottom: 16 }}>
+          <div className="grid grid-2" style={{ marginBottom: 'var(--s4)' }}>
             <div className="card">
               <div className="caption">Revenue &amp; orders</div>
               {data.salesTrend && data.salesTrend.length ? (
@@ -256,7 +256,7 @@ export default function ClientSalesTrafficPage() {
                     <Line yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke={cOrders} strokeWidth={2.5} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
-              ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No sales trend data.</p>}
+              ) : <p className="body-sm text-subtle" style={{ padding: "var(--s5) 0", margin: 0 }}>No sales trend data.</p>}
             </div>
             <div className="card">
               <div className="caption">Traffic</div>
@@ -271,7 +271,7 @@ export default function ClientSalesTrafficPage() {
                     <Line type="monotone" dataKey="users" name="Users" stroke={cUsers} strokeWidth={2.5} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
-              ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No traffic data.</p>}
+              ) : <p className="body-sm text-subtle" style={{ padding: "var(--s5) 0", margin: 0 }}>No traffic data.</p>}
             </div>
           </div>
 
@@ -286,17 +286,17 @@ export default function ClientSalesTrafficPage() {
                   <Bar dataKey="sessions" name="Sessions" fill={cSessions} radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No channel data.</p>}
+            ) : <p className="body-sm text-subtle" style={{ padding: "var(--s5) 0", margin: 0 }}>No channel data.</p>}
           </div>
 
           {hasEcom && (
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: 'var(--s4)' }}>
               <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 'var(--s5)' }}>
                 {ecomCards.map(c => (
                   <div key={c.label} className="stat">
                     <div className="stat-label">{c.label}</div>
                     <div className="stat-value">{c.value}</div>
-                    {c.sub && <div className="body-sm text-subtle" style={{ marginTop: 2 }}>{c.sub}</div>}
+                    {c.sub && <div className="body-sm text-subtle" style={{ marginTop: 'var(--s1)' }}>{c.sub}</div>}
                   </div>
                 ))}
               </div>
@@ -306,17 +306,17 @@ export default function ClientSalesTrafficPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }}>
                     <thead>
                       <tr style={{ textAlign: 'left', color: 'var(--text-subtle)' }}>
-                        <th style={{ padding: '6px 8px', fontWeight: 600 }}>Product</th>
-                        <th style={{ padding: '6px 8px', fontWeight: 600, textAlign: 'right' }}>Units</th>
-                        <th style={{ padding: '6px 8px', fontWeight: 600, textAlign: 'right' }}>Revenue</th>
+                        <th style={{ padding: 'var(--s2) var(--s2)', fontWeight: 600 }}>Product</th>
+                        <th style={{ padding: 'var(--s2) var(--s2)', fontWeight: 600, textAlign: 'right' }}>Units</th>
+                        <th style={{ padding: 'var(--s2) var(--s2)', fontWeight: 600, textAlign: 'right' }}>Revenue</th>
                       </tr>
                     </thead>
                     <tbody>
                       {ecom.topProducts.map((p, i) => (
                         <tr key={i} style={{ borderTop: 'var(--border-w) solid var(--card-border)' }}>
-                          <td style={{ padding: '6px 8px' }}>{p.title}</td>
-                          <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmtNum(p.units)}</td>
-                          <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmtMoney(p.revenue)}</td>
+                          <td style={{ padding: 'var(--s2) var(--s2)' }}>{p.title}</td>
+                          <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>{fmtNum(p.units)}</td>
+                          <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>{fmtMoney(p.revenue)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -327,7 +327,7 @@ export default function ClientSalesTrafficPage() {
           )}
 
           {data.notes && data.notes.length > 0 && (
-            <p style={{ marginTop: 12, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{data.notes.join(' · ')}</p>
+            <p style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{data.notes.join(' · ')}</p>
           )}
         </>
       ) : null}

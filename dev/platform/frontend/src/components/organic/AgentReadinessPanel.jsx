@@ -58,7 +58,7 @@ export default function AgentReadinessPanel({ clientId }) {
         homepage — can an agent read the links, buttons and content, does the layout stay put, and is there an llms.txt — then scores it.
       </div>
 
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 'var(--s5)' }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s5)' }}>
         <div className="body-sm text-subtle">
           {report ? <>Checked <strong>{report.url}</strong> · {new Date(report.checked_at).toLocaleString('en-GB')}</> : 'Checks the homepage of this client’s domain.'}
         </div>
@@ -78,7 +78,7 @@ export default function AgentReadinessPanel({ clientId }) {
       {report && (
         <>
           {/* Score header */}
-          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s5)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
             <div style={{
               width: 84, height: 84, borderRadius: '50%', flex: '0 0 auto',
               display: 'grid', placeItems: 'center',
@@ -86,11 +86,11 @@ export default function AgentReadinessPanel({ clientId }) {
             }}>
               <div style={{ textAlign: 'center', lineHeight: 1 }}>
                 <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, color: scoreColor(report.score) }}>{report.score}</div>
-                <div className="body-xs text-subtle" style={{ marginTop: 2 }}>/ 100</div>
+                <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>/ 100</div>
               </div>
             </div>
             <div style={{ minWidth: 0 }}>
-              <div className="h3" style={{ marginBottom: 2 }}>Grade {report.grade}</div>
+              <div className="h3" style={{ marginBottom: 'var(--s1)' }}>Grade {report.grade}</div>
               <div className="body-sm text-muted">
                 {report.score >= 90 ? 'Agents can read and navigate this site well.'
                   : report.score >= 50 ? 'Mostly readable to agents, with a few fixes worth making.'
@@ -100,21 +100,21 @@ export default function AgentReadinessPanel({ clientId }) {
           </div>
 
           {/* Check cards */}
-          <div className="stack" style={{ gap: 12 }}>
+          <div className="stack" style={{ gap: 'var(--s3)' }}>
             {report.checks.map(c => {
               const tone = STATUS_TONE[c.status] || STATUS_TONE.info;
               const hasItems = Array.isArray(c.items) && c.items.length > 0;
               const isOpen = !!open[c.id];
               return (
                 <div key={c.id} className="card" style={{ padding: 'var(--s4)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s3)', alignItems: 'baseline', flexWrap: 'wrap' }}>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 700 }}>{c.label}</span>
                         <span className="chip" style={{ background: tone.bg, color: tone.fg, fontSize: 'var(--fs-caption)' }}>{tone.label}</span>
                         {c.weight === 0 && <span className="body-xs text-subtle">informational</span>}
                       </div>
-                      <div className="body-sm text-muted" style={{ marginTop: 4 }}>{c.summary}</div>
+                      <div className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>{c.summary}</div>
                     </div>
                     {hasItems && (
                       <button className="btn btn-ghost btn-sm" onClick={() => setOpen(p => ({ ...p, [c.id]: !p[c.id] }))}>
@@ -124,21 +124,21 @@ export default function AgentReadinessPanel({ clientId }) {
                   </div>
 
                   {c.status !== 'pass' && c.fix && (
-                    <div className="body-xs" style={{ marginTop: 8, padding: '8px 10px', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
+                    <div className="body-xs" style={{ marginTop: 'var(--s2)', padding: 'var(--s2) var(--s3)', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
                       <strong>How to fix:</strong> {c.fix}
                     </div>
                   )}
 
                   {isOpen && hasItems && (
-                    <div className="stack" style={{ gap: 6, marginTop: 10 }}>
+                    <div className="stack" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
                       {c.items.map((it, i) => (
-                        <div key={i} className="body-xs" style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 6 }}>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                        <div key={i} className="body-xs" style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 'var(--s2)' }}>
+                          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'baseline' }}>
                             {it.ok !== undefined && <span style={{ color: it.ok ? 'var(--positive)' : 'var(--negative)' }}>{it.ok ? '✓' : '✕'}</span>}
                             <span style={{ fontWeight: 600 }}>{it.issue}</span>
                             {it.selector && <code className="text-subtle" style={{ fontSize: 'var(--fs-caption)' }}>{it.selector}</code>}
                           </div>
-                          {it.snippet && <div className="text-subtle" style={{ marginTop: 2, fontFamily: 'monospace', fontSize: 'var(--fs-caption)', overflowWrap: 'anywhere' }}>{it.snippet}</div>}
+                          {it.snippet && <div className="text-subtle" style={{ marginTop: 'var(--s1)', fontFamily: 'monospace', fontSize: 'var(--fs-caption)', overflowWrap: 'anywhere' }}>{it.snippet}</div>}
                         </div>
                       ))}
                     </div>

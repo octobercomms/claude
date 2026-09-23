@@ -100,9 +100,9 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
           {!ranking ? (
             <p className="body-sm text-subtle">No keywords are ranking in the top 100 yet.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
               {distribution.map(b => (
-                <div key={b.label} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 40px', alignItems: 'center', gap: 8, fontSize: 'var(--fs-caption)' }}>
+                <div key={b.label} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 40px', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>
                   <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{b.label}</span>
                   <div style={{ height: 14, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${(b.count / maxDist) * 100}%`, background: 'var(--accent)' }} />
@@ -120,11 +120,11 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
           {!intentRows.length ? (
             <p className="body-sm text-subtle">No keywords yet.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
               {intentRows.map(([label, count]) => {
                 const pct = Math.round((count / tracked) * 100);
                 return (
-                  <div key={label} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 60px', alignItems: 'center', gap: 8, fontSize: 'var(--fs-caption)' }}>
+                  <div key={label} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 60px', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>
                     <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
                     <div style={{ height: 14, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${pct}%`, background: INTENT_COLOURS[label] || 'var(--text-subtle)' }} />
@@ -173,8 +173,8 @@ function Stat({ label, value, sub, tone }) {
   return (
     <div className="card">
       <div className="caption">{label}</div>
-      <div className="metric" style={{ color: valueColour, marginTop: 4 }}>{value}</div>
-      {sub && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>{sub}</div>}
+      <div className="metric" style={{ color: valueColour, marginTop: 'var(--s1)' }}>{value}</div>
+      {sub && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{sub}</div>}
     </div>
   );
 }
@@ -183,13 +183,13 @@ function MoverList({ title, rows, tone }) {
   const arrowColour = tone === 'positive' ? 'var(--positive)' : 'var(--negative)';
   return (
     <div>
-      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: arrowColour, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: arrowColour, marginBottom: 'var(--s2)' }}>{title}</div>
       {!rows.length ? (
         <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>None</p>
       ) : (
-        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
           {rows.map(r => (
-            <li key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 'var(--fs-caption)' }}>
+            <li key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.keyword}>{r.keyword}</span>
               <span style={{ color: arrowColour, fontWeight: 700, whiteSpace: 'nowrap' }}>
                 {tone === 'positive' ? '↑' : '↓'} {Math.abs(r.change)} <span style={{ color: 'var(--text-subtle)', fontWeight: 500 }}>(#{r.current_position})</span>

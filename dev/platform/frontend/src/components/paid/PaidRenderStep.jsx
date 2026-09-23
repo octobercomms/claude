@@ -24,7 +24,7 @@ export default function PaidRenderStep({ pipeline, onNext, onBack }) {
           No concepts on this brief yet — generate them on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 'var(--s4)' }}>
           {creatives.map(c => (
             <CreativeCard key={c.id} creative={c}
               renderMode="always-open"

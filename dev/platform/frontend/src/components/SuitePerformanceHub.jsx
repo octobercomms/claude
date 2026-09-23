@@ -45,7 +45,7 @@ export default function SuitePerformanceHub({
           <button
             onClick={primaryCta.onClick}
             style={{
-              padding: '12px 24px', fontSize: 'var(--fs-body)', fontWeight: 700,
+              padding: 'var(--s3) var(--s6)', fontSize: 'var(--fs-body)', fontWeight: 700,
               background: 'var(--surface)', color: 'var(--text)',
               border: 'none', borderRadius: 'var(--r-pill)', cursor: 'pointer',
               fontFamily: 'inherit',
@@ -62,8 +62,8 @@ export default function SuitePerformanceHub({
           {status.map((s, i) => (
             <span key={i}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '6px 14px', fontSize: 'var(--fs-body)', fontWeight: 600,
+                display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)',
+                padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-body)', fontWeight: 600,
                 borderRadius: 'var(--r-pill)',
                 background: 'var(--surface)',
                 border: 'var(--border-w) solid var(--card-border)',

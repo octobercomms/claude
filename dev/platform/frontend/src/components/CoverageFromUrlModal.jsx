@@ -47,7 +47,7 @@ export default function CoverageFromUrlModal({ clientId, onClose, onSaved }) {
   const setF = (k, v) => setFields(prev => ({ ...prev, [k]: v }));
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px', zIndex: 1000, overflow: 'auto' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s4)', zIndex: 1000, overflow: 'auto' }}>
       <div onClick={e => e.stopPropagation()} className="card" style={{ width: 'min(640px, 100%)', background: 'var(--surface)', }}>
         <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
           <div className="h3" style={{ margin: 0 }}>Log coverage from a link</div>
@@ -57,12 +57,12 @@ export default function CoverageFromUrlModal({ clientId, onClose, onSaved }) {
         {step === 'input' && (
           <>
             <p className="body-sm text-muted" style={{ marginTop: 0 }}>Paste the URL of a published article. We'll read the page and pull out the publication, journalist, headline and date.</p>
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
               <input className="input" style={{ flex: 1 }} placeholder="https://…" value={url}
                 onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && extract()} autoFocus />
               <button className="btn btn-primary" onClick={extract} disabled={loading}>{loading ? 'Reading…' : 'Extract'}</button>
             </div>
-            <p className="body-xs text-subtle" style={{ marginTop: 8 }}>Paywalled or login-walled pages may not extract — you can still fill the fields in by hand after.</p>
+            <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>Paywalled or login-walled pages may not extract — you can still fill the fields in by hand after.</p>
           </>
         )}
 
@@ -77,7 +77,7 @@ export default function CoverageFromUrlModal({ clientId, onClose, onSaved }) {
 
             {matches.length > 0 && (
               <div style={{ marginTop: 'var(--s4)' }}>
-                <div className="callout callout-warning" style={{ marginBottom: 8 }}>
+                <div className="callout callout-warning" style={{ marginBottom: 'var(--s2)' }}>
                   This client already has {matches.length} open {matches.length === 1 ? 'entry' : 'entries'} on this outlet. Merge into one, or log as new?
                 </div>
                 <label style={radioRow}>
@@ -95,7 +95,7 @@ export default function CoverageFromUrlModal({ clientId, onClose, onSaved }) {
               </div>
             )}
 
-            <div className="row" style={{ gap: 8, marginTop: 'var(--s4)' }}>
+            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s4)' }}>
               <button className="btn btn-primary" onClick={save} disabled={saving}>
                 {saving ? 'Saving…' : (choice === 'new' ? 'Log as published' : 'Merge & mark published')}
               </button>
@@ -117,4 +117,4 @@ function Field({ label, value, onChange, placeholder }) {
   );
 }
 
-const radioRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', cursor: 'pointer' };
+const radioRow = { display: 'flex', alignItems: 'center', gap: 'var(--s3)', padding: 'var(--s2) var(--s1)', cursor: 'pointer' };

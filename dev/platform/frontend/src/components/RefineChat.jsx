@@ -84,7 +84,7 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
           <div className="caption">Refine with Claude</div>
           <div className="body-xs text-subtle mt-2">Voice profile + current artifact pinned · British English</div>
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 'var(--s1)' }}>
           {!!messages.length && <button onClick={reset} className="btn btn-ghost btn-sm" title="Start over">Reset</button>}
           {onClose && <button onClick={onClose} className="btn btn-ghost btn-sm" title="Close">×</button>}
         </div>
@@ -97,9 +97,9 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
             {!!suggestions.length && (
               <>
                 <div className="caption mt-3 mb-2">Try:</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
                   {suggestions.map((s, i) => (
-                    <button key={i} onClick={() => setDraftInput(s)} className="btn btn-ghost btn-sm" style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '4px 8px', color: 'var(--text)' }}>{s}</button>
+                    <button key={i} onClick={() => setDraftInput(s)} className="btn btn-ghost btn-sm" style={{ textAlign: 'left', justifyContent: 'flex-start', padding: 'var(--s1) var(--s2)', color: 'var(--text)' }}>{s}</button>
                   ))}
                 </div>
               </>
@@ -108,7 +108,7 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
         )}
         {messages.map((m, i) => (
           <div key={i} style={{ marginBottom: 'var(--s4)' }}>
-            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: m.role === 'user' ? 'var(--accent)' : 'var(--text-subtle)', marginBottom: 4 }}>
+            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: m.role === 'user' ? 'var(--accent)' : 'var(--text-subtle)', marginBottom: 'var(--s1)' }}>
               {m.role === 'user' ? 'You' : 'Claude'}
             </div>
             <div style={{
@@ -122,7 +122,7 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
               {m.content || <em style={{ color: 'var(--text-subtle)' }}>(no reply text)</em>}
             </div>
             {m.revision && onApplyRevision && (
-              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ marginTop: 'var(--s2)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
                 <button onClick={() => apply(m.revision)} className="btn btn-primary btn-sm">
                   Apply revision · {m.revision.scope}
                 </button>

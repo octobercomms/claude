@@ -97,24 +97,24 @@ export default function PublishPanel({ clientId, onNext }) {
       tagline="Push the draft to WordPress or Shopify directly — schedule for later, or publish now. Squarespace and others: copy plain markdown to the clipboard or download as DOCX."
     >
       {!drafts.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           No drafts yet. Generate one on the Draft step first.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 22 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 'var(--s6)' }}>
           <div>
             <div className="caption mb-3">Pick a draft</div>
             {drafts.map(d => (
               <div key={d.id} className="card"
-                style={{ padding: 10, marginBottom: 8, cursor: 'pointer',
+                style={{ padding: 'var(--s3)', marginBottom: 'var(--s2)', cursor: 'pointer',
                   background: d.id === activeDraft?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
                 onClick={() => { setActiveDraft(d); setLastResult(null); }}>
                 <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>{d.title}</div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                   {d.word_count?.toLocaleString() || 0} words · {d.status}
                 </div>
                 {(d.publications || []).length > 0 && (
-                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)', marginTop: 4 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)', marginTop: 'var(--s1)' }}>
                     ✓ {d.publications.map(p => `${p.platform}${p.status === 'failed' ? ' (failed)' : ''}`).join(', ')}
                   </div>
                 )}
@@ -124,14 +124,14 @@ export default function PublishPanel({ clientId, onNext }) {
 
           <div>
             {!activeDraft ? (
-              <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Pick a draft on the left.</div>
+              <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Pick a draft on the left.</div>
             ) : (
               <div className="card">
                 <div className="caption mb-3">Publish "{activeDraft.title}"</div>
 
-                <div style={{ marginBottom: 14 }}>
+                <div style={{ marginBottom: 'var(--s4)' }}>
                   <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Destination</div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                     {[
                       { k: 'wordpress', label: 'WordPress', disabled: !wpConnectors.length, reason: 'connect WooCommerce' },
                       { k: 'shopify',   label: 'Shopify blog', disabled: !shopifyConnectors.length, reason: 'connect Shopify' },
@@ -151,10 +151,10 @@ export default function PublishPanel({ clientId, onNext }) {
                 </div>
 
                 {platform === 'wordpress' && wpConnectors.length > 1 && (
-                  <div style={{ marginBottom: 14 }}>
+                  <div style={{ marginBottom: 'var(--s4)' }}>
                     <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>WordPress site</div>
                     <select value={connectorId} onChange={e => setConnectorId(e.target.value)}
-                      style={{ padding: '6px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+                      style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
                       {wpConnectors.map(c => <option key={c.id} value={c.id}>{c.store_label || c.id}</option>)}
                     </select>
                   </div>
@@ -162,9 +162,9 @@ export default function PublishPanel({ clientId, onNext }) {
 
                 {(platform === 'wordpress' || platform === 'shopify') && (
                   <>
-                    <div style={{ marginBottom: 14 }}>
+                    <div style={{ marginBottom: 'var(--s4)' }}>
                       <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>How</div>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                         {[
                           { k: 'draft',    label: 'Save as draft (recommended)' },
                           { k: 'publish',  label: 'Publish live now' },
@@ -176,16 +176,16 @@ export default function PublishPanel({ clientId, onNext }) {
                         ))}
                       </div>
                     </div>
-                    <div style={{ marginBottom: 14 }}>
+                    <div style={{ marginBottom: 'var(--s4)' }}>
                       <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Or schedule for later (optional)</div>
                       <input type="datetime-local" value={scheduledAt}
                         onChange={e => setScheduledAt(e.target.value)}
-                        style={{ padding: '6px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                        style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
                     </div>
                   </>
                 )}
 
-                <div style={{ marginTop: 16 }}>
+                <div style={{ marginTop: 'var(--s4)' }}>
                   {platform === 'docx' ? (
                     <button onClick={downloadDocx} className="btn btn-primary">Download .docx</button>
                   ) : platform === 'clipboard' ? (
@@ -197,9 +197,9 @@ export default function PublishPanel({ clientId, onNext }) {
                   )}
                 </div>
 
-                {err && <div className="callout callout-danger" style={{ marginTop: 12 }}>{err}</div>}
+                {err && <div className="callout callout-danger" style={{ marginTop: 'var(--s3)' }}>{err}</div>}
                 {lastResult && (
-                  <div className="callout" style={{ marginTop: 12, background: 'var(--positive-soft)', color: 'var(--positive)', padding: 12, borderRadius: 'var(--r-sm)' }}>
+                  <div className="callout" style={{ marginTop: 'var(--s3)', background: 'var(--positive-soft)', color: 'var(--positive)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)' }}>
                     {lastResult.status === 'copied' ? '✓ Markdown copied to clipboard.' :
                      lastResult.status === 'scheduled' ? `✓ Scheduled for ${new Date(lastResult.scheduled_at).toLocaleString('en-GB')}` :
                      lastResult.status === 'published' ? <>✓ Published.{lastResult.external_url && <> <a href={lastResult.external_url} target="_blank" rel="noreferrer">View live post →</a></>}</> :

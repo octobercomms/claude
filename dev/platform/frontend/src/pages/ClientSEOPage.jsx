@@ -73,7 +73,7 @@ function PosBox({ p, legacy }) {
   const top = p <= 10;
   return (
     <span style={{
-      display: 'inline-block', minWidth: 28, textAlign: 'center', padding: '3px 8px',
+      display: 'inline-block', minWidth: 28, textAlign: 'center', padding: 'var(--s1) var(--s2)',
       borderRadius: 'var(--r-pill)', fontSize: 'var(--fs-body)',
       fontWeight: legacy ? 500 : 700,
       fontStyle: legacy ? 'italic' : 'normal',
@@ -92,9 +92,9 @@ function fmtDay(d) {
 // current suite accent so it stays within the two-tone palette.
 function Sparkline({ data, reverse = false }) {
   const pts = (data || []).filter(v => v != null);
-  if (pts.length < 2) return <div style={{ height: 32, marginTop: 8 }} />;
+  if (pts.length < 2) return <div style={{ height: 32, marginTop: 'var(--s2)' }} />;
   return (
-    <div style={{ height: 32, marginTop: 8 }}>
+    <div style={{ height: 32, marginTop: 'var(--s2)' }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data.map((v, i) => ({ i, v }))} margin={{ top: 3, right: 2, left: 2, bottom: 3 }}>
           <YAxis hide reversed={reverse} domain={['dataMin', 'dataMax']} />
@@ -159,25 +159,25 @@ function WhyItRanks({ kw }) {
   }
 
   return (
-    <div style={{ borderTop: '1px solid var(--card-border)', marginTop: 12, paddingTop: 12 }}>
-      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 8 }}>Why it ranks</div>
+    <div style={{ borderTop: '1px solid var(--card-border)', marginTop: 'var(--s3)', paddingTop: 'var(--s3)' }}>
+      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>Why it ranks</div>
 
       {kw.ranking_url && (
-        <div style={{ fontSize: 'var(--fs-caption)', marginBottom: 10 }}>
+        <div style={{ fontSize: 'var(--fs-caption)', marginBottom: 'var(--s3)' }}>
           <span style={{ color: 'var(--text-subtle)' }}>Ranking page: </span>
           <a href={kw.ranking_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{stripProto(kw.ranking_url)}</a>
           {kw.target_url && normUrl(kw.ranking_url) !== normUrl(kw.target_url) && (
-            <span className="chip chip-warning" style={{ fontSize: 'var(--fs-caption)', padding: '1px 5px', marginLeft: 6 }} title={`Your target URL is ${kw.target_url}`}>≠ your target page</span>
+            <span className="chip chip-warning" style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s1)', marginLeft: 'var(--s2)' }} title={`Your target URL is ${kw.target_url}`}>≠ your target page</span>
           )}
         </div>
       )}
 
       {competitors.length > 0 ? (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 4 }}>
+        <div style={{ marginBottom: 'var(--s3)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s1)' }}>
             {kw.current_position ? 'Ranking above you' : 'Who owns this term'}:
           </div>
-          <ol style={{ margin: 0, paddingLeft: 22, fontSize: 'var(--fs-caption)', lineHeight: 1.7 }}>
+          <ol style={{ margin: 0, paddingLeft: 'var(--s6)', fontSize: 'var(--fs-caption)', lineHeight: 1.7 }}>
             {competitors.map((c, i) => (
               <li key={i} value={c.rank}>
                 <a href={c.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)', fontWeight: 600 }} title={c.url}>{c.domain || stripProto(c.url)}</a>
@@ -187,7 +187,7 @@ function WhyItRanks({ kw }) {
           </ol>
         </div>
       ) : (
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 10 }}>Run a rank check to capture who ranks around you.</div>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s3)' }}>Run a rank check to capture who ranks around you.</div>
       )}
 
       {!dive ? (
@@ -213,28 +213,28 @@ function DeepDiveResult({ dive }) {
     </div>
   );
   return (
-    <div style={{ marginTop: 4 }}>
+    <div style={{ marginTop: 'var(--s1)' }}>
       {b ? (
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
           <Metric label="Page rank" value={b.rank ?? '—'} />
           <Metric label="Backlinks" value={fmtVolume(b.backlinks)} />
           <Metric label="Referring domains" value={fmtVolume(b.referring_domains ?? b.referring_main_domains)} />
         </div>
       ) : (
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 10 }}>Backlink data unavailable for this page.</div>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s3)' }}>Backlink data unavailable for this page.</div>
       )}
       {dive.footprint?.length > 0 ? (
         <>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 4 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s1)' }}>
             This page also ranks for {dive.footprint_total} keyword{dive.footprint_total === 1 ? '' : 's'} — its strongest:
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-caption)' }}>
             <tbody>
               {dive.footprint.slice(0, 15).map((f, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                  <td style={{ padding: '3px 6px' }}>{f.keyword}</td>
-                  <td style={{ padding: '3px 6px', textAlign: 'right', color: 'var(--text)', fontWeight: 600, whiteSpace: 'nowrap' }}>#{f.position ?? '—'}</td>
-                  <td style={{ padding: '3px 6px', textAlign: 'right', color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>{f.search_volume != null ? `${fmtVolume(f.search_volume)}/mo` : '—'}</td>
+                  <td style={{ padding: 'var(--s1) var(--s2)' }}>{f.keyword}</td>
+                  <td style={{ padding: 'var(--s1) var(--s2)', textAlign: 'right', color: 'var(--text)', fontWeight: 600, whiteSpace: 'nowrap' }}>#{f.position ?? '—'}</td>
+                  <td style={{ padding: 'var(--s1) var(--s2)', textAlign: 'right', color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>{f.search_volume != null ? `${fmtVolume(f.search_volume)}/mo` : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -269,11 +269,11 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
   }
   const hasData = series.filter(p => p.position != null).length >= 2;
   return (
-    <div style={{ padding: '16px 24px' }}>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+    <div style={{ padding: 'var(--s4) var(--s6)' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
         {[['7', '7D'], ['30', '30D'], ['all', 'All']].map(([v, l]) => (
           <button key={v} onClick={() => setRange(v)} style={{
-            padding: '3px 12px', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: 'var(--border-w) solid var(--card-border)',
+            padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: 'var(--border-w) solid var(--card-border)',
             background: range === v ? 'var(--accent)' : 'var(--surface)', color: range === v ? 'var(--accent-on)' : 'var(--text-muted)',
           }}>{l}</button>
         ))}
@@ -288,7 +288,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
           </LineChart>
         </ResponsiveContainer>
       ) : (
-        <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', padding: '24px 0', margin: 0 }}>Not enough rank history yet to chart this keyword.</p>
+        <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', padding: 'var(--s6) 0', margin: 0 }}>Not enough rank history yet to chart this keyword.</p>
       )}
       <WhyItRanks kw={kw} />
     </div>
@@ -414,10 +414,10 @@ export default function ClientSEOPage() {
           <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>
             {kw.keyword}
             <IntentBadge intent={kw.intent} />
-            {kw.aio_present && <span className={`chip chip-${kw.aio_brand_cited ? 'success' : 'warning'}`} style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', padding: '1px 5px' }}>AIO{kw.aio_brand_cited ? '+CITED' : ''}</span>}
+            {kw.aio_present && <span className={`chip chip-${kw.aio_brand_cited ? 'success' : 'warning'}`} style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s1)' }}>AIO{kw.aio_brand_cited ? '+CITED' : ''}</span>}
           </div>
           {kw.ranking_url ? (
-            <div style={{ fontSize: 'var(--fs-caption)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 'var(--fs-caption)', marginTop: 'var(--s1)', display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap' }}>
               <span style={{ color: 'var(--text-subtle)' }}>↳</span>
               <a href={kw.ranking_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                 title={kw.ranking_url}
@@ -425,13 +425,13 @@ export default function ClientSEOPage() {
                 {stripProto(kw.ranking_url)}
               </a>
               {kw.target_url && normUrl(kw.ranking_url) !== normUrl(kw.target_url) && (
-                <span className="chip chip-warning" style={{ fontSize: 'var(--fs-caption)', padding: '1px 5px' }} title={`Your target page is ${kw.target_url}`}>≠ target</span>
+                <span className="chip chip-warning" style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s1)' }} title={`Your target page is ${kw.target_url}`}>≠ target</span>
               )}
             </div>
           ) : kw.target_url ? (
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }} title="Your target URL — not yet ranking">target: {stripProto(kw.target_url)}</div>
           ) : null}
-          {kw.serp_features?.length > 0 && <div style={{ marginTop: 3 }}><SerpFeaturePills features={kw.serp_features} /></div>}
+          {kw.serp_features?.length > 0 && <div style={{ marginTop: 'var(--s1)' }}><SerpFeaturePills features={kw.serp_features} /></div>}
         </td>
         <td ><span className="chip chip-neutral">{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
         <td ><span className="chip chip-neutral">{kw.device}</span></td>
@@ -442,7 +442,7 @@ export default function ClientSEOPage() {
               onBlur={() => saveTag(kw)}
               onKeyDown={e => { if (e.key === 'Enter') saveTag(kw); if (e.key === 'Escape') setEditingTag(null); }}
               placeholder="tag…"
-              className="input" style={{ padding: '4px 8px', width: 120, fontSize: 'var(--fs-caption)' }} />
+              className="input" style={{ padding: 'var(--s1) var(--s2)', width: 120, fontSize: 'var(--fs-caption)' }} />
           ) : (
             <span onClick={() => setEditingTag({ id: kw.id, value: kw.tag || '' })}
               title="Click to edit tag"
@@ -456,7 +456,7 @@ export default function ClientSEOPage() {
         <td >
           <PosBox p={kw.current_position} legacy={kw.current_source === 'legacy'} />
           {change !== null && (
-            <span className={change > 0 ? 'text-positive' : change < 0 ? 'text-negative' : 'text-subtle'} style={{ marginLeft: 6, fontSize: 'var(--fs-caption)' }}>
+            <span className={change > 0 ? 'text-positive' : change < 0 ? 'text-negative' : 'text-subtle'} style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>
               {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '–'}
             </span>
           )}
@@ -465,7 +465,7 @@ export default function ClientSEOPage() {
         <td style={{ color: 'var(--text)', fontWeight: 600 }}>{kw.best_position || '—'}</td>
         <td >{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
         <td onClick={e => e.stopPropagation()}>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', justifyContent: 'flex-end' }}>
             <button onClick={() => buildFromKeyword(kw.keyword)} className="btn btn-secondary btn-sm" title="Write content for this keyword">✍ Build</button>
             <button onClick={() => setHistoryKeyword(kw)} className="btn btn-secondary btn-sm">History</button>
             <button onClick={() => handleDelete(kw.id)} className="btn btn-danger btn-sm">Delete</button>
@@ -753,7 +753,7 @@ export default function ClientSEOPage() {
     loadRankMatrix();
   }, []);
 
-  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>;
 
   // Which top-level group the active tab belongs to. Defined in the component
   // body (not inside the tab-strip IIFE) so the whole render — including the
@@ -779,7 +779,7 @@ export default function ClientSEOPage() {
   // the same component state the standalone branches used.
   const renderKeywordsBody = () => (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
         <button onClick={handleExport} className="btn btn-secondary btn-sm">Export CSV</button>
         <button onClick={handleClassifyIntent} className="btn btn-secondary btn-sm" disabled={classifying}>{classifying ? 'Classifying…' : 'Classify Intent'}</button>
         <button onClick={handleCheckAll} className="btn btn-secondary btn-sm" disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
@@ -809,10 +809,10 @@ export default function ClientSEOPage() {
             {cards.map((c, i) => (
               <div key={c.label} className={'stat' + (i === 0 ? ' feature' : '')}>
                 <div className="stat-label">{c.label}</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 'var(--s2)' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
                   <div className="stat-value" style={{ marginTop: 0 }}>{c.value}</div>
                   {c.delta != null && c.delta !== 0 && (
-                    <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, padding: '2px 7px', borderRadius: 'var(--r-sm)', background: c.delta > 0 ? 'var(--positive-soft)' : 'var(--negative-soft)', color: c.delta > 0 ? 'var(--positive)' : 'var(--negative)' }}>
+                    <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', background: c.delta > 0 ? 'var(--positive-soft)' : 'var(--negative-soft)', color: c.delta > 0 ? 'var(--positive)' : 'var(--negative)' }}>
                       {c.delta > 0 ? `▲ ${c.delta}` : `▼ ${Math.abs(c.delta)}`}
                     </span>
                   )}
@@ -825,7 +825,7 @@ export default function ClientSEOPage() {
       })()}
 
       {/* Position buckets */}
-      <div style={{ display: 'flex', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: 16, background: 'var(--surface)' }}>
+      <div style={{ display: 'flex', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: 'var(--s4)', background: 'var(--surface)' }}>
         {[
           { key: 'all', label: 'All' },
           { key: 'top3', label: 'Top 3' },
@@ -835,7 +835,7 @@ export default function ClientSEOPage() {
           { key: 'none', label: 'Not ranking' },
         ].map((b, i) => (
           <button key={b.key} onClick={() => setBucket(b.key)} style={{
-            flex: 1, padding: '10px 8px', cursor: 'pointer',
+            flex: 1, padding: 'var(--s3) var(--s2)', cursor: 'pointer',
             border: 'none', borderLeft: i ? '1px solid var(--card-border)' : 'none',
             borderBottom: bucket === b.key ? '2px solid var(--accent)' : '2px solid transparent',
             background: bucket === b.key ? 'var(--surface-sunken)' : 'var(--surface)',
@@ -848,7 +848,7 @@ export default function ClientSEOPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
         <select className="input" style={{ width: 220, flex: '0 0 auto' }} value={filterLocation} onChange={e => setFilterLocation(e.target.value)}>
           <option value="">All locations</option>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
@@ -864,10 +864,10 @@ export default function ClientSEOPage() {
 
       {/* Add keyword form */}
       {showAddForm && (
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
           <div className="caption">Add Keyword</div>
-          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: 12 }}>
+          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)', marginTop: 'var(--s3)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: 'var(--s3)' }}>
               {[
                 { label: 'Keyword', el: <input className="input" required value={newKw.keyword} onChange={e => setNewKw(p => ({ ...p, keyword: e.target.value }))} /> },
                 { label: 'Target URL', el: <input className="input" value={newKw.target_url} onChange={e => setNewKw(p => ({ ...p, target_url: e.target.value }))} placeholder="https://…" /> },
@@ -887,13 +887,13 @@ export default function ClientSEOPage() {
                 )},
                 { label: 'Tag', el: <input className="input" value={newKw.tag} onChange={e => setNewKw(p => ({ ...p, tag: e.target.value }))} placeholder="brand, category…" /> },
               ].map(({ label, el }) => (
-                <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                   <label className="field-label">{label}</label>
                   {el}
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)' }}>
               <button type="submit" className="btn btn-primary">Add</button>
               <button type="button" onClick={() => setShowAddForm(false)} className="btn btn-secondary">Cancel</button>
             </div>
@@ -903,26 +903,26 @@ export default function ClientSEOPage() {
 
       {/* Bulk import form */}
       {showBulkForm && (
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
           <div className="caption">Bulk Import</div>
-          <p style={{ margin: '8px 0 16px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>One keyword per line. Optional columns: <code>keyword, target_url, tag</code></p>
-          <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p style={{ margin: 'var(--s2) 0 var(--s4)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>One keyword per line. Optional columns: <code>keyword, target_url, tag</code></p>
+          <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
             <textarea className="input" style={{ minHeight: 160, resize: 'vertical', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
               placeholder={'enamel mug\nenamel teapot, https://falconenamelware.com/collections, tableware'}
               value={bulkText} onChange={e => setBulkText(e.target.value)} required />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--s3)' }}>
               {[
                 { label: 'Location', el: <select className="input" value={bulkLocation} onChange={e => setBulkLocation(e.target.value)}>{LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}</select> },
                 { label: 'Device', el: <select className="input" value={bulkDevice} onChange={e => setBulkDevice(e.target.value)}><option value="desktop">Desktop</option><option value="mobile">Mobile</option></select> },
                 { label: 'Default Tag', el: <input className="input" value={bulkTag} onChange={e => setBulkTag(e.target.value)} placeholder="brand, category…" /> },
               ].map(({ label, el }) => (
-                <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                   <label className="field-label">{label}</label>
                   {el}
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
               <button type="submit" className="btn btn-primary" disabled={bulking}>{bulking ? 'Importing…' : 'Import'}</button>
               <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} className="btn btn-secondary">Cancel</button>
               {bulkMsg && <span className={bulkMsg.startsWith('Error') ? 'text-negative' : 'text-positive'} style={{ fontSize: 'var(--fs-body)' }}>{bulkMsg}</span>}
@@ -932,11 +932,11 @@ export default function ClientSEOPage() {
       )}
 
       {/* View toggle */}
-      <div style={{ display: 'flex', marginBottom: 12, gap: 12, alignItems: 'center' }}>
+      <div style={{ display: 'flex', marginBottom: 'var(--s3)', gap: 'var(--s3)', alignItems: 'center' }}>
         <div style={{ display: 'flex' }}>
           {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
             <button key={v} onClick={() => setKwView(v)} style={{
-              padding: '6px 16px', fontSize: 'var(--fs-body)', cursor: 'pointer', fontWeight: kwView === v ? 700 : 400, border: 'var(--border-w) solid var(--card-border)',
+              padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-body)', cursor: 'pointer', fontWeight: kwView === v ? 700 : 400, border: 'var(--border-w) solid var(--card-border)',
               background: kwView === v ? 'var(--surface-sunken)' : 'var(--surface)', color: kwView === v ? 'var(--text)' : 'var(--text-muted)',
               borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? undefined : 'none',
             }}>{label}</button>
@@ -944,7 +944,7 @@ export default function ClientSEOPage() {
         </div>
         {kwView === 'current' && (
           <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
-            className="input" style={{ width: 190, padding: '6px 10px', fontSize: 'var(--fs-body)', flex: '0 0 auto' }}>
+            className="input" style={{ width: 190, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', flex: '0 0 auto' }}>
             <option value="none">No grouping</option>
             <option value="tag">Group by tag</option>
             <option value="url">Group by landing page</option>
@@ -982,7 +982,7 @@ export default function ClientSEOPage() {
                       <td colSpan={10} style={{ fontWeight: 700, fontSize: 'var(--fs-caption)' }}>
                         <span style={{ display: 'inline-block', width: 18, color: 'var(--text-subtle)' }}>{collapsed ? '▶' : '▼'}</span>
                         {group.label}
-                        <span style={{ marginLeft: 10, fontWeight: 400, color: 'var(--text-subtle)' }}>
+                        <span style={{ marginLeft: 'var(--s3)', fontWeight: 400, color: 'var(--text-subtle)' }}>
                           {group.keywords.length} keyword{group.keywords.length === 1 ? '' : 's'}{avg !== null ? ` · avg position ${avg}` : ''}
                         </span>
                       </td>
@@ -1001,9 +1001,9 @@ export default function ClientSEOPage() {
       {kwView === 'history' && (
       <div className="card" style={{ overflowX: 'auto' }}>
         {rankMatrixLoading ? (
-          <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading rank history…</div>
+          <div style={{ padding: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading rank history…</div>
         ) : !rankMatrix || rankMatrix.dates.length === 0 ? (
-          <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>No rank history yet — positions appear here once daily checks run or legacy data is imported.</div>
+          <div style={{ padding: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>No rank history yet — positions appear here once daily checks run or legacy data is imported.</div>
         ) : (
           <table className="table">
             <thead>
@@ -1057,7 +1057,7 @@ export default function ClientSEOPage() {
       )}
 
       {(kwView === 'current' || (rankMatrix && rankMatrix.dates.length > 0)) && (
-        <p style={{ marginTop: 10, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+        <p style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
           <strong>Bold</strong> = live DataForSEO data · <em>italic</em> = imported legacy data ·
           green = top 10 · orange = 11–100 · click a keyword for its position graph.
         </p>
@@ -1070,7 +1070,7 @@ export default function ClientSEOPage() {
         <div className="caption">Manual SEO Metrics</div>
 
         {/* Metrics history table */}
-        <div style={{ overflowX: 'auto', marginTop: 12 }}>
+        <div style={{ overflowX: 'auto', marginTop: 'var(--s3)' }}>
           <table className="table">
             <thead>
               <tr>
@@ -1094,7 +1094,7 @@ export default function ClientSEOPage() {
                     <td >{m.referring_domains != null ? Number(m.referring_domains).toLocaleString('en-GB') : '—'}</td>
                     <td style={{ maxWidth: 200, color: 'var(--text-muted)' }}>{m.notes || '—'}</td>
                     <td >
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                         <button
                           className="btn btn-secondary btn-sm"
                           onClick={() => {
@@ -1123,13 +1123,13 @@ export default function ClientSEOPage() {
         </div>
 
         {/* Inline edit / entry form */}
-        <form onSubmit={handleSaveSeoMetrics} style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+        <form onSubmit={handleSaveSeoMetrics} style={{ marginTop: 'var(--s5)', display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)' }}>
             {seoMetricEdit.month
               ? `Editing: ${new Date(seoMetricEdit.month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`
               : 'Enter / update metrics'}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 2fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 2fr', gap: 'var(--s3)' }}>
             {[
               { label: 'Month', el: <input type="date" className="input" value={seoMetricEdit.month} onChange={e => setSeoMetricEdit(p => ({ ...p, month: e.target.value }))} required /> },
               { label: 'Moz DA', el: <input type="number" min="0" max="100" className="input" value={seoMetricEdit.moz_da} onChange={e => setSeoMetricEdit(p => ({ ...p, moz_da: e.target.value }))} placeholder="0–100" /> },
@@ -1137,7 +1137,7 @@ export default function ClientSEOPage() {
               { label: 'Referring Domains', el: <input type="number" min="0" className="input" value={seoMetricEdit.referring_domains} onChange={e => setSeoMetricEdit(p => ({ ...p, referring_domains: e.target.value }))} placeholder="0" /> },
               { label: 'Notes', el: <input className="input" value={seoMetricEdit.notes} onChange={e => setSeoMetricEdit(p => ({ ...p, notes: e.target.value }))} placeholder="Optional notes…" /> },
             ].map(({ label, el }) => (
-              <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                 <label className="field-label">{label}</label>
                 {el}
               </div>

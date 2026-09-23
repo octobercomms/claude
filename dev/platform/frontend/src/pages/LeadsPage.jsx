@@ -54,7 +54,7 @@ export default function LeadsPage({ embedded = false } = {}) {
 
       <div className="card mb-6" style={{ borderColor: 'var(--accent)' }}>
         <div className="caption mb-2">New snapshot</div>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
           <input className="input" style={{ flex: 1, minWidth: 260 }} value={url}
             onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && create()}
             placeholder="prospect-website.com" />
@@ -65,9 +65,9 @@ export default function LeadsPage({ embedded = false } = {}) {
       </div>
 
       {leads === null ? (
-        <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>
+        <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>
       ) : !leads.length ? (
-        <div className="card"><div className="text-subtle" style={{ padding: 20 }}>No leads yet. Add a prospect's URL above to draft their first snapshot.</div></div>
+        <div className="card"><div className="text-subtle" style={{ padding: 'var(--s5)' }}>No leads yet. Add a prospect's URL above to draft their first snapshot.</div></div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <table className="table">

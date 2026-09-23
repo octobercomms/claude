@@ -119,20 +119,20 @@ export default function SnapshotStudioPage() {
       .catch(e => toast(e.message, 'error'));
   }
 
-  if (!lead) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
+  if (!lead) return <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>;
   const host = (() => { try { return new URL(lead.url).hostname.replace(/^www\./, ''); } catch { return lead.url; } })();
   const hasDraft = !!lead.draft;
 
   return (
     <div>
-      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/leads')} style={{ marginBottom: 10 }}>← All leads</button>
-      <div className="row between center wrap" style={{ gap: 12, marginBottom: 16 }}>
+      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/leads')} style={{ marginBottom: 'var(--s3)' }}>← All leads</button>
+      <div className="row between center wrap" style={{ gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
         <div style={{ minWidth: 0 }}>
           <div className="kicker"><span className="pip" />Snapshot Studio</div>
           <h1 className="h1 mt-2">{lead.company_name || host}</h1>
           <a className="body-sm text-muted" href={lead.url} target="_blank" rel="noreferrer">{host} ↗</a>
         </div>
-        <div className="row wrap" style={{ gap: 8 }}>
+        <div className="row wrap" style={{ gap: 'var(--s2)' }}>
           <button className="btn btn-secondary" onClick={() => gather()} disabled={busy === 'gather'}>
             {busy === 'gather' ? 'Drafting…' : (hasDraft ? '↻ Re-draft' : '⚡ Draft')}
           </button>
@@ -142,21 +142,21 @@ export default function SnapshotStudioPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(300px, 1fr)', gap: 18, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(300px, 1fr)', gap: 'var(--s5)', alignItems: 'start' }}>
         {/* Preview */}
-        <div className="card" style={{ padding: 8, position: 'sticky', top: 12 }}>
+        <div className="card" style={{ padding: 'var(--s2)', position: 'sticky', top: 12 }}>
           {busy === 'gather' ? (
-            <div className="text-subtle" style={{ padding: 40, textAlign: 'center' }}>Reading {host} and drafting the snapshot… (~15s)</div>
+            <div className="text-subtle" style={{ padding: 'var(--s8)', textAlign: 'center' }}>Reading {host} and drafting the snapshot… (~15s)</div>
           ) : hasDraft ? (
             <iframe key={bust} title="preview" src={`/api/leads/${id}/preview.html?t=${bust}`}
               style={{ width: '100%', height: '78vh', border: 'none', borderRadius: 'var(--r-sm)' }} />
           ) : (
-            <div className="text-subtle" style={{ padding: 40, textAlign: 'center' }}>No draft yet — hit <strong>⚡ Draft</strong> to read their site and generate the snapshot.</div>
+            <div className="text-subtle" style={{ padding: 'var(--s8)', textAlign: 'center' }}>No draft yet — hit <strong>⚡ Draft</strong> to read their site and generate the snapshot.</div>
           )}
         </div>
 
         {/* Cockpit */}
-        <div className="stack" style={{ gap: 14 }}>
+        <div className="stack" style={{ gap: 'var(--s4)' }}>
           <div className="card">
             <div className="caption mb-3">Lead</div>
             <Field label="Email"><input className="input" defaultValue={lead.email || ''} placeholder="—"
@@ -165,7 +165,7 @@ export default function SnapshotStudioPage() {
               onBlur={e => e.target.value !== (lead.ig_handle || '') && patch({ ig_handle: e.target.value })} /></Field>
             <Field label="Notes"><textarea className="textarea" rows={2} defaultValue={lead.notes || ''}
               onBlur={e => e.target.value !== (lead.notes || '') && patch({ notes: e.target.value })} /></Field>
-            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)', marginTop: 4 }} onClick={removeLead}>Delete lead</button>
+            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)', marginTop: 'var(--s1)' }} onClick={removeLead}>Delete lead</button>
           </div>
 
           <div className="card">
@@ -178,13 +178,13 @@ export default function SnapshotStudioPage() {
             {!lead.images?.length ? (
               <div className="body-sm text-subtle">No images yet. Re-draft to pull from their site, or upload an Instagram screen-grab.</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 'var(--s2)' }}>
                 {lead.images.map(img => (
-                  <div key={img.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '2px solid ' + (img.featured ? 'var(--accent)' : 'var(--card-border)'), cursor: 'pointer', aspectRatio: '1' }}
+                  <div key={img.id} style={{ position: 'relative', borderRadius: 'var(--r-sm)', overflow: 'hidden', border: '2px solid ' + (img.featured ? 'var(--accent)' : 'var(--card-border)'), cursor: 'pointer', aspectRatio: '1' }}
                     onClick={() => toggleFeatured(img)} title={img.featured ? 'Featured — click to remove' : 'Click to feature'}>
                     <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    {img.featured && <span style={{ position: 'absolute', top: 3, left: 3, background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 4, padding: '0 5px' }}>✓</span>}
-                    {img.kind !== 'site' && <span style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', fontWeight: 700, borderRadius: 3, padding: '0 4px' }}>UP</span>}
+                    {img.featured && <span style={{ position: 'absolute', top: 3, left: 3, background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 'var(--r-sm)', padding: '0 var(--s1)' }}>✓</span>}
+                    {img.kind !== 'site' && <span style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', fontWeight: 700, borderRadius: 'var(--r-sm)', padding: '0 var(--s1)' }}>UP</span>}
                     <button onClick={e => { e.stopPropagation(); deleteImage(img); }} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', lineHeight: 1, cursor: 'pointer' }}>×</button>
                   </div>
                 ))}
@@ -196,9 +196,9 @@ export default function SnapshotStudioPage() {
             <div className="card">
               <div className="caption mb-3">Refine with Claude</div>
               {log.length > 0 && (
-                <div className="stack" style={{ gap: 6, marginBottom: 10, maxHeight: 180, overflowY: 'auto' }}>
+                <div className="stack" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', maxHeight: 180, overflowY: 'auto' }}>
                   {log.map((m, i) => (
-                    <div key={i} className="body-xs" style={{ padding: '6px 10px', borderRadius: 8, background: m.role === 'you' ? 'var(--accent-soft)' : 'var(--surface-raised)' }}>
+                    <div key={i} className="body-xs" style={{ padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-sm)', background: m.role === 'you' ? 'var(--accent-soft)' : 'var(--surface-raised)' }}>
                       <strong>{m.role === 'you' ? 'You' : 'Claude'}:</strong> {m.text}
                     </div>
                   ))}

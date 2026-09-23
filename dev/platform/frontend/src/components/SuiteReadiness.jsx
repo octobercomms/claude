@@ -28,7 +28,7 @@ export default function SuiteReadiness({ clientId, suite, steps, title = 'Setup 
 
   return (
     <div className="card">
-      <div className="row between center" style={{ marginBottom: 10, gap: 12, flexWrap: 'wrap' }}>
+      <div className="row between center" style={{ marginBottom: 'var(--s3)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div className="caption">{title}</div>
         <span className="body-sm text-muted">
           <strong style={{ color: complete ? 'var(--positive)' : 'var(--text)' }}>{done}</strong> of {total} set up

@@ -31,20 +31,20 @@ export default function PaidLaunchStep({ pipeline, onBack }) {
         </div>
       ) : (
         <>
-          <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <div className="caption mb-2">Ready to ship</div>
             <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6 }}>
               {creatives.length} concepts · {totalImages} rendered assets
             </div>
           </div>
 
-          <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <div className="caption mb-3">Pre-launch checklist</div>
-            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', lineHeight: 1.8 }}>
+            <ul style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-body)', lineHeight: 1.8 }}>
               {CHECKLIST.map((c, i) => (
                 <li key={i} style={{ color: 'var(--text)' }}>
                   {c.label}
-                  {c.automatic && <span style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>(auto-verified)</span>}
+                  {c.automatic && <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>(auto-verified)</span>}
                 </li>
               ))}
             </ul>

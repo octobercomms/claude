@@ -98,18 +98,18 @@ export default function DraftPanel({ clientId, onNext }) {
       num={3} title="Draft" onNext={onNext} nextLabel="Publish"
       tagline="Claude writes the full post in the client's voice — grounded in the brand briefing and uploaded brand assets. Standard AI tells are stripped automatically. Edit inline before publishing."
     >
-      <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card" style={{ marginBottom: 'var(--s5)' }}>
         <div className="caption mb-2">Generate a new draft from a brief</div>
         <textarea
           value={brief} onChange={e => setBrief(e.target.value)} rows={4}
           placeholder="Paste a brief — title, outline, target intent, key questions, word count. Or write a brief directly from a Brief step run."
-          style={{ width: '100%', padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
+          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
         />
-        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
           <input
             value={targetKeyword} onChange={e => setTargetKeyword(e.target.value)}
             placeholder="Target keyword (optional)"
-            style={{ flex: 1, padding: '7px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+            style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
           />
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: generate, disabled: generating || !brief.trim() })}>
             {generating ? 'Writing — 30-90s…' : 'Write draft'}
@@ -117,31 +117,31 @@ export default function DraftPanel({ clientId, onNext }) {
         </div>
       </div>
 
-      {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
+      {err && <div className="callout callout-danger" style={{ marginBottom: 'var(--s4)' }}>{err}</div>}
 
       {loading && !drafts.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>
       ) : !drafts.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           No drafts yet. Paste a brief above to generate the first one.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 22 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 'var(--s6)' }}>
           <div>
             <div className="caption mb-3">Drafts</div>
             {drafts.map(d => (
               <div key={d.id} className="card"
-                style={{ padding: 10, marginBottom: 8, cursor: 'pointer',
+                style={{ padding: 'var(--s3)', marginBottom: 'var(--s2)', cursor: 'pointer',
                   background: d.id === activeDraft?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
                 onClick={() => openDraft(d.id)}>
                 <div style={{ fontWeight: 600, fontSize: 'var(--fs-caption)', lineHeight: 1.3 }}>{d.title}</div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                   {new Date(d.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short' })}
                   {' · '}{d.word_count?.toLocaleString() || 0} words
                   {' · '}<span style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>{d.status}</span>
                 </div>
                 {(d.publications || []).length > 0 && (
-                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                     Published to {d.publications.map(p => p.platform).join(', ')}
                   </div>
                 )}
@@ -152,9 +152,9 @@ export default function DraftPanel({ clientId, onNext }) {
           <div>
             {activeDraft && (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
                   <div className="caption">Editor</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                     <button onClick={() => deleteDraft(activeDraft.id)} className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
                     <button onClick={() => setChatOpen(o => !o)} className={`btn ${chatOpen ? 'btn-primary' : 'btn-secondary'} btn-sm`}>
                       {chatOpen ? 'Hide Claude' : '✦ Refine with Claude'}
@@ -170,22 +170,22 @@ export default function DraftPanel({ clientId, onNext }) {
                   value={editTitle}
                   onChange={e => { setEditTitle(e.target.value); setDirty(true); }}
                   placeholder="Title"
-                  style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--fs-title)', fontWeight: 700, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-title)', fontWeight: 700, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
                 />
                 <input
                   value={editMeta}
                   onChange={e => { setEditMeta(e.target.value); setDirty(true); }}
                   placeholder="Meta description (≤155 chars)"
                   maxLength={160}
-                  style={{ width: '100%', padding: '7px 12px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
                 />
                 <textarea
                   value={editBody}
                   onChange={e => { setEditBody(e.target.value); setDirty(true); }}
                   rows={28}
-                  style={{ width: '100%', padding: '12px 14px', fontSize: 'var(--fs-body)', lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
+                  style={{ width: '100%', padding: 'var(--s3) var(--s4)', fontSize: 'var(--fs-body)', lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
                 />
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>
                   Markdown · {editBody.split(/\s+/).filter(Boolean).length.toLocaleString()} words
                 </div>
                   </div>

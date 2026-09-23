@@ -156,7 +156,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
     catch (e) { toast(e.message, 'error'); }
   }
 
-  if (!loaded) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
+  if (!loaded) return <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>;
 
   // v3-specific: which extra controls apply to the selected avatar.
   const selAvatar = opts?.avatars?.find(a => `${a.type}:${a.id}` === avatar);
@@ -170,7 +170,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
       </div>
 
       {optsErr ? (
-        <div className="callout callout-warning" style={{ marginBottom: 'var(--s5)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div className="callout callout-warning" style={{ marginBottom: 'var(--s5)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
           <span>{optsErr}</span>
           <button onClick={loadOptions} disabled={reloadingOpts} className="btn btn-secondary btn-sm">{reloadingOpts ? 'Retrying…' : 'Retry'}</button>
         </div>
@@ -179,7 +179,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
       ) : (
         <div className="card" style={{ marginBottom: 'var(--s5)' }}>
           {opts.partial && (
-            <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
               <span>{opts.avatars?.length ? 'Voices' : 'Avatars'} couldn’t load — {opts.partial_error || 'HeyGen may be busy.'}</span>
               <button onClick={loadOptions} disabled={reloadingOpts} className="btn btn-secondary btn-sm">{reloadingOpts ? 'Retrying…' : 'Retry'}</button>
             </div>
@@ -187,7 +187,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
           <div className="stack stack-sm">
             {/* Let Claude write the script at a chosen length — the target
                 duration is what sets the finished video's runtime. */}
-            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) dashed var(--card-border)', borderRadius: 'var(--r-sm)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ padding: 'var(--s3)', border: 'var(--border-w) dashed var(--card-border)', borderRadius: 'var(--r-sm)', display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
               <span className="field-label" style={{ margin: 0 }}>✨ Write with Claude</span>
               <input className="input" style={{ flex: '1 1 220px', minWidth: 160 }} placeholder="Topic / brief (optional — uses the client's brief if blank)"
                 value={scriptTopic} onChange={e => setScriptTopic(e.target.value)} />
@@ -222,7 +222,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                   {canPause ? (
                     <>Pacing: drop a pause of{' '}
                       <select value={pauseDur} onChange={e => setPauseDur(e.target.value)}
-                        style={{ fontSize: 'var(--fs-caption)', padding: '1px 4px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 4 }}>
+                        style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s1)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
                         {['0.3s', '0.5s', '1s', '1.5s', '2s'].map(d => <option key={d} value={d}>{d}</option>)}
                       </select>{' '}
                       <button type="button" className="btn-inline-link"
@@ -236,15 +236,15 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
               );
             })()}
             <div>
-              <span className="field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span className="field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--s2)' }}>
                 <span>Avatar / Digital Twin{avatar && opts.avatars.find(a => `${a.type}:${a.id}` === avatar) ? ` — ${opts.avatars.find(a => `${a.type}:${a.id}` === avatar).name}` : ''}</span>
                 <button type="button" onClick={loadOptions} disabled={reloadingOpts}
-                  className="btn btn-ghost btn-sm" style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px' }} title="Pull your latest avatars from HeyGen">
+                  className="btn btn-ghost btn-sm" style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)' }} title="Pull your latest avatars from HeyGen">
                   {reloadingOpts ? 'Syncing…' : '↻ Sync'}
                 </button>
               </span>
               {!opts.avatars.length ? (
-                <div className="body-sm text-subtle" style={{ marginTop: 6 }}>No avatars — make a Digital Twin in HeyGen, then Sync.</div>
+                <div className="body-sm text-subtle" style={{ marginTop: 'var(--s2)' }}>No avatars — make a Digital Twin in HeyGen, then Sync.</div>
               ) : (
                 <div className="avatar-grid">
                   {opts.avatars.map((a, i) => {
@@ -268,7 +268,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
             </label>
             <div className="field">
               <span className="field-label">Shape</span>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                 {SHAPES.map(s => (
                   <button type="button" key={s.id} onClick={() => setAspect(s.id)}
                     className={'btn btn-sm ' + (aspect === s.id ? 'btn-primary' : 'btn-secondary')}
@@ -280,7 +280,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
             </div>
             <div className="field">
               <span className="field-label">Framing</span>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                 <button type="button" onClick={() => setFit('cover')}
                   className={'btn btn-sm ' + (fit === 'cover' ? 'btn-primary' : 'btn-secondary')}
                   title="Scale the avatar to fill the whole frame (may crop the edges)">Fill frame</button>
@@ -288,7 +288,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                   className={'btn btn-sm ' + (fit === 'contain' ? 'btn-primary' : 'btn-secondary')}
                   title="Fit the whole avatar inside the frame (may show background bars)">Fit whole avatar</button>
               </div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                 <strong>Fill</strong> stops a reel from letterboxing the avatar into a smaller box.
               </div>
             </div>
@@ -300,13 +300,13 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                   <option value="medium">Medium — natural</option>
                   <option value="high">High — lively, more gesture</option>
                 </select>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                   Photo avatars only. HeyGen defaults to Low (stiff) — Medium/High give more lifelike motion. (Not used with Avatar V.)
                 </div>
               </label>
             )}
             {canAvatarV && (
-              <label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <label className="field" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', cursor: 'pointer' }}>
                 <input type="checkbox" checked={engine === 'avatar_v'} onChange={e => setEngine(e.target.checked ? 'avatar_v' : '')} />
                 <span style={{ fontSize: 'var(--fs-body)' }}>
                   <strong>Highest fidelity (Avatar V)</strong>{' '}
@@ -314,7 +314,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                 </span>
               </label>
             )}
-            <label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <label className="field" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', cursor: 'pointer' }}>
               <input type="checkbox" checked={caption} onChange={e => setCaption(e.target.checked)} />
               <span style={{ fontSize: 'var(--fs-body)' }}>
                 <strong>Burn in captions</strong>{' '}
@@ -323,7 +323,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
             </label>
             <div>
               <button className="btn btn-primary" {...roWrite(readOnly, { onClick: generate, disabled: busy })}>{busy ? 'Sending…' : '✦ Generate reel'}</button>
-              {readOnly && <span className="body-xs text-subtle" style={{ marginLeft: 10 }}>{READ_ONLY_MSG}</span>}
+              {readOnly && <span className="body-xs text-subtle" style={{ marginLeft: 'var(--s3)' }}>{READ_ONLY_MSG}</span>}
             </div>
           </div>
         </div>
@@ -342,7 +342,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
               return (
                 <div key={r.id} className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
                   <button type="button" onClick={() => remove(r.id)} title="Delete"
-                    style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 'var(--fs-caption)', lineHeight: 1 }}>✕</button>
+                    style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: 'var(--r-md)', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 'var(--fs-caption)', lineHeight: 1 }}>✕</button>
                   <div
                     onClick={() => done && setModalReel(r)}
                     style={{ position: 'relative', aspectRatio: '9 / 16', background: '#000', cursor: done ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -351,11 +351,11 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                         <video src={r.video_url} preload="metadata" muted playsInline
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ width: 40, height: 40, borderRadius: 20, background: 'rgba(0,0,0,0.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-title)' }}>▶</span>
+                          <span style={{ width: 40, height: 40, borderRadius: 'var(--r-lg)', background: 'rgba(0,0,0,0.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-title)' }}>▶</span>
                         </div>
                       </>
                     ) : (
-                      <div style={{ textAlign: 'center', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', padding: 12 }}>
+                      <div style={{ textAlign: 'center', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', padding: 'var(--s3)' }}>
                         {r.status === 'failed' ? '⚠︎ Failed' : '⏳ Rendering…'}
                       </div>
                     )}
@@ -363,10 +363,10 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                   </div>
                   <div style={{ padding: 'var(--s3)' }}>
                     <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
-                    <div className="body-xs text-subtle" style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.avatar_name || r.avatar_id}{r.duration_s ? ` · ${Math.round(r.duration_s)}s` : ''}
                     </div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                    <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s2)' }}>
                       {(done || r.status === 'failed') && <button className="btn btn-ghost btn-sm" {...roWrite(readOnly, { onClick: () => editReel(r) })} title="Edit the script and regenerate">✎ Edit script</button>}
                       {r.status === 'failed' && <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => retry(r.id) })}>Retry</button>}
                       {r.status === 'processing' && <button className="btn btn-ghost btn-sm" {...roWrite(readOnly, { onClick: () => refresh(r.id) })}>Refresh</button>}
@@ -381,10 +381,10 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
 
       {modalReel && (
         <div onClick={() => setModalReel(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s5)' }}>
           <div onClick={e => e.stopPropagation()} className="card"
             style={{ maxWidth: 380, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
               <div style={{ minWidth: 0 }}>
                 <strong style={{ fontSize: 'var(--fs-body)' }}>{modalReel.title || 'Reel'}</strong>
                 <div className="body-xs text-subtle">{modalReel.avatar_name || modalReel.avatar_id}{modalReel.duration_s ? ` · ${Math.round(modalReel.duration_s)}s` : ''}</div>
@@ -393,7 +393,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
             </div>
             <video src={modalReel.video_url} controls autoPlay
               style={{ width: '100%', borderRadius: 'var(--r-sm)', background: '#000', maxHeight: '64vh' }} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
               <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => schedule(modalReel.id) })}>📅 Schedule</button>
               <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => editReel(modalReel) })} title="Edit the script and regenerate">✎ Edit script</button>
               <a className="btn btn-secondary btn-sm" href={modalReel.video_url} target="_blank" rel="noreferrer" download>Download</a>

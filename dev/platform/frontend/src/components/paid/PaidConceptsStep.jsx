@@ -34,7 +34,7 @@ export default function PaidConceptsStep({ pipeline, clientName, clientId, onNex
         <ExampleConcept clientName={clientName} onDismiss={() => {}} />
       ) : refining ? (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
             <button onClick={() => { setRefiningId(null); setRefineErr(null); }} className="btn btn-ghost btn-sm">
               ← Back to all {creatives.length} concepts
             </button>
@@ -66,10 +66,10 @@ export default function PaidConceptsStep({ pipeline, clientName, clientId, onNex
         </>
       ) : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
             <div className="caption">{creatives.length} concepts · brief from {new Date(activeBatch.created_at).toLocaleDateString('en-GB')}</div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 'var(--s4)' }}>
             {creatives.map(c => (
               <div key={c.id} style={{ display: 'flex', flexDirection: 'column' }}>
                 <CreativeCard creative={c}
@@ -77,7 +77,7 @@ export default function PaidConceptsStep({ pipeline, clientName, clientId, onNex
                   onDelete={() => deleteCreative(c.id)} />
                 <button onClick={() => setRefiningId(c.id)}
                   className="btn btn-secondary btn-sm"
-                  style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+                  style={{ marginTop: 'var(--s2)', alignSelf: 'flex-start' }}>
                   ✦ Refine with Claude
                 </button>
               </div>

@@ -77,7 +77,7 @@ export default function ReportsPage() {
     return true;
   });
 
-  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>;
 
   return (
     <div className="suite-reports">
@@ -94,9 +94,9 @@ export default function ReportsPage() {
 
       {showTrigger && (
         <div className="card">
-          <h3 style={{ margin: '0 0 16px', fontSize: 'var(--fs-body)' }}>Trigger Report</h3>
-          <form onSubmit={handleTrigger} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <h3 style={{ margin: '0 0 var(--s4)', fontSize: 'var(--fs-body)' }}>Trigger Report</h3>
+          <form onSubmit={handleTrigger} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s4)' }}>
               <div className="field">
                 <label className="field-label">Client</label>
                 <select className="input" value={trigger.client_id} required
@@ -124,7 +124,7 @@ export default function ReportsPage() {
                   onChange={e => setTrigger(p => ({ ...p, period_end: e.target.value }))} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)' }}>
               <button type="submit" className="btn btn-primary" {...roWrite(readOnly, { disabled: triggering })}>{triggering ? 'Generating…' : 'Generate'}</button>
               <button type="button" onClick={() => setShowTrigger(false)} className="btn btn-secondary">Cancel</button>
             </div>
@@ -132,7 +132,7 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
         <select className="input" style={{ width: 200 }} value={filterClient} onChange={e => setFilterClient(e.target.value)}>
           <option value="">All clients</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -169,7 +169,7 @@ export default function ReportsPage() {
                     {r.status}
                   </span>
                   {r.status === 'failed' && r.error_log && (
-                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 4, maxWidth: 300, wordBreak: 'break-word' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 'var(--s1)', maxWidth: 300, wordBreak: 'break-word' }}>
                       {r.error_log}
                     </div>
                   )}
@@ -177,7 +177,7 @@ export default function ReportsPage() {
                 <td >{r.generated_at ? fmtDate(r.generated_at) : '—'}</td>
                 <td >{r.sent_at ? fmtDate(r.sent_at) : '—'}</td>
                 <td style={{ textAlign: 'right' }}>
-                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 'var(--s2)', justifyContent: 'flex-end' }}>
                     {(r.status === 'generated' || r.status === 'sent') && (
                       <button onClick={() => handlePreview(r.id)} className="btn btn-secondary btn-sm">Preview</button>
                     )}

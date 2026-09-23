@@ -46,16 +46,16 @@ export default function WatchPage() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0d0d0f', color: '#f4f4f5', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 16px', fontFamily: 'Brockmann, -apple-system, "Segoe UI", Roboto, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#0d0d0f', color: '#f4f4f5', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--s7) var(--s4)', fontFamily: 'Brockmann, -apple-system, "Segoe UI", Roboto, sans-serif' }}>
       <div style={{ width: '100%', maxWidth: 960 }}>
-        <div style={{ fontSize: 'var(--fs-caption)', letterSpacing: '.12em', textTransform: 'uppercase', color: '#8a8a92', fontWeight: 700, marginBottom: 14 }}>October</div>
+        <div style={{ fontSize: 'var(--fs-caption)', letterSpacing: '.12em', textTransform: 'uppercase', color: '#8a8a92', fontWeight: 700, marginBottom: 'var(--s4)' }}>October</div>
         {error ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: '#c9c9d0' }}>{error}</div>
+          <div style={{ padding: 'var(--s9) 0', textAlign: 'center', color: '#c9c9d0' }}>{error}</div>
         ) : !meta ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: '#8a8a92' }}>Loading…</div>
+          <div style={{ padding: 'var(--s9) 0', textAlign: 'center', color: '#8a8a92' }}>Loading…</div>
         ) : (
           <>
-            <div style={{ background: '#000', borderRadius: 14, overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,.5)' }}>
+            <div style={{ background: '#000', borderRadius: 'var(--r-md)', overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,.5)' }}>
               <video
                 ref={videoRef}
                 src={meta.stream_url}
@@ -66,18 +66,18 @@ export default function WatchPage() {
                 style={{ width: '100%', display: 'block', maxHeight: '72vh', background: '#000' }}
               />
             </div>
-            <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 800, margin: '18px 0 4px' }}>{meta.title}</h1>
+            <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 800, margin: 'var(--s5) 0 var(--s1)' }}>{meta.title}</h1>
             <div style={{ fontSize: 'var(--fs-body)', color: '#8a8a92' }}>
               {meta.created_at ? new Date(meta.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
             </div>
             {meta.transcript && (
-              <div style={{ marginTop: 20 }}>
+              <div style={{ marginTop: 'var(--s5)' }}>
                 <button onClick={() => setShowTranscript(s => !s)}
-                  style={{ background: 'transparent', color: '#c9c9d0', border: '1px solid #2c2c33', borderRadius: 999, padding: '7px 16px', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ background: 'transparent', color: '#c9c9d0', border: '1px solid #2c2c33', borderRadius: 'var(--r-pill)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {showTranscript ? 'Hide transcript' : 'Show transcript'}
                 </button>
                 {showTranscript && (
-                  <div style={{ marginTop: 14, whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: 'var(--fs-body)', color: '#d4d4d8', maxHeight: 320, overflowY: 'auto', padding: 16, background: '#16161a', borderRadius: 10 }}>
+                  <div style={{ marginTop: 'var(--s4)', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: 'var(--fs-body)', color: '#d4d4d8', maxHeight: 320, overflowY: 'auto', padding: 'var(--s4)', background: '#16161a', borderRadius: 'var(--r-sm)' }}>
                     {meta.transcript}
                   </div>
                 )}

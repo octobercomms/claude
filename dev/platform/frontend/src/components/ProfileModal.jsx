@@ -26,7 +26,7 @@ export default function ProfileModal({ target, onClose, onChanged }) {
   return (
     <div
       className="modal-backdrop"
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 60, padding: 24, overflow: 'auto' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 60, padding: 'var(--s6)', overflow: 'auto' }}
       onClick={onClose}
     >
       <div

@@ -98,10 +98,10 @@ function Group({ layer, kind }) {
 export default function GoogleAdsPlaybook() {
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 'var(--s5)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s5)' }}>
         <div>
           <div className="caption">Reference</div>
-          <h3 className="h3" style={{ margin: '4px 0 0' }}>Google Ads playbook — four-layer account structure</h3>
+          <h3 className="h3" style={{ margin: 'var(--s1) 0 0' }}>Google Ads playbook — four-layer account structure</h3>
         </div>
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Build top to bottom — broadest reach at the top, most defensive at the base</span>
       </div>

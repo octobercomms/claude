@@ -156,8 +156,8 @@ function StatusPill({ label, value, tone }) {
   return (
     <span
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '6px 14px', fontSize: 'var(--fs-body)', fontWeight: 600,
+        display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)',
+        padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-body)', fontWeight: 600,
         borderRadius: 'var(--r-pill)',
         background: 'var(--surface)',
         border: 'var(--border-w) solid var(--card-border)',

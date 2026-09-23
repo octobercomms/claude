@@ -27,7 +27,7 @@ function StatusPill({ status, label }) {
     : { background: '#fff', color: '#111', border: '1px solid #111' };
   return (
     <span style={{
-      ...style, display: 'inline-block', padding: '3px 10px', borderRadius: 999,
+      ...style, display: 'inline-block', padding: 'var(--s1) var(--s3)', borderRadius: 'var(--r-pill)',
       fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase', whiteSpace: 'nowrap',
     }}>{label || status}</span>
   );
@@ -78,16 +78,16 @@ export default function PublicCoveragePage() {
   const cardBorder = '#e5e3dc';
   const subtle = '#6b7280';
 
-  const wrap = { maxWidth: 1100, margin: '0 auto', padding: '40px 24px', fontFamily: "'Brockmann', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif", color: ink };
+  const wrap = { maxWidth: 1100, margin: '0 auto', padding: 'var(--s8) var(--s6)', fontFamily: "'Brockmann', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif", color: ink };
   if (data === undefined) return <div style={{ background: surface, minHeight: '100vh' }}><div style={wrap}><p style={{ color: subtle }}>Loading…</p></div></div>;
   if (data === null) return <div style={{ background: surface, minHeight: '100vh' }}><div style={wrap}><h1>Not found</h1><p style={{ color: subtle }}>This coverage link is invalid or has expired.</p></div></div>;
 
   const published = data.items.filter((i) => i.published).length;
-  const card = { background: '#fff', border: `1px solid ${cardBorder}`, borderRadius: 12, padding: 28 };
-  const th = { textAlign: 'left', color: subtle, fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', padding: '10px 12px', borderBottom: `2px solid ${cardBorder}` };
-  const td = { padding: '12px', borderBottom: `1px solid ${cardBorder}`, fontSize: 'var(--fs-body)', verticalAlign: 'top' };
+  const card = { background: '#fff', border: `1px solid ${cardBorder}`, borderRadius: 'var(--r-md)', padding: 'var(--s7)' };
+  const th = { textAlign: 'left', color: subtle, fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', padding: 'var(--s3) var(--s3)', borderBottom: `2px solid ${cardBorder}` };
+  const td = { padding: 'var(--s3)', borderBottom: `1px solid ${cardBorder}`, fontSize: 'var(--fs-body)', verticalAlign: 'top' };
   const chipBtn = (active) => ({
-    padding: '5px 12px', fontSize: 'var(--fs-caption)', fontWeight: 600, borderRadius: 999, cursor: 'pointer',
+    padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', fontWeight: 600, borderRadius: 'var(--r-pill)', cursor: 'pointer',
     background: active ? ink : '#fff', color: active ? '#fff' : ink, border: `1px solid ${active ? ink : cardBorder}`,
   });
 
@@ -107,30 +107,30 @@ export default function PublicCoveragePage() {
     <div style={{ background: surface, minHeight: '100vh' }}>
       <div style={wrap}>
         {/* Brand header */}
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s5)' }}>
           <img src="/coverage-logo.gif" alt="October" style={{ height: 46, width: 'auto', display: 'block' }} />
           <span style={{ fontSize: 'var(--fs-caption)', color: subtle }}>Press coverage report</span>
         </header>
 
         <div style={card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s4)', flexWrap: 'wrap', marginBottom: 'var(--s5)' }}>
             <div>
-              <h1 style={{ margin: '0 0 4px', fontSize: 'var(--fs-section)', letterSpacing: '-0.01em' }}>{data.client_name}</h1>
+              <h1 style={{ margin: '0 0 var(--s1)', fontSize: 'var(--fs-section)', letterSpacing: '-0.01em' }}>{data.client_name}</h1>
               <p style={{ margin: 0, color: subtle, fontSize: 'var(--fs-body)' }}>Press coverage · Updated {fmtDate(new Date())}</p>
             </div>
-            <div style={{ display: 'flex', gap: 22, alignItems: 'baseline' }}>
+            <div style={{ display: 'flex', gap: 'var(--s6)', alignItems: 'baseline' }}>
               <div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{published}</div><div style={{ fontSize: 'var(--fs-caption)', color: subtle, textTransform: 'uppercase', letterSpacing: '.06em' }}>Published</div></div>
               <div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{data.items.length}</div><div style={{ fontSize: 'var(--fs-caption)', color: subtle, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tracked</div></div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)' }}>
             <a href={`/api/pr-portal/${encodeURIComponent(token)}/download`} style={{ ...chipBtn(false), textDecoration: 'none' }}>↓ Download CSV</a>
             <a href={`/api/pr-portal/${encodeURIComponent(token)}/pdf`} style={{ ...chipBtn(false), textDecoration: 'none' }}>↓ Download PDF</a>
           </div>
 
           {/* Filter + sort row */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 18, paddingBottom: 18, borderBottom: `1px solid ${cardBorder}` }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--s5)', paddingBottom: 'var(--s5)', borderBottom: `1px solid ${cardBorder}` }}>
             <button type="button" style={chipBtn(statusFilter === 'all')} onClick={() => setStatusFilter('all')}>All ({data.items.length})</button>
             {presentLabels.map((lbl) => (
               <button key={lbl} type="button" style={chipBtn(statusFilter === lbl)} onClick={() => setStatusFilter(lbl)}>
@@ -144,11 +144,11 @@ export default function PublicCoveragePage() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search coverage…"
               aria-label="Search coverage"
-              style={{ padding: '5px 12px', fontSize: 'var(--fs-caption)', border: `1px solid ${cardBorder}`, borderRadius: 999, background: '#fff', color: ink, minWidth: 180 }}
+              style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: `1px solid ${cardBorder}`, borderRadius: 'var(--r-pill)', background: '#fff', color: ink, minWidth: 180 }}
             />
             <label style={{ fontSize: 'var(--fs-caption)', color: subtle }}>Sort
               <select value={sort} onChange={(e) => setSort(e.target.value)}
-                style={{ marginLeft: 6, padding: '4px 8px', fontSize: 'var(--fs-caption)', border: `1px solid ${cardBorder}`, borderRadius: 6, background: '#fff', color: ink }}>
+                style={{ marginLeft: 'var(--s2)', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: `1px solid ${cardBorder}`, borderRadius: 'var(--r-sm)', background: '#fff', color: ink }}>
                 <option value="date_desc">Newest first</option>
                 <option value="date_asc">Oldest first</option>
                 <option value="outlet">Publication A→Z</option>
@@ -181,11 +181,11 @@ export default function PublicCoveragePage() {
                           <a href={i.story_url} target="_blank" rel="noreferrer" style={{ color: ink, fontWeight: 600 }}>
                             {i.story_title || 'Read →'}
                           </a>
-                          <div style={{ fontSize: 'var(--fs-caption)', color: subtle, marginTop: 2, wordBreak: 'break-all' }}>{i.story_url}</div>
+                          <div style={{ fontSize: 'var(--fs-caption)', color: subtle, marginTop: 'var(--s1)', wordBreak: 'break-all' }}>{i.story_url}</div>
                         </div>
                       ) : (i.story_title || '—')}
                       {i.attachment_url ? (
-                        <div style={{ marginTop: 4 }}>
+                        <div style={{ marginTop: 'var(--s1)' }}>
                           <a href={i.attachment_url} target="_blank" rel="noreferrer" style={{ color: ink, fontSize: 'var(--fs-caption)' }}>📎 {i.attachment_filename || 'PDF'}</a>
                         </div>
                       ) : null}
@@ -199,7 +199,7 @@ export default function PublicCoveragePage() {
           </p>}
         </div>
 
-        <p style={{ textAlign: 'center', color: subtle, fontSize: 'var(--fs-caption)', marginTop: 24 }}>
+        <p style={{ textAlign: 'center', color: subtle, fontSize: 'var(--fs-caption)', marginTop: 'var(--s6)' }}>
           Coverage tracked by October Communications · <a href="https://octobercomms.com" style={{ color: subtle }}>octobercomms.com</a>
         </p>
       </div>

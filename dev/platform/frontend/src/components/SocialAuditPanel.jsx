@@ -18,9 +18,9 @@ function List({ title, items, accent }) {
   if (!items || !items.length) return null;
   return (
     <div>
-      <div className="caption" style={{ marginBottom: 6 }}>{title}</div>
-      <ul style={{ margin: 0, paddingLeft: 18 }}>
-        {items.map((x, i) => <li key={i} className="body-sm" style={{ marginBottom: 4, color: accent }}>{x}</li>)}
+      <div className="caption" style={{ marginBottom: 'var(--s2)' }}>{title}</div>
+      <ul style={{ margin: 0, paddingLeft: 'var(--s5)' }}>
+        {items.map((x, i) => <li key={i} className="body-sm" style={{ marginBottom: 'var(--s1)', color: accent }}>{x}</li>)}
       </ul>
     </div>
   );
@@ -62,7 +62,7 @@ export default function SocialAuditPanel({ clientId }) {
 
   return (
     <div className="stack-lg">
-      <div className="row between center" style={{ flexWrap: 'wrap', gap: 12 }}>
+      <div className="row between center" style={{ flexWrap: 'wrap', gap: 'var(--s3)' }}>
         <div>
           <div className="caption">Improve</div>
           <div className="h2 mt-2">What to change next</div>
@@ -83,15 +83,15 @@ export default function SocialAuditPanel({ clientId }) {
           {d.summary && <div className="card"><p className="body" style={{ margin: 0 }}>{d.summary}</p></div>}
           <div className="audit-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s4) var(--s5)', alignItems: 'start' }}>
             {d.content_mix && (
-              <div><div className="caption" style={{ marginBottom: 6 }}>Content mix</div><p className="body-sm" style={{ margin: 0 }}>{d.content_mix}</p></div>
+              <div><div className="caption" style={{ marginBottom: 'var(--s2)' }}>Content mix</div><p className="body-sm" style={{ margin: 0 }}>{d.content_mix}</p></div>
             )}
             {d.best_timing && (
-              <div><div className="caption" style={{ marginBottom: 6 }}>Best timing</div><p className="body-sm" style={{ margin: 0 }}>{d.best_timing}</p></div>
+              <div><div className="caption" style={{ marginBottom: 'var(--s2)' }}>Best timing</div><p className="body-sm" style={{ margin: 0 }}>{d.best_timing}</p></div>
             )}
             <List title="What's working" items={d.whats_working} accent="var(--positive, #1a7f37)" />
             <List title="What's not" items={d.whats_not} accent="var(--negative, #b3261e)" />
             {d.competitor_read && d.competitor_read !== '—' && (
-              <div><div className="caption" style={{ marginBottom: 6 }}>Competitor read</div><p className="body-sm" style={{ margin: 0 }}>{d.competitor_read}</p></div>
+              <div><div className="caption" style={{ marginBottom: 'var(--s2)' }}>Competitor read</div><p className="body-sm" style={{ margin: 0 }}>{d.competitor_read}</p></div>
             )}
             <List title="Recommendations" items={d.recommendations} />
           </div>

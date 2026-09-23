@@ -8,7 +8,7 @@ import { useToast } from '../context/ToastContext';
 // named — that a person approves before anything is written to a contact.
 
 const CLASS_STYLE = {
-  journalist: { bg: '#fff2e8', color: '#c2410c' },
+  journalist: { bg: 'var(--warm-soft)', color: 'var(--warm)' },
   client: { bg: '#e8f0ff', color: '#1d4ed8' },
   prospect: { bg: '#f3e8ff', color: '#7c3aed' },
   supplier: { bg: '#eef2f4', color: '#334155' },
@@ -77,11 +77,11 @@ export default function OooReviewPanel() {
     return <span className="chip" style={{ background: st.bg, color: st.color, textTransform: 'capitalize' }}>{cls || 'unknown'}</span>;
   };
 
-  if (loading) return <div className="text-subtle" style={{ padding: 16 }}>Loading contact updates…</div>;
+  if (loading) return <div className="text-subtle" style={{ padding: 'var(--s4)' }}>Loading contact updates…</div>;
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
           {err ? <span style={{ color: 'var(--negative)' }}>{err}</span>
             : suggestions.length
@@ -94,21 +94,21 @@ export default function OooReviewPanel() {
         <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
         {suggestions.map((s) => {
           const p = s.person || {};
           const src = s.source || {};
           const isMoved = s.category === 'left_or_moved';
           const picked = altPick[s.id] || new Set((s.alt_contacts || []).map((_, i) => i));
           return (
-            <div key={s.id} className="card" style={{ padding: 14 }}>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+            <div key={s.id} className="card" style={{ padding: 'var(--s4)' }}>
+              <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--s2)' }}>
                 <span className="chip chip-accent">{isMoved ? 'Left / moved' : 'Names an alternate contact'}</span>
                 <ClassChip cls={s.contact_class} />
                 {typeof s.confidence === 'number' && (
                   <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>confidence {Math.round(s.confidence * 100)}%</span>
                 )}
-                <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                <span style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s2)' }}>
                   <button className="btn btn-primary btn-sm" onClick={() => apply(s)} disabled={busy === s.id}>
                     {busy === s.id ? 'Applying…' : (isMoved ? 'Apply change' : 'Add selected')}
                   </button>
@@ -119,12 +119,12 @@ export default function OooReviewPanel() {
               {isMoved ? (
                 <div style={{ fontSize: 'var(--fs-body)' }}>
                   <div style={{ fontWeight: 600 }}>{p.name || p.current_email || '(unknown)'}</div>
-                  <div style={{ color: 'var(--text-muted)', marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ color: 'var(--text-muted)', marginTop: 'var(--s1)', display: 'flex', flexWrap: 'wrap', gap: 'var(--s3)' }}>
                     {p.new_email && <span>email: <span style={{ color: 'var(--text-subtle)' }}>{p.current_email || '—'}</span> → <strong>{p.new_email}</strong></span>}
                     {p.new_company && <span>company → <strong>{p.new_company}</strong></span>}
                     {p.role && <span>role → <strong>{p.role}</strong></span>}
                   </div>
-                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 5 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                     {s.matched_contact_id
                       ? <>Matches <strong>{s.matched_name || s.matched_email}</strong>{s.matched_email ? ` · ${s.matched_email}` : ''} — applying updates that record.</>
                       : <>No existing contact matched — applying will create a new library contact.</>}
@@ -132,10 +132,10 @@ export default function OooReviewPanel() {
                 </div>
               ) : (
                 <div style={{ fontSize: 'var(--fs-body)' }}>
-                  <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>Add as new contact{(s.alt_contacts || []).length === 1 ? '' : 's'}:</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ color: 'var(--text-muted)', marginBottom: 'var(--s1)' }}>Add as new contact{(s.alt_contacts || []).length === 1 ? '' : 's'}:</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
                     {(s.alt_contacts || []).map((a, i) => (
-                      <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', cursor: 'pointer' }}>
                         <input type="checkbox" checked={picked.has(i)} onChange={() => toggleAlt(s.id, i, (s.alt_contacts || []).length)} />
                         <span><strong>{a.name || a.email || '(unnamed)'}</strong>{a.email ? ` · ${a.email}` : ''}{a.role ? ` · ${a.role}` : ''}{a.company ? ` · ${a.company}` : ''}</span>
                       </label>
@@ -145,9 +145,9 @@ export default function OooReviewPanel() {
               )}
 
               {(src.subject || src.quote) && (
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+                <div style={{ marginTop: 'var(--s2)', paddingTop: 'var(--s2)', borderTop: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                   {src.subject && <div>{src.subject}{src.message_date ? ` · ${fmtDate(src.message_date)}` : ''}</div>}
-                  {src.quote && <div style={{ fontStyle: 'italic', marginTop: 2 }}>“{src.quote}”</div>}
+                  {src.quote && <div style={{ fontStyle: 'italic', marginTop: 'var(--s1)' }}>“{src.quote}”</div>}
                 </div>
               )}
             </div>

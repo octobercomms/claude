@@ -24,7 +24,7 @@ export function SocialPublishContent({ plans = [], client, onPauseToggle, onOpen
 
   return (
     <>
-      <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div>
           <div className="caption">Autopilot</div>
           <div className="h3 mt-2">{paused ? 'Paused' : 'Live — publishing on schedule'}</div>
@@ -41,7 +41,7 @@ export function SocialPublishContent({ plans = [], client, onPauseToggle, onOpen
         )}
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 'var(--s4)' }}>
         <div className="card">
           <div className="caption mb-3">Upcoming ({upcoming.length})</div>
           {!upcoming.length ? (
@@ -49,7 +49,7 @@ export function SocialPublishContent({ plans = [], client, onPauseToggle, onOpen
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {upcoming.map(p => (
-                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-body)' }}>
+                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: 'var(--s2) 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-body)' }}>
                   <button onClick={() => onOpenPlan?.(p.id)} className="btn btn-ghost btn-sm" style={{ padding: 0, color: 'var(--text)', textAlign: 'left' }}>
                     {p.title || p.angle || 'Untitled post'}
                   </button>
@@ -69,7 +69,7 @@ export function SocialPublishContent({ plans = [], client, onPauseToggle, onOpen
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {recent.map(p => (
-                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-body)' }}>
+                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: 'var(--s2) 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-body)' }}>
                   <button onClick={() => onOpenPlan?.(p.id)} className="btn btn-ghost btn-sm" style={{ padding: 0, color: 'var(--text)', textAlign: 'left' }}>
                     {p.title || p.angle || 'Untitled post'}
                   </button>

@@ -230,7 +230,7 @@ function AddSlot({ onAdd }) {
             {c.label}
           </button>
         ))}
-        <button className="btn-ghost" style={{ marginLeft: 6 }} onClick={() => setOpen(false)}>cancel</button>
+        <button className="btn-ghost" style={{ marginLeft: 'var(--s2)' }} onClick={() => setOpen(false)}>cancel</button>
       </div>
     </div>
   );
@@ -251,12 +251,12 @@ function StepCard({ step, dirty, onUpdate, onSave, onDelete, isDragging, onDragS
       </div>
       <div className="sequence-step-body card">
         <div className="row between center mb-3">
-          <div className="row wrap" style={{ alignItems: 'center', gap: 8 }}>
+          <div className="row wrap" style={{ alignItems: 'center', gap: 'var(--s2)' }}>
             <span className={`chip chip-${channel.tone}`}>{channel.label}</span>
             <div className="caption">Day {step.delay_days}</div>
             {dirty && <div className="caption text-warning">· unsaved</div>}
           </div>
-          <div className="row" style={{ gap: 6 }}>
+          <div className="row" style={{ gap: 'var(--s2)' }}>
             <button className="btn-ghost" title="Drag to reorder" style={{ cursor: 'grab' }}>⠿</button>
             <button className="btn btn-secondary btn-sm" onClick={onSave} disabled={!dirty}>Save</button>
             <button className="btn btn-danger btn-sm" onClick={onDelete}>Delete</button>
@@ -280,7 +280,7 @@ function StepCard({ step, dirty, onUpdate, onSave, onDelete, isDragging, onDragS
 
         {step.channel === 'email' || !step.channel ? (
           <>
-            <div className="field" style={{ margin: 0, marginBottom: 8 }}>
+            <div className="field" style={{ margin: 0, marginBottom: 'var(--s2)' }}>
               <label className="field-label">Subject</label>
               <input className="input" value={step.subject || ''}
                 onChange={e => onUpdate('subject', e.target.value)} placeholder="Subject line" />

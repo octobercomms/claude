@@ -51,7 +51,7 @@ export default function ClientsPage() {
   // "+ New Client" action — bounce them into their own client (or dashboard).
   if (readOnly) return <Navigate to={user?.client_id ? `/clients/${user.client_id}/sales-traffic` : '/dashboard'} replace />;
 
-  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>;
 
   return (
     <div>
@@ -60,7 +60,7 @@ export default function ClientsPage() {
         <div>
           <h1 className="display">Clients</h1>
         </div>
-        <div className="hero-actions" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="hero-actions" style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
           {['active', 'archived', 'all'].map(k => (
             <button key={k} type="button"
               onClick={() => setFilter(k)}
@@ -70,13 +70,13 @@ export default function ClientsPage() {
               {k === 'archived' && archivedCount ? ` (${archivedCount})` : ''}
             </button>
           ))}
-          <button onClick={() => setShowNew(true)} className="btn btn-primary btn-sm" style={{ marginLeft: 6 }}>+ New Client</button>
+          <button onClick={() => setShowNew(true)} className="btn btn-primary btn-sm" style={{ marginLeft: 'var(--s2)' }}>+ New Client</button>
         </div>
       </header>
 
       {showNew && (
         <div className="card">
-          <h3 style={{ margin: '0 0 16px', fontSize: 'var(--fs-body)' }}>New Client</h3>
+          <h3 style={{ margin: '0 0 var(--s4)', fontSize: 'var(--fs-body)' }}>New Client</h3>
           <form onSubmit={handleCreate} >
             {error && <div className="text-negative">{error}</div>}
             <div >
@@ -95,7 +95,7 @@ export default function ClientsPage() {
                 />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)' }}>
               <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? 'Creating…' : 'Create'}</button>
               <button type="button" onClick={() => setShowNew(false)} className="btn btn-secondary">Cancel</button>
             </div>
@@ -126,7 +126,7 @@ export default function ClientsPage() {
               </tr>
             ))}
             {!visible.length && (
-              <tr><td colSpan={4} style={{ padding: 24, color: 'var(--text-subtle)', textAlign: 'center' }}>
+              <tr><td colSpan={4} style={{ padding: 'var(--s6)', color: 'var(--text-subtle)', textAlign: 'center' }}>
                 No {filter === 'archived' ? 'archived' : filter === 'active' ? 'active' : ''} clients.
               </td></tr>
             )}

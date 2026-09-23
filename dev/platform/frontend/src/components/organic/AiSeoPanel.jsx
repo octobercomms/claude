@@ -80,12 +80,12 @@ export default function AiSeoPanel({ clientId }) {
         then score your articles against them and get concrete fixes. Owned and in-house — no per-call connector.
       </p>
 
-      <div className="aiseo-grid" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="aiseo-grid" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 'var(--s6)', alignItems: 'start' }}>
       {/* 1 · Keyword targets */}
       <div>
         <h3 className="h3 mb-2">AI search keyword targets</h3>
         <div className="card">
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
             <input className="input" style={{ flex: 1 }} placeholder="Optional focus / seed — e.g. 'sustainable packaging for DTC brands'"
               value={seed} onChange={e => setSeed(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') generate(); }} />
             <button className="btn btn-primary" {...roWrite(readOnly, { onClick: generate, disabled: genLoading })}>
@@ -93,12 +93,12 @@ export default function AiSeoPanel({ clientId }) {
             </button>
           </div>
           {!keywords.length && loaded && (
-            <p className="body-sm text-subtle" style={{ marginTop: 10 }}>
+            <p className="body-sm text-subtle" style={{ marginTop: 'var(--s3)' }}>
               No targets yet — generate a list from this client's competitors and brief. (Set the client's competitors in Setup for sharper results.)
             </p>
           )}
           {keywords.length > 0 && (
-            <table className="table" style={{ marginTop: 12 }}>
+            <table className="table" style={{ marginTop: 'var(--s3)' }}>
               <thead><tr>{['#', 'Keyword', 'Intent', 'Why'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {keywords.map(k => (
@@ -119,20 +119,20 @@ export default function AiSeoPanel({ clientId }) {
       <div>
         <h3 className="h3 mb-2">Article fit scan</h3>
         <div className="card">
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
             <input className="input" style={{ flex: 1 }} placeholder="Article URL — score it against the targets above"
               value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') scan(); }} />
             <button className="btn btn-primary" {...roWrite(readOnly, { onClick: scan, disabled: scanning || !keywords.length, title: !keywords.length ? 'Generate keyword targets first' : '' })}>
               {scanning ? 'Scanning…' : 'Scan article'}
             </button>
           </div>
-          {!keywords.length && <p className="body-xs text-subtle" style={{ marginTop: 8 }}>Generate keyword targets above first — scans are scored against them.</p>}
+          {!keywords.length && <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>Generate keyword targets above first — scans are scored against them.</p>}
 
           {scans.length > 0 && (
-            <div className="stack stack-sm" style={{ marginTop: 14 }}>
+            <div className="stack stack-sm" style={{ marginTop: 'var(--s4)' }}>
               {scans.map(s => (
-                <div key={s.id} className="card" style={{ padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div key={s.id} className="card" style={{ padding: 'var(--s3) var(--s4)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--s3)' }}>
                     <div style={{ textAlign: 'center', minWidth: 44 }}>
                       <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, color: scoreColor(s.score) }}>{s.score ?? '—'}</div>
                       <div className="body-xs text-subtle">fit</div>
@@ -143,10 +143,10 @@ export default function AiSeoPanel({ clientId }) {
                         <a href={s.url} target="_blank" rel="noreferrer" className="text-accent">{s.url}</a>
                         {s.best_keyword && <> · best fit: <strong>{s.best_keyword}</strong></>}
                       </div>
-                      {s.summary && <p className="body-sm" style={{ marginTop: 6 }}>{s.summary}</p>}
+                      {s.summary && <p className="body-sm" style={{ marginTop: 'var(--s2)' }}>{s.summary}</p>}
                       {Array.isArray(s.fixes) && s.fixes.length > 0 && (
-                        <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-                          {s.fixes.map((f, i) => <li key={i} className="body-sm" style={{ marginBottom: 2 }}>{f}</li>)}
+                        <ul style={{ margin: 'var(--s2) 0 0', paddingLeft: 'var(--s5)' }}>
+                          {s.fixes.map((f, i) => <li key={i} className="body-sm" style={{ marginBottom: 'var(--s1)' }}>{f}</li>)}
                         </ul>
                       )}
                     </div>

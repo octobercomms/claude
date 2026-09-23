@@ -64,13 +64,13 @@ export default function QuickWinsPanel({ clientId, onRefresh }) {
         <Stat label="Dismissed" value={dismissed.length} tone="default" />
       </div>
 
-      <div className="row mb-3" style={{ gap: 6 }}>
+      <div className="row mb-3" style={{ gap: 'var(--s2)' }}>
         <button onClick={() => setShowDismissed(false)} className={`btn btn-sm ${!showDismissed ? 'btn-primary' : 'btn-secondary'}`}>Open ({totalActive})</button>
         <button onClick={() => setShowDismissed(true)} className={`btn btn-sm ${showDismissed ? 'btn-primary' : 'btn-secondary'}`}>Dismissed ({dismissed.length})</button>
       </div>
 
       {loading && !wins.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>
       ) : !visible.length ? (
         <div className="card"><p className="body-sm text-subtle">
           {showDismissed ? 'Nothing dismissed yet.' : 'No keywords ranking #11–#20 right now. Either you\'re winning page 1 already, or there\'s not enough ranking data yet.'}
@@ -80,45 +80,45 @@ export default function QuickWinsPanel({ clientId, onRefresh }) {
           <table className="table">
             <thead>
               <tr>
-                <th className="caption" style={{ padding: '8px 10px' }}>Keyword</th>
-                <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Rank</th>
-                <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Trend</th>
-                <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Effort</th>
-                <th className="caption" style={{ padding: '8px 10px' }}>Target URL</th>
-                <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Actions</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Keyword</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Rank</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Trend</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Effort</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Target URL</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {visible.map(w => (
                 <tr key={w.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-body)' }}>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)' }}>
                     <strong>{w.keyword}</strong>
-                    {w.intent && <span style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text-muted)' }}>{String(w.intent).slice(0, 4).toUpperCase()}</span>}
-                    {w.aio_present && <span style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--r-sm)', background: w.aio_brand_cited ? 'var(--positive-soft)' : 'var(--warning-soft)', color: w.aio_brand_cited ? 'var(--positive)' : 'var(--warning)' }}>AIO{w.aio_brand_cited ? '+CITED' : ''}</span>}
+                    {w.intent && <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s1)', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text-muted)' }}>{String(w.intent).slice(0, 4).toUpperCase()}</span>}
+                    {w.aio_present && <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s1)', borderRadius: 'var(--r-sm)', background: w.aio_brand_cited ? 'var(--positive-soft)' : 'var(--warning-soft)', color: w.aio_brand_cited ? 'var(--positive)' : 'var(--warning)' }}>AIO{w.aio_brand_cited ? '+CITED' : ''}</span>}
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-body)', textAlign: 'right', fontWeight: 700 }}>#{w.current_position}</td>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right', color: w.trend > 0 ? 'var(--positive)' : w.trend < 0 ? 'var(--negative)' : 'var(--text-subtle)', fontWeight: 700 }}>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', textAlign: 'right', fontWeight: 700 }}>#{w.current_position}</td>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', textAlign: 'right', color: w.trend > 0 ? 'var(--positive)' : w.trend < 0 ? 'var(--negative)' : 'var(--text-subtle)', fontWeight: 700 }}>
                     {w.trend === 0 || !w.previous_position ? '—' : (w.trend > 0 ? '↑' : '↓') + ' ' + Math.abs(w.trend)}
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>
                     <span style={{ background: w.effort_score <= 3 ? 'var(--positive-soft)' : w.effort_score <= 6 ? 'var(--warning-soft)' : 'var(--negative-soft)',
                                     color: w.effort_score <= 3 ? 'var(--positive)' : w.effort_score <= 6 ? 'var(--warning)' : 'var(--negative)',
-                                    padding: '2px 8px', borderRadius: 'var(--r-pill)', fontWeight: 700 }}>{w.effort_score}/10</span>
+                                    padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)', fontWeight: 700 }}>{w.effort_score}/10</span>
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {w.target_url ? <a href={w.target_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)' }}>{w.target_url.replace(/^https?:\/\//, '').slice(0, 60)}</a> : <em style={{ color: 'var(--text-subtle)' }}>none mapped</em>}
                   </td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                  <td style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>
                     {!w.dismissed_at ? (
                       <>
                         {onRefresh && w.target_url && (
-                          <button onClick={() => onRefresh(w)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 6px' }}>Refresh →</button>
+                          <button onClick={() => onRefresh(w)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 var(--s2)' }}>Refresh →</button>
                         )}
-                        <button onClick={() => dismiss(w, 'actioned')} className="btn btn-ghost btn-sm" style={{ color: 'var(--positive)', padding: '0 6px' }}>Done</button>
-                        <button onClick={() => dismiss(w, 'not_relevant')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 6px' }}>Skip</button>
+                        <button onClick={() => dismiss(w, 'actioned')} className="btn btn-ghost btn-sm" style={{ color: 'var(--positive)', padding: '0 var(--s2)' }}>Done</button>
+                        <button onClick={() => dismiss(w, 'not_relevant')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 var(--s2)' }}>Skip</button>
                       </>
                     ) : (
-                      <button onClick={() => restore(w)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 6px' }}>Restore</button>
+                      <button onClick={() => restore(w)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 var(--s2)' }}>Restore</button>
                     )}
                   </td>
                 </tr>
@@ -139,7 +139,7 @@ function Stat({ label, value, tone }) {
   return (
     <div className="card">
       <div className="caption">{label}</div>
-      <div className="metric" style={{ color: colour, marginTop: 4 }}>{value}</div>
+      <div className="metric" style={{ color: colour, marginTop: 'var(--s1)' }}>{value}</div>
     </div>
   );
 }

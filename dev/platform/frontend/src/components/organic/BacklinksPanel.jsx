@@ -39,27 +39,27 @@ function classifyAnchor(anchor, brandTokens) {
 function ChangeList({ title, colour, dateLabel, rows, dateKey, empty }) {
   return (
     <div className="card">
-      <div className="caption" style={{ marginBottom: 12, color: colour }}>{title}</div>
+      <div className="caption" style={{ marginBottom: 'var(--s3)', color: colour }}>{title}</div>
       {!rows?.length ? (
         <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{empty}</div>
       ) : (
         <table style={{ width: '100%', fontSize: 'var(--fs-body)', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', color: 'var(--text-subtle)', borderBottom: '1px solid var(--border)' }}>
-              <th style={{ padding: '6px 8px' }}>Domain</th>
-              <th style={{ padding: '6px 8px', textAlign: 'right' }}>Rank</th>
-              <th style={{ padding: '6px 8px' }}>{dateLabel}</th>
+              <th style={{ padding: 'var(--s2) var(--s2)' }}>Domain</th>
+              <th style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>Rank</th>
+              <th style={{ padding: 'var(--s2) var(--s2)' }}>{dateLabel}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((d, i) => (
               <tr key={d.domain + i} style={{ borderBottom: '1px solid var(--border-subtle, var(--border))' }}>
-                <td style={{ padding: '6px 8px' }}>
-                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 3, background: colour, marginRight: 6, verticalAlign: 'middle' }} />
+                <td style={{ padding: 'var(--s2) var(--s2)' }}>
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 'var(--r-sm)', background: colour, marginRight: 'var(--s2)', verticalAlign: 'middle' }} />
                   <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)' }}>{d.domain}</a>
                 </td>
-                <td style={{ padding: '6px 8px', textAlign: 'right' }}>{d.rank == null ? '—' : d.rank}</td>
-                <td style={{ padding: '6px 8px' }}>{fmtDate(d[dateKey])}</td>
+                <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>{d.rank == null ? '—' : d.rank}</td>
+                <td style={{ padding: 'var(--s2) var(--s2)' }}>{fmtDate(d[dateKey])}</td>
               </tr>
             ))}
           </tbody>
@@ -138,7 +138,7 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)' }}>
         <div>
           <div className="caption">Backlinks</div>
           <h2 className="h2 mt-2">Backlink profile{domain ? ` — ${domain}` : ''}</h2>
@@ -147,13 +147,13 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
           {refreshing ? 'Refreshing…' : 'Refresh snapshot'}
         </button>
       </div>
-      <p className="body-sm text-muted mt-2" style={{ maxWidth: 760, marginBottom: 20 }}>
+      <p className="body-sm text-muted mt-2" style={{ maxWidth: 760, marginBottom: 'var(--s5)' }}>
         Snapshotted every 3 days from DataForSEO. The trend and referring-domains table read the stored
         snapshots; anchor text and the dofollow split are pulled live. Use <strong>Refresh snapshot</strong> to
         capture a fresh cycle now rather than waiting for the scheduler.
       </p>
 
-      {err && <div className="card text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 16 }}>{err}</div>}
+      {err && <div className="card text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s4)' }}>{err}</div>}
 
       {loading && !trend && (
         <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading snapshots…</div>
@@ -176,7 +176,7 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
       {hasSnapshot && (
         <>
           {/* Headline cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--s4)', marginBottom: 'var(--s5)' }}>
             <div className="card">
               <div className="metric">{fmt(latest.backlinks_total)}</div>
               <div className="caption">Total backlinks</div>
@@ -185,52 +185,52 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
               <div className="metric">{fmt(latest.referring_domains_total)}</div>
               <div className="caption">Referring domains</div>
               {rdSeries.length >= 2 && (
-                <div style={{ marginTop: 8 }}><Sparkline values={rdSeries} width={140} height={30} /></div>
+                <div style={{ marginTop: 'var(--s2)' }}><Sparkline values={rdSeries} width={140} height={30} /></div>
               )}
             </div>
             <div className="card">
               <div className="metric">{latest.dofollow_ratio == null ? '—' : `${Math.round(latest.dofollow_ratio * 100)}%`}</div>
               <div className="caption">Dofollow</div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>healthy ≈ 60–80%</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>healthy ≈ 60–80%</div>
             </div>
             <div className="card">
               <div className="metric">{latest.spam_score == null ? '—' : latest.spam_score}</div>
               <div className="caption">Spam score</div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>lower is better</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>lower is better</div>
             </div>
           </div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 24 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s6)' }}>
             Snapshot captured {fmtDate(latest.captured_at)} · domain rank {latest.rank == null ? '—' : latest.rank}
           </div>
 
           {/* Referring domains table */}
-          <div className="card" style={{ marginBottom: 24 }}>
-            <div className="caption" style={{ marginBottom: 12 }}>Top referring domains ({rds?.domains?.length || 0})</div>
+          <div className="card" style={{ marginBottom: 'var(--s6)' }}>
+            <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Top referring domains ({rds?.domains?.length || 0})</div>
             {!rds?.domains?.length ? (
               <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>No referring domains in the latest snapshot.</div>
             ) : (
               <table style={{ width: '100%', fontSize: 'var(--fs-body)', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--text-subtle)', borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ padding: '6px 8px' }}>Domain</th>
-                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>Rank</th>
-                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>Links</th>
-                    <th style={{ padding: '6px 8px' }}>Follow</th>
-                    <th style={{ padding: '6px 8px' }}>First seen</th>
-                    <th style={{ padding: '6px 8px' }}>Last seen</th>
+                    <th style={{ padding: 'var(--s2) var(--s2)' }}>Domain</th>
+                    <th style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>Rank</th>
+                    <th style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>Links</th>
+                    <th style={{ padding: 'var(--s2) var(--s2)' }}>Follow</th>
+                    <th style={{ padding: 'var(--s2) var(--s2)' }}>First seen</th>
+                    <th style={{ padding: 'var(--s2) var(--s2)' }}>Last seen</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rds.domains.map((d, i) => (
                     <tr key={d.domain + i} style={{ borderBottom: '1px solid var(--border-subtle, var(--border))' }}>
-                      <td style={{ padding: '6px 8px' }}>
+                      <td style={{ padding: 'var(--s2) var(--s2)' }}>
                         <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)' }}>{d.domain}</a>
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>{d.rank == null ? '—' : d.rank}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmt(d.backlinks_count)}</td>
-                      <td style={{ padding: '6px 8px' }}>{d.dofollow ? 'dofollow' : 'nofollow'}</td>
-                      <td style={{ padding: '6px 8px' }}>{fmtDate(d.first_seen)}</td>
-                      <td style={{ padding: '6px 8px' }}>{fmtDate(d.last_seen)}</td>
+                      <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>{d.rank == null ? '—' : d.rank}</td>
+                      <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>{fmt(d.backlinks_count)}</td>
+                      <td style={{ padding: 'var(--s2) var(--s2)' }}>{d.dofollow ? 'dofollow' : 'nofollow'}</td>
+                      <td style={{ padding: 'var(--s2) var(--s2)' }}>{fmtDate(d.first_seen)}</td>
+                      <td style={{ padding: 'var(--s2) var(--s2)' }}>{fmtDate(d.last_seen)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -239,15 +239,15 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
           </div>
 
           {/* New / lost referring domains since last snapshot (E3) */}
-          <div style={{ marginBottom: 24 }}>
-            <div className="caption" style={{ marginBottom: 4 }}>Since last snapshot</div>
+          <div style={{ marginBottom: 'var(--s6)' }}>
+            <div className="caption" style={{ marginBottom: 'var(--s1)' }}>Since last snapshot</div>
             {!changes?.previous ? (
               <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
                 Only one snapshot so far — the new / lost feed appears once a second cycle has run (the next
                 3-day sweep, or hit <strong>Refresh snapshot</strong> twice).
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s4)' }}>
                 <ChangeList
                   title={`New (${changes.gained.length})`}
                   colour="var(--positive)"
@@ -271,10 +271,10 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
       )}
 
       {/* Anchor text + dofollow split — live quick-win panels */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--s4)' }}>
         {/* Anchor text */}
         <div className="card">
-          <div className="caption" style={{ marginBottom: 12 }}>Anchor text</div>
+          <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Anchor text</div>
           {anchorsMsg && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{anchorsMsg}</div>}
           {!anchorsMsg && !anchors && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>}
           {anchors && !anchors.length && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>No anchors returned.</div>}
@@ -282,13 +282,13 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
             <>
               {/* Brand / commercial / other roll-up */}
               {rollupTotal > 0 && (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 6 }}>
+                <div style={{ marginBottom: 'var(--s4)' }}>
+                  <div style={{ display: 'flex', height: 10, borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: 'var(--s2)' }}>
                     <div style={{ width: `${(rollup.brand / rollupTotal) * 100}%`, background: 'var(--accent)' }} title="Brand" />
                     <div style={{ width: `${(rollup.commercial / rollupTotal) * 100}%`, background: 'var(--warning, #d98a00)' }} title="Commercial" />
                     <div style={{ width: `${(rollup.other / rollupTotal) * 100}%`, background: 'var(--border)' }} title="Other" />
                   </div>
-                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', display: 'flex', gap: 12 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', display: 'flex', gap: 'var(--s3)' }}>
                     <span>Brand {Math.round((rollup.brand / rollupTotal) * 100)}%</span>
                     <span>Commercial {Math.round((rollup.commercial / rollupTotal) * 100)}%</span>
                     <span>Other {Math.round((rollup.other / rollupTotal) * 100)}%</span>
@@ -298,17 +298,17 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
               <table style={{ width: '100%', fontSize: 'var(--fs-body)', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--text-subtle)', borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ padding: '6px 8px' }}>Anchor</th>
-                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>Links</th>
-                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>Ref. domains</th>
+                    <th style={{ padding: 'var(--s2) var(--s2)' }}>Anchor</th>
+                    <th style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>Links</th>
+                    <th style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>Ref. domains</th>
                   </tr>
                 </thead>
                 <tbody>
                   {anchors.slice(0, 25).map((a, i) => (
                     <tr key={a.anchor + i} style={{ borderBottom: '1px solid var(--border-subtle, var(--border))' }}>
-                      <td style={{ padding: '6px 8px', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.anchor}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmt(a.backlinks)}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmt(a.referring_domains)}</td>
+                      <td style={{ padding: 'var(--s2) var(--s2)', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.anchor}</td>
+                      <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>{fmt(a.backlinks)}</td>
+                      <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>{fmt(a.referring_domains)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -319,21 +319,21 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
 
         {/* Dofollow split */}
         <div className="card">
-          <div className="caption" style={{ marginBottom: 12 }}>Dofollow / nofollow</div>
+          <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Dofollow / nofollow</div>
           {splitMsg && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{splitMsg}</div>}
           {!splitMsg && !split && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>}
           {split && (
             <div>
               <div className="metric">{split.total ? `${Math.round((split.dofollow / split.total) * 100)}%` : '—'}</div>
               <div className="caption">dofollow of {fmt(split.total)} sampled</div>
-              <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', margin: '12px 0 6px' }}>
+              <div style={{ display: 'flex', height: 10, borderRadius: 'var(--r-sm)', overflow: 'hidden', margin: 'var(--s3) 0 var(--s2)' }}>
                 <div style={{ width: split.total ? `${(split.dofollow / split.total) * 100}%` : '0%', background: 'var(--accent)' }} />
                 <div style={{ width: split.total ? `${(split.nofollow / split.total) * 100}%` : '0%', background: 'var(--border)' }} />
               </div>
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                 {fmt(split.dofollow)} dofollow · {fmt(split.nofollow)} nofollow
               </div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 8 }}>Most natural profiles sit around 60–80% dofollow.</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>Most natural profiles sit around 60–80% dofollow.</div>
             </div>
           )}
         </div>

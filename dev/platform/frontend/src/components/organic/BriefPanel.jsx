@@ -30,7 +30,7 @@ export default function BriefPanel({ clientId, onNext, seed }) {
       num={2} title="Brief" onNext={onNext} nextLabel="Draft the post"
       tagline={activeMode.tagline}
     >
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
         {MODES.map(m => (
           <button key={m.key} onClick={() => setMode(m.key)} type="button"
             className={`btn btn-sm ${mode === m.key ? 'btn-primary' : 'btn-secondary'}`}>
@@ -123,8 +123,8 @@ function ClusterMode({ clientId, onNext }) {
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: 18 }}>
-        <div className="row between center wrap mb-2" style={{ gap: 8 }}>
+      <div className="card" style={{ marginBottom: 'var(--s5)' }}>
+        <div className="row between center wrap mb-2" style={{ gap: 'var(--s2)' }}>
           <div className="caption">Paste keywords — one per line</div>
           <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: loadTrackedKeywords, disabled: loadingKws })}>
             {loadingKws ? 'Loading…' : '↥ Load my tracked keywords'}
@@ -135,7 +135,7 @@ function ClusterMode({ clientId, onNext }) {
           onChange={e => setKeywordText(e.target.value)}
           rows={8}
           placeholder="best enamel mug\nenamel mug uk\nare enamel mugs dishwasher safe\nhow to clean enamel mugs\n…"
-          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--fs-body)', lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
+          style={{ width: '100%', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
         />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">{keywordCount} keyword{keywordCount === 1 ? '' : 's'} · {keywordCount < 2 ? 'need at least 2 to cluster' : keywordCount > 200 ? 'max 200 per run' : 'ready'}</span>
@@ -165,12 +165,12 @@ function ClusterMode({ clientId, onNext }) {
                           <span aria-hidden="true">❓ </span>{c.core_question}
                         </div>
                       )}
-                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 4 }}>
+                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>
                         Primary: <strong style={{ color: 'var(--text)' }}>{c.primary}</strong>
                       </div>
                       {c.rationale && <p className="body-sm text-muted mt-2">{c.rationale}</p>}
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                       {brief && (
                         <button
                           onClick={() => setRefineOpen(prev => ({ ...prev, [c.label]: !prev[c.label] }))}
@@ -188,9 +188,9 @@ function ClusterMode({ clientId, onNext }) {
                       )}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: brief ? 'var(--s3)' : 0 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)', marginBottom: brief ? 'var(--s3)' : 0 }}>
                     {c.secondary.map((k, j) => (
-                      <span key={j} style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{k}</span>
+                      <span key={j} style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{k}</span>
                     ))}
                   </div>
                   {brief && (
@@ -224,9 +224,9 @@ function ClusterMode({ clientId, onNext }) {
           {!!result.unclustered?.length && (
             <div className="card" style={{ background: 'var(--surface-raised)' }}>
               <div className="caption mb-2">Didn't fit a cluster ({result.unclustered.length})</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                 {result.unclustered.map((k, i) => (
-                  <span key={i} style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'var(--surface-sunken)', color: 'var(--text-subtle)' }}>{k}</span>
+                  <span key={i} style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)', background: 'var(--surface-sunken)', color: 'var(--text-subtle)' }}>{k}</span>
                 ))}
               </div>
               <p className="body-xs text-subtle mt-3">These keywords didn't fit naturally with the others. Run them in single-keyword mode or with a different set.</p>
@@ -266,12 +266,12 @@ export function BriefView({ brief }) {
       )}
 
       <div className="caption mt-4 mb-2">Outline</div>
-      <ol style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', lineHeight: 1.6 }}>
+      <ol style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-body)', lineHeight: 1.6 }}>
         {(brief.outline || []).map((s, i) => (
-          <li key={i} style={{ marginBottom: 8 }}>
+          <li key={i} style={{ marginBottom: 'var(--s2)' }}>
             <strong>{s.heading}</strong>
             {!!s.points?.length && (
-              <ul style={{ margin: '4px 0 0 0', padding: '0 0 0 16px', color: 'var(--text-muted)' }}>
+              <ul style={{ margin: 'var(--s1) 0 0 0', padding: '0 0 0 var(--s4)', color: 'var(--text-muted)' }}>
                 {s.points.map((p, j) => <li key={j}>{p}</li>)}
               </ul>
             )}
@@ -282,7 +282,7 @@ export function BriefView({ brief }) {
       {Array.isArray(brief.key_stats) && brief.key_stats.length > 0 && (
         <>
           <div className="caption mt-4 mb-2">Stats to include (with sources)</div>
-          <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-caption)', lineHeight: 1.6 }}>
+          <ul style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-caption)', lineHeight: 1.6 }}>
             {brief.key_stats.map((s, i) => (
               <li key={i}><strong style={{ color: 'var(--text)' }}>{s.stat || String(s)}</strong>{s.source ? <span className="text-muted"> — {s.source}</span> : null}</li>
             ))}
@@ -293,9 +293,9 @@ export function BriefView({ brief }) {
       {Array.isArray(brief.faqs) && brief.faqs.length > 0 && (
         <>
           <div className="caption mt-4 mb-2">FAQ section ({brief.faqs.length})</div>
-          <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-caption)', lineHeight: 1.6 }}>
+          <ul style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-caption)', lineHeight: 1.6 }}>
             {brief.faqs.map((f, i) => (
-              <li key={i} style={{ marginBottom: 4 }}><strong style={{ color: 'var(--text)' }}>{f.question || String(f)}</strong>{f.answer ? <div className="text-muted">{f.answer}</div> : null}</li>
+              <li key={i} style={{ marginBottom: 'var(--s1)' }}><strong style={{ color: 'var(--text)' }}>{f.question || String(f)}</strong>{f.answer ? <div className="text-muted">{f.answer}</div> : null}</li>
             ))}
           </ul>
         </>
@@ -306,10 +306,10 @@ export function BriefView({ brief }) {
           <div className="caption mt-4 mb-2">Comparison table</div>
           <div style={{ overflowX: 'auto' }}>
             <table className="table" style={{ fontSize: 'var(--fs-caption)' }}>
-              <thead><tr>{brief.comparison_table.columns.map((c, i) => <th key={i} style={{ padding: '6px 8px', textAlign: 'left' }}>{c}</th>)}</tr></thead>
+              <thead><tr>{brief.comparison_table.columns.map((c, i) => <th key={i} style={{ padding: 'var(--s2) var(--s2)', textAlign: 'left' }}>{c}</th>)}</tr></thead>
               <tbody>
                 {(brief.comparison_table.rows || []).map((r, i) => (
-                  <tr key={i}>{brief.comparison_table.columns.map((c, j) => <td key={j} style={{ padding: '6px 8px' }}>{typeof r === 'object' ? (r[c] ?? '') : String(r)}</td>)}</tr>
+                  <tr key={i}>{brief.comparison_table.columns.map((c, j) => <td key={j} style={{ padding: 'var(--s2) var(--s2)' }}>{typeof r === 'object' ? (r[c] ?? '') : String(r)}</td>)}</tr>
                 ))}
               </tbody>
             </table>
@@ -333,7 +333,7 @@ export function BriefView({ brief }) {
       {!!brief.secondary_keyword_coverage && Object.keys(brief.secondary_keyword_coverage).length > 0 && (
         <>
           <div className="caption mt-4 mb-2">Secondary keyword coverage</div>
-          <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-caption)', lineHeight: 1.6, color: 'var(--text-muted)' }}>
+          <ul style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-caption)', lineHeight: 1.6, color: 'var(--text-muted)' }}>
             {Object.entries(brief.secondary_keyword_coverage).map(([kw, sec], i) => (
               <li key={i}><strong style={{ color: 'var(--text)' }}>{kw}</strong> → {sec}</li>
             ))}
@@ -427,16 +427,16 @@ function ProgrammaticMode({ clientId }) {
       <div className="card mb-5">
         <div className="caption mb-2">New programmatic batch</div>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Batch name (e.g. UK service-area pages Q3)"
-          style={{ width: '100%', padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
+          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
         <input value={templatePrompt} onChange={e => setTemplatePrompt(e.target.value)}
           placeholder="Template — describe the page type. Use {column} placeholders. e.g. 'Local services landing page for {service} in {location}'"
-          style={{ width: '100%', padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
+          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
         <input value={primaryKeywordTemplate} onChange={e => setPrimaryKeywordTemplate(e.target.value)}
           placeholder="Primary keyword template, e.g. '{service} in {location}'"
-          style={{ width: '100%', padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
+          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
         <textarea value={csvText} onChange={e => setCsvText(e.target.value)} rows={8}
           placeholder={"CSV with header row. Example:\nservice,location\nplumber,London\nplumber,Manchester\nelectrician,London"}
-          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--fs-body)', lineHeight: 1.5, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }} />
+          style={{ width: '100%', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', lineHeight: 1.5, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }} />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">
             {csvRowCount > 0 ? `${csvRowCount} data row${csvRowCount === 1 ? '' : 's'} · est cost ~\$${estCost}` : 'paste a CSV with a header + at least one row'}
@@ -450,26 +450,26 @@ function ProgrammaticMode({ clientId }) {
       {err && <div className="callout callout-danger mb-3">{err}</div>}
 
       {loading && !runs.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>
       ) : !runs.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           No programmatic runs yet. Fill in the form above to generate your first batch.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 22 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 'var(--s6)' }}>
           <div>
             <div className="caption mb-3">Past runs</div>
-            <div className="stack" style={{ gap: 6 }}>
+            <div className="stack" style={{ gap: 'var(--s2)' }}>
               {runs.map(r => {
                 const isActive = r.id === active;
                 return (
                   <div key={r.id} className="card"
-                    style={{ padding: 10, cursor: 'pointer',
+                    style={{ padding: 'var(--s3)', cursor: 'pointer',
                       background: isActive ? 'var(--accent-soft)' : 'var(--surface)',
                       borderColor: isActive ? 'var(--accent)' : 'var(--card-border)' }}
                     onClick={() => openRun(r.id)}>
                     <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, lineHeight: 1.3 }}>{r.name}</div>
-                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                       {new Date(r.started_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       {' · '}
                       <span style={{ fontWeight: 700, color: r.status === 'failed' ? 'var(--negative)' : r.status === 'running' ? 'var(--warning)' : 'var(--positive)' }}>
@@ -484,38 +484,38 @@ function ProgrammaticMode({ clientId }) {
 
           <div>
             {!active ? (
-              <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Pick a run on the left.</div>
+              <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Pick a run on the left.</div>
             ) : (
               <>
-                <div className="row between center mb-3" style={{ gap: 12 }}>
+                <div className="row between center mb-3" style={{ gap: 'var(--s3)' }}>
                   <div className="caption">{activeBriefs.length} brief{activeBriefs.length === 1 ? '' : 's'} in this run</div>
                   <button onClick={() => deleteRun(active)} className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)' }}>Delete run</button>
                 </div>
                 <div className="card" style={{ padding: 0 }}>
                   <table className="table">
                     <thead><tr>
-                      <th className="caption" style={{ padding: '8px 10px' }}>#</th>
-                      <th className="caption" style={{ padding: '8px 10px' }}>Row data</th>
-                      <th className="caption" style={{ padding: '8px 10px' }}>Generated title</th>
-                      <th className="caption" style={{ padding: '8px 10px' }}>Status</th>
-                      <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Actions</th>
+                      <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>#</th>
+                      <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Row data</th>
+                      <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Generated title</th>
+                      <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Status</th>
+                      <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Actions</th>
                     </tr></thead>
                     <tbody>
                       {activeBriefs.map(b => (
                         <tr key={b.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{b.row_index + 1}</td>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{b.row_index + 1}</td>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                             {Object.entries(b.row_data || {}).map(([k, v]) => `${k}: ${v}`).join(' · ').slice(0, 120)}
                           </td>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)' }}>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)' }}>
                             {b.title ? <strong>{b.title}</strong> : <em style={{ color: 'var(--text-subtle)' }}>—</em>}
                             {b.slug && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>/{b.slug}</div>}
                           </td>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
                             color: b.status === 'failed' ? 'var(--negative)' : b.status === 'complete' ? 'var(--positive)' : 'var(--warning)' }}>
                             {b.status}{b.error_message ? ` · ${b.error_message.slice(0, 60)}` : ''}
                           </td>
-                          <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                          <td style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>
                             {b.status === 'complete' && (
                               b.content_draft_id
                                 ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)', fontWeight: 700 }}>✓ in Pipeline</span>

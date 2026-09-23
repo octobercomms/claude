@@ -153,10 +153,10 @@ export default function ContactCleanupPage() {
   return (
     <div className="suite-cleanup">
       <div className="kicker"><span className="pip" /><span>Admin • Journalists</span></div>
-      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div>
           <h1 className="display">Cleanup Centre</h1>
-          <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: '6px 0 0' }}>
+          <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 'var(--s2) 0 0' }}>
             Trim duplicates, fold orphaned coverage onto real journalists, and let Claude tidy the obvious fixes.
           </p>
         </div>
@@ -177,7 +177,7 @@ export default function ContactCleanupPage() {
 
       {tab === 'duplicates' && (
         <div>
-          <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
             <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
               {scanning ? 'Scanning the journalist library…' : clusters
                 ? `${remaining.length} cluster${remaining.length === 1 ? '' : 's'} to review${exactCount ? ` · ${exactCount} same-email (safe to auto-merge)` : ''}`
@@ -197,7 +197,7 @@ export default function ContactCleanupPage() {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
             {(clusters || []).map((c, i) => done[i] || (c.members?.length || 0) < 2 ? null : (
               <ClusterCard
                 key={i}
@@ -216,7 +216,7 @@ export default function ContactCleanupPage() {
 
       {tab === 'coverage' && (
         <div>
-          <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
             <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
               {scanning
                 ? 'Scanning for coverage-only journalists that match a richer library record…'
@@ -233,7 +233,7 @@ export default function ContactCleanupPage() {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
             {(clusters || []).map((c, i) => done[i] || (c.members?.length || 0) < 2 ? null : (
               <ClusterCard
                 key={i}
@@ -265,7 +265,7 @@ function ClusterCard({ cluster, ci, chosenId, onChoose, onMerge, onDelete, busy 
   const b = methodBadge(cluster.method);
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
         <span className={`chip ${b.cls}`}>{b.label}</span>
         <button className="btn btn-primary btn-sm" onClick={onMerge} disabled={busy || !chosenId}>
           Merge {cluster.members.length - 1} into selected →
@@ -376,12 +376,12 @@ function TidyFixesTab({ onChanged }) {
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={{ marginBottom: 'var(--s4)' }}>
         <h3 className="h3 mb-2">Field cleanups</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', marginBottom: 12 }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>
           Claude reads every journalist in your library and proposes fixes — capitalisation, missing company derived from email domain, lowercase emails, URL schemes, name splits. You review each suggestion before anything changes; every applied change writes an audit row.
         </p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
           {phase === 'idle' && <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: start })}>✦ Start analysis</button>}
           {phase === 'done' && <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: start })}>Run again</button>}
           <button className="btn btn-secondary btn-sm" onClick={repairImportedNames} disabled={repairing}
@@ -393,10 +393,10 @@ function TidyFixesTab({ onChanged }) {
 
       {phase === 'running' && (
         <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-body)' }}>
-          <div style={{ marginBottom: 10 }}>
+          <div style={{ marginBottom: 'var(--s3)' }}>
             Claude is reading the journalists in batches of 40 — {progress.processed.toLocaleString()} of {progress.total.toLocaleString()} done.
           </div>
-          <div style={{ background: 'var(--surface-raised)', borderRadius: 999, height: 8, overflow: 'hidden', margin: '8px auto 12px', maxWidth: 420 }}>
+          <div style={{ background: 'var(--surface-raised)', borderRadius: 'var(--r-pill)', height: 8, overflow: 'hidden', margin: 'var(--s2) auto var(--s3)', maxWidth: 420 }}>
             <div style={{
               background: 'var(--accent)', height: '100%',
               width: progress.total ? `${Math.min(100, (progress.processed / progress.total) * 100)}%` : '4%',
@@ -417,7 +417,7 @@ function TidyFixesTab({ onChanged }) {
 
       {phase === 'review' && suggestions.length > 0 && (
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>
               {suggestions.length} suggestion{suggestions.length === 1 ? '' : 's'} · {selected.size} ticked
             </span>
@@ -447,7 +447,7 @@ function TidyFixesTab({ onChanged }) {
                       setSelected(n);
                     }} /></td>
                     <td style={{ fontWeight: 600 }}>{s.contact_name || s.contact_email || '—'}</td>
-                    <td><code style={{ background: 'var(--surface-raised)', padding: '1px 6px', borderRadius: 4, fontSize: 'var(--fs-caption)' }}>{s.field}</code></td>
+                    <td><code style={{ background: 'var(--surface-raised)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>{s.field}</code></td>
                     <td style={{ color: 'var(--text-muted)' }}>{s.before || <em>(empty)</em>}</td>
                     <td style={{ color: 'var(--text)' }}>{s.new_value}</td>
                     <td style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{s.why || ''}</td>
@@ -553,7 +553,7 @@ function PublicationDupesTab() {
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
           {scanning ? 'Scanning the publications list…' : clusters
             ? `${remaining.length} cluster${remaining.length === 1 ? '' : 's'} to review${exactCount ? ` · ${exactCount} exact-safe` : ''}`
@@ -571,12 +571,12 @@ function PublicationDupesTab() {
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
         {(clusters || []).map((c, ci) => done[ci] != null ? null : (
           <div key={ci} className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
               {(() => { const b = pubBadge(c.method, c.confidence); return <span className={`chip ${b.cls}`}>{b.label}</span>; })()}
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                 <button className="btn btn-primary btn-sm" onClick={() => merge(ci)} disabled={busy || !chosen[ci]}>
                   Merge {c.members.length - 1} into selected →
                 </button>

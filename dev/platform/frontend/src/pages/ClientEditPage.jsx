@@ -266,7 +266,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
       </p>
 
       {/* Mode switch */}
-      <div style={{ display: 'inline-flex', gap: 6 }}>
+      <div style={{ display: 'inline-flex', gap: 'var(--s2)' }}>
         <button className={`btn btn-sm ${mode === 'video' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('video')}>Video edit</button>
         <button className={`btn btn-sm ${mode === 'stills' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('stills')}>Stills → Reel</button>
       </div>
@@ -284,10 +284,10 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
           onDragLeave={() => setDragOver(false)}
           onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
           onClick={() => fileRef.current?.click()}
-          style={{ border: `2px dashed ${dragOver ? 'var(--text)' : 'var(--card-border)'}`, borderRadius: 'var(--r-md)', padding: 64, textAlign: 'center', cursor: 'pointer', background: 'var(--surface)' }}
+          style={{ border: `2px dashed ${dragOver ? 'var(--text)' : 'var(--card-border)'}`, borderRadius: 'var(--r-md)', padding: 'var(--s10)', textAlign: 'center', cursor: 'pointer', background: 'var(--surface)' }}
         >
           <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)' }}>Drop a video here, or click to choose</div>
-          <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', marginTop: 6 }}>MP4 or MOV · up to 2GB · add several to combine</div>
+          <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>MP4 or MOV · up to 2GB · add several to combine</div>
         </div>
       )}
 
@@ -312,7 +312,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                         ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }
                         : { maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
                     {safeZone !== 'off' && previewH > 0 && safeBoxes(safeZone).map(b => (
-                      <div key={b.key} style={{ position: 'absolute', ...b.style, background: 'rgba(255,70,70,0.16)', border: '1px dashed rgba(255,70,70,0.8)', borderRadius: 3, pointerEvents: 'none', boxSizing: 'border-box' }}>
+                      <div key={b.key} style={{ position: 'absolute', ...b.style, background: 'rgba(255,70,70,0.16)', border: '1px dashed rgba(255,70,70,0.8)', borderRadius: 'var(--r-sm)', pointerEvents: 'none', boxSizing: 'border-box' }}>
                         <span style={{ position: 'absolute', top: 2, left: 4, fontSize: 'var(--fs-caption)', fontWeight: 700, color: '#fff', textShadow: '0 1px 2px #000', textTransform: 'uppercase', letterSpacing: 0.3 }}>{b.label}</span>
                       </div>
                     ))}
@@ -327,24 +327,24 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                     })()}
                   </div>
                 </div>
-                <div className="card" style={{ marginTop: 12 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-body)' }}>
+                <div className="card" style={{ marginTop: 'var(--s3)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)' }}>
                     <input type="checkbox" checked={doTrim} onChange={e => setDoTrim(e.target.checked)} /> Trim / cut
                     <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>— keep one or more sections; they join in order</span>
                   </label>
                   {doTrim && duration > 0 && segments.map((s, i) => (
-                    <div key={s.id} style={{ marginTop: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 2 }}>
+                    <div key={s.id} style={{ marginTop: 'var(--s3)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s1)' }}>
                         <span style={{ fontWeight: 700 }}>Cut {i + 1}</span>
                         {segments.length > 1 && <button onClick={() => removeSeg(s.id)} style={{ border: 'none', background: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-caption)', padding: 0 }}>remove</button>}
                       </div>
                       <div className="trim-slider">
-                        <div style={{ position: 'absolute', top: 14, left: 0, right: 0, height: 4, borderRadius: 2, background: 'var(--card-border)' }} />
-                        <div style={{ position: 'absolute', top: 14, height: 4, borderRadius: 2, background: 'var(--text)', left: `${(s.start / duration) * 100}%`, right: `${100 - (s.end / duration) * 100}%` }} />
+                        <div style={{ position: 'absolute', top: 14, left: 0, right: 0, height: 4, borderRadius: 'var(--r-sm)', background: 'var(--card-border)' }} />
+                        <div style={{ position: 'absolute', top: 14, height: 4, borderRadius: 'var(--r-sm)', background: 'var(--text)', left: `${(s.start / duration) * 100}%`, right: `${100 - (s.end / duration) * 100}%` }} />
                         <input type="range" min="0" max={duration} step="0.05" value={s.start} onChange={e => { const v = Math.min(Number(e.target.value), s.end - 0.1); updateSeg(s.id, { start: Math.max(0, v) }); seek(v); }} />
                         <input type="range" min="0" max={duration} step="0.05" value={s.end} onChange={e => { const v = Math.max(Number(e.target.value), s.start + 0.1); updateSeg(s.id, { end: Math.min(duration, v) }); seek(v); }} />
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>
                         <span>Start {fmt(s.start)}</span>
                         <span style={{ color: 'var(--text-subtle)' }}>keeps {fmt(Math.max(0, s.end - s.start))}</span>
                         <span>End {fmt(s.end)}</span>
@@ -352,7 +352,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                     </div>
                   ))}
                   {doTrim && duration > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                       <button className="btn btn-secondary btn-sm" onClick={addSeg}>+ Add cut</button>
                       {segments.length > 1 && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>Final length ~{fmt(keptDuration)}</span>}
                     </div>
@@ -362,11 +362,11 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
             ) : (
               <div className="card">
                 <div className="caption mb-3">Clips — stitched in this order</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                   {clips.map((c, i) => (
-                    <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'center', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 8 }}>
+                    <div key={c.id} style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s2)' }}>
                       <span style={{ fontWeight: 800, color: 'var(--text-subtle)', width: 18, textAlign: 'center' }}>{i + 1}</span>
-                      <video src={c.url} muted style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 4, background: '#000', flexShrink: 0 }} />
+                      <video src={c.url} muted style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--r-sm)', background: '#000', flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
                         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{c.duration ? fmt(c.duration) : '…'}</div>
@@ -377,76 +377,76 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 10 }}>Combined into one video (matched to clip 1's shape). Trim the result afterwards with “Edit again”.</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s3)' }}>Combined into one video (matched to clip 1's shape). Trim the result afterwards with “Edit again”.</div>
               </div>
             )}
-            <button className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => fileRef.current?.click()}>+ Add clip{clips.length ? ' to combine' : ''}</button>
-            <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, marginLeft: 8 }} onClick={() => { clearClips(); setReopenJobId(null); }}>Clear</button>
+            <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s3)' }} onClick={() => fileRef.current?.click()}>+ Add clip{clips.length ? ' to combine' : ''}</button>
+            <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s3)', marginLeft: 'var(--s2)' }} onClick={() => { clearClips(); setReopenJobId(null); }}>Clear</button>
           </div>
 
           {/* RIGHT — settings */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'sticky', top: 16 }}>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)', position: 'sticky', top: 16 }}>
             <div className="caption">Edits</div>
             {reopenJobId && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>Re-editing a saved clip — renders a new copy.</div>}
 
             <div>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Format</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 'var(--s2)' }}>Format</div>
+              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                 {ASPECTS.map(a => <button key={a.key} onClick={() => setAspect(a.key)} className={'btn btn-sm ' + (aspect === a.key ? 'btn-primary' : 'btn-secondary')}>{a.label}</button>)}
               </div>
-              {aspect !== 'original' && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>Reframed to {aspect} — filled to the frame (edges cropped).</div>}
+              {aspect !== 'original' && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>Reframed to {aspect} — filled to the frame (edges cropped).</div>}
             </div>
 
             <div>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Safe zones (preview)</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 'var(--s2)' }}>Safe zones (preview)</div>
+              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                 {[['off', 'Off'], ['reel', 'Reel'], ['ad', 'Ad']].map(([k, l]) => <button key={k} onClick={() => setSafeZone(k)} className={'btn btn-sm ' + (safeZone === k ? 'btn-primary' : 'btn-secondary')}>{l}</button>)}
               </div>
-              {safeZone !== 'off' && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>Red = where Instagram’s UI sits — keep captions/subject clear. Preview only.</div>}
+              {safeZone !== 'off' && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>Red = where Instagram’s UI sits — keep captions/subject clear. Preview only.</div>}
             </div>
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: 0 }} />
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-body)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)' }}>
               <input type="checkbox" checked={cleanAudio} onChange={e => setCleanAudio(e.target.checked)} /> Clean audio
             </label>
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: -8, paddingLeft: 24 }}>denoise + level out volume</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: -8, paddingLeft: 'var(--s6)' }}>denoise + level out volume</div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-body)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)' }}>
               <input type="checkbox" checked={captions} onChange={e => setCaptions(e.target.checked)} /> Auto-captions
             </label>
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: -8, paddingLeft: 24 }}>burned onto the video + a .srt file</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: -8, paddingLeft: 'var(--s6)' }}>burned onto the video + a .srt file</div>
             {captions && (
-              <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', paddingLeft: 24, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 'var(--s5)', alignItems: 'flex-start', paddingLeft: 'var(--s6)', flexWrap: 'wrap' }}>
                 <div>
-                  <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginBottom: 6 }}>Size</div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>Size</div>
+                  <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                     {['small', 'medium', 'large'].map(s => (
                       <button key={s} onClick={() => setCapSize(s)} className={'btn btn-sm ' + (capSize === s ? 'btn-primary' : 'btn-secondary')} style={{ textTransform: 'capitalize' }}>{s}</button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginBottom: 6 }}>Position</div>
+                  <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>Position</div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                     <span>top</span>
                     <input type="range" min={capMin} max={capMax} step="0.02" value={capPos}
                       onChange={e => setCapPos(Math.min(capMax, Math.max(capMin, Number(e.target.value))))}
-                      style={{ writingMode: 'vertical-lr', direction: 'rtl', WebkitAppearance: 'slider-vertical', width: 24, height: 104, margin: '4px 0' }} />
+                      style={{ writingMode: 'vertical-lr', direction: 'rtl', WebkitAppearance: 'slider-vertical', width: 24, height: 104, margin: 'var(--s1) 0' }} />
                     <span>bottom</span>
                   </div>
                 </div>
               </div>
             )}
 
-            <div style={{ marginTop: 4 }}>
+            <div style={{ marginTop: 'var(--s1)' }}>
               <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || nothingChosen} onClick={() => submit(false)}>
                 {busy ? 'Starting…' : combining ? `Combine ${clips.length} & render` : 'Render edit'}
               </button>
               {clips.some(c => c.file) && (
-                <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} disabled={busy} onClick={() => submit(true)}>Save as draft</button>
+                <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--s2)' }} disabled={busy} onClick={() => submit(true)}>Save as draft</button>
               )}
-              {capCost > 0 && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 8, textAlign: 'center' }}>Est. ~${capCost.toFixed(2)} (captions)</div>}
+              {capCost > 0 && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 'var(--s2)', textAlign: 'center' }}>Est. ~${capCost.toFixed(2)} (captions)</div>}
             </div>
           </div>
         </div>
@@ -456,13 +456,13 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
       {jobs.length > 0 && (
         <div>
           <div className="caption mb-3">Your edits</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
             {jobs.map(j => {
               const st = STATUS[j.status] || STATUS.queued;
               const clipCount = (j.clips && j.clips.length) || 1;
               const stem = (j.name || j.source_name || 'edit').replace(/\.[^.]+$/, '');
               return (
-                <div key={j.id} className="card" style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div key={j.id} className="card" style={{ display: 'flex', gap: 'var(--s4)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                   <div style={{ width: 200, flexShrink: 0 }}>
                     {j.status === 'done' && j.output_url
                       ? <video src={j.output_url} controls style={{ width: '100%', borderRadius: 'var(--r-sm)', background: '#000' }} />
@@ -471,13 +471,13 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                         </div>}
                   </div>
                   <div style={{ flex: 1, minWidth: 220 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 700, fontSize: 'var(--fs-body)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.name || j.source_name || 'clip'}</span>
                       <span className={'chip ' + st.cls} style={{ fontSize: 'var(--fs-caption)' }}>{st.label}</span>
                     </div>
-                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '3px 0 8px' }}>{opsSummary(j.ops, clipCount)} · {new Date(j.created_at).toLocaleString()}</div>
-                    {j.status === 'failed' && j.error && <div className="callout callout-warning" style={{ fontSize: 'var(--fs-body)', marginBottom: 8 }}>{j.error}</div>}
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s1) 0 var(--s2)' }}>{opsSummary(j.ops, clipCount)} · {new Date(j.created_at).toLocaleString()}</div>
+                    {j.status === 'failed' && j.error && <div className="callout callout-warning" style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>{j.error}</div>}
+                    <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                       {j.status === 'draft' && <button className="btn btn-primary btn-sm" onClick={() => renderDraft(j.id)}>Render</button>}
                       {j.status === 'draft' && <button className="btn btn-secondary btn-sm" onClick={() => editAgain(j)}>Resume</button>}
                       {j.status === 'done' && j.output_url && <a className="btn btn-primary btn-sm" href={j.output_url} download={`${stem}-edited.mp4`}>Download MP4</a>}

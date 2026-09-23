@@ -105,7 +105,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
   }
   function toggleCard(id) { setOpenCard(p => ({ ...p, [id]: !p[id] })); }
 
-  if (!loaded) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
+  if (!loaded) return <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>;
 
   return (
     <div>
@@ -114,7 +114,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
       </div>
 
       <div className="card" style={{ marginBottom: 'var(--s5)' }}>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
           <input className="input" style={{ flex: '3 1 320px' }} placeholder="Paste a reel / video URL…"
             value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} />
           <input className="input" style={{ flex: '2 1 200px' }} placeholder="Optional note (why you saved it)"
@@ -127,8 +127,8 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
         <p className="body-sm text-subtle">No saved reels yet — paste a URL above to capture your first idea.</p>
       ) : (
         <div className="stack stack-sm"
-          style={isMobile ? { maxHeight: '58vh', overflowY: 'auto', paddingRight: 4 } : undefined}>
-          <div className="body-xs text-subtle" style={{ marginBottom: 2 }}>
+          style={isMobile ? { maxHeight: '58vh', overflowY: 'auto', paddingRight: 'var(--s1)' } : undefined}>
+          <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>
             {items.length} saved · open a reel to see its idea card
           </div>
           {items.map(it => {
@@ -144,11 +144,11 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                     (buttons, links and the rename field stop the bubble). The
                     expanded body below isn't clickable, so acting inside it
                     won't collapse the card. */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', flexWrap: 'wrap', cursor: canExpand && !isEditing ? 'pointer' : 'default' }}
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s3)', alignItems: 'baseline', flexWrap: 'wrap', cursor: canExpand && !isEditing ? 'pointer' : 'default' }}
                   onClick={canExpand && !isEditing ? () => toggleCard(it.id) : undefined}>
                   <div style={{ minWidth: 0, flex: '1 1 0' }}>
                     {isEditing ? (
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
                         <input className="input" autoFocus value={editVal} style={{ flex: 1, minWidth: 0, fontWeight: 700 }}
                           onChange={e => setEditVal(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') saveTitle(it.id); if (e.key === 'Escape') setEditing(null); }} />
@@ -156,19 +156,19 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                         <button className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>Cancel</button>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'baseline', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 700, overflowWrap: 'anywhere' }} title={it.url}>{label}</span>
-                        <button className="btn btn-ghost btn-sm" title="Rename" style={{ padding: '0 4px', lineHeight: 1 }}
+                        <button className="btn btn-ghost btn-sm" title="Rename" style={{ padding: '0 var(--s1)', lineHeight: 1 }}
                           onClick={e => { e.stopPropagation(); startRename(it, name); }}>✎</button>
                         <a href={it.url} target="_blank" rel="noreferrer" title="Open original reel"
                           onClick={e => e.stopPropagation()} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)' }}>↗</a>
                       </div>
                     )}
-                    <div className="body-xs text-subtle" style={{ marginTop: 2, overflowWrap: 'anywhere' }}>
+                    <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)', overflowWrap: 'anywhere' }}>
                       {it.platform || 'video'}{it.notes ? ` · ${it.notes}` : ''}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }} onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flex: '0 0 auto' }} onClick={e => e.stopPropagation()}>
                     <span className={`chip ${st.cls}`} style={{ fontSize: 'var(--fs-caption)' }}>{st.label}</span>
                     {it.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(it.id)}>Retry</button>}
                     <button className="btn btn-ghost btn-sm" onClick={() => remove(it.id)} title="Delete">✕</button>
@@ -183,28 +183,28 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                 </div>
 
                 {cardOpen(it.id) && it.status === 'failed' && it.error && (
-                  <div className="callout callout-warning" style={{ marginTop: 10, fontSize: 'var(--fs-body)' }}>{it.error}</div>
+                  <div className="callout callout-warning" style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-body)' }}>{it.error}</div>
                 )}
 
                 {cardOpen(it.id) && card && (
-                  <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
-                    {card.hook && <p className="body-sm" style={{ margin: '0 0 6px' }}><strong>Hook:</strong> {card.hook}</p>}
-                    {card.summary && <p className="body-sm" style={{ margin: '0 0 6px' }}><strong>Summary:</strong> {card.summary}</p>}
-                    {card.why_it_works && <p className="body-sm" style={{ margin: '0 0 6px' }}><strong>Why it works:</strong> {card.why_it_works}</p>}
-                    {card.format && <p className="body-sm" style={{ margin: '0 0 6px' }}><strong>Format:</strong> {card.format}</p>}
+                  <div style={{ marginTop: 'var(--s3)', padding: 'var(--s3) var(--s4)', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
+                    {card.hook && <p className="body-sm" style={{ margin: '0 0 var(--s2)' }}><strong>Hook:</strong> {card.hook}</p>}
+                    {card.summary && <p className="body-sm" style={{ margin: '0 0 var(--s2)' }}><strong>Summary:</strong> {card.summary}</p>}
+                    {card.why_it_works && <p className="body-sm" style={{ margin: '0 0 var(--s2)' }}><strong>Why it works:</strong> {card.why_it_works}</p>}
+                    {card.format && <p className="body-sm" style={{ margin: '0 0 var(--s2)' }}><strong>Format:</strong> {card.format}</p>}
                     {Array.isArray(card.angles) && card.angles.length > 0 && (
-                      <div style={{ margin: '6px 0' }}>
+                      <div style={{ margin: 'var(--s2) 0' }}>
                         <div className="body-sm"><strong>Angles to steal:</strong></div>
-                        <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{card.angles.map((a, i) => <li key={i} className="body-sm">{a}</li>)}</ul>
+                        <ul style={{ margin: 'var(--s1) 0 0', paddingLeft: 'var(--s5)' }}>{card.angles.map((a, i) => <li key={i} className="body-sm">{a}</li>)}</ul>
                       </div>
                     )}
                     {Array.isArray(card.tags) && card.tags.length > 0 && (
-                      <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <div style={{ marginTop: 'var(--s2)', display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                         {card.tags.map((t, i) => <span key={i} className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)' }}>{t}</span>)}
                       </div>
                     )}
                     {onUseAsBrief && (
-                      <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }}
+                      <button className="btn btn-primary btn-sm" style={{ marginTop: 'var(--s3)' }}
                         onClick={() => onUseAsBrief(ideaToBrief(it, card))}>
                         ✦ Use as brief →
                       </button>
@@ -213,13 +213,13 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                 )}
 
                 {cardOpen(it.id) && it.transcript && (
-                  <div style={{ marginTop: 10 }}>
+                  <div style={{ marginTop: 'var(--s3)' }}>
                     <button className="btn btn-ghost btn-sm" onClick={() => setOpen(p => ({ ...p, [it.id]: !p[it.id] }))}>
                       {open[it.id] ? '▴ Hide transcript' : '▾ Transcript'}
                     </button>
                     <button className="btn btn-ghost btn-sm" onClick={() => copy(it.transcript)}>Copy transcript</button>
                     {open[it.id] && (
-                      <div className="body-sm" style={{ marginTop: 8, whiteSpace: 'pre-wrap', color: 'var(--text-muted)', maxHeight: 260, overflow: 'auto' }}>{it.transcript}</div>
+                      <div className="body-sm" style={{ marginTop: 'var(--s2)', whiteSpace: 'pre-wrap', color: 'var(--text-muted)', maxHeight: 260, overflow: 'auto' }}>{it.transcript}</div>
                     )}
                   </div>
                 )}
