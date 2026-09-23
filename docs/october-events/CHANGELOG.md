@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.162.0 — One membership per join (stop duplicate Friend subscriptions)
+
+- A one-click "join as a Friend" at ticket checkout could create the membership
+  subscription more than once — the browser confirm and each webhook delivery of
+  `payment_intent.succeeded` all ran the join, and the "already a member?" guard
+  couldn't win the race before any subscription was visible. Buyers ended up with
+  two or three identical active subscriptions and were billed for each.
+- The subscription create now carries a Stripe idempotency key tied to the
+  PaymentIntent (`join_<pi>`), so every one of those calls — however many webhook
+  retries arrive — resolves to a single subscription. One purchase, one Friend
+  membership, one charge. The existing member check still covers a genuinely
+  separate later purchase.
+- Note: this prevents new duplicates. Any already-created duplicate subscriptions
+  need cancelling (and their extra charges refunding) in Stripe.
+
 ## 1.161.0 — Block a second check-in at the same door (anti ticket-sharing)
 
 - A ticket already scanned at a door is now **blocked** from scanning in again

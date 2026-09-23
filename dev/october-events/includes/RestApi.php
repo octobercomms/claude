@@ -1123,10 +1123,15 @@ final class RestApi {
         if (! empty(\OE\Connectors\StripeConnector::member_status($email)['active'])) {
             return true;
         }
+        // Key the create on the PaymentIntent so the browser confirm and every
+        // webhook delivery/retry of this one purchase resolve to ONE subscription,
+        // never a second charge. The member_status guard above still covers a
+        // genuinely separate later purchase (a different PaymentIntent).
+        $pi_id = (string) ($pi['id'] ?? '');
         $sub = \OE\Connectors\StripeConnector::create_membership_subscription($customer_id, $price_id, $pm_id, [
             'source'   => 'ticket_checkout_join',
             'email'    => $email,
-        ]);
+        ], $pi_id !== '' ? 'join_' . $pi_id : '');
         \OE\Connectors\StripeConnector::bust_member_status($email);
         $ok = in_array($sub['status'], ['active', 'trialing'], true);
         if (! $ok) {
