@@ -147,7 +147,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 | `new_date` | no | `January 28, 2027` | `""` if there is no reliable date; the email then says so |
 | `reason` | no | `Our factory has paused production of this color.` | |
 | `keep_url` | yes | `https://falcon-stock.example.workers.dev/k?t=...` | Signed `/k` link |
-| `keep_by_date` | yes | `December 9, 2026` | Must fall before the date currently promised (`old_date`), so consent is asked for before that deadline passes |
+| `keep_by_date` | yes | `December 9, 2026` | The date currently promised (`old_date`), or 7 days after the notice if that date is sooner. Set by the Worker; rule flagged for legal review |
 | `cancel_url` | yes | `https://falcon-stock.example.workers.dev/c?t=...` | |
 | `logo_url` | no | | |
 

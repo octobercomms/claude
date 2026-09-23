@@ -76,6 +76,8 @@ Staff rule: never set "Continue selling when out of stock" without both `expecte
 | Order | `preorder-cancel-requested` | Customer asked to cancel via email link |
 | Order | `preorder-cancel-due` | US: consent deadline passed; staff must cancel and refund |
 | Order | `preorder-over-cap` | Order took the variant past its cap |
+| Order | `preorder-notice-v{id}-{n}-{date}` | Worker: date-change notice already sent (stops duplicates) |
+| Order | `preorder-cancel-requested-on-{date}` | Worker: when the cancel request arrived (drives the 3-day staff chase) |
 
 Variant IDs are the numeric ID (e.g. `44012345678901`), never the GID.
 
@@ -123,11 +125,12 @@ Single file `dev/falcon-back-in-stock/worker/worker.js` (ES module, no dependenc
 | `FLOW_KEY` | secret | Shared secret Flow sends in `X-Falcon-Key` |
 | `LINK_SECRET` | secret | HMAC key for email links |
 | `API_VERSION` | var | `2026-07` |
+| `WORKER_URL` | var | Public Worker URL, used to build email links from the cron run |
 | `DRY_RUN` | var | `"true"` sends all customer mail to staff_email instead; used during install |
 
 Cron trigger: `0 7 * * *` (daily 07:00 UTC).
 
-Admin API scopes per store: `read_products, write_products, read_inventory, read_customers, write_customers, read_orders, write_orders, read_merchant_managed_fulfillment_orders, write_merchant_managed_fulfillment_orders` (+ `read/write_third_party_fulfillment_orders` if a 3PL fulfils).
+Admin API scopes per store: `read_products, write_products, read_inventory, read_customers, write_customers, read_orders, read_all_orders, write_orders, read_merchant_managed_fulfillment_orders, write_merchant_managed_fulfillment_orders` (+ `read/write_third_party_fulfillment_orders` if a 3PL fulfils).
 
 ### Endpoints
 
@@ -158,7 +161,7 @@ Page through `customers(query:"tag:'restock-{id}'")` (verify exact match: skip c
 
 ## 7. Email rules (Brevo templates)
 
-Files: `dev/falcon-back-in-stock/emails/*.html` (Brevo template HTML, `{{ params.x }}` syntax) + `emails/README.md` listing params.
+Files: `dev/falcon-back-in-stock/emails/*.html` (Brevo template HTML, `{{ params.x }}` syntax) + `docs/falcon-back-in-stock/EMAILS.md` listing params.
 
 | Template | Params |
 |---|---|

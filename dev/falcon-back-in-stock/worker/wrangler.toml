@@ -1,0 +1,20 @@
+# Reference only. The Worker is installed by pasting worker.js into the
+# Cloudflare dashboard editor (no CLI, no build step). This file records the
+# same settings in case someone later deploys with `wrangler deploy`.
+name = "falcon-stock"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[triggers]
+crons = ["0 7 * * *"] # daily 07:00 UTC
+
+[vars]
+API_VERSION = "2026-07"
+DRY_RUN = "true" # set to "false" only after install testing
+WORKER_URL = "https://falcon-stock.REPLACE_ME.workers.dev"
+# SHOPS is a JSON var; see README.md. In the dashboard paste it as a JSON variable.
+# SHOPS = '{"uk":{...},"us":{...},"eu":{...}}'
+
+# Secrets (dashboard → Settings → Variables and secrets, type Secret, or `wrangler secret put`):
+# ADMIN_TOKEN_UK, ADMIN_TOKEN_US, ADMIN_TOKEN_EU, BREVO_API_KEY, TURNSTILE_SECRET, FLOW_KEY, LINK_SECRET
