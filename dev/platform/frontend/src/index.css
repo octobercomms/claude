@@ -193,26 +193,6 @@ button { font-family: inherit; }
 .kicker .kicker-name { color: var(--text); }
 .kicker .pip { width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent); flex-shrink: 0; }
 
-/* ─── Stat strip ─────────────────────────────────────────────────── */
-/* Headline KPI row. One .stat.feature inverts (ink fill, accent number)
-   to anchor the eye. Borders are ink so the row reads as data chrome,
-   distinct from the accent content cards. */
-.stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s4); }
-.stat {
-  background: var(--surface);
-  border: var(--border-w) solid var(--card-border); border-radius: var(--r-md);
-  padding: var(--s5); min-height: 132px;
-  display: flex; flex-direction: column; gap: var(--s2);
-}
-.stat .stat-label { font-size: var(--fs-caption); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
-.stat .stat-value { font-size: var(--fs-display); font-weight: 800; letter-spacing: -2px; line-height: 0.9; margin-top: auto; color: var(--text); }
-.stat .stat-value small { font-size: var(--fs-title); color: var(--text-subtle); letter-spacing: 0; font-weight: 700; }
-.stat .stat-sub { font-size: var(--fs-caption); color: var(--text-subtle); }
-.stat .stat-sub.warn { color: var(--warning); font-weight: 600; }
-.stat.feature { background: var(--text); border-color: var(--text); }
-.stat.feature .stat-label, .stat.feature .stat-sub { color: rgba(255, 255, 255, 0.6); }
-.stat.feature .stat-value { color: #fff; }
-
 /* ─── Hero ───────────────────────────────────────────────────────── */
 
 /* Page hero — page name dominates as the display title; the client
@@ -278,32 +258,6 @@ button { font-family: inherit; }
 .section-head {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: var(--s4); margin-bottom: var(--s4); flex-wrap: wrap;
-}
-
-/* ─── Metric grid ────────────────────────────────────────────────── */
-
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--s3);
-  margin-bottom: var(--s5);
-}
-.metric-card {
-  background: var(--surface);
-  border: var(--border-w) solid var(--card-border);
-  border-radius: var(--r-md);
-  padding: var(--s4);
-}
-/* "accent" metric card = the black feature card: ink fill, the metric in
-   accent (the one yellow highlight), caption muted-on-dark. */
-.metric-card.accent { background: var(--text); border-color: var(--text); }
-.metric-card.accent .metric { color: var(--text); }
-.metric-card.accent .caption { color: rgba(255, 255, 255, 0.6); }
-.metric-card .caption { color: var(--text); opacity: 1; }
-.metric-card .metric { margin-top: var(--s2); color: var(--text); }
-.metric-row {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: var(--s3); margin-top: var(--s2);
 }
 
 /* ─── Buttons ────────────────────────────────────────────────────── */
@@ -1439,10 +1393,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   .metric { font-size: var(--fs-section); }
   .hero .client-name { font-size: var(--fs-caption); }
 
-  /* Stat strip stacks two-up on narrow screens */
-  .stat-strip { grid-template-columns: 1fr 1fr; }
-  .stat { min-height: 0; }
-
   /* Layout primitives collapse to single column */
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
 
@@ -1495,7 +1445,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   /* Suite-overview flow already collapses via its own media query;
      bento card padding shrinks to keep the visible area larger. */
   .card { padding: var(--s4); }
-  .metric-card { padding: var(--s3); }
 
 }
 
@@ -1819,9 +1768,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
    touch off the canvas. Smooth transitions so hover states feel alive. */
 /* Flat surfaces — border-only, no shadow, no hover lift (the lift caused a
    hover flicker at tile edges). Hover just darkens the border. */
-.card,
-.stat,
-.metric-card {
+.card {
   transition: border-color 0.15s ease;
 }
 .suite-cap {
@@ -1913,6 +1860,7 @@ a:hover > .card-stat,
 .ds-stat__delta.up { color: var(--positive); }
 .ds-stat__delta.down { color: var(--negative); }
 .ds-stat__sub { font-size: var(--fs-caption); color: var(--text-subtle); margin-top: 4px; }
+.ds-stat__spark { margin-top: 6px; }
 /* Feature tile — one highlighted stat (dark fill, white ink), for the headline
    metric in a strip. Supersedes the old .stat.feature. */
 .ds-stat--feature { background: var(--text); border-color: var(--text); }

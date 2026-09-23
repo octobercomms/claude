@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { roWrite } from '../../utils/readOnly';
-import Sparkline from '../Sparkline';
+import StatStrip from '../shells/StatStrip';
 
 // Organic → Performance → Backlinks (Phase E2). Reads the 3-day snapshots
 // persisted by the E1 sweep (dfs_backlinks_summary / dfs_referring_domains)
@@ -176,28 +176,13 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
       {hasSnapshot && (
         <>
           {/* Headline cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--s4)', marginBottom: 'var(--s5)' }}>
-            <div className="card">
-              <div className="metric">{fmt(latest.backlinks_total)}</div>
-              <div className="caption">Total backlinks</div>
-            </div>
-            <div className="card">
-              <div className="metric">{fmt(latest.referring_domains_total)}</div>
-              <div className="caption">Referring domains</div>
-              {rdSeries.length >= 2 && (
-                <div style={{ marginTop: 'var(--s2)' }}><Sparkline values={rdSeries} width={140} height={30} /></div>
-              )}
-            </div>
-            <div className="card">
-              <div className="metric">{latest.dofollow_ratio == null ? '—' : `${Math.round(latest.dofollow_ratio * 100)}%`}</div>
-              <div className="caption">Dofollow</div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>healthy ≈ 60–80%</div>
-            </div>
-            <div className="card">
-              <div className="metric">{latest.spam_score == null ? '—' : latest.spam_score}</div>
-              <div className="caption">Spam score</div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>lower is better</div>
-            </div>
+          <div style={{ marginBottom: 'var(--s5)' }}>
+            <StatStrip items={[
+              { label: 'Total backlinks', value: fmt(latest.backlinks_total) },
+              { label: 'Referring domains', value: fmt(latest.referring_domains_total), spark: rdSeries.length >= 2 ? rdSeries : undefined },
+              { label: 'Dofollow', value: latest.dofollow_ratio == null ? '—' : `${Math.round(latest.dofollow_ratio * 100)}%`, sub: 'healthy ≈ 60–80%' },
+              { label: 'Spam score', value: latest.spam_score == null ? '—' : latest.spam_score, sub: 'lower is better' },
+            ]} />
           </div>
           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s6)' }}>
             Snapshot captured {fmtDate(latest.captured_at)} · domain rank {latest.rank == null ? '—' : latest.rank}

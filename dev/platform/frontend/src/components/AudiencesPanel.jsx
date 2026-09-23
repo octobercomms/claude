@@ -12,6 +12,7 @@ import Section from './ui/Section';
 import Button from './ui/Button';
 import Chip from './ui/Chip';
 import EmptyState from './ui/EmptyState';
+import StatStrip from './shells/StatStrip';
 
 export default function AudiencesPanel({ clientId }) {
   const toast = useToast();
@@ -195,11 +196,13 @@ export default function AudiencesPanel({ clientId }) {
             />
           ) : (
             <>
-              <div className="metric-grid mb-5">
-                <Metric label="Customers · 12m"      value={formatNum(totalCustomers)} />
-                <Metric label="Orders · 12m"         value={formatNum(totalOrders)} />
-                <Metric label="Revenue · 12m"        value={`£${formatNum(totalRevenue)}`} accent />
-                <Metric label="Top-10 concentration" value={`${concentration}%`} />
+              <div className="mb-5">
+                <StatStrip items={[
+                  { label: 'Customers · 12m', value: formatNum(totalCustomers) },
+                  { label: 'Orders · 12m', value: formatNum(totalOrders) },
+                  { label: 'Revenue · 12m', value: `£${formatNum(totalRevenue)}`, feature: true },
+                  { label: 'Top-10 concentration', value: `${concentration}%` },
+                ]} />
               </div>
               <Card>
                 <table className="table">
@@ -411,15 +414,6 @@ function CustomerListModal({ uploading, onClose, onUpload }) {
           </Button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Metric({ label, value, accent }) {
-  return (
-    <div className={`metric-card ${accent ? 'accent' : ''}`}>
-      <div className="caption">{label}</div>
-      <div className="metric mt-2">{value}</div>
     </div>
   );
 }

@@ -87,7 +87,7 @@ function Profile({ profile }) {
       {!!p.objectives?.length && (
         <div>
           <div className="caption" style={{ marginBottom: 'var(--s2)' }}>Objectives</div>
-          <div className="metric-grid">
+          <div className="grid grid-auto">
             {p.objectives.map((o, i) => (
               <div key={i} className="card" style={{ padding: 'var(--s4)' }}>
                 <div className="body-sm" style={{ fontWeight: 700 }}>{o.metric}</div>

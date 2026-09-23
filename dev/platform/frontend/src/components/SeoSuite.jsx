@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import StatStrip from './shells/StatStrip';
 
 const intentColours = {
   Informational: { bg: 'var(--accent-soft)', fg: 'var(--accent)' },
@@ -411,10 +412,12 @@ export function AIOverviewsTab({ clientId }) {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 'var(--s3)', marginTop: 'var(--s4)', marginBottom: 'var(--s5)' }}>
-        <SummaryCard label="Keywords tracked" value={latest.length} feature />
-        <SummaryCard label="Currently triggering AIO" value={presentNow} pct={latest.length ? Math.round(presentNow / latest.length * 100) : null} />
-        <SummaryCard label="Your brand cited" value={citedNow} pct={presentNow ? Math.round(citedNow / presentNow * 100) : null} />
+      <div style={{ marginTop: 'var(--s4)', marginBottom: 'var(--s5)' }}>
+        <StatStrip items={[
+          { label: 'Keywords tracked', value: latest.length, feature: true },
+          { label: 'Currently triggering AIO', value: presentNow, sub: latest.length ? `${Math.round(presentNow / latest.length * 100)}% of tracked` : undefined },
+          { label: 'Your brand cited', value: citedNow, sub: presentNow ? `${Math.round(citedNow / presentNow * 100)}% of AIO` : undefined },
+        ]} />
       </div>
 
       {trend.length >= 2 && (
@@ -458,17 +461,6 @@ export function AIOverviewsTab({ clientId }) {
             {!latest.length && <tr><td colSpan={6} className="text-subtle" style={{ textAlign: 'center' }}>No AIO data yet — click "Check now" to populate.</td></tr>}
           </tbody>
         </table>
-      </div>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value, pct, feature }) {
-  return (
-    <div className={'stat' + (feature ? ' feature' : '')} style={{ flex: 1 }}>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value" style={{ marginTop: 'var(--s2)' }}>
-        {value}{pct != null && <small> ({pct}%)</small>}
       </div>
     </div>
   );

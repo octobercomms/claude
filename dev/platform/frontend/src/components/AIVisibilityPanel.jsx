@@ -12,7 +12,7 @@ import Section from './ui/Section';
 import Button from './ui/Button';
 import Chip from './ui/Chip';
 import EmptyState from './ui/EmptyState';
-import Sparkline from './Sparkline';
+import StatStrip from './shells/StatStrip';
 
 const ENGINE_LABEL = {
   claude: 'Claude',
@@ -179,30 +179,16 @@ export default function AIVisibilityPanel({ clientId }) {
         </div>
       )}
 
-      <div className="metric-grid">
-        <div className="metric-card accent">
-          <div className="caption">Share of voice · 30d</div>
-          <div className="metric-row">
-            <div className="metric text-accent">{sov}%</div>
-            {trendSov.length > 1 && <Sparkline values={trendSov} width={80} height={22} />}
-          </div>
-        </div>
-        <div className="metric-card">
-          <div className="caption">Active prompts</div>
-          <div className="metric mt-2">{prompts.filter(p => p.active).length}</div>
-        </div>
-        <div className="metric-card">
-          <div className="caption">Runs · 30d</div>
-          <div className="metric mt-2">{summary?.total_runs || 0}</div>
-        </div>
-        <div className="metric-card">
-          <div className="caption">Top competitor</div>
-          <div className="h2 mt-2">{summary?.competitors?.[0]?.name || '—'}</div>
-          {summary?.competitors?.[0] && (
-            <div className="body-xs text-subtle mt-2">{summary.competitors[0].mentions} mentions</div>
-          )}
-        </div>
-      </div>
+      <StatStrip items={[
+        { label: 'Share of voice · 30d', value: `${sov}%`, feature: true, spark: trendSov.length > 1 ? trendSov : undefined },
+        { label: 'Active prompts', value: prompts.filter(p => p.active).length },
+        { label: 'Runs · 30d', value: summary?.total_runs || 0 },
+        {
+          label: 'Top competitor',
+          value: summary?.competitors?.[0]?.name || '—',
+          sub: summary?.competitors?.[0] ? `${summary.competitors[0].mentions} mentions` : undefined,
+        },
+      ]} />
 
       <div className="row wrap mb-6">
         <Button {...roWrite(readOnly, { onClick: runNow, disabled: running })}>
