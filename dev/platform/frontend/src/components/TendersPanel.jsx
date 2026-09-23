@@ -44,7 +44,7 @@ function VerdictBadge({ verdict, reason }) {
   if (!v) return <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }} title="Claude is still qualifying this one">qualifying…</span>;
   return (
     <span title={reason || ''} style={{
-      marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s2)', borderRadius: 999,
+      marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)',
       background: v.bg, color: v.fg, whiteSpace: 'nowrap',
     }}>{v.label}</span>
   );

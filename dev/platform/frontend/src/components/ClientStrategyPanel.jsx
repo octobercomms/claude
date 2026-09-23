@@ -176,7 +176,7 @@ function Profile({ profile }) {
               p.funnel[key].length ? (
                 <div key={key} className="card" style={{ padding: 'var(--s4)', borderTop: '3px solid var(--accent)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
-                    <span style={{ width: 20, height: 20, borderRadius: 999, background: 'var(--text)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-caption)', fontWeight: 800 }}>{idx + 1}</span>
+                    <span style={{ width: 20, height: 20, borderRadius: 'var(--r-pill)', background: 'var(--text)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-caption)', fontWeight: 800 }}>{idx + 1}</span>
                     <div className="h3">{label}</div>
                   </div>
                   <ul style={{ margin: 0, paddingLeft: 'var(--s5)' }}>{p.funnel[key].map((t, i) => <li key={i} className="body-sm" style={{ marginBottom: 'var(--s1)' }}>{t}</li>)}</ul>
@@ -312,7 +312,7 @@ export default function ClientStrategyPanel({ clientId }) {
         </div>
       ) : (
         <>
-          <div style={{ height: 6, background: 'var(--surface-raised)', borderRadius: 999, overflow: 'hidden', margin: 'var(--s3) 0 var(--s4)' }}>
+          <div style={{ height: 6, background: 'var(--surface-raised)', borderRadius: 'var(--r-pill)', overflow: 'hidden', margin: 'var(--s3) 0 var(--s4)' }}>
             <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--accent)' }} />
           </div>
 
@@ -333,7 +333,7 @@ export default function ClientStrategyPanel({ clientId }) {
               return (
                 <div key={pi} className="card" style={{ padding: 0, overflow: 'hidden', borderLeft: `5px solid ${s.color}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)', padding: 'var(--s4) var(--s5)', background: s.tint, borderBottom: '1px solid var(--card-border)' }}>
-                    <span style={{ width: 34, height: 34, borderRadius: 999, background: s.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-title)', fontWeight: 800, flex: '0 0 auto' }}>{s.n}</span>
+                    <span style={{ width: 34, height: 34, borderRadius: 'var(--r-pill)', background: s.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-title)', fontWeight: 800, flex: '0 0 auto' }}>{s.n}</span>
                     <div className="h2" style={{ color: s.color, margin: 0 }}>{ph.title}</div>
                   </div>
                   <div className="stack stack-sm" style={{ padding: 'var(--s4) var(--s5)' }}>

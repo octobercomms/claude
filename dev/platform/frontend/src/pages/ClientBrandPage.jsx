@@ -190,7 +190,7 @@ export default function ClientBrandPage({ embedded = false } = {}) {
       )}
 
       {!filtered.length && (
-        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s7)', textAlign: 'center', border: '1px dashed #ddd', borderRadius: 6 }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s7)', textAlign: 'center', border: '1px dashed #ddd', borderRadius: 'var(--r-sm)' }}>
           No assets yet — upload a logo or product image to get started.
         </div>
       )}
@@ -212,7 +212,7 @@ function FilterChip({ active, onClick, children }) {
     <button onClick={onClick} style={{
       padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: '1px solid ' + (active ? 'var(--text)' : 'var(--accent-soft)'),
       background: active ? 'var(--text)' : 'var(--surface)', color: active ? 'var(--surface)' : 'var(--text-muted)',
-      cursor: 'pointer', borderRadius: 999, fontWeight: active ? 700 : 500,
+      cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: active ? 700 : 500,
     }}>{children}</button>
   );
 }
@@ -364,7 +364,7 @@ function AssetCard({ asset, onDelete, onEdit, onUpdate }) {
           <select
             value={asset.metadata?.role || ''}
             onChange={e => setRole(e.target.value)}
-            style={{ marginTop: 'var(--s2)', width: '100%', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: '2px solid var(--card-border)', borderRadius: 4, background: 'var(--surface)', color: 'var(--text)' }}
+            style={{ marginTop: 'var(--s2)', width: '100%', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: '2px solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)', color: 'var(--text)' }}
           >
             {FONT_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
@@ -459,6 +459,6 @@ const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1000 },
   modal: { background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 460, padding: 'var(--s6)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 'var(--s3)', marginBottom: 'var(--s1)' },
-  input: { width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: '2px solid var(--card-border)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  input: { width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: '2px solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)', marginTop: 'var(--s4)' },
 };

@@ -27,7 +27,7 @@ function StatusPill({ status, label }) {
     : { background: '#fff', color: '#111', border: '1px solid #111' };
   return (
     <span style={{
-      ...style, display: 'inline-block', padding: 'var(--s1) var(--s3)', borderRadius: 999,
+      ...style, display: 'inline-block', padding: 'var(--s1) var(--s3)', borderRadius: 'var(--r-pill)',
       fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase', whiteSpace: 'nowrap',
     }}>{label || status}</span>
   );
@@ -83,11 +83,11 @@ export default function PublicCoveragePage() {
   if (data === null) return <div style={{ background: surface, minHeight: '100vh' }}><div style={wrap}><h1>Not found</h1><p style={{ color: subtle }}>This coverage link is invalid or has expired.</p></div></div>;
 
   const published = data.items.filter((i) => i.published).length;
-  const card = { background: '#fff', border: `1px solid ${cardBorder}`, borderRadius: 12, padding: 'var(--s7)' };
+  const card = { background: '#fff', border: `1px solid ${cardBorder}`, borderRadius: 'var(--r-md)', padding: 'var(--s7)' };
   const th = { textAlign: 'left', color: subtle, fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', padding: 'var(--s3) var(--s3)', borderBottom: `2px solid ${cardBorder}` };
   const td = { padding: 'var(--s3)', borderBottom: `1px solid ${cardBorder}`, fontSize: 'var(--fs-body)', verticalAlign: 'top' };
   const chipBtn = (active) => ({
-    padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', fontWeight: 600, borderRadius: 999, cursor: 'pointer',
+    padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', fontWeight: 600, borderRadius: 'var(--r-pill)', cursor: 'pointer',
     background: active ? ink : '#fff', color: active ? '#fff' : ink, border: `1px solid ${active ? ink : cardBorder}`,
   });
 
@@ -144,11 +144,11 @@ export default function PublicCoveragePage() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search coverage…"
               aria-label="Search coverage"
-              style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: `1px solid ${cardBorder}`, borderRadius: 999, background: '#fff', color: ink, minWidth: 180 }}
+              style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: `1px solid ${cardBorder}`, borderRadius: 'var(--r-pill)', background: '#fff', color: ink, minWidth: 180 }}
             />
             <label style={{ fontSize: 'var(--fs-caption)', color: subtle }}>Sort
               <select value={sort} onChange={(e) => setSort(e.target.value)}
-                style={{ marginLeft: 'var(--s2)', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: `1px solid ${cardBorder}`, borderRadius: 6, background: '#fff', color: ink }}>
+                style={{ marginLeft: 'var(--s2)', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: `1px solid ${cardBorder}`, borderRadius: 'var(--r-sm)', background: '#fff', color: ink }}>
                 <option value="date_desc">Newest first</option>
                 <option value="date_asc">Oldest first</option>
                 <option value="outlet">Publication A→Z</option>

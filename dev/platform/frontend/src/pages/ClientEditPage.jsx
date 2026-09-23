@@ -312,7 +312,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                         ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }
                         : { maxHeight: '62vh', maxWidth: '100%', display: 'block' }} />
                     {safeZone !== 'off' && previewH > 0 && safeBoxes(safeZone).map(b => (
-                      <div key={b.key} style={{ position: 'absolute', ...b.style, background: 'rgba(255,70,70,0.16)', border: '1px dashed rgba(255,70,70,0.8)', borderRadius: 3, pointerEvents: 'none', boxSizing: 'border-box' }}>
+                      <div key={b.key} style={{ position: 'absolute', ...b.style, background: 'rgba(255,70,70,0.16)', border: '1px dashed rgba(255,70,70,0.8)', borderRadius: 'var(--r-sm)', pointerEvents: 'none', boxSizing: 'border-box' }}>
                         <span style={{ position: 'absolute', top: 2, left: 4, fontSize: 'var(--fs-caption)', fontWeight: 700, color: '#fff', textShadow: '0 1px 2px #000', textTransform: 'uppercase', letterSpacing: 0.3 }}>{b.label}</span>
                       </div>
                     ))}
@@ -339,8 +339,8 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                         {segments.length > 1 && <button onClick={() => removeSeg(s.id)} style={{ border: 'none', background: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-caption)', padding: 0 }}>remove</button>}
                       </div>
                       <div className="trim-slider">
-                        <div style={{ position: 'absolute', top: 14, left: 0, right: 0, height: 4, borderRadius: 2, background: 'var(--card-border)' }} />
-                        <div style={{ position: 'absolute', top: 14, height: 4, borderRadius: 2, background: 'var(--text)', left: `${(s.start / duration) * 100}%`, right: `${100 - (s.end / duration) * 100}%` }} />
+                        <div style={{ position: 'absolute', top: 14, left: 0, right: 0, height: 4, borderRadius: 'var(--r-sm)', background: 'var(--card-border)' }} />
+                        <div style={{ position: 'absolute', top: 14, height: 4, borderRadius: 'var(--r-sm)', background: 'var(--text)', left: `${(s.start / duration) * 100}%`, right: `${100 - (s.end / duration) * 100}%` }} />
                         <input type="range" min="0" max={duration} step="0.05" value={s.start} onChange={e => { const v = Math.min(Number(e.target.value), s.end - 0.1); updateSeg(s.id, { start: Math.max(0, v) }); seek(v); }} />
                         <input type="range" min="0" max={duration} step="0.05" value={s.end} onChange={e => { const v = Math.max(Number(e.target.value), s.start + 0.1); updateSeg(s.id, { end: Math.min(duration, v) }); seek(v); }} />
                       </div>
@@ -366,7 +366,7 @@ export default function ClientEditPage({ embedded = false, clientId: clientIdPro
                   {clips.map((c, i) => (
                     <div key={c.id} style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s2)' }}>
                       <span style={{ fontWeight: 800, color: 'var(--text-subtle)', width: 18, textAlign: 'center' }}>{i + 1}</span>
-                      <video src={c.url} muted style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 4, background: '#000', flexShrink: 0 }} />
+                      <video src={c.url} muted style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--r-sm)', background: '#000', flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
                         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{c.duration ? fmt(c.duration) : '…'}</div>

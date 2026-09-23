@@ -70,7 +70,7 @@ export default function ClarityConnectorCard({ clientId }) {
             return (
               <div key={s.id} style={{ ...ROW, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', minWidth: 0 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 999, flex: '0 0 auto', background: 'var(--positive)' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: 'var(--r-pill)', flex: '0 0 auto', background: 'var(--positive)' }} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>Microsoft Clarity</span>

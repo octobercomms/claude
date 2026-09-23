@@ -275,7 +275,7 @@ export default function HomePage() {
             we&apos;re opening to a small group of agencies first. drop your email and we&apos;ll be in touch.
           </p>
           {done ? (
-            <div style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${WHITE}`, borderRadius: 4, padding: 'var(--s5) var(--s6)', color: WHITE, fontWeight: 600 }}>
+            <div style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${WHITE}`, borderRadius: 'var(--r-sm)', padding: 'var(--s5) var(--s6)', color: WHITE, fontWeight: 600 }}>
               you&apos;re on the list. we&apos;ll be in touch.
             </div>
           ) : (
@@ -428,20 +428,20 @@ const styles = {
   // action everywhere.
   pillWhite: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    background: WHITE, color: BLACK, padding: 'var(--s3) var(--s6)', borderRadius: 999,
+    background: WHITE, color: BLACK, padding: 'var(--s3) var(--s6)', borderRadius: 'var(--r-pill)',
     fontWeight: 700, fontSize: 'var(--fs-body)', textDecoration: 'none', border: 'none',
     cursor: 'pointer', fontFamily: FONT,
   },
   pillWhiteSm: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    background: WHITE, color: BLACK, padding: 'var(--s2) var(--s4)', borderRadius: 999,
+    background: WHITE, color: BLACK, padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-pill)',
     fontWeight: 700, fontSize: 'var(--fs-caption)', textDecoration: 'none', border: 'none',
     cursor: 'pointer', fontFamily: FONT,
   },
   // White-outlined pill — used as the secondary action throughout.
   pillOutline: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    background: 'transparent', color: WHITE, padding: 'var(--s3) var(--s6)', borderRadius: 999,
+    background: 'transparent', color: WHITE, padding: 'var(--s3) var(--s6)', borderRadius: 'var(--r-pill)',
     fontWeight: 600, fontSize: 'var(--fs-body)', textDecoration: 'none',
     border: `1.5px solid ${WHITE}`, cursor: 'pointer', fontFamily: FONT,
   },
@@ -452,13 +452,13 @@ const styles = {
   threeCol: { display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 1fr 1fr', gap: 'var(--s9)' },
 
   howGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--s6)' },
-  howStep: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 'var(--s7)' },
+  howStep: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--r-sm)', padding: 'var(--s7)' },
   howN: { fontSize: 'var(--fs-caption)', color: YELLOW, fontWeight: 800, letterSpacing: 1.5, marginBottom: 'var(--s5)' },
   howTitle: { fontSize: 'var(--fs-section)', fontWeight: 800, color: WHITE, letterSpacing: -0.8, marginBottom: 'var(--s3)' },
   howBody: { fontSize: 'var(--fs-body)', color: MUTED, lineHeight: 1.7, margin: 0 },
 
   aiGrid: { display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) 1.6fr', gap: 'var(--s9)', alignItems: 'flex-start' },
-  chatPanel: { background: '#161616', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 'var(--s6)' },
+  chatPanel: { background: '#161616', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'var(--r-sm)', padding: 'var(--s6)' },
 
   capGrid: {
     display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--s1)',
@@ -466,7 +466,7 @@ const styles = {
     border: '1px solid rgba(255,255,255,0.08)',
   },
   capCard: { background: BLACK, padding: 'var(--s6)', minHeight: 140 },
-  capDot: { width: 10, height: 10, borderRadius: 5, background: YELLOW, marginBottom: 'var(--s4)' },
+  capDot: { width: 10, height: 10, borderRadius: 'var(--r-sm)', background: YELLOW, marginBottom: 'var(--s4)' },
   capTitle: { fontSize: 'var(--fs-title)', fontWeight: 700, color: WHITE, marginBottom: 'var(--s2)', letterSpacing: -0.2 },
   capDesc: { fontSize: 'var(--fs-body)', color: MUTED, lineHeight: 1.6 },
 
@@ -478,15 +478,15 @@ const styles = {
   integCell: { background: BLACK, padding: 'var(--s5) var(--s5)', fontSize: 'var(--fs-body)', color: WHITE, fontWeight: 500 },
 
   priceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 'var(--s6)' },
-  priceCard: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 'var(--s7)', position: 'relative' },
+  priceCard: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--r-sm)', padding: 'var(--s7)', position: 'relative' },
   priceCardHi: { boxShadow: `inset 0 0 0 2px ${WHITE}` },
-  priceFlag: { position: 'absolute', top: -10, left: 24, background: WHITE, color: BLACK, fontSize: 'var(--fs-caption)', fontWeight: 800, padding: 'var(--s1) var(--s3)', borderRadius: 999, textTransform: 'uppercase', letterSpacing: 0.5 },
+  priceFlag: { position: 'absolute', top: -10, left: 24, background: WHITE, color: BLACK, fontSize: 'var(--fs-caption)', fontWeight: 800, padding: 'var(--s1) var(--s3)', borderRadius: 'var(--r-pill)', textTransform: 'uppercase', letterSpacing: 0.5 },
   priceName: { fontSize: 'var(--fs-body)', fontWeight: 700, color: YELLOW, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 'var(--s3)' },
   priceFig: { display: 'flex', alignItems: 'baseline', marginBottom: 'var(--s2)' },
   priceList: { listStyle: 'none', padding: 0, margin: '0 0 var(--s7)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' },
   priceFeat: { fontSize: 'var(--fs-body)', color: MUTED, display: 'flex', gap: 'var(--s1)', alignItems: 'center', lineHeight: 1.5 },
 
-  emailInput: { flex: 1, padding: 'var(--s3) var(--s5)', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: WHITE, fontSize: 'var(--fs-body)', outline: 'none', fontFamily: FONT },
+  emailInput: { flex: 1, padding: 'var(--s3) var(--s5)', borderRadius: 'var(--r-pill)', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: WHITE, fontSize: 'var(--fs-body)', outline: 'none', fontFamily: FONT },
 
   footer: { background: BLACK, borderTop: '1px solid rgba(255,255,255,0.08)', padding: 'var(--s8) 0' },
 };

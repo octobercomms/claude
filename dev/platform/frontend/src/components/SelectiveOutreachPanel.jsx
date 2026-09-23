@@ -174,7 +174,7 @@ function QueueView({ campaign, onChange }) {
             </p>
           </div>
         ) : messages.map(m => (
-          <div key={m.id} className="card" style={{ padding: 'var(--s4)', border: '1px solid var(--border,#eee)', borderRadius: 8 }}>
+          <div key={m.id} className="card" style={{ padding: 'var(--s4)', border: '1px solid var(--border,#eee)', borderRadius: 'var(--r-sm)' }}>
             <div className="row between" style={{ alignItems: 'flex-start' }}>
               <div>
                 <strong>{m.company || '—'}</strong>
@@ -312,7 +312,7 @@ function ProspectsView({ campaign, onChange }) {
       {loading ? <div className="text-subtle">Loading…</div>
         : !data.prospects.length ? <div className="empty"><div className="h3">No {state} prospects</div></div>
           : data.prospects.map(p => (
-            <div key={p.id} className="card" style={{ padding: 'var(--s3)', border: '1px solid var(--border,#eee)', borderRadius: 8 }}>
+            <div key={p.id} className="card" style={{ padding: 'var(--s3)', border: '1px solid var(--border,#eee)', borderRadius: 'var(--r-sm)' }}>
               <div className="row between" style={{ alignItems: 'flex-start' }}>
                 <div>
                   <strong>{p.company || '—'}</strong>
@@ -414,7 +414,7 @@ function SetupView({ campaign, clientId, onChange }) {
         </select>
         <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
           {identities.map(i => (
-            <span key={i.id} className="body-sm" style={{ padding: 'var(--s1) var(--s2)', border: '1px solid var(--border,#eee)', borderRadius: 6 }}>
+            <span key={i.id} className="body-sm" style={{ padding: 'var(--s1) var(--s2)', border: '1px solid var(--border,#eee)', borderRadius: 'var(--r-sm)' }}>
               {i.from_email} · <button className="btn btn-xs btn-ghost" onClick={() => toggleAuth(i)} style={{ color: i.auth_ok ? '#1a7f37' : '#c62828' }}>
                 {i.auth_ok ? 'authenticated ✓' : 'mark authenticated'}
               </button>

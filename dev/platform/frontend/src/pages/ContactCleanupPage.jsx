@@ -396,7 +396,7 @@ function TidyFixesTab({ onChanged }) {
           <div style={{ marginBottom: 'var(--s3)' }}>
             Claude is reading the journalists in batches of 40 — {progress.processed.toLocaleString()} of {progress.total.toLocaleString()} done.
           </div>
-          <div style={{ background: 'var(--surface-raised)', borderRadius: 999, height: 8, overflow: 'hidden', margin: 'var(--s2) auto var(--s3)', maxWidth: 420 }}>
+          <div style={{ background: 'var(--surface-raised)', borderRadius: 'var(--r-pill)', height: 8, overflow: 'hidden', margin: 'var(--s2) auto var(--s3)', maxWidth: 420 }}>
             <div style={{
               background: 'var(--accent)', height: '100%',
               width: progress.total ? `${Math.min(100, (progress.processed / progress.total) * 100)}%` : '4%',
@@ -447,7 +447,7 @@ function TidyFixesTab({ onChanged }) {
                       setSelected(n);
                     }} /></td>
                     <td style={{ fontWeight: 600 }}>{s.contact_name || s.contact_email || '—'}</td>
-                    <td><code style={{ background: 'var(--surface-raised)', padding: 'var(--s1) var(--s2)', borderRadius: 4, fontSize: 'var(--fs-caption)' }}>{s.field}</code></td>
+                    <td><code style={{ background: 'var(--surface-raised)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>{s.field}</code></td>
                     <td style={{ color: 'var(--text-muted)' }}>{s.before || <em>(empty)</em>}</td>
                     <td style={{ color: 'var(--text)' }}>{s.new_value}</td>
                     <td style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{s.why || ''}</td>

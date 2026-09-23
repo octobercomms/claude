@@ -222,7 +222,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                   {canPause ? (
                     <>Pacing: drop a pause of{' '}
                       <select value={pauseDur} onChange={e => setPauseDur(e.target.value)}
-                        style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s1)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 4 }}>
+                        style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s1)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
                         {['0.3s', '0.5s', '1s', '1.5s', '2s'].map(d => <option key={d} value={d}>{d}</option>)}
                       </select>{' '}
                       <button type="button" className="btn-inline-link"
@@ -342,7 +342,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
               return (
                 <div key={r.id} className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
                   <button type="button" onClick={() => remove(r.id)} title="Delete"
-                    style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 'var(--fs-caption)', lineHeight: 1 }}>✕</button>
+                    style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: 'var(--r-md)', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 'var(--fs-caption)', lineHeight: 1 }}>✕</button>
                   <div
                     onClick={() => done && setModalReel(r)}
                     style={{ position: 'relative', aspectRatio: '9 / 16', background: '#000', cursor: done ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -351,7 +351,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                         <video src={r.video_url} preload="metadata" muted playsInline
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ width: 40, height: 40, borderRadius: 20, background: 'rgba(0,0,0,0.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-title)' }}>▶</span>
+                          <span style={{ width: 40, height: 40, borderRadius: 'var(--r-lg)', background: 'rgba(0,0,0,0.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-title)' }}>▶</span>
                         </div>
                       </>
                     ) : (

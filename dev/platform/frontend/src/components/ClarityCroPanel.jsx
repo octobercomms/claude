@@ -70,7 +70,7 @@ function Overview({ summary, findings }) {
         <div style={{ flex: 1, minWidth: 180 }}>
           {ORDER.filter(k => counts[k]).map(k => (
             <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
-              <span style={{ width: 10, height: 10, borderRadius: 999, background: PRI[k].color, flex: '0 0 auto' }} />
+              <span style={{ width: 10, height: 10, borderRadius: 'var(--r-pill)', background: PRI[k].color, flex: '0 0 auto' }} />
               <span className="body-sm">{PRI[k].label}</span>
               <span className="body-sm text-subtle" style={{ marginLeft: 'auto', fontWeight: 700 }}>{counts[k]}</span>
             </div>
@@ -80,8 +80,8 @@ function Overview({ summary, findings }) {
               <span className="body-sm" style={{ fontWeight: 600 }}>Fixes done</span>
               <span className="body-sm text-subtle">{done} / {total}</span>
             </div>
-            <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: 'var(--positive)', borderRadius: 999, transition: 'width .25s ease' }} />
+            <div style={{ height: 8, borderRadius: 'var(--r-pill)', background: 'var(--surface-sunken)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: 'var(--positive)', borderRadius: 'var(--r-pill)', transition: 'width .25s ease' }} />
             </div>
           </div>
         </div>
@@ -99,7 +99,7 @@ function FindingCard({ f, open, onToggleExpand, onToggleDone, showSite }) {
           style={{ marginTop: 'var(--s1)', width: 18, height: 18, accentColor: 'var(--accent)', flex: '0 0 auto', cursor: 'pointer' }} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap', marginBottom: 'var(--s1)' }}>
-            <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, color: p.color, background: p.bg, padding: 'var(--s1) var(--s2)', borderRadius: 999, flex: '0 0 auto' }}>{p.label}</span>
+            <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, color: p.color, background: p.bg, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)', flex: '0 0 auto' }}>{p.label}</span>
             {showSite && f.site && <SiteChip label={f.site} />}
             {f.url && <a href={f.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="body-xs" title={f.url}
               style={{ color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{shortUrl(f.url)}</a>}

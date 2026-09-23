@@ -280,8 +280,8 @@ export default function PressCampaignAnalytics({ clientId, release }) {
           return bits.join(' · ');
         };
         const Bar = ({ done, total, color }) => (
-          <div style={{ flex: 1, height: 6, background: 'var(--accent-soft, #eee)', borderRadius: 999, overflow: 'hidden', minWidth: 60 }}>
-            <div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%`, height: '100%', background: color, borderRadius: 999, transition: 'width .3s' }} />
+          <div style={{ flex: 1, height: 6, background: 'var(--accent-soft, #eee)', borderRadius: 'var(--r-pill)', overflow: 'hidden', minWidth: 60 }}>
+            <div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%`, height: '100%', background: color, borderRadius: 'var(--r-pill)', transition: 'width .3s' }} />
           </div>
         );
         const fmtDT = (d) => { try { return new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return ''; } };

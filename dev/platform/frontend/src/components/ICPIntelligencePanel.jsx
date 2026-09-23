@@ -147,7 +147,7 @@ export default function ICPIntelligencePanel({ clientId }) {
               <div className="caption" style={{ marginBottom: 'var(--s2)' }}>Awareness stage</div>
               <div style={{ display: 'flex', gap: 'var(--s1)', marginBottom: 'var(--s2)' }}>
                 {STAGES.map(s => (
-                  <div key={s} title={STAGE_LABEL[s]} style={{ flex: 1, height: 6, borderRadius: 3, background: aware?.stage === s ? 'var(--accent)' : 'var(--card-border)' }} />
+                  <div key={s} title={STAGE_LABEL[s]} style={{ flex: 1, height: 6, borderRadius: 'var(--r-sm)', background: aware?.stage === s ? 'var(--accent)' : 'var(--card-border)' }} />
                 ))}
               </div>
               <div style={{ fontWeight: 800, fontSize: 'var(--fs-body)' }}>{aware?.stage ? STAGE_LABEL[aware.stage] : '—'}</div>
@@ -160,7 +160,7 @@ export default function ICPIntelligencePanel({ clientId }) {
               <div className="caption" style={{ marginBottom: 'var(--s2)' }}>Market sophistication</div>
               <div style={{ display: 'flex', gap: 'var(--s1)', marginBottom: 'var(--s2)' }}>
                 {[1, 2, 3, 4, 5].map(n => (
-                  <div key={n} style={{ flex: 1, height: 6, borderRadius: 3, background: (pack.sophistication_level || 0) >= n ? 'var(--accent)' : 'var(--card-border)' }} />
+                  <div key={n} style={{ flex: 1, height: 6, borderRadius: 'var(--r-sm)', background: (pack.sophistication_level || 0) >= n ? 'var(--accent)' : 'var(--card-border)' }} />
                 ))}
               </div>
               <div style={{ fontWeight: 800, fontSize: 'var(--fs-body)' }}>{pack.sophistication_level ? SOPH_LABEL[pack.sophistication_level] : '—'}</div>

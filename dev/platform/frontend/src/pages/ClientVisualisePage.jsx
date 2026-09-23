@@ -315,9 +315,9 @@ function Studio({ clientId, projectId, onBack }) {
               <div style={{ display: 'flex', gap: 'var(--s2)', overflowX: 'auto', paddingBottom: 'var(--s2)', marginBottom: 'var(--s4)' }}>
                 {allSteps.map(s => (
                   <button key={s.id} onClick={() => setActive(variant.id, s.id)} title={s.kind === 'correction' ? (s.instruction || 'fix') : 'generation'}
-                    style={{ flex: '0 0 auto', border: '2px solid ' + (s.id === activeId ? 'var(--accent)' : 'var(--card-border)'), borderRadius: 8, padding: 0, background: 'none', cursor: 'pointer', position: 'relative', lineHeight: 0 }}>
-                    <img src={s.image_url} alt="" style={{ width: 66, height: 88, objectFit: 'cover', display: 'block', borderRadius: 6 }} />
-                    <span style={{ position: 'absolute', bottom: 3, left: 3, background: s.kind === 'correction' ? 'var(--accent)' : 'rgba(0,0,0,.6)', color: s.kind === 'correction' ? 'var(--accent-on)' : '#fff', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 3, padding: '0 var(--s1)' }}>{s.kind === 'correction' ? 'FIX' : 'GEN'}</span>
+                    style={{ flex: '0 0 auto', border: '2px solid ' + (s.id === activeId ? 'var(--accent)' : 'var(--card-border)'), borderRadius: 'var(--r-sm)', padding: 0, background: 'none', cursor: 'pointer', position: 'relative', lineHeight: 0 }}>
+                    <img src={s.image_url} alt="" style={{ width: 66, height: 88, objectFit: 'cover', display: 'block', borderRadius: 'var(--r-sm)' }} />
+                    <span style={{ position: 'absolute', bottom: 3, left: 3, background: s.kind === 'correction' ? 'var(--accent)' : 'rgba(0,0,0,.6)', color: s.kind === 'correction' ? 'var(--accent-on)' : '#fff', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 'var(--r-sm)', padding: '0 var(--s1)' }}>{s.kind === 'correction' ? 'FIX' : 'GEN'}</span>
                   </button>
                 ))}
               </div>
@@ -345,7 +345,7 @@ function Studio({ clientId, projectId, onBack }) {
                     <div className="row wrap" style={{ gap: 'var(--s3)', marginTop: 'var(--s3)' }}>
                       {variant.exports.map(ex => (
                         <a key={ex.id} href={ex.image_url_4k} target="_blank" rel="noreferrer" className="row center body-xs text-muted" style={{ gap: 'var(--s2)', textDecoration: 'none' }}>
-                          <img src={ex.image_url_4k} alt="" style={{ width: 40, height: 52, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--card-border)' }} /> 4K ↗
+                          <img src={ex.image_url_4k} alt="" style={{ width: 40, height: 52, objectFit: 'cover', borderRadius: 'var(--r-sm)', border: '1px solid var(--card-border)' }} /> 4K ↗
                         </a>
                       ))}
                     </div>
@@ -458,10 +458,10 @@ function CorrectionCanvas({ imageUrl, price, busy, onApply }) {
     <div>
       <div className="caption mb-2">Circle the area to change, then say what it should be</div>
       <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto', lineHeight: 0 }}>
-        <img src={imageUrl} alt="" onLoad={onImgLoad} style={{ width: '100%', display: 'block', borderRadius: 8 }} />
+        <img src={imageUrl} alt="" onLoad={onImgLoad} style={{ width: '100%', display: 'block', borderRadius: 'var(--r-sm)' }} />
         <canvas ref={viewRef}
           onPointerDown={down} onPointerMove={move} onPointerUp={stop} onPointerLeave={stop}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'crosshair', touchAction: 'none', borderRadius: 8 }} />
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'crosshair', touchAction: 'none', borderRadius: 'var(--r-sm)' }} />
       </div>
       <div className="row center wrap" style={{ gap: 'var(--s3)', margin: 'var(--s3) 0' }}>
         <label className="row center body-xs text-muted" style={{ gap: 'var(--s2)' }}>Brush
@@ -546,7 +546,7 @@ function InputsPanel({ clientId, project, preset, onChange }) {
             {items.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: 'var(--s2)' }}>
                 {items.map(i => (
-                  <div key={i.id} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--card-border)', aspectRatio: '1' }}>
+                  <div key={i.id} style={{ position: 'relative', borderRadius: 'var(--r-sm)', overflow: 'hidden', border: '1px solid var(--card-border)', aspectRatio: '1' }}>
                     <img src={i.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     <button onClick={() => remove(i.id)} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', lineHeight: 1, cursor: 'pointer' }}>×</button>
                   </div>

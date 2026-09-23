@@ -95,7 +95,7 @@ export default function SecurityPanel() {
         <div>
           <div className="caption">Security posture</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginTop: 'var(--s1)' }}>
-            <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: risk.color, background: risk.bg, padding: 'var(--s1) var(--s3)', borderRadius: 999 }}>{risk.label}</span>
+            <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: risk.color, background: risk.bg, padding: 'var(--s1) var(--s3)', borderRadius: 'var(--r-pill)' }}>{risk.label}</span>
             <span className="body-sm text-muted">{risk.blurb}</span>
           </div>
           <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>

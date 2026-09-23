@@ -55,7 +55,7 @@ function ChangeList({ title, colour, dateLabel, rows, dateKey, empty }) {
             {rows.map((d, i) => (
               <tr key={d.domain + i} style={{ borderBottom: '1px solid var(--border-subtle, var(--border))' }}>
                 <td style={{ padding: 'var(--s2) var(--s2)' }}>
-                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 3, background: colour, marginRight: 'var(--s2)', verticalAlign: 'middle' }} />
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 'var(--r-sm)', background: colour, marginRight: 'var(--s2)', verticalAlign: 'middle' }} />
                   <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)' }}>{d.domain}</a>
                 </td>
                 <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>{d.rank == null ? '—' : d.rank}</td>
@@ -283,7 +283,7 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
               {/* Brand / commercial / other roll-up */}
               {rollupTotal > 0 && (
                 <div style={{ marginBottom: 'var(--s4)' }}>
-                  <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 'var(--s2)' }}>
+                  <div style={{ display: 'flex', height: 10, borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: 'var(--s2)' }}>
                     <div style={{ width: `${(rollup.brand / rollupTotal) * 100}%`, background: 'var(--accent)' }} title="Brand" />
                     <div style={{ width: `${(rollup.commercial / rollupTotal) * 100}%`, background: 'var(--warning, #d98a00)' }} title="Commercial" />
                     <div style={{ width: `${(rollup.other / rollupTotal) * 100}%`, background: 'var(--border)' }} title="Other" />
@@ -326,7 +326,7 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
             <div>
               <div className="metric">{split.total ? `${Math.round((split.dofollow / split.total) * 100)}%` : '—'}</div>
               <div className="caption">dofollow of {fmt(split.total)} sampled</div>
-              <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', margin: 'var(--s3) 0 var(--s2)' }}>
+              <div style={{ display: 'flex', height: 10, borderRadius: 'var(--r-sm)', overflow: 'hidden', margin: 'var(--s3) 0 var(--s2)' }}>
                 <div style={{ width: split.total ? `${(split.dofollow / split.total) * 100}%` : '0%', background: 'var(--accent)' }} />
                 <div style={{ width: split.total ? `${(split.nofollow / split.total) * 100}%` : '0%', background: 'var(--border)' }} />
               </div>

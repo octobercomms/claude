@@ -197,7 +197,7 @@ function StrategyOverview() {
                 <td>{s.template_name || '—'}</td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
-                    <div style={{ flex: 1, maxWidth: 120, height: 6, background: 'var(--surface-raised)', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ flex: 1, maxWidth: 120, height: 6, background: 'var(--surface-raised)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
                       <div style={{ width: `${s.pct}%`, height: '100%', background: s.pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--accent)' }} />
                     </div>
                     <span className="body-xs text-subtle">{s.done}/{s.total}</span>

@@ -36,7 +36,7 @@ export default function SetupReadinessPanel({ clientId }) {
           {score.done}/{score.total} complete
         </div>
       </div>
-      <div style={{ height: 6, background: 'var(--surface-raised)', borderRadius: 999, overflow: 'hidden', margin: 'var(--s2) 0 var(--s3)' }}>
+      <div style={{ height: 6, background: 'var(--surface-raised)', borderRadius: 'var(--r-pill)', overflow: 'hidden', margin: 'var(--s2) 0 var(--s3)' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--accent)' }} />
       </div>
 

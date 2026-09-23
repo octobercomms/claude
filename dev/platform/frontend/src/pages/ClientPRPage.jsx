@@ -751,8 +751,8 @@ export default function ClientPRPage() {
                           const statusText = sending ? 'Sending' : paused ? 'Paused' : complete ? 'Sent ✓' : 'Idle';
                           return (
                             <div style={{ marginTop: 'var(--s2)', maxWidth: 620 }}>
-                              <div style={{ height: 7, background: 'var(--accent-soft, #eee)', borderRadius: 999, overflow: 'hidden' }}>
-                                <div style={{ width: `${pct}%`, height: '100%', background: paused ? 'var(--warning, #b45309)' : 'var(--positive, #15803d)', borderRadius: 999, transition: 'width .4s' }} />
+                              <div style={{ height: 7, background: 'var(--accent-soft, #eee)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: paused ? 'var(--warning, #b45309)' : 'var(--positive, #15803d)', borderRadius: 'var(--r-pill)', transition: 'width .4s' }} />
                               </div>
                               <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center', marginTop: 'var(--s1)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', fontWeight: 600, color: statusColor }}>
@@ -1136,7 +1136,7 @@ export default function ClientPRPage() {
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}
                         <button type="button" title="Delete this coverage entry" aria-label="Delete" onClick={() => deleteEntry(r)}
-                          style={{ border: 'none', background: 'none', color: 'var(--danger, #c0392b)', cursor: 'pointer', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 'var(--s1) var(--s2)', borderRadius: 4 }}>✕</button>
+                          style={{ border: 'none', background: 'none', color: 'var(--danger, #c0392b)', cursor: 'pointer', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)' }}>✕</button>
                       </td>
                     </tr>
                   ));

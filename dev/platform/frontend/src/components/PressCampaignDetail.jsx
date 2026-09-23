@@ -439,7 +439,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const visibleTags = pressTags.filter(t => !tagSearch || t.tag.toLowerCase().includes(tagSearch.toLowerCase()));
   const TagChip = ({ tag, count, on }) => (
     <button type="button" onClick={() => toggleTag(tag)}
-      style={{ padding: 'var(--s1) var(--s3)', borderRadius: 14, fontSize: 'var(--fs-caption)', cursor: 'pointer', margin: '0 var(--s2) var(--s2) 0',
+      style={{ padding: 'var(--s1) var(--s3)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-caption)', cursor: 'pointer', margin: '0 var(--s2) var(--s2) 0',
         border: `1px solid ${on ? 'var(--accent)' : 'var(--card-border)'}`, background: on ? 'var(--accent)' : 'var(--surface)',
         color: on ? '#111' : 'var(--text)', fontWeight: on ? 700 : 400 }}>
       {on ? '✓ ' : ''}{tag}{count != null ? <span style={{ opacity: 0.6 }}> · {count}</span> : ''}
@@ -460,7 +460,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', cursor: 'pointer',
               borderRadius: 'var(--r-sm)', border: `1px solid ${active ? 'var(--accent)' : 'var(--card-border)'}`,
               background: active ? 'var(--accent-soft)' : 'var(--surface)', flex: '1 1 120px', minWidth: 0, textAlign: 'left' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 11, flexShrink: 0,
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 'var(--r-md)', flexShrink: 0,
               background: isDone ? 'var(--success, #1a9d5a)' : (active ? 'var(--accent)' : 'var(--card-border)'),
               color: isDone || active ? '#fff' : 'var(--text-subtle)', fontSize: 'var(--fs-caption)', fontWeight: 700 }}>
               {isDone ? '✓' : i + 1}
@@ -949,7 +949,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               },
             ].map((c, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--s3)', padding: 'var(--s2) 0', borderTop: i ? 'var(--border-w) solid var(--card-border)' : 'none' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 11, flexShrink: 0, marginTop: 'var(--s1)',
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 'var(--r-md)', flexShrink: 0, marginTop: 'var(--s1)',
                   background: c.ok ? 'var(--success, #1a9d5a)' : (c.hard ? 'var(--danger, #c0392b)' : 'var(--card-border)'), color: c.ok || c.hard ? '#fff' : 'var(--text-subtle)', fontSize: 'var(--fs-body)', fontWeight: 700 }}>
                   {c.ok ? '✓' : (c.hard ? '!' : '○')}
                 </span>

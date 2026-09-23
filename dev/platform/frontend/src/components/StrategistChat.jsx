@@ -171,6 +171,6 @@ const mdComponents = {
   th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: 'var(--s2) var(--s2)', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
   td: ({ node, ...p }) => <td style={{ padding: 'var(--s2) var(--s2)', borderBottom: '1px solid var(--card-border)', verticalAlign: 'top' }} {...p} />,
   code: ({ node, inline, ...p }) => inline
-    ? <code style={{ background: 'var(--surface-2, #f3f3f3)', padding: 'var(--s1) var(--s1)', borderRadius: 4, fontSize: 'var(--fs-body)' }} {...p} />
-    : <code style={{ display: 'block', background: 'var(--surface-2, #f3f3f3)', padding: 'var(--s3)', borderRadius: 6, fontSize: 'var(--fs-body)', overflowX: 'auto' }} {...p} />,
+    ? <code style={{ background: 'var(--surface-2, #f3f3f3)', padding: 'var(--s1) var(--s1)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)' }} {...p} />
+    : <code style={{ display: 'block', background: 'var(--surface-2, #f3f3f3)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', overflowX: 'auto' }} {...p} />,
 };

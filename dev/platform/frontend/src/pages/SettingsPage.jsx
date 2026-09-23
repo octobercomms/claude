@@ -1706,10 +1706,10 @@ function MediaAssistant() {
         </p>
 
         {messages.length > 0 && (
-          <div style={{ maxHeight: 340, overflow: 'auto', border: '1px solid var(--card-border, #eee)', borderRadius: 8, padding: 'var(--s3)', marginBottom: 'var(--s3)' }}>
+          <div style={{ maxHeight: 340, overflow: 'auto', border: '1px solid var(--card-border, #eee)', borderRadius: 'var(--r-sm)', padding: 'var(--s3)', marginBottom: 'var(--s3)' }}>
             {messages.map((m, i) => (
               <div key={i} style={{ marginBottom: 'var(--s2)', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-                <span style={{ display: 'inline-block', maxWidth: '85%', padding: 'var(--s2) var(--s3)', borderRadius: 10, fontSize: 'var(--fs-body)', whiteSpace: 'pre-wrap',
+                <span style={{ display: 'inline-block', maxWidth: '85%', padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', whiteSpace: 'pre-wrap',
                   background: m.role === 'user' ? 'var(--accent, #2d6cdf)' : 'var(--surface-raised, #f4f4f5)',
                   color: m.role === 'user' ? '#fff' : 'var(--text)' }}>{m.content}</span>
               </div>
@@ -1719,7 +1719,7 @@ function MediaAssistant() {
         )}
 
         {actions.length > 0 && (
-          <div style={{ border: '1px solid var(--accent, #2d6cdf)', borderRadius: 8, padding: 'var(--s3)', marginBottom: 'var(--s3)' }}>
+          <div style={{ border: '1px solid var(--accent, #2d6cdf)', borderRadius: 'var(--r-sm)', padding: 'var(--s3)', marginBottom: 'var(--s3)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s2)' }}>
               <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>Proposed changes — untick anything you don’t want</div>
               <button className="btn btn-secondary btn-sm" onClick={() => setSel(sel.size === actions.length ? new Set() : new Set(actions.map((_, i) => i)))}>
@@ -2639,7 +2639,7 @@ function ContactsLibrary() {
                       <td  onClick={() => setOpenContact(r)}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s1)' }}>
                           {(r.tags || []).map(t => (
-                            <span key={t} style={{ cursor: 'default', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', color: '#111', border: '1px solid #d1d5db', borderRadius: 20, background: 'transparent' }}>{t}</span>
+                            <span key={t} style={{ cursor: 'default', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', color: '#111', border: '1px solid #d1d5db', borderRadius: 'var(--r-lg)', background: 'transparent' }}>{t}</span>
                           ))}
                         </div>
                       </td>
@@ -3026,7 +3026,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             <div style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s3)' }}>
               Claude is reading the journalists in batches of 40 — {progress.processed.toLocaleString()} of {(progress.total || totalInFilter || 0).toLocaleString()} done.
             </div>
-            <div style={{ background: 'var(--surface-raised)', borderRadius: 999, height: 8, overflow: 'hidden', margin: 'var(--s2) auto var(--s3)', maxWidth: 420 }}>
+            <div style={{ background: 'var(--surface-raised)', borderRadius: 'var(--r-pill)', height: 8, overflow: 'hidden', margin: 'var(--s2) auto var(--s3)', maxWidth: 420 }}>
               <div style={{
                 background: 'var(--accent)',
                 height: '100%',

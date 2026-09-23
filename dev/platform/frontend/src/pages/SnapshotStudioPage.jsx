@@ -180,11 +180,11 @@ export default function SnapshotStudioPage() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 'var(--s2)' }}>
                 {lead.images.map(img => (
-                  <div key={img.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '2px solid ' + (img.featured ? 'var(--accent)' : 'var(--card-border)'), cursor: 'pointer', aspectRatio: '1' }}
+                  <div key={img.id} style={{ position: 'relative', borderRadius: 'var(--r-sm)', overflow: 'hidden', border: '2px solid ' + (img.featured ? 'var(--accent)' : 'var(--card-border)'), cursor: 'pointer', aspectRatio: '1' }}
                     onClick={() => toggleFeatured(img)} title={img.featured ? 'Featured — click to remove' : 'Click to feature'}>
                     <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    {img.featured && <span style={{ position: 'absolute', top: 3, left: 3, background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 4, padding: '0 var(--s1)' }}>✓</span>}
-                    {img.kind !== 'site' && <span style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', fontWeight: 700, borderRadius: 3, padding: '0 var(--s1)' }}>UP</span>}
+                    {img.featured && <span style={{ position: 'absolute', top: 3, left: 3, background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 'var(--r-sm)', padding: '0 var(--s1)' }}>✓</span>}
+                    {img.kind !== 'site' && <span style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', fontWeight: 700, borderRadius: 'var(--r-sm)', padding: '0 var(--s1)' }}>UP</span>}
                     <button onClick={e => { e.stopPropagation(); deleteImage(img); }} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', lineHeight: 1, cursor: 'pointer' }}>×</button>
                   </div>
                 ))}
@@ -198,7 +198,7 @@ export default function SnapshotStudioPage() {
               {log.length > 0 && (
                 <div className="stack" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', maxHeight: 180, overflowY: 'auto' }}>
                   {log.map((m, i) => (
-                    <div key={i} className="body-xs" style={{ padding: 'var(--s2) var(--s3)', borderRadius: 8, background: m.role === 'you' ? 'var(--accent-soft)' : 'var(--surface-raised)' }}>
+                    <div key={i} className="body-xs" style={{ padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-sm)', background: m.role === 'you' ? 'var(--accent-soft)' : 'var(--surface-raised)' }}>
                       <strong>{m.role === 'you' ? 'You' : 'Claude'}:</strong> {m.text}
                     </div>
                   ))}
