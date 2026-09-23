@@ -5,7 +5,7 @@
 
 import React from 'react';
 
-export default function Sparkline({ values, width = 120, height = 28, stroke = 'var(--accent)', strokeWidth = 1.5, fill = null }) {
+export default function Sparkline({ values, width = 120, height = 28, stroke = 'var(--accent)', strokeWidth = 1.5, fill = null, reverse = false }) {
   if (!Array.isArray(values) || values.length < 2) {
     return <span style={{ display: 'inline-block', width, height, color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>—</span>;
   }
@@ -20,10 +20,16 @@ export default function Sparkline({ values, width = 120, height = 28, stroke = '
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
 
-  // Compute trend direction for a quick visual cue: tail vs head.
+  // Compute trend direction for a quick visual cue: tail vs head. When
+  // reverse is set (e.g. SEO average position, where a lower number is
+  // better) the green/red mapping is flipped so "down" still reads positive.
   const head = nums[0];
   const tail = nums[nums.length - 1];
-  const dirColour = tail > head * 1.1 ? 'var(--positive)' : tail < head * 0.9 ? 'var(--negative)' : stroke;
+  const up = tail > head * 1.1;
+  const down = tail < head * 0.9;
+  const dirColour = reverse
+    ? (down ? 'var(--positive)' : up ? 'var(--negative)' : stroke)
+    : (up ? 'var(--positive)' : down ? 'var(--negative)' : stroke);
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} style={{ verticalAlign: 'middle', overflow: 'visible' }}>

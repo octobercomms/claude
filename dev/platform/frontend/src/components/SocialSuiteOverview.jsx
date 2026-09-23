@@ -6,7 +6,7 @@
 import React from 'react';
 import Card from './ui/Card';
 import Button from './ui/Button';
-import Sparkline from './Sparkline';
+import StatStrip from './shells/StatStrip';
 
 const STEPS = [
   { key: 'competitors', label: 'Competitors',  short: 'Brainstorms get smarter when Claude can see who you\'re benchmarking against.' },
@@ -64,12 +64,12 @@ export default function SocialSuiteOverview({
         {publishedCount > 0 && <StatusPill label="Published" value={publishedCount} tone="positive" />}
       </div>
 
-      <div className="metric-grid">
-        <HeroMetric label="Reach · 30d"      value={formatNum(totalReach30)} sparkline={(sparkline || []).map(p => p.reach)} />
-        <HeroMetric label="Engagement · 30d" value={formatNum(totalInteractions30)} sparkline={(sparkline || []).map(p => p.interactions)} />
-        <HeroMetric label="Published"        value={publishedCount} />
-        <HeroMetric label="🔥 Heaters"       value={heaterCount} accent />
-      </div>
+      <StatStrip items={[
+        { label: 'Reach · 30d', value: formatNum(totalReach30), spark: (sparkline || []).map(p => p.reach) },
+        { label: 'Engagement · 30d', value: formatNum(totalInteractions30), spark: (sparkline || []).map(p => p.interactions) },
+        { label: 'Published', value: publishedCount },
+        { label: 'Heaters', value: heaterCount, feature: true },
+      ]} />
 
       <Card variant="accent">
         <div className="row wrap" style={{ alignItems: 'center', gap: 'var(--s5)' }}>
@@ -83,20 +83,6 @@ export default function SocialSuiteOverview({
           )}
         </div>
       </Card>
-    </div>
-  );
-}
-
-function HeroMetric({ label, value, sparkline, accent }) {
-  return (
-    <div className={`metric-card ${accent ? 'accent' : ''}`}>
-      <div className="caption">{label}</div>
-      <div className="metric-row">
-        <div className="metric">{value}</div>
-        {Array.isArray(sparkline) && sparkline.length > 1 && (
-          <Sparkline values={sparkline} width={70} height={22} />
-        )}
-      </div>
     </div>
   );
 }

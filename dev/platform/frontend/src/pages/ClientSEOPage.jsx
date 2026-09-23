@@ -19,6 +19,7 @@ import AiSeoPanel from '../components/organic/AiSeoPanel';
 import SuiteOverview from '../components/SuiteOverview';
 import OverviewChat from '../components/OverviewChat';
 import ProcessRail from '../components/ProcessRail';
+import StatStrip from '../components/shells/StatStrip';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import FindPanel from '../components/organic/FindPanel';
 import TopicMapPanel from '../components/organic/TopicMapPanel';
@@ -86,23 +87,6 @@ function PosBox({ p, legacy }) {
 
 function fmtDay(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-}
-
-// Minimal trend line for the summary cards. Always strokes in the
-// current suite accent so it stays within the two-tone palette.
-function Sparkline({ data, reverse = false }) {
-  const pts = (data || []).filter(v => v != null);
-  if (pts.length < 2) return <div style={{ height: 32, marginTop: 'var(--s2)' }} />;
-  return (
-    <div style={{ height: 32, marginTop: 'var(--s2)' }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data.map((v, i) => ({ i, v }))} margin={{ top: 3, right: 2, left: 2, bottom: 3 }}>
-          <YAxis hide reversed={reverse} domain={['dataMin', 'dataMax']} />
-          <Line type="monotone" dataKey="v" stroke="var(--text-subtle)" strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
 }
 
 // Per-date aggregates across all keywords, oldest first, for the sparklines.
@@ -802,21 +786,16 @@ export default function ClientSEOPage() {
           { label: 'Not ranking', value: keywords.filter(k => !k.current_position).length, spark: trend && trend.map(t => keywords.length - t.ranked) },
         ];
         return (
-          <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 'var(--s4)' }}>
-            {cards.map((c, i) => (
-              <div key={c.label} className={'stat' + (i === 0 ? ' feature' : '')}>
-                <div className="stat-label">{c.label}</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
-                  <div className="stat-value" style={{ marginTop: 0 }}>{c.value}</div>
-                  {c.delta != null && c.delta !== 0 && (
-                    <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', background: c.delta > 0 ? 'var(--positive-soft)' : 'var(--negative-soft)', color: c.delta > 0 ? 'var(--positive)' : 'var(--negative)' }}>
-                      {c.delta > 0 ? `▲ ${c.delta}` : `▼ ${Math.abs(c.delta)}`}
-                    </span>
-                  )}
-                </div>
-                {c.spark && <Sparkline data={c.spark} reverse={c.sparkReverse} />}
-              </div>
-            ))}
+          <div style={{ marginBottom: 'var(--s4)' }}>
+            <StatStrip items={cards.map((c, i) => ({
+              label: c.label,
+              value: c.value,
+              feature: i === 0,
+              delta: (c.delta != null && c.delta !== 0) ? Math.abs(c.delta) : undefined,
+              dir: c.delta > 0 ? 'up' : c.delta < 0 ? 'down' : undefined,
+              spark: c.spark,
+              sparkReverse: c.sparkReverse,
+            }))} />
           </div>
         );
       })()}
