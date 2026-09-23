@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.165.0 — Social captions on events (social suite, phase 1)
+
+- The event editor gains a **Social** metabox: a **Parties & tags** list (name +
+  Instagram handle for each practice, sponsor, designer or venue) and **five
+  ready-to-post captions** written in the house voice, each weaving in the
+  parties' @handles and a link to book.
+- Captions are generated automatically in the background the first time an event
+  is published (so publishing stays instant), and there's a **Regenerate** button
+  and per-caption **Copy**. Captions are editable and save with the event; a
+  regenerate never runs unless you ask, and never clobbers edits.
+- Needs the Claude API key (Settings → Keys & platform); without it the metabox
+  still stores parties and lets you write captions by hand.
+- Groundwork for the rest of the suite: the parties + captions stored here feed
+  the coming image suite and native Meta/LinkedIn scheduling.
+
 ## 1.164.0 — Message attendees: email everyone registered for an event
 
 - New **Tickets → Message attendees** screen: pick an event, write a subject and
