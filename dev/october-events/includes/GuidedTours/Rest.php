@@ -26,6 +26,9 @@ final class Rest {
         add_action('rest_api_init', [self::class, 'register_routes']);
         add_action('template_redirect', [self::class, 'handle_links']);
         add_action('oe_gt_reconfirm', [self::class, 'run_reconfirm']);
+        // Same hourly beat opens any tour whose release date has passed and emails
+        // its ticket holders once (see Releases).
+        add_action('oe_gt_reconfirm', [Releases::class, 'run_due']);
         if (! wp_next_scheduled('oe_gt_reconfirm')) {
             wp_schedule_event(time() + HOUR_IN_SECONDS, 'hourly', 'oe_gt_reconfirm');
         }
@@ -99,6 +102,9 @@ final class Rest {
 
     public static function reserve(\WP_REST_Request $req): \WP_REST_Response {
         $tour  = self::tour_key((string) $req->get_param('tour'));
+        if (! Releases::is_released($tour)) {
+            return new \WP_REST_Response(['ok' => false, 'error' => self::not_open_msg($tour)], 200);
+        }
         $email = Eligibility::unlocked_email($tour);
         if ($email === '') {
             return new \WP_REST_Response(['ok' => false, 'error' => __('Please verify your ticket email again.', 'october-events')], 200);
@@ -250,6 +256,14 @@ final class Rest {
             Mailer::reconfirm($row);
             $wpdb->update($t, ['reconfirm_sent' => 1], ['id' => (int) $row->id]);
         }
+    }
+
+    /** "Booking opens on <date>" for a tour that hasn't been released yet. */
+    private static function not_open_msg(string $tour): string {
+        $ts = Releases::release_ts($tour);
+        return $ts > 0
+            ? sprintf(__('Booking opens on %s.', 'october-events'), wp_date('l F j, g:i A', $ts))
+            : __('Booking for this tour isn’t open yet.', 'october-events');
     }
 
     /** Normalise a tour key from the shortcode ("city|year"), lowercased. */

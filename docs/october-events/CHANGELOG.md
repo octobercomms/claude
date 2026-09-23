@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.163.0 — Guided tours: scheduled release with countdown + announcement email
+
+- A guided tour (city + year) can now be set to open for booking on a future
+  date. Before that moment the booking page shows a live countdown in place of
+  the unlock form, and every booking attempt is refused server-side (not just
+  hidden). When the date passes, booking opens and an hourly job emails everyone
+  holding that tour's ticket, once, with a link to book.
+- Set it up under **Tickets → Guided tours → Tour release schedule**: enter the
+  city and year (matching the `[guided_gate]` shortcode on the booking page),
+  pick the ticket event whose buyers get the announcement, set the open date/time
+  (your timezone), and the booking page URL for the email button. A tour left off
+  the list stays open all the time, exactly as before.
+- The announcement is scoped to paid ticket-holders of the chosen event and sent
+  once (a resumable cursor spreads a large list over a few hourly runs, so nobody
+  is emailed twice). No ticket event set = countdown only, no email.
+- New email `gt_release` is previewable under the guided-tour email previews.
+
 ## 1.162.0 — One membership per join (stop duplicate Friend subscriptions)
 
 - A one-click "join as a Friend" at ticket checkout could create the membership

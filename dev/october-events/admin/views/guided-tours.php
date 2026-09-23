@@ -7,6 +7,7 @@
  * @var array        $reservations  Rows for the current filter (all statuses).
  * @var int          $location      Building filter (0 = all).
  * @var array|false  $notice        Flash notice from an add/remove.
+ * @var array        $releases      Tour release schedule rows (tour_key => row).
  */
 
 defined('ABSPATH') || exit;
@@ -48,6 +49,87 @@ foreach ($reservations as $r) {
     <?php if (is_array($notice)) : ?>
         <div class="notice notice-<?php echo isset($notice['error']) ? 'error' : 'success'; ?> is-dismissible"><p><?php echo esc_html($notice['error'] ?? $notice['ok'] ?? ''); ?></p></div>
     <?php endif; ?>
+
+    <?php
+    // ---- Tour release schedule -------------------------------------------
+    // A tour (city + year) can open for booking on a set date. Before it, the
+    // booking page shows a countdown and bookings are refused; when the date
+    // passes, an hourly job opens it and emails everyone holding that tour's
+    // ticket, once.
+    $rel_events = array_values(array_filter(
+        \OE\Ticketing\CheckIn::events(),
+        static fn($e) => (int) $e['id'] !== \OE\Ticketing\CheckIn::TEST_EVENT_ID
+    ));
+    ?>
+    <div class="oe-gt-releases" style="max-width:960px;margin:16px 0 26px;padding:16px 18px;border:1px solid #dcdcde;border-radius:8px;background:#fff">
+        <h3 style="margin:0 0 4px"><?php esc_html_e('Tour release schedule', 'october-events'); ?></h3>
+        <p class="description" style="margin:0 0 12px"><?php esc_html_e('Set when a tour opens for booking. Before the date, its booking page shows a countdown and no one can reserve. When the date passes, booking opens and everyone holding that tour’s ticket is emailed once. Leave a tour off this list to keep it open all the time.', 'october-events'); ?></p>
+
+        <?php if ($releases) : ?>
+            <table class="widefat striped" style="margin-bottom:14px">
+                <thead><tr>
+                    <th><?php esc_html_e('Tour', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Ticket event', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Opens', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Status', 'october-events'); ?></th>
+                    <th></th>
+                </tr></thead>
+                <tbody>
+                <?php foreach ($releases as $tk => $r) :
+                    $ev_id   = (int) ($r['event_id'] ?? 0);
+                    $rel_ts  = (int) ($r['release_at'] ?? 0);
+                    $opens   = $rel_ts > 0 ? wp_date('D M j, Y · g:i A', $rel_ts) : esc_html__('— no date —', 'october-events');
+                    if ($ev_id <= 0) {
+                        $status = '<span style="color:#b32d2e">' . esc_html__('No ticket event set — no email will send', 'october-events') . '</span>';
+                    } elseif ($rel_ts <= 0) {
+                        $status = esc_html__('Open (no date)', 'october-events');
+                    } elseif (time() < $rel_ts) {
+                        // Only the still-scheduled row needs the audience count.
+                        $count  = \OE\GuidedTours\Releases::audience_count($ev_id);
+                        $status = '<span style="color:#8a6d3b">' . sprintf(esc_html__('Scheduled · %d ticket-holders to email', 'october-events'), $count) . '</span>';
+                    } elseif ((int) ($r['notified_at'] ?? 0) > 0) {
+                        $status = '<span style="color:#1a7f37">' . esc_html__('Open · announcement sent', 'october-events') . '</span>';
+                    } else {
+                        $status = '<span style="color:#1a7f37">' . esc_html__('Open · emailing holders…', 'october-events') . '</span>';
+                    }
+                    $del = wp_nonce_url(admin_url('admin-post.php?action=oe_gt_release_delete&tour=' . rawurlencode((string) $tk)), 'oe_gt_release_delete_' . $tk);
+                    ?>
+                    <tr>
+                        <td><strong><?php echo esc_html(trim(($r['city'] ?? '') . ' ' . ($r['year'] ?? '')) ?: (string) $tk); ?></strong><br><code style="font-size:11px"><?php echo esc_html((string) $tk); ?></code></td>
+                        <td><?php echo $ev_id > 0 ? esc_html(get_the_title($ev_id) ?: ('#' . $ev_id)) : '—'; ?></td>
+                        <td><?php echo esc_html($opens); ?></td>
+                        <td><?php echo $status; // phpcs: built from esc_html above ?></td>
+                        <td style="text-align:right"><a href="<?php echo esc_url($del); ?>" class="button-link" style="color:#b32d2e" onclick="return confirm('<?php echo esc_js(__('Remove this tour’s release schedule? Booking reverts to always-open.', 'october-events')); ?>')"><?php esc_html_e('Remove', 'october-events'); ?></a></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-items:end;max-width:720px">
+            <input type="hidden" name="action" value="oe_gt_release_save">
+            <?php wp_nonce_field('oe_gt_release_save'); ?>
+            <label style="display:block"><strong><?php esc_html_e('City', 'october-events'); ?></strong><br>
+                <input type="text" name="city" class="regular-text" placeholder="atlanta-ga" style="width:100%"></label>
+            <label style="display:block"><strong><?php esc_html_e('Year', 'october-events'); ?></strong><br>
+                <input type="number" name="year" min="2024" max="2100" placeholder="<?php echo esc_attr((string) ((int) wp_date('Y'))); ?>" style="width:100%"></label>
+            <label style="display:block"><strong><?php esc_html_e('Ticket event', 'october-events'); ?></strong><br>
+                <select name="event_id" style="width:100%">
+                    <option value="0"><?php esc_html_e('— none (no email will send) —', 'october-events'); ?></option>
+                    <?php foreach ($rel_events as $e) : ?>
+                        <option value="<?php echo (int) $e['id']; ?>"><?php echo esc_html($e['title']); ?></option>
+                    <?php endforeach; ?>
+                </select></label>
+            <label style="display:block"><strong><?php esc_html_e('Opens (your timezone)', 'october-events'); ?></strong><br>
+                <input type="datetime-local" name="release_at" style="width:100%"></label>
+            <label style="display:block;grid-column:1 / -1"><strong><?php esc_html_e('Booking page URL (for the email button)', 'october-events'); ?></strong><br>
+                <input type="url" name="booking_url" class="regular-text" placeholder="https://architecturetours.us/book/" style="width:100%"></label>
+            <p style="grid-column:1 / -1;margin:4px 0 0">
+                <button type="submit" class="button button-primary"><?php esc_html_e('Save release schedule', 'october-events'); ?></button>
+                <span class="description" style="margin-left:8px"><?php esc_html_e('Re-entering the same city + year updates that tour. City + year must match the [guided_gate] shortcode on the booking page.', 'october-events'); ?></span>
+            </p>
+        </form>
+    </div>
 
     <?php if (! $buildings) : ?>
         <div class="notice notice-info inline"><p><?php esc_html_e('No guided-tour slots yet. Add slots on a building under “Guided tour slots”, then bookings appear here.', 'october-events'); ?></p></div>

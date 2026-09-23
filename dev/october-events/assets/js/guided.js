@@ -329,11 +329,75 @@
         if (btn) { btn.disabled = true; btn.textContent = t('Select a time'); }
     }
 
+    /* ---- pre-release: countdown + booking lock ---- */
+    function releaseAt() {
+        var ms = CFG && CFG.releaseAt ? Number(CFG.releaseAt) : 0;
+        if (!ms) {
+            var g = document.querySelector('[data-oe-gt-gate][data-release-at]');
+            if (g) { ms = Number(g.getAttribute('data-release-at')) || 0; }
+        }
+        return ms;
+    }
+    function fmtCountdown(ms) {
+        var s = Math.max(0, Math.floor(ms / 1000));
+        var d = Math.floor(s / 86400); s -= d * 86400;
+        var h = Math.floor(s / 3600); s -= h * 3600;
+        var m = Math.floor(s / 60); s -= m * 60;
+        function pad(n) { return (n < 10 ? '0' : '') + n; }
+        return (d > 0 ? d + (d === 1 ? ' day ' : ' days ') : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
+    }
+    function lockSlots() {
+        document.querySelectorAll('[data-oe-gt-slots]').forEach(function (panel) {
+            panel.classList.add('oe-gt-locked');
+            var btn = panel.querySelector('[data-oe-gt-reserve]');
+            if (btn) { btn.disabled = true; }
+            var msg = panel.querySelector('[data-oe-gt-msg]');
+            if (msg) { msg.textContent = t('Booking isn’t open yet.'); }
+        });
+    }
+    // Returns true when booking is closed (a countdown is running), so the normal
+    // unlock/slot wiring is skipped until the page reloads at release time.
+    function initRelease() {
+        var at = releaseAt();
+        if (!at || at <= Date.now()) { return false; }
+        lockSlots();
+        var out = document.querySelector('[data-oe-gt-countdown]');
+        var reloaded = false;
+        function tick() {
+            var left = at - Date.now();
+            if (left <= 0) {
+                if (out) { out.textContent = fmtCountdown(0); }
+                // Fetch a fresh (uncached) render now that booking is open. A
+                // cache-busting param dodges a full-page cache; guarded so a still
+                // -cached page can't reload in a loop.
+                if (!reloaded) {
+                    reloaded = true;
+                    // Keep the page's existing query string and hash; just add a
+                    // cache-busting param so a full-page cache serves fresh HTML.
+                    try {
+                        var u = new URL(window.location.href);
+                        u.searchParams.set('open', String(Date.now()));
+                        window.location.href = u.toString();
+                    } catch (e) {
+                        window.location.href = window.location.pathname + '?open=' + Date.now();
+                    }
+                }
+                return;
+            }
+            if (out) { out.textContent = fmtCountdown(left); }
+        }
+        tick();
+        setInterval(tick, 1000);
+        return true;
+    }
+
     function ready(fn) {
         if (document.readyState !== 'loading') { fn(); }
         else { document.addEventListener('DOMContentLoaded', fn); }
     }
     ready(function () {
+        // Closed until release: run the countdown and lock booking, nothing else.
+        if (initRelease()) { return; }
         initGate();
         initSlots();
         // Reflect an existing unlock (valid cookie) even on a cached page.
