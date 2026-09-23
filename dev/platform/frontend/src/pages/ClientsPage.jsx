@@ -64,7 +64,7 @@ export default function ClientsPage() {
           {['active', 'archived', 'all'].map(k => (
             <button key={k} type="button"
               onClick={() => setFilter(k)}
-              className={`btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}`}
+              className={`tab ${filter === k ? 'active' : ''}`}
               style={{ textTransform: 'capitalize' }}>
               {k}
               {k === 'archived' && archivedCount ? ` (${archivedCount})` : ''}
@@ -121,7 +121,7 @@ export default function ClientsPage() {
                   </span>
                 </td>
                 <td className="num">
-                  <Link to={`/clients/${c.id}/sales-traffic`} className="text-accent" style={{ fontWeight: 600 }}>Manage →</Link>
+                  <Link to={`/clients/${c.id}/sales-traffic`} className="text-ink underline" style={{ fontWeight: 600 }}>Manage →</Link>
                 </td>
               </tr>
             ))}
