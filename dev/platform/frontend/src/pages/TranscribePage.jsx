@@ -163,7 +163,7 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s3)', flexWrap: 'wrap' }}>
               <h3 className="h3" style={{ margin: 0 }}>{current.title}</h3>
               <button type="button" title="Delete" onClick={() => remove(current.id)}
-                style={{ border: 'none', background: 'none', color: 'var(--danger,#c0392b)', cursor: 'pointer', fontSize: 'var(--fs-body)' }}>Delete</button>
+                className="btn-link" style={{ color: 'var(--negative)' }}>Delete</button>
             </div>
 
             {/* Name the voices step */}

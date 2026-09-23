@@ -196,12 +196,11 @@ export default function ClientSalesTrafficPage() {
       {showCustom && (
         <div className="row mb-4" style={{ alignItems: 'center', gap: 'var(--s2)' }}>
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            style={{ padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)' }} />
+            className="input" style={{ width: 'auto' }} />
           <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            style={{ padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)' }} />
-          <button onClick={applyCustom}
-            style={{ padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' }}>Apply</button>
+            className="input" style={{ width: 'auto' }} />
+          <button onClick={applyCustom} className="btn btn-primary">Apply</button>
         </div>
       )}
       <div className="row mb-4" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--s3)' }}>
@@ -215,7 +214,7 @@ export default function ClientSalesTrafficPage() {
           ))}
           <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
             onChange={e => selectPreset(e.target.value)}
-            style={{ padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            className="select" style={{ width: 'auto' }}>
             <option value="">Period…</option>
             <option value="mtd">Month to date</option>
             <option value="ytd">Year to date</option>

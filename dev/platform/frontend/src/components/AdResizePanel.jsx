@@ -221,7 +221,7 @@ export default function AdResizePanel({ clientId, clientName }) {
                 <div key={it.id} style={{ position: 'relative', width: 96 }}>
                   <img src={it.url} alt={it.file.name} style={{ width: 96, height: 96, objectFit: 'contain', borderRadius: 'var(--r-sm)', background: '#00000008', border: 'var(--border-w) solid var(--card-border)' }} />
                   <button onClick={() => removeItem(it.id)} title="Remove"
-                    style={{ position: 'absolute', top: -8, right: -8, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'var(--text)', color: '#fff', fontSize: 'var(--fs-body)', lineHeight: '22px', cursor: 'pointer', padding: 0 }}>×</button>
+                    className="btn-icon btn-icon-sm danger" style={{ position: 'absolute', top: -8, right: -8 }}>×</button>
                   <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.file.name}</div>
                   {it.dims && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{it.dims.w}×{it.dims.h}</div>}
                 </div>
@@ -263,8 +263,7 @@ export default function AdResizePanel({ clientId, clientName }) {
                 <div key={g.family} style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 'var(--s3)', background: 'var(--surface)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)' }}>
                     <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>{g.family}</div>
-                    <button onClick={() => toggleFamily(g)}
-                      style={{ border: 'none', background: 'none', color: 'var(--accent, var(--text))', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                    <button onClick={() => toggleFamily(g)} className="btn-link">
                       {allOn ? 'None' : 'All'}
                     </button>
                   </div>

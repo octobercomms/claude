@@ -239,7 +239,7 @@ export default function AIVisibilityPanel({ clientId }) {
           the AM what to do about it. Grounded in answer-engine best practice. */}
       <div className="card mb-6">
         <button type="button" onClick={() => setTipsOpen(o => !o)}
-          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)' }}>
+          className="accordion-trigger" style={{ justifyContent: 'space-between' }}>
           <div>
             <div className="caption">Playbook</div>
             <div className="h3 mt-1">How to improve these numbers</div>

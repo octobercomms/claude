@@ -131,11 +131,12 @@ function ClusterMode({ clientId, onNext }) {
           </button>
         </div>
         <textarea
+          className="textarea"
           value={keywordText}
           onChange={e => setKeywordText(e.target.value)}
           rows={8}
           placeholder="best enamel mug\nenamel mug uk\nare enamel mugs dishwasher safe\nhow to clean enamel mugs\n…"
-          style={{ width: '100%', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
+          style={{ width: '100%', lineHeight: 1.6, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
         />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">{keywordCount} keyword{keywordCount === 1 ? '' : 's'} · {keywordCount < 2 ? 'need at least 2 to cluster' : keywordCount > 200 ? 'max 200 per run' : 'ready'}</span>
@@ -426,17 +427,17 @@ function ProgrammaticMode({ clientId }) {
     <div>
       <div className="card mb-5">
         <div className="caption mb-2">New programmatic batch</div>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Batch name (e.g. UK service-area pages Q3)"
-          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
-        <input value={templatePrompt} onChange={e => setTemplatePrompt(e.target.value)}
+        <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Batch name (e.g. UK service-area pages Q3)"
+          style={{ width: '100%', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
+        <input className="input" value={templatePrompt} onChange={e => setTemplatePrompt(e.target.value)}
           placeholder="Template — describe the page type. Use {column} placeholders. e.g. 'Local services landing page for {service} in {location}'"
-          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
-        <input value={primaryKeywordTemplate} onChange={e => setPrimaryKeywordTemplate(e.target.value)}
+          style={{ width: '100%', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
+        <input className="input" value={primaryKeywordTemplate} onChange={e => setPrimaryKeywordTemplate(e.target.value)}
           placeholder="Primary keyword template, e.g. '{service} in {location}'"
-          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
-        <textarea value={csvText} onChange={e => setCsvText(e.target.value)} rows={8}
+          style={{ width: '100%', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
+        <textarea className="textarea" value={csvText} onChange={e => setCsvText(e.target.value)} rows={8}
           placeholder={"CSV with header row. Example:\nservice,location\nplumber,London\nplumber,Manchester\nelectrician,London"}
-          style={{ width: '100%', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', lineHeight: 1.5, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }} />
+          style={{ width: '100%', lineHeight: 1.5, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }} />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">
             {csvRowCount > 0 ? `${csvRowCount} data row${csvRowCount === 1 ? '' : 's'} · est cost ~\$${estCost}` : 'paste a CSV with a header + at least one row'}

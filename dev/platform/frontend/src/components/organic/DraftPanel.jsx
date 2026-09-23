@@ -101,15 +101,17 @@ export default function DraftPanel({ clientId, onNext }) {
       <div className="card" style={{ marginBottom: 'var(--s5)' }}>
         <div className="caption mb-2">Generate a new draft from a brief</div>
         <textarea
+          className="textarea"
           value={brief} onChange={e => setBrief(e.target.value)} rows={4}
           placeholder="Paste a brief — title, outline, target intent, key questions, word count. Or write a brief directly from a Brief step run."
-          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
+          style={{ width: '100%', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
         />
         <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
           <input
+            className="input"
             value={targetKeyword} onChange={e => setTargetKeyword(e.target.value)}
             placeholder="Target keyword (optional)"
-            style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+            style={{ flex: 1 }}
           />
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: generate, disabled: generating || !brief.trim() })}>
             {generating ? 'Writing — 30-90s…' : 'Write draft'}
@@ -167,23 +169,26 @@ export default function DraftPanel({ clientId, onNext }) {
                 <div style={{ display: chatOpen ? 'grid' : 'block', gridTemplateColumns: chatOpen ? 'minmax(0, 1fr) 380px' : undefined, gap: chatOpen ? 'var(--s4)' : 0 }}>
                   <div>
                 <input
+                  className="input"
                   value={editTitle}
                   onChange={e => { setEditTitle(e.target.value); setDirty(true); }}
                   placeholder="Title"
-                  style={{ width: '100%', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-title)', fontWeight: 700, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
+                  style={{ width: '100%', fontWeight: 700, marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
                 />
                 <input
+                  className="input"
                   value={editMeta}
                   onChange={e => { setEditMeta(e.target.value); setDirty(true); }}
                   placeholder="Meta description (≤155 chars)"
                   maxLength={160}
-                  style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
+                  style={{ width: '100%', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
                 />
                 <textarea
+                  className="textarea"
                   value={editBody}
                   onChange={e => { setEditBody(e.target.value); setDirty(true); }}
                   rows={28}
-                  style={{ width: '100%', padding: 'var(--s3) var(--s4)', fontSize: 'var(--fs-body)', lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
+                  style={{ width: '100%', lineHeight: 1.6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
                 />
                 <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>
                   Markdown · {editBody.split(/\s+/).filter(Boolean).length.toLocaleString()} words

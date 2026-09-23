@@ -113,13 +113,11 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
 
       <div className="card" style={{ marginBottom: 'var(--s5)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 'var(--s2)' }}>
-          <input value={url} onChange={e => setUrl(e.target.value)}
+          <input className="input" value={url} onChange={e => setUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && runNew()}
-            placeholder="https://yoursite.com/blog/post-to-audit"
-            style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
-          <input value={keyword} onChange={e => setKeyword(e.target.value)}
-            placeholder="Target keyword (optional)"
-            style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            placeholder="https://yoursite.com/blog/post-to-audit" />
+          <input className="input" value={keyword} onChange={e => setKeyword(e.target.value)}
+            placeholder="Target keyword (optional)" />
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !url.trim() })}>
             {running ? 'Auditing…' : 'Run audit'}
           </button>

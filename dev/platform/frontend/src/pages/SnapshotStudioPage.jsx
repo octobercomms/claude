@@ -185,7 +185,7 @@ export default function SnapshotStudioPage() {
                     <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     {img.featured && <span style={{ position: 'absolute', top: 3, left: 3, background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 'var(--r-sm)', padding: '0 var(--s1)' }}>✓</span>}
                     {img.kind !== 'site' && <span style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', fontWeight: 700, borderRadius: 'var(--r-sm)', padding: '0 var(--s1)' }}>UP</span>}
-                    <button onClick={e => { e.stopPropagation(); deleteImage(img); }} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', lineHeight: 1, cursor: 'pointer' }}>×</button>
+                    <button onClick={e => { e.stopPropagation(); deleteImage(img); }} className="btn-icon btn-icon-sm danger" style={{ position: 'absolute', top: 2, right: 2 }}>×</button>
                   </div>
                 ))}
               </div>

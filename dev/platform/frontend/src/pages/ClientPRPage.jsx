@@ -666,7 +666,7 @@ export default function ClientPRPage() {
                 <tbody>
                   {releases.map((r) => (
                     <tr key={r.id}>
-                      <td><button className="row-trigger" onClick={() => openRelease(r.id)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', padding: 0, font: 'inherit' }}>{r.title || '(untitled)'}</button></td>
+                      <td><button className="row-trigger" onClick={() => openRelease(r.id)}>{r.title || '(untitled)'}</button></td>
                       <td>{r.brand || '—'}</td>
                       <td><span className="chip">{({ draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' })[r.status] || r.status}</span></td>
                       <td>{fmtDate(r.created_at)}</td>
@@ -730,7 +730,7 @@ export default function ClientPRPage() {
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' }}>
                             <button className="row-trigger" title="Open campaign"
                               onClick={() => { if (r.campaign_id) { setPressAutoBuild(false); setOpenPressCampaign(r.campaign_id); } }}
-                              style={{ background: 'none', border: 'none', color: 'var(--text)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit', textAlign: 'left', fontWeight: r.display_name ? 600 : 400 }}>
+                              style={{ textDecoration: 'underline', fontWeight: r.display_name ? 600 : 400 }}>
                               {r.display_name || r.title || '(untitled release)'}
                             </button>
                             <button className="btn btn-secondary btn-sm" title="Rename campaign" aria-label="Rename"
@@ -772,8 +772,7 @@ export default function ClientPRPage() {
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
                         {r.campaign_id && firstTotal > 0 ? (
                           <button className="row-trigger" onClick={() => setExpandedPR(expanded ? null : r.id)}
-                            title="Click for stats"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', color: 'var(--text)' }}>
+                            title="Click for stats">
                             {pending > 0 ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2, display: 'inline-block', verticalAlign: 'middle', marginRight: 'var(--s2)' }} /> : null}
                             {num(sent)}/{num(firstTotal)} · {pct}% {expanded ? '▲' : '▾'}
                           </button>
@@ -1136,7 +1135,7 @@ export default function ClientPRPage() {
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}
                         <button type="button" title="Delete this coverage entry" aria-label="Delete" onClick={() => deleteEntry(r)}
-                          style={{ border: 'none', background: 'none', color: 'var(--danger, #c0392b)', cursor: 'pointer', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)' }}>✕</button>
+                          className="btn-icon btn-icon-sm danger">✕</button>
                       </td>
                     </tr>
                   ));

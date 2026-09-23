@@ -439,9 +439,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const visibleTags = pressTags.filter(t => !tagSearch || t.tag.toLowerCase().includes(tagSearch.toLowerCase()));
   const TagChip = ({ tag, count, on }) => (
     <button type="button" onClick={() => toggleTag(tag)}
-      style={{ padding: 'var(--s1) var(--s3)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-caption)', cursor: 'pointer', margin: '0 var(--s2) var(--s2) 0',
-        border: `1px solid ${on ? 'var(--accent)' : 'var(--card-border)'}`, background: on ? 'var(--accent)' : 'var(--surface)',
-        color: on ? '#111' : 'var(--text)', fontWeight: on ? 700 : 400 }}>
+      className={`tab ${on ? 'active' : ''}`} style={{ margin: '0 var(--s2) var(--s2) 0' }}>
       {on ? '✓ ' : ''}{tag}{count != null ? <span style={{ opacity: 0.6 }}> · {count}</span> : ''}
     </button>
   );
@@ -731,15 +729,15 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                   {s.step_number === 1 ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>sends immediately</span> : (
                     <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: 'var(--s1)' }}>after
                       <input type="number" min="1" value={s.delay_days ?? ''} onChange={e => setStepField(s.step_number, 'delay_days', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                        style={{ width: 46, padding: 'var(--s1) var(--s1)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} /> days
+                        className="input" style={{ width: 46 }} /> days
                     </span>
                   )}
                 </div>
                 <input value={s.subject ?? ''} onChange={e => setStepField(s.step_number, 'subject', e.target.value)}
                   placeholder="Subject line — {{first_name}} to personalise"
-                  style={{ width: '100%', padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                  className="input" style={{ width: '100%', boxSizing: 'border-box' }} />
                 {release.followups_ai === false && (
-                  <textarea
+                  <textarea className="textarea"
                     value={s.step_number === 1
                       ? (release.custom_release_body ?? '')
                       : ((release.custom_followups?.[s.step_number - 2]?.body) ?? '')}
@@ -750,7 +748,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                     placeholder={s.step_number === 1
                       ? "Write the first email — your invite / announcement, sent to everyone as-is. {{first_name}} / {{company}} to personalise. (Turn off 'Embed the full release' below for a plain email.)"
                       : "Write this follow-up email — sent to everyone as-is. {{first_name}} / {{company}} to personalise. Leave blank to just resend the first email with the new subject."}
-                    style={{ width: '100%', minHeight: 90, marginTop: 'var(--s1)', padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+                    style={{ width: '100%', minHeight: 90, marginTop: 'var(--s1)', boxSizing: 'border-box', resize: 'vertical' }} />
                 )}
               </div>
             ))}
@@ -788,7 +786,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 'var(--s1)' }}>Your footer</div>
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s2)' }}>Appears under your sign-off on every pitch <em>and</em> follow-up. Plain text works, or paste <strong>HTML</strong> for a logo, GIF or table layout — it’s rendered as-is.</div>
               <textarea value={signature} onChange={e => setSignature(e.target.value)} rows={5} className="input"
-                placeholder={"Plain text, e.g.\nOctober Communications · +44 20 1234 5678\noctobercomms.com · @octobercomms\n\n…or paste your HTML signature (with <img>/<table>)."} style={{ width: '100%', boxSizing: 'border-box', fontSize: 'var(--fs-body)', fontFamily: /<[a-z][\s\S]*>/i.test(signature) ? 'monospace' : 'inherit' }} />
+                placeholder={"Plain text, e.g.\nOctober Communications · +44 20 1234 5678\noctobercomms.com · @octobercomms\n\n…or paste your HTML signature (with <img>/<table>)."} style={{ width: '100%', boxSizing: 'border-box', fontFamily: /<[a-z][\s\S]*>/i.test(signature) ? 'monospace' : 'inherit' }} />
               <button {...roWrite(readOnly, { onClick: saveSignature, disabled: savingSig })} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}>{savingSig ? 'Saving…' : 'Save footer'}</button>
             </div>
 
@@ -902,7 +900,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                   {emailIdx === 0 ? (
                     <div>
                       <div className="field-label">Edit this journalist’s pitch</div>
-                      <textarea value={editIntro ?? ''} onChange={e => setEditIntro(e.target.value)} rows={5} className="input" style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 'var(--fs-body)' }} />
+                      <textarea value={editIntro ?? ''} onChange={e => setEditIntro(e.target.value)} rows={5} className="input" style={{ width: '100%', boxSizing: 'border-box' }} />
                     </div>
                   ) : (
                     <div>
@@ -911,7 +909,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                       <textarea
                         value={editFollowUps?.[emailIdx - 1]?.body ?? ''}
                         onChange={e => setEditFollowUps(prev => (prev || []).map((f, j) => j === emailIdx - 1 ? { ...f, body: e.target.value } : f))}
-                        rows={5} className="input" style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 'var(--fs-body)' }} />
+                        rows={5} className="input" style={{ width: '100%', boxSizing: 'border-box' }} />
                     </div>
                   )}
                   <button {...roWrite(readOnly, { onClick: saveRecipientEmail, disabled: savingEmail })} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }}>{savingEmail ? 'Saving…' : 'Save this email'}</button>

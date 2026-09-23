@@ -366,20 +366,20 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
               <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)', flex: '0 1 auto' }}>
                 <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>Publish at</span>
                 <input
+                  className="input"
                   type="datetime-local"
                   value={schedule.scheduled_at}
                   onChange={e => { setSchedule(s => ({ ...s, scheduled_at: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                 />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)', flex: '1 1 240px' }}>
                 <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>Google Drive folder (where you'll drop the final media)</span>
                 <input
+                  className="input"
                   type="url"
                   placeholder="https://drive.google.com/drive/folders/..."
                   value={schedule.drive_folder_url}
                   onChange={e => { setSchedule(s => ({ ...s, drive_folder_url: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                 />
               </label>
             </div>

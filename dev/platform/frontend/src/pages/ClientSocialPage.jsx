@@ -895,7 +895,7 @@ function BrainstormTab({
                       <button className="btn-inline-link" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}
                         onClick={(e) => { e.stopPropagation(); onReuseBrief(b); goStep(1); }} title="Load this brief into a new batch">Reuse brief</button>
                       <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this batch and its posts?')) onDeleteBatch(b.id); }}
-                        title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 'var(--s1)' }}>✕</button>
+                        title="Delete batch" className="btn-icon btn-icon-sm danger" style={{ flex: '0 0 auto' }}>✕</button>
                     </div>
                     {open && (
                       <div style={{ padding: '0 var(--s4) var(--s4)' }}>
@@ -1064,7 +1064,7 @@ function ProduceBoard({ clientId, onOpenReels, onEditReel, onNext }) {
             return (
               <div key={it.key} className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <button onClick={() => del(it)} title="Delete asset"
-                  style={{ position: 'absolute', top: 6, right: 6, zIndex: 2, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 'var(--fs-body)', lineHeight: 1 }}>✕</button>
+                  className="btn-icon btn-icon-sm danger" style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>✕</button>
                 <ProdThumb it={it} onClick={() => setPreview(it)} />
                 <div style={{ padding: 'var(--s3) var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)', flex: 1 }}>
                   <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1128,7 +1128,7 @@ function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReu
             </div>
             <button onClick={(e) => { e.stopPropagation(); onReuseBrief(b); }} className="btn-inline-link" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }} title="Load this brief into the form">Reuse</button>
             <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this batch and its posts?')) onDeleteBatch(b.id); }}
-              title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 'var(--s1)' }}>✕</button>
+              title="Delete batch" className="btn-icon btn-icon-sm danger" style={{ flex: '0 0 auto' }}>✕</button>
           </div>
         ))}
       </div>
@@ -1353,7 +1353,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s2)' }}>Drive folder URL (shared)</div>
             <input type="text" value={driveFolderUrl} onChange={e => setDriveFolderUrl(e.target.value)}
               placeholder="https://drive.google.com/drive/folders/…"
-              style={{ width: '100%', padding: 'var(--s2) var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
+              className="input" style={{ width: '100%' }} />
           </div>
         </div>
 
@@ -1363,12 +1363,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             <div style={{ display: 'flex', gap: 'var(--s1)' }}>
               {dayLabels.map((label, i) => (
                 <button key={i} type="button" onClick={() => toggleDay(i)}
-                  style={{
-                    flex: 1, padding: 'var(--s2) 0', fontSize: 'var(--fs-caption)', fontWeight: 600,
-                    background: daysOfWeek.includes(i) ? 'var(--text)' : 'white',
-                    color: daysOfWeek.includes(i) ? 'white' : 'var(--text-muted)',
-                    border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer',
-                  }}>{label}</button>
+                  className={`tab ${daysOfWeek.includes(i) ? 'active' : ''}`} style={{ flex: 1 }}>{label}</button>
               ))}
             </div>
           </div>
@@ -1376,12 +1371,12 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             <div>
               <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s2)' }}>Start date</div>
               <input type="date" value={startAt} onChange={e => setStartAt(e.target.value)}
-                style={{ width: '100%', padding: 'var(--s2) var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
+                className="input" style={{ width: '100%' }} />
             </div>
             <div>
               <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s2)' }}>Time</div>
               <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                style={{ width: '100%', padding: 'var(--s2) var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
+                className="input" style={{ width: '100%' }} />
             </div>
           </div>
         </div>
@@ -1433,9 +1428,8 @@ function HookVaultList({ clientId, onUse }) {
       <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search hooks…"
-          style={{ flex: 1, padding: 'var(--s2) var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)' }} />
-        <select value={framework} onChange={e => setFramework(e.target.value)}
-          style={{ padding: 'var(--s2) var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
+          className="input" style={{ flex: 1 }} />
+        <select value={framework} onChange={e => setFramework(e.target.value)} className="select">
           <option value="">All frameworks</option>
           <option value="Hook-Story-Offer">Hook-Story-Offer</option>
           <option value="AIDA">AIDA</option>
@@ -1464,7 +1458,7 @@ function HookVaultList({ clientId, onUse }) {
                 </div>
               </div>
               <button type="button" onClick={() => onUse(h.hook)}
-                style={{ background: 'var(--text)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap' }}>
                 Use this</button>
             </div>
           ))}
@@ -1620,12 +1614,7 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
         <div style={{ display: 'flex', gap: 0, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
           {['list', 'calendar'].map(v => (
             <button key={v} type="button" onClick={() => setView(v)}
-              style={{
-                padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', fontWeight: 600,
-                background: view === v ? 'var(--text)' : 'white',
-                color: view === v ? 'white' : 'var(--text-muted)',
-                border: 'none', cursor: 'pointer', textTransform: 'capitalize',
-              }}>{v}</button>
+              className={`tab ${view === v ? 'active' : ''}`} style={{ textTransform: 'capitalize' }}>{v}</button>
           ))}
         </div>
       </div>
@@ -1664,7 +1653,7 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
                 )}
                 {p.scheduled_at && !pubs.some(x => x.status === 'posted') && editingPlanId !== p.id && (
                   <button type="button" onClick={() => beginEdit(p)}
-                    style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', background: 'var(--accent-soft)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
+                    className="btn btn-secondary btn-sm"
                     title="Click to reschedule">
                     ⏰ {new Date(p.scheduled_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                     {p.target_platforms?.length ? ` · ${p.target_platforms.join(', ')}` : ''}
@@ -1673,13 +1662,13 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
                 {editingPlanId === p.id && (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)' }}>
                     <input type="datetime-local" value={editDraft} onChange={e => setEditDraft(e.target.value)}
-                      style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s1)', border: '1px solid #1a56db', borderRadius: 'var(--r-sm)' }} />
+                      className="input" />
                     <button type="button" onClick={() => saveEdit(p.id)} disabled={savingEdit}
-                      style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+                      className="btn btn-primary btn-sm">
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button type="button" onClick={() => setEditingPlanId(null)}
-                      style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', background: 'white', color: 'var(--text-muted)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+                      className="btn btn-secondary btn-sm">
                       Cancel
                     </button>
                   </span>
@@ -1809,7 +1798,7 @@ function CompetitorEditor({ competitors, onSave }) {
               onChange={e => setDraft(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
               placeholder="instagram:handle"
-              style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+              className="input"
             />
             <button onClick={add} className="btn btn-secondary btn-sm">Add</button>
             <button onClick={() => setEditing(false)} className="btn btn-primary btn-sm">Done</button>
@@ -1875,7 +1864,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
             Optional — the more specific you are, the more useful the output. Examples: "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy." Leave empty for a balanced batch.
           </p>
           <textarea value={brief} onChange={e => setBrief(e.target.value)}
-            style={{ ...modalStyles.textarea, minHeight: isMobile ? 140 : 320, flex: 1, resize: 'vertical' }}
+            className="textarea" style={{ minHeight: isMobile ? 140 : 320, flex: 1, resize: 'vertical' }}
             placeholder="What's the angle? Any constraints?" />
         </div>
 
@@ -1885,9 +1874,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
           <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
             {[1, 2, 3, 4, 5, 6, 9].map(nn => (
               <button key={nn} type="button" onClick={() => setCount && setCount(nn)}
-                style={{ width: 38, height: 38, borderRadius: 'var(--r-md)', cursor: 'pointer', fontWeight: 800, fontFamily: 'inherit',
-                  border: 'var(--border-w) solid ' + (count === nn ? 'var(--accent)' : 'var(--card-border)'),
-                  background: count === nn ? 'var(--accent)' : 'var(--surface)', color: 'var(--text)' }}>
+                className={`tab ${count === nn ? 'active' : ''}`}>
                 {nn}
               </button>
             ))}
@@ -1900,7 +1887,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
               { id: 'long', label: 'Long', hint: 'detailed / storytelling' },
             ].map(o => (
               <button key={o.id} type="button" onClick={() => setLength && setLength(o.id)} title={o.hint}
-                style={{ ...(length === o.id ? modalStyles.pillOn : modalStyles.pill) }}>
+                className={`tab ${length === o.id ? 'active' : ''}`}>
                 {o.label}
               </button>
             ))}
@@ -1911,7 +1898,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
           <label style={modalStyles.label}>Platforms</label>
           <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
             {['instagram', 'tiktok', 'linkedin', 'facebook'].map(p => (
-              <button key={p} onClick={() => togglePlatform(p)} type="button" style={platforms.includes(p) ? modalStyles.pillOn : modalStyles.pill}>
+              <button key={p} onClick={() => togglePlatform(p)} type="button" className={`tab ${platforms.includes(p) ? 'active' : ''}`} style={{ textTransform: 'capitalize' }}>
                 {p}
               </button>
             ))}
@@ -2205,9 +2192,9 @@ function ShareLinkBanner({ url, onDismiss }) {
   return (
     <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', marginTop: 'var(--s3)', marginBottom: 'var(--s2)', display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
       <strong style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)' }}>Approval link ready —</strong>
-      <input value={url} readOnly style={{ flex: 1, padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
+      <input value={url} readOnly className="input" style={{ flex: 1, fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
       <button onClick={() => { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-        style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+        className="btn btn-secondary btn-sm">
         {copied ? 'Copied' : 'Copy'}
       </button>
       <button onClick={onDismiss} className="btn-icon" aria-label="Dismiss">×</button>
@@ -2309,7 +2296,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
             <div key={v.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
               <div style={{ position: 'relative' }}>
                 <video src={v.url} controls style={{ width: 180, borderRadius: 'var(--r-sm)', background: '#000' }} />
-                <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>×</button>
+                <button onClick={() => onDeleteMedia(v.id)} className="btn-icon btn-icon-sm danger" style={{ position: 'absolute', top: -6, right: -6 }}>×</button>
               </div>
               <a href={v.url} download target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>↓ Download</a>
             </div>
@@ -2318,7 +2305,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
             <div key={a.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)', width: 220 }}>
               <div style={{ position: 'relative' }}>
                 <audio src={a.url} controls style={{ width: '100%' }} />
-                <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>×</button>
+                <button onClick={() => onDeleteMedia(a.id)} className="btn-icon btn-icon-sm danger" style={{ position: 'absolute', top: -6, right: -6 }}>×</button>
               </div>
               <a href={a.url} download target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>↓ Download</a>
             </div>
@@ -2401,7 +2388,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s2)', lineHeight: 1.5 }}>
             Paste the live Instagram, TikTok or LinkedIn URL once it's published. We'll pull engagement automatically (IG only — paste numbers manually for other networks via Edit).
           </div>
-          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', marginBottom: 'var(--s2)' }} />
+          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" className="input" style={{ width: '100%', boxSizing: 'border-box', marginBottom: 'var(--s2)' }} />
           <button {...roWrite(readOnly, { onClick: () => { onPublish(publishUrl); setShowPublish(false); setPublishUrl(''); }, disabled: !publishUrl.trim() })}
             className="btn btn-primary btn-sm">
             Save & pull insights
@@ -2462,7 +2449,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
             value={styleBrief}
             onChange={e => setStyleBrief(e.target.value)}
             placeholder="Style brief — e.g. Josef Müller-Brockmann style"
-            style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
+            className="input" style={{ width: '100%', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
           />
           {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s2)' }}>{err}</div>}
           <button {...roWrite(readOnly, { onClick: generateImage, disabled: generating })} className="btn btn-primary btn-sm">

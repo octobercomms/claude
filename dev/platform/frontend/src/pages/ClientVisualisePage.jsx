@@ -548,7 +548,7 @@ function InputsPanel({ clientId, project, preset, onChange }) {
                 {items.map(i => (
                   <div key={i.id} style={{ position: 'relative', borderRadius: 'var(--r-sm)', overflow: 'hidden', border: '1px solid var(--card-border)', aspectRatio: '1' }}>
                     <img src={i.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <button onClick={() => remove(i.id)} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', lineHeight: 1, cursor: 'pointer' }}>×</button>
+                    <button onClick={() => remove(i.id)} className="btn-icon btn-icon-sm danger" style={{ position: 'absolute', top: 2, right: 2 }}>×</button>
                   </div>
                 ))}
               </div>

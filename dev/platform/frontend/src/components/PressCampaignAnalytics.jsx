@@ -376,7 +376,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
             opens ≥
             <input type="number" min="1" value={cfg.min_opens ?? 3} onChange={e => saveCfg({ ...cfg, min_opens: parseInt(e.target.value, 10) || 1 })}
-              style={{ width: 48, padding: 'var(--s1) var(--s1)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              className="input" style={{ width: 48 }} />
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
             <input type="checkbox" checked={cfg.any_click !== false} onChange={e => saveCfg({ ...cfg, any_click: e.target.checked })} />
@@ -393,7 +393,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
           value={qInput}
           onChange={e => setQInput(e.target.value)}
           placeholder="Search name, email or outlet…"
-          style={{ flex: 1, minWidth: 220, padding: 'var(--s2) var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)' }}
+          className="input" style={{ flex: 1, minWidth: 220 }}
         />
         {qInput && <button className="btn btn-link btn-sm" onClick={() => setQInput('')}>Clear</button>}
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>

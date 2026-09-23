@@ -272,10 +272,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
     <div style={{ padding: 'var(--s4) var(--s6)' }}>
       <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
         {[['7', '7D'], ['30', '30D'], ['all', 'All']].map(([v, l]) => (
-          <button key={v} onClick={() => setRange(v)} style={{
-            padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: 'var(--border-w) solid var(--card-border)',
-            background: range === v ? 'var(--accent)' : 'var(--surface)', color: range === v ? 'var(--accent-on)' : 'var(--text-muted)',
-          }}>{l}</button>
+          <button key={v} onClick={() => setRange(v)} className={`tab ${range === v ? 'active' : ''}`}>{l}</button>
         ))}
       </div>
       {hasData ? (
@@ -934,17 +931,13 @@ export default function ClientSEOPage() {
       {/* View toggle */}
       <div style={{ display: 'flex', marginBottom: 'var(--s3)', gap: 'var(--s3)', alignItems: 'center' }}>
         <div style={{ display: 'flex' }}>
-          {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
-            <button key={v} onClick={() => setKwView(v)} style={{
-              padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-body)', cursor: 'pointer', fontWeight: kwView === v ? 700 : 400, border: 'var(--border-w) solid var(--card-border)',
-              background: kwView === v ? 'var(--surface-sunken)' : 'var(--surface)', color: kwView === v ? 'var(--text)' : 'var(--text-muted)',
-              borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? undefined : 'none',
-            }}>{label}</button>
+          {[['current', 'Current'], ['history', 'By date']].map(([v, label]) => (
+            <button key={v} onClick={() => setKwView(v)} className={`tab ${kwView === v ? 'active' : ''}`}>{label}</button>
           ))}
         </div>
         {kwView === 'current' && (
           <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
-            className="input" style={{ width: 190, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', flex: '0 0 auto' }}>
+            className="input" style={{ width: 190, padding: 'var(--s2) var(--s3)', flex: '0 0 auto' }}>
             <option value="none">No grouping</option>
             <option value="tag">Group by tag</option>
             <option value="url">Group by landing page</option>

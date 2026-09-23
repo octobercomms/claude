@@ -275,7 +275,7 @@ function TemplatePreview({ template, onChange }) {
                 <button
                   type="button"
                   onClick={() => removeSection(s.id)}
-                  className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 'var(--fs-body)', padding: "0 var(--s1)" }}
+                  className="btn-icon btn-icon-sm danger"
                   title="Remove this section"
                 >×</button>
               )}

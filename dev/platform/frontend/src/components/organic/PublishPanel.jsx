@@ -153,8 +153,7 @@ export default function PublishPanel({ clientId, onNext }) {
                 {platform === 'wordpress' && wpConnectors.length > 1 && (
                   <div style={{ marginBottom: 'var(--s4)' }}>
                     <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>WordPress site</div>
-                    <select value={connectorId} onChange={e => setConnectorId(e.target.value)}
-                      style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+                    <select className="select" value={connectorId} onChange={e => setConnectorId(e.target.value)}>
                       {wpConnectors.map(c => <option key={c.id} value={c.id}>{c.store_label || c.id}</option>)}
                     </select>
                   </div>
@@ -178,9 +177,8 @@ export default function PublishPanel({ clientId, onNext }) {
                     </div>
                     <div style={{ marginBottom: 'var(--s4)' }}>
                       <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Or schedule for later (optional)</div>
-                      <input type="datetime-local" value={scheduledAt}
-                        onChange={e => setScheduledAt(e.target.value)}
-                        style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                      <input className="input" type="datetime-local" value={scheduledAt}
+                        onChange={e => setScheduledAt(e.target.value)} />
                     </div>
                   </>
                 )}

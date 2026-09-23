@@ -173,7 +173,7 @@ export default function SocialDmBotPanel({ clientId }) {
           order of operations and what's stored explicit. */}
       <div className="card">
         <button type="button" onClick={() => setGuideOpen(o => !o)}
-          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)' }}>
+          className="accordion-trigger" style={{ justifyContent: 'space-between' }}>
           <div>
             <div className="caption">Setup guide</div>
             <div className="h3 mt-1">How to set up the DM bot</div>

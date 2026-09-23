@@ -147,7 +147,7 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
           }}
           rows={2}
           placeholder={'Tell Claude what to change…  (⌘+Enter to send)'}
-          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', lineHeight: 1.4, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+          className="textarea" style={{ width: '100%', lineHeight: 1.4, boxSizing: 'border-box' }}
         />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">{messages.length ? `${messages.filter(m => m.role === 'user').length} turn${messages.filter(m => m.role === 'user').length === 1 ? '' : 's'}` : ' '}</span>

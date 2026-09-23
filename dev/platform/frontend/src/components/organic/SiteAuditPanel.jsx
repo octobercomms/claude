@@ -288,8 +288,8 @@ function CoreWebVitals({ clientId }) {
           </p>
         </div>
         <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
-          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="URL (optional)"
-            style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', width: 220, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+          <input className="input" value={url} onChange={e => setUrl(e.target.value)} placeholder="URL (optional)"
+            style={{ width: 220 }} />
           {['mobile', 'desktop'].map(s => (
             <button key={s} onClick={() => setStrategy(s)} className={`btn btn-sm ${strategy === s ? 'btn-primary' : 'btn-secondary'}`}>{s}</button>
           ))}

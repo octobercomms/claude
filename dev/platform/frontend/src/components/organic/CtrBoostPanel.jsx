@@ -171,11 +171,11 @@ function RewriteModal({ clientId, opp, onClose }) {
             blank and it&apos;ll infer plausible current copy from the query and URL.
           </p>
           <label className="caption">Current title tag</label>
-          <input value={currentTitle} onChange={e => setCurrentTitle(e.target.value)} placeholder="(optional)"
-            style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: 'var(--s1) 0 var(--s3)' }} />
+          <input className="input" value={currentTitle} onChange={e => setCurrentTitle(e.target.value)} placeholder="(optional)"
+            style={{ width: '100%', margin: 'var(--s1) 0 var(--s3)' }} />
           <label className="caption">Current meta description</label>
-          <textarea value={currentDesc} onChange={e => setCurrentDesc(e.target.value)} placeholder="(optional)" rows={2}
-            style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: 'var(--s1) 0 var(--s3)', fontFamily: 'inherit', resize: 'vertical' }} />
+          <textarea className="textarea" value={currentDesc} onChange={e => setCurrentDesc(e.target.value)} placeholder="(optional)" rows={2}
+            style={{ width: '100%', margin: 'var(--s1) 0 var(--s3)', fontFamily: 'inherit', resize: 'vertical' }} />
 
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading })}>
             {loading ? 'Drafting…' : suggestion ? 'Re-draft' : 'Draft new snippet'}

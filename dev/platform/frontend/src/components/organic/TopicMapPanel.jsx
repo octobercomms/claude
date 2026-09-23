@@ -90,11 +90,11 @@ export default function TopicMapPanel({ clientId }) {
       <div className="card" style={{ marginBottom: 'var(--s5)' }}>
         <div className="caption mb-2">Grow a topic map from a seed</div>
         <div className="row wrap" style={{ gap: 'var(--s2)' }}>
-          <input value={seed} onChange={e => setSeed(e.target.value)} placeholder="Seed theme — e.g. 'enamel camping mugs'"
+          <input className="input" value={seed} onChange={e => setSeed(e.target.value)} placeholder="Seed theme — e.g. 'enamel camping mugs'"
             onKeyDown={e => { if (e.key === 'Enter') build(); }}
-            style={{ flex: 2, minWidth: 220, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box' }} />
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="Map name (optional)"
-            style={{ flex: 1, minWidth: 160, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box' }} />
+            style={{ flex: 2, minWidth: 220, boxSizing: 'border-box' }} />
+          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Map name (optional)"
+            style={{ flex: 1, minWidth: 160, boxSizing: 'border-box' }} />
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: build, disabled: building || !seed.trim() })}>
             {building ? 'Building… (~30s)' : '🌱 Build topic map'}
           </button>
@@ -144,8 +144,7 @@ export default function TopicMapPanel({ clientId }) {
                       <div className="body-xs text-muted mt-1">Primary: <strong style={{ color: 'var(--text)' }}>{c.primary_keyword}</strong></div>
                     </div>
                     <div className="row" style={{ gap: 'var(--s2)' }}>
-                      <select value={c.status} onChange={e => setStatus(c, e.target.value)} disabled={readOnly}
-                        style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)' }}>
+                      <select className="select" value={c.status} onChange={e => setStatus(c, e.target.value)} disabled={readOnly}>
                         {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                       </select>
                       <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => generateBrief(c), disabled: !!busy[c.id] })}>

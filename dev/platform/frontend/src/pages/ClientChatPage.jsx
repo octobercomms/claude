@@ -386,7 +386,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
                 <span key={i} style={{ fontSize: 'var(--fs-caption)', background: 'var(--surface-sunken)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s2)', display: 'flex', alignItems: 'center', gap: 'var(--s1)' }}>
                   📎 {f.name}
                   <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: 0, lineHeight: 1 }}>×</button>
+                    className="btn-icon btn-icon-sm">×</button>
                 </span>
               ))}
             </div>
