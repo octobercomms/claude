@@ -57,6 +57,67 @@ final class Orders {
         return $wpdb->get_row($wpdb->prepare("SELECT * FROM " . Schema::orders() . " WHERE payment_id = %s", $payment_id)) ?: null;
     }
 
+    /**
+     * Distinct registration email addresses (with a display name) for an event —
+     * everyone with a live order, so an organiser can message that event's
+     * attendees. Grouped by email so a repeat buyer is contacted once; cancelled
+     * and refunded orders are excluded. Ordered by email for a stable cursor.
+     *
+     * @return array<int,array{email:string,name:string}>
+     */
+    public static function event_recipients(int $event_id, int $limit = 100000, string $after = ''): array {
+        global $wpdb;
+        if ($event_id <= 0) {
+            return [];
+        }
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT email, MAX(name) AS name FROM " . Schema::orders() . "
+             WHERE event_id = %d AND status = 'paid' AND email <> '' AND email > %s
+             GROUP BY email ORDER BY email ASC LIMIT %d",
+            $event_id, $after, max(1, $limit)
+        )) ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            $out[] = ['email' => (string) $r->email, 'name' => (string) $r->name];
+        }
+        return $out;
+    }
+
+    /** How many distinct registration emails an event has (for the compose screen). */
+    public static function event_recipient_count(int $event_id): int {
+        return self::event_recipient_counts([$event_id])[$event_id] ?? 0;
+    }
+
+    /**
+     * Distinct registration-email counts for several events in one query, so the
+     * compose screen doesn't fire a COUNT per event (N+1).
+     *
+     * @param array<int,int> $event_ids
+     * @return array<int,int> {event_id: count}
+     */
+    public static function event_recipient_counts(array $event_ids): array {
+        global $wpdb;
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $event_ids),
+            static fn(int $id): bool => $id > 0
+        )));
+        if (! $ids) {
+            return [];
+        }
+        $place = implode(',', array_fill(0, count($ids), '%d'));
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT event_id, COUNT(DISTINCT email) AS c FROM " . Schema::orders() . "
+             WHERE event_id IN ($place) AND status = 'paid' AND email <> ''
+             GROUP BY event_id",
+            ...$ids
+        )) ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r->event_id] = (int) $r->c;
+        }
+        return $out;
+    }
+
     /** @return array<int,object> */
     public static function tickets(int $order_id): array {
         global $wpdb;
