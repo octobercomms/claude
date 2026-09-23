@@ -72,7 +72,7 @@ export default function SuiteOverview({
       )}
 
       {!hasCustom && capabilities.length > 0 && (
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--s4)' }}>
           {capabilities.map((c, i) => {
             const clickable = typeof c.onClick === 'function';
             const inner = (

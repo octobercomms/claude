@@ -29,9 +29,9 @@ function VocList({ title, items, tint }) {
   if (!items?.length) return null;
   return (
     <div className="card" style={{ padding: 'var(--s4)', background: tint }}>
-      <div className="caption" style={{ marginBottom: 8 }}>{title}</div>
-      <ul style={{ margin: 0, paddingLeft: 18 }}>
-        {items.map((it, i) => <li key={i} className="body-sm" style={{ marginBottom: 4, lineHeight: 1.45 }}>{it}</li>)}
+      <div className="caption" style={{ marginBottom: 'var(--s2)' }}>{title}</div>
+      <ul style={{ margin: 0, paddingLeft: 'var(--s5)' }}>
+        {items.map((it, i) => <li key={i} className="body-sm" style={{ marginBottom: 'var(--s1)', lineHeight: 1.45 }}>{it}</li>)}
       </ul>
     </div>
   );
@@ -83,7 +83,7 @@ export default function ICPIntelligencePanel({ clientId }) {
     finally { setBuilding(false); }
   }
 
-  if (!loaded) return <div className="card" style={{ padding: 20, color: 'var(--text-subtle)' }}>Loading…</div>;
+  if (!loaded) return <div className="card" style={{ padding: 'var(--s5)', color: 'var(--text-subtle)' }}>Loading…</div>;
 
   const aware = pack?.awareness_map || null;
   const voc = pack?.voc || null;
@@ -93,9 +93,9 @@ export default function ICPIntelligencePanel({ clientId }) {
   const onInput = (setter) => (e) => { setter(e.target.value); setDirty(true); };
 
   return (
-    <div className="stack" style={{ gap: 18 }}>
+    <div className="stack" style={{ gap: 'var(--s5)' }}>
       <div>
-        <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 800, margin: '0 0 4px' }}>ICP — Ideal Customer Profile</h2>
+        <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 800, margin: '0 0 var(--s1)' }}>ICP — Ideal Customer Profile</h2>
         <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', maxWidth: 640, margin: 0, lineHeight: 1.5 }}>
           The customer-research layer that seeds resonant creative and sharper audience targeting. Paste real call transcripts and win-loss notes —
           Claude extracts the awareness stage, market sophistication and Voice-of-Customer in the prospect’s own words.
@@ -104,23 +104,23 @@ export default function ICPIntelligencePanel({ clientId }) {
       </div>
 
       {/* Inputs */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
         <div>
-          <label className="caption" style={{ display: 'block', marginBottom: 4 }}>Service description</label>
+          <label className="caption" style={{ display: 'block', marginBottom: 'var(--s1)' }}>Service description</label>
           <textarea value={service} onChange={onInput(setService)} rows={2} className="input" style={{ width: '100%', resize: 'vertical' }}
             placeholder="What the client sells, to whom, and the core promise." />
         </div>
         <div>
-          <label className="caption" style={{ display: 'block', marginBottom: 4 }}>Call transcripts / customer quotes</label>
+          <label className="caption" style={{ display: 'block', marginBottom: 'var(--s1)' }}>Call transcripts / customer quotes</label>
           <textarea value={transcripts} onChange={onInput(setTranscripts)} rows={7} className="input" style={{ width: '100%', resize: 'vertical' }}
             placeholder="Paste sales/discovery call transcripts or verbatim customer quotes. This is the single biggest driver of a good pack — the more real language, the sharper the VoC." />
         </div>
         <div>
-          <label className="caption" style={{ display: 'block', marginBottom: 4 }}>Win-loss notes / other research</label>
+          <label className="caption" style={{ display: 'block', marginBottom: 'var(--s1)' }}>Win-loss notes / other research</label>
           <textarea value={notes} onChange={onInput(setNotes)} rows={3} className="input" style={{ width: '100%', resize: 'vertical' }}
             placeholder="Why deals were won or lost, objections, review-mining notes, survey answers…" />
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-primary" onClick={build} disabled={building || saving}>
             {building ? 'Building…' : built ? 'Rebuild with Claude' : 'Build with Claude'}
           </button>
@@ -140,39 +140,39 @@ export default function ICPIntelligencePanel({ clientId }) {
 
       {/* The pack */}
       {built && (
-        <div className="stack" style={{ gap: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+        <div className="stack" style={{ gap: 'var(--s4)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--s3)' }}>
             {/* Awareness */}
             <div className="card" style={{ padding: 'var(--s4)' }}>
-              <div className="caption" style={{ marginBottom: 8 }}>Awareness stage</div>
-              <div style={{ display: 'flex', gap: 3, marginBottom: 8 }}>
+              <div className="caption" style={{ marginBottom: 'var(--s2)' }}>Awareness stage</div>
+              <div style={{ display: 'flex', gap: 'var(--s1)', marginBottom: 'var(--s2)' }}>
                 {STAGES.map(s => (
                   <div key={s} title={STAGE_LABEL[s]} style={{ flex: 1, height: 6, borderRadius: 3, background: aware?.stage === s ? 'var(--accent)' : 'var(--card-border)' }} />
                 ))}
               </div>
               <div style={{ fontWeight: 800, fontSize: 'var(--fs-body)' }}>{aware?.stage ? STAGE_LABEL[aware.stage] : '—'}</div>
-              {aware?.rationale && <div className="body-sm" style={{ marginTop: 6, lineHeight: 1.45, color: 'var(--text-muted)' }}>{aware.rationale}</div>}
-              {aware?.directness && <div className="body-xs" style={{ marginTop: 8 }}><strong>Ad directness:</strong> {aware.directness}</div>}
+              {aware?.rationale && <div className="body-sm" style={{ marginTop: 'var(--s2)', lineHeight: 1.45, color: 'var(--text-muted)' }}>{aware.rationale}</div>}
+              {aware?.directness && <div className="body-xs" style={{ marginTop: 'var(--s2)' }}><strong>Ad directness:</strong> {aware.directness}</div>}
             </div>
 
             {/* Sophistication */}
             <div className="card" style={{ padding: 'var(--s4)' }}>
-              <div className="caption" style={{ marginBottom: 8 }}>Market sophistication</div>
-              <div style={{ display: 'flex', gap: 3, marginBottom: 8 }}>
+              <div className="caption" style={{ marginBottom: 'var(--s2)' }}>Market sophistication</div>
+              <div style={{ display: 'flex', gap: 'var(--s1)', marginBottom: 'var(--s2)' }}>
                 {[1, 2, 3, 4, 5].map(n => (
                   <div key={n} style={{ flex: 1, height: 6, borderRadius: 3, background: (pack.sophistication_level || 0) >= n ? 'var(--accent)' : 'var(--card-border)' }} />
                 ))}
               </div>
               <div style={{ fontWeight: 800, fontSize: 'var(--fs-body)' }}>{pack.sophistication_level ? SOPH_LABEL[pack.sophistication_level] : '—'}</div>
-              {pack.sophistication_note && <div className="body-sm" style={{ marginTop: 6, lineHeight: 1.45, color: 'var(--text-muted)' }}>{pack.sophistication_note}</div>}
+              {pack.sophistication_note && <div className="body-sm" style={{ marginTop: 'var(--s2)', lineHeight: 1.45, color: 'var(--text-muted)' }}>{pack.sophistication_note}</div>}
             </div>
           </div>
 
           {/* VoC */}
           {voc && (voc.pains?.length || voc.desires?.length || voc.worldview?.length) ? (
             <div>
-              <div className="caption" style={{ marginBottom: 8 }}>Voice of the customer — in their words</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <div className="caption" style={{ marginBottom: 'var(--s2)' }}>Voice of the customer — in their words</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--s3)' }}>
                 <VocList title="Pains" items={voc.pains} tint="rgba(192,85,107,0.07)" />
                 <VocList title="Desires" items={voc.desires} tint="rgba(46,125,87,0.07)" />
                 <VocList title="Worldview" items={voc.worldview} tint="rgba(47,111,176,0.07)" />
@@ -183,7 +183,7 @@ export default function ICPIntelligencePanel({ clientId }) {
           {/* Competitor angle */}
           {pack.competitor_angle && (
             <div className="card" style={{ padding: 'var(--s4)', background: 'rgba(210,130,61,0.07)' }}>
-              <div className="caption" style={{ marginBottom: 6 }}>Positioning angle vs competitors</div>
+              <div className="caption" style={{ marginBottom: 'var(--s2)' }}>Positioning angle vs competitors</div>
               <div className="body-sm" style={{ lineHeight: 1.5 }}>{pack.competitor_angle}</div>
             </div>
           )}
@@ -191,7 +191,7 @@ export default function ICPIntelligencePanel({ clientId }) {
       )}
 
       {!built && (
-        <div className="card" style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1.5 }}>
+        <div className="card" style={{ padding: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1.5 }}>
           No pack yet. Add whatever real customer material you have above and hit <strong>Build with Claude</strong>.
           Even a couple of call transcripts produces a sharper brief; the pack later seeds ad creative in Paid.
         </div>

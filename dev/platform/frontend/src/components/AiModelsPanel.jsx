@@ -21,7 +21,7 @@ export default function AiModelsPanel() {
     /* eslint-disable-line */
   }, []);
 
-  if (!cfg) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
+  if (!cfg) return <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>;
   const modelEntries = Object.entries(cfg.models);
   const modelOf = (feat) => map[feat] || cfg.default;
 
@@ -54,12 +54,12 @@ export default function AiModelsPanel() {
               const spec = cfg.models[sel] || {};
               const warn = it.sensitive && spec.provider === 'deepseek';
               return (
-                <div key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                   <span className="body-sm" style={{ flex: '1 1 200px', minWidth: 0 }}>
                     {it.label}
-                    {it.sensitive && <span title="Sends real client/customer data to the model — keep on Claude for privacy." style={{ marginLeft: 6, cursor: 'help' }}>🔒</span>}
+                    {it.sensitive && <span title="Sends real client/customer data to the model — keep on Claude for privacy." style={{ marginLeft: 'var(--s2)', cursor: 'help' }}>🔒</span>}
                   </span>
-                  <select className="input" style={{ width: 'auto', fontSize: 'var(--fs-body)', padding: '4px 8px' }}
+                  <select className="input" style={{ width: 'auto', fontSize: 'var(--fs-body)', padding: 'var(--s1) var(--s2)' }}
                     value={sel} onChange={e => setModel(it.key, e.target.value)} title={spec.note || ''}>
                     {modelEntries.map(([id, m]) => <option key={id} value={id}>{m.label} ({m.tier})</option>)}
                   </select>

@@ -47,7 +47,7 @@ export default function JournalistProfileBody({ id, mode = 'page', onClose, onDe
   useEffect(() => { load(); }, [id]);
   useEffect(() => { api.get('/pr/outlets').then((r) => setOutlets(r.items || [])).catch(() => {}); }, []);
 
-  if (!c || !form) return <p style={{ padding: 24, color: 'var(--text-subtle)' }}>Loading…</p>;
+  if (!c || !form) return <p style={{ padding: 'var(--s6)', color: 'var(--text-subtle)' }}>Loading…</p>;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   async function save() {
@@ -89,13 +89,13 @@ export default function JournalistProfileBody({ id, mode = 'page', onClose, onDe
   return (
     <>
       {mode === 'page' && <div className="kicker"><span className="pip" /><span>Media database • Journalist</span></div>}
-      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <h1 className={mode === 'page' ? 'display' : 'h2'} style={{ margin: 0 }}>{title}</h1>
         {onClose && <button className="btn btn-secondary btn-sm" onClick={onClose}>{mode === 'page' ? '← Back' : 'Close'}</button>}
       </header>
 
-      <div className="card" style={{ marginBottom: 'var(--s4)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', gridColumn: '1/-1' }}>
+      <div className="card" style={{ marginBottom: 'var(--s4)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
+        <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'flex-start', gridColumn: '1/-1' }}>
           {form.photo_url
             ? <img src={form.photo_url} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }} />
             : <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--accent-soft,#eef2ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{((c.first_name || ' ')[0] + (c.last_name || ' ')[0]).toUpperCase()}</div>}
@@ -124,7 +124,7 @@ export default function JournalistProfileBody({ id, mode = 'page', onClose, onDe
         <label className="field"><span className="field-label">Bio link</span><input className="input" value={form.bio_link} onChange={(e) => set('bio_link', e.target.value)} /></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Beats / topics <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} {...roWrite(readOnly, { onClick: suggestBeats, disabled: suggesting })}>{suggesting ? '…' : '✨ Suggest from coverage'}</button></span><input className="input" value={form.beats} onChange={(e) => set('beats', e.target.value)} placeholder="architecture, interiors" /></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Notes</span><textarea className="input" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} /></label>
-        <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ gridColumn: '1/-1', display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
           <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save profile'}</button>
           <div style={{ flex: 1 }} />
           <button className="btn btn-danger btn-sm" onClick={deleteJournalist}
@@ -135,9 +135,9 @@ export default function JournalistProfileBody({ id, mode = 'page', onClose, onDe
       </div>
 
       {Array.isArray(c.auto_topics) && c.auto_topics.length > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
           <h3 className="h3 mb-2">Writes about <span className="body-sm text-muted">· learned from their recent articles</span></h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
             {c.auto_topics.map((t, i) => <span key={i} className="chip">{t}</span>)}
           </div>
         </div>
@@ -146,9 +146,9 @@ export default function JournalistProfileBody({ id, mode = 'page', onClose, onDe
       {Array.isArray(c.latest_articles) && c.latest_articles.length > 0 && (
         <>
           <h3 className="h3 mb-2">Latest articles <span className="body-sm text-muted">· from their outlet's feed</span></h3>
-          <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             {c.latest_articles.map((a, i) => (
-              <div key={i} style={{ padding: '7px 0', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 'var(--fs-body)' }}>
+              <div key={i} style={{ padding: 'var(--s2) 0', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 'var(--fs-body)' }}>
                 {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{(a.title || a.url).slice(0, 110)}</a> : (a.title || '—')}
                 {a.published_at && <span className="text-muted" style={{ fontSize: 'var(--fs-caption)' }}> · {fmtDate(a.published_at)}</span>}
               </div>
@@ -169,7 +169,7 @@ export default function JournalistProfileBody({ id, mode = 'page', onClose, onDe
                 <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
               </tr>
             ))}
-            {!(c.coverage || []).length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No coverage logged.</td></tr>}
+            {!(c.coverage || []).length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>No coverage logged.</td></tr>}
           </tbody>
         </table>
       </div>

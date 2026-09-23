@@ -45,7 +45,7 @@ export default function PipelineStrip({ steps, currentStep, dense = false }) {
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: dense ? 12 : 13, color: 'var(--text)', lineHeight: 1.2 }}>{step.label}</div>
               {step.detail && !dense && (
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>{step.detail}</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{step.detail}</div>
               )}
             </div>
           </div>

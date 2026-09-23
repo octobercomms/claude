@@ -34,7 +34,7 @@ function ExampleTasks() {
                 <div className="h3 mt-2">{t.who}</div>
                 <p className="body-sm mt-3">{t.prompt}</p>
               </div>
-              <div className="row" style={{ gap: 6 }}>
+              <div className="row" style={{ gap: 'var(--s2)' }}>
                 <span className="btn btn-secondary btn-sm" style={{ pointerEvents: 'none' }}>Skip</span>
                 <span className="btn btn-primary btn-sm" style={{ pointerEvents: 'none' }}>Done</span>
               </div>
@@ -121,7 +121,7 @@ export default function OutreachTasksPanel() {
                     )}
                     {t.prompt && <p className="body-sm mt-3" style={{ whiteSpace: 'pre-wrap' }}>{t.prompt}</p>}
                   </div>
-                  <div className="row" style={{ gap: 6 }}>
+                  <div className="row" style={{ gap: 'var(--s2)' }}>
                     <button onClick={() => skip(t)} className="btn btn-secondary btn-sm">Skip</button>
                     <button onClick={() => complete(t)} className="btn btn-primary btn-sm">Done</button>
                   </div>

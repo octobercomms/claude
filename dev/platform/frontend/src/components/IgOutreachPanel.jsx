@@ -156,7 +156,7 @@ export default function IgOutreachPanel({ clientId }) {
     catch { toast('Copy failed — select and copy manually.', 'error'); }
   }
 
-  if (!loaded) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
+  if (!loaded) return <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>;
   const sel = searches.find(s => s.id === selected);
   const counts = prospects.reduce((a, p) => { a[p.status] = (a[p.status] || 0) + 1; return a; }, {});
 
@@ -174,7 +174,7 @@ export default function IgOutreachPanel({ clientId }) {
 
       {adding && (
         <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
             <input className="input" style={{ flex: '1 1 150px' }} placeholder="Name (optional)" value={name} onChange={e => setName(e.target.value)} />
             <input className="input" style={{ flex: '2 1 240px' }} placeholder="Roles, e.g. architects, interior designers" value={icp} onChange={e => setIcp(e.target.value)} />
             <input className="input" style={{ flex: '1 1 130px' }} placeholder="Location, e.g. Atlanta" value={location} onChange={e => setLocation(e.target.value)} />
@@ -182,9 +182,9 @@ export default function IgOutreachPanel({ clientId }) {
             <button className="btn btn-primary" {...roWrite(readOnly, { onClick: createAndRun, disabled: busy })}>{busy ? 'Searching…' : 'Create & run'}</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
           </div>
-          <input className="input" style={{ marginTop: 8 }} placeholder="What are you DMing them about? e.g. inviting them to exhibit at Atlanta Design Festival (Sept 26–Oct 4)"
+          <input className="input" style={{ marginTop: 'var(--s2)' }} placeholder="What are you DMing them about? e.g. inviting them to exhibit at Atlanta Design Festival (Sept 26–Oct 4)"
             value={goal} onChange={e => setGoal(e.target.value)} />
-          <div className="body-xs text-subtle" style={{ marginTop: 8 }}>Several roles at once is fine. The outreach goal drives the drafted messages — and drafts won't invent specifics they can't see.</div>
+          <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>Several roles at once is fine. The outreach goal drives the drafted messages — and drafts won't invent specifics they can't see.</div>
         </div>
       )}
 
@@ -193,12 +193,12 @@ export default function IgOutreachPanel({ clientId }) {
       ) : (
         <div className="stack stack-sm" style={{ marginBottom: 'var(--s6)' }}>
           {searches.map(s => (
-            <div key={s.id} className="card" style={{ padding: '10px 14px', borderColor: s.id === selected ? 'var(--text)' : 'var(--card-border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div key={s.id} className="card" style={{ padding: 'var(--s3) var(--s4)', borderColor: s.id === selected ? 'var(--text)' : 'var(--card-border)', display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
               <button onClick={() => selectSearch(s.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                 <div className="body-sm" style={{ fontWeight: 700 }}>{s.name}</div>
                 <div className="body-xs text-subtle">{[s.icp, s.location].filter(Boolean).join(' · ')} · {s.prospect_count} found{s.last_run_at ? ` · last run ${new Date(s.last_run_at).toLocaleDateString('en-GB')}` : ''}</div>
               </button>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} title="Daily autopilot">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', cursor: 'pointer' }} title="Daily autopilot">
                 <input type="checkbox" checked={!!s.enabled} onChange={() => toggleAutopilot(s)} style={{ accentColor: 'var(--accent)' }} />
                 <span className="body-xs">Autopilot</span>
               </label>
@@ -214,8 +214,8 @@ export default function IgOutreachPanel({ clientId }) {
         <>
           <div className="section-head">
             <div className="caption">{sel.name} — queue</div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span className="body-xs text-subtle" style={{ marginRight: 4 }}>{prospects.length} · {counts.new || 0} new · {counts.messaged || 0} messaged · {counts.replied || 0} replied</span>
+            <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="body-xs text-subtle" style={{ marginRight: 'var(--s1)' }}>{prospects.length} · {counts.new || 0} new · {counts.messaged || 0} messaged · {counts.replied || 0} replied</span>
               <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => draftAll(sel.id), disabled: draftingAll || !prospects.length })}>{draftingAll ? 'Drafting…' : '✦ Draft all'}</button>
               <button className="btn btn-secondary btn-sm" onClick={() => exportCsv(prospects, sel.name)} disabled={!prospects.length}>Export CSV</button>
             </div>
@@ -249,7 +249,7 @@ export default function IgOutreachPanel({ clientId }) {
             const doneEmpty = !doneList.length && !detachedWorked.length;
             return (
               <>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--s4)', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', alignItems: 'center', flexWrap: 'wrap' }}>
                   {[['todo', 'To work', todoList.length], ['done', 'Done', doneList.length]].map(([key, label, n]) => (
                     <button key={key} type="button" onClick={() => setQueueTab(key)}
                       className={`btn btn-sm ${queueTab === key ? 'btn-primary' : 'btn-secondary'}`}>
@@ -281,8 +281,8 @@ export default function IgOutreachPanel({ clientId }) {
                             onClick={() => setExpanded(prev => ({ ...prev, [p.id]: true }))}
                             title="Click to re-open"
                             style={{
-                              display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                              padding: '8px 14px', borderRadius: 'var(--r-sm)',
+                              display: 'flex', alignItems: 'center', gap: 'var(--s3)', cursor: 'pointer',
+                              padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-sm)',
                               border: `1px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
                               borderLeft: `4px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
                               background: done ? 'var(--positive-soft)' : 'var(--surface-raised)',
@@ -298,27 +298,27 @@ export default function IgOutreachPanel({ clientId }) {
                       }
                       return (
                         <div key={p.id} className="card" style={{ padding: 'var(--s4)', opacity: isSkipped ? 0.55 : 1, borderLeft: done ? '4px solid var(--positive)' : undefined, background: done ? 'var(--positive-soft)' : undefined }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'baseline' }}>
                             <div style={{ minWidth: 0 }}>
                               <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>@{p.username}</a>
                               {p.display_name && p.display_name !== p.username && <span className="text-subtle"> · {p.display_name}</span>}
-                              {p.email && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', marginLeft: 8 }}>✉ {p.email}</span>}
-                              {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{p.bio}</div>}
+                              {p.email && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', marginLeft: 'var(--s2)' }}>✉ {p.email}</span>}
+                              {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>{p.bio}</div>}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flex: '0 0 auto' }}>
                               <span className={`chip ${st.cls}`} style={{ fontSize: 'var(--fs-caption)' }}>{st.label}</span>
                               {queueTab === 'done' && <button className="btn btn-ghost btn-sm" onClick={() => setExpanded(prev => { const n = { ...prev }; delete n[p.id]; return n; })} title="Collapse">▴</button>}
                             </div>
                           </div>
 
                           {p.draft && (
-                            <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
+                            <div style={{ marginTop: 'var(--s3)', padding: 'var(--s3) var(--s3)', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
                               <div className="body-sm">{p.draft}</div>
-                              <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => copy(p.draft)}>Copy message</button>
+                              <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--s2)' }} onClick={() => copy(p.draft)}>Copy message</button>
                             </div>
                           )}
 
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s3)' }}>
                             <a href={`https://ig.me/m/${p.username}`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">Open DM ↗</a>
                             <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => draft(p.id), disabled: drafting === p.id })}>{drafting === p.id ? 'Drafting…' : (p.draft ? '↻ Redraft' : '✦ Draft message')}</button>
                             {!p.email && <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => enrich(p.id), disabled: enriching === p.id })}>{enriching === p.id ? 'Finding…' : 'Find email'}</button>}
@@ -338,7 +338,7 @@ export default function IgOutreachPanel({ clientId }) {
 
                 {queueTab === 'done' && detachedWorked.length > 0 && (
                   <div style={{ marginTop: 'var(--s4)' }}>
-                    <div className="callout callout-warning" style={{ marginBottom: 8 }}>
+                    <div className="callout callout-warning" style={{ marginBottom: 'var(--s2)' }}>
                       {detachedWorked.length} worked prospect{detachedWorked.length === 1 ? '' : 's'} {detachedWorked.length === 1 ? "isn't" : "aren't"} attached to any search (from a deleted or reorganised search). They're safe — re-home them here so they show in this search's Done.{' '}
                       <button onClick={() => reclaim(sel.id)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Attach to “{sel.name}”</button>
                     </div>
@@ -348,8 +348,8 @@ export default function IgOutreachPanel({ clientId }) {
                         const done = p.status === 'messaged' || p.status === 'replied';
                         return (
                           <div key={p.id} style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '8px 14px', borderRadius: 'var(--r-sm)',
+                            display: 'flex', alignItems: 'center', gap: 'var(--s3)',
+                            padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-sm)',
                             border: `1px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
                             borderLeft: `4px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
                             background: done ? 'var(--positive-soft)' : 'var(--surface-raised)',

@@ -61,20 +61,20 @@ export default function Layout() {
   function handleLogout() { logout(); navigate('/login'); }
 
   const linkStyle = (isActive) => ({
-    display: 'block', padding: '11px 24px', color: isActive ? '#fff' : 'var(--surface)',
+    display: 'block', padding: 'var(--s3) var(--s6)', color: isActive ? '#fff' : 'var(--surface)',
     textDecoration: 'none', fontSize: 'var(--fs-title)', fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2, background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
   });
 
   const subLinkStyle = (isActive) => ({
-    display: 'block', padding: '8px 24px 8px 36px', color: isActive ? '#fff' : 'rgba(255,255,255,0.78)',
+    display: 'block', padding: 'var(--s2) var(--s6) var(--s2) var(--s8)', color: isActive ? '#fff' : 'rgba(255,255,255,0.78)',
     textDecoration: 'none', fontSize: 'var(--fs-body)', fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
   });
   const subSubLinkStyle = (isActive) => ({
-    display: 'block', padding: '6px 24px 6px 56px', color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
+    display: 'block', padding: 'var(--s2) var(--s6) var(--s2) var(--s9)', color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
     textDecoration: 'none', fontSize: 'var(--fs-body)', fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
@@ -141,7 +141,7 @@ export default function Layout() {
         <div className="app-nav-footer">
           <div className="user-line">
             Signed in as <strong>{user?.username || '…'}</strong>
-            {readOnly && <span className="chip chip-neutral" style={{ marginLeft: 6, fontSize: 'var(--fs-caption)' }}>read-only</span>}
+            {readOnly && <span className="chip chip-neutral" style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>read-only</span>}
           </div>
           <button onClick={() => setShowPassword(true)} className="app-nav-footer-btn">Change password</button>
           <button onClick={handleLogout} className="app-nav-footer-btn">Sign out</button>
@@ -149,7 +149,7 @@ export default function Layout() {
       </nav>
       <main className="app-main" ref={mainRef}>
         {readOnly && (
-          <div style={{ background: 'var(--surface-raised)', borderBottom: 'var(--border-w) solid var(--card-border)', padding: '8px 16px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ background: 'var(--surface-raised)', borderBottom: 'var(--border-w) solid var(--card-border)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
             <span>👁</span>
             <span><strong>Read-only view.</strong> You can explore everything your agency is doing here — nothing on your account can be changed from this login.</span>
           </div>

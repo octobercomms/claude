@@ -63,13 +63,13 @@ export default function StrategyTemplatesPanel() {
   if (editing) {
     return (
       <div style={{ maxWidth: 760 }}>
-        <div className="row between center" style={{ marginBottom: 12 }}>
+        <div className="row between center" style={{ marginBottom: 'var(--s3)' }}>
           <h3 className="h3">{editing.id ? 'Edit template' : 'New template'}</h3>
           <button className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>← Back</button>
         </div>
         <div className="field"><label className="field-label">Name</label>
           <input className="input" value={editing.name} onChange={e => set({ name: e.target.value })} placeholder="e.g. Retail · Launch" /></div>
-        <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
           <div className="field" style={{ flex: '1 1 220px' }}><label className="field-label">Business type</label>
             <select className="input" value={editing.business_type} onChange={e => set({ business_type: e.target.value })}>
               <option value="">Select…</option>
@@ -84,16 +84,16 @@ export default function StrategyTemplatesPanel() {
         <div className="field"><label className="field-label">Summary</label>
           <textarea className="input" style={{ minHeight: 60 }} value={editing.summary || ''} onChange={e => set({ summary: e.target.value })} placeholder="The strategic intent in 1–2 sentences." /></div>
 
-        <div className="caption" style={{ margin: '14px 0 6px' }}>Phases & checklist</div>
+        <div className="caption" style={{ margin: 'var(--s4) 0 var(--s2)' }}>Phases & checklist</div>
         {editing.phases.map((ph, pi) => (
-          <div key={pi} className="card" style={{ marginBottom: 10 }}>
-            <div className="row" style={{ gap: 8 }}>
+          <div key={pi} className="card" style={{ marginBottom: 'var(--s3)' }}>
+            <div className="row" style={{ gap: 'var(--s2)' }}>
               <input className="input" style={{ flex: 1, fontWeight: 600 }} value={ph.title} onChange={e => setPhase(pi, { title: e.target.value })} placeholder="Phase title (e.g. Foundations)" />
               <button className="btn btn-secondary btn-sm" onClick={() => delPhase(pi)}>✕ phase</button>
             </div>
-            <div className="stack stack-sm" style={{ marginTop: 8 }}>
+            <div className="stack stack-sm" style={{ marginTop: 'var(--s2)' }}>
               {ph.items.map((it, ii) => (
-                <div key={ii} className="row" style={{ gap: 6 }}>
+                <div key={ii} className="row" style={{ gap: 'var(--s2)' }}>
                   <input className="input" style={{ flex: 1 }} value={it} onChange={e => setItem(pi, ii, e.target.value)} placeholder="Checklist item" />
                   <button className="btn btn-secondary btn-sm" onClick={() => delItem(pi, ii)}>×</button>
                 </div>
@@ -104,7 +104,7 @@ export default function StrategyTemplatesPanel() {
         ))}
         <button className="btn btn-secondary btn-sm" onClick={addPhase}>+ phase</button>
 
-        <div className="row end mt-5" style={{ gap: 8 }}>
+        <div className="row end mt-5" style={{ gap: 'var(--s2)' }}>
           <button className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
           <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save template'}</button>
         </div>
@@ -114,7 +114,7 @@ export default function StrategyTemplatesPanel() {
 
   return (
     <div style={{ maxWidth: 760 }}>
-      <div className="row between center" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+      <div className="row between center" style={{ marginBottom: 'var(--s3)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
         <p className="body-sm text-muted" style={{ margin: 0, maxWidth: 520 }}>
           The strategy-playbook library. Each is assigned to clients by business type + lifecycle stage on their dashboard.
         </p>
@@ -122,13 +122,13 @@ export default function StrategyTemplatesPanel() {
       </div>
       <div className="stack stack-sm">
         {templates.map(t => (
-          <div key={t.id} className="card" style={{ padding: '10px 14px' }}>
-            <div className="row between center" style={{ gap: 10 }}>
+          <div key={t.id} className="card" style={{ padding: 'var(--s3) var(--s4)' }}>
+            <div className="row between center" style={{ gap: 'var(--s3)' }}>
               <div>
                 <div className="body" style={{ fontWeight: 600 }}>{t.name} {t.is_seed && <span className="body-xs text-subtle">· seed</span>}</div>
                 <div className="body-xs text-subtle">{typeLabel(t.business_type)} · {stageLabel(t.lifecycle_stage)} · {(t.phases || []).reduce((n, p) => n + (p.items || []).length, 0)} items</div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => startEdit(t)}>Edit</button>
                 <button className="btn btn-danger btn-sm" onClick={() => remove(t)}>Delete</button>
               </div>

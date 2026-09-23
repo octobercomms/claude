@@ -91,18 +91,18 @@ export default function StrategistChat({ clientId }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--s2)' }}>
         <p className="caption" style={{ color: 'var(--text-subtle)' }}>
           Grounded in the latest briefing — it can pull live data to answer. Type <code>/report</code> for a formatted, downloadable report.
         </p>
         {messages.length > 0 && <button className="btn btn-ghost btn-sm" onClick={clearChat}>Clear</button>}
       </div>
 
-      <div ref={scrollRef} style={{ overflowY: 'auto', maxHeight: '58vh', minHeight: 120, paddingRight: 4 }}>
+      <div ref={scrollRef} style={{ overflowY: 'auto', maxHeight: '58vh', minHeight: 120, paddingRight: 'var(--s1)' }}>
         {messages.length === 0 && !sending && (
-          <div className="empty" style={{ padding: 18 }}>
-            <div style={{ marginBottom: 12 }}>Ask the strategist anything about this account.</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="empty" style={{ padding: 'var(--s5)' }}>
+            <div style={{ marginBottom: 'var(--s3)' }}>Ask the strategist anything about this account.</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
               {SUGGESTIONS.map(s => (
                 <button key={s} className="btn btn-secondary btn-sm" style={{ textAlign: 'left', justifyContent: 'flex-start' }}
                   onClick={() => send(s)}>{s}</button>
@@ -112,7 +112,7 @@ export default function StrategistChat({ clientId }) {
         )}
 
         {messages.map(m => (
-          <div key={m.id} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
+          <div key={m.id} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 'var(--s3)' }}>
             <div className={m.role === 'user' ? '' : 'card body-sm'} style={{
               maxWidth: m.role === 'user' ? '80%' : '92%',
               background: m.role === 'user' ? 'var(--text)' : undefined,
@@ -126,7 +126,7 @@ export default function StrategistChat({ clientId }) {
                 : <>
                     <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{m.content || ''}</ReactMarkdown>
                     {!String(m.id).startsWith('tmp-') && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 8, borderTop: '1px solid var(--card-border)', paddingTop: 8 }}>
+                      <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)', borderTop: '1px solid var(--card-border)', paddingTop: 'var(--s2)' }}>
                         <button className="btn btn-ghost btn-sm" disabled={!!downloading} onClick={() => download(m.id, 'pdf')} title="Download this answer as a PDF">
                           {downloading === `${m.id}.pdf` ? '…' : '↓ PDF'}
                         </button>
@@ -143,13 +143,13 @@ export default function StrategistChat({ clientId }) {
           </div>
         ))}
 
-        {sending && <div className="caption" style={{ color: 'var(--text-subtle)', padding: '4px 2px' }}>The strategist is thinking — checking the data…</div>}
+        {sending && <div className="caption" style={{ color: 'var(--text-subtle)', padding: 'var(--s1) var(--s1)' }}>The strategist is thinking — checking the data…</div>}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)', alignItems: 'flex-end' }}>
         <textarea ref={taRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKeyDown} rows={2}
           placeholder="Ask the strategist… (Enter to send, Shift+Enter for a new line). Prefix /report for a downloadable report."
-          style={{ flex: 1, resize: 'vertical', padding: '10px 12px', fontSize: 'var(--fs-body)', fontFamily: 'inherit',
+          style={{ flex: 1, resize: 'vertical', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', fontFamily: 'inherit',
             border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
         <button className="btn btn-primary" disabled={sending || !input.trim()} onClick={() => send()}>
           {sending ? 'Sending…' : 'Send'}
@@ -160,17 +160,17 @@ export default function StrategistChat({ clientId }) {
 }
 
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '10px 0 8px' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '14px 0 8px' }} {...p} />,
-  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '12px 0 6px' }} {...p} />,
-  p: ({ node, ...p }) => <p style={{ margin: '0 0 10px', lineHeight: 1.55 }} {...p} />,
-  ul: ({ node, ...p }) => <ul style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
-  ol: ({ node, ...p }) => <ol style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
-  li: ({ node, ...p }) => <li style={{ marginBottom: 5, lineHeight: 1.5 }} {...p} />,
+  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s3) 0 var(--s2)' }} {...p} />,
+  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s4) 0 var(--s2)' }} {...p} />,
+  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s3) 0 var(--s2)' }} {...p} />,
+  p: ({ node, ...p }) => <p style={{ margin: '0 0 var(--s3)', lineHeight: 1.55 }} {...p} />,
+  ul: ({ node, ...p }) => <ul style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s5)' }} {...p} />,
+  ol: ({ node, ...p }) => <ol style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s5)' }} {...p} />,
+  li: ({ node, ...p }) => <li style={{ marginBottom: 'var(--s1)', lineHeight: 1.5 }} {...p} />,
   table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }} {...p} /></div>,
-  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '7px 9px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
-  td: ({ node, ...p }) => <td style={{ padding: '6px 9px', borderBottom: '1px solid var(--card-border)', verticalAlign: 'top' }} {...p} />,
+  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: 'var(--s2) var(--s2)', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
+  td: ({ node, ...p }) => <td style={{ padding: 'var(--s2) var(--s2)', borderBottom: '1px solid var(--card-border)', verticalAlign: 'top' }} {...p} />,
   code: ({ node, inline, ...p }) => inline
-    ? <code style={{ background: 'var(--surface-2, #f3f3f3)', padding: '1px 5px', borderRadius: 4, fontSize: 'var(--fs-body)' }} {...p} />
-    : <code style={{ display: 'block', background: 'var(--surface-2, #f3f3f3)', padding: 10, borderRadius: 6, fontSize: 'var(--fs-body)', overflowX: 'auto' }} {...p} />,
+    ? <code style={{ background: 'var(--surface-2, #f3f3f3)', padding: 'var(--s1) var(--s1)', borderRadius: 4, fontSize: 'var(--fs-body)' }} {...p} />
+    : <code style={{ display: 'block', background: 'var(--surface-2, #f3f3f3)', padding: 'var(--s3)', borderRadius: 6, fontSize: 'var(--fs-body)', overflowX: 'auto' }} {...p} />,
 };

@@ -18,12 +18,12 @@ function ResizingModal({ count, images }) {
     return () => clearInterval(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 }}>
-      <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 420, textAlign: 'center', padding: '40px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1000 }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 420, textAlign: 'center', padding: 'var(--s8) var(--s7)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
         <div className="spinner" style={{ margin: '0 auto' }} />
-        <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)', marginTop: 20 }}>Resizing your {images > 1 ? `${images} images` : 'image'}</div>
-        <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 8, minHeight: 20 }}>{steps[i]}</div>
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 14, lineHeight: 1.5 }}>
+        <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)', marginTop: 'var(--s5)' }}>Resizing your {images > 1 ? `${images} images` : 'image'}</div>
+        <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 'var(--s2)', minHeight: 20 }}>{steps[i]}</div>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s4)', lineHeight: 1.5 }}>
           {count ? `Making ${count} image${count === 1 ? '' : 's'} in all. ` : ''}Each expand takes a few seconds — they appear here as soon as they're ready.
         </div>
       </div>
@@ -191,7 +191,7 @@ export default function AdResizePanel({ clientId, clientName }) {
   return (
     <div className="stack stack-lg">
       <div>
-        <h2 className="h2" style={{ marginBottom: 4 }}>Resize for ads</h2>
+        <h2 className="h2" style={{ marginBottom: 'var(--s1)' }}>Resize for ads</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', maxWidth: 640, margin: 0 }}>
           Drop in one image or a whole batch and get each one back in every ad size you need. The
           background is expanded to fit each shape — nothing gets cropped — and a small image is
@@ -216,13 +216,13 @@ export default function AdResizePanel({ clientId, clientName }) {
           onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
         {items.length ? (
           <div onClick={e => e.stopPropagation()} style={{ textAlign: 'left' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s3)' }}>
               {items.map(it => (
                 <div key={it.id} style={{ position: 'relative', width: 96 }}>
                   <img src={it.url} alt={it.file.name} style={{ width: 96, height: 96, objectFit: 'contain', borderRadius: 'var(--r-sm)', background: '#00000008', border: 'var(--border-w) solid var(--card-border)' }} />
                   <button onClick={() => removeItem(it.id)} title="Remove"
                     style={{ position: 'absolute', top: -8, right: -8, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'var(--text)', color: '#fff', fontSize: 'var(--fs-body)', lineHeight: '22px', cursor: 'pointer', padding: 0 }}>×</button>
-                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.file.name}</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.file.name}</div>
                   {it.dims && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{it.dims.w}×{it.dims.h}</div>}
                 </div>
               ))}
@@ -231,7 +231,7 @@ export default function AdResizePanel({ clientId, clientName }) {
                 + Add
               </button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--s3)' }}>
               <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{items.length} image{items.length === 1 ? '' : 's'} · up to 25</span>
               <button className="btn btn-secondary btn-sm" onClick={clearAll}>Clear all</button>
             </div>
@@ -239,7 +239,7 @@ export default function AdResizePanel({ clientId, clientName }) {
         ) : (
           <>
             <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>Drop images here, or click to choose</div>
-            <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', marginTop: 6 }}>PNG or JPG · one or many · any size</div>
+            <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>PNG or JPG · one or many · any size</div>
           </>
         )}
       </div>
@@ -247,7 +247,7 @@ export default function AdResizePanel({ clientId, clientName }) {
       {/* Size picker */}
       {groups.length > 0 && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
             <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Ad sizes {selCount ? `· ${selCount} selected` : ''}
             </div>
@@ -255,22 +255,22 @@ export default function AdResizePanel({ clientId, clientName }) {
               {selected.size === allKeys.length ? 'Clear all' : 'Select all'}
             </button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 'var(--s4)' }}>
             {groups.map(g => {
               const keys = g.sizes.map(s => s.key);
               const allOn = keys.every(k => selected.has(k));
               return (
-                <div key={g.family} style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 12, background: 'var(--surface)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div key={g.family} style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 'var(--s3)', background: 'var(--surface)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)' }}>
                     <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>{g.family}</div>
                     <button onClick={() => toggleFamily(g)}
                       style={{ border: 'none', background: 'none', color: 'var(--accent, var(--text))', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
                       {allOn ? 'None' : 'All'}
                     </button>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
                     {g.sizes.map(s => (
-                      <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-body)', cursor: 'pointer', padding: '3px 0' }}>
+                      <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)', cursor: 'pointer', padding: 'var(--s1) 0' }}>
                         <input type="checkbox" checked={selected.has(s.key)} onChange={() => toggle(s.key)} />
                         <span style={{ flex: 1 }}>{s.label}</span>
                         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{s.dims}</span>
@@ -285,7 +285,7 @@ export default function AdResizePanel({ clientId, clientName }) {
       )}
 
       {/* Action bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)', flexWrap: 'wrap' }}>
         <button className="btn btn-primary" disabled={busy || !items.length || !selCount} onClick={run}>
           {busy ? 'Resizing…' : `Resize ${items.length || 0} image${items.length === 1 ? '' : 's'} into ${selCount || 0} size${selCount === 1 ? '' : 's'}`}
         </button>
@@ -299,11 +299,11 @@ export default function AdResizePanel({ clientId, clientName }) {
 
       {/* Results header — download all */}
       {result && (result.items || []).some(it => (it.outputs || []).some(o => !o.error)) && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', paddingTop: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap', paddingTop: 'var(--s1)' }}>
           <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Results{result.created_at ? ` · ${new Date(result.created_at).toLocaleDateString()}` : ''}
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center' }}>
             {(() => {
               // Only failures whose image still has a stored source can be retried
               // in place; older runs (pre source-saving) must be re-uploaded.
@@ -331,7 +331,7 @@ export default function AdResizePanel({ clientId, clientName }) {
       {/* Results — one section per source image */}
       {result && (result.items || []).map((it, idx) => (
         <div key={idx}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s3)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
             <h3 className="h3" style={{ margin: 0 }}>{it.name || `Image ${idx + 1}`}</h3>
             {it.source?.upscaled && (
               <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
@@ -340,22 +340,22 @@ export default function AdResizePanel({ clientId, clientName }) {
             )}
           </div>
           {it.retry_note && (
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 8 }}>{it.retry_note}</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>{it.retry_note}</div>
           )}
           {it.error ? (
-            <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 8 }}>{it.error}</div>
+            <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>{it.error}</div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 'var(--s4)' }}>
               {(it.outputs || []).map(o => (
                 <div key={o.key} style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', overflow: 'hidden', background: 'var(--surface)' }}>
                   <div style={{ aspectRatio: `${o.w} / ${o.h}`, background: '#00000008', display: 'flex', alignItems: 'center', justifyContent: 'center', maxHeight: 220 }}>
                     {o.error
-                      ? <div style={{ padding: 12, fontSize: 'var(--fs-caption)', color: 'var(--negative)', textAlign: 'center' }}>{o.error}</div>
+                      ? <div style={{ padding: 'var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--negative)', textAlign: 'center' }}>{o.error}</div>
                       : <img src={o.url} alt={o.label} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />}
                   </div>
-                  <div style={{ padding: 10 }}>
+                  <div style={{ padding: 'var(--s3)' }}>
                     <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>{o.label}</div>
-                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '2px 0 8px' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s1) 0 var(--s2)' }}>
                       {o.family} · {o.dims}
                       {o.method === 'expanded' && <span> · expanded</span>}
                     </div>
@@ -376,13 +376,13 @@ export default function AdResizePanel({ clientId, clientName }) {
 
       {/* Saved resizes — reopen or bulk-download a past run */}
       {history.length > 0 && (
-        <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 20, marginTop: 4 }}>
-          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
+        <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 'var(--s5)', marginTop: 'var(--s1)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>
             Saved resizes
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
             {history.map(b => (
-              <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 10, background: 'var(--surface)' }}>
+              <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 'var(--s3)', background: 'var(--surface)' }}>
                 {b.thumb
                   ? <img src={b.thumb} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 'var(--r-sm)', background: '#00000008', flexShrink: 0 }} />
                   : <div style={{ width: 48, height: 48, borderRadius: 'var(--r-sm)', background: '#00000008', flexShrink: 0 }} />}

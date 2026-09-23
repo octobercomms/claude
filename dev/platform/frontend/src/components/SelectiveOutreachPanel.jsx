@@ -55,7 +55,7 @@ export default function SelectiveOutreachPanel({ clientId }) {
     } catch (e) { toast(e.message, 'error'); }
   }
 
-  if (loading) return <div className="text-subtle" style={{ padding: 24 }}>Loading…</div>;
+  if (loading) return <div className="text-subtle" style={{ padding: 'var(--s6)' }}>Loading…</div>;
 
   return (
     <div className="stack stack-lg">
@@ -83,7 +83,7 @@ export default function SelectiveOutreachPanel({ clientId }) {
       ) : (
         <>
           {/* Campaign selector */}
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
             {campaigns.map(c => (
               <button
                 key={c.id}
@@ -93,14 +93,14 @@ export default function SelectiveOutreachPanel({ clientId }) {
               >
                 {c.name}
                 {c.status !== 'active' ? <span className="text-muted"> · {c.status}</span> : null}
-                {Number(c.pending_messages) > 0 ? <span style={{ marginLeft: 6, color: '#9a6b00', fontWeight: 700 }}>{c.pending_messages} to review</span> : null}
+                {Number(c.pending_messages) > 0 ? <span style={{ marginLeft: 'var(--s2)', color: '#9a6b00', fontWeight: 700 }}>{c.pending_messages} to review</span> : null}
               </button>
             ))}
           </div>
 
           {active && (
             <>
-              <div className="row" style={{ gap: 4, borderBottom: '1px solid var(--border, #eee)', paddingBottom: 8 }}>
+              <div className="row" style={{ gap: 'var(--s1)', borderBottom: '1px solid var(--border, #eee)', paddingBottom: 'var(--s2)' }}>
                 {[['queue', 'Approval queue'], ['prospects', 'Prospects'], ['setup', 'Setup'], ['suppression', 'Suppression']].map(([k, label]) => (
                   <button key={k} className={`btn btn-sm ${view === k ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setView(k)}>{label}</button>
                 ))}
@@ -157,7 +157,7 @@ function QueueView({ campaign, onChange }) {
 
   return (
     <div className="stack">
-      <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+      <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
         {[['pending', 'To review'], ['approved', 'Scheduled'], ['sent', 'Sent'], ['skipped', 'Skipped']].map(([k, l]) => (
           <button key={k} className={`btn btn-xs ${state === k ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setState(k)}>{l}</button>
         ))}
@@ -174,7 +174,7 @@ function QueueView({ campaign, onChange }) {
             </p>
           </div>
         ) : messages.map(m => (
-          <div key={m.id} className="card" style={{ padding: 14, border: '1px solid var(--border,#eee)', borderRadius: 8 }}>
+          <div key={m.id} className="card" style={{ padding: 'var(--s4)', border: '1px solid var(--border,#eee)', borderRadius: 8 }}>
             <div className="row between" style={{ alignItems: 'flex-start' }}>
               <div>
                 <strong>{m.company || '—'}</strong>
@@ -190,10 +190,10 @@ function QueueView({ campaign, onChange }) {
             {m.one_fact ? <div className="body-sm mt-1"><em>Hook:</em> {m.one_fact}</div> : null}
 
             {state === 'pending' ? (
-              <div className="stack mt-3" style={{ gap: 6 }}>
+              <div className="stack mt-3" style={{ gap: 'var(--s2)' }}>
                 <input className="input" value={editVal(m, 'subject')} onChange={e => setEdit(m.id, 'subject', e.target.value)} placeholder="Subject" />
                 <textarea className="input" rows={7} value={editVal(m, 'body')} onChange={e => setEdit(m.id, 'body', e.target.value)} style={{ fontFamily: 'inherit' }} />
-                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
                   {dirty(m) && <button className="btn btn-sm btn-ghost" onClick={() => saveEdit(m)}>Save edits</button>}
                   <button className="btn btn-sm btn-primary" onClick={() => act(m, 'approve')}>Approve → schedule</button>
                   <button className="btn btn-sm" onClick={() => act(m, 'send')}>Approve &amp; send now</button>
@@ -275,15 +275,15 @@ function ProspectsView({ campaign, onChange }) {
 
   return (
     <div className="stack">
-      <div className="row between" style={{ flexWrap: 'wrap', gap: 8 }}>
-        <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+      <div className="row between" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
+        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
           {states.map(([k, l]) => (
             <button key={k} className={`btn btn-xs ${state === k ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setState(k)}>
               {l}{data.counts[k] ? ` (${data.counts[k]})` : ''}
             </button>
           ))}
         </div>
-        <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
           <button className="btn btn-sm btn-primary" disabled={busy} onClick={runResearch}>{busy ? 'Working…' : 'Find prospects (AI)'}</button>
           <button className="btn btn-sm btn-ghost" disabled={busy} onClick={scoreUnscored}>Score unscored</button>
           <button className="btn btn-sm btn-ghost" onClick={() => setShowImport(v => !v)}>Import CSV</button>
@@ -292,27 +292,27 @@ function ProspectsView({ campaign, onChange }) {
       </div>
 
       {showImport && (
-        <div className="card" style={{ padding: 12 }}>
+        <div className="card" style={{ padding: 'var(--s3)' }}>
           <p className="body-sm text-muted">One per line: <code>company, contact name, email, role, website</code>. A header row is skipped.</p>
           <textarea className="input" rows={5} value={importText} onChange={e => setImportText(e.target.value)} placeholder="Acme Studio, Jane Doe, jane@acme.com, Director, https://acme.com" />
-          <div className="row mt-2" style={{ gap: 6 }}><button className="btn btn-sm btn-primary" onClick={doImport}>Import</button><button className="btn btn-sm btn-ghost" onClick={() => setShowImport(false)}>Cancel</button></div>
+          <div className="row mt-2" style={{ gap: 'var(--s2)' }}><button className="btn btn-sm btn-primary" onClick={doImport}>Import</button><button className="btn btn-sm btn-ghost" onClick={() => setShowImport(false)}>Cancel</button></div>
         </div>
       )}
       {showAdd && (
-        <div className="card" style={{ padding: 12 }}>
-          <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 8 }}>
+        <div className="card" style={{ padding: 'var(--s3)' }}>
+          <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 'var(--s2)' }}>
             {['company', 'contact_name', 'email', 'role', 'website', 'one_fact'].map(f => (
               <input key={f} className="input" placeholder={f.replace('_', ' ')} value={addForm[f]} onChange={e => setAddForm(s => ({ ...s, [f]: e.target.value }))} />
             ))}
           </div>
-          <div className="row mt-2" style={{ gap: 6 }}><button className="btn btn-sm btn-primary" onClick={doAdd}>Add</button><button className="btn btn-sm btn-ghost" onClick={() => setShowAdd(false)}>Cancel</button></div>
+          <div className="row mt-2" style={{ gap: 'var(--s2)' }}><button className="btn btn-sm btn-primary" onClick={doAdd}>Add</button><button className="btn btn-sm btn-ghost" onClick={() => setShowAdd(false)}>Cancel</button></div>
         </div>
       )}
 
       {loading ? <div className="text-subtle">Loading…</div>
         : !data.prospects.length ? <div className="empty"><div className="h3">No {state} prospects</div></div>
           : data.prospects.map(p => (
-            <div key={p.id} className="card" style={{ padding: 12, border: '1px solid var(--border,#eee)', borderRadius: 8 }}>
+            <div key={p.id} className="card" style={{ padding: 'var(--s3)', border: '1px solid var(--border,#eee)', borderRadius: 8 }}>
               <div className="row between" style={{ alignItems: 'flex-start' }}>
                 <div>
                   <strong>{p.company || '—'}</strong>
@@ -325,7 +325,7 @@ function ProspectsView({ campaign, onChange }) {
                 <FitBadge verdict={p.fit_verdict} score={p.fit_score} />
               </div>
               {state === 'new' && (
-                <div className="row mt-2" style={{ gap: 6, flexWrap: 'wrap' }}>
+                <div className="row mt-2" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
                   <button className="btn btn-xs btn-primary" onClick={() => approve(p)} disabled={!p.email} title={p.email ? '' : 'Add an email first'}>Approve → draft</button>
                   <button className="btn btn-xs btn-ghost" onClick={() => dismiss(p)}>Dismiss</button>
                   <button className="btn btn-xs btn-ghost" onClick={() => rescore(p)}>Re-score</button>
@@ -384,7 +384,7 @@ function SetupView({ campaign, clientId, onChange }) {
   }
 
   const F = (label, node, hint) => (
-    <label className="stack" style={{ gap: 4 }}>
+    <label className="stack" style={{ gap: 'var(--s1)' }}>
       <span className="body-sm" style={{ fontWeight: 600 }}>{label}</span>
       {node}
       {hint ? <span className="body-sm text-muted">{hint}</span> : null}
@@ -406,15 +406,15 @@ function SetupView({ campaign, clientId, onChange }) {
       {F('Booking link', <input className="input" value={form.booking_url} onChange={e => setForm(f => ({ ...f, booking_url: e.target.value }))} placeholder="https://cal.com/you/intro" />, 'Your real Cal.com / Calendly link. Only offered when a call is warranted.')}
       {F('Daily send cap', <input className="input" type="number" min="1" value={form.daily_cap} onChange={e => setForm(f => ({ ...f, daily_cap: e.target.value }))} />, 'Max sends per day for this campaign — keeps sending human-paced.')}
 
-      <div className="stack" style={{ gap: 6 }}>
+      <div className="stack" style={{ gap: 'var(--s2)' }}>
         <span className="body-sm" style={{ fontWeight: 600 }}>Sending identity</span>
         <select className="input" value={form.sender_identity_id} onChange={e => setForm(f => ({ ...f, sender_identity_id: e.target.value }))}>
           <option value="">— none selected —</option>
           {identities.map(i => <option key={i.id} value={i.id}>{i.from_name} &lt;{i.from_email}&gt; {i.auth_ok ? '✓ authenticated' : '⚠ not authenticated'}</option>)}
         </select>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
           {identities.map(i => (
-            <span key={i.id} className="body-sm" style={{ padding: '3px 8px', border: '1px solid var(--border,#eee)', borderRadius: 6 }}>
+            <span key={i.id} className="body-sm" style={{ padding: 'var(--s1) var(--s2)', border: '1px solid var(--border,#eee)', borderRadius: 6 }}>
               {i.from_email} · <button className="btn btn-xs btn-ghost" onClick={() => toggleAuth(i)} style={{ color: i.auth_ok ? '#1a7f37' : '#c62828' }}>
                 {i.auth_ok ? 'authenticated ✓' : 'mark authenticated'}
               </button>
@@ -427,16 +427,16 @@ function SetupView({ campaign, clientId, onChange }) {
           dedicated sending domain — never the client's primary domain). Mark it authenticated once DNS is green.
         </p>
         {showIdentity && (
-          <div className="card" style={{ padding: 12 }}>
-            <div className="stack" style={{ gap: 6 }}>
+          <div className="card" style={{ padding: 'var(--s3)' }}>
+            <div className="stack" style={{ gap: 'var(--s2)' }}>
               <input className="input" placeholder="From name (a real person)" value={idForm.from_name} onChange={e => setIdForm(s => ({ ...s, from_name: e.target.value }))} />
               <input className="input" placeholder="From email (on a dedicated domain)" value={idForm.from_email} onChange={e => setIdForm(s => ({ ...s, from_email: e.target.value }))} />
               <input className="input" placeholder="Postal address (required in every email)" value={idForm.postal_address} onChange={e => setIdForm(s => ({ ...s, postal_address: e.target.value }))} />
-              <label className="row body-sm" style={{ gap: 6 }}>
+              <label className="row body-sm" style={{ gap: 'var(--s2)' }}>
                 <input type="checkbox" checked={idForm.auth_ok} onChange={e => setIdForm(s => ({ ...s, auth_ok: e.target.checked }))} />
                 SPF/DKIM/DMARC verified (required before it can send)
               </label>
-              <div className="row" style={{ gap: 6 }}><button className="btn btn-sm btn-primary" onClick={createIdentity}>Add</button><button className="btn btn-sm btn-ghost" onClick={() => setShowIdentity(false)}>Cancel</button></div>
+              <div className="row" style={{ gap: 'var(--s2)' }}><button className="btn btn-sm btn-primary" onClick={createIdentity}>Add</button><button className="btn btn-sm btn-ghost" onClick={() => setShowIdentity(false)}>Cancel</button></div>
             </div>
           </div>
         )}
@@ -480,14 +480,14 @@ function SuppressionView({ clientId }) {
         The permanent do-not-contact list — checked at both scoring and send. Opt-outs land here automatically. Add an
         email or a whole domain (e.g. <code>acme.com</code>) to block it everywhere.
       </p>
-      <div className="row" style={{ gap: 6 }}>
+      <div className="row" style={{ gap: 'var(--s2)' }}>
         <input className="input" placeholder="email or domain" value={value} onChange={e => setValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} />
         <button className="btn btn-sm btn-primary" onClick={add}>Add</button>
       </div>
       {loading ? <div className="text-subtle">Loading…</div>
         : !rows.length ? <div className="body-sm text-muted">Nothing suppressed yet.</div>
           : rows.map(r => (
-            <div key={r.id} className="row between" style={{ padding: '6px 0', borderBottom: '1px solid var(--border,#f0f0f0)' }}>
+            <div key={r.id} className="row between" style={{ padding: 'var(--s2) 0', borderBottom: '1px solid var(--border,#f0f0f0)' }}>
               <span className="body-sm"><strong>{r.value}</strong> <span className="text-muted">· {r.kind} · {r.reason}</span></span>
               <button className="btn btn-xs btn-ghost" onClick={() => remove(r.id)}>Remove</button>
             </div>

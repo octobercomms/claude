@@ -49,7 +49,7 @@ export default function CtrBoostPanel({ clientId }) {
         </div>
         <div style={{ flex: '0 0 auto' }}>
           {[7, 28, 90].map(n => (
-            <button key={n} onClick={() => setDays(n)} className={`btn btn-sm ${days === n ? 'btn-primary' : 'btn-secondary'}`} style={{ marginLeft: 4 }}>{n}D</button>
+            <button key={n} onClick={() => setDays(n)} className={`btn btn-sm ${days === n ? 'btn-primary' : 'btn-secondary'}`} style={{ marginLeft: 'var(--s1)' }}>{n}D</button>
           ))}
         </div>
       </div>
@@ -63,7 +63,7 @@ export default function CtrBoostPanel({ clientId }) {
       </div>
 
       {loading && !opps.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading Search Console data…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading Search Console data…</div>
       ) : !opps.length ? (
         <div className="card"><p className="body-sm text-subtle">
           No clear CTR gaps right now — either your snippets are already pulling their weight, or there isn&apos;t
@@ -74,30 +74,30 @@ export default function CtrBoostPanel({ clientId }) {
           <table className="table">
             <thead>
               <tr>
-                <th className="caption" style={{ padding: '8px 10px' }}>Query</th>
-                <th className="caption" style={{ padding: '8px 10px' }}>Page</th>
-                <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Pos.</th>
-                <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>CTR</th>
-                <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Expected</th>
-                <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Missed</th>
-                <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Action</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Query</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Page</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Pos.</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>CTR</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Expected</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Missed</th>
+                <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {opps.map((o, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-body)' }}><strong>{o.query}</strong></td>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)' }}><strong>{o.query}</strong></td>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {o.url ? <a href={o.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)' }}>{o.url.replace(/^https?:\/\//, '').slice(0, 50)}</a> : <em>—</em>}
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-body)', textAlign: 'right', fontWeight: 700 }}>#{o.position}</td>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right', color: 'var(--negative)', fontWeight: 700 }}>{(o.ctr * 100).toFixed(1)}%</td>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right', color: 'var(--text-subtle)' }}>{(o.expected_ctr * 100).toFixed(1)}%</td>
-                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>
-                    <span style={{ background: 'var(--positive-soft)', color: 'var(--positive)', padding: '2px 8px', borderRadius: 'var(--r-pill)', fontWeight: 700 }}>+{o.missed_clicks.toLocaleString()}</span>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', textAlign: 'right', fontWeight: 700 }}>#{o.position}</td>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', textAlign: 'right', color: 'var(--negative)', fontWeight: 700 }}>{(o.ctr * 100).toFixed(1)}%</td>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', textAlign: 'right', color: 'var(--text-subtle)' }}>{(o.expected_ctr * 100).toFixed(1)}%</td>
+                  <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>
+                    <span style={{ background: 'var(--positive-soft)', color: 'var(--positive)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)', fontWeight: 700 }}>+{o.missed_clicks.toLocaleString()}</span>
                   </td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>
-                    <button onClick={() => setActive(o)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 6px' }}>Rewrite →</button>
+                  <td style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>
+                    <button onClick={() => setActive(o)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 var(--s2)' }}>Rewrite →</button>
                   </td>
                 </tr>
               ))}
@@ -107,7 +107,7 @@ export default function CtrBoostPanel({ clientId }) {
       )}
 
       {range && opps.length > 0 && (
-        <p className="body-sm text-subtle" style={{ marginTop: 10 }}>
+        <p className="body-sm text-subtle" style={{ marginTop: 'var(--s3)' }}>
           Search Console window: {range.startDate} → {range.endDate}. Expected CTR is a position-based baseline used
           only to surface under-clicked pages, not a guarantee.
         </p>
@@ -157,41 +157,41 @@ function RewriteModal({ clientId, opp, onClose }) {
         <div className="modal-head">
           <div>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Rewrite snippet to win the click</div>
-            <h2 style={{ margin: '4px 0 0', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{opp.query}</h2>
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
+            <h2 style={{ margin: 'var(--s1) 0 0', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{opp.query}</h2>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
               #{opp.position} · {(opp.ctr * 100).toFixed(1)}% CTR vs {(opp.expected_ctr * 100).toFixed(1)}% expected · +{opp.missed_clicks.toLocaleString()} clicks on the table
             </div>
           </div>
           <button onClick={onClose} className="modal-close">×</button>
         </div>
 
-        <div style={{ padding: '4px 0', overflowY: 'auto' }}>
+        <div style={{ padding: 'var(--s1) 0', overflowY: 'auto' }}>
           <p className="body-sm text-muted" style={{ marginTop: 0 }}>
             Optional: paste the live title tag and meta description so Claude rewrites from what&apos;s there. Leave
             blank and it&apos;ll infer plausible current copy from the query and URL.
           </p>
           <label className="caption">Current title tag</label>
           <input value={currentTitle} onChange={e => setCurrentTitle(e.target.value)} placeholder="(optional)"
-            style={{ width: '100%', padding: '7px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: '4px 0 12px' }} />
+            style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: 'var(--s1) 0 var(--s3)' }} />
           <label className="caption">Current meta description</label>
           <textarea value={currentDesc} onChange={e => setCurrentDesc(e.target.value)} placeholder="(optional)" rows={2}
-            style={{ width: '100%', padding: '7px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: '4px 0 12px', fontFamily: 'inherit', resize: 'vertical' }} />
+            style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: 'var(--s1) 0 var(--s3)', fontFamily: 'inherit', resize: 'vertical' }} />
 
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading })}>
             {loading ? 'Drafting…' : suggestion ? 'Re-draft' : 'Draft new snippet'}
           </button>
 
-          {err && <div className="callout callout-danger" style={{ marginTop: 14 }}>{err}</div>}
+          {err && <div className="callout callout-danger" style={{ marginTop: 'var(--s4)' }}>{err}</div>}
 
           {suggestion && (
-            <div style={{ marginTop: 18 }}>
+            <div style={{ marginTop: 'var(--s5)' }}>
               <Suggested label="Meta title" value={suggestion.meta_title} hint={`${(suggestion.meta_title || '').length}/60`} onCopy={() => copy(suggestion.meta_title, 'title')} copied={copied === 'title'} />
               {suggestion.alt_title && (
                 <Suggested label="Alternative title" value={suggestion.alt_title} hint={`${(suggestion.alt_title || '').length}/60`} onCopy={() => copy(suggestion.alt_title, 'alt')} copied={copied === 'alt'} />
               )}
               <Suggested label="Meta description" value={suggestion.meta_description} hint={`${(suggestion.meta_description || '').length}/155`} onCopy={() => copy(suggestion.meta_description, 'desc')} copied={copied === 'desc'} />
               {suggestion.rationale && (
-                <div style={{ marginTop: 6 }}>
+                <div style={{ marginTop: 'var(--s2)' }}>
                   <div className="caption mb-2">Why this wins the click</div>
                   <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.6 }}>{suggestion.rationale}</div>
                 </div>
@@ -206,10 +206,10 @@ function RewriteModal({ clientId, opp, onClose }) {
 
 function Suggested({ label, value, hint, onCopy, copied }) {
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 'var(--s4)' }}>
       <div className="row between" style={{ alignItems: 'baseline' }}>
         <div className="caption mb-2">{label} <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>· {hint}</span></div>
-        <button onClick={onCopy} className="btn btn-ghost btn-sm" style={{ color: copied ? 'var(--positive)' : 'var(--accent)', padding: '0 6px' }}>{copied ? 'Copied' : 'Copy'}</button>
+        <button onClick={onCopy} className="btn btn-ghost btn-sm" style={{ color: copied ? 'var(--positive)' : 'var(--accent)', padding: '0 var(--s2)' }}>{copied ? 'Copied' : 'Copy'}</button>
       </div>
       <div className="card" style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, color: 'var(--text)' }}>{value}</div>
     </div>
@@ -224,7 +224,7 @@ function Stat({ label, value, tone }) {
   return (
     <div className="card">
       <div className="caption">{label}</div>
-      <div className="metric" style={{ color: colour, marginTop: 4 }}>{value}</div>
+      <div className="metric" style={{ color: colour, marginTop: 'var(--s1)' }}>{value}</div>
     </div>
   );
 }

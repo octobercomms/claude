@@ -20,7 +20,7 @@ const MAX_W = 1140;
 // renders crisply at any size.
 function Arrow({ size = 14 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 6, flexShrink: 0 }}>
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 'var(--s2)', flexShrink: 0 }}>
       <path d="M3 11 L11 3 M5.5 3 H11 V8.5" stroke={WHITE} strokeWidth="2.2" strokeLinecap="square" strokeLinejoin="miter" />
     </svg>
   );
@@ -29,7 +29,7 @@ function DarkArrow({ size = 14 }) {
   // Variant for the one place an arrow sits on a white pill — needs
   // dark stroke to remain visible.
   return (
-    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 6, flexShrink: 0 }}>
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 'var(--s2)', flexShrink: 0 }}>
       <path d="M3 11 L11 3 M5.5 3 H11 V8.5" stroke={BLACK} strokeWidth="2.4" strokeLinecap="square" strokeLinejoin="miter" />
     </svg>
   );
@@ -62,7 +62,7 @@ export default function HomePage() {
             <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
               <img src="/logo-black.gif" alt="October Communications" style={{ height: 32, display: 'block' }} />
             </Link>
-            <nav style={{ display: 'flex', gap: 22, fontSize: 'var(--fs-body)', alignItems: 'center' }}>
+            <nav style={{ display: 'flex', gap: 'var(--s6)', fontSize: 'var(--fs-body)', alignItems: 'center' }}>
               <a href="#what" style={styles.topLink}>what it does</a>
               <a href="#how" style={styles.topLink}>how it works</a>
               <a href="#pricing" style={styles.topLink}>pricing</a>
@@ -86,7 +86,7 @@ export default function HomePage() {
             ecommerce, sales, email, seo, ads and outreach — pulled live from the tools you already use,
             then turned into reports, social, ad creative and answers you can actually use.
           </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 36 }}>
+          <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginTop: 'var(--s8)' }}>
             <a href="#waitlist" style={styles.pillWhite}>join the waitlist<DarkArrow /></a>
             <a href="#what" style={styles.pillOutline}>see what it does<Arrow /></a>
           </div>
@@ -118,7 +118,7 @@ export default function HomePage() {
                 <span style={{ color: YELLOW }}>every client.</span>
               </h2>
               <a href="#waitlist" style={styles.pillWhiteSm}>join waitlist<DarkArrow /></a>
-              <div style={{ marginTop: 14 }}>
+              <div style={{ marginTop: 'var(--s4)' }}>
                 <a href="#pricing" style={{ ...styles.topLink, display: 'inline-flex', alignItems: 'center' }}>
                   pricing<Arrow size={12} />
                 </a>
@@ -154,7 +154,7 @@ export default function HomePage() {
       {/* How it works */}
       <section id="how" style={styles.section}>
         <div style={styles.container}>
-          <h2 className="h2" style={{ marginBottom: 36 }}>
+          <h2 className="h2" style={{ marginBottom: 'var(--s8)' }}>
             three things, in sequence.
           </h2>
           <div style={styles.howGrid}>
@@ -171,7 +171,7 @@ export default function HomePage() {
       {/* What it actually does */}
       <section style={styles.section}>
         <div style={styles.container}>
-          <h2 className="h2" style={{ marginBottom: 36 }}>
+          <h2 className="h2" style={{ marginBottom: 'var(--s8)' }}>
             what it actually does.
           </h2>
           <div style={styles.capGrid}>
@@ -187,7 +187,7 @@ export default function HomePage() {
       </section>
 
       {/* AI chat showcase */}
-      <section style={{ ...styles.section, paddingTop: 60 }}>
+      <section style={{ ...styles.section, paddingTop: 'var(--s9)' }}>
         <div style={styles.container}>
           <div style={styles.aiGrid}>
             <div>
@@ -208,7 +208,7 @@ export default function HomePage() {
                 { role: 'you', text: 'what should we do about it?' },
                 { role: 'claude', text: 'google ads spend was flat but impressions fell. likely quality score drop or competition on brand terms. audit negatives, check bid-strategy changes around 14th.' },
               ].map((m, i) => (
-                <div key={i} style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <div key={i} style={{ marginBottom: 'var(--s4)', display: 'flex', gap: 'var(--s3)', alignItems: 'flex-start' }}>
                   <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: m.role === 'you' ? YELLOW : '#a3e635', textTransform: 'uppercase', letterSpacing: 0.5, minWidth: 50 }}>{m.role}</span>
                   <span style={{ color: m.role === 'you' ? '#e5e7eb' : MUTED, fontSize: 'var(--fs-body)', lineHeight: 1.55 }}>{m.text}</span>
                 </div>
@@ -224,7 +224,7 @@ export default function HomePage() {
       {/* Integrations */}
       <section style={styles.section}>
         <div style={styles.container}>
-          <h2 className="h2" style={{ marginBottom: 36 }}>connects to what you already use.</h2>
+          <h2 className="h2" style={{ marginBottom: 'var(--s8)' }}>connects to what you already use.</h2>
           <div style={styles.integGrid}>
             {INTEGRATIONS.map(name => (
               <div key={name} style={styles.integCell}>{name}</div>
@@ -236,8 +236,8 @@ export default function HomePage() {
       {/* Pricing */}
       <section id="pricing" style={styles.section}>
         <div style={styles.container}>
-          <h2 className="h2" style={{ marginBottom: 8 }}>pricing.</h2>
-          <div style={{ ...styles.body, marginBottom: 32, color: YELLOW }}>
+          <h2 className="h2" style={{ marginBottom: 'var(--s2)' }}>pricing.</h2>
+          <div style={{ ...styles.body, marginBottom: 'var(--s7)', color: YELLOW }}>
             no setup fees. cancel anytime.
           </div>
           <div style={styles.priceGrid}>
@@ -250,9 +250,9 @@ export default function HomePage() {
                 <div style={styles.priceName}>{p.name}</div>
                 <div style={styles.priceFig}>
                   <span style={{ fontSize: 'var(--fs-display)', fontWeight: 800, letterSpacing: -2 }}>{p.price}</span>
-                  <span style={{ fontSize: 'var(--fs-title)', color: MUTED, marginLeft: 4 }}>{p.period}</span>
+                  <span style={{ fontSize: 'var(--fs-title)', color: MUTED, marginLeft: 'var(--s1)' }}>{p.period}</span>
                 </div>
-                <div style={{ fontSize: 'var(--fs-body)', color: MUTED, marginBottom: 26 }}>{p.blurb}</div>
+                <div style={{ fontSize: 'var(--fs-body)', color: MUTED, marginBottom: 'var(--s6)' }}>{p.blurb}</div>
                 <ul style={styles.priceList}>
                   {p.features.map(f => <li key={f} style={styles.priceFeat}><Arrow size={11} /> <span>{f}</span></li>)}
                 </ul>
@@ -266,20 +266,20 @@ export default function HomePage() {
       </section>
 
       {/* Waitlist */}
-      <section id="waitlist" style={{ ...styles.section, paddingTop: 100, paddingBottom: 100, textAlign: 'center' }}>
+      <section id="waitlist" style={{ ...styles.section, paddingTop: 'var(--s10)', paddingBottom: 'var(--s10)', textAlign: 'center' }}>
         <div style={{ ...styles.container, maxWidth: 620 }}>
           <h2 className="h2" style={{ textAlign: 'center' }}>
             get early access.
           </h2>
-          <p style={{ ...styles.body, textAlign: 'center', marginBottom: 36 }}>
+          <p style={{ ...styles.body, textAlign: 'center', marginBottom: 'var(--s8)' }}>
             we&apos;re opening to a small group of agencies first. drop your email and we&apos;ll be in touch.
           </p>
           {done ? (
-            <div style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${WHITE}`, borderRadius: 4, padding: '18px 24px', color: WHITE, fontWeight: 600 }}>
+            <div style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${WHITE}`, borderRadius: 4, padding: 'var(--s5) var(--s6)', color: WHITE, fontWeight: 600 }}>
               you&apos;re on the list. we&apos;ll be in touch.
             </div>
           ) : (
-            <form onSubmit={submit} style={{ display: 'flex', gap: 8, maxWidth: 480, margin: '0 auto' }}>
+            <form onSubmit={submit} style={{ display: 'flex', gap: 'var(--s2)', maxWidth: 480, margin: '0 auto' }}>
               <input
                 type="email" required value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="your@agency.com"
@@ -294,8 +294,8 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="row end">
         <div style={styles.container}>
-          <img src="/logo-black.gif" alt="October Communications" style={{ height: 40, display: 'block', marginBottom: 26 }} />
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, fontSize: 'var(--fs-caption)', color: MUTED }}>
+          <img src="/logo-black.gif" alt="October Communications" style={{ height: 40, display: 'block', marginBottom: 'var(--s6)' }} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s7)', fontSize: 'var(--fs-caption)', color: MUTED }}>
             <div>october communications · octobercomms.com</div>
             <a href="#what" style={{ color: MUTED, textDecoration: 'none' }}>what it does</a>
             <a href="#how" style={{ color: MUTED, textDecoration: 'none' }}>how it works</a>
@@ -303,7 +303,7 @@ export default function HomePage() {
             <Link to="/login" style={{ color: MUTED, textDecoration: 'none' }}>log in</Link>
             <a href="mailto:hello@octobercomms.com" style={{ color: MUTED, textDecoration: 'none' }}>contact</a>
           </div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'rgba(255,255,255,0.3)', marginTop: 22 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'rgba(255,255,255,0.3)', marginTop: 'var(--s6)' }}>
             © {new Date().getFullYear()} october communications ltd. company no. 8816416. vat no. gb 176 6335 82.
           </div>
         </div>
@@ -409,84 +409,84 @@ const PLANS = [
 const styles = {
   // Single container for the whole page — header, content, footer all
   // share the same 1140px max-width with consistent side padding.
-  container: { maxWidth: MAX_W, margin: '0 auto', padding: '0 24px', width: '100%', boxSizing: 'border-box' },
+  container: { maxWidth: MAX_W, margin: '0 auto', padding: '0 var(--s6)', width: '100%', boxSizing: 'border-box' },
 
   topBar: { background: BLACK, borderBottom: '1px solid rgba(255,255,255,0.08)' },
-  topBarInner: { padding: '16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  topBarInner: { padding: 'var(--s4) 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   topLink: { color: WHITE, textDecoration: 'none', fontWeight: 400 },
 
-  section: { background: BLACK, padding: '90px 0' },
-  thinSection: { background: BLACK, padding: '20px 0', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)' },
+  section: { background: BLACK, padding: 'var(--s10) 0' },
+  thinSection: { background: BLACK, padding: 'var(--s5) 0', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)' },
 
-  eyebrow: { fontSize: 'var(--fs-caption)', color: YELLOW, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 20 },
+  eyebrow: { fontSize: 'var(--fs-caption)', color: YELLOW, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 'var(--s5)' },
   h1: { fontSize: 'clamp(40px, 6vw, 78px)', fontWeight: 800, margin: 0, letterSpacing: -2.5, lineHeight: 1.02 },
-  h2: { fontSize: 'clamp(32px, 4.2vw, 56px)', fontWeight: 800, margin: '0 0 24px', letterSpacing: -1.8, lineHeight: 1.05 },
-  heroLede: { fontSize: 'clamp(15px, 1.2vw, 18px)', color: MUTED, maxWidth: 720, marginTop: 32, lineHeight: 1.55 },
-  body: { fontSize: 'var(--fs-body)', color: MUTED, lineHeight: 1.75, margin: '0 0 18px' },
+  h2: { fontSize: 'clamp(32px, 4.2vw, 56px)', fontWeight: 800, margin: '0 0 var(--s6)', letterSpacing: -1.8, lineHeight: 1.05 },
+  heroLede: { fontSize: 'clamp(15px, 1.2vw, 18px)', color: MUTED, maxWidth: 720, marginTop: 'var(--s7)', lineHeight: 1.55 },
+  body: { fontSize: 'var(--fs-body)', color: MUTED, lineHeight: 1.75, margin: '0 0 var(--s5)' },
 
   // White CTA pill — solid white background, dark text. The primary
   // action everywhere.
   pillWhite: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    background: WHITE, color: BLACK, padding: '11px 22px', borderRadius: 999,
+    background: WHITE, color: BLACK, padding: 'var(--s3) var(--s6)', borderRadius: 999,
     fontWeight: 700, fontSize: 'var(--fs-body)', textDecoration: 'none', border: 'none',
     cursor: 'pointer', fontFamily: FONT,
   },
   pillWhiteSm: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    background: WHITE, color: BLACK, padding: '8px 16px', borderRadius: 999,
+    background: WHITE, color: BLACK, padding: 'var(--s2) var(--s4)', borderRadius: 999,
     fontWeight: 700, fontSize: 'var(--fs-caption)', textDecoration: 'none', border: 'none',
     cursor: 'pointer', fontFamily: FONT,
   },
   // White-outlined pill — used as the secondary action throughout.
   pillOutline: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    background: 'transparent', color: WHITE, padding: '10px 22px', borderRadius: 999,
+    background: 'transparent', color: WHITE, padding: 'var(--s3) var(--s6)', borderRadius: 999,
     fontWeight: 600, fontSize: 'var(--fs-body)', textDecoration: 'none',
     border: `1.5px solid ${WHITE}`, cursor: 'pointer', fontFamily: FONT,
   },
 
-  audienceInner: { display: 'flex', gap: 28, alignItems: 'center', flexWrap: 'wrap' },
+  audienceInner: { display: 'flex', gap: 'var(--s7)', alignItems: 'center', flexWrap: 'wrap' },
   audienceChip: { fontSize: 'var(--fs-body)', color: WHITE, letterSpacing: 0.2 },
 
-  threeCol: { display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 1fr 1fr', gap: 48 },
+  threeCol: { display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 1fr 1fr', gap: 'var(--s9)' },
 
-  howGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 },
-  howStep: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 28 },
-  howN: { fontSize: 'var(--fs-caption)', color: YELLOW, fontWeight: 800, letterSpacing: 1.5, marginBottom: 18 },
-  howTitle: { fontSize: 'var(--fs-section)', fontWeight: 800, color: WHITE, letterSpacing: -0.8, marginBottom: 12 },
+  howGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--s6)' },
+  howStep: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 'var(--s7)' },
+  howN: { fontSize: 'var(--fs-caption)', color: YELLOW, fontWeight: 800, letterSpacing: 1.5, marginBottom: 'var(--s5)' },
+  howTitle: { fontSize: 'var(--fs-section)', fontWeight: 800, color: WHITE, letterSpacing: -0.8, marginBottom: 'var(--s3)' },
   howBody: { fontSize: 'var(--fs-body)', color: MUTED, lineHeight: 1.7, margin: 0 },
 
-  aiGrid: { display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) 1.6fr', gap: 48, alignItems: 'flex-start' },
-  chatPanel: { background: '#161616', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 22 },
+  aiGrid: { display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) 1.6fr', gap: 'var(--s9)', alignItems: 'flex-start' },
+  chatPanel: { background: '#161616', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 'var(--s6)' },
 
   capGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 1,
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--s1)',
     background: 'rgba(255,255,255,0.08)',
     border: '1px solid rgba(255,255,255,0.08)',
   },
-  capCard: { background: BLACK, padding: 26, minHeight: 140 },
-  capDot: { width: 10, height: 10, borderRadius: 5, background: YELLOW, marginBottom: 14 },
-  capTitle: { fontSize: 'var(--fs-title)', fontWeight: 700, color: WHITE, marginBottom: 8, letterSpacing: -0.2 },
+  capCard: { background: BLACK, padding: 'var(--s6)', minHeight: 140 },
+  capDot: { width: 10, height: 10, borderRadius: 5, background: YELLOW, marginBottom: 'var(--s4)' },
+  capTitle: { fontSize: 'var(--fs-title)', fontWeight: 700, color: WHITE, marginBottom: 'var(--s2)', letterSpacing: -0.2 },
   capDesc: { fontSize: 'var(--fs-body)', color: MUTED, lineHeight: 1.6 },
 
   integGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 1,
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--s1)',
     background: 'rgba(255,255,255,0.08)',
     border: '1px solid rgba(255,255,255,0.08)',
   },
-  integCell: { background: BLACK, padding: '20px 18px', fontSize: 'var(--fs-body)', color: WHITE, fontWeight: 500 },
+  integCell: { background: BLACK, padding: 'var(--s5) var(--s5)', fontSize: 'var(--fs-body)', color: WHITE, fontWeight: 500 },
 
-  priceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 22 },
-  priceCard: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 32, position: 'relative' },
+  priceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 'var(--s6)' },
+  priceCard: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 'var(--s7)', position: 'relative' },
   priceCardHi: { boxShadow: `inset 0 0 0 2px ${WHITE}` },
-  priceFlag: { position: 'absolute', top: -10, left: 24, background: WHITE, color: BLACK, fontSize: 'var(--fs-caption)', fontWeight: 800, padding: '3px 12px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: 0.5 },
-  priceName: { fontSize: 'var(--fs-body)', fontWeight: 700, color: YELLOW, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 },
-  priceFig: { display: 'flex', alignItems: 'baseline', marginBottom: 6 },
-  priceList: { listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 },
-  priceFeat: { fontSize: 'var(--fs-body)', color: MUTED, display: 'flex', gap: 4, alignItems: 'center', lineHeight: 1.5 },
+  priceFlag: { position: 'absolute', top: -10, left: 24, background: WHITE, color: BLACK, fontSize: 'var(--fs-caption)', fontWeight: 800, padding: 'var(--s1) var(--s3)', borderRadius: 999, textTransform: 'uppercase', letterSpacing: 0.5 },
+  priceName: { fontSize: 'var(--fs-body)', fontWeight: 700, color: YELLOW, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 'var(--s3)' },
+  priceFig: { display: 'flex', alignItems: 'baseline', marginBottom: 'var(--s2)' },
+  priceList: { listStyle: 'none', padding: 0, margin: '0 0 var(--s7)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' },
+  priceFeat: { fontSize: 'var(--fs-body)', color: MUTED, display: 'flex', gap: 'var(--s1)', alignItems: 'center', lineHeight: 1.5 },
 
-  emailInput: { flex: 1, padding: '12px 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: WHITE, fontSize: 'var(--fs-body)', outline: 'none', fontFamily: FONT },
+  emailInput: { flex: 1, padding: 'var(--s3) var(--s5)', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: WHITE, fontSize: 'var(--fs-body)', outline: 'none', fontFamily: FONT },
 
-  footer: { background: BLACK, borderTop: '1px solid rgba(255,255,255,0.08)', padding: '40px 0' },
+  footer: { background: BLACK, borderTop: '1px solid rgba(255,255,255,0.08)', padding: 'var(--s8) 0' },
 };

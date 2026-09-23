@@ -173,7 +173,7 @@ export default function SocialDmBotPanel({ clientId }) {
           order of operations and what's stored explicit. */}
       <div className="card">
         <button type="button" onClick={() => setGuideOpen(o => !o)}
-          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)' }}>
           <div>
             <div className="caption">Setup guide</div>
             <div className="h3 mt-1">How to set up the DM bot</div>
@@ -182,7 +182,7 @@ export default function SocialDmBotPanel({ clientId }) {
         </button>
         {guideOpen && (
           <div className="mt-4">
-            <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 10 }}>
+            <ol style={{ margin: 0, paddingLeft: 'var(--s5)', display: 'grid', gap: 'var(--s3)' }}>
               <li className="body-sm"><strong>Set the persona.</strong> In <em>Bot persona</em> below, describe the brand's tone, sign-off and the max words per reply. Everything the bot writes follows this.</li>
               <li className="body-sm"><strong>Test a reply.</strong> Paste a message a follower might send in <em>Test a reply</em> — you see the exact response before anything goes live. Tweak the persona until it sounds right.</li>
               <li className="body-sm"><strong>Generate templates.</strong> In <em>Reply templates</em>, generate ready-made replies for common triggers (price, link, FAQ). Copy them, or keep them as the bot's fallbacks.</li>
@@ -196,7 +196,7 @@ export default function SocialDmBotPanel({ clientId }) {
         )}
       </div>
 
-      <div className="dmbot-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="dmbot-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s5)', alignItems: 'start' }}>
       {/* Left column: persona + live test */}
       <div className="stack-lg">
       {/* Persona */}
@@ -208,7 +208,7 @@ export default function SocialDmBotPanel({ clientId }) {
         <label className="field-label mt-3">FAQs / facts the bot can use</label>
         <textarea className="input" style={{ minHeight: 90 }} value={persona.faqs} onChange={e => set('faqs', e.target.value)}
           placeholder={'Opening hours: Mon–Fri 9–6\nConsults from £49\nWe\'re near Liverpool St station'} />
-        <div className="row" style={{ gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 'var(--s3)', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
           <div>
             <label className="field-label">Tone</label>
             <select className="input" value={persona.tone} onChange={e => set('tone', e.target.value)}>
@@ -223,7 +223,7 @@ export default function SocialDmBotPanel({ clientId }) {
         <label className="field-label mt-3">Escalation rule (when unsure)</label>
         <input className="input" value={persona.escalation} onChange={e => set('escalation', e.target.value)}
           placeholder="e.g. Offer to have the team follow up and ask for their email." />
-        <div className="row" style={{ marginTop: 12, gap: 10, alignItems: 'center' }}>
+        <div className="row" style={{ marginTop: 'var(--s3)', gap: 'var(--s3)', alignItems: 'center' }}>
           <button className="btn btn-primary" onClick={savePersona} disabled={saving}>{saving ? 'Saving…' : 'Save persona'}</button>
           {savedAt && <span className="body-xs text-subtle">Saved</span>}
         </div>
@@ -232,14 +232,14 @@ export default function SocialDmBotPanel({ clientId }) {
       {/* Live tester */}
       <div className="card">
         <div className="caption mb-2">Test a reply</div>
-        <p className="body-sm text-muted" style={{ marginBottom: 8 }}>Paste a message a follower might send — see exactly what the bot would reply under the persona above.</p>
+        <p className="body-sm text-muted" style={{ marginBottom: 'var(--s2)' }}>Paste a message a follower might send — see exactly what the bot would reply under the persona above.</p>
         <textarea className="input" style={{ minHeight: 60 }} value={incoming} onChange={e => setIncoming(e.target.value)} placeholder="Hey! Do you have any availability this weekend?" />
-        <div className="row" style={{ marginTop: 8 }}>
+        <div className="row" style={{ marginTop: 'var(--s2)' }}>
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runDraft, disabled: drafting })}>{drafting ? 'Drafting…' : 'Draft reply'}</button>
         </div>
         {draft && (
-          <div className="card" style={{ marginTop: 10, background: 'var(--surface-raised)' }}>
-            <div className="row between center" style={{ marginBottom: 4 }}>
+          <div className="card" style={{ marginTop: 'var(--s3)', background: 'var(--surface-raised)' }}>
+            <div className="row between center" style={{ marginBottom: 'var(--s1)' }}>
               <div className="caption">Bot would reply</div>
               <CopyBtn text={draft} />
             </div>
@@ -253,7 +253,7 @@ export default function SocialDmBotPanel({ clientId }) {
       <div className="stack-lg">
       {/* Go live — Meta auto-send */}
       <div className="card">
-        <div className="row between center" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <div className="row between center" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
           <div className="caption">Live auto-send (Instagram)</div>
           {live?.config && (
             <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: live.config.enabled ? 'var(--positive, #1a7f37)' : 'var(--text-subtle)' }}>
@@ -261,11 +261,11 @@ export default function SocialDmBotPanel({ clientId }) {
             </span>
           )}
         </div>
-        <p className="body-sm text-muted" style={{ margin: '6px 0 10px' }}>
+        <p className="body-sm text-muted" style={{ margin: 'var(--s2) 0 var(--s3)' }}>
           When live, the bot auto-replies to Instagram DMs and comment-to-DM using the persona above — the ManyChat flow, native.
           Connect an Instagram business account and a Page token with <code>instagram_manage_messages</code>.
         </p>
-        <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 220px' }}>
             <label className="field-label">Instagram business account ID</label>
             <input className="input" value={igId} onChange={e => setIgId(e.target.value)} placeholder="17841400000000000" />
@@ -275,23 +275,23 @@ export default function SocialDmBotPanel({ clientId }) {
             <input className="input" type="password" value={pageToken} onChange={e => setPageToken(e.target.value)} placeholder={live?.config?.has_token ? '••••••••' : 'EAAG…'} />
           </div>
         </div>
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 'var(--s3)' }}>
           <label className="field-label">Comment trigger keywords <span className="text-subtle">(comma-separated — blank = reply to any comment)</span></label>
           <input className="input" value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="price, link, info" />
         </div>
-        <div style={{ marginTop: 12 }}>
-          <label className="row" style={{ gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+        <div style={{ marginTop: 'var(--s3)' }}>
+          <label className="row" style={{ gap: 'var(--s2)', alignItems: 'center', cursor: 'pointer' }}>
             <input type="checkbox" checked={publicReply} onChange={e => setPublicReply(e.target.checked)} />
             <span className="body-sm">Also post a public reply under the comment</span>
           </label>
           {publicReply && (
-            <input className="input" style={{ marginTop: 6 }} value={publicReplyText} onChange={e => setPublicReplyText(e.target.value)} placeholder="Just sent you a DM 📩" />
+            <input className="input" style={{ marginTop: 'var(--s2)' }} value={publicReplyText} onChange={e => setPublicReplyText(e.target.value)} placeholder="Just sent you a DM 📩" />
           )}
         </div>
-        <div className="body-xs text-subtle" style={{ marginTop: 8 }}>
+        <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
           Anyone who DMs “stop” / “unsubscribe” is auto opted-out and never messaged again.
         </div>
-        <div className="row" style={{ marginTop: 12, gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="row" style={{ marginTop: 'var(--s3)', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={() => saveLive()} disabled={savingLive}>{savingLive ? 'Saving…' : 'Save connection'}</button>
           {live?.config && (
             <button
@@ -302,18 +302,18 @@ export default function SocialDmBotPanel({ clientId }) {
           )}
         </div>
         {live && (
-          <div className="body-xs text-subtle" style={{ marginTop: 10, lineHeight: 1.6 }}>
+          <div className="body-xs text-subtle" style={{ marginTop: 'var(--s3)', lineHeight: 1.6 }}>
             In the Meta app dashboard, set the webhook callback to <code>{window.location.origin}{live.webhook_path}</code>{' '}
             and subscribe to <strong>messages</strong> + <strong>comments</strong>.{' '}
             {live.verify_token_set ? 'Verify token is configured on the server.' : '⚠ Set META_WEBHOOK_VERIFY_TOKEN on the server to complete verification.'}
           </div>
         )}
         {live?.events?.length > 0 && (
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 'var(--s3)' }}>
             <div className="caption mb-2">Recent activity</div>
             <div className="stack stack-sm">
               {live.events.slice(0, 12).map(ev => (
-                <div key={ev.id} className="body-xs" style={{ display: 'flex', gap: 8 }}>
+                <div key={ev.id} className="body-xs" style={{ display: 'flex', gap: 'var(--s2)' }}>
                   <span style={{ color: ev.direction === 'in' ? 'var(--text-muted)' : 'var(--accent)', fontWeight: 700, minWidth: 28 }}>{ev.direction === 'in' ? '→' : '↩'}</span>
                   <span className="text-subtle" style={{ minWidth: 64 }}>{ev.channel}{ev.status ? ` · ${ev.status}` : ''}</span>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.text}</span>
@@ -327,59 +327,59 @@ export default function SocialDmBotPanel({ clientId }) {
       {/* DM inbox */}
       <div className="card">
         <div className="caption">Inbox</div>
-        <p className="body-sm text-muted" style={{ margin: '6px 0 10px' }}>
+        <p className="body-sm text-muted" style={{ margin: 'var(--s2) 0 var(--s3)' }}>
           Every conversation the bot has touched, newest first. Open one to read the thread and jump in with a manual reply.
         </p>
         {inbox.length === 0 ? (
           <div className="body-sm text-subtle">No conversations yet — they appear here once the bot receives or sends a DM.</div>
         ) : (
-          <div className="row" style={{ gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div className="row" style={{ gap: 'var(--s3)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             {/* Conversation list */}
             <div className="stack stack-sm" style={{ flex: '1 1 220px', maxHeight: 320, overflowY: 'auto', minWidth: 200 }}>
               {inbox.map(c => (
                 <button key={c.counterparty} onClick={() => openThread(c.counterparty)}
                   className="card" style={{
-                    padding: '8px 10px', textAlign: 'left', cursor: 'pointer', border: 'var(--border-w) solid ' + (activeCp === c.counterparty ? 'var(--accent)' : 'var(--card-border)'),
+                    padding: 'var(--s2) var(--s3)', textAlign: 'left', cursor: 'pointer', border: 'var(--border-w) solid ' + (activeCp === c.counterparty ? 'var(--accent)' : 'var(--card-border)'),
                     background: activeCp === c.counterparty ? 'var(--accent-soft)' : 'var(--surface)',
                   }}>
-                  <div className="row between center" style={{ gap: 6 }}>
+                  <div className="row between center" style={{ gap: 'var(--s2)' }}>
                     <span className="body-sm" style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.counterparty}</span>
                     <span className="body-xs text-subtle">{c.msg_count}</span>
                   </div>
                   <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.last_direction === 'out' ? '↩ ' : '→ '}{c.last_text || `(${c.last_channel})`}
                   </div>
-                  {c.opted_out && <span className="chip chip-neutral" style={{ marginTop: 4 }}>opted out</span>}
+                  {c.opted_out && <span className="chip chip-neutral" style={{ marginTop: 'var(--s1)' }}>opted out</span>}
                 </button>
               ))}
             </div>
             {/* Thread + reply */}
             <div style={{ flex: '2 1 300px', minWidth: 240 }}>
               {!activeCp ? (
-                <div className="body-sm text-subtle" style={{ padding: 12 }}>Pick a conversation to read it.</div>
+                <div className="body-sm text-subtle" style={{ padding: 'var(--s3)' }}>Pick a conversation to read it.</div>
               ) : (
                 <>
-                  <div className="stack stack-sm" style={{ maxHeight: 260, overflowY: 'auto', padding: 4 }}>
+                  <div className="stack stack-sm" style={{ maxHeight: 260, overflowY: 'auto', padding: 'var(--s1)' }}>
                     {loadingThread ? <div className="body-sm text-subtle">Loading…</div>
                       : thread.map(m => (
                         <div key={m.id} style={{ display: 'flex', justifyContent: m.direction === 'out' ? 'flex-end' : 'flex-start' }}>
                           <div className="body-sm" style={{
-                            maxWidth: '80%', padding: '6px 10px', borderRadius: 'var(--r-md)', whiteSpace: 'pre-wrap',
+                            maxWidth: '80%', padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-md)', whiteSpace: 'pre-wrap',
                             background: m.direction === 'out' ? 'var(--accent-soft)' : 'var(--surface-raised)',
                           }}>{m.text || <span className="text-subtle">({m.channel}{m.status ? ` · ${m.status}` : ''})</span>}</div>
                         </div>
                       ))}
                   </div>
                   {(() => { const conv = inbox.find(c => c.counterparty === activeCp); return conv?.opted_out; })() ? (
-                    <div className="body-xs text-subtle" style={{ marginTop: 8 }}>This person opted out — you can’t message them.</div>
+                    <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>This person opted out — you can’t message them.</div>
                   ) : (
-                    <div className="row" style={{ gap: 8, marginTop: 8, alignItems: 'flex-end' }}>
+                    <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)', alignItems: 'flex-end' }}>
                       <textarea className="input" style={{ flex: 1, minHeight: 44 }} value={replyText} onChange={e => setReplyText(e.target.value)}
                         placeholder="Type a reply…" onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendReply(); }} />
                       <button className="btn btn-primary" {...roWrite(readOnly, { onClick: sendReply, disabled: sendingReply || !replyText.trim() })}>{sendingReply ? 'Sending…' : 'Send'}</button>
                     </div>
                   )}
-                  <div className="body-xs text-subtle" style={{ marginTop: 6 }}>Instagram only allows a DM within 24h of the person’s last message; older ones will be rejected.</div>
+                  <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>Instagram only allows a DM within 24h of the person’s last message; older ones will be rejected.</div>
                 </>
               )}
             </div>
@@ -390,10 +390,10 @@ export default function SocialDmBotPanel({ clientId }) {
       {/* Tracked links */}
       <div className="card">
         <div className="caption">Tracked links</div>
-        <p className="body-sm text-muted" style={{ margin: '6px 0 10px' }}>
+        <p className="body-sm text-muted" style={{ margin: 'var(--s2) 0 var(--s3)' }}>
           Any link the bot sends in a DM is auto-shortened to a click-tracked redirect — so you see which offers get tapped, not just how many DMs went out. Add one here to paste into a template.
         </p>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: '2 1 220px' }}>
             <label className="field-label">Destination URL</label>
             <input className="input" value={linkDest} onChange={e => setLinkDest(e.target.value)} placeholder="https://example.com/offer" onKeyDown={e => { if (e.key === 'Enter') addLink(); }} />
@@ -405,15 +405,15 @@ export default function SocialDmBotPanel({ clientId }) {
           <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: addLink, disabled: addingLink || !linkDest.trim() })}>{addingLink ? 'Adding…' : 'Add'}</button>
         </div>
         {links.length > 0 && (
-          <div className="stack stack-sm" style={{ marginTop: 12 }}>
+          <div className="stack stack-sm" style={{ marginTop: 'var(--s3)' }}>
             {links.map(l => (
-              <div key={l.id} className="card" style={{ padding: '8px 12px' }}>
-                <div className="row between center" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <div key={l.id} className="card" style={{ padding: 'var(--s2) var(--s3)' }}>
+                <div className="row between center" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="body-sm" style={{ fontWeight: 700 }}>{l.label || l.destination}</div>
                     <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.short_url} → {l.destination}</div>
                   </div>
-                  <div className="row center" style={{ gap: 8 }}>
+                  <div className="row center" style={{ gap: 'var(--s2)' }}>
                     <span className="chip chip-neutral" title="Clicks"><strong>{l.clicks}</strong>&nbsp;click{l.clicks === 1 ? '' : 's'}</span>
                     <CopyBtn text={l.short_url} />
                     <button className="btn btn-secondary btn-sm" onClick={() => removeLink(l.id)}>Delete</button>
@@ -427,26 +427,26 @@ export default function SocialDmBotPanel({ clientId }) {
 
       {/* Template library */}
       <div>
-        <div className="row between center" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <div className="row between center" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
           <div className="caption">Reply templates</div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
             <input className="input" style={{ width: 280 }} value={scenario} onChange={e => setScenario(e.target.value)}
               placeholder="Optional focus — e.g. 'pricing questions on Reels'" onKeyDown={e => { if (e.key === 'Enter') generate(); }} />
             <button className="btn btn-secondary" {...roWrite(readOnly, { onClick: generate, disabled: generating })}>{generating ? 'Generating…' : 'Generate'}</button>
           </div>
         </div>
-        <div className="stack stack-sm" style={{ marginTop: 10 }}>
+        <div className="stack stack-sm" style={{ marginTop: 'var(--s3)' }}>
           {templates.length === 0 && <div className="body-sm text-subtle">No templates yet — generate a set for the common triggers.</div>}
           {templates.map(t => (
-            <div key={t.id} className="card" style={{ padding: '10px 14px' }}>
-              <div className="row between center" style={{ marginBottom: 4 }}>
+            <div key={t.id} className="card" style={{ padding: 'var(--s3) var(--s4)' }}>
+              <div className="row between center" style={{ marginBottom: 'var(--s1)' }}>
                 <span className="chip chip-neutral">{TRIGGER_LABEL[t.trigger] || t.trigger}</span>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                   <CopyBtn text={t.reply} />
                   <button className="btn btn-secondary btn-sm" onClick={() => removeTemplate(t.id)}>Delete</button>
                 </div>
               </div>
-              {t.scenario && <div className="body-xs text-subtle" style={{ marginBottom: 4 }}>{t.scenario}</div>}
+              {t.scenario && <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s1)' }}>{t.scenario}</div>}
               <div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{t.reply}</div>
             </div>
           ))}

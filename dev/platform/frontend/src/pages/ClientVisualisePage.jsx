@@ -70,17 +70,17 @@ function Library({ clientId, onOpen, embedded = false }) {
       </header>
       )}
 
-      <div className="row between center mb-6 wrap" style={{ gap: 12 }}>
+      <div className="row between center mb-6 wrap" style={{ gap: 'var(--s3)' }}>
         <div className="caption">{projects?.length || 0} project{projects?.length === 1 ? '' : 's'}</div>
         <button className="btn btn-primary" onClick={() => setCreating(true)} disabled={!presets.length}>+ New project</button>
       </div>
 
       {projects === null ? (
-        <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>
+        <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>
       ) : !projects.length ? (
-        <div className="card"><div className="text-subtle" style={{ padding: 20 }}>No projects yet. Start one to generate your first images.</div></div>
+        <div className="card"><div className="text-subtle" style={{ padding: 'var(--s5)' }}>No projects yet. Start one to generate your first images.</div></div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 'var(--s4)' }}>
           {projects.map(p => {
             const st = STATUS[p.status] || STATUS.draft;
             return (
@@ -90,8 +90,8 @@ function Library({ clientId, onOpen, embedded = false }) {
                     ? <img src={p.thumb_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <span className="text-subtle body-xs">No image yet</span>}
                 </div>
-                <div style={{ padding: 12 }}>
-                  <div className="strong" style={{ marginBottom: 4 }}>{p.name}</div>
+                <div style={{ padding: 'var(--s3)' }}>
+                  <div className="strong" style={{ marginBottom: 'var(--s1)' }}>{p.name}</div>
                   <div className="row between center">
                     <span style={{ color: st.tone, fontWeight: 700, fontSize: 'var(--fs-caption)' }}>{st.label}</span>
                     <span className="text-subtle body-xs">{p.variant_count || 0} variant{p.variant_count === 1 ? '' : 's'} · {fmt(p.created_at)}</span>
@@ -155,7 +155,7 @@ function ScenarioModal({ busy, onClose, onCreate }) {
         <div className="field"><label className="field-label">Scene</label>
           <textarea className="textarea" rows={2} autoFocus value={scene} onChange={e => setScene(e.target.value)}
             placeholder="e.g. Universal Beijing, Kung Fu Panda land, greeting families" /></div>
-        <div className="row" style={{ gap: 12 }}>
+        <div className="row" style={{ gap: 'var(--s3)' }}>
           <div className="field" style={{ flex: 1 }}><label className="field-label">How many ({c})</label>
             <input type="range" min="1" max="6" value={c} onChange={e => setC(parseInt(e.target.value, 10))} style={{ width: '100%' }} /></div>
           <div className="field" style={{ flex: 1 }}><label className="field-label">Orientation</label>
@@ -230,7 +230,7 @@ function Studio({ clientId, projectId, onBack }) {
     finally { setScenariing(false); }
   }
 
-  if (!project) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
+  if (!project) return <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>;
 
   const variants = project.variants || [];
   const baseVariant = variants.find(v => !v.scene_prompt) || variants[0];
@@ -243,8 +243,8 @@ function Studio({ clientId, projectId, onBack }) {
 
   return (
     <div>
-      <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 10 }}>← Library</button>
-      <div className="row between center wrap mb-4" style={{ gap: 12 }}>
+      <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 'var(--s3)' }}>← Library</button>
+      <div className="row between center wrap mb-4" style={{ gap: 'var(--s3)' }}>
         <div>
           <h1 className="h1">{project.name}</h1>
           <div className="body-sm text-muted">{preset?.name || 'No preset'} · Spent <strong>${(project.spend_usd || 0).toFixed(2)}</strong> on this project</div>
@@ -254,9 +254,9 @@ function Studio({ clientId, projectId, onBack }) {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: 18, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: 'var(--s5)', alignItems: 'start' }}>
         {/* Left: inputs + guided fields + generate controls */}
-        <div className="stack" style={{ gap: 14 }}>
+        <div className="stack" style={{ gap: 'var(--s4)' }}>
           <InputsPanel clientId={clientId} project={project} preset={preset} onChange={load} />
 
           {preset?.guided_fields?.length > 0 && (
@@ -274,13 +274,13 @@ function Studio({ clientId, projectId, onBack }) {
               <input type="range" min="1" max="8" value={count} onChange={e => setCount(parseInt(e.target.value, 10))} style={{ width: '100%' }} />
             </Field>
             <Field label="Orientation">
-              <div className="row" style={{ gap: 6 }}>
+              <div className="row" style={{ gap: 'var(--s2)' }}>
                 {['portrait', 'landscape', 'square'].map(o => (
                   <button key={o} className={'btn btn-sm ' + (orientation === o ? 'btn-primary' : 'btn-secondary')} onClick={() => setOrientation(o)} style={{ textTransform: 'capitalize' }}>{o}</button>
                 ))}
               </div>
             </Field>
-            <div className="body-xs text-subtle" style={{ margin: '8px 0 12px' }}>
+            <div className="body-xs text-subtle" style={{ margin: 'var(--s2) 0 var(--s3)' }}>
               Est. <strong>${(price * count).toFixed(2)}</strong> for {count} image{count === 1 ? '' : 's'} (${price.toFixed(2)} each).
             </div>
             <button className="btn btn-primary" style={{ width: '100%' }} onClick={generate} disabled={generating}>
@@ -292,7 +292,7 @@ function Studio({ clientId, projectId, onBack }) {
         {/* Right: variants + history + circle-and-fix */}
         <div className="card" style={{ minHeight: '60vh' }}>
           {variants.length > 0 && (
-            <div className="row wrap" style={{ gap: 6, marginBottom: 12 }}>
+            <div className="row wrap" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
               {variants.map(v => (
                 <button key={v.id} className={'btn btn-sm ' + (v.id === variant?.id ? 'btn-primary' : 'btn-secondary')}
                   onClick={() => setSelVariantId(v.id)} title={v.scene_prompt || 'Base character'}>
@@ -306,18 +306,18 @@ function Studio({ clientId, projectId, onBack }) {
           {generating ? (
             <GeneratingState count={count} />
           ) : !allSteps.length ? (
-            <div className="text-subtle" style={{ padding: 40, textAlign: 'center' }}>
+            <div className="text-subtle" style={{ padding: 'var(--s8)', textAlign: 'center' }}>
               No images yet. Add your references on the left, fill the guided fields, then <strong>Generate</strong>.
             </div>
           ) : (
             <>
               <div className="caption mb-2">History — click any image to select it ({steps.length} generation{steps.length === 1 ? '' : 's'}{allSteps.length > steps.length ? `, ${allSteps.length - steps.length} fix${allSteps.length - steps.length === 1 ? '' : 'es'}` : ''})</div>
-              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 14 }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', overflowX: 'auto', paddingBottom: 'var(--s2)', marginBottom: 'var(--s4)' }}>
                 {allSteps.map(s => (
                   <button key={s.id} onClick={() => setActive(variant.id, s.id)} title={s.kind === 'correction' ? (s.instruction || 'fix') : 'generation'}
                     style={{ flex: '0 0 auto', border: '2px solid ' + (s.id === activeId ? 'var(--accent)' : 'var(--card-border)'), borderRadius: 8, padding: 0, background: 'none', cursor: 'pointer', position: 'relative', lineHeight: 0 }}>
                     <img src={s.image_url} alt="" style={{ width: 66, height: 88, objectFit: 'cover', display: 'block', borderRadius: 6 }} />
-                    <span style={{ position: 'absolute', bottom: 3, left: 3, background: s.kind === 'correction' ? 'var(--accent)' : 'rgba(0,0,0,.6)', color: s.kind === 'correction' ? 'var(--accent-on)' : '#fff', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 3, padding: '0 4px' }}>{s.kind === 'correction' ? 'FIX' : 'GEN'}</span>
+                    <span style={{ position: 'absolute', bottom: 3, left: 3, background: s.kind === 'correction' ? 'var(--accent)' : 'rgba(0,0,0,.6)', color: s.kind === 'correction' ? 'var(--accent-on)' : '#fff', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 3, padding: '0 var(--s1)' }}>{s.kind === 'correction' ? 'FIX' : 'GEN'}</span>
                   </button>
                 ))}
               </div>
@@ -325,14 +325,14 @@ function Studio({ clientId, projectId, onBack }) {
               {activeStep ? (
                 <CorrectionCanvas key={activeStep.id} imageUrl={activeStep.image_url} price={preset?.price_inpaint ?? 0.05} busy={fixing} onApply={applyFix} />
               ) : (
-                <div className="text-subtle" style={{ padding: 20, textAlign: 'center' }}>Select an image above to refine it — then circle the area to change.</div>
+                <div className="text-subtle" style={{ padding: 'var(--s5)', textAlign: 'center' }}>Select an image above to refine it — then circle the area to change.</div>
               )}
 
               {activeStep && (
-                <div style={{ borderTop: '1px solid var(--card-border)', marginTop: 16, paddingTop: 14 }}>
-                  <div className="row between center wrap" style={{ gap: 8 }}>
+                <div style={{ borderTop: '1px solid var(--card-border)', marginTop: 'var(--s4)', paddingTop: 'var(--s4)' }}>
+                  <div className="row between center wrap" style={{ gap: 'var(--s2)' }}>
                     <div className="caption">Finish — lock the approved image, then export 4K</div>
-                    <div className="row center" style={{ gap: 8 }}>
+                    <div className="row center" style={{ gap: 'var(--s2)' }}>
                       {variant.locked_step_id === activeStep.id
                         ? <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>✓ Locked</span>
                         : <button className="btn btn-secondary btn-sm" onClick={() => lock(activeStep.id)}>🔒 Lock this</button>}
@@ -342,9 +342,9 @@ function Studio({ clientId, projectId, onBack }) {
                     </div>
                   </div>
                   {(variant.exports || []).length > 0 && (
-                    <div className="row wrap" style={{ gap: 10, marginTop: 12 }}>
+                    <div className="row wrap" style={{ gap: 'var(--s3)', marginTop: 'var(--s3)' }}>
                       {variant.exports.map(ex => (
-                        <a key={ex.id} href={ex.image_url_4k} target="_blank" rel="noreferrer" className="row center body-xs text-muted" style={{ gap: 6, textDecoration: 'none' }}>
+                        <a key={ex.id} href={ex.image_url_4k} target="_blank" rel="noreferrer" className="row center body-xs text-muted" style={{ gap: 'var(--s2)', textDecoration: 'none' }}>
                           <img src={ex.image_url_4k} alt="" style={{ width: 40, height: 52, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--card-border)' }} /> 4K ↗
                         </a>
                       ))}
@@ -463,14 +463,14 @@ function CorrectionCanvas({ imageUrl, price, busy, onApply }) {
           onPointerDown={down} onPointerMove={move} onPointerUp={stop} onPointerLeave={stop}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'crosshair', touchAction: 'none', borderRadius: 8 }} />
       </div>
-      <div className="row center wrap" style={{ gap: 12, margin: '12px 0' }}>
-        <label className="row center body-xs text-muted" style={{ gap: 6 }}>Brush
+      <div className="row center wrap" style={{ gap: 'var(--s3)', margin: 'var(--s3) 0' }}>
+        <label className="row center body-xs text-muted" style={{ gap: 'var(--s2)' }}>Brush
           <input type="range" min="12" max="120" value={brush} onChange={e => setBrush(parseInt(e.target.value, 10))} /></label>
         <button className="btn btn-ghost btn-sm" onClick={clear} disabled={!hasMask}>Clear</button>
       </div>
       <textarea className="textarea" rows={2} value={instruction} onChange={e => setInstruction(e.target.value)}
         placeholder="e.g. the collar underside should be red" />
-      <div className="row between center wrap" style={{ gap: 8, marginTop: 8 }}>
+      <div className="row between center wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
         <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
           {reference ? '✓ Reference added' : '+ Reference crop (optional)'}
           <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setReference(e.target.files?.[0] || null)} />
@@ -488,7 +488,7 @@ function GuidedField({ field, value, onChange }) {
   if (field.type === 'toggle') {
     const on = value == null ? !!field.default : !!value;
     return (
-      <label className="row center" style={{ gap: 8, padding: '6px 0', cursor: field.locked ? 'default' : 'pointer' }}>
+      <label className="row center" style={{ gap: 'var(--s2)', padding: 'var(--s2) 0', cursor: field.locked ? 'default' : 'pointer' }}>
         <input type="checkbox" checked={on} disabled={field.locked} onChange={e => onChange(e.target.checked)} />
         <span className="body-sm">{field.label}{field.locked ? ' (always on)' : ''}</span>
       </label>
@@ -534,17 +534,17 @@ function InputsPanel({ clientId, project, preset, onChange }) {
   return (
     <div className="card">
       <div className="caption mb-1">References</div>
-      <div className="body-xs text-subtle" style={{ marginBottom: 10 }}>Add one or several images per reference — all of them guide the render.</div>
+      <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s3)' }}>Add one or several images per reference — all of them guide the render.</div>
       {imageSlots.map(slot => {
         const items = (project.inputs || []).filter(i => i.kind === slot.kind);
         return (
-          <div key={slot.kind} style={{ marginBottom: 12 }}>
-            <div className="row between center" style={{ marginBottom: 6 }}>
+          <div key={slot.kind} style={{ marginBottom: 'var(--s3)' }}>
+            <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
               <span className="body-xs text-muted">{slot.label}{slot.required ? ' *' : ''}</span>
               <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => { setKind(slot.kind); fileRef.current?.click(); }}>⬆ Add</button>
             </div>
             {items.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: 'var(--s2)' }}>
                 {items.map(i => (
                   <div key={i.id} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--card-border)', aspectRatio: '1' }}>
                     <img src={i.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -567,10 +567,10 @@ function GeneratingState({ count }) {
   const [i, setI] = useState(0);
   useEffect(() => { const t = setInterval(() => setI(v => (v + 1) % msgs.length), 3000); return () => clearInterval(t); }, []); // eslint-disable-line
   return (
-    <div style={{ padding: 60, textAlign: 'center' }}>
+    <div style={{ padding: 'var(--s9)', textAlign: 'center' }}>
       <div className="spinner" style={{ margin: '0 auto' }} />
-      <div className="strong" style={{ marginTop: 18 }}>{msgs[i]}</div>
-      <div className="body-xs text-subtle" style={{ marginTop: 6 }}>This usually takes 20–40 seconds.</div>
+      <div className="strong" style={{ marginTop: 'var(--s5)' }}>{msgs[i]}</div>
+      <div className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>This usually takes 20–40 seconds.</div>
     </div>
   );
 }

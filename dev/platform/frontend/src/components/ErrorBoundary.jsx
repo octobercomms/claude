@@ -52,9 +52,9 @@ export default class ErrorBoundary extends React.Component {
             A part of the page hit an unexpected error. Your work is safe — nothing was lost. You can either
             retry this view or reload the whole page.
           </p>
-          <details style={{ marginBottom: 20 }}>
+          <details style={{ marginBottom: 'var(--s5)' }}>
             <summary className="body-sm text-subtle" style={{ cursor: "pointer", userSelect: "none" }}>Error detail (for support)</summary>
-            <pre className="card" style={{ padding: 12, marginTop: 8, fontSize: 'var(--fs-caption)', whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "auto" }}>{msg}</pre>
+            <pre className="card" style={{ padding: 'var(--s3)', marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "auto" }}>{msg}</pre>
           </details>
           <div className="row">
             <button type="button" onClick={this.handleReset} className="btn btn-primary">Try again</button>

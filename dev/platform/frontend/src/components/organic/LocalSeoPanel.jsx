@@ -154,14 +154,14 @@ export default function LocalSeoPanel({ clientId, tool }) {
   return (
     <div>
       <h2 className="h2">{meta.title}</h2>
-      <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 16px', maxWidth: 780 }}>{meta.blurb}</p>
+      <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 var(--s4)', maxWidth: 780 }}>{meta.blurb}</p>
 
-      <div className="lsp-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 400px) 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="lsp-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 400px) 1fr', gap: 'var(--s6)', alignItems: 'start' }}>
         {/* Input — left column */}
         <div className="card" style={{ position: 'sticky', top: 12 }}>
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'grid', gap: 'var(--s3)' }}>
             {meta.fields.map(f => (
-              <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                 <span className="field-label">{f.label}</span>
                 {f.kind === 'urls'
                   ? <textarea className="input" style={{ minHeight: 70, resize: 'vertical', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
@@ -171,7 +171,7 @@ export default function LocalSeoPanel({ clientId, tool }) {
               </label>
             ))}
           </div>
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 'var(--s4)' }}>
             <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNow, disabled: running || !canRun })}>
               {running ? 'Running…' : meta.run}
             </button>
@@ -180,30 +180,30 @@ export default function LocalSeoPanel({ clientId, tool }) {
 
         {/* Results — right column, fills the page width */}
         <div>
-          {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
+          {err && <div className="callout callout-danger" style={{ marginBottom: 'var(--s4)' }}>{err}</div>}
 
           {loading ? (
-            <div className="card" style={{ color: 'var(--text-subtle)', padding: 28, fontSize: 'var(--fs-body)' }}>Loading…</div>
+            <div className="card" style={{ color: 'var(--text-subtle)', padding: 'var(--s7)', fontSize: 'var(--fs-body)' }}>Loading…</div>
           ) : !runs.length ? (
-            <div className="card" style={{ color: 'var(--text-subtle)', padding: 28, fontSize: 'var(--fs-body)', textAlign: 'center' }}>
+            <div className="card" style={{ color: 'var(--text-subtle)', padding: 'var(--s7)', fontSize: 'var(--fs-body)', textAlign: 'center' }}>
               No runs yet — fill in the form and run it. Results appear here.
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 'var(--s5)', alignItems: 'start' }}>
               <div>
-                <div className="h3" style={{ marginBottom: 8 }}>History</div>
+                <div className="h3" style={{ marginBottom: 'var(--s2)' }}>History</div>
                 {runs.map(r => (
-                  <div key={r.id} className="card" style={{ padding: 10, marginBottom: 8, cursor: 'pointer', background: r.id === activeId ? 'var(--accent-soft)' : 'var(--surface)' }}
+                  <div key={r.id} className="card" style={{ padding: 'var(--s3)', marginBottom: 'var(--s2)', cursor: 'pointer', background: r.id === activeId ? 'var(--accent-soft)' : 'var(--surface)' }}
                     onClick={() => setActiveId(r.id)}>
                     <div style={{ fontWeight: 600, fontSize: 'var(--fs-caption)', lineHeight: 1.3, wordBreak: 'break-word' }}>{r.title || '(run)'}</div>
-                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>{fmtWhen(r.created_at)}</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{fmtWhen(r.created_at)}</div>
                   </div>
                 ))}
               </div>
               <div>
                 {activeRun && (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--s3)' }}>
                       <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteRun(activeRun.id)}>Delete</button>
                     </div>
                     <ToolResult tool={tool} output={activeRun.output_json || {}} />
@@ -221,7 +221,7 @@ export default function LocalSeoPanel({ clientId, tool }) {
 function Summary({ text }) {
   if (!text) return null;
   return (
-    <div className="card" style={{ marginBottom: 14 }}>
+    <div className="card" style={{ marginBottom: 'var(--s4)' }}>
       <div className="caption mb-2">Briefing</div>
       <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{text}</div>
     </div>
@@ -231,7 +231,7 @@ function Summary({ text }) {
 function Chips({ items }) {
   if (!items?.length) return null;
   return (
-    <ul style={{ margin: '0 0 0 18px', padding: 0, fontSize: 'var(--fs-body)', lineHeight: 1.7, color: 'var(--text-muted)' }}>
+    <ul style={{ margin: '0 0 0 var(--s5)', padding: 0, fontSize: 'var(--fs-body)', lineHeight: 1.7, color: 'var(--text-muted)' }}>
       {items.map((x, i) => <li key={i}>{x}</li>)}
     </ul>
   );
@@ -244,28 +244,28 @@ function ToolResult({ tool, output }) {
         <Summary text={output.summary} />
         <h3 className="h3">Content gaps</h3>
         {(output.content_gaps || []).map((g, i) => (
-          <div key={i} className="card" style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+          <div key={i} className="card" style={{ marginBottom: 'var(--s3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s3)' }}>
               <strong style={{ fontSize: 'var(--fs-body)' }}>{g.title}</strong>
               {g.competition_level && <span className={`chip ${LEVEL_CHIP[g.competition_level] || 'chip-neutral'}`} style={{ flex: '0 0 auto' }}>{g.competition_level} comp.</span>}
             </div>
-            {g.description && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 4 }}>{g.description}</div>}
-            {g.why_they_rank && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}><em>Why they rank:</em> {g.why_they_rank}</div>}
+            {g.description && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>{g.description}</div>}
+            {g.why_they_rank && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}><em>Why they rank:</em> {g.why_they_rank}</div>}
           </div>
         ))}
-        <h3 className="h3" style={{ marginTop: 18 }}>Topics to create</h3>
+        <h3 className="h3" style={{ marginTop: 'var(--s5)' }}>Topics to create</h3>
         {(output.topics_to_create || []).map((t, i) => (
-          <div key={i} className="card" style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+          <div key={i} className="card" style={{ marginBottom: 'var(--s3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s3)' }}>
               <strong style={{ fontSize: 'var(--fs-body)' }}>{t.title}</strong>
               {t.target_intent && <span className={`chip ${INTENT_CHIP[t.target_intent] || 'chip-neutral'}`} style={{ flex: '0 0 auto' }}>{t.target_intent}</span>}
             </div>
-            {t.angle && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 4 }}>{t.angle}</div>}
-            {t.why_it_will_rank && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}><em>Why it ranks:</em> {t.why_it_will_rank}</div>}
+            {t.angle && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>{t.angle}</div>}
+            {t.why_it_will_rank && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}><em>Why it ranks:</em> {t.why_it_will_rank}</div>}
           </div>
         ))}
         {output.trust_gaps?.length > 0 && (
-          <div style={{ marginTop: 18 }}>
+          <div style={{ marginTop: 'var(--s5)' }}>
             <h3 className="h3">Trust gaps</h3>
             <Chips items={output.trust_gaps} />
           </div>
@@ -277,13 +277,13 @@ function ToolResult({ tool, output }) {
   if (tool === 'schema_audit') {
     return (
       <>
-        <div className="card" style={{ marginBottom: 14, borderLeft: `3px solid ${output.localbusiness_present ? 'var(--positive)' : 'var(--negative)'}` }}>
+        <div className="card" style={{ marginBottom: 'var(--s4)', borderLeft: `3px solid ${output.localbusiness_present ? 'var(--positive)' : 'var(--negative)'}` }}>
           <strong>{output.localbusiness_present ? '✓ LocalBusiness schema present' : '✗ No LocalBusiness schema'}</strong>
-          {output.summary && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.6 }}>{output.summary}</div>}
+          {output.summary && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 'var(--s2)', lineHeight: 1.6 }}>{output.summary}</div>}
         </div>
         {output.existing?.length > 0 && (<>
           <h3 className="h3">Existing schema</h3>
-          <div className="card" style={{ padding: 0, marginBottom: 14 }}>
+          <div className="card" style={{ padding: 0, marginBottom: 'var(--s4)' }}>
             <table className="table">
               <thead><tr><th>Type</th><th>Verdict</th><th>Note</th></tr></thead>
               <tbody>
@@ -300,7 +300,7 @@ function ToolResult({ tool, output }) {
         </>)}
         {output.missing?.length > 0 && (<>
           <h3 className="h3">Missing / under-utilised</h3>
-          <div className="card" style={{ padding: 0, marginBottom: 14 }}>
+          <div className="card" style={{ padding: 0, marginBottom: 'var(--s4)' }}>
             <table className="table">
               <thead><tr><th>Type</th><th>Priority</th><th>Why</th></tr></thead>
               <tbody>
@@ -318,12 +318,12 @@ function ToolResult({ tool, output }) {
         {output.generated?.length > 0 && (<>
           <h3 className="h3">Generated JSON-LD</h3>
           {output.generated.map((g, i) => (
-            <div key={i} className="card" style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div key={i} className="card" style={{ marginBottom: 'var(--s3)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)' }}>
                 <strong>{g.type}</strong>
                 <CopyButton text={g.jsonld} />
               </div>
-              <pre style={{ margin: 0, padding: 12, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflowX: 'auto', fontSize: 'var(--fs-caption)', lineHeight: 1.5 }}>{g.jsonld}</pre>
+              <pre style={{ margin: 0, padding: 'var(--s3)', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflowX: 'auto', fontSize: 'var(--fs-caption)', lineHeight: 1.5 }}>{g.jsonld}</pre>
             </div>
           ))}
         </>)}
@@ -359,14 +359,14 @@ function ToolResult({ tool, output }) {
     return (
       <>
         <Summary text={output.summary} />
-        <div className="card" style={{ marginBottom: 14 }}>
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
           <div className="caption mb-2">You — {me.name || ''}</div>
           <XRayRow label="Services" items={me.services} />
           <XRayRow label="Locations" items={me.locations} />
           <XRayRow label="USPs" items={me.usps} />
         </div>
         {(output.competitors || []).map((c, i) => (
-          <div key={i} className="card" style={{ marginBottom: 10 }}>
+          <div key={i} className="card" style={{ marginBottom: 'var(--s3)' }}>
             <div className="caption mb-2">{c.name || c.domain}</div>
             <XRayRow label="Services" items={c.services} />
             <XRayRow label="Locations" items={c.locations} />
@@ -375,8 +375,8 @@ function ToolResult({ tool, output }) {
           </div>
         ))}
         {output.comparison?.length > 0 && (<>
-          <h3 className="h3" style={{ marginTop: 18 }}>Side-by-side</h3>
-          <div className="card" style={{ padding: 0, marginBottom: 14 }}>
+          <h3 className="h3" style={{ marginTop: 'var(--s5)' }}>Side-by-side</h3>
+          <div className="card" style={{ padding: 0, marginBottom: 'var(--s4)' }}>
             <table className="table">
               <thead><tr><th>Dimension</th><th>You</th><th>Competitors</th></tr></thead>
               <tbody>
@@ -390,9 +390,9 @@ function ToolResult({ tool, output }) {
         {output.advantages?.length > 0 && (<>
           <h3 className="h3">Advantages to exploit</h3>
           {output.advantages.map((a, i) => (
-            <div key={i} className="card" style={{ marginBottom: 10 }}>
+            <div key={i} className="card" style={{ marginBottom: 'var(--s3)' }}>
               <strong style={{ fontSize: 'var(--fs-body)' }}>{a.advantage}</strong>
-              {a.how_to_exploit && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 4 }}>→ {a.how_to_exploit}</div>}
+              {a.how_to_exploit && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>→ {a.how_to_exploit}</div>}
             </div>
           ))}
         </>)}
@@ -405,22 +405,22 @@ function ToolResult({ tool, output }) {
       <>
         <Summary text={output.summary} />
         {output.gaps?.length > 0 && (
-          <div className="card" style={{ marginBottom: 14 }}>
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <div className="caption mb-2">Gaps competitors aren't covering</div>
             <Chips items={output.gaps} />
           </div>
         )}
         {(output.posts || []).map((p, i) => (
-          <div key={i} className="card" style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div key={i} className="card" style={{ marginBottom: 'var(--s3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', marginBottom: 'var(--s2)' }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                 {p.local_keyword && <span className="chip chip-neutral">{p.local_keyword}</span>}
                 {p.landmark && <span className="chip chip-neutral">📍 {p.landmark}</span>}
               </div>
               <CopyButton text={p.body} label="Copy post" />
             </div>
             <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.body}</div>
-            {p.cta && <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, marginTop: 6, color: 'var(--text)' }}>{p.cta}</div>}
+            {p.cta && <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, marginTop: 'var(--s2)', color: 'var(--text)' }}>{p.cta}</div>}
           </div>
         ))}
       </>
@@ -434,7 +434,7 @@ function ToolResult({ tool, output }) {
       <>
         <Summary text={output.summary} />
         {(output.ranking_levers || []).length > 0 && (
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 'var(--s4)' }}>
             <div className="caption mb-2">Ranking levers (highest impact first)</div>
             <table className="table">
               <thead><tr>{['Impact', 'Lever', 'Evidence / why it ranks'].map(h => <th key={h}>{h}</th>)}</tr></thead>
@@ -450,17 +450,17 @@ function ToolResult({ tool, output }) {
             </table>
           </div>
         )}
-        <div className="card" style={{ marginBottom: 10 }}>
+        <div className="card" style={{ marginBottom: 'var(--s3)' }}>
           <div className="caption mb-2">Review strategy</div>
-          {rs.keyword_themes?.length > 0 && <div style={{ marginBottom: 6 }}><Chips items={rs.keyword_themes} /></div>}
-          {rs.pacing && <div style={{ fontSize: 'var(--fs-body)', marginBottom: 3 }}><strong>Pacing:</strong> {rs.pacing}</div>}
-          {rs.rating_target && <div style={{ fontSize: 'var(--fs-body)', marginBottom: 3 }}><strong>Rating target:</strong> {rs.rating_target}</div>}
+          {rs.keyword_themes?.length > 0 && <div style={{ marginBottom: 'var(--s2)' }}><Chips items={rs.keyword_themes} /></div>}
+          {rs.pacing && <div style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s1)' }}><strong>Pacing:</strong> {rs.pacing}</div>}
+          {rs.rating_target && <div style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s1)' }}><strong>Rating target:</strong> {rs.rating_target}</div>}
           {rs.reply_approach && <div style={{ fontSize: 'var(--fs-body)' }}><strong>Replies:</strong> {rs.reply_approach}</div>}
         </div>
         <div className="card">
           <div className="caption mb-2">Photo strategy</div>
-          {ps.priority_types?.length > 0 && <div style={{ marginBottom: 6 }}><Chips items={ps.priority_types} /></div>}
-          {ps.cadence && <div style={{ fontSize: 'var(--fs-body)', marginBottom: 3 }}><strong>Cadence:</strong> {ps.cadence}</div>}
+          {ps.priority_types?.length > 0 && <div style={{ marginBottom: 'var(--s2)' }}><Chips items={ps.priority_types} /></div>}
+          {ps.cadence && <div style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s1)' }}><strong>Cadence:</strong> {ps.cadence}</div>}
           {ps.notes && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>{ps.notes}</div>}
         </div>
       </>
@@ -472,14 +472,14 @@ function ToolResult({ tool, output }) {
       <>
         {output.takeaway && <Summary text={output.takeaway} />}
         {(output.outliers || []).length > 0 && (
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 'var(--s4)' }}>
             <div className="caption mb-2">Outliers — ranking despite weak signals</div>
             {output.outliers.map((o, i) => (
-              <div key={i} className="card" style={{ marginBottom: 8 }}>
+              <div key={i} className="card" style={{ marginBottom: 'var(--s2)' }}>
                 <div style={{ fontWeight: 600 }}>{o.business}</div>
-                <div className="body-sm" style={{ marginTop: 4 }}><strong>Carried by:</strong> {o.dominant_signal}</div>
-                {o.why_unexpected && <div className="body-sm text-muted" style={{ marginTop: 3 }}>Weak on: {o.why_unexpected}</div>}
-                {o.evidence && <div className="body-xs text-subtle" style={{ marginTop: 3 }}>{o.evidence}</div>}
+                <div className="body-sm" style={{ marginTop: 'var(--s1)' }}><strong>Carried by:</strong> {o.dominant_signal}</div>
+                {o.why_unexpected && <div className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>Weak on: {o.why_unexpected}</div>}
+                {o.evidence && <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>{o.evidence}</div>}
               </div>
             ))}
           </div>
@@ -488,7 +488,7 @@ function ToolResult({ tool, output }) {
           <div className="card">
             <div className="caption mb-2">What dominates this niche</div>
             {output.dominant_signals.map((s, i) => (
-              <div key={i} className="body-sm" style={{ marginBottom: 4 }}><strong>{s.signal}</strong> — {s.why_it_dominates_here}</div>
+              <div key={i} className="body-sm" style={{ marginBottom: 'var(--s1)' }}><strong>{s.signal}</strong> — {s.why_it_dominates_here}</div>
             ))}
           </div>
         )}
@@ -502,7 +502,7 @@ function ToolResult({ tool, output }) {
 function XRayRow({ label, items }) {
   if (!items?.length) return null;
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 'var(--fs-body)' }}>
+    <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s1)', fontSize: 'var(--fs-body)' }}>
       <span style={{ flex: '0 0 110px', color: 'var(--text-subtle)' }}>{label}</span>
       <span style={{ color: 'var(--text-muted)' }}>{items.join(', ')}</span>
     </div>

@@ -111,15 +111,15 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
         </p>
       </div>
 
-      <div className="card" style={{ marginBottom: 18 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8 }}>
+      <div className="card" style={{ marginBottom: 'var(--s5)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 'var(--s2)' }}>
           <input value={url} onChange={e => setUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && runNew()}
             placeholder="https://yoursite.com/blog/post-to-audit"
-            style={{ padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
           <input value={keyword} onChange={e => setKeyword(e.target.value)}
             placeholder="Target keyword (optional)"
-            style={{ padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !url.trim() })}>
             {running ? 'Auditing…' : 'Run audit'}
           </button>
@@ -129,25 +129,25 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
       {err && <div className="callout callout-danger mb-3">{err}</div>}
 
       {loading && !audits.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>
       ) : !audits.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           No audits yet. Paste a URL above to grade your first page.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 22 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 'var(--s6)' }}>
           <div>
             <div className="caption mb-3">Past audits</div>
-            <div className="stack" style={{ gap: 6 }}>
+            <div className="stack" style={{ gap: 'var(--s2)' }}>
               {audits.map(a => {
                 const isActive = a.id === active?.id;
                 return (
                   <div key={a.id} className="card"
-                    style={{ padding: 10, cursor: 'pointer',
+                    style={{ padding: 'var(--s3)', cursor: 'pointer',
                       background: isActive ? 'var(--accent-soft)' : 'var(--surface)',
                       borderColor: isActive ? 'var(--accent)' : 'var(--card-border)' }}
                     onClick={() => a.status === 'complete' && openAudit(a.id)}>
-                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)' }}>
                       {new Date(a.started_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       {' · '}<span style={{ fontWeight: 700, color: a.status === 'failed' ? 'var(--negative)' : a.status === 'running' ? 'var(--warning)' : 'var(--positive)' }}>{a.status}</span>
                     </div>
@@ -155,7 +155,7 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
                       {(a.url || '').replace(/^https?:\/\//, '').slice(0, 60)}
                     </div>
                     {a.status === 'complete' && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                      <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
                         {a.content_grade && <Badge value={`E‑E‑A‑T ${a.content_grade}`} tone={gradeTone(a.content_grade)} />}
                         <Badge value={a.readability_grade} tone={GRADE_TONE[a.readability_grade] || 'default'} />
                         <Badge value={a.priority} tone={PRIORITY_TONE[a.priority] || 'default'} />
@@ -169,17 +169,17 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
 
           <div>
             {!active ? (
-              <div style={{ color: 'var(--text-subtle)', padding: 20 }}>
+              <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>
                 {running ? 'Auditing in progress — this takes ~30s.' : 'Pick an audit on the left, or run a new one above.'}
               </div>
             ) : active.status === 'failed' ? (
               <div className="callout callout-danger">Audit failed: {active.error_message}</div>
             ) : (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="caption">Audited</div>
-                    <a href={active.url} target="_blank" rel="noreferrer" className="h3" style={{ marginTop: 4, marginBottom: 4, display: 'block', wordBreak: 'break-all', color: 'var(--text)' }}>
+                    <a href={active.url} target="_blank" rel="noreferrer" className="h3" style={{ marginTop: 'var(--s1)', marginBottom: 'var(--s1)', display: 'block', wordBreak: 'break-all', color: 'var(--text)' }}>
                       {active.url}
                     </a>
                     <div className="body-xs text-subtle">
@@ -187,7 +187,7 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
                       {active.target_keyword && <> · target keyword: <strong style={{ color: 'var(--text-muted)' }}>{active.target_keyword}</strong></>}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                     {onRefresh && (
                       <button onClick={() => onRefresh(active)} className="btn btn-primary btn-sm">Refresh in Pipeline →</button>
                     )}
@@ -205,13 +205,13 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
                 {active.content_grade && <EeatScorecard audit={active} />}
 
                 {active.detected_primary_keyword && active.detected_primary_keyword !== active.target_keyword && (
-                  <div className="callout" style={{ background: 'var(--accent-soft)', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', marginBottom: 14, fontSize: 'var(--fs-body)' }}>
+                  <div className="callout" style={{ background: 'var(--accent-soft)', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s4)', fontSize: 'var(--fs-body)' }}>
                     Claude detected the page is actually targeting <strong>"{active.detected_primary_keyword}"</strong>{active.target_keyword && <> — not the supplied target "{active.target_keyword}"</>}.
                   </div>
                 )}
 
                 {active.overall_recommendation && (
-                  <div className="card" style={{ marginBottom: 14 }}>
+                  <div className="card" style={{ marginBottom: 'var(--s4)' }}>
                     <div className="caption mb-2">Recommendation</div>
                     <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{active.overall_recommendation}</div>
                   </div>
@@ -223,7 +223,7 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
                     {(active.missing_subtopics_json || []).length === 0 ? (
                       <p className="body-sm text-subtle">None identified — coverage looks complete.</p>
                     ) : (
-                      <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', lineHeight: 1.7, color: 'var(--text)' }}>
+                      <ul style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-body)', lineHeight: 1.7, color: 'var(--text)' }}>
                         {(active.missing_subtopics_json || []).map((s, i) => <li key={i}>{s}</li>)}
                       </ul>
                     )}
@@ -237,7 +237,7 @@ export default function ContentAuditPanel({ clientId, onRefresh }) {
                         {(active.suggested_additions_json || []).map((s, i) => (
                           <li key={i}>
                             <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>{s.heading}</div>
-                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 2 }}>{s.rationale}</div>
+                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 'var(--s1)' }}>{s.rationale}</div>
                           </li>
                         ))}
                       </ul>
@@ -264,13 +264,13 @@ function EeatScorecard({ audit }) {
   const colour = (tone) => tone === 'positive' ? 'var(--positive)' : tone === 'negative' ? 'var(--negative)' : tone === 'warning' ? 'var(--warning)' : 'var(--text-muted)';
 
   return (
-    <div className="card" style={{ marginBottom: 14 }}>
-      <div className="row between center" style={{ marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
+    <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+      <div className="row between center" style={{ marginBottom: 'var(--s3)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div className="caption">E‑E‑A‑T + CITE quality</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
           {verdict && (
             <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-              padding: '3px 8px', borderRadius: 'var(--r-sm)', background: `var(--${verdict.tone}-soft)`, color: colour(verdict.tone) }}>
+              padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', background: `var(--${verdict.tone}-soft)`, color: colour(verdict.tone) }}>
               {verdict.label}
             </span>
           )}
@@ -280,11 +280,11 @@ function EeatScorecard({ audit }) {
         </div>
       </div>
 
-      <div className="stack" style={{ gap: 8 }}>
+      <div className="stack" style={{ gap: 'var(--s2)' }}>
         {FACTORS.map(([key, label]) => {
           const f = factors[key] || {};
           return (
-            <div key={key} style={{ display: 'grid', gridTemplateColumns: '150px 34px 1fr', gap: 10, alignItems: 'baseline' }}>
+            <div key={key} style={{ display: 'grid', gridTemplateColumns: '150px 34px 1fr', gap: 'var(--s3)', alignItems: 'baseline' }}>
               <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>{label}</div>
               <div style={{ fontSize: 'var(--fs-body)', fontWeight: 800, color: colour(gradeTone(f.grade)) }}>{f.grade || '—'}</div>
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.45 }}>{f.note || ''}</div>
@@ -294,14 +294,14 @@ function EeatScorecard({ audit }) {
       </div>
 
       {Object.keys(signals).length > 0 && (
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--card-border)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: '1px solid var(--card-border)', display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
           {Object.entries(SIGNAL_LABELS).map(([key, label]) => {
             const v = signals[key];
             const on = typeof v === 'number' ? v > 0 : !!v;
             const suffix = typeof v === 'number' ? ` ${v}` : '';
             return (
               <span key={key} title={label} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600,
-                padding: '2px 7px', borderRadius: 'var(--r-sm)',
+                padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)',
                 background: on ? 'var(--positive-soft)' : 'var(--negative-soft)',
                 color: on ? 'var(--positive)' : 'var(--negative)' }}>
                 {on ? '✓' : '✗'} {label}{suffix}
@@ -322,7 +322,7 @@ function StatCard({ label, value, tone }) {
   return (
     <div className="card">
       <div className="caption">{label}</div>
-      <div className="metric" style={{ color: colour, marginTop: 4 }}>{value}</div>
+      <div className="metric" style={{ color: colour, marginTop: 'var(--s1)' }}>{value}</div>
     </div>
   );
 }
@@ -339,7 +339,7 @@ function Badge({ value, tone }) {
            : 'var(--surface-sunken)';
   return (
     <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
-                   padding: '2px 6px', borderRadius: 'var(--r-sm)', background: bg, color: colour }}>
+                   padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', background: bg, color: colour }}>
       {value}
     </span>
   );

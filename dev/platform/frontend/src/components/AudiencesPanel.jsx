@@ -238,7 +238,7 @@ export default function AudiencesPanel({ clientId }) {
       ) : (
         <Section caption="First-party data" title="Where your customers are">
           <Card variant="accent">
-            <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
+            <div className="row between center" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0 }}>
                 <p className="body-sm">
                   Connect a <strong>Shopify or WooCommerce</strong> store on the Setup → Connectors tab and OMI will
@@ -292,9 +292,9 @@ function GetStartedModal({ hasStore, onUpload, onConnectStore, onClose, refreshi
           There's no audience data here yet. The fastest way to a high-converting Meta audience is a
           <strong> value-based lookalike</strong> — and that starts from your own buyers.
         </p>
-        <div className="stack" style={{ gap: 10 }}>
+        <div className="stack" style={{ gap: 'var(--s3)' }}>
           <Card variant="accent">
-            <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
+            <div className="row between center" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0 }}>
                 <h3 className="h3">1 · Upload a customer list</h3>
                 <p className="body-sm mt-1">A CSV of buyers (email / phone). Hashed on upload, exported as a Meta Custom Audience — seed your 1% lookalike from it. <strong>Best first move.</strong></p>
@@ -303,7 +303,7 @@ function GetStartedModal({ hasStore, onUpload, onConnectStore, onClose, refreshi
             </div>
           </Card>
           <Card>
-            <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
+            <div className="row between center" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0 }}>
                 <h3 className="h3">2 · Or pull from your store</h3>
                 <p className="body-sm mt-1">{hasStore
@@ -351,7 +351,7 @@ function MethodologyCard() {
           </p>
 
           <p className="body-sm mt-4">Build in this priority order:</p>
-          <ol className="body-sm mt-2" style={{ paddingLeft: 18, display: 'grid', gap: 8 }}>
+          <ol className="body-sm mt-2" style={{ paddingLeft: 'var(--s5)', display: 'grid', gap: 'var(--s2)' }}>
             <li>
               <strong>Value-based lookalike from real buyers</strong> — highest leverage. Upload the customer list below
               (emails + lifetime spend), seeding from only the <strong>top 20–25% by AOV</strong>. Quality of seed beats size:

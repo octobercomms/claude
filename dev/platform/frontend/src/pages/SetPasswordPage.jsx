@@ -35,17 +35,17 @@ export default function SetPasswordPage() {
     finally { setSaving(false); }
   }
 
-  const wrap = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--surface)' };
-  const card = { width: '100%', maxWidth: 380, padding: 28, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' };
+  const wrap = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)', background: 'var(--surface)' };
+  const card = { width: '100%', maxWidth: 380, padding: 'var(--s7)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' };
 
   if (checking) return <div style={wrap}><div style={card}>Checking your link…</div></div>;
 
   if (invalid) return (
     <div style={wrap}>
       <div style={card}>
-        <h1 className="h2" style={{ marginBottom: 8 }}>Link expired</h1>
+        <h1 className="h2" style={{ marginBottom: 'var(--s2)' }}>Link expired</h1>
         <p className="body-sm text-muted">{invalid}</p>
-        <p className="body-sm text-muted" style={{ marginTop: 8 }}>Ask your account manager to send a fresh invite.</p>
+        <p className="body-sm text-muted" style={{ marginTop: 'var(--s2)' }}>Ask your account manager to send a fresh invite.</p>
       </div>
     </div>
   );
@@ -53,8 +53,8 @@ export default function SetPasswordPage() {
   if (done) return (
     <div style={wrap}>
       <div style={card}>
-        <h1 className="h2" style={{ marginBottom: 8 }}>You’re all set 🎉</h1>
-        <p className="body-sm text-muted" style={{ marginBottom: 16 }}>Your password is saved. Log in to see your dashboard.</p>
+        <h1 className="h2" style={{ marginBottom: 'var(--s2)' }}>You’re all set 🎉</h1>
+        <p className="body-sm text-muted" style={{ marginBottom: 'var(--s4)' }}>Your password is saved. Log in to see your dashboard.</p>
         <Link to="/login" className="btn btn-primary">Go to login →</Link>
       </div>
     </div>
@@ -63,13 +63,13 @@ export default function SetPasswordPage() {
   return (
     <div style={wrap}>
       <form onSubmit={submit} style={card}>
-        <h1 className="h2" style={{ marginBottom: 4 }}>Set your password</h1>
-        <p className="body-sm text-muted" style={{ marginBottom: 16 }}>Signing in as <strong>{email}</strong></p>
-        {err && <div className="callout callout-warning" style={{ marginBottom: 12, fontSize: 'var(--fs-body)' }}>{err}</div>}
+        <h1 className="h2" style={{ marginBottom: 'var(--s1)' }}>Set your password</h1>
+        <p className="body-sm text-muted" style={{ marginBottom: 'var(--s4)' }}>Signing in as <strong>{email}</strong></p>
+        {err && <div className="callout callout-warning" style={{ marginBottom: 'var(--s3)', fontSize: 'var(--fs-body)' }}>{err}</div>}
         <label className="field-label">New password</label>
-        <input className="input" type="password" value={pw} onChange={e => setPw(e.target.value)} autoFocus placeholder="At least 8 characters" style={{ marginBottom: 12 }} />
+        <input className="input" type="password" value={pw} onChange={e => setPw(e.target.value)} autoFocus placeholder="At least 8 characters" style={{ marginBottom: 'var(--s3)' }} />
         <label className="field-label">Confirm password</label>
-        <input className="input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} style={{ marginBottom: 16 }} />
+        <input className="input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} style={{ marginBottom: 'var(--s4)' }} />
         <button type="submit" className="btn btn-primary" disabled={saving} style={{ width: '100%' }}>{saving ? 'Saving…' : 'Set password'}</button>
       </form>
     </div>

@@ -109,28 +109,28 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
     } catch (err) { toast(err.message, 'error'); }
   }
 
-  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>;
 
   return (
     <div className="suite-video">
       {!embedded && <div className="kicker"><span className="pip" /><span>Video Studio · auto-edit</span></div>}
       {!embedded && <header className="hero"><div><h1 className="display mt-2">Video Studio</h1></div></header>}
-      <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', maxWidth: 720, margin: '0 0 18px' }}>
+      <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', maxWidth: 720, margin: '0 0 var(--s5)' }}>
         Drop raw clips, pick a brand style, and run the auto-edit — it trims dead air, adds captions
         and motion graphics, grades the result, and re-edits until it passes. Rendering runs on the
         dedicated worker; this screen queues the job and tracks it.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 'var(--s6)' }}>
         {/* Left: create + project list */}
         <div>
-          <form onSubmit={createProject} className="card" style={{ marginBottom: 14 }}>
+          <form onSubmit={createProject} className="card" style={{ marginBottom: 'var(--s4)' }}>
             <div className="caption mb-2">New edit</div>
-            <input className="input" placeholder="Project name" value={name} onChange={e => setName(e.target.value)} style={{ marginBottom: 8 }} />
-            <select className="input" value={preset} onChange={e => setPreset(e.target.value)} style={{ marginBottom: 8 }}>
+            <input className="input" placeholder="Project name" value={name} onChange={e => setName(e.target.value)} style={{ marginBottom: 'var(--s2)' }} />
+            <select className="input" value={preset} onChange={e => setPreset(e.target.value)} style={{ marginBottom: 'var(--s2)' }}>
               {STYLE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
-            <select className="input" value={outputTarget} onChange={e => setOutputTarget(e.target.value)} style={{ marginBottom: 10 }}>
+            <select className="input" value={outputTarget} onChange={e => setOutputTarget(e.target.value)} style={{ marginBottom: 'var(--s3)' }}>
               <option value="download">Deliver: download / email</option>
               <option value="drive">Deliver: Google Drive folder</option>
               <option value="social">Deliver: publish to Instagram</option>
@@ -141,19 +141,19 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
           </form>
 
           {/* Per-client Drive delivery folder. */}
-          <div className="card" style={{ marginBottom: 14 }}>
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <div className="caption mb-2">Google Drive delivery folder</div>
-            <input className="input" placeholder="https://drive.google.com/drive/folders/…" value={driveFolder} onChange={e => setDriveFolder(e.target.value)} style={{ marginBottom: 8 }} />
+            <input className="input" placeholder="https://drive.google.com/drive/folders/…" value={driveFolder} onChange={e => setDriveFolder(e.target.value)} style={{ marginBottom: 'var(--s2)' }} />
             <button className="btn btn-secondary btn-sm" onClick={saveDriveFolder} disabled={savingFolder}>{savingFolder ? 'Saving…' : 'Save folder'}</button>
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6 }}>Masters from “Deliver: Drive” projects land here. Needs an active Google connector with Drive access.</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>Masters from “Deliver: Drive” projects land here. Needs an active Google connector with Drive access.</div>
           </div>
-          <div className="h3" style={{ marginBottom: 8 }}>Projects</div>
+          <div className="h3" style={{ marginBottom: 'var(--s2)' }}>Projects</div>
           {!projects.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No projects yet.</div>}
           {projects.map(p => (
-            <div key={p.id} className="card" style={{ padding: 10, marginBottom: 8, cursor: 'pointer', background: p.id === active?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
+            <div key={p.id} className="card" style={{ padding: 'var(--s3)', marginBottom: 'var(--s2)', cursor: 'pointer', background: p.id === active?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
               onClick={() => openProject(p.id)}>
               <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>{p.name}</div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 3 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                 {p.clip_count || 0} clip{(p.clip_count || 0) === 1 ? '' : 's'} · {STATUS_LABEL[p.status] || p.status}
               </div>
             </div>
@@ -163,15 +163,15 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
         {/* Right: active project */}
         <div>
           {!active ? (
-            <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>Select or create a project.</div>
+            <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>Select or create a project.</div>
           ) : (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--s3)' }}>
                 <div>
                   <div className="h2">{active.name}</div>
                   <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Status: {STATUS_LABEL[active.status] || active.status}{active.error ? ` — ${active.error}` : ''}{active.score != null ? ` · QA score ${active.score}/100` : ''}</div>
                   {active.status === 'done' && active.output_url && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s2)', flexWrap: 'wrap' }}>
                       <a className="btn btn-primary btn-sm" href={`/api/video/projects/${active.id}/output`} target="_blank" rel="noreferrer">↓ Download finished video</a>
                       {active.delivered_url && (
                         <a className="btn btn-secondary btn-sm" href={active.delivered_url} target="_blank" rel="noreferrer">↗ Open delivered</a>
@@ -179,14 +179,14 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
                     </div>
                   )}
                   {active.status === 'done' && active.output_url && (
-                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>Files are auto-removed from the server 7 days after finishing.</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>Files are auto-removed from the server 7 days after finishing.</div>
                   )}
                 </div>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteProject(active.id)}>Delete</button>
               </div>
 
-              <div className="card" style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)' }}>
                   <div className="caption">Clips ({active.clips?.length || 0})</div>
                   <div>
                     <input ref={fileRef} type="file" accept="video/*" multiple onChange={uploadClips} style={{ display: 'none' }} />
@@ -211,10 +211,10 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
               </button>
 
               {active.jobs?.length > 0 && (
-                <div className="card" style={{ marginTop: 14 }}>
+                <div className="card" style={{ marginTop: 'var(--s4)' }}>
                   <div className="caption mb-2">Pipeline</div>
                   {active.jobs.map(j => (
-                    <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', padding: '4px 0', borderTop: '1px solid var(--card-border)' }}>
+                    <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', padding: 'var(--s1) 0', borderTop: '1px solid var(--card-border)' }}>
                       <span style={{ textTransform: 'capitalize' }}>{j.stage}</span>
                       <span style={{ color: j.status === 'failed' ? 'var(--negative)' : j.status === 'done' ? 'var(--positive)' : 'var(--text-subtle)' }}>{j.status}{j.error ? ` — ${j.error}` : ''}</span>
                     </div>

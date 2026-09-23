@@ -24,7 +24,7 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
   // as a formatted press release, not raw HTML.
   function bodyPreviewDoc(html) {
     return `<!doctype html><html><head><meta charset="utf-8"><style>
-      body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;line-height:1.6;font-size:14px;margin:0;padding:16px;max-width:600px}
+      body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a1a1a;line-height:1.6;font-size:14px;margin: 0;padding:16px;max-width:600px}
       h1,h2,h3{line-height:1.25}img{max-width:100%;height:auto;border-radius:6px}a{color:#1558d6}
     </style></head><body>${html || '<p style="color:#888">No body content.</p>'}</body></html>`;
   }
@@ -76,15 +76,15 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 'var(--fs-title)', fontWeight: 700 }}>New press campaign</h2>
-        <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
+        <h2 style={{ margin: '0 0 var(--s1)', fontSize: 'var(--fs-title)', fontWeight: 700 }}>New press campaign</h2>
+        <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: '0 0 var(--s4)', lineHeight: 1.5 }}>
           Paste a downloadfor.press URL (or another public release page). The platform fetches the content,
           creates a campaign for it, and stages a 4-step sequence (initial pitch + three follow-ups). Claude
           personalises the pitch per recipient when you pick journalists.
         </p>
 
         <label className="field-label">URL</label>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)' }}>
           <input value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && doFetch()}
             placeholder="https://downloadfor.press/press-releases/your-release-slug/"
             className="input" style={{ flex: 1 }} />
@@ -92,14 +92,14 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
         </div>
 
         {parsed && (
-          <div style={{ marginTop: 18, padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 460, overflowY: 'auto' }}>
+          <div style={{ marginTop: 'var(--s5)', padding: 'var(--s4)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 460, overflowY: 'auto' }}>
             <div className="field-label">Parsed preview — edit if needed</div>
-            <label className="field-label" style={{ marginTop: 8 }}>Title</label>
+            <label className="field-label" style={{ marginTop: 'var(--s2)' }}>Title</label>
             <input value={parsed.title || ''} onChange={e => setParsed({ ...parsed, title: e.target.value })} className="input" />
-            <label className="field-label" style={{ marginTop: 8 }}>Dateline</label>
+            <label className="field-label" style={{ marginTop: 'var(--s2)' }}>Dateline</label>
             <input value={parsed.dateline || ''} onChange={e => setParsed({ ...parsed, dateline: e.target.value })}
               placeholder="London, 28 May 2026" className="input" />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--s2)' }}>
               <label className="field-label" style={{ margin: 0 }}>Body</label>
               <button type="button" onClick={() => setShowBodyHtml(v => !v)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--fs-caption)' }}>
@@ -113,14 +113,14 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
               <iframe title="Release preview" srcDoc={bodyPreviewDoc(parsed.body_html)} sandbox=""
                 style={{ width: '100%', height: 220, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} />
             )}
-            <label className="field-label" style={{ marginTop: 8 }}>Press contact</label>
+            <label className="field-label" style={{ marginTop: 'var(--s2)' }}>Press contact</label>
             <textarea rows={2} value={parsed.contact_block || ''} onChange={e => setParsed({ ...parsed, contact_block: e.target.value })} className="input" style={{ minHeight: 50 }} />
-            <label className="field-label" style={{ marginTop: 8 }}>Notes to editors / boilerplate</label>
+            <label className="field-label" style={{ marginTop: 'var(--s2)' }}>Notes to editors / boilerplate</label>
             <textarea rows={3} value={parsed.boilerplate || ''} onChange={e => setParsed({ ...parsed, boilerplate: e.target.value })} className="input" style={{ minHeight: 70 }} />
             {parsed.images?.length > 0 && (
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 'var(--s3)' }}>
                 <div className="field-label">{parsed.images.length} image{parsed.images.length === 1 ? '' : 's'} found</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s2)' }}>
                   {parsed.images.slice(0, 6).map((img, i) => (
                     <img key={i} src={img.src} alt={img.alt} style={{ height: 52, borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)' }} />
                   ))}
@@ -130,7 +130,7 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', justifyContent: 'flex-end', marginTop: 'var(--s4)' }}>
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
           {parsed && <button className="btn btn-primary" {...roWrite(readOnly, { onClick: save, disabled: saving })}>{saving ? 'Saving…' : 'Create campaign'}</button>}
         </div>

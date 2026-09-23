@@ -18,7 +18,7 @@ export function IntentBadge({ intent }) {
   return (
     <span style={{
       display: 'inline-block', fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase',
-      letterSpacing: 0.4, padding: '2px 6px', borderRadius: 'var(--r-sm)', background: c.bg, color: c.fg, marginLeft: 6,
+      letterSpacing: 0.4, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', background: c.bg, color: c.fg, marginLeft: 'var(--s2)',
     }}>{intent.slice(0, 4)}</span>
   );
 }
@@ -57,11 +57,11 @@ export function SerpFeaturePills({ features }) {
     if (items.length >= 4) break;
   }
   return (
-    <span style={{ display: 'inline-flex', gap: 4, marginLeft: 6, flexWrap: 'wrap' }}>
+    <span style={{ display: 'inline-flex', gap: 'var(--s1)', marginLeft: 'var(--s2)', flexWrap: 'wrap' }}>
       {items.map(label => (
         <span key={label} style={{
           fontSize: 'var(--fs-caption)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3,
-          padding: '1px 5px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
+          padding: 'var(--s1) var(--s1)', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
         }}>{label}</span>
       ))}
       {arr.length > items.length && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>+{arr.length - items.length}</span>}
@@ -87,13 +87,13 @@ export function KeywordHistoryModal({ keywordId, keyword, onClose }) {
         <div className="modal-head">
           <div>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Full position history</div>
-            <h2 style={{ margin: '4px 0 0', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{keyword}</h2>
+            <h2 style={{ margin: 'var(--s1) 0 0', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{keyword}</h2>
           </div>
           <button onClick={onClose} className="modal-close">×</button>
         </div>
         {err && <div className="callout callout-danger">{err}</div>}
-        {!rows && !err && <div style={{ padding: 20, color: 'var(--text-subtle)' }}>Loading…</div>}
-        {rows && rows.length === 0 && <div style={{ padding: 20, color: 'var(--text-subtle)' }}>No history yet — run a rank check to populate.</div>}
+        {!rows && !err && <div style={{ padding: 'var(--s5)', color: 'var(--text-subtle)' }}>Loading…</div>}
+        {rows && rows.length === 0 && <div style={{ padding: 'var(--s5)', color: 'var(--text-subtle)' }}>No history yet — run a rank check to populate.</div>}
         {rows && rows.length > 0 && (
           <>
             <HistoryChart rows={rows} />
@@ -101,23 +101,23 @@ export function KeywordHistoryModal({ keywordId, keyword, onClose }) {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-caption)' }}>
                 <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-raised)', borderBottom: '1px solid #ddd' }}>
                   <tr>
-                    <th className="caption" style={{ padding: "6px 8px" }}>Date</th>
-                    <th className="caption" style={{ padding: "6px 8px" }}>Position</th>
-                    <th className="caption" style={{ padding: "6px 8px" }}>Source</th>
-                    <th className="caption" style={{ padding: "6px 8px" }}>URL</th>
-                    <th className="caption" style={{ padding: "6px 8px" }}>SERP features</th>
+                    <th className="caption" style={{ padding: "var(--s2) var(--s2)" }}>Date</th>
+                    <th className="caption" style={{ padding: "var(--s2) var(--s2)" }}>Position</th>
+                    <th className="caption" style={{ padding: "var(--s2) var(--s2)" }}>Source</th>
+                    <th className="caption" style={{ padding: "var(--s2) var(--s2)" }}>URL</th>
+                    <th className="caption" style={{ padding: "var(--s2) var(--s2)" }}>SERP features</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                      <td style={{ padding: "6px 8px", fontSize: 'var(--fs-caption)' }}>{new Date(r.checked_at).toLocaleDateString('en-GB')}</td>
-                      <td style={{ padding: "6px 8px", fontSize: 'var(--fs-caption)' }}><strong>{r.position ?? '—'}</strong></td>
-                      <td style={{ padding: "6px 8px", fontSize: 'var(--fs-caption)' }}>{r.source || 'dataforseo'}</td>
-                      <td style={{ padding: "6px 8px", fontSize: 'var(--fs-caption)', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
+                      <td style={{ padding: "var(--s2) var(--s2)", fontSize: 'var(--fs-caption)' }}>{new Date(r.checked_at).toLocaleDateString('en-GB')}</td>
+                      <td style={{ padding: "var(--s2) var(--s2)", fontSize: 'var(--fs-caption)' }}><strong>{r.position ?? '—'}</strong></td>
+                      <td style={{ padding: "var(--s2) var(--s2)", fontSize: 'var(--fs-caption)' }}>{r.source || 'dataforseo'}</td>
+                      <td style={{ padding: "var(--s2) var(--s2)", fontSize: 'var(--fs-caption)', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
                         {r.url ? <a href={r.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{r.url.replace(/^https?:\/\//, '')}</a> : '—'}
                       </td>
-                      <td style={{ padding: "6px 8px", fontSize: 'var(--fs-caption)' }}><SerpFeaturePills features={r.serp_features} /></td>
+                      <td style={{ padding: "var(--s2) var(--s2)", fontSize: 'var(--fs-caption)' }}><SerpFeaturePills features={r.serp_features} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -134,7 +134,7 @@ function HistoryChart({ rows }) {
   const series = [...rows].reverse().filter(r => r.position != null);
   if (series.length < 2) return null;
   return (
-    <div style={{ height: 180, padding: '12px 12px 0' }}>
+    <div style={{ height: 180, padding: 'var(--s3) var(--s3) 0' }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={series} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
           <XAxis dataKey="checked_at" tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={d => new Date(d).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })} />
@@ -232,37 +232,37 @@ export function SearchConsoleTab({ clientId }) {
   useEffect(() => { if (site !== null) load(); /* eslint-disable-line */ }, [days, site]);
 
   if (err) return <div className="callout callout-danger">{err}</div>;
-  if (loading || !queries) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading Search Console data…</div>;
+  if (loading || !queries) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading Search Console data…</div>;
 
   return (
     <div>
-      <div className="row between" style={{ marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div className="row between" style={{ marginBottom: 'var(--s4)', gap: 'var(--s3)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}>
           <h2 className="h2" style={{ margin: 0 }}>Search Console</h2>
           {sites.length > 1 && (
             <select value={site || ''} onChange={e => setSite(e.target.value)} className="input"
-              style={{ padding: '6px 10px', fontSize: 'var(--fs-body)', maxWidth: 320 }} title="Search Console property">
+              style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', maxWidth: 320 }} title="Search Console property">
               {sites.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           )}
         </div>
         <div>
           {[7, 28, 90, 180].map(n => (
-            <button key={n} onClick={() => setDays(n)} className={`btn btn-sm ${days === n ? 'btn-primary' : 'btn-secondary'}`} style={{ marginLeft: 4 }}>{n}D</button>
+            <button key={n} onClick={() => setDays(n)} className={`btn btn-sm ${days === n ? 'btn-primary' : 'btn-secondary'}`} style={{ marginLeft: 'var(--s1)' }}>{n}D</button>
           ))}
         </div>
       </div>
       {sites.length > 1 && (
-        <div className="body-xs text-subtle" style={{ marginTop: -6, marginBottom: 14 }}>
+        <div className="body-xs text-subtle" style={{ marginTop: -6, marginBottom: 'var(--s4)' }}>
           Showing <strong>{site}</strong> · new keywords you track from here are added for <strong>{country.name}</strong>.
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s6)' }}>
         <GSCSection title="Top queries" rows={queries.rows} keyCol="query" cap={25}
           trackable tracked={tracked} countryCode={country.code} onTrack={trackQuery} readOnly={readOnly} />
         <GSCSection title="Top pages" rows={pages.rows} keyCol="page" cap={25} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s6)', marginTop: 'var(--s6)' }}>
         <GSCSection title="By device" rows={devices.rows} keyCol="device" cap={5} />
         <SitemapList sitemaps={sitemaps || []} />
       </div>
@@ -306,7 +306,7 @@ function GSCSection({ title, rows, keyCol, cap, trackable, tracked, countryCode,
                       {isTracked ? (
                         <span title="Already tracking" style={{ color: 'var(--positive)', fontWeight: 700 }}>✓</span>
                       ) : (
-                        <button className="btn btn-ghost btn-sm" style={{ padding: '0 8px', lineHeight: 1.6 }}
+                        <button className="btn btn-ghost btn-sm" style={{ padding: '0 var(--s2)', lineHeight: 1.6 }}
                           {...roWrite(readOnly, { onClick: () => onTrack(q), title: `Track “${q}”` })}>+</button>
                       )}
                     </td>
@@ -389,7 +389,7 @@ export function AIOverviewsTab({ clientId }) {
   }
 
   if (err) return <div className="callout callout-danger">{err}</div>;
-  if (!data) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading AI Overview data…</div>;
+  if (!data) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading AI Overview data…</div>;
 
   const latest = data.latest || [];
   const trend = data.trend || [];
@@ -398,7 +398,7 @@ export function AIOverviewsTab({ clientId }) {
 
   return (
     <div>
-      <div className="row between" style={{ marginBottom: 14 }}>
+      <div className="row between" style={{ marginBottom: 'var(--s4)' }}>
         <div>
           <h2 className="h2">AI Overviews</h2>
           <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 0 }}>
@@ -411,14 +411,14 @@ export function AIOverviewsTab({ clientId }) {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 14, marginBottom: 18 }}>
+      <div style={{ display: 'flex', gap: 'var(--s3)', marginTop: 'var(--s4)', marginBottom: 'var(--s5)' }}>
         <SummaryCard label="Keywords tracked" value={latest.length} feature />
         <SummaryCard label="Currently triggering AIO" value={presentNow} pct={latest.length ? Math.round(presentNow / latest.length * 100) : null} />
         <SummaryCard label="Your brand cited" value={citedNow} pct={presentNow ? Math.round(citedNow / presentNow * 100) : null} />
       </div>
 
       {trend.length >= 2 && (
-        <div style={{ height: 200, marginBottom: 24, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 12 }}>
+        <div style={{ height: 200, marginBottom: 'var(--s6)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s3)' }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trend} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
               <XAxis dataKey="date" tick={{ fontSize: 'var(--fs-caption)' }} tickFormatter={d => new Date(d).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })} />
@@ -530,28 +530,28 @@ export function ContentGapsTab({ clientId, onBuildContent }) {
   return (
     <div>
       <h2 className="h2">Content gaps</h2>
-      <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 14px' }}>
+      <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 var(--s4)' }}>
         Keywords competitors rank for that you don't. Add up to 5 competitor domains; we'll pull the union of their keywords minus yours from DataForSEO.
       </p>
 
-      <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 14, marginBottom: 18 }}>
-        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Competitor domains</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+      <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s4)', marginBottom: 'var(--s5)' }}>
+        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>Competitor domains</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
           {competitors.map(c => (
             <span key={c} className="chip chip-outline" style={{ fontFamily: "monospace" }}>
               {c}
-              <button onClick={() => removeCompetitor(c)} className="btn-ghost" style={{ fontSize: 'var(--fs-body)', padding: "0 2px" }}>×</button>
+              <button onClick={() => removeCompetitor(c)} className="btn-ghost" style={{ fontSize: 'var(--fs-body)', padding: "0 var(--s1)" }}>×</button>
             </span>
           ))}
           {!competitors.length && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>(none yet)</span>}
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)' }}>
           <input
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addCompetitor()}
             placeholder="competitor.com"
-            style={{ flex: 1, padding: '6px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+            style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
             disabled={competitors.length >= 5}
           />
           <button onClick={addCompetitor} className="btn btn-secondary" disabled={saving || !draft.trim() || competitors.length >= 5}>Add</button>
@@ -562,11 +562,11 @@ export function ContentGapsTab({ clientId, onBuildContent }) {
         {loading ? 'Analysing…' : 'Run gap analysis'}
       </button>
 
-      {err && <div className="callout callout-danger" style={{ marginTop: 14 }}>{err}</div>}
+      {err && <div className="callout callout-danger" style={{ marginTop: 'var(--s4)' }}>{err}</div>}
 
       {gaps && (
-        <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 6 }}>{gaps.length} keywords found</div>
+        <div style={{ marginTop: 'var(--s5)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s2)' }}>{gaps.length} keywords found</div>
           <div className="card" style={{ padding: 0, maxHeight: 480, overflowY: "auto" }}>
             <table className="table">
               <thead>
@@ -646,47 +646,47 @@ export function PlanningTab({ clientId, seed }) {
   return (
     <div>
       <h2 className="h2">Content planning</h2>
-      <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 14px' }}>
+      <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 var(--s4)' }}>
         Generate a content brief for a target keyword. Claude proposes the angle, outline, target intent, headings,
         questions to answer, and meta tags. Edit it, send it to a writer.
       </p>
 
-      <div style={{ display: 'flex', gap: 8, maxWidth: 600 }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', maxWidth: 600 }}>
         <input
           value={keyword}
           onChange={e => { setKeyword(e.target.value); setSeeded(false); }}
           onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="e.g. how to season enamel cookware"
-          style={{ flex: 1, padding: '8px 12px', fontSize: 'var(--fs-body)', border: `var(--border-w) solid ${seeded ? 'var(--accent)' : 'var(--card-border)'}`, borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: `var(--border-w) solid ${seeded ? 'var(--accent)' : 'var(--card-border)'}`, borderRadius: 'var(--r-sm)' }}
         />
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading || !keyword.trim() })}>
           {loading ? 'Generating…' : 'Generate brief'}
         </button>
       </div>
       {seeded && !brief && (
-        <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', margin: '8px 0 0' }}>
+        <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', margin: 'var(--s2) 0 0' }}>
           Loaded from your keyword list — review the target, then generate the brief.
         </p>
       )}
 
-      {err && <div className="callout callout-danger" style={{ marginTop: 14 }}>{err}</div>}
+      {err && <div className="callout callout-danger" style={{ marginTop: 'var(--s4)' }}>{err}</div>}
 
       {brief && (
-        <div style={{ marginTop: 22, maxWidth: 760 }}>
+        <div style={{ marginTop: 'var(--s6)', maxWidth: 760 }}>
           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Target keyword</div>
-          <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, marginBottom: 4 }}>{keyword}</div>
-          <div style={{ marginBottom: 14 }}><IntentBadge intent={brief.target_intent} /></div>
+          <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, marginBottom: 'var(--s1)' }}>{keyword}</div>
+          <div style={{ marginBottom: 'var(--s4)' }}><IntentBadge intent={brief.target_intent} /></div>
 
           <BriefSection label="Title">{brief.title}</BriefSection>
           <BriefSection label="Pitch">{brief.summary}</BriefSection>
           <BriefSection label="Target length">{brief.suggested_word_count} words</BriefSection>
 
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 'var(--s4)' }}>
             <div className="caption mb-2">Outline</div>
             {(brief.outline || []).map((s, i) => (
-              <div key={i} style={{ marginBottom: 12 }}>
+              <div key={i} style={{ marginBottom: 'var(--s3)' }}>
                 <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>{i + 1}. {s.heading}</div>
-                <ul style={{ margin: '4px 0 0 18px', padding: 0, fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                <ul style={{ margin: 'var(--s1) 0 0 var(--s5)', padding: 0, fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.6 }}>
                   {(s.points || []).map((p, j) => <li key={j}>{p}</li>)}
                 </ul>
               </div>
@@ -705,7 +705,7 @@ export function PlanningTab({ clientId, seed }) {
 
 function BriefSection({ label, children }) {
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 'var(--s4)' }}>
       <div className="caption mb-2">{label}</div>
       <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.6 }}>{children}</div>
     </div>
@@ -715,9 +715,9 @@ function BriefSection({ label, children }) {
 function BriefList({ label, items }) {
   if (!items?.length) return null;
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 'var(--s4)' }}>
       <div className="caption mb-2">{label}</div>
-      <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.7 }}>
+      <ul style={{ margin: 0, padding: '0 0 0 var(--s5)', fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.7 }}>
         {items.map((p, i) => <li key={i}>{p}</li>)}
       </ul>
     </div>
@@ -827,20 +827,20 @@ export function FanoutTab({ clientId, onBuildContent }) {
   return (
     <div>
       <h2 className="h2">Query fan-out</h2>
-      <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 14px', maxWidth: 760 }}>
+      <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 var(--s4)', maxWidth: 760 }}>
         Google's own docs describe AI Overviews as working via <strong>query fan-out</strong> — the model spawns related queries and pulls from the top results for all of them. Type a seed query; Claude generates the likely fan-out, we run SERP for each, and score your coverage.
       </p>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
         <input
           value={seed}
           onChange={e => setSeed(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && runNew()}
           placeholder="e.g. how to fix a lawn full of weeds"
-          style={{ flex: 1, minWidth: 280, padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1, minWidth: 280, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
         />
         <select value={location} onChange={e => setLocation(Number(e.target.value))}
-          style={{ padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
           {FANOUT_LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !seed.trim() })}>
@@ -848,25 +848,25 @@ export function FanoutTab({ clientId, onBuildContent }) {
         </button>
       </div>
 
-      {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
+      {err && <div className="callout callout-danger" style={{ marginBottom: 'var(--s4)' }}>{err}</div>}
 
       {loading && !runs.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>
       ) : !runs.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           No fan-out runs yet. Try a seed query above — best with a query a customer would actually type.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 'var(--s6)' }}>
           <div>
-            <div className="h3" style={{ marginBottom: 8 }}>Past runs</div>
+            <div className="h3" style={{ marginBottom: 'var(--s2)' }}>Past runs</div>
             {runs.map(r => (
               <div key={r.id} className="card"
-                style={{ padding: 10, marginBottom: 8, cursor: 'pointer',
+                style={{ padding: 'var(--s3)', marginBottom: 'var(--s2)', cursor: 'pointer',
                   background: r.id === activeRun?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
                 onClick={() => openRun(r.id)}>
                 <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)', lineHeight: 1.3 }}>{r.seed_query}</div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                   {new Date(r.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   {' · '}<span style={{ color: coverageColour(r.coverage_score), fontWeight: 700 }}>{Math.round(r.coverage_score || 0)}%</span>
                 </div>
@@ -877,26 +877,26 @@ export function FanoutTab({ clientId, onBuildContent }) {
           <div>
             {activeRun && (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--s4)', gap: 'var(--s3)' }}>
                   <div style={{ flex: 1 }}>
                     <div className="caption">Seed query</div>
-                    <div className="h2" style={{ marginTop: 4, marginBottom: 6 }}>{activeRun.seed_query}</div>
+                    <div className="h2" style={{ marginTop: 'var(--s1)', marginBottom: 'var(--s2)' }}>{activeRun.seed_query}</div>
                     <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                       {activeRun.ranked_count} of {activeRun.fanout_count} fan-out queries in top 10
                       {' · '}{FANOUT_LOCATIONS.find(l => l.code === activeRun.location_code)?.label || `Location ${activeRun.location_code}`}
                     </div>
                   </div>
                   <div style={{ textAlign: 'center', minWidth: 110 }}>
-                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>Coverage</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)' }}>Coverage</div>
                     <div style={{ fontSize: 'var(--fs-display)', fontWeight: 800, color: coverageColour(activeRun.coverage_score), lineHeight: 1 }}>
                       {Math.round(activeRun.coverage_score || 0)}%
                     </div>
-                    <button onClick={() => deleteRun(activeRun.id)} className="btn btn-ghost btn-sm" style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Delete</button>
+                    <button onClick={() => deleteRun(activeRun.id)} className="btn btn-ghost btn-sm" style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Delete</button>
                   </div>
                 </div>
 
                 {activeRun.summary_md && (
-                  <div className="card" style={{ marginBottom: 14 }}>
+                  <div className="card" style={{ marginBottom: 'var(--s4)' }}>
                     <div className="caption mb-2">Briefing</div>
                     <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>
                       {activeRun.summary_md}
@@ -927,7 +927,7 @@ export function FanoutTab({ clientId, onBuildContent }) {
                             <td>
                               <strong>{q.query}</strong>
                               {q.rationale && (
-                                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>{q.rationale}</div>
+                                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{q.rationale}</div>
                               )}
                             </td>
                             <td style={{ color: 'var(--text-muted)' }}>

@@ -105,7 +105,7 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
       tagline={activeMode.tagline}
     >
       {/* Mode selector — three different production inputs share this step */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
         {MODES.map(m => (
           <button key={m.key} onClick={() => setMode(m.key)} type="button"
             className={`btn btn-sm ${mode === m.key ? 'btn-primary' : 'btn-secondary'}`}>
@@ -119,16 +119,16 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
       {mode === 'own_site' && <OwnSiteMode clientId={clientId} />}
       {mode === 'serp' && <SxoMode clientId={clientId} onBuildContent={onBuildContent} />}
       {mode === 'url' && (<>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
         <input
           value={url}
           onChange={e => setUrl(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && runNew()}
           placeholder="https://competitor.com/blog/post-to-outrank"
-          style={{ flex: 1, minWidth: 320, padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1, minWidth: 320, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
         />
         <select value={location} onChange={e => setLocation(Number(e.target.value))}
-          style={{ padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !url.trim() })}>
@@ -136,27 +136,27 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
         </button>
       </div>
 
-      {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
+      {err && <div className="callout callout-danger" style={{ marginBottom: 'var(--s4)' }}>{err}</div>}
 
       {loading && !runs.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>
       ) : !runs.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           No URL gap runs yet. Paste a competitor blog URL above — DFS returns up to 200 ranked keywords for the page, we score the top 50 by volume against your ranks, Claude summarises the gaps.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 22 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 'var(--s6)' }}>
           <div>
             <div className="caption mb-3">Past runs</div>
             {runs.map(r => (
               <div key={r.id} className="card"
-                style={{ padding: 10, marginBottom: 8, cursor: 'pointer',
+                style={{ padding: 'var(--s3)', marginBottom: 'var(--s2)', cursor: 'pointer',
                   background: r.id === activeRun?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
                 onClick={() => openRun(r.id)}>
                 <div style={{ fontWeight: 600, fontSize: 'var(--fs-caption)', lineHeight: 1.3, wordBreak: 'break-all' }}>
                   {r.competitor_url.replace(/^https?:\/\//, '').slice(0, 60)}
                 </div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
                   {new Date(r.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   {' · '}<span style={{ color: 'var(--negative)', fontWeight: 700 }}>{r.gap_count}</span> gaps of {r.page_keyword_count}
                 </div>
@@ -167,10 +167,10 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
           <div>
             {activeRun && (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--s4)', gap: 'var(--s3)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="caption">Competitor URL</div>
-                    <a href={activeRun.competitor_url} target="_blank" rel="noreferrer" className="h3" style={{ marginTop: 4, marginBottom: 6, display: 'block', wordBreak: 'break-all', color: 'var(--text)' }}>
+                    <a href={activeRun.competitor_url} target="_blank" rel="noreferrer" className="h3" style={{ marginTop: 'var(--s1)', marginBottom: 'var(--s2)', display: 'block', wordBreak: 'break-all', color: 'var(--text)' }}>
                       {activeRun.competitor_url}
                     </a>
                     <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
@@ -181,7 +181,7 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
                 </div>
 
                 {activeRun.summary_md && (
-                  <div className="card" style={{ marginBottom: 14 }}>
+                  <div className="card" style={{ marginBottom: 'var(--s4)' }}>
                     <div className="caption mb-2">Briefing</div>
                     <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{activeRun.summary_md}</div>
                   </div>
@@ -191,26 +191,26 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th className="caption" style={{ padding: '8px 10px' }}>Keyword</th>
-                        <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Volume</th>
-                        <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Competitor</th>
-                        <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>You</th>
-                        <th className="caption" style={{ padding: '8px 10px' }}>Status</th>
-                        {onBuildContent && <th className="caption" style={{ padding: '8px 10px' }}></th>}
+                        <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Keyword</th>
+                        <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Volume</th>
+                        <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Competitor</th>
+                        <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>You</th>
+                        <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Status</th>
+                        {onBuildContent && <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}></th>}
                       </tr>
                     </thead>
                     <tbody>
                       {keywords.map(k => (
                         <tr key={k.id} style={{ borderBottom: '1px solid #f5f5f5', background: k.is_gap ? 'var(--negative-soft)' : 'transparent' }}>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)' }}><strong>{k.keyword}</strong></td>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>{k.search_volume?.toLocaleString() || '—'}</td>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>#{k.competitor_position}</td>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>{k.client_position ? `#${k.client_position}` : '—'}</td>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: k.is_gap ? 'var(--negative)' : 'var(--text-subtle)', fontWeight: k.is_gap ? 700 : 400 }}>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)' }}><strong>{k.keyword}</strong></td>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>{k.search_volume?.toLocaleString() || '—'}</td>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>#{k.competitor_position}</td>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>{k.client_position ? `#${k.client_position}` : '—'}</td>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', color: k.is_gap ? 'var(--negative)' : 'var(--text-subtle)', fontWeight: k.is_gap ? 700 : 400 }}>
                             {k.is_gap ? 'GAP' : (k.client_position && k.client_position <= 10 ? 'covered' : '—')}
                           </td>
                           {onBuildContent && (
-                            <td style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <td style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right', whiteSpace: 'nowrap' }}>
                               <button className="btn btn-secondary btn-sm" title="Write content for this keyword"
                                 {...roWrite(readOnly, { onClick: () => onBuildContent(k.keyword) })}>✍ Build</button>
                             </td>
@@ -263,11 +263,11 @@ function OwnSiteMode({ clientId }) {
   const contentIssues = [...thinContent, ...noClearFocus];
   const otherIssues = issues.filter(i => i.category !== 'thin_content' && i.category !== 'no_clear_focus');
 
-  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading…</div>;
   if (err) return <div className="callout callout-danger">{err}</div>;
   if (!contentIssues.length && !wins.length && !otherIssues.length) {
     return (
-      <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+      <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
         Nothing surfaced. Run a Site audit on Performance, or get keywords ranking in the #11–#20 range before this mode has anything to show.
       </div>
     );
@@ -280,9 +280,9 @@ function OwnSiteMode({ clientId }) {
           <p className="body-xs text-subtle mt-2 mb-3">From the latest Site audit. Each row is a page that came in under 300 words — prime candidates for the Pipeline → Draft refresh flow.</p>
           <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
             {thinContent.map(i => (
-              <li key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-caption)' }}>
+              <li key={i.id} style={{ padding: 'var(--s2) 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-caption)' }}>
                 <a href={i.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{i.page_url.replace(/^https?:\/\//, '')}</a>
-                <div style={{ color: 'var(--text-subtle)', marginTop: 2 }}>{i.detail}</div>
+                <div style={{ color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{i.detail}</div>
               </li>
             ))}
           </ul>
@@ -294,11 +294,11 @@ function OwnSiteMode({ clientId }) {
           <p className="body-xs text-subtle mt-2 mb-3">Pages where no recurring phrase appears often enough for Google to anchor a ranking on. A refresh that picks one primary keyword and weaves it through headings + body usually fixes this in weeks.</p>
           <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
             {noClearFocus.map(i => (
-              <li key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-caption)' }}>
+              <li key={i.id} style={{ padding: 'var(--s2) 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-caption)' }}>
                 <a href={i.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{i.page_url.replace(/^https?:\/\//, '')}</a>
-                <div style={{ color: 'var(--text-subtle)', marginTop: 2 }}>{i.detail}</div>
+                <div style={{ color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{i.detail}</div>
                 {Array.isArray(i.metadata?.topPhrases) && !!i.metadata.topPhrases.length && (
-                  <div style={{ color: 'var(--text-subtle)', marginTop: 4, fontSize: 'var(--fs-caption)' }}>
+                  <div style={{ color: 'var(--text-subtle)', marginTop: 'var(--s1)', fontSize: 'var(--fs-caption)' }}>
                     Currently scattered across: {i.metadata.topPhrases.join(' · ')}
                   </div>
                 )}
@@ -313,8 +313,8 @@ function OwnSiteMode({ clientId }) {
           <p className="body-xs text-subtle mt-2 mb-3">One refresh away from page 1.</p>
           <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
             {wins.slice(0, 20).map(w => (
-              <li key={w.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-caption)', display: 'flex', justifyContent: 'space-between' }}>
-                <span><strong>{w.keyword}</strong>{w.target_url && <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>· {w.target_url.replace(/^https?:\/\//, '').slice(0, 50)}</span>}</span>
+              <li key={w.id} style={{ padding: 'var(--s2) 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-caption)', display: 'flex', justifyContent: 'space-between' }}>
+                <span><strong>{w.keyword}</strong>{w.target_url && <span style={{ color: 'var(--text-subtle)', marginLeft: 'var(--s2)' }}>· {w.target_url.replace(/^https?:\/\//, '').slice(0, 50)}</span>}</span>
                 <span style={{ color: 'var(--text-muted)' }}>#{w.current_position} · effort {w.effort_score}/10</span>
               </li>
             ))}
@@ -355,12 +355,12 @@ function SxoMode({ clientId, onBuildContent }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
         <input value={seed} onChange={e => setSeed(e.target.value)} onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="e.g. best crm for small business"
-          style={{ flex: 1, minWidth: 300, padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+          style={{ flex: 1, minWidth: 300, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
         <select value={location} onChange={e => setLocation(Number(e.target.value))}
-          style={{ padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading || !seed.trim() })}>
@@ -368,24 +368,24 @@ function SxoMode({ clientId, onBuildContent }) {
         </button>
       </div>
 
-      {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
+      {err && <div className="callout callout-danger" style={{ marginBottom: 'var(--s4)' }}>{err}</div>}
       {!data && !loading && !err && (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           Type a query a customer would search. We pull the live top-10 and infer the page-type Google rewards.
         </div>
       )}
 
       {data && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 22 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 'var(--s6)' }}>
           <div>
-            <div className="card" style={{ marginBottom: 14 }}>
-              <div className="row between center" style={{ gap: 12, flexWrap: 'wrap' }}>
+            <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+              <div className="row between center" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
                 <div>
                   <div className="caption">Google rewards</div>
-                  <div className="h2" style={{ marginTop: 4, textTransform: 'capitalize' }}>{data.dominant_page_type || '—'}</div>
+                  <div className="h2" style={{ marginTop: 'var(--s1)', textTransform: 'capitalize' }}>{data.dominant_page_type || '—'}</div>
                 </div>
                 <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-                  padding: '3px 8px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text)' }}>
+                  padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text)' }}>
                   {data.confidence || '—'} confidence
                 </span>
               </div>
@@ -394,11 +394,11 @@ function SxoMode({ clientId, onBuildContent }) {
             </div>
 
             {!!(data.personas || []).length && (
-              <div className="card" style={{ marginBottom: 14 }}>
+              <div className="card" style={{ marginBottom: 'var(--s4)' }}>
                 <div className="caption mb-3">Who's searching</div>
-                <div className="stack" style={{ gap: 8 }}>
+                <div className="stack" style={{ gap: 'var(--s2)' }}>
                   {data.personas.map((p, i) => (
-                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '130px 1fr auto', gap: 10, alignItems: 'baseline' }}>
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '130px 1fr auto', gap: 'var(--s3)', alignItems: 'baseline' }}>
                       <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>{p.name}</div>
                       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{p.wants}</div>
                       <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', color: SERVED_TONE[p.served_by_serp] || 'var(--text-subtle)' }}>
@@ -412,13 +412,13 @@ function SxoMode({ clientId, onBuildContent }) {
 
             {!!(data.recommended_wireframe || []).length && (
               <div className="card">
-                <div className="row between center mb-3" style={{ gap: 10, flexWrap: 'wrap' }}>
+                <div className="row between center mb-3" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
                   <div className="caption">Recommended wireframe{data.recommended_page_type ? ` · ${data.recommended_page_type}` : ''}</div>
                   {onBuildContent && (
                     <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => onBuildContent(data.seed_query) })}>✍ Build content</button>
                   )}
                 </div>
-                <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8 }}>
+                <ol style={{ margin: 0, paddingLeft: 'var(--s5)', display: 'grid', gap: 'var(--s2)' }}>
                   {data.recommended_wireframe.map((s, i) => (
                     <li key={i} style={{ fontSize: 'var(--fs-body)' }}>
                       <strong>{s.section}</strong>
@@ -433,11 +433,11 @@ function SxoMode({ clientId, onBuildContent }) {
 
           <div>
             <div className="caption mb-3">Live top 10</div>
-            <div className="stack" style={{ gap: 6 }}>
+            <div className="stack" style={{ gap: 'var(--s2)' }}>
               {data.serp.map(r => (
-                <div key={r.rank} className="card" style={{ padding: 8, background: r.is_client ? 'var(--accent-soft)' : 'var(--surface)', borderColor: r.is_client ? 'var(--accent)' : 'var(--card-border)' }}>
+                <div key={r.rank} className="card" style={{ padding: 'var(--s2)', background: r.is_client ? 'var(--accent-soft)' : 'var(--surface)', borderColor: r.is_client ? 'var(--accent)' : 'var(--card-border)' }}>
                   <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, lineHeight: 1.3 }}>{r.rank}. {r.title || '(no title)'}{r.is_client && <span style={{ color: 'var(--text)' }}> · you</span>}</div>
-                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', wordBreak: 'break-all', marginTop: 2 }}>{(r.url || '').replace(/^https?:\/\//, '').slice(0, 54)}</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', wordBreak: 'break-all', marginTop: 'var(--s1)' }}>{(r.url || '').replace(/^https?:\/\//, '').slice(0, 54)}</div>
                 </div>
               ))}
             </div>

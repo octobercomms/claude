@@ -137,9 +137,9 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
       <CoreWebVitals clientId={clientId} />
 
       {loading && !audit && !history.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>
       ) : !audit ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>
           {running
             ? 'First crawl in progress — this usually takes 60–90 seconds depending on site size.'
             : 'No audit yet. Click Run first audit to start the crawl.'}
@@ -156,7 +156,7 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
           </div>
 
           {/* Issues list grouped by category */}
-          <div className="row" style={{ gap: 6, marginBottom: 'var(--s4)' }}>
+          <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s4)' }}>
             {['open', 'in_progress', 'done', 'dismissed', 'all'].map(s => (
               <button key={s} onClick={() => setFilter(s)} className={`btn btn-sm ${filter === s ? 'btn-primary' : 'btn-secondary'}`}>
                 {s.replace('_', ' ')}
@@ -184,34 +184,34 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th className="caption" style={{ padding: '6px 10px' }}>URL</th>
-                        <th className="caption" style={{ padding: '6px 10px' }}>Detail</th>
-                        <th className="caption" style={{ padding: '6px 10px' }}>Severity</th>
-                        <th className="caption" style={{ padding: '6px 10px', textAlign: 'right' }}>Actions</th>
+                        <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>URL</th>
+                        <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Detail</th>
+                        <th className="caption" style={{ padding: 'var(--s2) var(--s3)' }}>Severity</th>
+                        <th className="caption" style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map(r => (
                         <tr key={r.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <a href={r.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>
                               {r.page_url.replace(/^https?:\/\//, '').slice(0, 70)}
                             </a>
                           </td>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{r.detail}</td>
-                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: SEVERITY_TONE[r.severity], fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{r.severity}</td>
-                          <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{r.detail}</td>
+                          <td style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', color: SEVERITY_TONE[r.severity], fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{r.severity}</td>
+                          <td style={{ padding: 'var(--s2) var(--s3)', textAlign: 'right' }}>
                             {r.status === 'open' && (
                               <>
                                 {category === 'thin_content' && onSendToPipeline && (
-                                  <button onClick={() => onSendToPipeline({ category, urls: [r.page_url], single: true })} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 6px' }}>Refresh →</button>
+                                  <button onClick={() => onSendToPipeline({ category, urls: [r.page_url], single: true })} className="btn btn-ghost btn-sm" style={{ color: 'var(--text)', padding: '0 var(--s2)' }}>Refresh →</button>
                                 )}
-                                <button onClick={() => setIssueStatus(r, 'done')} className="btn btn-ghost btn-sm" style={{ color: 'var(--positive)', padding: '0 6px' }}>Done</button>
-                                <button onClick={() => setIssueStatus(r, 'dismissed')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 6px' }}>Skip</button>
+                                <button onClick={() => setIssueStatus(r, 'done')} className="btn btn-ghost btn-sm" style={{ color: 'var(--positive)', padding: '0 var(--s2)' }}>Done</button>
+                                <button onClick={() => setIssueStatus(r, 'dismissed')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 var(--s2)' }}>Skip</button>
                               </>
                             )}
                             {r.status !== 'open' && (
-                              <button onClick={() => setIssueStatus(r, 'open')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 6px' }}>Reopen</button>
+                              <button onClick={() => setIssueStatus(r, 'open')} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)', padding: '0 var(--s2)' }}>Reopen</button>
                             )}
                           </td>
                         </tr>
@@ -281,16 +281,16 @@ function CoreWebVitals({ clientId }) {
 
   return (
     <div className="card mb-5">
-      <div className="row between center" style={{ gap: 12, flexWrap: 'wrap', marginBottom: data || err ? 12 : 0 }}>
+      <div className="row between center" style={{ gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: data || err ? 12 : 0 }}>
         <div>
           <div className="caption">Core Web Vitals</div>
           <p className="body-xs text-subtle mt-1" style={{ maxWidth: 560 }}>
             Real LCP / INP / CLS from Google (CrUX field data, lab fallback). Blank URL = the client's homepage.
           </p>
         </div>
-        <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
           <input value={url} onChange={e => setUrl(e.target.value)} placeholder="URL (optional)"
-            style={{ padding: '6px 10px', fontSize: 'var(--fs-caption)', width: 220, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', width: 220, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
           {['mobile', 'desktop'].map(s => (
             <button key={s} onClick={() => setStrategy(s)} className={`btn btn-sm ${strategy === s ? 'btn-primary' : 'btn-secondary'}`}>{s}</button>
           ))}
@@ -304,7 +304,7 @@ function CoreWebVitals({ clientId }) {
 
       {data && (
         <>
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
             <span className="body-xs text-subtle">{SOURCE_LABEL[data.source] || data.source} · {data.strategy}
               {data.performance_score != null && <> · Lighthouse perf <strong style={{ color: 'var(--text)' }}>{data.performance_score}/100</strong></>}
             </span>
@@ -314,9 +314,9 @@ function CoreWebVitals({ clientId }) {
               const m = data.metrics?.[key];
               const has = m && m.value != null;
               return (
-                <div key={key} className="card" style={{ padding: '10px 12px' }}>
+                <div key={key} className="card" style={{ padding: 'var(--s3) var(--s3)' }}>
                   <div className="caption" title={m?.note || ''}>{meta.label}{m?.note ? ' *' : ''}</div>
-                  <div style={{ fontSize: 'var(--fs-title)', fontWeight: 800, marginTop: 4, color: has ? (RATING_TONE[m.rating] || 'var(--text)') : 'var(--text-subtle)' }}>
+                  <div style={{ fontSize: 'var(--fs-title)', fontWeight: 800, marginTop: 'var(--s1)', color: has ? (RATING_TONE[m.rating] || 'var(--text)') : 'var(--text-subtle)' }}>
                     {has ? meta.fmt(m.value) : '—'}
                   </div>
                 </div>
@@ -338,7 +338,7 @@ function ScoreCard({ label, value, suffix, tone }) {
   return (
     <div className="card">
       <div className="caption">{label}</div>
-      <div className="metric" style={{ color: colour, marginTop: 4 }}>{value}{suffix || ''}</div>
+      <div className="metric" style={{ color: colour, marginTop: 'var(--s1)' }}>{value}{suffix || ''}</div>
     </div>
   );
 }

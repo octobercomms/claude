@@ -275,13 +275,13 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
           Describe the post idea (platform, audience, angle). Claude proposes a structured plan with scenes, equipment, captions and approval gates. Iterate, then lock to save and download.
         </p>
 
-        <div className="row" style={{ gap: 16, flex: 1, minHeight: 0 }}>
+        <div className="row" style={{ gap: 'var(--s4)', flex: 1, minHeight: 0 }}>
           <div style={{ flex: 1.2, display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <div className="card" style={{ flex: 1, padding: 10, overflowY: "auto", minHeight: 220, maxHeight: "50vh" }} ref={scrollRef}>
+            <div className="card" style={{ flex: 1, padding: 'var(--s3)', overflowY: "auto", minHeight: 220, maxHeight: "50vh" }} ref={scrollRef}>
               {!history.length && (
                 <div className="body-sm text-muted">
                   Examples:
-                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 'var(--fs-caption)' }}>
+                  <ul style={{ margin: 'var(--s2) 0 0 var(--s5)', padding: 0, fontSize: 'var(--fs-caption)' }}>
                     <li>"60-second Reel about our new Quiet Luxury collection — Instagram + TikTok. Audience: design-led 35-50s."</li>
                     <li>"3-post carousel for LinkedIn explaining our attribution methodology."</li>
                     <li>"Talking-head Story showing behind-the-scenes of yesterday's shoot."</li>
@@ -289,17 +289,17 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 </div>
               )}
               {history.map((m, i) => (
-                <div key={i} className={`chat-bubble ${m.role === "user" ? "user" : "assistant"}`} style={{ marginBottom: 10 }}>
+                <div key={i} className={`chat-bubble ${m.role === "user" ? "user" : "assistant"}`} style={{ marginBottom: 'var(--s3)' }}>
                   <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>{m.role === 'user' ? 'You' : 'Claude'}</div>
                   <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</div>
                 </div>
               ))}
-              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 10 }}><div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Claude</div><div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
+              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 'var(--s3)' }}><div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Claude</div><div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
             </div>
             {attachment && (
-              <div className="chip chip-accent" style={{ marginTop: 8 }}>
+              <div className="chip chip-accent" style={{ marginTop: 'var(--s2)' }}>
                 <span style={{ fontSize: 'var(--fs-caption)' }}>📎 {attachment.name} <span style={{ color: 'var(--text-subtle)' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
-                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 'var(--fs-title)', padding: "0 2px" }} title="Remove attachment">×</button>
+                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 'var(--fs-title)', padding: "0 var(--s1)" }} title="Remove attachment">×</button>
               </div>
             )}
             <div className="chat-input-row">
@@ -311,7 +311,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 placeholder={attachment ? 'Optional — describe how to use the file, or just send' : (history.length ? 'Describe a change, or ⌘↩ to send' : 'Describe the post — platform, audience, angle. ⌘↩ to send.')}
                 disabled={sending}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -333,7 +333,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             </div>
           </div>
 
-          <div className="card" style={{ flex: 1, padding: 12, overflowY: "auto", maxHeight: "60vh", position: "relative" }}>
+          <div className="card" style={{ flex: 1, padding: 'var(--s3)', overflowY: "auto", maxHeight: "60vh", position: "relative" }}>
             <div className="caption mb-2">
               {sending ? 'Drafting…' : proposed ? (proposedDiffers ? 'Draft — not yet locked' : 'Locked plan') : 'No draft yet'}
             </div>
@@ -353,8 +353,8 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             every channel in target_platforms. Phase 1 stores the
             config; publishing arrives in Phase 2-4. */}
         {planRowId && saved && (
-          <div className="card" style={{ marginTop: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div className="card" style={{ marginTop: 'var(--s4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)' }}>
               <div className="caption mb-2">AUTOPILOT</div>
               {scheduleDirty && (
                 <button type="button" onClick={saveSchedule} disabled={savingSchedule} className="btn btn-secondary btn-sm">
@@ -362,41 +362,41 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 </button>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '0 1 auto' }}>
+            <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)', flex: '0 1 auto' }}>
                 <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>Publish at</span>
                 <input
                   type="datetime-local"
                   value={schedule.scheduled_at}
                   onChange={e => { setSchedule(s => ({ ...s, scheduled_at: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: '4px 8px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+                  style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                 />
               </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '1 1 240px' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)', flex: '1 1 240px' }}>
                 <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>Google Drive folder (where you'll drop the final media)</span>
                 <input
                   type="url"
                   placeholder="https://drive.google.com/drive/folders/..."
                   value={schedule.drive_folder_url}
                   onChange={e => { setSchedule(s => ({ ...s, drive_folder_url: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: '4px 8px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+                  style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                 />
               </label>
             </div>
-            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--s3)', marginTop: 'var(--s2)' }}>
               {['instagram', 'facebook', 'linkedin'].map(p => (
-                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-caption)', cursor: 'pointer', textTransform: 'capitalize' }}>
+                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', fontSize: 'var(--fs-caption)', cursor: 'pointer', textTransform: 'capitalize' }}>
                   <input type="checkbox" checked={schedule.target_platforms.includes(p)} onChange={() => togglePlatform(p)} /> {p}
                 </label>
               ))}
             </div>
             {schedule.scheduled_at && schedule.target_platforms.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+              <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                 Will publish to {schedule.target_platforms.join(', ')} on {new Date(schedule.scheduled_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.
               </div>
             )}
             {publishTargets && schedule.target_platforms.length > 0 && (
-              <div style={{ marginTop: 6, fontSize: 'var(--fs-caption)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
                 {schedule.target_platforms.map(p => {
                   const t = publishTargets[p];
                   if (!t) return null;
@@ -412,22 +412,22 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 AM has saved a folder URL + platforms, lets them sanity
                 check before the schedule fires. */}
             {!scheduleDirty && schedule.drive_folder_url && (
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 'var(--s3)' }}>
                 <button type="button" onClick={checkDrive} disabled={checkingDrive} className="btn btn-secondary btn-sm">
                   {checkingDrive ? 'Checking…' : '📁 Check Drive folder'}
                 </button>
                 {driveFiles !== null && (
-                  <div style={{ marginTop: 6, fontSize: 'var(--fs-caption)' }}>
+                  <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>
                     {driveFiles.length === 0 ? (
                       <div style={{ color: 'var(--negative)' }}>No video / image files found yet. Drop the final media into the folder and re-check.</div>
                     ) : (
                       <>
-                        <div style={{ color: 'var(--positive)', marginBottom: 4 }}>
+                        <div style={{ color: 'var(--positive)', marginBottom: 'var(--s1)' }}>
                           {driveFiles.length} file{driveFiles.length === 1 ? '' : 's'} found.
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
                           {driveFiles.slice(0, 8).map(f => (
-                            <div key={f.id} style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                            <div key={f.id} style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'baseline' }}>
                               <span style={{ color: 'var(--text-muted)' }}>{f.name}</span>
                               {f.aspect_ratio && (
                                 <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>
@@ -444,7 +444,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                         {/* Surface the warnings inline below so the AM
                             sees them without having to hover the ⚠. */}
                         {driveFiles.some(f => f.warnings?.length > 0) && (
-                          <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--warning-soft)', border: '1px solid #ffe0a3', borderRadius: 'var(--r-sm)' }}>
+                          <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2) var(--s2)', background: 'var(--warning-soft)', border: '1px solid #ffe0a3', borderRadius: 'var(--r-sm)' }}>
                             {driveFiles.filter(f => f.warnings?.length > 0).slice(0, 5).map(f => (
                               <div key={f.id} style={{ color: 'var(--warning)', fontSize: 'var(--fs-caption)' }}>
                                 <b>{f.name}</b>: {f.warnings.join(' · ')}
@@ -459,15 +459,15 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
               </div>
             )}
             {!scheduleDirty && schedule.target_platforms.length > 0 && (
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 'var(--s3)' }}>
                 <button type="button" onClick={previewCaptions} disabled={previewingCaptions} className="btn btn-secondary btn-sm">
                   {previewingCaptions ? 'Generating…' : '✍ Preview captions'}
                 </button>
                 {captionPreview && (
-                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ marginTop: 'var(--s2)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                     {Object.entries(captionPreview).map(([platform, text]) => (
-                      <div key={platform} style={{ padding: '8px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', whiteSpace: 'pre-wrap' }}>
-                        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{platform}</div>
+                      <div key={platform} style={{ padding: 'var(--s2) var(--s3)', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', whiteSpace: 'pre-wrap' }}>
+                        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s1)' }}>{platform}</div>
                         {text}
                       </div>
                     ))}
@@ -480,17 +480,17 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 for the scheduler cron or kick it off now. Status rows
                 show each platform's outcome with the live post URL. */}
             {!scheduleDirty && schedule.target_platforms.length > 0 && (
-              <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #eee' }}>
+              <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: '1px solid #eee' }}>
                 <button type="button" {...roWrite(readOnly, { onClick: publishNow, disabled: publishing })} className="btn btn-primary btn-sm">
                   {publishing ? 'Publishing…' : '🚀 Publish now'}
                 </button>
-                <span style={{ marginLeft: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+                <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                   Or wait — the scheduler will pick this up at the time above.
                 </span>
                 {publications && publications.length > 0 && (
-                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ marginTop: 'var(--s2)', display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
                     {publications.map(pub => (
-                      <div key={pub.platform} style={{ padding: '6px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div key={pub.platform} style={{ padding: 'var(--s2) var(--s3)', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, textTransform: 'capitalize', minWidth: 80 }}>{pub.platform}</span>
                         <span style={{ color: pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : 'var(--text-muted)' }}>
                           {pub.status === 'posted' ? '✓ posted' : pub.status === 'failed' ? '✗ failed' : pub.status}
@@ -534,46 +534,46 @@ function PlanPreview({ plan }) {
   if (!plan) return null;
   return (
     <div style={{ fontSize: 'var(--fs-caption)' }}>
-      <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 4 }}>{plan.title || '(untitled)'}</div>
+      <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 'var(--s1)' }}>{plan.title || '(untitled)'}</div>
       {plan.platforms?.length > 0 && (
-        <div style={{ color: 'var(--text-muted)', marginBottom: 6 }}>
+        <div style={{ color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
           {plan.platforms.join(', ')}
           {plan.duration_seconds ? ` · ${plan.duration_seconds}s` : ''}
         </div>
       )}
       {plan.framework && (
-        <div style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 'var(--s2)' }}>
           <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{plan.framework}</span>
-          {plan.framework_rationale && <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>{plan.framework_rationale}</span>}
+          {plan.framework_rationale && <span style={{ color: 'var(--text-subtle)', marginLeft: 'var(--s2)' }}>{plan.framework_rationale}</span>}
         </div>
       )}
       {plan.hook?.text && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 'var(--s3)' }}>
           <div className="caption mb-2">HOOK</div>
           <div style={{ fontWeight: 600 }}>{plan.hook.text}</div>
-          {plan.hook.rationale && <div style={{ color: 'var(--text-subtle)', marginTop: 2 }}>{plan.hook.rationale}</div>}
+          {plan.hook.rationale && <div style={{ color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{plan.hook.rationale}</div>}
         </div>
       )}
       {plan.scenes?.length > 0 && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 'var(--s3)' }}>
           <div className="caption mb-2">SCENES</div>
           {plan.scenes.map(s => (
-            <div key={s.number} className="card" style={{ padding: "6px 8px", marginTop: 6 }}>
+            <div key={s.number} className="card" style={{ padding: "var(--s2) var(--s2)", marginTop: 'var(--s2)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <strong>Scene {s.number}{s.style_code ? ` [${s.style_code}]` : ''} — {s.name}</strong>
                 <span style={{ color: 'var(--text-subtle)' }}>{s.duration_seconds ? `${s.duration_seconds}s` : ''}</span>
               </div>
-              {s.shot && <div style={{ marginTop: 3 }}>{s.shot}</div>}
+              {s.shot && <div style={{ marginTop: 'var(--s1)' }}>{s.shot}</div>}
               {s.bullets?.length > 0 && (
-                <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
+                <ul style={{ margin: 'var(--s1) 0 0 var(--s4)', padding: 0 }}>
                   {s.bullets.map((b, i) => <li key={i}>{b}</li>)}
                 </ul>
               )}
               {s.b_roll?.length > 0 && (
-                <div style={{ marginTop: 3, color: 'var(--text-muted)' }}>B-roll: {s.b_roll.join(', ')}</div>
+                <div style={{ marginTop: 'var(--s1)', color: 'var(--text-muted)' }}>B-roll: {s.b_roll.join(', ')}</div>
               )}
               {s.on_screen_text?.length > 0 && (
-                <div style={{ marginTop: 3, color: 'var(--text-muted)' }}>
+                <div style={{ marginTop: 'var(--s1)', color: 'var(--text-muted)' }}>
                   Text: {s.on_screen_text.map((t, i) => <span key={i}>"{t.text}"{i < s.on_screen_text.length - 1 ? ', ' : ''}</span>)}
                 </div>
               )}
@@ -581,16 +581,16 @@ function PlanPreview({ plan }) {
           ))}
         </div>
       )}
-      {plan.cta && <div style={{ marginTop: 10 }}><div className="caption mb-2">CTA</div>{plan.cta}</div>}
-      {plan.caption && <div style={{ marginTop: 10 }}><div className="caption mb-2">CAPTION</div>{plan.caption}</div>}
+      {plan.cta && <div style={{ marginTop: 'var(--s3)' }}><div className="caption mb-2">CTA</div>{plan.cta}</div>}
+      {plan.caption && <div style={{ marginTop: 'var(--s3)' }}><div className="caption mb-2">CAPTION</div>{plan.caption}</div>}
       {plan.hashtags?.length > 0 && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 'var(--s3)' }}>
           <div className="caption mb-2">HASHTAGS</div>
           {plan.hashtags.map(h => h.startsWith('#') ? h : '#' + h).join(' ')}
         </div>
       )}
       {plan.equipment && (plan.equipment.minimum?.length || plan.equipment.ideal?.length) && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 'var(--s3)' }}>
           <div className="caption mb-2">EQUIPMENT</div>
           {plan.equipment.minimum?.length > 0 && (
             <div>Min: {plan.equipment.minimum.join(', ')}</div>
@@ -600,19 +600,19 @@ function PlanPreview({ plan }) {
           )}
         </div>
       )}
-      {plan.talent && <div style={{ marginTop: 10 }}><div className="caption mb-2">TALENT</div>{plan.talent}</div>}
+      {plan.talent && <div style={{ marginTop: 'var(--s3)' }}><div className="caption mb-2">TALENT</div>{plan.talent}</div>}
       {plan.music && (plan.music.mood || plan.music.suggestions?.length) && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 'var(--s3)' }}>
           <div className="caption mb-2">MUSIC</div>
           {plan.music.mood && <span>{plan.music.mood}</span>}
           {plan.music.tempo && <span> · {plan.music.tempo}</span>}
           {plan.music.suggestions?.length > 0 && (
-            <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{plan.music.suggestions.join(' / ')}</div>
+            <div style={{ color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>{plan.music.suggestions.join(' / ')}</div>
           )}
         </div>
       )}
       {plan.reuse_plan?.length > 0 && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 'var(--s3)' }}>
           <div className="caption mb-2">REUSE</div>
           {plan.reuse_plan.map((r, i) => (
             <div key={i}>{r.platform}{r.duration_seconds ? ` (${r.duration_seconds}s)` : ''}{r.notes ? ` — ${r.notes}` : ''}</div>
@@ -620,7 +620,7 @@ function PlanPreview({ plan }) {
         </div>
       )}
       {plan.approval_gates?.length > 0 && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 'var(--s3)' }}>
           <div className="caption mb-2">APPROVALS</div>
           {plan.approval_gates.map((g, i) => (
             <div key={i}>{g.gate} — {g.owner || '—'}</div>

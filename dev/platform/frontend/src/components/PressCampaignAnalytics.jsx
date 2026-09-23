@@ -217,29 +217,29 @@ export default function PressCampaignAnalytics({ clientId, release }) {
   const Stat = ({ n, label, sub }) => (
     <div style={{ minWidth: 90 }}>
       <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1 }}>{n ?? '—'}</div>
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 3 }}>{label}{sub != null ? ` · ${sub}%` : ''}</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>{label}{sub != null ? ` · ${sub}%` : ''}</div>
     </div>
   );
   const Th = ({ k, children, right }) => (
-    <th onClick={() => sortBy(k)} style={{ cursor: 'pointer', textAlign: right ? 'right' : 'left', padding: '6px 8px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, whiteSpace: 'nowrap' }}>
+    <th onClick={() => sortBy(k)} style={{ cursor: 'pointer', textAlign: right ? 'right' : 'left', padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, whiteSpace: 'nowrap' }}>
       {children}{sort.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
     </th>
   );
 
-  if (loading && !summary) return <div className="text-subtle" style={{ padding: 16 }}>Loading results…</div>;
+  if (loading && !summary) return <div className="text-subtle" style={{ padding: 'var(--s4)' }}>Loading results…</div>;
 
   return (
-    <div className="stack" style={{ marginTop: 8 }}>
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'baseline', padding: 14, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
+    <div className="stack" style={{ marginTop: 'var(--s2)' }}>
+      <div style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', alignItems: 'baseline', padding: 'var(--s4)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
         <Stat n={t.recipients} label="recipients" />
         <Stat n={t.opened} label="opened" sub={t.open_rate} />
         <Stat n={t.clicked} label="clicked" sub={t.click_rate} />
         <Stat n={t.replied} label="replied" sub={t.reply_rate} />
         <div style={{ minWidth: 90 }}>
           <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1, color: t.warm ? '#c2410c' : 'var(--text)' }}>{t.warm ?? 0}</div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 3 }}>🔥 warm</div>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>🔥 warm</div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s2)' }}>
           <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
           <button className="btn btn-secondary btn-sm" onClick={exportCsv} disabled={exporting}>{exporting ? 'Exporting…' : 'Export CSV'}</button>
         </div>
@@ -286,19 +286,19 @@ export default function PressCampaignAnalytics({ clientId, release }) {
         );
         const fmtDT = (d) => { try { return new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return ''; } };
         return (
-          <div style={{ padding: '12px 14px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
+          <div style={{ padding: 'var(--s3) var(--s4)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
             {/* Campaign timeline — authoritative created / launched / first-send
                 dates, so "when did this actually start?" is unambiguous. */}
             {(d.launched_at || d.created_at || d.first_sent_at) && (
-              <div style={{ marginBottom: 10, paddingBottom: 8, borderBottom: 'var(--border-w) solid var(--card-border)', color: 'var(--text-subtle)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ marginBottom: 'var(--s3)', paddingBottom: 'var(--s2)', borderBottom: 'var(--border-w) solid var(--card-border)', color: 'var(--text-subtle)', display: 'flex', gap: 'var(--s4)', flexWrap: 'wrap' }}>
                 {d.created_at && <span title="When you first built this campaign (before any send)."><strong style={{ color: 'var(--text-muted)' }}>Created</strong> {fmtDT(d.created_at)}</span>}
                 {d.launched_at && <span title="When the campaign was first switched on to send. Follow-up delays used to count from here — now they count from each journalist's own first email instead."><strong style={{ color: 'var(--text-muted)' }}>First activated</strong> {fmtDT(d.launched_at)}</span>}
                 {d.first_sent_at && <span title="The earliest email that actually went out — often an initial small batch, before the full send."><strong style={{ color: 'var(--text-muted)' }}>First email out</strong> {fmtDT(d.first_sent_at)}</span>}
               </div>
             )}
             {/* Headline: first-email blast */}
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <div style={{ display: 'flex', gap: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' }}>
                 {active && <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} aria-label="sending" />}
                 {active ? 'Sending now' : 'Sending'}
               </span>
@@ -306,7 +306,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
               {going > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(going)} still going out{active ? ' (~2,000/hr)' : ''}</span>}
               {first.failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {num(first.failed)} failed</span>}
               {first.cancelled > 0 && <span style={{ color: 'var(--text-subtle)' }}>{num(first.cancelled)} skipped (bounced/unsub)</span>}
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s2)' }}>
                 {(fuPending > 0 || fu.sent > 0 || d.followups_paused) && (
                   <button className="btn btn-secondary btn-sm" onClick={toggleFollowupHold} disabled={holdBusy}
                     title={d.followups_paused ? 'Let follow-ups start going out again' : 'Stop every follow-up (steps 2+) going out — the first email still finishes'}>
@@ -321,20 +321,20 @@ export default function PressCampaignAnalytics({ clientId, release }) {
               </div>
             </div>
             {d.followups_paused && (
-              <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 'var(--r-sm)', background: '#fff7ed', color: '#c2410c', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ marginTop: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-sm)', background: '#fff7ed', color: '#c2410c', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
                 ⏸ Follow-ups are on hold — no step-2+ emails will go out until you resume. The first email still finishes.
               </div>
             )}
             {/* Overall first-email progress bar */}
             {firstTotal > 0 && (
-              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ marginTop: 'var(--s2)', display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
                 <Bar done={first.sent} total={firstTotal} color="var(--positive, #15803d)" />
                 <span style={{ color: 'var(--text-subtle)', minWidth: 34, textAlign: 'right' }}>{pct}%</span>
               </div>
             )}
 
             {/* Per-step breakdown — "each email send amount" */}
-            <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+            <div style={{ marginTop: 'var(--s3)', display: 'grid', gap: 'var(--s2)' }}>
               {steps.map(s => {
                 const done = s.sent;
                 const stotal = s.total || (s.sent + s.sending + s.scheduled + s.failed + s.cancelled);
@@ -345,14 +345,14 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                 const tinfo = timing(s);
                 return (
                   <div key={s.step_number}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
                       <span style={{ width: 92, flexShrink: 0, color: 'var(--text-muted)' }}>{stepName(s)}</span>
                       <Bar done={done} total={stotal} color={s.is_first ? 'var(--positive, #15803d)' : 'var(--accent, #6366f1)'} />
                       <span style={{ minWidth: 150, textAlign: 'right', color: 'var(--text-subtle)' }}>{label}</span>
                       <span style={{ width: 34, textAlign: 'right', color: 'var(--text-subtle)' }}>{spct}%</span>
                     </div>
                     {tinfo && (
-                      <div style={{ marginLeft: 102, marginTop: 2, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{tinfo}</div>
+                      <div style={{ marginLeft: 'var(--s10)', marginTop: 'var(--s1)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{tinfo}</div>
                     )}
                   </div>
                 );
@@ -361,7 +361,7 @@ export default function PressCampaignAnalytics({ clientId, release }) {
 
             {/* Plain-language explainer for the follow-up rows */}
             {(fuPending > 0 || fu.sent > 0) && (
-              <div style={{ marginTop: 10, paddingTop: 8, borderTop: 'var(--border-w) solid var(--card-border)', color: 'var(--text-subtle)', lineHeight: 1.5 }}>
+              <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s2)', borderTop: 'var(--border-w) solid var(--card-border)', color: 'var(--text-subtle)', lineHeight: 1.5 }}>
                 📆 Follow-ups go to <strong>every journalist</strong> — it often takes a few emails to land — each on its own day (set by the sequence delay), <strong>not</strong> all at once. They’re skipped only for anyone who’s been marked <em>stop</em>, unsubscribed, bounced, or already replied, so these counts shrink as people drop out.
               </div>
             )}
@@ -371,14 +371,14 @@ export default function PressCampaignAnalytics({ clientId, release }) {
 
       {/* Warm threshold */}
       {cfg && (
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', gap: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
           <span style={{ fontWeight: 600 }}>“Warm” when</span>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
             opens ≥
             <input type="number" min="1" value={cfg.min_opens ?? 3} onChange={e => saveCfg({ ...cfg, min_opens: parseInt(e.target.value, 10) || 1 })}
-              style={{ width: 48, padding: '2px 5px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              style={{ width: 48, padding: 'var(--s1) var(--s1)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
             <input type="checkbox" checked={cfg.any_click !== false} onChange={e => saveCfg({ ...cfg, any_click: e.target.checked })} />
             or any link click
           </label>
@@ -387,13 +387,13 @@ export default function PressCampaignAnalytics({ clientId, release }) {
       )}
 
       {/* Search — jump straight to a journalist to stop their follow-ups. */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           type="search"
           value={qInput}
           onChange={e => setQInput(e.target.value)}
           placeholder="Search name, email or outlet…"
-          style={{ flex: 1, minWidth: 220, padding: '7px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)' }}
+          style={{ flex: 1, minWidth: 220, padding: 'var(--s2) var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)' }}
         />
         {qInput && <button className="btn btn-link btn-sm" onClick={() => setQInput('')}>Clear</button>}
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>
@@ -414,19 +414,19 @@ export default function PressCampaignAnalytics({ clientId, release }) {
             <Th k="_status">Status</Th>
           </tr></thead>
           <tbody>
-            {!rows.length && <tr><td colSpan={7} style={{ padding: 14, color: 'var(--text-subtle)' }}>{query ? 'No journalists match that search.' : 'No sends yet — results appear once the campaign goes out.'}</td></tr>}
+            {!rows.length && <tr><td colSpan={7} style={{ padding: 'var(--s4)', color: 'var(--text-subtle)' }}>{query ? 'No journalists match that search.' : 'No sends yet — results appear once the campaign goes out.'}</td></tr>}
             {rows.map(r => (
               <tr key={r.contact_id} style={{ borderTop: 'var(--border-w) solid var(--accent-soft)' }}>
-                <td style={{ padding: '6px 8px', fontWeight: 600 }}>{r.name || <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>—</span>}</td>
-                <td style={{ padding: '6px 8px' }}>{r.company || <span style={{ color: 'var(--text-subtle)' }}>—</span>}</td>
-                <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>{r.email}</td>
-                <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: r.opens >= 3 ? 700 : 400 }}>{r.opens || 0}</td>
-                <td style={{ padding: '6px 8px' }}>
+                <td style={{ padding: 'var(--s2) var(--s2)', fontWeight: 600 }}>{r.name || <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>—</span>}</td>
+                <td style={{ padding: 'var(--s2) var(--s2)' }}>{r.company || <span style={{ color: 'var(--text-subtle)' }}>—</span>}</td>
+                <td style={{ padding: 'var(--s2) var(--s2)', color: 'var(--text-muted)' }}>{r.email}</td>
+                <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right', fontWeight: r.opens >= 3 ? 700 : 400 }}>{r.opens || 0}</td>
+                <td style={{ padding: 'var(--s2) var(--s2)' }}>
                   {r.clicks ? (
                     <div>
                       <span style={{ fontWeight: 700 }}>{r.clicks}</span>
                       {r.clicked_urls?.length ? (
-                        <div style={{ fontSize: 'var(--fs-caption)', marginTop: 2 }}>
+                        <div style={{ fontSize: 'var(--fs-caption)', marginTop: 'var(--s1)' }}>
                           {r.clicked_urls.slice(0, 3).map((u, i) => (
                             <React.Fragment key={i}>
                               {i ? <span style={{ color: 'var(--text-subtle)' }}> · </span> : null}
@@ -439,9 +439,9 @@ export default function PressCampaignAnalytics({ clientId, release }) {
                     </div>
                   ) : <span style={{ color: 'var(--text-subtle)' }}>0</span>}
                 </td>
-                <td style={{ padding: '6px 8px', textAlign: 'right' }}>{r.interest_score || 0}</td>
-                <td style={{ padding: '6px 8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <td style={{ padding: 'var(--s2) var(--s2)', textAlign: 'right' }}>{r.interest_score || 0}</td>
+                <td style={{ padding: 'var(--s2) var(--s2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
                     {r.unsubscribed_at ? <span className="chip" style={{ background: '#eee', color: 'var(--text-muted)' }}>unsubscribed</span>
                       : r.failed_count ? <span className="chip" style={{ background: '#fde8e8', color: 'var(--negative)' }} title={r.fail_reason || 'The email could not be sent.'}>✕ failed</span>
                       : r.warm_at ? <span className="chip" style={{ background: '#fff2e8', color: '#c2410c' }}>🔥 warm</span>
@@ -494,22 +494,22 @@ export default function PressCampaignAnalytics({ clientId, release }) {
           <button className="btn btn-link btn-sm" onClick={loadSuppression}>Show unsubscribes &amp; do-not-contact</button>
         ) : (
           <div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 6 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s2)' }}>
             From this campaign’s recipients — anyone who unsubscribed or is do-not-contact/bounced, so they weren’t (or won’t be) delivered.
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
             <div>
               <div className="field-label">Unsubscribed ({supp.unsubscribed.length})</div>
               <div style={{ maxHeight: 180, overflowY: 'auto', fontSize: 'var(--fs-caption)' }}>
                 {!supp.unsubscribed.length && <div className="text-subtle">None.</div>}
-                {supp.unsubscribed.map(u => <div key={u.id} style={{ padding: '3px 0' }}>{u.name || u.email} <span className="text-subtle">· {u.email}</span></div>)}
+                {supp.unsubscribed.map(u => <div key={u.id} style={{ padding: 'var(--s1) 0' }}>{u.name || u.email} <span className="text-subtle">· {u.email}</span></div>)}
               </div>
             </div>
             <div>
               <div className="field-label">Do-not-contact / bounced ({supp.do_not_contact.length})</div>
               <div style={{ maxHeight: 180, overflowY: 'auto', fontSize: 'var(--fs-caption)' }}>
                 {!supp.do_not_contact.length && <div className="text-subtle">None.</div>}
-                {supp.do_not_contact.map(u => <div key={u.id} style={{ padding: '3px 0' }}>{u.name || u.email} <span className="text-subtle">· {u.email}</span></div>)}
+                {supp.do_not_contact.map(u => <div key={u.id} style={{ padding: 'var(--s1) 0' }}>{u.name || u.email} <span className="text-subtle">· {u.email}</span></div>)}
               </div>
             </div>
           </div>

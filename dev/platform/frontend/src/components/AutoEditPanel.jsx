@@ -76,15 +76,15 @@ export default function AutoEditPanel({ clientId, post }) {
   }
 
   return (
-    <div style={{ marginTop: 10, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+    <div style={{ marginTop: 'var(--s3)', padding: 'var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
       {!project ? (
         <>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 8 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 'var(--s2)' }}>
             Upload your raw footage and the auto-edit pipeline trims dead air, adds captions and motion
             graphics, grades the result, and re-edits until it passes. Rendering runs on the dedicated
             worker — it lands here when it's done.
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center' }}>
             <select value={preset} onChange={e => setPreset(e.target.value)} className="input" style={{ maxWidth: 220 }}>
               {STYLE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
@@ -96,14 +96,14 @@ export default function AutoEditPanel({ clientId, post }) {
         </>
       ) : (
         <div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 8 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s2)' }}>
             Status: {STATUS_LABEL[project.status] || project.status}
             {project.error ? ` — ${project.error}` : ''}
             {project.score != null ? ` · QA score ${project.score}/100` : ''}
           </div>
 
           {project.status === 'done' && project.output_url && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s2)', flexWrap: 'wrap' }}>
               <a className="btn btn-primary btn-sm" href={`/api/video/projects/${project.id}/output`} target="_blank" rel="noreferrer">↓ Download finished reel</a>
               {project.delivered_url && (
                 <a className="btn btn-secondary btn-sm" href={project.delivered_url} target="_blank" rel="noreferrer">↗ Open delivered</a>
@@ -112,9 +112,9 @@ export default function AutoEditPanel({ clientId, post }) {
           )}
 
           {project.jobs?.length > 0 && (
-            <div style={{ marginTop: 4 }}>
+            <div style={{ marginTop: 'var(--s1)' }}>
               {project.jobs.map(j => (
-                <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', padding: '3px 0', borderTop: '1px solid var(--card-border)' }}>
+                <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', padding: 'var(--s1) 0', borderTop: '1px solid var(--card-border)' }}>
                   <span style={{ textTransform: 'capitalize' }}>{j.stage}</span>
                   <span style={{ color: j.status === 'failed' ? 'var(--negative)' : j.status === 'done' ? 'var(--positive)' : 'var(--text-subtle)' }}>
                     {j.status}{j.error ? ` — ${j.error}` : ''}
@@ -124,7 +124,7 @@ export default function AutoEditPanel({ clientId, post }) {
             </div>
           )}
 
-          <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={() => setProject(null)}>
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 'var(--s2)' }} onClick={() => setProject(null)}>
             ＋ Start another auto-edit
           </button>
         </div>

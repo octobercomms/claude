@@ -212,9 +212,9 @@ export default function ImportWizard({
               etc). We'll let you map each column to the right {entityLabel} field on the next step.
             </p>
             <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onPickFile} />
-            <div style={{ marginTop: 14 }}>
+            <div style={{ marginTop: 'var(--s4)' }}>
               <button onClick={() => fileRef.current?.click()} style={btn}>Choose CSV file</button>
-              {file && <span style={{ marginLeft: 12, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{file.name}</span>}
+              {file && <span style={{ marginLeft: 'var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{file.name}</span>}
             </div>
           </div>
         )}
@@ -225,13 +225,13 @@ export default function ImportWizard({
               {rawRows?.totalRows} rows detected. Map each column to one of our {entityLabel} fields.
               Anything mapped to "ignore" is dropped on import. <strong>Email</strong> is required.
             </p>
-            <div style={{ overflowX: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginTop: 10 }}>
+            <div style={{ overflowX: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginTop: 'var(--s3)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-caption)' }}>
                 <thead>
                   <tr>
                     {headers.map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #ddd', minWidth: 140 }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{h}</div>
+                      <th key={h} style={{ textAlign: 'left', padding: 'var(--s2) var(--s3)', borderBottom: '1px solid #ddd', minWidth: 140 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 'var(--s1)' }}>{h}</div>
                         <select
                           value={mapping[h] || ''}
                           onChange={e => setMapping(prev => ({ ...prev, [h]: e.target.value }))}
@@ -249,7 +249,7 @@ export default function ImportWizard({
                   {previewRows.map((row, i) => (
                     <tr key={i}>
                       {row.map((cell, j) => (
-                        <td key={j} style={{ padding: '6px 10px', borderTop: '1px solid #f4f4f4', color: 'var(--text-muted)', whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <td key={j} style={{ padding: 'var(--s2) var(--s3)', borderTop: '1px solid #f4f4f4', color: 'var(--text-muted)', whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {cell}
                         </td>
                       ))}
@@ -259,11 +259,11 @@ export default function ImportWizard({
               </table>
             </div>
 
-            <div style={{ marginTop: 18 }}>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+            <div style={{ marginTop: 'var(--s5)' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>
                 Import these as {kindColumnMapped ? '(fallback)' : <span style={{ color: 'var(--negative)' }}>— required</span>}
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginBottom: 'var(--s4)' }}>
                 <select value={defaultKind} onChange={e => setDefaultKind(e.target.value)} style={select}>
                   <option value="">— choose —</option>
                   <option value="media">Press (journalists)</option>
@@ -276,10 +276,10 @@ export default function ImportWizard({
                     : <>You haven't mapped a <strong>Type</strong> column, so <strong>every</strong> {entityLabel} will be imported as this. Pick carefully.</>}
                 </span>
               </div>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>
                 Apply these tags to every imported {entityLabel}
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginBottom: 'var(--s2)', alignItems: 'center' }}>
                 {Array.from(tags).map(t => (
                   <span key={t} style={tagChipOn} onClick={() => toggleTag(t)}>{t} ×</span>
                 ))}
@@ -293,8 +293,8 @@ export default function ImportWizard({
               </div>
               {!!knownTags.length && (
                 <div>
-                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 4 }}>Existing tags — click to add:</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s1)' }}>Existing tags — click to add:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s1)' }}>
                     {knownTags.slice(0, 24).filter(t => !tags.has(t.tag)).map(t => (
                       <button key={t.tag} onClick={() => toggleTag(t.tag)} style={tagChip}>
                         {t.tag} <span style={{ opacity: 0.5 }}>· {t.count}</span>
@@ -306,14 +306,14 @@ export default function ImportWizard({
             </div>
 
             {allowClients && (
-              <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              <div style={{ marginTop: 'var(--s5)' }}>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>
                   Also attach to (optional)
                 </div>
                 {!clients.length
                   ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No clients to choose — {plural} will land in the library only.</div>
                   : (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                       {clients.map(c => (
                         <button key={c.id} onClick={() => toggleClient(c.id)}
                           style={attachClients.has(c.id) ? tagChipOn : tagChip}>
@@ -333,10 +333,10 @@ export default function ImportWizard({
               </button>
             </div>
             {!mappingHasEmail && (
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 6 }}>Map one column to Email to continue.</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 'var(--s2)' }}>Map one column to Email to continue.</div>
             )}
             {mappingHasEmail && !kindReady && (
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 6 }}>Choose what type these contacts are (Press / Industry / Prospects) to continue.</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 'var(--s2)' }}>Choose what type these contacts are (Press / Industry / Prospects) to continue.</div>
             )}
           </div>
         )}
@@ -344,7 +344,7 @@ export default function ImportWizard({
         {step === 3 && !result && (
           <div>
             <p style={hint}>Here's what's about to be imported. Click Import to send it.</p>
-            <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 14, fontSize: 'var(--fs-body)', lineHeight: 1.8, marginTop: 10 }}>
+            <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s4)', fontSize: 'var(--fs-body)', lineHeight: 1.8, marginTop: 'var(--s3)' }}>
               <div><strong>{builtRows.length}</strong> {plural} with a valid email</div>
               <div>Importing as: <strong>{kindColumnMapped ? `per your Type column (fallback ${KIND_LABEL[defaultKind] || '—'})` : KIND_LABEL[defaultKind] || '—'}</strong></div>
               <div>Library: <strong>add new or merge tags into existing</strong> (re-imports are safe)</div>
@@ -369,7 +369,7 @@ export default function ImportWizard({
 
         {step === 3 && result && (
           <div>
-            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
+            <div style={{ padding: 'var(--s4)', background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
               ✓ Imported {result.inserted} new {entityLabel}{result.inserted === 1 ? '' : 's'}, merged tags into {result.reused} existing.
               {clientIdForAttach && ` Attached to this client.`}
               {allowClients && attachClients.size > 0 && ` Attached to ${attachClients.size} client${attachClients.size === 1 ? '' : 's'}.`}
@@ -406,17 +406,17 @@ function splitCsvLine(line) {
   return out;
 }
 
-const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' };
-const modal = { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 880, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
-const header = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 };
-const eyebrow = { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 };
-const closeBtn = { background: 'none', border: 'none', fontSize: 'var(--fs-section)', cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 };
+const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1100, overflowY: 'auto' };
+const modal = { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 880, padding: 'var(--s6)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
+const header = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)' };
+const eyebrow = { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 'var(--s1)' };
+const closeBtn = { background: 'none', border: 'none', fontSize: 'var(--fs-section)', cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 'var(--s1)' };
 const hint = { fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 };
-const footer = { display: 'flex', alignItems: 'center', gap: 8, marginTop: 18, paddingTop: 14, borderTop: '1px solid #eee' };
-const btn = { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: '9px 18px', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' };
-const ghostBtn = { background: 'var(--surface)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '8px 16px', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' };
-const input = { padding: '7px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' };
-const select = { padding: '5px 8px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)', cursor: 'pointer', width: '100%' };
-const tagChip = { padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' };
-const tagChipOn = { padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 'var(--fs-caption)', border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer' };
-const errBox = { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', marginBottom: 12 };
+const footer = { display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginTop: 'var(--s5)', paddingTop: 'var(--s4)', borderTop: '1px solid #eee' };
+const btn = { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: 'var(--s2) var(--s5)', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' };
+const ghostBtn = { background: 'var(--surface)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' };
+const input = { padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' };
+const select = { padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)', cursor: 'pointer', width: '100%' };
+const tagChip = { padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' };
+const tagChipOn = { padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-pill)', fontSize: 'var(--fs-caption)', border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer' };
+const errBox = { padding: 'var(--s3)', background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s3)' };

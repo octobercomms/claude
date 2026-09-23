@@ -791,13 +791,13 @@ function BrainstormTab({
   ) : (
     // Collapsed grid — all posts at a glance; click a tile to open the full
     // editor + Claude refine view (the `refining` branch above).
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 'var(--s3)' }}>
       {posts.map((p, i) => {
         const cap = (p.caption || '').trim();
         const media = mediaByPost[p.id] || [];
         return (
           <button key={p.id} type="button" onClick={() => setRefiningId(p.id)}
-            className="card" style={{ textAlign: 'left', cursor: 'pointer', padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 6, minHeight: 140 }}>
+            className="card" style={{ textAlign: 'left', cursor: 'pointer', padding: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)', minHeight: 140 }}>
             <div className="row between center">
               <span className="caption">{p.platform} · {p.kind}</span>
               <span className="body-xs text-subtle">#{i + 1}</span>
@@ -808,12 +808,12 @@ function BrainstormTab({
             {cap && (
               <div className="body-xs text-subtle" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cap}</div>
             )}
-            <div style={{ marginTop: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ marginTop: 'auto', display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center' }}>
               {p.framework && <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{p.framework}</span>}
               {media.length > 0 && <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{media.length} media</span>}
               {p.status === 'published' && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)' }}>published</span>}
             </div>
-            <div className="row between center" style={{ gap: 8 }}>
+            <div className="row between center" style={{ gap: 'var(--s2)' }}>
               <span className="body-xs" style={{ color: 'var(--text)' }}>Open to edit →</span>
               <span role="button" tabIndex={0} title="Produce this post"
                 onClick={(e) => { e.stopPropagation(); startProduce(p); }}
@@ -836,17 +836,17 @@ function BrainstormTab({
         <div className="panel-step">
           <div>
             <div className="h3">Create a batch of posts</div>
-            <p className="body-sm text-muted" style={{ marginTop: 4, marginBottom: 14, maxWidth: 760 }}>
+            <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)', marginBottom: 'var(--s4)', maxWidth: 760 }}>
               Claude proposes a batch — hook, caption, hashtags, visual concept and a storyboard, grounded in the brand, Google Trends and what competitors shipped this week. Choose how many, then generate. Need a starting point? Grab a reel from <button className="btn-inline-link" onClick={() => onNavTab && onNavTab('swipe')}>Capture</button>.
             </p>
             {briefContent}
             {batches.length > 0 && (
-              <p className="body-xs text-subtle" style={{ marginTop: 14 }}>
+              <p className="body-xs text-subtle" style={{ marginTop: 'var(--s4)' }}>
                 Your {batches.length} past {batches.length === 1 ? 'batch lives' : 'batches live'} in <button className="btn-inline-link" onClick={() => goStep(2)}>Review</button> — open one to edit or reuse its brief.
               </p>
             )}
             {batches.length === 0 && (
-              <div style={{ marginTop: 20 }}>
+              <div style={{ marginTop: 'var(--s5)' }}>
                 <ExampleBlock storageKey={`social_brainstorm_example_${clientId}`} title="this is what one of the 9 posts looks like — click Generate for real ones">
                   <ExamplePostCard />
                 </ExampleBlock>
@@ -860,14 +860,14 @@ function BrainstormTab({
           post grid; older batches sit collapsed. Open one to edit its posts). */}
       {step === 2 && (
         <div className="panel-step">
-          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
+          <div className="row between center wrap" style={{ gap: 'var(--s4)', marginBottom: 'var(--s4)' }}>
             <div style={{ maxWidth: 520 }}>
               <div className="h3">Review your batches</div>
-              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+              <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
                 Open a batch to edit its posts or refine with Claude. When you’re happy, send them to Produce or straight to Schedule.
               </p>
             </div>
-            <div className="row wrap center" style={{ gap: 8 }}>
+            <div className="row wrap center" style={{ gap: 'var(--s2)' }}>
               <UiButton variant="ghost" {...roWrite(readOnly, { onClick: onShareForApproval, disabled: !posts.length })}>{shareUrl ? 'New approval link' : 'Send for approval'}</UiButton>
               <UiButton variant="primary" onClick={() => goStep(3)} disabled={!posts.length}>Produce →</UiButton>
             </div>
@@ -878,13 +878,13 @@ function BrainstormTab({
               <p className="body">No batches yet. <button className="btn-inline-link" onClick={() => goStep(1)}>Create a batch</button> to fill the workbench.</p>
             </div>
           ) : (
-            <div className="stack" style={{ gap: 12 }}>
+            <div className="stack" style={{ gap: 'var(--s3)' }}>
               {batches.map(b => {
                 const open = b.id === activeBatchId;
                 return (
                   <div key={b.id} className="card" style={{ padding: 0, overflow: 'hidden', borderColor: open ? 'var(--accent)' : 'var(--card-border)' }}>
                     <div onClick={() => { if (!open) onSelectBatch(b.id); }}
-                      style={{ cursor: open ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                      style={{ cursor: open ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 'var(--s3)', padding: 'var(--s3) var(--s4)' }}>
                       <span aria-hidden style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{open ? '▾' : '▸'}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>
@@ -895,12 +895,12 @@ function BrainstormTab({
                       <button className="btn-inline-link" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}
                         onClick={(e) => { e.stopPropagation(); onReuseBrief(b); goStep(1); }} title="Load this brief into a new batch">Reuse brief</button>
                       <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this batch and its posts?')) onDeleteBatch(b.id); }}
-                        title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 2 }}>✕</button>
+                        title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 'var(--s1)' }}>✕</button>
                     </div>
                     {open && (
-                      <div style={{ padding: '0 16px 16px' }}>
+                      <div style={{ padding: '0 var(--s4) var(--s4)' }}>
                         {!posts.length
-                          ? <div className="body-sm text-subtle" style={{ padding: '8px 0 12px' }}>Loading posts…</div>
+                          ? <div className="body-sm text-subtle" style={{ padding: 'var(--s2) 0 var(--s3)' }}>Loading posts…</div>
                           : postGrid}
                       </div>
                     )}
@@ -917,11 +917,11 @@ function BrainstormTab({
       {step === 3 && (
         <div className="panel-step">
           {producePost && (
-            <div style={{ marginBottom: 24 }}>
-              <div className="row between center wrap" style={{ gap: 12, marginBottom: 12 }}>
+            <div style={{ marginBottom: 'var(--s6)' }}>
+              <div className="row between center wrap" style={{ gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
                 <div style={{ maxWidth: 560 }}>
                   <div className="h3">Produce this post</div>
-                  <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+                  <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
                     Pick a format — a reel, image or voiceover. It starts rendering and lines up in the board below, where you can leave and come back to it.
                   </p>
                 </div>
@@ -940,7 +940,7 @@ function BrainstormTab({
                   onMakeReel={() => onMakeReel && onMakeReel(producePost)}
                   onDeleteMedia={(mediaId) => deleteMedia(mediaId, producePost.id)} />
               </div>
-              <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', margin: '24px 0 0' }} />
+              <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', margin: 'var(--s6) 0 0' }} />
             </div>
           )}
           <ProduceBoard clientId={clientId} onOpenReels={onOpenReels} onEditReel={onEditReel} onNext={() => goStep(4)} />
@@ -950,22 +950,22 @@ function BrainstormTab({
       {/* STAGE 4 — SCHEDULE (Plan + Publish merged) */}
       {step === 4 && (
         <div className="panel-step">
-          <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
+          <div className="row between center wrap" style={{ gap: 'var(--s4)', marginBottom: 'var(--s4)' }}>
             <div style={{ maxWidth: 520 }}>
               <div className="h3">Schedule &amp; autopilot</div>
-              <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+              <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
                 Lock the posts you like onto the calendar — Mon / Wed / Fri at 10am suits most brands — or bulk-schedule the batch. Autopilot then ships each channel automatically; the live queue is below.
               </p>
             </div>
-            <div className="row wrap" style={{ gap: 8 }}>
+            <div className="row wrap" style={{ gap: 'var(--s2)' }}>
               <UiButton variant="primary" {...roWrite(readOnly, { onClick: onBulkSchedule, disabled: !hasAutopilotSupported })}>📅 Bulk schedule</UiButton>
             </div>
           </div>
           {!hasAutopilotSupported && (
-            <div className="callout callout-warning" style={{ marginBottom: 14 }}>Bulk scheduling needs Instagram, Facebook or LinkedIn posts in this batch — you can still lock individual posts onto the calendar below.</div>
+            <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)' }}>Bulk scheduling needs Instagram, Facebook or LinkedIn posts in this batch — you can still lock individual posts onto the calendar below.</div>
           )}
           {plansContent}
-          <div style={{ marginTop: 28, paddingTop: 18, borderTop: 'var(--border-w) solid var(--card-border)' }}>
+          <div style={{ marginTop: 'var(--s7)', paddingTop: 'var(--s5)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
             <div className="caption caption-muted mb-3">Autopilot queue — publishes to every channel on schedule</div>
             {publishContent}
           </div>
@@ -1035,30 +1035,30 @@ function ProduceBoard({ clientId, onOpenReels, onEditReel, onNext }) {
   const items = data?.items || [];
   return (
     <div>
-      <div className="row between center wrap" style={{ gap: 14, marginBottom: 16 }}>
+      <div className="row between center wrap" style={{ gap: 'var(--s4)', marginBottom: 'var(--s4)' }}>
         <div style={{ maxWidth: 560 }}>
           <div className="h3">Produce</div>
-          <p className="body-sm text-muted" style={{ marginTop: 4 }}>
+          <p className="body-sm text-muted" style={{ marginTop: 'var(--s1)' }}>
             Every asset you’ve sent to production — reels, images and voiceovers — in one line. Reels render in the background; check back any time to watch them land.
           </p>
         </div>
-        <div className="row wrap center" style={{ gap: 8 }}>
+        <div className="row wrap center" style={{ gap: 'var(--s2)' }}>
           {onOpenReels && <UiButton variant="secondary" onClick={onOpenReels}>🎬 New avatar reel</UiButton>}
           <UiButton variant="primary" onClick={onNext}>Schedule →</UiButton>
         </div>
       </div>
       {data?.producing > 0 && (
-        <div className="body-xs text-subtle" style={{ marginBottom: 10 }}>● {data.producing} still rendering — this refreshes automatically.</div>
+        <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s3)' }}>● {data.producing} still rendering — this refreshes automatically.</div>
       )}
-      {err && <div className="callout callout-warning" style={{ marginBottom: 12 }}>{err}</div>}
+      {err && <div className="callout callout-warning" style={{ marginBottom: 'var(--s3)' }}>{err}</div>}
       {!data ? (
-        <div className="body-sm text-subtle" style={{ padding: 20 }}>Loading production…</div>
+        <div className="body-sm text-subtle" style={{ padding: 'var(--s5)' }}>Loading production…</div>
       ) : !items.length ? (
         <div className="empty" style={{ padding: 'var(--s7)' }}>
           <p className="body">Nothing in production yet. Open a post in Review and produce a reel, image or voiceover — or start an avatar reel — and it’ll line up here.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 'var(--s3)' }}>
           {items.map(it => {
             const st = PROD_STATUS[it.status] || PROD_STATUS.ready;
             return (
@@ -1066,15 +1066,15 @@ function ProduceBoard({ clientId, onOpenReels, onEditReel, onNext }) {
                 <button onClick={() => del(it)} title="Delete asset"
                   style={{ position: 'absolute', top: 6, right: 6, zIndex: 2, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 'var(--fs-body)', lineHeight: 1 }}>✕</button>
                 <ProdThumb it={it} onClick={() => setPreview(it)} />
-                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ padding: 'var(--s3) var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)', flex: 1 }}>
+                  <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span className="chip" style={{ fontSize: 'var(--fs-caption)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{it.label}</span>
                     <span className="chip" style={{ fontSize: 'var(--fs-caption)', background: st.bg, color: st.fg }}>{st.label}</span>
                     {it.platform && <span className="body-xs text-subtle" style={{ textTransform: 'capitalize' }}>{it.platform}</span>}
                   </div>
                   <div className="body-sm" style={{ fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{it.title}</div>
                   {it.status === 'failed' && it.error && <div className="body-xs text-negative">{String(it.error).slice(0, 120)}</div>}
-                  <div style={{ marginTop: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <div style={{ marginTop: 'auto', display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                     {it.url && it.status === 'ready' && <button className="btn btn-secondary btn-sm" onClick={() => setPreview(it)}>Preview</button>}
                     {it.kind === 'reel' && onEditReel && (it.status === 'ready' || it.status === 'failed') && (
                       <button className="btn btn-ghost btn-sm" onClick={() => onEditReel(it.key.replace('reel-', ''))} title="Edit the script and regenerate">✎ Edit script</button>
@@ -1116,9 +1116,9 @@ function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReu
   if (!batches.length) return <div className="body-sm text-subtle">Nothing yet — click Generate to start.</div>;
   if (compact) {
     return (
-      <div className="stack" style={{ gap: 8 }}>
+      <div className="stack" style={{ gap: 'var(--s2)' }}>
         {batches.map(b => (
-          <div key={b.id} className="card" style={{ padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderColor: b.id === activeBatchId ? 'var(--accent)' : 'var(--card-border)' }}
+          <div key={b.id} className="card" style={{ padding: 'var(--s2) var(--s3)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 'var(--s2)', borderColor: b.id === activeBatchId ? 'var(--accent)' : 'var(--card-border)' }}
             onClick={() => onSelectBatch(b.id)} title="Open this batch in Review">
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>
@@ -1128,7 +1128,7 @@ function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReu
             </div>
             <button onClick={(e) => { e.stopPropagation(); onReuseBrief(b); }} className="btn-inline-link" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }} title="Load this brief into the form">Reuse</button>
             <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this batch and its posts?')) onDeleteBatch(b.id); }}
-              title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 2 }}>✕</button>
+              title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 'var(--s1)' }}>✕</button>
           </div>
         ))}
       </div>
@@ -1137,13 +1137,13 @@ function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReu
   return (
     <div>
       {!horizontal && <div className="caption caption-muted mb-3">Past batches</div>}
-      <div className={horizontal ? 'row wrap' : 'stack stack-sm'} style={horizontal ? { gap: 10 } : undefined}>
+      <div className={horizontal ? 'row wrap' : 'stack stack-sm'} style={horizontal ? { gap: 'var(--s3)' } : undefined}>
         {batches.map(b => (
-          <div key={b.id} className="card" style={{ padding: 10, cursor: 'pointer', width: horizontal ? 240 : 'auto', borderColor: b.id === activeBatchId ? 'var(--accent)' : 'var(--border-neutral)' }} onClick={() => onSelectBatch(b.id)}>
+          <div key={b.id} className="card" style={{ padding: 'var(--s3)', cursor: 'pointer', width: horizontal ? 240 : 'auto', borderColor: b.id === activeBatchId ? 'var(--accent)' : 'var(--border-neutral)' }} onClick={() => onSelectBatch(b.id)}>
             <div className="h3">{new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
             <div className="body-xs text-subtle mt-2">{b.post_count} posts</div>
             {b.brief && <div className="body-xs mt-2" style={{ lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
-            <div className="row wrap mt-3" style={{ gap: 6 }}>
+            <div className="row wrap mt-3" style={{ gap: 'var(--s2)' }}>
               <button onClick={(e) => { e.stopPropagation(); onReuseBrief(b); }} className="btn btn-secondary btn-sm">Reuse brief</button>
               {b.id === activeBatchId && (
                 <button onClick={(e) => { e.stopPropagation(); onDeleteBatch(b.id); }} className="btn btn-danger btn-sm">Delete batch</button>
@@ -1166,7 +1166,7 @@ function ProdAction({ label, hint, onClick, disabled, active, href, safe }) {
   const btnCls = 'btn btn-sm ' + (active ? 'btn-primary' : 'btn-secondary');
   const btnStyle = { flex: '0 0 auto', minWidth: 168, justifyContent: 'flex-start' };
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
       {href
         ? <a href={href} target="_blank" rel="noreferrer" className={btnCls} style={btnStyle}>{label}</a>
         : <button type="button" {...roWrite(blocked, { onClick, disabled })} className={btnCls} style={btnStyle}>{label}</button>}
@@ -1177,9 +1177,9 @@ function ProdAction({ label, hint, onClick, disabled, active, href, safe }) {
 
 function ProdGroup({ title, children }) {
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div className="caption caption-muted" style={{ marginBottom: 6 }}>{title}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{children}</div>
+    <div style={{ marginBottom: 'var(--s3)' }}>
+      <div className="caption caption-muted" style={{ marginBottom: 'var(--s2)' }}>{title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>{children}</div>
     </div>
   );
 }
@@ -1191,8 +1191,8 @@ function EditableText({ label, value, multiline, placeholder, onSave }) {
   const [draft, setDraft] = useState(value || '');
   useEffect(() => { if (!editing) setDraft(value || ''); }, [value, editing]);
   return (
-    <div style={{ marginTop: 10 }}>
-      <div className="caption mb-2" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ marginTop: 'var(--s3)' }}>
+      <div className="caption mb-2" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
         <span>{label}</span>
         {!editing && <button type="button" onClick={() => setEditing(true)} className="inline-edit-btn">✎ edit</button>}
       </div>
@@ -1201,7 +1201,7 @@ function EditableText({ label, value, multiline, placeholder, onSave }) {
           {multiline
             ? <textarea className="input" value={draft} onChange={e => setDraft(e.target.value)} style={{ minHeight: 90, width: '100%' }} placeholder={placeholder} />
             : <input className="input" value={draft} onChange={e => setDraft(e.target.value)} style={{ width: '100%' }} placeholder={placeholder} />}
-          <div className="row" style={{ gap: 6, marginTop: 6 }}>
+          <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => { onSave(draft); setEditing(false); }}>Save</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setDraft(value || ''); setEditing(false); }}>Cancel</button>
           </div>
@@ -1314,21 +1314,21 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: 'var(--r-sm)', width: 720, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+      <div style={{ background: 'white', borderRadius: 'var(--r-sm)', width: 720, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 'var(--s5)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)' }}>
           <h2 style={{ margin: 0, fontSize: 'var(--fs-title)' }}>Bulk schedule {selected.size} of {posts.length} posts</h2>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-title)', cursor: 'pointer' }}>×</button>
         </div>
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 14 }}>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s4)' }}>
           Each ticked post becomes its own plan. The autopilot picks them up one per scheduled slot — fetches captions, reads the Drive folder, posts to the platforms below.
         </div>
 
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Posts</div>
+        <div style={{ marginBottom: 'var(--s4)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s2)' }}>Posts</div>
           <div style={{ maxHeight: 200, overflow: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
             {posts.map(p => (
-              <label key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', fontSize: 'var(--fs-caption)' }}>
-                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} style={{ marginTop: 2 }} />
+              <label key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', fontSize: 'var(--fs-caption)' }}>
+                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} style={{ marginTop: 'var(--s1)' }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{p.hook || p.caption?.slice(0, 60) || '(no hook)'}</div>
                   <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{p.platform} · {p.kind}{p.framework ? ` · ${p.framework}` : ''}</div>
@@ -1338,33 +1338,33 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 14, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 'var(--s4)', marginBottom: 'var(--s4)' }}>
           <div>
-            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Target platforms</div>
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s2)' }}>Target platforms</div>
+            <div style={{ display: 'flex', gap: 'var(--s3)' }}>
               {['instagram','facebook','linkedin'].map(p => (
-                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-caption)', cursor: 'pointer', textTransform: 'capitalize' }}>
+                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', fontSize: 'var(--fs-caption)', cursor: 'pointer', textTransform: 'capitalize' }}>
                   <input type="checkbox" checked={targetPlatforms.includes(p)} onChange={() => togglePlatform(p)} /> {p}
                 </label>
               ))}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Drive folder URL (shared)</div>
+            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s2)' }}>Drive folder URL (shared)</div>
             <input type="text" value={driveFolderUrl} onChange={e => setDriveFolderUrl(e.target.value)}
               placeholder="https://drive.google.com/drive/folders/…"
-              style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
+              style={{ width: '100%', padding: 'var(--s2) var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 14, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 'var(--s4)', marginBottom: 'var(--s4)' }}>
           <div>
-            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Days of week</div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s2)' }}>Days of week</div>
+            <div style={{ display: 'flex', gap: 'var(--s1)' }}>
               {dayLabels.map((label, i) => (
                 <button key={i} type="button" onClick={() => toggleDay(i)}
                   style={{
-                    flex: 1, padding: '6px 0', fontSize: 'var(--fs-caption)', fontWeight: 600,
+                    flex: 1, padding: 'var(--s2) 0', fontSize: 'var(--fs-caption)', fontWeight: 600,
                     background: daysOfWeek.includes(i) ? 'var(--text)' : 'white',
                     color: daysOfWeek.includes(i) ? 'white' : 'var(--text-muted)',
                     border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer',
@@ -1372,23 +1372,23 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
               ))}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s2)' }}>
             <div>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Start date</div>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s2)' }}>Start date</div>
               <input type="date" value={startAt} onChange={e => setStartAt(e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
+                style={{ width: '100%', padding: 'var(--s2) var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Time</div>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--s2)' }}>Time</div>
               <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
+                style={{ width: '100%', padding: 'var(--s2) var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
             </div>
           </div>
         </div>
 
-        {error && <div style={{ padding: '8px 12px', background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', marginBottom: 12 }}>{error}</div>}
+        {error && <div style={{ padding: 'var(--s2) var(--s3)', background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s3)' }}>{error}</div>}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)' }}>
           <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
           <button type="button" onClick={submit} disabled={submitting} className="btn btn-primary">
             {submitting ? 'Scheduling…' : `Schedule ${selected.size} post${selected.size !== 1 ? 's' : ''}`}
@@ -1430,12 +1430,12 @@ function HookVaultList({ clientId, onUse }) {
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search hooks…"
-          style={{ flex: 1, padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)' }} />
+          style={{ flex: 1, padding: 'var(--s2) var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)' }} />
         <select value={framework} onChange={e => setFramework(e.target.value)}
-          style={{ padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
+          style={{ padding: 'var(--s2) var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
           <option value="">All frameworks</option>
           <option value="Hook-Story-Offer">Hook-Story-Offer</option>
           <option value="AIDA">AIDA</option>
@@ -1444,18 +1444,18 @@ function HookVaultList({ clientId, onUse }) {
         </select>
       </div>
       {loading ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 'var(--fs-caption)' }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', textAlign: 'center', fontSize: 'var(--fs-caption)' }}>Loading…</div>
       ) : !hooks.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 'var(--fs-caption)' }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', textAlign: 'center', fontSize: 'var(--fs-caption)' }}>
           No hooks yet. Generate a brainstorm batch — every hook you save lands here.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
           {hooks.map((h, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-              <div style={{ flex: 1, marginRight: 12 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s2) var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+              <div style={{ flex: 1, marginRight: 'var(--s3)' }}>
                 <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 3, display: 'flex', gap: 8 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)', display: 'flex', gap: 'var(--s2)' }}>
                   {h.framework && <span>{h.framework}</span>}
                   <span>·</span>
                   <span>{h.platform} / {h.kind}</span>
@@ -1464,7 +1464,7 @@ function HookVaultList({ clientId, onUse }) {
                 </div>
               </div>
               <button type="button" onClick={() => onUse(h.hook)}
-                style={{ background: 'var(--text)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', padding: '6px 14px', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                style={{ background: 'var(--text)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', padding: 'var(--s2) var(--s4)', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 Use this →
               </button>
             </div>
@@ -1478,11 +1478,11 @@ function HookVaultList({ clientId, onUse }) {
 function HookVaultModal({ clientId, onClose, onUse }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: 'var(--r-sm)', width: 760, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+      <div style={{ background: 'white', borderRadius: 'var(--r-sm)', width: 760, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 'var(--s5)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s4)' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 'var(--fs-title)' }}>Hook Vault</h2>
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 4 }}>Every hook this client has used, sorted by best reach.</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>Every hook this client has used, sorted by best reach.</div>
           </div>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-title)', cursor: 'pointer' }}>×</button>
         </div>
@@ -1613,8 +1613,8 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
         </div>
         {onNewPlan && <UiButton variant="primary" onClick={onNewPlan}>+ Plan a post</UiButton>}
       </div>
-    <div style={{ marginBottom: 22, padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+    <div style={{ marginBottom: 'var(--s6)', padding: 'var(--s4)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)' }}>
         <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Locked plans
         </div>
@@ -1622,7 +1622,7 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
           {['list', 'calendar'].map(v => (
             <button key={v} type="button" onClick={() => setView(v)}
               style={{
-                padding: '4px 10px', fontSize: 'var(--fs-caption)', fontWeight: 600,
+                padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', fontWeight: 600,
                 background: view === v ? 'var(--text)' : 'white',
                 color: view === v ? 'white' : 'var(--text-muted)',
                 border: 'none', cursor: 'pointer', textTransform: 'capitalize',
@@ -1633,7 +1633,7 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
       {view === 'calendar' ? (
         <PlansCalendar plans={plans} onOpen={onOpen} />
       ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
         {plans.map(p => {
           // Compact per-platform status chips. posted is green, failed
           // red, in_flight amber, pending grey. Click into the plan to
@@ -1642,53 +1642,53 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
           const eng = p.engagement || {};
           const hasEng = Number(eng.likes || 0) + Number(eng.comments || 0) + Number(eng.shares || 0) > 0;
           return (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s2) var(--s3)', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
               <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 'var(--fs-body)', fontWeight: 600, padding: 0, color: 'var(--text)' }}>
                 {p.title || '(untitled)'}
               </button>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {pubs.map(pub => {
                   const colour = pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : pub.status === 'in_flight' ? 'var(--warning)' : 'var(--text-subtle)';
                   const bg = pub.status === 'posted' ? 'var(--positive-soft)' : pub.status === 'failed' ? 'var(--negative-soft)' : pub.status === 'in_flight' ? 'var(--warning-soft)' : 'var(--surface-sunken)';
                   const icon = pub.status === 'posted' ? '✓' : pub.status === 'failed' ? '✗' : '·';
                   return (
                     <span key={pub.platform} title={pub.error_message || pub.posted_url || pub.status}
-                          style={{ fontSize: 'var(--fs-caption)', color: colour, background: bg, padding: '2px 6px', borderRadius: 'var(--r-sm)', textTransform: 'capitalize' }}>
+                          style={{ fontSize: 'var(--fs-caption)', color: colour, background: bg, padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', textTransform: 'capitalize' }}>
                       {icon} {pub.platform}
                     </span>
                   );
                 })}
                 {hasEng && (
-                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)' }}>
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', background: 'var(--accent-soft)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)' }}>
                     {eng.reach ? `${formatNum(eng.reach)} reach · ` : ''}{formatNum(eng.likes)} ♡ · {formatNum(eng.comments)} 💬{eng.shares ? ` · ${formatNum(eng.shares)} ↗` : ''}
                   </span>
                 )}
                 {p.scheduled_at && !pubs.some(x => x.status === 'posted') && editingPlanId !== p.id && (
                   <button type="button" onClick={() => beginEdit(p)}
-                    style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
+                    style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', background: 'var(--accent-soft)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
                     title="Click to reschedule">
                     ⏰ {new Date(p.scheduled_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                     {p.target_platforms?.length ? ` · ${p.target_platforms.join(', ')}` : ''}
                   </button>
                 )}
                 {editingPlanId === p.id && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)' }}>
                     <input type="datetime-local" value={editDraft} onChange={e => setEditDraft(e.target.value)}
-                      style={{ fontSize: 'var(--fs-caption)', padding: '2px 4px', border: '1px solid #1a56db', borderRadius: 'var(--r-sm)' }} />
+                      style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s1)', border: '1px solid #1a56db', borderRadius: 'var(--r-sm)' }} />
                     <button type="button" onClick={() => saveEdit(p.id)} disabled={savingEdit}
-                      style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+                      style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button type="button" onClick={() => setEditingPlanId(null)}
-                      style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', background: 'white', color: 'var(--text-muted)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+                      style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', background: 'white', color: 'var(--text-muted)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
                       Cancel
                     </button>
                   </span>
                 )}
                 <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
-                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>↓ PDF</button>
-                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>↓ Word</button>
-                <button type="button" onClick={() => deletePlan(p.id)} title="Delete plan" style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 'var(--fs-caption)', color: 'var(--negative)', cursor: 'pointer' }}>✕</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>↓ PDF</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>↓ Word</button>
+                <button type="button" onClick={() => deletePlan(p.id)} title="Delete plan" style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--negative)', cursor: 'pointer' }}>✕</button>
               </div>
             </div>
           );
@@ -1733,17 +1733,17 @@ function PlansCalendar({ plans, onOpen }) {
   }
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>← Prev</button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s2)' }}>
+        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>← Prev</button>
         <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>{monthLabel}</div>
-        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>Next →</button>
+        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>Next →</button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 'var(--s1)' }}>
         {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
-          <div key={d} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', textAlign: 'center', padding: '4px 0' }}>{d}</div>
+          <div key={d} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', textAlign: 'center', padding: 'var(--s1) 0' }}>{d}</div>
         ))}
         {cells.map((cell, i) => (
-          <div key={i} style={{ minHeight: 70, background: cell ? 'white' : 'transparent', border: cell ? '1px solid #eee' : 'none', borderRadius: 'var(--r-sm)', padding: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div key={i} style={{ minHeight: 70, background: cell ? 'white' : 'transparent', border: cell ? '1px solid #eee' : 'none', borderRadius: 'var(--r-sm)', padding: 'var(--s1)', display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
             {cell && (
               <>
                 <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textAlign: 'right' }}>{cell.getDate()}</div>
@@ -1757,7 +1757,7 @@ function PlansCalendar({ plans, onOpen }) {
                   return (
                     <button key={p.id} type="button" onClick={() => onOpen(p.id)}
                       title={p.title || '(untitled)'}
-                      style={{ background: bg, color: fg, border: 'none', borderRadius: 'var(--r-sm)', padding: '3px 5px', fontSize: 'var(--fs-caption)', fontWeight: 600, textAlign: 'left', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      style={{ background: bg, color: fg, border: 'none', borderRadius: 'var(--r-sm)', padding: 'var(--s1) var(--s1)', fontSize: 'var(--fs-caption)', fontWeight: 600, textAlign: 'left', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {t} · {(p.title || '').slice(0, 22)}
                     </button>
                   );
@@ -1796,11 +1796,11 @@ function CompetitorEditor({ competitors, onSave }) {
       {!competitors.length && !editing && (
         <p className="body-sm text-subtle">No competitors yet — add 3–10 handles to start tracking.</p>
       )}
-      <div className="row wrap" style={{ gap: 6, alignItems: 'center' }}>
+      <div className="row wrap" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
         {competitors.map(c => (
           <span key={c} className="chip chip-outline" style={{ fontFamily: 'monospace' }}>
             {c}
-            {editing && <button onClick={() => remove(c)} className="btn-ghost" style={{ fontSize: 'var(--fs-body)', padding: '0 2px' }}>×</button>}
+            {editing && <button onClick={() => remove(c)} className="btn-ghost" style={{ fontSize: 'var(--fs-body)', padding: '0 var(--s1)' }}>×</button>}
           </span>
         ))}
         {editing && (
@@ -1810,7 +1810,7 @@ function CompetitorEditor({ competitors, onSave }) {
               onChange={e => setDraft(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
               placeholder="instagram:handle"
-              style={{ padding: '6px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+              style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
             />
             <button onClick={add} className="btn btn-secondary btn-sm">Add</button>
             <button onClick={() => setEditing(false)} className="btn btn-primary btn-sm">Done</button>
@@ -1829,7 +1829,7 @@ function GeneratingOverlay({ count = 9 }) {
       <div className="card" style={{ textAlign: 'center', padding: 'var(--s8) var(--s9)', maxWidth: 360 }}>
         <div className="spinner" style={{ margin: '0 auto var(--s4)' }} />
         <div className="h3">Generating {count} post{count === 1 ? '' : 's'}…</div>
-        <p className="body-sm text-muted" style={{ marginTop: 6 }}>Claude is writing hooks, captions and storyboards — this usually takes 20–40 seconds.</p>
+        <p className="body-sm text-muted" style={{ marginTop: 'var(--s2)' }}>Claude is writing hooks, captions and storyboards — this usually takes 20–40 seconds.</p>
       </div>
     </div>
   );
@@ -1868,11 +1868,11 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
   }
   return (
     <div className="card" style={{ width: '100%' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 'var(--s6)', alignItems: 'start' }}>
         {/* LEFT — the brief, given room to write */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <label style={modalStyles.label}>Brief</label>
-          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: '0 0 var(--s3)', lineHeight: 1.5 }}>
             Optional — the more specific you are, the more useful the output. Examples: "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy." Leave empty for a balanced batch.
           </p>
           <textarea value={brief} onChange={e => setBrief(e.target.value)}
@@ -1883,7 +1883,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
         {/* RIGHT — the options */}
         <div>
           <label style={{ ...modalStyles.label, marginTop: 0 }}>How many posts</label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
             {[1, 2, 3, 4, 5, 6, 9].map(nn => (
               <button key={nn} type="button" onClick={() => setCount && setCount(nn)}
                 style={{ width: 38, height: 38, borderRadius: 'var(--r-md)', cursor: 'pointer', fontWeight: 800, fontFamily: 'inherit',
@@ -1894,7 +1894,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
             ))}
           </div>
           <label style={modalStyles.label}>Post length</label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
             {[
               { id: 'short', label: 'Short', hint: 'punchy — 1–2 lines' },
               { id: 'medium', label: 'Medium', hint: 'a short paragraph' },
@@ -1906,11 +1906,11 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
               </button>
             ))}
           </div>
-          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '6px 0 0' }}>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s2) 0 0' }}>
             {length === 'short' ? 'Punchy captions, 1–2 lines.' : length === 'long' ? 'Detailed, storytelling captions.' : 'A short paragraph per post.'}
           </p>
           <label style={modalStyles.label}>Platforms</label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
             {['instagram', 'tiktok', 'linkedin', 'facebook'].map(p => (
               <button key={p} onClick={() => togglePlatform(p)} type="button" style={platforms.includes(p) ? modalStyles.pillOn : modalStyles.pill}>
                 {p}
@@ -1921,13 +1921,13 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
             <label style={modalStyles.label}>Your content (optional)</label>
             <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) uploadRef(f); e.target.value = ''; }} />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap' }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
                 {uploading ? 'Uploading…' : '⬆ Attach image / clip'}
               </button>
               {uploads.map(u => <span key={u.id} style={modalStyles.pill}>{u.kind === 'b_roll_clip' ? '🎬' : '🖼'} {u.name.slice(0, 22)}</span>)}
             </div>
-            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '6px 0 0', lineHeight: 1.5 }}>
+            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s2) 0 0', lineHeight: 1.5 }}>
               Reference images/clips are saved to this client's brand assets and used to ground the generated posts.
             </p>
           </>)}
@@ -1935,7 +1935,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
       </div>
 
       {/* Generate — bottom right */}
-      <div style={{ display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', alignItems: 'center', gap: 12, marginTop: 20, paddingTop: 16, borderTop: 'var(--border-w) solid var(--card-border)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', alignItems: 'center', gap: 'var(--s3)', marginTop: 'var(--s5)', paddingTop: 'var(--s4)', borderTop: 'var(--border-w) solid var(--card-border)', flexWrap: 'wrap' }}>
         {readOnly && <span className="body-xs text-subtle">{READ_ONLY_MSG}</span>}
         <button type="button" className="btn btn-primary" style={isMobile ? { width: '100%' } : undefined}
           {...roWrite(readOnly, { onClick: onSubmit, disabled: submitting || !platforms.length })}>
@@ -1951,15 +1951,15 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
   const [open, setOpen] = React.useState(false);
   const visible = open ? sounds : sounds.slice(0, 5);
   return (
-    <div style={{ background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '10px 14px', marginTop: 10, marginBottom: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: sounds.length ? 8 : 0 }}>
+    <div style={{ background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s3) var(--s4)', marginTop: 'var(--s3)', marginBottom: 'var(--s2)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginBottom: sounds.length ? 8 : 0 }}>
         <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Trending TikTok sounds
         </span>
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
           {sounds.length ? `${sounds.length} cached` : '(none pulled yet — click Refresh)'}
         </span>
-        <button {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', borderRadius: 'var(--r-pill)', cursor: 'pointer' }}>
+        <button {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} style={{ marginLeft: 'auto', padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', borderRadius: 'var(--r-pill)', cursor: 'pointer' }}>
           {refreshing ? 'Pulling…' : 'Refresh'}
         </button>
         {sounds.length > 5 && (
@@ -1969,10 +1969,10 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         )}
       </div>
       {!!visible.length && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
           {visible.map((s, i) => (
             <a key={s.id || i} href={s.tiktok_url || '#'} target="_blank" rel="noreferrer"
-              style={{ fontSize: 'var(--fs-caption)', padding: '4px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
+              style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 'var(--s2)', alignItems: 'center', maxWidth: 280 }}
               title={`${s.title} — ${s.author || 'unknown'}`}>
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
               {s.use_count && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{s.use_count.toLocaleString()}</span>}
@@ -1989,18 +1989,18 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
   const reachSeries = (sparkline || []).map(p => p.reach);
   const interactionSeries = (sparkline || []).map(p => p.interactions);
   return (
-    <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: '12px 14px', borderRadius: 'var(--r-sm)', marginTop: 10, marginBottom: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+    <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', marginTop: 'var(--s3)', marginBottom: 'var(--s2)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s2)' }}>
         <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Top performers — last 90 days
         </div>
         {reachSeries.length > 1 && (
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--warning)' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 'var(--s4)', alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--warning)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' }}>
               <span style={{ color: 'var(--text-subtle)' }}>Reach 30d</span>
               <Sparkline values={reachSeries} width={90} height={22} />
             </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)' }}>
               <span style={{ color: 'var(--text-subtle)' }}>Engagement 30d</span>
               <Sparkline values={interactionSeries} width={90} height={22} />
             </span>
@@ -2008,29 +2008,29 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
         )}
       </div>
       {frameworkBreakdown?.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
           {frameworkBreakdown.map(b => (
-            <span key={b.framework} style={{ fontSize: 'var(--fs-caption)', padding: '3px 10px', background: 'var(--surface)', border: '1px solid #f0d260', borderRadius: 'var(--r-pill)', color: 'var(--warning)' }}>
+            <span key={b.framework} style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s3)', background: 'var(--surface)', border: '1px solid #f0d260', borderRadius: 'var(--r-pill)', color: 'var(--warning)' }}>
               <strong>{b.framework}</strong>: {b.avg_engagement_rate}% engagement
-              <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>({b.posts} post{b.posts === 1 ? '' : 's'})</span>
+              <span style={{ color: 'var(--text-subtle)', marginLeft: 'var(--s2)' }}>({b.posts} post{b.posts === 1 ? '' : 's'})</span>
             </span>
           ))}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         {winners.map(w => (
-          <a key={w.id} href={w.published_url} target="_blank" rel="noreferrer" style={{ display: 'block', flex: '1 1 220px', minWidth: 220, padding: 10, background: 'var(--surface)', border: '1px solid #f0e0a0', borderRadius: 'var(--r-sm)', textDecoration: 'none', color: 'inherit', position: 'relative' }}>
+          <a key={w.id} href={w.published_url} target="_blank" rel="noreferrer" style={{ display: 'block', flex: '1 1 220px', minWidth: 220, padding: 'var(--s3)', background: 'var(--surface)', border: '1px solid #f0e0a0', borderRadius: 'var(--r-sm)', textDecoration: 'none', color: 'inherit', position: 'relative' }}>
             {w.is_heater && (
-              <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: '2px 6px', background: 'var(--negative)', color: 'white', borderRadius: 'var(--r-sm)', letterSpacing: 0.5 }}>🔥 HEATER</span>
+              <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s2)', background: 'var(--negative)', color: 'white', borderRadius: 'var(--r-sm)', letterSpacing: 0.5 }}>🔥 HEATER</span>
             )}
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{w.platform} · {w.kind}</div>
-            <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text)', margin: '4px 0', lineHeight: 1.3, paddingRight: w.is_heater ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
+            <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text)', margin: 'var(--s1) 0', lineHeight: 1.3, paddingRight: w.is_heater ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.4 }}>{(w.caption || '').slice(0, 110)}…</div>
-            <div style={{ marginTop: 6, fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--warning)' }}>{w.engagement_rate}% engagement</div>
+            <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--warning)' }}>{w.engagement_rate}% engagement</div>
           </a>
         ))}
       </div>
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 8 }}>The next batch you generate will model these. 🔥 Heater = 2× the 30-day median reach.</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>The next batch you generate will model these. 🔥 Heater = 2× the 30-day median reach.</div>
     </div>
   );
 }
@@ -2046,7 +2046,7 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
   const top = posts.slice(0, 6);
   return (
     <div className="card">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s2)' }}>
         <div className="caption">Competitor tracker — top recent posts</div>
         <button type="button" {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} className="btn btn-secondary btn-sm">
           {refreshing ? 'Scraping…' : '↻ Refresh now'}
@@ -2055,15 +2055,15 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
       {top.length === 0 ? (
         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No scrape yet. Sunday's cron will populate this, or click Refresh now.</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--s3)' }}>
           {top.map(p => (
             <a key={p.id} href={p.post_url} target="_blank" rel="noreferrer"
-              style={{ display: 'block', padding: 10, background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', textDecoration: 'none', color: 'inherit' }}>
+              style={{ display: 'block', padding: 'var(--s3)', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', textDecoration: 'none', color: 'inherit' }}>
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
                 <span>@{p.handle} · {p.platform}</span>
                 {p.view_count && <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>{formatNum(p.view_count)}</span>}
               </div>
-              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', margin: 'var(--s1) 0', lineHeight: 1.35, fontWeight: 600 }}>
                 {p.hook || (p.caption || '').slice(0, 80) || '(no caption)'}
               </div>
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
@@ -2075,7 +2075,7 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
           ))}
         </div>
       )}
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 8 }}>Scraped weekly. Hooks here feed into the next batch's prompt as exemplars.</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>Scraped weekly. Hooks here feed into the next batch's prompt as exemplars.</div>
     </div>
   );
 }
@@ -2107,18 +2107,18 @@ function ExampleBlock({ storageKey, title, children }) {
 function ExamplePostCard() {
   return (
     <div className="card" style={{ maxWidth: 420 }}>
-      <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
+      <div className="row wrap" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
         <span className="chip chip-accent">Instagram</span>
         <span className="chip chip-outline">PAS</span>
       </div>
       <div className="field">HOOK</div>
       <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, lineHeight: 1.3 }}>POV: your living room finally feels finished</div>
-      <div className="field" style={{ marginTop: 8 }}>CAPTION</div>
+      <div className="field" style={{ marginTop: 'var(--s2)' }}>CAPTION</div>
       <div className="body-sm">The linen two-seater in Oatmeal — handmade in the UK, delivered in 4 weeks. Swipe to see it styled three ways. 🛋️</div>
-      <div className="field" style={{ marginTop: 8 }}>HASHTAGS</div>
+      <div className="field" style={{ marginTop: 'var(--s2)' }}>HASHTAGS</div>
       <div className="body-sm" style={{ color: 'var(--text-muted)' }}>#interiordesign #linensofa #britishmade #quietluxury</div>
-      <div className="field" style={{ marginTop: 8 }}>STORYBOARD</div>
-      <div className="row wrap" style={{ gap: 6, marginTop: 4 }}>
+      <div className="field" style={{ marginTop: 'var(--s2)' }}>STORYBOARD</div>
+      <div className="row wrap" style={{ gap: 'var(--s2)', marginTop: 'var(--s1)' }}>
         {['A', 'B', 'C', 'E', 'B', 'D', 'E', 'B', 'G'].map((c, i) => <StyleBadge key={i} code={c} />)}
       </div>
     </div>
@@ -2158,14 +2158,14 @@ function ExampleCompetitors() {
     { handle: 'loaf', platform: 'tiktok', views: '430k', hook: 'Rating viral sofa hacks so you don\'t have to' },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--s3)' }}>
       {posts.map((p, i) => (
-        <div key={i} className="card" style={{ padding: 10 }}>
+        <div key={i} className="card" style={{ padding: 'var(--s3)' }}>
           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
             <span>@{p.handle} · {p.platform}</span>
             <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>{p.views}</span>
           </div>
-          <div style={{ fontSize: 'var(--fs-caption)', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>{p.hook}</div>
+          <div style={{ fontSize: 'var(--fs-caption)', margin: 'var(--s1) 0', lineHeight: 1.35, fontWeight: 600 }}>{p.hook}</div>
         </div>
       ))}
     </div>
@@ -2188,7 +2188,7 @@ const STYLE_COLOURS = {
 function StyleBadge({ code, duration }) {
   const c = STYLE_COLOURS[code] || { bg: 'var(--accent-soft)', fg: 'var(--text-muted)', label: code };
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)' }}>
       <span style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         width: 22, height: 22, borderRadius: 'var(--r-sm)', background: c.bg, color: c.fg,
@@ -2204,11 +2204,11 @@ function StyleBadge({ code, duration }) {
 function ShareLinkBanner({ url, onDismiss }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 'var(--r-sm)', marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', marginTop: 'var(--s3)', marginBottom: 'var(--s2)', display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
       <strong style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)' }}>Approval link ready —</strong>
-      <input value={url} readOnly style={{ flex: 1, padding: '4px 8px', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
+      <input value={url} readOnly style={{ flex: 1, padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
       <button onClick={() => { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-        style={{ padding: '4px 12px', fontSize: 'var(--fs-caption)', background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+        style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
         {copied ? 'Copied' : 'Copy'}
       </button>
       <button onClick={onDismiss} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--positive)' }}>×</button>
@@ -2261,8 +2261,8 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s2)' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
           <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{post.platform}</span>
           <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{post.kind}</span>
           <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{post.status}</span>
@@ -2274,15 +2274,15 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
       <EditableText label="CAPTION" value={post.caption} multiline onSave={v => onChange({ caption: v })} />
 
       {(post.hashtags || []).length > 0 && (
-        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', columnGap: 6, rowGap: 2 }}>
+        <div style={{ marginTop: 'var(--s2)', display: 'flex', flexWrap: 'wrap', columnGap: 'var(--s2)', rowGap: 'var(--s1)' }}>
           {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 'var(--fs-caption)' }}>#{h.replace(/^#/, '')}</span>)}
         </div>
       )}
 
       {(post.image_urls || []).length > 0 && (
-        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 'var(--s3)', display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
           {post.image_urls.map((u, i) => (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--s1)' }}>
               <a href={u} target="_blank" rel="noreferrer">
                 <img src={u} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--card-border)" }} />
               </a>
@@ -2293,7 +2293,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
       )}
 
       {engagement && (
-        <div style={{ marginTop: 10, padding: '6px 10px', background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 'var(--s3)', padding: 'var(--s2) var(--s3)', background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
           {engagement.reach != null && <span><strong>{engagement.reach.toLocaleString()}</strong> reach</span>}
           {engagement.views != null && <span><strong>{engagement.views.toLocaleString()}</strong> views</span>}
           {engagement.likes != null && <span><strong>{engagement.likes.toLocaleString()}</strong> likes</span>}
@@ -2305,9 +2305,9 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
       )}
 
       {(videos.length > 0 || audios.length > 0) && (
-        <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 'var(--s3)', display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
           {videos.map(v => (
-            <div key={v.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div key={v.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)' }}>
               <div style={{ position: 'relative' }}>
                 <video src={v.url} controls style={{ width: 180, borderRadius: 'var(--r-sm)', background: '#000' }} />
                 <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>×</button>
@@ -2316,7 +2316,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
             </div>
           ))}
           {audios.map(a => (
-            <div key={a.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 220 }}>
+            <div key={a.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)', width: 220 }}>
               <div style={{ position: 'relative' }}>
                 <audio src={a.url} controls style={{ width: '100%' }} />
                 <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>×</button>
@@ -2327,13 +2327,13 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
         </div>
       )}
 
-      <div style={{ marginTop: 12 }}>
+      <div style={{ marginTop: 'var(--s3)' }}>
         <button onClick={() => setShowProd(s => !s)} className="btn btn-secondary btn-sm">🎬 Produce {showProd ? '▴' : '▾'}</button>
         {showProd && (() => {
           const acg = (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style)).length;
           return (
-            <div style={{ marginTop: 10, padding: 'var(--s4)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-              <div className="body-xs text-subtle" style={{ marginBottom: 10 }}>Pick how you want to make this post — you only need one route to a finished asset.</div>
+            <div style={{ marginTop: 'var(--s3)', padding: 'var(--s4)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+              <div className="body-xs text-subtle" style={{ marginBottom: 'var(--s3)' }}>Pick how you want to make this post — you only need one route to a finished asset.</div>
 
               <ProdGroup title="🎬 Make a video">
                 {onMakeReel && (
@@ -2380,8 +2380,8 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
               </ProdGroup>
 
               <div style={{ marginBottom: 0 }}>
-                <div className="caption caption-muted" style={{ marginBottom: 6 }}>✅ Publish</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="caption caption-muted" style={{ marginBottom: 'var(--s2)' }}>✅ Publish</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                   {post.status !== 'published' && (
                     <ProdAction label={showPublish ? 'Cancel' : 'Mark published'} active={showPublish}
                       onClick={() => setShowPublish(s => !s)}
@@ -2398,11 +2398,11 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
       </div>
 
       {showPublish && (
-        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 6, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 'var(--s3)', padding: 'var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s2)', lineHeight: 1.5 }}>
             Paste the live Instagram, TikTok or LinkedIn URL once it's published. We'll pull engagement automatically (IG only — paste numbers manually for other networks via Edit).
           </div>
-          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', marginBottom: 8 }} />
+          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', marginBottom: 'var(--s2)' }} />
           <button {...roWrite(readOnly, { onClick: () => { onPublish(publishUrl); setShowPublish(false); setPublishUrl(''); }, disabled: !publishUrl.trim() })}
             className="btn btn-primary btn-sm">
             Save & pull insights
@@ -2411,44 +2411,44 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
       )}
 
       {open && (
-        <div style={{ marginTop: 10, borderTop: '1px solid #eee', paddingTop: 10 }}>
+        <div style={{ marginTop: 'var(--s3)', borderTop: '1px solid #eee', paddingTop: 'var(--s3)' }}>
           <div className="caption mb-2">VISUAL CONCEPT</div>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 10 }}>{post.visual_concept}</div>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 'var(--s3)' }}>{post.visual_concept}</div>
           <div className="caption mb-2">STORYBOARD</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-caption)' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Style</th>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">#</th>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Shot</th>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">On-screen</th>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Voiceover</th>
+                <th style={{ textAlign: "left", padding: "var(--s1) var(--s2)", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Style</th>
+                <th style={{ textAlign: "left", padding: "var(--s1) var(--s2)", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">#</th>
+                <th style={{ textAlign: "left", padding: "var(--s1) var(--s2)", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Shot</th>
+                <th style={{ textAlign: "left", padding: "var(--s1) var(--s2)", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">On-screen</th>
+                <th style={{ textAlign: "left", padding: "var(--s1) var(--s2)", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Voiceover</th>
               </tr>
             </thead>
             <tbody>
               {(post.storyboard || []).map((f, i) => (
                 <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>
+                  <td style={{ padding: "var(--s1) var(--s2)", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>
                     {f.style ? <StyleBadge code={f.style} duration={f.duration_sec} /> : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
                   </td>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>{f.frame ?? i + 1}</td>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>{f.shot}</td>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>{f.on_screen_text || ''}</td>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>
+                  <td style={{ padding: "var(--s1) var(--s2)", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>{f.frame ?? i + 1}</td>
+                  <td style={{ padding: "var(--s1) var(--s2)", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>{f.shot}</td>
+                  <td style={{ padding: "var(--s1) var(--s2)", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>{f.on_screen_text || ''}</td>
+                  <td style={{ padding: "var(--s1) var(--s2)", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>
                     {f.voiceover || ''}
-                    {f.delivery && <div style={{ marginTop: 4, fontSize: 'var(--fs-caption)', color: 'var(--text)', fontStyle: 'italic' }}>🎬 {f.delivery}</div>}
+                    {f.delivery && <div style={{ marginTop: 'var(--s1)', fontSize: 'var(--fs-caption)', color: 'var(--text)', fontStyle: 'italic' }}>🎬 {f.delivery}</div>}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {post.notes && <div style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{post.notes}</div>}
+          {post.notes && <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{post.notes}</div>}
         </div>
       )}
 
       {showImg && (
-        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        <div style={{ marginTop: 'var(--s3)', padding: 'var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
               <button key={p} onClick={() => setProvider(p)} type="button" className={`btn ${provider === p ? "btn-primary" : "btn-secondary"} btn-sm`}>{p}</button>
             ))}
@@ -2463,9 +2463,9 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
             value={styleBrief}
             onChange={e => setStyleBrief(e.target.value)}
             placeholder="Style brief — e.g. Josef Müller-Brockmann style"
-            style={{ width: '100%', padding: '6px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
           />
-          {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 6 }}>{err}</div>}
+          {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s2)' }}>{err}</div>}
           <button {...roWrite(readOnly, { onClick: generateImage, disabled: generating })} className="btn btn-primary btn-sm">
             {generating ? 'Rendering…' : `Render with ${provider}`}
           </button>
@@ -2479,11 +2479,11 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
 
 
 const modalStyles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
-  modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
-  textarea: { width: '100%', padding: '8px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
-  pill: { padding: '5px 12px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 'var(--r-pill)', textTransform: 'capitalize' },
-  pillOn: { padding: '5px 12px', fontSize: 'var(--fs-caption)', border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: 700, textTransform: 'capitalize' },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1000 },
+  modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 'var(--s6)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 'var(--s3)', marginBottom: 'var(--s2)' },
+  textarea: { width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  pill: { padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 'var(--r-pill)', textTransform: 'capitalize' },
+  pillOn: { padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: 700, textTransform: 'capitalize' },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)', marginTop: 'var(--s5)' },
 };

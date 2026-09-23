@@ -68,19 +68,19 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
   }
 
   if (!campaign) {
-    return <div style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading campaign…</div>;
+    return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s6)' }}>Loading campaign…</div>;
   }
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
         <button onClick={onExit} className="btn btn-secondary">← Campaigns</button>
         <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)' }}>{campaign.name || 'New campaign'}</div>
         <div style={{ width: 100 }} />
       </div>
 
       {/* Breadcrumb / step indicator — yellow dot for current and completed steps */}
-      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: `1px solid ${'var(--accent-soft)'}`, borderRadius: 'var(--r-pill)', padding: '6px 12px', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: `1px solid ${'var(--accent-soft)'}`, borderRadius: 'var(--r-pill)', padding: 'var(--s2) var(--s3)', marginBottom: 'var(--s6)' }}>
         {STEPS.map(({ key, label }, idx) => {
           // Click freely up to the high-water mark — both back and
           // forward — so reopening a draft doesn't force re-entering
@@ -95,16 +95,16 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
                   display: 'flex', alignItems: 'center',
                   background: 'none', border: 'none',
                   cursor: reachable ? 'pointer' : 'default',
-                  padding: '6px 8px', fontSize: 'var(--fs-body)',
+                  padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-body)',
                   fontWeight: step === key ? 700 : 500,
                   color: reachable ? 'var(--text)' : 'var(--text-subtle)',
                   flexShrink: 0,
                 }}>
-                <span className={`chip ${reachable ? 'chip-accent' : 'chip-neutral'}`} style={{ width: 24, height: 24, justifyContent: 'center', marginRight: 8, fontSize: 'var(--fs-caption)', fontWeight: 700 }}>{key}</span>
+                <span className={`chip ${reachable ? 'chip-accent' : 'chip-neutral'}`} style={{ width: 24, height: 24, justifyContent: 'center', marginRight: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700 }}>{key}</span>
                 {label}
               </button>
               {idx < STEPS.length - 1 && (
-                <div style={{ flex: 1, height: 1, background: 'var(--accent-soft)', margin: '0 4px' }} />
+                <div style={{ flex: 1, height: 1, background: 'var(--accent-soft)', margin: '0 var(--s1)' }} />
               )}
             </React.Fragment>
           );
@@ -224,14 +224,14 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
         <textarea className="input" style={{ minHeight: 60, resize: 'vertical' }} value={extra} onChange={e => setExtra(e.target.value)}
           placeholder="e.g. Prioritise firms with sustainability focus" />
       </Field>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 4, flexWrap: 'wrap' }}>
-        <label style={{ fontSize: 'var(--fs-caption)', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s5)', marginTop: 'var(--s1)', flexWrap: 'wrap' }}>
+        <label style={{ fontSize: 'var(--fs-caption)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
           <input type="checkbox" checked={excludeSearched} onChange={e => setExcludeSearched(e.target.checked)} />
           Exclude domains already searched ({(campaign.searched_domains || []).length})
         </label>
-        <label style={{ fontSize: 'var(--fs-caption)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <label style={{ fontSize: 'var(--fs-caption)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
           Contacts per domain
-          <select className="input" style={{ padding: '4px 6px', fontSize: 'var(--fs-caption)' }} value={perDomain} onChange={e => setPerDomain(parseInt(e.target.value, 10))}>
+          <select className="input" style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)' }} value={perDomain} onChange={e => setPerDomain(parseInt(e.target.value, 10))}>
             <option value={10}>10</option>
             <option value={25}>25</option>
             <option value={50}>50</option>
@@ -243,18 +243,18 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
       </div>
 
       {refined && (
-        <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #f0f0f0' }}>
-          <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 6 }}>Refined description</div>
-          <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', margin: '0 0 12px', lineHeight: 1.6 }}>{refined.refined_description}</p>
+        <div style={{ marginTop: 'var(--s5)', paddingTop: 'var(--s4)', borderTop: '1px solid #f0f0f0' }}>
+          <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>Refined description</div>
+          <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', margin: '0 0 var(--s3)', lineHeight: 1.6 }}>{refined.refined_description}</p>
           {refined.rationale && (
-            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic', margin: '0 0 14px' }}>{refined.rationale}</p>
+            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic', margin: '0 0 var(--s4)' }}>{refined.rationale}</p>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s5)' }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 6 }}>
+              <div style={{ fontWeight: 700, fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
                 Target domains ({refined.domains.length})
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                 {refined.domains.map((d, i) => (
                   <Tag key={d + i} onRemove={() => removeDomain(i)}>{d}</Tag>
                 ))}
@@ -262,10 +262,10 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
               <AddPill onAdd={addDomain} placeholder="+ add domain" />
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 6 }}>
+              <div style={{ fontWeight: 700, fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
                 Job titles ({refined.job_titles.length})
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
                 {refined.job_titles.map((t, i) => (
                   <Tag key={t + i} onRemove={() => removeTitle(i)}>{t}</Tag>
                 ))}
@@ -419,7 +419,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
     <div className="card">
       <H>Add Recipients</H>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
         <button onClick={() => setMode('find')} className={`btn btn-sm ${mode === 'find' ? 'btn-primary' : 'btn-secondary'}`}>Find new leads</button>
         <button onClick={() => setMode('existing')} className={`btn btn-sm ${mode === 'existing' ? 'btn-primary' : 'btn-secondary'}`}>Existing leads</button>
         <button onClick={() => setMode('paste')} className={`btn btn-sm ${mode === 'paste' ? 'btn-primary' : 'btn-secondary'}`}>Paste / upload a list</button>
@@ -427,7 +427,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
 
       {mode === 'paste' && (
         <div>
-          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: '0 0 8px' }}>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: '0 0 var(--s2)' }}>
             One recipient per line. Any of: <code>email</code> · <code>Name &lt;email&gt;</code> · <code>email, Name, Company</code> · <code>Name, email, Company</code>.
             Paste straight from a spreadsheet column or a CSV — commas, tabs or semicolons all work.
           </p>
@@ -438,12 +438,12 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
             placeholder={'cindy@example.com, Cindy Ramos, Indiewalls\njordan@studio.com\nAlex Lee <alex@outlet.co>'}
             style={{ width: '100%', minHeight: 160, resize: 'vertical', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 'var(--fs-body)', boxSizing: 'border-box' }}
           />
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>
             {parsedPaste.contacts.length} valid recipient{parsedPaste.contacts.length === 1 ? '' : 's'}
             {parsedPaste.skipped ? ` · ${parsedPaste.skipped} line${parsedPaste.skipped === 1 ? '' : 's'} skipped (no email)` : ''}
             {parsedPaste.contacts.length > 0 && <span> · e.g. {parsedPaste.contacts.slice(0, 3).map(c => c.name ? `${c.name} (${c.email})` : c.email).join(', ')}{parsedPaste.contacts.length > 3 ? '…' : ''}</span>}
           </div>
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 'var(--s3)' }}>
             <button {...roWrite(readOnly, { onClick: savePastedList, disabled: savingPaste || parsedPaste.contacts.length === 0 })} className="btn btn-primary">
               {savingPaste ? 'Adding…' : `Add ${parsedPaste.contacts.length || ''} to campaign →`}
             </button>
@@ -453,7 +453,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
 
       {mode === 'find' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
             <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>
               Searching domains <strong>{batchIdx * 8 + 1}</strong>–<strong>{Math.min((batchIdx + 1) * 8, allDomains.length)}</strong> of {allDomains.length}
             </div>
@@ -473,7 +473,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
 
       {mode === 'existing' && (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
             <input className="input" placeholder="Search name / email / company" value={filter.search}
               onChange={e => setFilter(f => ({ ...f, search: e.target.value }))} />
             <input className="input" placeholder="Lead type — e.g. architect" value={filter.contact_type}
@@ -574,7 +574,7 @@ function StepEmails({ campaign, onBack, onNext }) {
   return (
     <div className="card">
       <H>Write Emails</H>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
         <button {...roWrite(readOnly, { onClick: generate, disabled: generating })} className="btn btn-primary">
           {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
         </button>
@@ -583,17 +583,17 @@ function StepEmails({ campaign, onBack, onNext }) {
       {steps === null && <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Loading…</p>}
       {steps !== null && steps.length === 0 && <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)' }}>No sequence yet — generate one with Claude.</p>}
       {steps && steps.map(stp => (
-        <div key={stp.id} style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 12, marginBottom: 10 }}>
-          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+        <div key={stp.id} style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s3)', marginBottom: 'var(--s3)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>
             Step {stp.step_number} · sent day {stp.delay_days}
           </div>
-          <input className="input" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
+          <input className="input" style={{ width: '100%', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}
             value={stp.subject || ''} placeholder="Subject"
             onChange={e => updateStep(stp.id, 'subject', e.target.value)} />
           <textarea className="input" style={{ width: '100%', minHeight: 120, resize: 'vertical', boxSizing: 'border-box' }}
             value={stp.body || ''} placeholder="Email body — use {{first_name}}, {{company}}"
             onChange={e => updateStep(stp.id, 'body', e.target.value)} />
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', marginTop: 'var(--s2)' }}>
             <button onClick={() => saveStep(stp)} disabled={savingStep === stp.id} className="btn btn-primary">
               {savingStep === stp.id ? 'Saving…' : 'Save step'}
             </button>
@@ -614,13 +614,13 @@ function StepEmails({ campaign, onBack, onNext }) {
       {previewStep && (
         <div style={previewOverlay} onClick={() => setPreviewStep(null)}>
           <div style={previewModal} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
               <div>
                 <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 }}>
                   Step {previewStep.step_number} preview
                 </div>
                 {previewStep.sample && (
-                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 'var(--s1)' }}>
                     As if sent to: <strong>{previewStep.sample.name || previewStep.sample.email}</strong>
                     {previewStep.sample.company && <> · {previewStep.sample.company}</>}
                   </div>
@@ -629,11 +629,11 @@ function StepEmails({ campaign, onBack, onNext }) {
               <button onClick={() => setPreviewStep(null)} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-section)', cursor: 'pointer', color: 'var(--text-subtle)' }}>×</button>
             </div>
             {previewLoading || !previewStep.html ? (
-              <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-subtle)' }}>Rendering…</div>
+              <div style={{ padding: 'var(--s7)', textAlign: 'center', color: 'var(--text-subtle)' }}>Rendering…</div>
             ) : (
               <>
-                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>Subject</div>
-                <div style={{ padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 12, fontSize: 'var(--fs-body)' }}>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--s1)' }}>Subject</div>
+                <div style={{ padding: 'var(--s2) var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s3)', fontSize: 'var(--fs-body)' }}>
                   {previewStep.subject || <em style={{ color: 'var(--text-subtle)' }}>(empty)</em>}
                 </div>
                 <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} sandbox="" />
@@ -646,8 +646,8 @@ function StepEmails({ campaign, onBack, onNext }) {
   );
 }
 
-const previewOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' };
-const previewModal = { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 760, padding: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
+const previewOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1100, overflowY: 'auto' };
+const previewModal = { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 760, padding: 'var(--s5)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
 
 // ─── Step 5 ─────────────────────────────────────────────────────────────────
 function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
@@ -688,7 +688,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
       <H>Pre-send report</H>
       <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 0 }}>Quick check before the campaign goes out — blockers stop the launch, warnings are worth a look.</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s4)', marginTop: 'var(--s4)' }}>
         <Summary label="Campaign" value={campaign.name} />
         <Summary label="Brand" value={campaign.brand || '—'} />
         <Summary label="Type" value={campaign.campaign_type === 'press_release' ? 'Press Release' : 'Outreach'} />
@@ -697,7 +697,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
         <Summary label="Leads enrolled" value={String(campaign.contact_count || 0)} />
       </div>
 
-      {loading && <div style={{ marginTop: 18, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Running readiness checks…</div>}
+      {loading && <div style={{ marginTop: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Running readiness checks…</div>}
 
       {!loading && (
         <>
@@ -718,8 +718,8 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
           />
 
           {/* Stats — informational */}
-          <div style={{ marginTop: 18, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            <div style={{ fontWeight: 700, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Stats</div>
+          <div style={{ marginTop: 'var(--s5)', padding: 'var(--s3)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 700, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>Stats</div>
             <div>Recipients: <strong>{stats.total_recipients ?? 0}</strong></div>
             {stats.previously_bounced != null && <div>Previously bounced (will be skipped): <strong>{stats.previously_bounced}</strong></div>}
             {stats.previously_unsubscribed != null && <div>Previously unsubscribed (will be skipped): <strong>{stats.previously_unsubscribed}</strong></div>}
@@ -756,17 +756,17 @@ function ReportSection({ title, empty, items, tone }) {
     : { bg: 'var(--warning-soft)', border: 'var(--warning)', fg: 'var(--warning)' };
   if (!items.length) {
     return (
-      <div style={{ marginTop: 14, padding: '8px 12px', background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
+      <div style={{ marginTop: 'var(--s4)', padding: 'var(--s2) var(--s3)', background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
         ✓ {empty}
       </div>
     );
   }
   return (
-    <div style={{ marginTop: 14, padding: '10px 12px', background: palette.bg, border: `1px solid ${palette.border}`, color: palette.fg, borderRadius: 'var(--r-sm)' }}>
-      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, marginBottom: 6 }}>{title}</div>
-      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 'var(--fs-caption)', lineHeight: 1.55 }}>
+    <div style={{ marginTop: 'var(--s4)', padding: 'var(--s3) var(--s3)', background: palette.bg, border: `1px solid ${palette.border}`, color: palette.fg, borderRadius: 'var(--r-sm)' }}>
+      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, marginBottom: 'var(--s2)' }}>{title}</div>
+      <ul style={{ margin: 0, paddingLeft: 'var(--s5)', fontSize: 'var(--fs-caption)', lineHeight: 1.55 }}>
         {items.map((it, i) => (
-          <li key={i} style={{ marginBottom: 3, opacity: it.severity === 'info' ? 0.75 : 1 }}>{it.msg}</li>
+          <li key={i} style={{ marginBottom: 'var(--s1)', opacity: it.severity === 'info' ? 0.75 : 1 }}>{it.msg}</li>
         ))}
       </ul>
     </div>
@@ -824,7 +824,7 @@ function ExistingTable({ rows, selected, onToggle }) {
 }
 function Tag({ children, onRemove }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: '3px 8px 3px 10px', fontSize: 'var(--fs-caption)' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s1)', background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 'var(--s1) var(--s2) var(--s1) var(--s3)', fontSize: 'var(--fs-caption)' }}>
       {children}
       <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 0 }} title="Remove">×</button>
     </span>
@@ -833,7 +833,7 @@ function Tag({ children, onRemove }) {
 function AddPill({ onAdd, placeholder }) {
   const [v, setV] = useState('');
   return (
-    <input className="input" style={{ marginTop: 8, fontSize: 'var(--fs-caption)', padding: '4px 8px', maxWidth: 220 }}
+    <input className="input" style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', maxWidth: 220 }}
       value={v} placeholder={placeholder}
       onChange={e => setV(e.target.value)}
       onKeyDown={e => {
@@ -844,24 +844,24 @@ function AddPill({ onAdd, placeholder }) {
 function Summary({ label, value }) {
   return (
     <div>
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)' }}>{label}</div>
       <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>{value || '—'}</div>
     </div>
   );
 }
-function H({ children }) { return <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '0 0 12px' }}>{children}</h2>; }
+function H({ children }) { return <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '0 0 var(--s3)' }}>{children}</h2>; }
 function Field({ label, children, full }) {
   return (
     <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
-      <label style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{label}</label>
+      <label style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 'var(--s1)' }}>{label}</label>
       {children}
     </div>
   );
 }
 function Grid2({ children }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>{children}</div>;
+  return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--s4)' }}>{children}</div>;
 }
 function Footer({ children }) {
-  return <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 22, gap: 12, flexWrap: 'wrap' }}>{children}</div>;
+  return <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--s6)', gap: 'var(--s3)', flexWrap: 'wrap' }}>{children}</div>;
 }
 

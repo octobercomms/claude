@@ -112,7 +112,7 @@ export default function IntegrationsPage({ embedded = false }) {
         </>
       )}
       {embedded && (
-        <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 18 }}>
+        <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 'var(--s5)' }}>
           How each client integration works, the files and apps to install, and the tools to set them up.
           Per-client connecting lives on each client&rsquo;s <strong>Setup → Connectors</strong> tab.
         </p>
@@ -120,7 +120,7 @@ export default function IntegrationsPage({ embedded = false }) {
 
       <IntegrationTools />
 
-      <div className="row wrap mb-5" style={{ marginTop: 24 }}>
+      <div className="row wrap mb-5" style={{ marginTop: 'var(--s6)' }}>
         <button onClick={() => setOpen(new Set(SECTIONS.map(s => s.id)))} className="btn btn-secondary btn-sm">Expand all</button>
         <button onClick={() => setOpen(new Set())} className="btn btn-secondary btn-sm">Collapse all</button>
       </div>
@@ -169,11 +169,11 @@ function IntegrationTools() {
   const clientName = clients.find(c => c.id === clientId)?.name || '';
 
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <div className="h3" style={{ marginBottom: 4 }}>Tools</div>
-      <div className="body-sm text-muted" style={{ marginBottom: 16 }}>Downloads and the pairing-token generator.</div>
+    <div className="card" style={{ padding: 'var(--s5)' }}>
+      <div className="h3" style={{ marginBottom: 'var(--s1)' }}>Tools</div>
+      <div className="body-sm text-muted" style={{ marginBottom: 'var(--s4)' }}>Downloads and the pairing-token generator.</div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s3)', marginBottom: 'var(--s5)' }}>
         <a className="btn btn-secondary btn-sm" href="/api/integrations/gtm-container" download>
           ↓ Download GTM container (october-mi-v1.json)
         </a>
@@ -182,9 +182,9 @@ function IntegrationTools() {
         </a>
       </div>
 
-      <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 16 }}>
+      <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 'var(--s4)' }}>
         <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Generate a pairing token</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)', alignItems: 'center' }}>
           <select
             value={clientId}
             onChange={e => { setClientId(e.target.value); setToken(null); }}
@@ -202,14 +202,14 @@ function IntegrationTools() {
           </button>
         </div>
 
-        {err && <div className="body-sm" style={{ color: 'var(--danger, #b91c1c)', marginTop: 10 }}>{err}</div>}
+        {err && <div className="body-sm" style={{ color: 'var(--danger, #b91c1c)', marginTop: 'var(--s3)' }}>{err}</div>}
 
         {token && (
-          <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-            <div className="body-sm text-muted" style={{ marginBottom: 6 }}>
+          <div style={{ marginTop: 'var(--s3)', padding: 'var(--s3) var(--s4)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+            <div className="body-sm text-muted" style={{ marginBottom: 'var(--s2)' }}>
               {token.surface === 'shopify' ? 'Shopify' : 'WordPress'} pairing token for <strong>{clientName}</strong> — single use, valid {token.days || 7} days. Paste it into the {token.surface === 'shopify' ? 'app’s embedded admin' : 'plugin’s Tools → October Marketing Intelligence screen'}.
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)' }}>
               <input className="input" readOnly value={token.value} onFocus={e => e.target.select()} style={{ fontFamily: 'monospace' }} />
               <button className="btn btn-secondary btn-sm" onClick={() => { try { navigator.clipboard.writeText(token.value); setCopied(true); } catch { /* clipboard unavailable */ } }}>
                 {copied ? 'Copied' : 'Copy'}
@@ -226,8 +226,8 @@ function AccordionItem({ section, isOpen, onToggle }) {
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
       <button onClick={onToggle} style={{
-        width: '100%', textAlign: 'left', padding: '16px 20px', background: 'transparent',
-        border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14,
+        width: '100%', textAlign: 'left', padding: 'var(--s4) var(--s5)', background: 'transparent',
+        border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s4)',
       }}>
         <div>
           <div className="h3">{section.title}</div>
@@ -236,10 +236,10 @@ function AccordionItem({ section, isOpen, onToggle }) {
         <span className="text-muted" style={{ fontSize: 'var(--fs-title)', flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
       </button>
       {isOpen && (
-        <div style={{ padding: '4px 20px 20px', borderTop: 'var(--border-w) solid var(--card-border)' }}>
-          <ul className="body-sm" style={{ margin: 0, padding: '8px 0 0 18px', lineHeight: 1.65 }}>
+        <div style={{ padding: 'var(--s1) var(--s5) var(--s5)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
+          <ul className="body-sm" style={{ margin: 0, padding: 'var(--s2) 0 0 var(--s5)', lineHeight: 1.65 }}>
             {section.body.map((line, i) => (
-              <li key={i} style={{ marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: render(line) }} />
+              <li key={i} style={{ marginBottom: 'var(--s1)' }} dangerouslySetInnerHTML={{ __html: render(line) }} />
             ))}
           </ul>
         </div>

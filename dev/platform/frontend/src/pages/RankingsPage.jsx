@@ -167,10 +167,10 @@ export default function RankingsPage() {
       <header className="hero">
         <h1 className="display">Rankings</h1>
       </header>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s6)' }}>
         <div />
         {selectedClient && (
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
             <button onClick={handleExport} className="btn btn-secondary">Export CSV</button>
             <button onClick={handleCheckAll} className="btn btn-secondary" disabled={checking}>
               {checking ? 'Checking…' : 'Check All Ranks'}
@@ -181,7 +181,7 @@ export default function RankingsPage() {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 'var(--s3)', marginBottom: 'var(--s5)' }}>
         <select className="input" value={selectedClient} onChange={e => setSelectedClient(e.target.value)}>
           <option value="">Select client…</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -210,9 +210,9 @@ export default function RankingsPage() {
 
       {showAddForm && (
         <div className="card">
-          <h3 style={{ margin: '0 0 16px', fontSize: 'var(--fs-body)' }}>Add Keyword</h3>
-          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: 12 }}>
+          <h3 style={{ margin: '0 0 var(--s4)', fontSize: 'var(--fs-body)' }}>Add Keyword</h3>
+          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: 'var(--s3)' }}>
               <div className="field">
                 <label className="field-label">Keyword</label>
                 <input className="input" required value={newKw.keyword} onChange={e => setNewKw(p => ({ ...p, keyword: e.target.value }))} />
@@ -242,7 +242,7 @@ export default function RankingsPage() {
                 <input className="input" value={newKw.tag} onChange={e => setNewKw(p => ({ ...p, tag: e.target.value }))} placeholder="brand, category…" />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--s2)' }}>
               <button type="submit" className="btn btn-primary">Add</button>
               <button type="button" onClick={() => setShowAddForm(false)} className="btn btn-secondary">Cancel</button>
             </div>
@@ -252,11 +252,11 @@ export default function RankingsPage() {
 
       {showBulkForm && (
         <div className="card">
-          <h3 style={{ margin: '0 0 8px', fontSize: 'var(--fs-body)' }}>Bulk Import Keywords</h3>
-          <p style={{ margin: '0 0 16px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+          <h3 style={{ margin: '0 0 var(--s2)', fontSize: 'var(--fs-body)' }}>Bulk Import Keywords</h3>
+          <p style={{ margin: '0 0 var(--s4)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
             One keyword per line. Optional columns: <code>keyword, target_url, tag</code>
           </p>
-          <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
             <textarea
               className="input" style={{ minHeight: 180, resize: 'vertical', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
               placeholder={'enamel mug\nenamel teapot\nenamel dinner set, https://falconenamelware.com/collections/dinner, tableware'}
@@ -264,7 +264,7 @@ export default function RankingsPage() {
               onChange={e => setBulkText(e.target.value)}
               required
             />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--s3)' }}>
               <div className="field">
                 <label className="field-label">Location</label>
                 <select className="input" value={bulkLocation} onChange={e => setBulkLocation(e.target.value)}>
@@ -283,7 +283,7 @@ export default function RankingsPage() {
                 <input className="input" value={bulkTag} onChange={e => setBulkTag(e.target.value)} placeholder="brand, category…" />
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
               <button type="submit" className="btn btn-primary" disabled={bulking}>{bulking ? 'Importing…' : 'Import Keywords'}</button>
               <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} className="btn btn-secondary">Cancel</button>
               {bulkMsg && <span style={{ fontSize: 'var(--fs-body)', color: bulkMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{bulkMsg}</span>}
@@ -293,9 +293,9 @@ export default function RankingsPage() {
       )}
 
       {loading ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading keywords…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading keywords…</div>
       ) : !selectedClient ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 40, textAlign: 'center' }}>Select a client to view rankings</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)', textAlign: 'center' }}>Select a client to view rankings</div>
       ) : (
         <div className="card">
           <table className="table">
@@ -328,7 +328,7 @@ export default function RankingsPage() {
                         {kw.current_position || '—'}
                       </span>
                       {change !== null && (
-                        <span style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', color: change > 0 ? 'var(--positive)' : change < 0 ? 'var(--negative)' : 'var(--text-subtle)' }}>
+                        <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', color: change > 0 ? 'var(--positive)' : change < 0 ? 'var(--negative)' : 'var(--text-subtle)' }}>
                           {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '–'}
                         </span>
                       )}
@@ -350,7 +350,7 @@ export default function RankingsPage() {
       {historyModal && (
         <div  onClick={() => setHistoryModal(null)}>
           <div  onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--s4)' }}>
               <h3 style={{ margin: 0, fontSize: 'var(--fs-body)' }}>{historyModal.keyword}</h3>
               <button onClick={() => setHistoryModal(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--text-subtle)' }}>×</button>
             </div>
@@ -364,7 +364,7 @@ export default function RankingsPage() {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p style={{ color: 'var(--text-subtle)', textAlign: 'center', padding: 40 }}>No rank history yet</p>
+              <p style={{ color: 'var(--text-subtle)', textAlign: 'center', padding: 'var(--s8)' }}>No rank history yet</p>
             )}
           </div>
         </div>

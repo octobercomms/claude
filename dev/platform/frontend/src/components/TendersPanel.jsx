@@ -41,10 +41,10 @@ function VerdictBadge({ verdict, reason }) {
     nogo: { label: 'No-go', bg: 'rgba(192,57,43,0.12)', fg: '#c0392b' },
   };
   const v = map[verdict];
-  if (!v) return <span style={{ marginLeft: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }} title="Claude is still qualifying this one">qualifying…</span>;
+  if (!v) return <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }} title="Claude is still qualifying this one">qualifying…</span>;
   return (
     <span title={reason || ''} style={{
-      marginLeft: 8, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: '1px 7px', borderRadius: 999,
+      marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700, padding: 'var(--s1) var(--s2)', borderRadius: 999,
       background: v.bg, color: v.fg, whiteSpace: 'nowrap',
     }}>{v.label}</span>
   );
@@ -249,9 +249,9 @@ export default function TendersPanel() {
 
   return (
     <div className="stack stack-lg">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s3)', flexWrap: 'wrap' }}>
         <div>
-          <h2 className="h3" style={{ margin: '0 0 4px' }}>Tenders</h2>
+          <h2 className="h3" style={{ margin: '0 0 var(--s1)' }}>Tenders</h2>
           <p className="body-sm text-muted" style={{ margin: 0, maxWidth: 640 }}>
             Public-sector PR &amp; communications tenders in October’s niche — arts, culture, design,
             heritage and destination buyers. Pulled from the portal feeds below, deduplicated, and
@@ -266,9 +266,9 @@ export default function TendersPanel() {
 
       {/* Notices — the list first; it's what you act on */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
           <div className="oview-grplabel" style={{ margin: 0 }}>Open notices{notices.length ? ` (${notices.length})` : ''}</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
             <button className="btn btn-ghost btn-sm" onClick={qualifyAll} disabled={qualifying}
               title="Run the go/no-go test on every notice that hasn't been scored yet">
               {qualifying ? 'Qualifying…' : 'Qualify all'}
@@ -292,7 +292,7 @@ export default function TendersPanel() {
         </div>
 
         {/* Add a tender by URL — the guaranteed path for one you've already found. */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
           <input className="input" type="url" placeholder="Found one yourself? Paste a tender URL to add it…"
             value={addUrl} onChange={e => setAddUrl(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addByUrl(); } }}
@@ -304,7 +304,7 @@ export default function TendersPanel() {
 
         {/* Bulk-action bar — appears once you tick some notices. */}
         {selected.size > 0 && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10, padding: '8px 12px', background: 'var(--surface-2, #f6f6f6)', borderRadius: 'var(--r-sm)' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--s3)', padding: 'var(--s2) var(--s3)', background: 'var(--surface-2, #f6f6f6)', borderRadius: 'var(--r-sm)' }}>
             <span className="body-sm" style={{ fontWeight: 700 }}>{selected.size} selected</span>
             <button className="btn btn-ghost btn-sm" onClick={qualifySelected} disabled={qualifying}>Re-run go/no-go</button>
             <button className="btn btn-ghost btn-sm" onClick={dismissSelected}>Dismiss selected</button>
@@ -315,7 +315,7 @@ export default function TendersPanel() {
         {loading ? (
           <p className="body-sm text-muted">Loading…</p>
         ) : !notices.length ? (
-          <div className="empty" style={{ padding: 18 }}>
+          <div className="empty" style={{ padding: 'var(--s5)' }}>
             {counts && counts.total > 0
               ? <>Nothing worth a look in this view. Try <strong>No-go</strong> or <strong>All verdicts</strong>, or widen the relevance filter to <strong>All PR / comms</strong>.</>
               : <>Nothing ingested yet. Hit <strong>Run scan now</strong> to pull the latest notices from the live feeds.</>}
@@ -351,18 +351,18 @@ export default function TendersPanel() {
                           const tip = n.url ? 'Open the notice' : n.source_url ? 'The page Claude read to find this notice' : 'No direct link — search the web for this notice';
                           return (<>
                             <a href={href} target="_blank" rel="noopener noreferrer" title={tip}>{n.title || n.external_ref}</a>
-                            {tag && <span style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>↗ {tag}</span>}
+                            {tag && <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>↗ {tag}</span>}
                           </>);
                         })()}
                         {n.needs_manual_check && (
-                          <span className="badge" style={{ marginLeft: 8, fontSize: 'var(--fs-caption)' }}
+                          <span className="badge" style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)' }}
                             title="Closing date couldn’t be read automatically — open the notice to confirm the deadline before bidding.">
                             deadline?
                           </span>
                         )}
                         <VerdictBadge verdict={n.verdict} reason={n.verdict_reason} />
                         {(n.verdict_reason || n.relevance_reason) && (
-                          <span style={{ marginLeft: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>· {n.verdict_reason || n.relevance_reason}</span>
+                          <span style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>· {n.verdict_reason || n.relevance_reason}</span>
                         )}
                       </td>
                       <td style={tdStyle}>{n.buyer_name || '—'}</td>
@@ -370,26 +370,26 @@ export default function TendersPanel() {
                       <td style={tdStyle}>{fmtValue(n.value_min, n.currency)}</td>
                       <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                         {editDate?.id === n.id ? (
-                          <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                          <span style={{ display: 'inline-flex', gap: 'var(--s1)', alignItems: 'center' }}>
                             <input type="date" value={editDate.value} autoFocus
                               onChange={e => setEditDate({ id: n.id, value: e.target.value })}
-                              style={{ padding: '2px 5px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                              style={{ padding: 'var(--s1) var(--s1)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
                             <button className="btn btn-primary btn-sm" onClick={() => saveDate(n)}>Save</button>
                             <button className="btn btn-ghost btn-sm" onClick={() => setEditDate(null)}>✕</button>
                           </span>
                         ) : (
                           <>
                             {n.closing_at ? fmtDate(n.closing_at) : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
-                            {dl != null && dl >= 0 && dl <= 14 && <span style={{ marginLeft: 6, color: 'var(--danger, #c0392b)', fontWeight: 700 }}>{dl}d</span>}
+                            {dl != null && dl >= 0 && dl <= 14 && <span style={{ marginLeft: 'var(--s2)', color: 'var(--danger, #c0392b)', fontWeight: 700 }}>{dl}d</span>}
                             <button className="btn-link" title="Set / edit closing date"
                               onClick={() => setEditDate({ id: n.id, value: n.closing_at ? new Date(n.closing_at).toISOString().slice(0, 10) : '' })}
-                              style={{ marginLeft: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--link, #06c)', fontSize: 'var(--fs-caption)' }}>✎</button>
+                              style={{ marginLeft: 'var(--s2)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--link, #06c)', fontSize: 'var(--fs-caption)' }}>✎</button>
                           </>
                         )}
                       </td>
                       <td style={{ ...tdStyle, whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/tenders/${n.id}`)} title="Open the bid workspace — assess fit, plan and produce the bid with Claude">{n.has_chat ? 'Continue with Claude' : 'Start with Claude'}</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => dismiss(n)} title="Dismiss — hide this and don't show it again" style={{ marginLeft: 6 }}>Dismiss</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => dismiss(n)} title="Dismiss — hide this and don't show it again" style={{ marginLeft: 'var(--s2)' }}>Dismiss</button>
                       </td>
                     </tr>
                   );
@@ -403,12 +403,12 @@ export default function TendersPanel() {
       {/* Alerts — auto-run email digest */}
       <div className="card">
         <div className="oview-grplabel">Email alerts</div>
-        <p className="body-sm text-muted" style={{ margin: '0 0 10px' }}>
+        <p className="body-sm text-muted" style={{ margin: '0 0 var(--s3)' }}>
           The scan runs automatically every day. Turn this on to get emailed the new creative-sector PR
           matches each time — nothing to check by hand.
         </p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 'var(--fs-body)' }}>
+        <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s2)', fontSize: 'var(--fs-body)' }}>
             <input type="checkbox" checked={digestEnabled} onChange={e => setDigestEnabled(e.target.checked)} />
             Email me new tenders
           </label>
@@ -427,27 +427,27 @@ export default function TendersPanel() {
           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
           Company details {companyOpen ? '▾' : '▸'}
         </button>
-        <p className="body-sm text-muted" style={{ margin: '4px 0 0' }}>
+        <p className="body-sm text-muted" style={{ margin: 'var(--s1) 0 0' }}>
           The registration, insurance, accreditation and policy facts a public-sector tender asks for.
           Enter them once — every bid uses them verbatim, so Claude never invents a company or VAT number.
         </p>
         {companyOpen && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10, marginTop: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--s3)', marginTop: 'var(--s3)' }}>
               {companyFields.map(([key, label]) => {
                 const multiline = ['registered_address', 'trading_address', 'directors', 'turnover', 'insurances', 'accreditations', 'policies', 'additional', 'bid_contact'].includes(key);
                 return (
-                  <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--fs-body)' }}>
+                  <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s1)', fontSize: 'var(--fs-body)' }}>
                     <span style={{ fontWeight: 600 }}>{label}</span>
                     {multiline
                       ? <textarea value={company[key] || ''} rows={2} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))}
-                          style={{ resize: 'vertical', padding: '7px 9px', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                          style={{ resize: 'vertical', padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
                       : <input className="input" value={company[key] || ''} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))} />}
                   </label>
                 );
               })}
             </div>
-            <button className="btn btn-primary btn-sm" onClick={saveCompany} disabled={savingCompany} style={{ marginTop: 12 }}>
+            <button className="btn btn-primary btn-sm" onClick={saveCompany} disabled={savingCompany} style={{ marginTop: 'var(--s3)' }}>
               {savingCompany ? 'Saving…' : 'Save company details'}
             </button>
           </>
@@ -470,7 +470,7 @@ export default function TendersPanel() {
                 <tr key={s.id}>
                   <td style={tdStyle}>{s.name}</td>
                   <td style={tdStyle}>{(s.market || '').toUpperCase() || '—'}</td>
-                  <td style={tdStyle}><span className={'suite-status-dot' + (s.enabled ? ' ok' : '')} style={{ marginRight: 6 }} />{s.enabled ? 'On' : 'Off'}</td>
+                  <td style={tdStyle}><span className={'suite-status-dot' + (s.enabled ? ' ok' : '')} style={{ marginRight: 'var(--s2)' }} />{s.enabled ? 'On' : 'Off'}</td>
                   <td style={tdStyle}>{fmtDate(s.last_polled_at)}</td>
                   <td style={{ ...tdStyle, color: 'var(--text-subtle)' }}>{s.last_status || '—'}</td>
                 </tr>
@@ -479,7 +479,7 @@ export default function TendersPanel() {
             </tbody>
           </table>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center', flexWrap: 'wrap', marginTop: 'var(--s3)' }}>
           <span className="body-sm text-muted">US (SAM.gov) needs a free API key:</span>
           <input className="input" type="password" placeholder="SAM.gov API key" value={samKey}
             onChange={e => setSamKey(e.target.value)} style={{ minWidth: 240 }} />
@@ -524,27 +524,27 @@ function TenderChatModal({ notice, onClose }) {
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div className="card" onClick={e => e.stopPropagation()} style={{ width: 'min(760px, 96vw)', maxHeight: '88vh', display: 'flex', flexDirection: 'column', padding: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s5)' }}>
+      <div className="card" onClick={e => e.stopPropagation()} style={{ width: 'min(760px, 96vw)', maxHeight: '88vh', display: 'flex', flexDirection: 'column', padding: 'var(--s5)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
           <div>
-            <h3 style={{ margin: '0 0 2px', fontSize: 'var(--fs-title)', fontWeight: 700 }}>Start with Claude</h3>
+            <h3 style={{ margin: '0 0 var(--s1)', fontSize: 'var(--fs-title)', fontWeight: 700 }}>Start with Claude</h3>
             <p className="caption" style={{ margin: 0, color: 'var(--text-subtle)' }}>{notice.title || notice.external_ref}</p>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
         </div>
 
-        <div ref={scrollRef} style={{ overflowY: 'auto', flex: 1, minHeight: 160, paddingRight: 4 }}>
+        <div ref={scrollRef} style={{ overflowY: 'auto', flex: 1, minHeight: 160, paddingRight: 'var(--s1)' }}>
           {messages.length === 0 && !sending && (
-            <div className="empty" style={{ padding: 14 }}>
-              <div style={{ marginBottom: 10 }}>Ask Claude to assess this tender and help you bid.</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="empty" style={{ padding: 'var(--s4)' }}>
+              <div style={{ marginBottom: 'var(--s3)' }}>Ask Claude to assess this tender and help you bid.</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                 {SUGGESTIONS.map(s => <button key={s} className="btn btn-secondary btn-sm" style={{ textAlign: 'left', justifyContent: 'flex-start' }} onClick={() => send(s)}>{s}</button>)}
               </div>
             </div>
           )}
           {messages.map(m => (
-            <div key={m.id} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
+            <div key={m.id} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 'var(--s3)' }}>
               <div className={m.role === 'user' ? '' : 'card body-sm'} style={{
                 maxWidth: m.role === 'user' ? '80%' : '92%',
                 background: m.role === 'user' ? 'var(--text)' : undefined, color: m.role === 'user' ? '#fff' : undefined,
@@ -557,14 +557,14 @@ function TenderChatModal({ notice, onClose }) {
               </div>
             </div>
           ))}
-          {sending && <div className="caption" style={{ color: 'var(--text-subtle)', padding: '4px 2px' }}>Thinking…</div>}
+          {sending && <div className="caption" style={{ color: 'var(--text-subtle)', padding: 'var(--s1) var(--s1)' }}>Thinking…</div>}
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)', alignItems: 'flex-end' }}>
           <textarea value={input} onChange={e => setInput(e.target.value)} rows={2}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
             placeholder="Ask about fit, risks, or a bid approach… (Enter to send)"
-            style={{ flex: 1, resize: 'vertical', padding: '10px 12px', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            style={{ flex: 1, resize: 'vertical', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
           <button className="btn btn-primary" disabled={sending || !input.trim()} onClick={() => send()}>{sending ? 'Sending…' : 'Send'}</button>
         </div>
       </div>
@@ -573,16 +573,16 @@ function TenderChatModal({ notice, onClose }) {
 }
 
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '10px 0 8px' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '12px 0 6px' }} {...p} />,
-  p: ({ node, ...p }) => <p style={{ margin: '0 0 10px', lineHeight: 1.55 }} {...p} />,
-  ul: ({ node, ...p }) => <ul style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
-  ol: ({ node, ...p }) => <ol style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
-  li: ({ node, ...p }) => <li style={{ marginBottom: 5, lineHeight: 1.5 }} {...p} />,
+  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s3) 0 var(--s2)' }} {...p} />,
+  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s3) 0 var(--s2)' }} {...p} />,
+  p: ({ node, ...p }) => <p style={{ margin: '0 0 var(--s3)', lineHeight: 1.55 }} {...p} />,
+  ul: ({ node, ...p }) => <ul style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s5)' }} {...p} />,
+  ol: ({ node, ...p }) => <ol style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s5)' }} {...p} />,
+  li: ({ node, ...p }) => <li style={{ marginBottom: 'var(--s1)', lineHeight: 1.5 }} {...p} />,
   table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }} {...p} /></div>,
-  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
-  td: ({ node, ...p }) => <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--card-border)' }} {...p} />,
+  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: 'var(--s2) var(--s2)', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
+  td: ({ node, ...p }) => <td style={{ padding: 'var(--s2) var(--s2)', borderBottom: '1px solid var(--card-border)' }} {...p} />,
 };
 
-const thStyle = { textAlign: 'left', padding: '7px 9px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)', whiteSpace: 'nowrap' };
-const tdStyle = { padding: '7px 9px', borderBottom: '1px solid var(--card-border)', verticalAlign: 'top' };
+const thStyle = { textAlign: 'left', padding: 'var(--s2) var(--s2)', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)', whiteSpace: 'nowrap' };
+const tdStyle = { padding: 'var(--s2) var(--s2)', borderBottom: '1px solid var(--card-border)', verticalAlign: 'top' };

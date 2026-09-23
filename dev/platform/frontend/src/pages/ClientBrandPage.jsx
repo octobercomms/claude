@@ -153,7 +153,7 @@ export default function ClientBrandPage({ embedded = false } = {}) {
       </p>
 
       {/* Filter chips */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
         <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>All ({assets.length})</FilterChip>
         {KINDS.map(k => (
           <FilterChip key={k.value} active={filter === k.value} onClick={() => setFilter(k.value)}>
@@ -163,7 +163,7 @@ export default function ClientBrandPage({ embedded = false } = {}) {
       </div>
 
       {/* Upload buttons */}
-      <div className="row wrap" style={{ marginBottom: 22, padding: 14, background: "var(--surface-raised)", border: "var(--border-w) solid var(--card-border)", borderRadius: "var(--r-sm)" }}>
+      <div className="row wrap" style={{ marginBottom: 'var(--s6)', padding: 'var(--s4)', background: "var(--surface-raised)", border: "var(--border-w) solid var(--card-border)", borderRadius: "var(--r-sm)" }}>
         {/* SVG excluded — backend rejects it (inline-script XSS risk).
             Listing the safe MIME types explicitly so the OS picker
             doesn't even offer SVG. */}
@@ -190,12 +190,12 @@ export default function ClientBrandPage({ embedded = false } = {}) {
       )}
 
       {!filtered.length && (
-        <div style={{ color: 'var(--text-subtle)', padding: 30, textAlign: 'center', border: '1px dashed #ddd', borderRadius: 6 }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 'var(--s7)', textAlign: 'center', border: '1px dashed #ddd', borderRadius: 6 }}>
           No assets yet — upload a logo or product image to get started.
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--s4)' }}>
         {filtered.map(a => (
           <AssetCard key={a.id} asset={a} onDelete={() => deleteAsset(a)}
             onEdit={() => setEditingAsset(a)} onUpdate={updateAsset} />
@@ -210,7 +210,7 @@ export default function ClientBrandPage({ embedded = false } = {}) {
 function FilterChip({ active, onClick, children }) {
   return (
     <button onClick={onClick} style={{
-      padding: '5px 12px', fontSize: 'var(--fs-caption)', border: '1px solid ' + (active ? 'var(--text)' : 'var(--accent-soft)'),
+      padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: '1px solid ' + (active ? 'var(--text)' : 'var(--accent-soft)'),
       background: active ? 'var(--text)' : 'var(--surface)', color: active ? 'var(--surface)' : 'var(--text-muted)',
       cursor: 'pointer', borderRadius: 999, fontWeight: active ? 700 : 500,
     }}>{children}</button>
@@ -303,9 +303,9 @@ function FontPreview({ asset }) {
 
   if (error) return <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontFamily: 'monospace' }}>font</span>;
   return (
-    <div style={{ fontFamily: family || 'inherit', textAlign: 'center', lineHeight: 1.1, padding: 8, color: family ? 'var(--text)' : 'var(--text-subtle)' }}>
+    <div style={{ fontFamily: family || 'inherit', textAlign: 'center', lineHeight: 1.1, padding: 'var(--s2)', color: family ? 'var(--text)' : 'var(--text-subtle)' }}>
       <div style={{ fontSize: 'var(--fs-section)' }}>Ag</div>
-      <div style={{ fontSize: 'var(--fs-body)', marginTop: 4 }}>The quick brown fox</div>
+      <div style={{ fontSize: 'var(--fs-body)', marginTop: 'var(--s1)' }}>The quick brown fox</div>
     </div>
   );
 }
@@ -346,7 +346,7 @@ function AssetCard({ asset, onDelete, onEdit, onUpdate }) {
           </div>
         )}
         {isGuideline && (
-          <div style={{ padding: 12, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', textAlign: 'left', overflow: 'hidden', maxHeight: '100%' }}>
+          <div style={{ padding: 'var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', textAlign: 'left', overflow: 'hidden', maxHeight: '100%' }}>
             {(asset.metadata?.body || '').slice(0, 180)}…
           </div>
         )}
@@ -354,9 +354,9 @@ function AssetCard({ asset, onDelete, onEdit, onUpdate }) {
           <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontFamily: 'monospace' }}>{asset.kind}</span>
         )}
       </div>
-      <div style={{ padding: '10px 12px' }}>
+      <div style={{ padding: 'var(--s3) var(--s3)' }}>
         <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.name}</div>
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 }}>{asset.kind.replace('_', ' ')}</div>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 'var(--s1)' }}>{asset.kind.replace('_', ' ')}</div>
         {/* Fonts carry a usage role (headings vs body) so the Social, Ad
             Creative and Video generators apply the right typeface to the
             right text deterministically from the brand kit. */}
@@ -364,12 +364,12 @@ function AssetCard({ asset, onDelete, onEdit, onUpdate }) {
           <select
             value={asset.metadata?.role || ''}
             onChange={e => setRole(e.target.value)}
-            style={{ marginTop: 8, width: '100%', padding: '5px 8px', fontSize: 'var(--fs-caption)', border: '2px solid var(--card-border)', borderRadius: 4, background: 'var(--surface)', color: 'var(--text)' }}
+            style={{ marginTop: 'var(--s2)', width: '100%', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: '2px solid var(--card-border)', borderRadius: 4, background: 'var(--surface)', color: 'var(--text)' }}
           >
             {FONT_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         )}
-        <div className="row" style={{ gap: 6, marginTop: 8 }}>
+        <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s2)' }}>
           {isEditable && <button onClick={onEdit} className="btn btn-secondary btn-sm">Edit</button>}
           <button onClick={onDelete} className="btn btn-danger btn-sm">Delete</button>
         </div>
@@ -398,12 +398,12 @@ function PaletteForm({ clientId, asset, onClose, onSaved }) {
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 12px', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{editing ? 'Edit palette' : 'Add palette'}</h2>
+        <h2 style={{ margin: '0 0 var(--s3)', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{editing ? 'Edit palette' : 'Add palette'}</h2>
         <label style={modalStyles.label}>Name</label>
         <input style={modalStyles.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Primary palette" />
         <label style={modalStyles.label}>Hex codes</label>
         {colors.map((c, i) => (
-          <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+          <div key={i} style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
             <input type="color" value={c} onChange={e => { const next = [...colors]; next[i] = e.target.value; setColors(next); }} style={{ width: 40, height: 32 }} />
             <input value={c} onChange={e => { const next = [...colors]; next[i] = e.target.value; setColors(next); }} style={modalStyles.input} />
             <button onClick={() => setColors(colors.filter((_, j) => j !== i))} className="btn btn-secondary btn-sm">×</button>
@@ -440,7 +440,7 @@ function GuidelineForm({ clientId, asset, onClose, onSaved }) {
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 12px', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{editing ? 'Edit brand guideline' : 'Add brand guideline'}</h2>
+        <h2 style={{ margin: '0 0 var(--s3)', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{editing ? 'Edit brand guideline' : 'Add brand guideline'}</h2>
         <label style={modalStyles.label}>Name</label>
         <input style={modalStyles.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Voice & tone" />
         <label style={modalStyles.label}>Notes</label>
@@ -456,9 +456,9 @@ function GuidelineForm({ clientId, asset, onClose, onSaved }) {
 }
 
 const modalStyles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
-  modal: { background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 460, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
-  input: { width: '100%', padding: '7px 10px', fontSize: 'var(--fs-body)', border: '2px solid var(--card-border)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1000 },
+  modal: { background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 460, padding: 'var(--s6)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 'var(--s3)', marginBottom: 'var(--s1)' },
+  input: { width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: '2px solid var(--card-border)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)', marginTop: 'var(--s4)' },
 };

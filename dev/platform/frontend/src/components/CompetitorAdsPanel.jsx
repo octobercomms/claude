@@ -15,9 +15,9 @@ function fmt(ts) { try { return new Date(ts).toLocaleString('en-GB', { dateStyle
 function List({ title, items }) {
   if (!items || !items.length) return null;
   return (
-    <div style={{ marginTop: 10 }}>
-      <div className="caption" style={{ marginBottom: 6 }}>{title}</div>
-      <ul style={{ margin: 0, paddingLeft: 18 }}>{items.map((x, i) => <li key={i} className="body-sm" style={{ marginBottom: 3 }}>{x}</li>)}</ul>
+    <div style={{ marginTop: 'var(--s3)' }}>
+      <div className="caption" style={{ marginBottom: 'var(--s2)' }}>{title}</div>
+      <ul style={{ margin: 0, paddingLeft: 'var(--s5)' }}>{items.map((x, i) => <li key={i} className="body-sm" style={{ marginBottom: 'var(--s1)' }}>{x}</li>)}</ul>
     </div>
   );
 }
@@ -78,7 +78,7 @@ export default function CompetitorAdsPanel({ clientId }) {
     catch (e) { toast(e.message, 'error'); }
   }
 
-  if (!loaded) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
+  if (!loaded) return <div className="text-subtle" style={{ padding: 'var(--s5)' }}>Loading…</div>;
 
   return (
     <div>
@@ -88,13 +88,13 @@ export default function CompetitorAdsPanel({ clientId }) {
       </p>
 
       {!configured && (
-        <div className="card" style={{ marginBottom: 14, background: 'rgba(154,107,0,0.06)' }}>
+        <div className="card" style={{ marginBottom: 'var(--s4)', background: 'rgba(154,107,0,0.06)' }}>
           <div className="body-sm">Add a <strong>SerpApi key</strong> in Settings → Integrations (October Outreach) to enable competitor-ad pulls. SerpApi powers the Ads Transparency lookup; it's paid per query.</div>
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: 14 }}>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
           <input className="input" style={{ flex: '1 1 240px' }} placeholder="Competitor advertiser name or domain — e.g. competitor.com"
             value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') pull(); }} disabled={!configured} />
           <select className="input" style={{ width: 90 }} value={region} onChange={e => setRegion(e.target.value)} disabled={!configured}>
@@ -105,23 +105,23 @@ export default function CompetitorAdsPanel({ clientId }) {
         </div>
 
         {suggestions && (
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 'var(--s3)' }}>
             {!suggestions.length ? (
               <div className="body-sm text-subtle">No suggestions — make sure the client has a domain and brief set.</div>
             ) : (
               <>
                 <div className="caption mb-2">Suggested competitors — {configured ? 'look one up' : 'add a SerpApi key to look these up'}</div>
-                <div className="row wrap" style={{ gap: 8 }}>
+                <div className="row wrap" style={{ gap: 'var(--s2)' }}>
                   {suggestions.map((c, i) => (
-                    <div key={i} className="card" style={{ padding: '8px 10px', flex: '1 1 220px', minWidth: 200 }}>
-                      <div className="row between center" style={{ gap: 8 }}>
+                    <div key={i} className="card" style={{ padding: 'var(--s2) var(--s3)', flex: '1 1 220px', minWidth: 200 }}>
+                      <div className="row between center" style={{ gap: 'var(--s2)' }}>
                         <div style={{ minWidth: 0 }}>
                           <div className="body-sm" style={{ fontWeight: 700 }}>{c.name}</div>
                           {c.domain && <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.domain}</div>}
                         </div>
                         <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => useSuggestion(c), disabled: busy })}>{configured ? 'Look up' : 'Use'}</button>
                       </div>
-                      {c.reason && <div className="body-xs text-muted" style={{ marginTop: 4, lineHeight: 1.4 }}>{c.reason}</div>}
+                      {c.reason && <div className="body-xs text-muted" style={{ marginTop: 'var(--s1)', lineHeight: 1.4 }}>{c.reason}</div>}
                     </div>
                   ))}
                 </div>
@@ -132,7 +132,7 @@ export default function CompetitorAdsPanel({ clientId }) {
       </div>
 
       {runs.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
           {runs.map(r => (
             <button key={r.id} onClick={() => setActive(r)}
               className={`btn btn-sm ${active?.id === r.id ? 'btn-primary' : 'btn-secondary'}`}>
@@ -144,13 +144,13 @@ export default function CompetitorAdsPanel({ clientId }) {
 
       {active && (
         <div>
-          <div className="row between center" style={{ marginBottom: 8 }}>
+          <div className="row between center" style={{ marginBottom: 'var(--s2)' }}>
             <div className="body-xs text-subtle">{active.query} · {active.region} · {active.ad_count} ads · {fmt(active.created_at)}</div>
             <button className="btn btn-secondary btn-sm" onClick={() => removeRun(active.id)}>Delete</button>
           </div>
 
           {active.analysis?.overview && (
-            <div className="card" style={{ marginBottom: 12 }}>
+            <div className="card" style={{ marginBottom: 'var(--s3)' }}>
               <p className="body" style={{ margin: 0 }}>{active.analysis.overview}</p>
               <List title="Likely winners (longest-running)" items={active.analysis.longest_running} />
               <List title="Angles they're testing" items={active.analysis.angles} />
@@ -159,17 +159,17 @@ export default function CompetitorAdsPanel({ clientId }) {
           )}
 
           {(active.ads || []).length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--s3)' }}>
               {active.ads.map((ad, i) => (
                 <div key={i} className="card" style={{ padding: 0, overflow: 'hidden' }}>
                   {ad.image && <img src={ad.image} alt="" style={{ width: '100%', height: 130, objectFit: 'cover', borderBottom: '1px solid #eee' }} />}
-                  <div style={{ padding: 10 }}>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                  <div style={{ padding: 'var(--s3)' }}>
+                    <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginBottom: 'var(--s1)' }}>
                       {ad.format && <span className="chip chip-neutral" style={{ textTransform: 'capitalize' }}>{ad.format}</span>}
                     </div>
-                    {ad.text && <div className="body-sm" style={{ marginBottom: 4 }}>{ad.text}</div>}
+                    {ad.text && <div className="body-sm" style={{ marginBottom: 'var(--s1)' }}>{ad.text}</div>}
                     {ad.target_domain && <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.target_domain}</div>}
-                    <div className="body-xs text-subtle" style={{ marginTop: 3 }}>
+                    <div className="body-xs text-subtle" style={{ marginTop: 'var(--s1)' }}>
                       {ad.first_shown || ad.last_shown ? `${ad.first_shown || '?'} → ${ad.last_shown || 'now'}` : ''}
                     </div>
                     {ad.details_link && <a href={ad.details_link} target="_blank" rel="noreferrer" className="body-xs text-accent">View ad →</a>}

@@ -158,7 +158,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
             against the previous one and tells you what to action next. Auto-generated every Monday at 07:00.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
           <select value={period} onChange={e => setPeriod(parseInt(e.target.value, 10))} className="input">
             <option value={7}>Last 7 days</option>
             <option value={14}>Last 14 days</option>
@@ -170,7 +170,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
         </div>
       </div>
 
-      {!reports && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>}
+      {!reports && <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>Loading…</div>}
       {reports && reports.length === 0 && !generating && (
         <div className="empty">
           No reports yet for this client. Click <strong>Generate report</strong> to produce the first one — Claude will read the last {period} days of ad performance and write a Manus-style briefing.
@@ -183,16 +183,16 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
           {completed && (
             <div className="card strategist-topbar">
               <div style={{ flex: 1, minWidth: 280 }}>
-                <label style={{ display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)' }}>
                   Monday email recipients
                 </label>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                   <input
                     type="text"
                     value={recipients}
                     onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
                     placeholder="email@example.com, another@example.com"
-                    style={{ flex: 1, padding: '6px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+                    style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                   />
                   {recipientsDirty && (
                     <button onClick={saveRecipients} disabled={savingRecipients} className="btn btn-secondary btn-sm">
@@ -244,7 +244,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                 <div style={{ color: 'var(--text-subtle)' }}>Generating… this usually takes 30–60 seconds.</div>
               )}
               {selected && selected.status === 'failed' && (
-                <div style={{ padding: 12, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>
+                <div style={{ padding: 'var(--s3)', background: 'var(--negative-soft)', border: '1px solid #f5c6cb', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>
                   Generation failed: {selected.error_message || 'unknown error'}
                 </div>
               )}
@@ -278,18 +278,18 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
             <div className="strategist-actionables">
               <div className="card body-sm">
                 {actions.length > 0 && (
-                  <div style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)', borderRadius: 'var(--r-sm)', padding: '12px 14px', marginBottom: 'var(--s4)' }}>
-                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                  <div style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)', borderRadius: 'var(--r-sm)', padding: 'var(--s3) var(--s4)', marginBottom: 'var(--s4)' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s2)' }}>
                       Actions for the week — {actions.filter(a => a.done).length} of {actions.length} done
                     </div>
                     <ol style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                       {actions.map(a => (
-                        <li key={a.id} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0e7c0' }}>
-                          <input type="checkbox" checked={a.done} onChange={() => toggleAction(a)} style={{ marginTop: 3, cursor: 'pointer' }} />
+                        <li key={a.id} style={{ display: 'flex', gap: 'var(--s2)', padding: 'var(--s2) 0', borderBottom: '1px solid #f0e7c0' }}>
+                          <input type="checkbox" checked={a.done} onChange={() => toggleAction(a)} style={{ marginTop: 'var(--s1)', cursor: 'pointer' }} />
                           <div style={{ flex: 1, fontSize: 'var(--fs-body)', lineHeight: 1.4, color: a.done ? 'var(--text-subtle)' : 'var(--text)', textDecoration: a.done ? 'line-through' : 'none' }}>
                             {a.text}
                             {a.done && a.done_at && (
-                              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2, textDecoration: 'none' }}>
+                              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)', textDecoration: 'none' }}>
                                 ✓ done {new Date(a.done_at).toLocaleDateString('en-GB')}
                               </div>
                             )}
@@ -411,8 +411,8 @@ function ScorecardCard({ reportId, section }) {
   const doneCount = table.rows.filter((_, i) => done.has(i)).length;
   return (
     <div className="card">
-      <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '0 0 4px' }}>Summary Scorecard</h2>
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 12 }}>
+      <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '0 0 var(--s1)' }}>Summary Scorecard</h2>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s3)' }}>
         {doneCount} of {table.rows.length} actioned
       </div>
       <div className="md-table-wrap">
@@ -444,21 +444,21 @@ function ScorecardCard({ reportId, section }) {
 // Inline styles that give the markdown a tighter, document feel instead
 // of the default browser margins react-markdown emits.
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 700, margin: '24px 0 12px' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '24px 0 10px', paddingBottom: 6, borderBottom: '1px solid #e8e8e8' }} {...p} />,
-  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '18px 0 8px', color: 'var(--text)' }} {...p} />,
-  p: ({ node, ...p }) => <p style={{ margin: '0 0 12px', lineHeight: 1.6, fontSize: 'var(--fs-body)', color: 'var(--text)' }} {...p} />,
-  ul: ({ node, ...p }) => <ul style={{ margin: '0 0 12px', paddingLeft: 22 }} {...p} />,
-  ol: ({ node, ...p }) => <ol style={{ margin: '0 0 12px', paddingLeft: 22 }} {...p} />,
-  li: ({ node, ...p }) => <li style={{ marginBottom: 6, lineHeight: 1.6, fontSize: 'var(--fs-body)' }} {...p} />,
+  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 700, margin: 'var(--s6) 0 var(--s3)' }} {...p} />,
+  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 'var(--s6) 0 var(--s3)', paddingBottom: 'var(--s2)', borderBottom: '1px solid #e8e8e8' }} {...p} />,
+  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: 'var(--s5) 0 var(--s2)', color: 'var(--text)' }} {...p} />,
+  p: ({ node, ...p }) => <p style={{ margin: '0 0 var(--s3)', lineHeight: 1.6, fontSize: 'var(--fs-body)', color: 'var(--text)' }} {...p} />,
+  ul: ({ node, ...p }) => <ul style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s6)' }} {...p} />,
+  ol: ({ node, ...p }) => <ol style={{ margin: '0 0 var(--s3)', paddingLeft: 'var(--s6)' }} {...p} />,
+  li: ({ node, ...p }) => <li style={{ marginBottom: 'var(--s2)', lineHeight: 1.6, fontSize: 'var(--fs-body)' }} {...p} />,
   strong: ({ node, ...p }) => <strong style={{ color: 'var(--text)' }} {...p} />,
   table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }} {...p} /></div>,
-  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid #1a1a1a', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
-  td: ({ node, ...p }) => <td style={{ padding: '6px 10px', borderBottom: '1px solid #eee', verticalAlign: 'top' }} {...p} />,
-  hr: () => <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '20px 0' }} />,
-  blockquote: ({ node, ...p }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', paddingLeft: 14, color: 'var(--text-muted)', margin: '10px 0' }} {...p} />,
+  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: 'var(--s2) var(--s3)', borderBottom: '2px solid #1a1a1a', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
+  td: ({ node, ...p }) => <td style={{ padding: 'var(--s2) var(--s3)', borderBottom: '1px solid #eee', verticalAlign: 'top' }} {...p} />,
+  hr: () => <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: 'var(--s5) 0' }} />,
+  blockquote: ({ node, ...p }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', paddingLeft: 'var(--s4)', color: 'var(--text-muted)', margin: 'var(--s3) 0' }} {...p} />,
   code: ({ node, inline, ...p }) => inline
-    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 6px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} {...p} />
-    : <pre style={{ background: 'var(--surface-sunken)', padding: 12, borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', overflowX: 'auto' }}><code {...p} /></pre>,
+    ? <code style={{ background: 'var(--surface-sunken)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} {...p} />
+    : <pre style={{ background: 'var(--surface-sunken)', padding: 'var(--s3)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', overflowX: 'auto' }}><code {...p} /></pre>,
 };
 

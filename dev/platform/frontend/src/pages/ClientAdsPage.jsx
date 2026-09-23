@@ -210,7 +210,7 @@ export default function ClientAdsPage() {
   // dashboard's delta chips.
   function Pill({ positive, children }) {
     return (
-      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 'var(--r-sm)', fontWeight: 700, fontSize: 'var(--fs-caption)', background: positive ? 'var(--positive-soft)' : 'var(--negative-soft)', color: positive ? 'var(--positive)' : 'var(--negative)' }}>{children}</span>
+      <span style={{ display: 'inline-block', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', fontWeight: 700, fontSize: 'var(--fs-caption)', background: positive ? 'var(--positive-soft)' : 'var(--negative-soft)', color: positive ? 'var(--positive)' : 'var(--negative)' }}>{children}</span>
     );
   }
 
@@ -239,29 +239,29 @@ export default function ClientAdsPage() {
   // former Measure tab so the Health dashboard can compose it as a panel.
   const renderMeasure = () => (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)', marginBottom: 'var(--s4)', flexWrap: 'wrap', alignItems: 'center' }}>
         {[7, 14, 30, 90].map(d => (
           <button key={d} onClick={() => handlePeriodChange(d)}
-            style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid ' + (days === d ? 'var(--text)' : 'var(--card-border)'), background: days === d ? 'var(--text)' : 'var(--surface)', color: days === d ? '#fff' : 'var(--text)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: 'var(--s2) var(--s4)', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid ' + (days === d ? 'var(--text)' : 'var(--card-border)'), background: days === d ? 'var(--text)' : 'var(--surface)', color: days === d ? '#fff' : 'var(--text)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {d}d
           </button>
         ))}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s1) var(--s3)', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)' }}>
           <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
           <input type="number" min="0" max="100" step="1" value={adsMarginInput}
             onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
-            style={{ width: 42, padding: '2px 4px', border: 'none', fontSize: 'var(--fs-body)', textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
+            style={{ width: 42, padding: 'var(--s1) var(--s1)', border: 'none', fontSize: 'var(--fs-body)', textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
           <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>%</span>
         </div>
         <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Analyst →</Link>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-subtle)' }}>Loading ads data…</div>
+        <div style={{ textAlign: 'center', padding: 'var(--s9)', color: 'var(--text-subtle)' }}>Loading ads data…</div>
       ) : adsData?.error ? (
-        <div className="text-negative" style={{ padding: 20, fontSize: 'var(--fs-body)' }}>Error: {adsData.error}</div>
+        <div className="text-negative" style={{ padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>Error: {adsData.error}</div>
       ) : noConnectors ? (
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
+        <div style={{ textAlign: 'center', padding: 'var(--s9)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
           No active Google Ads or Meta Ads connectors found for this client.<br />
           <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Connect them on the client's Connectors tab, then return here.</span>
         </div>
@@ -280,27 +280,27 @@ export default function ClientAdsPage() {
         return (
         <>
           {showBlended && (
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+            <div style={{ marginBottom: 'var(--s7)' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>
                 Combined · Google + Meta
               </div>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                 <MetricCard label="Total Spend"   value={fmtCurrency(blended.spend)} feature />
                 <MetricCard label="Total Revenue" value={blended.revenue > 0 ? fmtCurrency(blended.revenue) : '—'} />
                 <MetricCard label="Blended ROAS"  value={blended.roas != null ? `${blended.roas.toFixed(2)}x` : '—'} />
                 {blended.profit != null && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(blended.profit)} sub="Revenue × margin − Spend" />}
                 <MetricCard label="Clicks" value={fmt(blended.clicks)} />
               </div>
-              <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: '24px 0 0' }} />
+              <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: 'var(--s6) 0 0' }} />
             </div>
           )}
           {showGoogleTab && (
             <div>
               <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Google Ads</h2>
               {googleEntries.filter(g => !g.error).length > 1 && (
-                <div style={{ marginBottom: 28 }}>
-                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ marginBottom: 'var(--s7)' }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>All Countries — Combined</div>
+                  <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                     <MetricCard label="Total Spend" value={fmtCurrency(googleTotal.spend)} feature />
                     <MetricCard label="Total Revenue" value={googleTotal.revenue > 0 ? fmtCurrency(googleTotal.revenue) : '—'} />
                     <MetricCard label="Blended ROAS" value={googleTotal.spend > 0 && googleTotal.revenue > 0 ? `${(googleTotal.revenue / googleTotal.spend).toFixed(2)}x` : '—'} />
@@ -308,15 +308,15 @@ export default function ClientAdsPage() {
                     <MetricCard label="Clicks" value={fmt(googleTotal.clicks)} />
                     <MetricCard label="Conversions" value={fmt(googleTotal.convs)} />
                   </div>
-                  <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '20px 0 8px' }} />
+                  <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: 'var(--s5) 0 var(--s2)' }} />
                 </div>
               )}
               {googleEntries.map((g, i) => (
-                <div key={i} style={{ marginBottom: 28 }}>
-                  {g.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>{g.store_label}</div>}
-                  {g.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 8 }}>{g.error}</div> : (
+                <div key={i} style={{ marginBottom: 'var(--s7)' }}>
+                  {g.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--s3)' }}>{g.store_label}</div>}
+                  {g.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>{g.error}</div> : (
                     <>
-                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
                         <MetricCard label="Spend" value={fmtCurrency(g.spend)} feature />
                         <MetricCard label="Revenue" value={g.convValue > 0 ? fmtCurrency(g.convValue) : '—'} />
                         <MetricCard label="ROAS" value={g.roas ? `${g.roas.toFixed(2)}x` : '—'} />
@@ -370,9 +370,9 @@ export default function ClientAdsPage() {
             <div style={{ marginTop: showGoogleTab ? 'var(--s8)' : 0 }}>
               <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Meta Ads</h2>
               {metaEntries.filter(m => !m.error).length > 1 && (
-                <div style={{ marginBottom: 28 }}>
-                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ marginBottom: 'var(--s7)' }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>All Countries — Combined</div>
+                  <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
                     <MetricCard label="Total Spend" value={fmtCurrency(metaTotal.spend)} feature />
                     <MetricCard label="Total Revenue" value={metaTotal.revenue > 0 ? fmtCurrency(metaTotal.revenue) : '—'} />
                     <MetricCard label="Blended ROAS" value={metaTotal.spend > 0 && metaTotal.revenue > 0 ? `${(metaTotal.revenue / metaTotal.spend).toFixed(2)}x` : '—'} />
@@ -380,15 +380,15 @@ export default function ClientAdsPage() {
                     <MetricCard label="Clicks" value={fmt(metaTotal.clicks)} />
                     <MetricCard label="Impressions" value={fmt(metaTotal.imps)} />
                   </div>
-                  <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '20px 0 8px' }} />
+                  <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: 'var(--s5) 0 var(--s2)' }} />
                 </div>
               )}
               {metaEntries.map((m, i) => (
-                <div key={i} style={{ marginBottom: 28 }}>
-                  {m.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>{m.store_label}</div>}
-                  {m.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 8 }}>{m.error}</div> : (
+                <div key={i} style={{ marginBottom: 'var(--s7)' }}>
+                  {m.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--s3)' }}>{m.store_label}</div>}
+                  {m.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>{m.error}</div> : (
                     <>
-                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
                         <MetricCard label="Spend" value={fmtCurrency(m.spend)} feature />
                         <MetricCard label="Revenue" value={m.purchaseValue > 0 ? fmtCurrency(m.purchaseValue) : '—'} />
                         <MetricCard label="ROAS" value={m.roas ? `${m.roas.toFixed(2)}x` : '—'} />

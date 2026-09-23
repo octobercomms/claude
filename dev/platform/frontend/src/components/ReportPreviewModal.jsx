@@ -91,8 +91,8 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
           <button onClick={onClose} className="modal-close">×</button>
         </div>
 
-        <div className="row wrap" style={{ gap: 18, alignItems: 'center', padding: '8px 20px 14px', borderBottom: 'var(--border-w) solid var(--accent-soft)' }}>
-          <div className="row center" style={{ gap: 6 }}>
+        <div className="row wrap" style={{ gap: 'var(--s5)', alignItems: 'center', padding: 'var(--s2) var(--s5) var(--s4)', borderBottom: 'var(--border-w) solid var(--accent-soft)' }}>
+          <div className="row center" style={{ gap: 'var(--s2)' }}>
             <button
               type="button"
               onClick={() => onSwitchType && onSwitchType('weekly')}
@@ -104,13 +104,13 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
               className={`btn btn-sm ${reportType === 'monthly' ? 'btn-primary' : 'btn-secondary'}`}
             >Monthly</button>
           </div>
-          <div className="row center" style={{ gap: 6 }}>
+          <div className="row center" style={{ gap: 'var(--s2)' }}>
             <label className="field-label">Start</label>
             <input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className="input" />
             <label className="field-label">End</label>
             <input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className="input" />
           </div>
-          <div className="row center" style={{ gap: 6 }}>
+          <div className="row center" style={{ gap: 'var(--s2)' }}>
             <button type="button" onClick={() => run({ force: false })} className="btn btn-primary" disabled={loading}>
               {loading ? 'Building…' : result ? 'Re-render' : 'Build preview'}
             </button>
@@ -121,7 +121,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
         </div>
 
         {result && (
-          <div className="row wrap body-xs text-muted" style={{ gap: 18, padding: '8px 20px', borderBottom: 'var(--border-w) solid var(--accent-soft)' }}>
+          <div className="row wrap body-xs text-muted" style={{ gap: 'var(--s5)', padding: 'var(--s2) var(--s5)', borderBottom: 'var(--border-w) solid var(--accent-soft)' }}>
             <span><strong>Period:</strong> {result.period}</span>
             <span><strong>Sections:</strong> {result.sections?.length || 0}</span>
             <span><strong>Narrative cache:</strong> {cache?.hits || 0} hits / {cache?.misses || 0} new</span>
@@ -131,7 +131,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
         )}
 
         {errorCount > 0 && (
-          <div className="callout callout-danger" style={{ margin: '8px 20px', fontSize: 'var(--fs-caption)' }}>
+          <div className="callout callout-danger" style={{ margin: 'var(--s2) var(--s5)', fontSize: 'var(--fs-caption)' }}>
             {Object.entries(dataErrors).map(([k, v]) => (
               <div key={k}><strong>{k}:</strong> {v}</div>
             ))}
@@ -140,7 +140,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
 
         {error && <div className="callout callout-danger">{error}</div>}
 
-        <div style={{ flex: 1, minHeight: 0, padding: 16, background: 'var(--surface-raised)', display: 'flex', alignItems: 'stretch', justifyContent: 'center' }}>
+        <div style={{ flex: 1, minHeight: 0, padding: 'var(--s4)', background: 'var(--surface-raised)', display: 'flex', alignItems: 'stretch', justifyContent: 'center' }}>
           {!result && !loading && (
             <div className="body text-subtle" style={{ textAlign: 'center', alignSelf: 'center' }}>
               Pick a period and click <strong>Build preview</strong> to see what this report will look like.

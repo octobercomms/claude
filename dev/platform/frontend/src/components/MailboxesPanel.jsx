@@ -68,7 +68,7 @@ export default function MailboxesPanel({ clientId }) {
           <p className="body-sm text-muted mt-3">Until you add one, the campaign falls back to the legacy single-sender config below.</p>
         </div>
       ) : (
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--s4)' }}>
           {mailboxes.map(mb => <MailboxCard key={mb.id} mailbox={mb} onEdit={() => { setEditing(mb); setShowForm(true); }} onRemove={() => remove(mb)} onTogglePause={() => togglePause(mb)} />)}
         </div>
       )}

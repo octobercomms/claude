@@ -90,7 +90,7 @@ export default function EditContactModal({ contact, onClose, onSaved, entityLabe
       <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal modal-wide">
         <div className="modal-head">
           <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>{contact.name || contact.email || Cap}</h2>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
             <button type="button" onClick={onClose} className="modal-close">×</button>
           </div>
         </div>
@@ -191,10 +191,10 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
   const toast = useToast();
   const [working, setWorking] = useState(null);
   if (err) {
-    return <div style={{ padding: 20, color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>Couldn't load activity: {err}</div>;
+    return <div style={{ padding: 'var(--s5)', color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>Couldn't load activity: {err}</div>;
   }
   if (!activity) {
-    return <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>;
+    return <div style={{ padding: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>;
   }
   const { events, totals, memberships, bounce } = activity;
   const fmtTime = (t) => {
@@ -236,11 +236,11 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
       </div>
 
       {bounce && (
-        <div style={{ background: 'var(--negative-soft)', border: '1px solid #f5c6cb', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: 'var(--negative-soft)', border: '1px solid #f5c6cb', padding: 'var(--s3) var(--s3)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginBottom: 'var(--s4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)' }}>
           <div>
             <strong>Hard bounce</strong> · {fmtTime(bounce.bounced_at)}
-            {bounce.reason && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 4 }}>{bounce.reason}</div>}
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 4 }}>
+            {bounce.reason && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 'var(--s1)' }}>{bounce.reason}</div>}
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 'var(--s1)' }}>
               This {entityLabel} is suppressed across every client until cleared.
             </div>
           </div>
@@ -251,11 +251,11 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
       )}
 
       {!!unsubByClient.length && (
-        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Unsubscribed</div>
+        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 'var(--s3) var(--s3)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', marginBottom: 'var(--s4)' }}>
+          <div style={{ fontWeight: 700, marginBottom: 'var(--s2)' }}>Unsubscribed</div>
           {unsubByClient.map(m => (
-            <div key={m.client_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderTop: '1px solid #f0d260', marginTop: 4 }}>
-              <span>{m.client_name} <span style={{ color: 'var(--warning)', marginLeft: 6 }}>· {fmtTime(m.unsubscribed_at)}</span></span>
+            <div key={m.client_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--s1) 0', borderTop: '1px solid #f0d260', marginTop: 'var(--s1)' }}>
+              <span>{m.client_name} <span style={{ color: 'var(--warning)', marginLeft: 'var(--s2)' }}>· {fmtTime(m.unsubscribed_at)}</span></span>
               <button onClick={() => resubscribe(m.client_id)} disabled={working === `resub-${m.client_id}`} style={resubBtn}>
                 {working === `resub-${m.client_id}` ? 'Re-subscribing…' : 'Re-subscribe'}
               </button>
@@ -265,7 +265,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
       )}
 
       {!events.length && (
-        <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', textAlign: 'center' }}>
+        <div style={{ padding: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', textAlign: 'center' }}>
           No emails sent to this {entityLabel} yet.
         </div>
       )}
@@ -281,12 +281,12 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
                 </div>
                 <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {e.label}
-                  {e.client_id && <span style={{ marginLeft: 8 }}>· {clientNameById[e.client_id] || ''}</span>}
-                  {e.type === 'clicked' && e.url && <span style={{ marginLeft: 8 }}>→ {shorten(e.url)}</span>}
-                  {e.type === 'replied' && e.classification && <span style={{ marginLeft: 8 }}>· {e.classification.replace(/_/g, ' ')}</span>}
+                  {e.client_id && <span style={{ marginLeft: 'var(--s2)' }}>· {clientNameById[e.client_id] || ''}</span>}
+                  {e.type === 'clicked' && e.url && <span style={{ marginLeft: 'var(--s2)' }}>→ {shorten(e.url)}</span>}
+                  {e.type === 'replied' && e.classification && <span style={{ marginLeft: 'var(--s2)' }}>· {e.classification.replace(/_/g, ' ')}</span>}
                 </div>
                 {e.type === 'replied' && e.summary && (
-                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{e.summary}</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 'var(--s1)', lineHeight: 1.5 }}>{e.summary}</div>
                 )}
               </div>
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>{fmtTime(e.at)}</div>
@@ -302,7 +302,7 @@ function Stat({ label, value }) {
   return (
     <div style={statBox}>
       <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, color: 'var(--text)' }}>{value}</div>
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 'var(--s1)' }}>{label}</div>
     </div>
   );
 }
@@ -323,24 +323,24 @@ function shorten(u) {
   } catch { return String(u).slice(0, 60); }
 }
 
-const statRow = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 };
-const statBox = { padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', textAlign: 'center' };
-const eventRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderTop: '1px solid #f4f4f4' };
+const statRow = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--s3)', marginBottom: 'var(--s4)' };
+const statBox = { padding: 'var(--s3) var(--s4)', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', textAlign: 'center' };
+const eventRow = { display: 'flex', alignItems: 'center', gap: 'var(--s3)', padding: 'var(--s3) var(--s3)', borderTop: '1px solid #f4f4f4' };
 const iconBadge = { width: 28, height: 28, borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-body)', flexShrink: 0 };
-const resubBtn = { background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '4px 10px', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', color: 'var(--text)', whiteSpace: 'nowrap' };
+const resubBtn = { background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', color: 'var(--text)', whiteSpace: 'nowrap' };
 
 function Section({ title, children }) {
   return (
     <div>
-      <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text)', margin: '0 0 12px', paddingBottom: 8, borderBottom: '1px solid #e8e8e8' }}>{title}</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{children}</div>
+      <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text)', margin: '0 0 var(--s3)', paddingBottom: 'var(--s2)', borderBottom: '1px solid #e8e8e8' }}>{title}</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>{children}</div>
     </div>
   );
 }
 function Field({ label, children, full }) {
   return (
     <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
-      <label style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{label}</label>
+      <label style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 'var(--s1)' }}>{label}</label>
       {children}
     </div>
   );
@@ -351,43 +351,43 @@ function Field({ label, children, full }) {
 // JournalistProfilePage used to show, so the modal is the full profile and
 // there's no separate page to navigate to. Loads from /pr/contacts/:id.
 function CoveragePanel({ profile, err, entityLabel = 'contact' }) {
-  if (err) return <div style={{ padding: 20, color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>Couldn't load coverage: {err}</div>;
-  if (!profile) return <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>;
+  if (err) return <div style={{ padding: 'var(--s5)', color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>Couldn't load coverage: {err}</div>;
+  if (!profile) return <div style={{ padding: 'var(--s5)', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>;
   const coverage = profile.coverage || [];
   const published = coverage.filter(r => r.status === 'published' || r.status === 'download').length;
   return (
-    <div style={{ padding: '12px 0' }}>
+    <div style={{ padding: 'var(--s3) 0' }}>
       {profile.outlet && (
-        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: '0 0 var(--s3)' }}>
           Currently associated with <strong style={{ color: 'var(--text)' }}>{profile.outlet}</strong>.
         </p>
       )}
-      <div style={{ display: 'flex', gap: 24, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--s6)', marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
         <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Published</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{published}</div></div>
         <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Tracked</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{coverage.length}</div></div>
         {Array.isArray(profile.beats) && profile.beats.length > 0 && (
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Beats</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 'var(--s1)' }}>Beats</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s1)' }}>
               {profile.beats.map(b => <span key={b} className="chip" style={{ fontSize: 'var(--fs-caption)' }}>{b}</span>)}
             </div>
           </div>
         )}
         {Array.isArray(profile.auto_topics) && profile.auto_topics.length > 0 && (
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Writes about <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from recent articles</span></div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 'var(--s1)' }}>Writes about <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from recent articles</span></div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s1)' }}>
               {profile.auto_topics.map((t, i) => <span key={i} className="chip" style={{ fontSize: 'var(--fs-caption)' }}>{t}</span>)}
             </div>
           </div>
         )}
       </div>
       {Array.isArray(profile.latest_articles) && profile.latest_articles.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Latest articles <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from their outlet's feed</span></div>
+        <div style={{ marginBottom: 'var(--s4)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 'var(--s2)' }}>Latest articles <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from their outlet's feed</span></div>
           <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflow: 'auto' }}>
             {profile.latest_articles.map((a, i) => (
-              <div key={i} style={{ padding: '7px 10px', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 'var(--fs-body)' }}>
+              <div key={i} style={{ padding: 'var(--s2) var(--s3)', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 'var(--fs-body)' }}>
                 {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{(a.title || a.url).slice(0, 100)}</a> : (a.title || '—')}
                 {a.published_at && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}> · {fmtDate(a.published_at)}</span>}
               </div>

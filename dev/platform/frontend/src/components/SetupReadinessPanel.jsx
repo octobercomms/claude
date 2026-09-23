@@ -29,14 +29,14 @@ export default function SetupReadinessPanel({ clientId }) {
   }
 
   return (
-    <div className="card" style={{ marginBottom: 18 }}>
-      <div className="row between center" style={{ flexWrap: 'wrap', gap: 8 }}>
+    <div className="card" style={{ marginBottom: 'var(--s5)' }}>
+      <div className="row between center" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
         <div className="caption">Setup readiness</div>
         <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--text-muted)' }}>
           {score.done}/{score.total} complete
         </div>
       </div>
-      <div style={{ height: 6, background: 'var(--surface-raised)', borderRadius: 999, overflow: 'hidden', margin: '8px 0 12px' }}>
+      <div style={{ height: 6, background: 'var(--surface-raised)', borderRadius: 999, overflow: 'hidden', margin: 'var(--s2) 0 var(--s3)' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--accent)' }} />
       </div>
 
@@ -45,13 +45,13 @@ export default function SetupReadinessPanel({ clientId }) {
       ) : (
         <div className="stack stack-sm">
           {todos.map(c => (
-            <div key={c.id} className="row between center" style={{ gap: 10, padding: '8px 0', borderTop: '1px solid var(--card-border)' }}>
+            <div key={c.id} className="row between center" style={{ gap: 'var(--s3)', padding: 'var(--s2) 0', borderTop: '1px solid var(--card-border)' }}>
               <div style={{ minWidth: 0 }}>
                 <div className="body-sm" style={{ fontWeight: 600 }}>
-                  <span style={{ color: 'var(--text-subtle)', fontWeight: 700, marginRight: 6 }}>○</span>{c.label}
+                  <span style={{ color: 'var(--text-subtle)', fontWeight: 700, marginRight: 'var(--s2)' }}>○</span>{c.label}
                   <span className="text-subtle" style={{ fontWeight: 400 }}> · {c.area}</span>
                 </div>
-                <div className="body-xs text-muted" style={{ marginTop: 2 }}>{c.detail}</div>
+                <div className="body-xs text-muted" style={{ marginTop: 'var(--s1)' }}>{c.detail}</div>
               </div>
               {c.link && <button className="btn btn-secondary btn-sm" onClick={() => go(c.link)}>Set up →</button>}
             </div>
@@ -60,12 +60,12 @@ export default function SetupReadinessPanel({ clientId }) {
       )}
 
       {todos.length > 0 && (
-        <details style={{ marginTop: 10 }}>
+        <details style={{ marginTop: 'var(--s3)' }}>
           <summary className="body-xs text-subtle" style={{ cursor: 'pointer' }}>Show {score.done} completed</summary>
-          <div className="stack stack-sm" style={{ marginTop: 8 }}>
+          <div className="stack stack-sm" style={{ marginTop: 'var(--s2)' }}>
             {checks.filter(c => c.status === 'ok').map(c => (
               <div key={c.id} className="body-sm" style={{ color: 'var(--text-muted)' }}>
-                <span style={{ color: 'var(--positive, #1a7f37)', fontWeight: 700, marginRight: 6 }}>✓</span>{c.label}
+                <span style={{ color: 'var(--positive, #1a7f37)', fontWeight: 700, marginRight: 'var(--s2)' }}>✓</span>{c.label}
               </div>
             ))}
           </div>

@@ -98,15 +98,15 @@ function CampaignSequence({ campaign, onCampaignChange }) {
   }
 
   return (
-    <div style={{ padding: '16px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+    <div style={{ padding: 'var(--s4) var(--s6)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginBottom: 'var(--s3)' }}>
         <button {...roWrite(readOnly, { onClick: generate, disabled: generating })} className="btn btn-primary">
           {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
         </button>
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>3 emails — initial, follow-up, final nudge.</span>
       </div>
       {steps && steps.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
           {campaign.status === 'draft' && (
             <button onClick={launch} disabled={busy} className="btn btn-primary">{busy ? '…' : '▶ Launch campaign'}</button>
           )}
@@ -465,7 +465,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
     setContacts(p => p.map(c => c.id === updated.id ? updated : c));
   }
 
-  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 'var(--s8)' }}>Loading…</div>;
 
   // Owned → Email is business outreach only. Press campaigns live in
   // Earned → Pitch — filter any out of the list, counts and rail here so
@@ -546,7 +546,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
 
         <div>
           {/* Stats cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
             {[
               ['Active Leads', stats?.active_contacts],
               ['Active Campaigns', stats?.active_campaigns],
@@ -555,20 +555,20 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
             ].map(([label, value]) => (
               <div key={label} className="card">
                 <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, lineHeight: 1.1 }}>{value ?? '—'}</div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 'var(--s2)' }}>{label}</div>
               </div>
             ))}
           </div>
 
           {/* System Status + Recent Campaigns */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.4fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.4fr)', gap: 'var(--s4)' }}>
             <div className="card">
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>System Status</div>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>System Status</div>
               {systemStatus.length === 0 ? (
                 <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 0 }}>Loading…</p>
               ) : <>
                 {systemStatus.map(item => (
-                  <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 'var(--fs-body)' }}>
+                  <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', fontSize: 'var(--fs-body)' }}>
                     <span>{item.name}</span>
                     <span style={{ color: item.status === 'connected' ? 'var(--positive)' : 'var(--negative)', fontWeight: 600, fontSize: 'var(--fs-caption)' }}>
                       {item.status === 'connected' ? '✓ Connected' : '✗ Not configured'}
@@ -577,13 +577,13 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                 ))}
                 {dnsCheck && dnsCheck.domain && (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 'var(--fs-body)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', fontSize: 'var(--fs-body)' }}>
                       <span>SPF record <code style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{dnsCheck.domain}</code></span>
                       <span style={{ color: dnsCheck.spf === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600, fontSize: 'var(--fs-caption)' }}>
                         {dnsCheck.spf === 'found' ? '✓ Found' : '⚠ Missing'}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 'var(--fs-body)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', fontSize: 'var(--fs-body)' }}>
                       <span>DMARC record</span>
                       <span style={{ color: dnsCheck.dmarc === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600, fontSize: 'var(--fs-caption)' }}>
                         {dnsCheck.dmarc === 'found' ? '✓ Found' : '⚠ Missing'}
@@ -592,11 +592,11 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                   </>
                 )}
               </>}
-              <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '10px 0 0' }}>Configure missing integrations in platform Settings. SPF / DMARC use the Outreach Sending Domain.</p>
+              <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s3) 0 0' }}>Configure missing integrations in platform Settings. SPF / DMARC use the Outreach Sending Domain.</p>
             </div>
 
             <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
                 <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recent Campaigns</div>
                 {campaigns.length > 5 && <button onClick={() => setTab('campaigns')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', padding: 0 }}>View all →</button>}
               </div>
@@ -607,9 +607,9 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                   <tbody>
                     {recentCampaigns.map(c => (
                       <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => setTab('campaigns')}>
-                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5' }}>{c.name}</td>
-                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5' }}><span className="chip chip-neutral">{c.status}</span></td>
-                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5', textAlign: 'right', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>
+                        <td style={{ padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5' }}>{c.name}</td>
+                        <td style={{ padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5' }}><span className="chip chip-neutral">{c.status}</span></td>
+                        <td style={{ padding: 'var(--s2) 0', borderTop: '1px solid #f5f5f5', textAlign: 'right', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>
                           {new Date(c.created_at).toLocaleDateString('en-GB')}
                         </td>
                       </tr>
@@ -625,7 +625,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
 
       {tab === 'contacts' && (
         <div>
-          <div className="row wrap" style={{ gap: 8 }}>
+          <div className="row wrap" style={{ gap: 'var(--s2)' }}>
             <button onClick={() => setShowAddContact(v => !v)} className="btn btn-primary">{showAddContact ? 'Cancel' : '+ Add lead'}</button>
             <button onClick={() => setShowFinder(v => !v)} className="btn btn-secondary">{showFinder ? 'Close finder' : '⌕ Find leads'}</button>
             <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
@@ -636,9 +636,9 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
             )}
           </div>
           {showFinder && (
-            <div className="card" style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)', marginBottom: 8 }}>Find companies by audience (Serper)</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) auto', gap: 8 }}>
+            <div className="card" style={{ marginTop: 'var(--s3)' }}>
+              <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>Find companies by audience (Serper)</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) auto', gap: 'var(--s2)' }}>
                 <input className="input" placeholder="Industry" value={aud.industry}
                   onChange={e => setAud(p => ({ ...p, industry: e.target.value }))} />
                 <input className="input" placeholder="Location" value={aud.location}
@@ -647,7 +647,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                   onChange={e => setAud(p => ({ ...p, specialisation: e.target.value }))} />
                 <button onClick={runSerper} disabled={searching} className="btn btn-primary">{searching ? 'Searching…' : 'Search'}</button>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginTop: 'var(--s2)' }}>
                 <button onClick={runIcpScrape} disabled={icpScraping || (!aud.industry && !aud.specialisation)} className="btn btn-secondary">
                   {icpScraping ? 'Scraping…' : '✦ Scrape all (free)'}
                 </button>
@@ -659,22 +659,22 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
               </div>
               {deepProviders.length > 0 && (
                 <>
-                  <div style={{ borderTop: '1px solid #eee', margin: '14px 0 8px', paddingTop: 14, fontWeight: 600, fontSize: 'var(--fs-body)' }}>Or dig deeper (paid data)</div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ borderTop: '1px solid #eee', margin: 'var(--s4) 0 var(--s2)', paddingTop: 'var(--s4)', fontWeight: 600, fontSize: 'var(--fs-body)' }}>Or dig deeper (paid data)</div>
+                  <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
                     <select className="input" style={{ width: 170 }} value={deepProvider} onChange={e => setDeepProvider(e.target.value)}>
                       {deepProviders.map(p => <option key={p} value={p}>{PROVIDER_LABEL[p] || p}</option>)}
                     </select>
                     <input className="input" style={{ flex: 1, minWidth: 160 }} placeholder="Job titles — e.g. founder, head of marketing" value={deepTitles} onChange={e => setDeepTitles(e.target.value)} />
                     <button onClick={runDeepFind} disabled={deepLoading} className="btn btn-primary">{deepLoading ? '…' : 'Find leads'}</button>
                   </div>
-                  <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '6px 0 0' }}>Uses the audience fields above (industry / location / keywords) + titles. Costs per lookup on the provider — use when the free path comes up short.</p>
+                  <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s2) 0 0' }}>Uses the audience fields above (industry / location / keywords) + titles. Costs per lookup on the provider — use when the free path comes up short.</p>
                 </>
               )}
-              {serperError && <p style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', margin: '8px 0 0' }}>{serperError}</p>}
+              {serperError && <p style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', margin: 'var(--s2) 0 0' }}>{serperError}</p>}
               {serperDomains.length > 0 && (
-                <div style={{ marginTop: 10 }}>
+                <div style={{ marginTop: 'var(--s3)' }}>
                   {serperDomains.map(d => (
-                    <div key={d.domain} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '7px 0', borderTop: '1px solid #f0f0f0' }}>
+                    <div key={d.domain} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)', padding: 'var(--s2) 0', borderTop: '1px solid #f0f0f0' }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>{d.domain}</div>
                         {d.title && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>}
@@ -684,32 +684,32 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                   ))}
                 </div>
               )}
-              <div style={{ borderTop: '1px solid #eee', margin: '14px 0 8px', paddingTop: 14, fontWeight: 600, fontSize: 'var(--fs-body)' }}>Or find emails for a known domain</div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ borderTop: '1px solid #eee', margin: 'var(--s4) 0 var(--s2)', paddingTop: 'var(--s4)', fontWeight: 600, fontSize: 'var(--fs-body)' }}>Or find emails for a known domain</div>
+              <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                 <input className="input" style={{ flex: 1 }} placeholder="Company domain — e.g. example.com"
                   value={findDomain} onChange={e => setFindDomain(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') runFind(findDomain, 'hunter'); }} />
                 <button onClick={() => runFind(findDomain, 'hunter')} disabled={finding} className="btn btn-primary">{finding ? '…' : 'Hunter'}</button>
                 <button onClick={() => runFind(findDomain, 'icypeas')} disabled={finding} className="btn btn-secondary">{finding ? '…' : 'Icypeas'}</button>
               </div>
-              <div style={{ borderTop: '1px solid #eee', margin: '14px 0 8px', paddingTop: 14, fontWeight: 600, fontSize: 'var(--fs-body)' }}>Or scrape a page (free)</div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ borderTop: '1px solid #eee', margin: 'var(--s4) 0 var(--s2)', paddingTop: 'var(--s4)', fontWeight: 600, fontSize: 'var(--fs-body)' }}>Or scrape a page (free)</div>
+              <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                 <input className="input" style={{ flex: 1 }} placeholder="Page URL — a Contact/Team page, directory or listing"
                   value={scrapeUrlInput} onChange={e => setScrapeUrlInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') runScrape(scrapeUrlInput); }} />
                 <button onClick={() => runScrape(scrapeUrlInput, false)} disabled={finding} className="btn btn-primary" title="Just this page">{finding ? '…' : 'Scrape page'}</button>
                 <button onClick={() => runScrape(scrapeUrlInput, true)} disabled={finding} className="btn btn-secondary" title="This page plus its Contact / About / Team pages">{finding ? '…' : 'Scrape site'}</button>
               </div>
-              <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '6px 0 0' }}>Free — reads the page and pulls any leads on it. No per-lookup cost; use Hunter/Icypeas as a fallback for email guessing.</p>
-              {findError && <p style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', margin: '8px 0 0' }}>{findError}</p>}
+              <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s2) 0 0' }}>Free — reads the page and pulls any leads on it. No per-lookup cost; use Hunter/Icypeas as a fallback for email guessing.</p>
+              {findError && <p style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', margin: 'var(--s2) 0 0' }}>{findError}</p>}
               {searched && foundContacts.length === 0 && !findError && (
-                <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', margin: '8px 0 0' }}>No leads found.</p>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', margin: 'var(--s2) 0 0' }}>No leads found.</p>
               )}
               {foundContacts.length > 0 && (
-                <div style={{ marginTop: 12 }}>
+                <div style={{ marginTop: 'var(--s3)' }}>
                   {/* Rank the results by fit against the client's ICP + service
                       criteria before adding — score each lead 0–100. */}
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
                     <input className="input" style={{ flex: 1 }} placeholder="Rank by fit — describe your ideal lead / service criteria"
                       value={rankCriteria} onChange={e => setRankCriteria(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') runRank(); }} />
@@ -734,7 +734,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                       ))}
                     </tbody>
                   </table>
-                  <button onClick={addFound} disabled={selected.size === 0} className="btn btn-primary" style={{ marginTop: 10 }}>
+                  <button onClick={addFound} disabled={selected.size === 0} className="btn btn-primary" style={{ marginTop: 'var(--s3)' }}>
                     Add {selected.size} selected
                   </button>
                 </div>
@@ -742,7 +742,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
             </div>
           )}
           {showAddContact && (
-            <form onSubmit={addContact} className="card" style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+            <form onSubmit={addContact} className="card" style={{ marginTop: 'var(--s3)', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 'var(--s3)' }}>
               {['name', 'email', 'company', 'role', 'website'].map(f => (
                 <input key={f} className="input" placeholder={f[0].toUpperCase() + f.slice(1)} value={newContact[f]}
                   required={f === 'email'}
@@ -753,12 +753,12 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
           )}
 
           {/* CSV import column reference */}
-          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 12 }}>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s3)' }}>
             CSV columns — required: <code>email</code>. Optional: <code>first_name</code>, <code>last_name</code>, <code>company</code>, <code>contact_type</code>, <code>title</code>, <code>location</code>, <code>linkedin_url</code>, <code>notes</code>.
           </p>
 
           {/* Filters row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: 10, marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: 'var(--s3)', marginTop: 'var(--s3)' }}>
             <input className="input" placeholder="Search name / email / company" value={contactFilter.search}
               onChange={e => setContactFilter(f => ({ ...f, search: e.target.value }))} />
             <input className="input" list="contact-types-filter" placeholder="Filter by type"
@@ -771,7 +771,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
           </div>
 
           {/* Contacts table */}
-          <div className="card" style={{ marginTop: 12 }}>
+          <div className="card" style={{ marginTop: 'var(--s3)' }}>
             <table className="table">
               <thead>
                 <tr>
@@ -800,15 +800,15 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                     <td ><span className="chip chip-neutral">{c.status}</span></td>
                     <td >{c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'}</td>
                     <td >
-                      <button onClick={() => setEditingContact(c)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 'var(--fs-caption)' }}>Edit</button>
-                      <button onClick={() => deleteContact(c.id)} className="btn btn-danger" style={{ padding: '4px 10px', fontSize: 'var(--fs-caption)', marginLeft: 4 }}>Delete</button>
+                      <button onClick={() => setEditingContact(c)} className="btn btn-secondary" style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)' }}>Edit</button>
+                      <button onClick={() => deleteContact(c.id)} className="btn btn-danger" style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', marginLeft: 'var(--s1)' }}>Delete</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 8 }}>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>
             Showing {filteredContacts.length} of {contacts.length} lead{contacts.length === 1 ? '' : 's'}.
           </p>
         </div>
@@ -866,10 +866,10 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
 
       {tab === 'campaigns' && !wizardCampaignId && (
         <div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--s2)' }}>
             <button onClick={() => setShowNewCampaign(true)} className="btn btn-primary">+ New campaign</button>
           </div>
-          <div className="card" style={{ marginTop: 12 }}>
+          <div className="card" style={{ marginTop: 'var(--s3)' }}>
             <table className="table">
               <thead><tr>{['Campaign', 'Brand', 'Status', 'Leads', 'Sent / Total', 'Created', ''].map(h => <th key={h} >{h}</th>)}</tr></thead>
               <tbody>
@@ -887,12 +887,12 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
                     <td >{(c.sent_count || 0)} / {(c.contact_count || 0)}</td>
                     <td >{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
                     <td >
-                      <button onClick={() => setWizardCampaignId(c.id)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 'var(--fs-caption)' }}>Open wizard</button>
-                      <button onClick={() => duplicateCampaign(c)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 'var(--fs-caption)', marginLeft: 4 }}
+                      <button onClick={() => setWizardCampaignId(c.id)} className="btn btn-secondary" style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)' }}>Open wizard</button>
+                      <button onClick={() => duplicateCampaign(c)} className="btn btn-secondary" style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', marginLeft: 'var(--s1)' }}
                         title="Make a draft copy of this campaign with the same sequence + audience">
                         Duplicate
                       </button>
-                      <button onClick={() => deleteCampaign(c.id)} className="btn btn-danger" style={{ padding: '4px 10px', fontSize: 'var(--fs-caption)', marginLeft: 4 }}>Delete</button>
+                      <button onClick={() => deleteCampaign(c.id)} className="btn btn-danger" style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', marginLeft: 'var(--s1)' }}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -907,19 +907,19 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
           <MailboxesPanel clientId={id} />
 
           <div className="card" style={{ maxWidth: 520 }}>
-          <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)', marginBottom: 4 }}>Legacy single-sender fallback</div>
-          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 14px' }}>
+          <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)', marginBottom: 'var(--s1)' }}>Legacy single-sender fallback</div>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 var(--s4)' }}>
             Used only when no mailboxes are configured above. Leave blank to use the platform default. Set From to your own address and Reply-To to wherever replies should land.
           </p>
           {[['from_name', 'From name'], ['from_email', 'From email'], ['reply_to', 'Reply-To email']].map(([k, label]) => (
-            <div key={k} style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>{label}</label>
+            <div key={k} style={{ marginBottom: 'var(--s3)' }}>
+              <label style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 'var(--s1)' }}>{label}</label>
               <input className="input" style={{ width: '100%', boxSizing: 'border-box' }} value={sendCfg[k] || ''}
                 onChange={e => setSendCfg(p => ({ ...p, [k]: e.target.value }))} />
             </div>
           ))}
           <button onClick={saveSending} disabled={savingSend} className="btn btn-primary">{savingSend ? 'Saving…' : 'Save sending settings'}</button>
-          {sendSaved && <span style={{ marginLeft: 10, color: 'var(--positive)', fontWeight: 600, fontSize: 'var(--fs-body)' }}>✓ Saved</span>}
+          {sendSaved && <span style={{ marginLeft: 'var(--s3)', color: 'var(--positive)', fontWeight: 600, fontSize: 'var(--fs-body)' }}>✓ Saved</span>}
           </div>
         </div>
       )}
@@ -979,8 +979,8 @@ function VerifyBadge({ contact, onVerified }) {
   }
   const s = contact.verification_status;
   if (!s || s === 'pending') {
-    return <button className="btn-ghost" style={{ fontSize: 'var(--fs-caption)', marginLeft: 6, padding: '0 4px' }} onClick={check} disabled={busy}>{busy ? '…' : 'verify'}</button>;
+    return <button className="btn-ghost" style={{ fontSize: 'var(--fs-caption)', marginLeft: 'var(--s2)', padding: '0 var(--s1)' }} onClick={check} disabled={busy}>{busy ? '…' : 'verify'}</button>;
   }
   const tone = s === 'valid' ? 'success' : s === 'invalid' ? 'danger' : s === 'risky' ? 'warning' : 'neutral';
-  return <span className={`chip chip-${tone}`} style={{ marginLeft: 6, fontSize: 'var(--fs-caption)' }}>{s}</span>;
+  return <span className={`chip chip-${tone}`} style={{ marginLeft: 'var(--s2)', fontSize: 'var(--fs-caption)' }}>{s}</span>;
 }

@@ -160,14 +160,14 @@ export default function AIVisibilityPanel({ clientId }) {
       </p>
 
       {alerts.length > 0 && (
-        <div className="stack mb-6" style={{ gap: 8 }}>
+        <div className="stack mb-6" style={{ gap: 'var(--s2)' }}>
           {alerts.map(a => (
             <div key={a.id} className="card" style={{
               borderLeft: `4px solid ${a.severity === 'high' ? 'var(--danger, #c62828)' : 'var(--warning, #9a6b00)'}`,
-              display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
+              display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--s3)',
             }}>
               <div>
-                <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                <div className="row" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
                   <span aria-hidden="true">{a.severity === 'high' ? '🔴' : '🟠'}</span>
                   <strong>{a.title}</strong>
                 </div>
@@ -218,7 +218,7 @@ export default function AIVisibilityPanel({ clientId }) {
       </div>
 
       {!readOnly && (
-        <div className="row wrap mb-6" style={{ gap: 8, alignItems: 'center' }}>
+        <div className="row wrap mb-6" style={{ gap: 'var(--s2)', alignItems: 'center' }}>
           <input
             className="input"
             style={{ maxWidth: 280 }}
@@ -239,7 +239,7 @@ export default function AIVisibilityPanel({ clientId }) {
           the AM what to do about it. Grounded in answer-engine best practice. */}
       <div className="card mb-6">
         <button type="button" onClick={() => setTipsOpen(o => !o)}
-          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s3)' }}>
           <div>
             <div className="caption">Playbook</div>
             <div className="h3 mt-1">How to improve these numbers</div>
@@ -249,7 +249,7 @@ export default function AIVisibilityPanel({ clientId }) {
         {tipsOpen && (
           <div className="mt-4">
             <p className="body-sm text-muted mb-3">Answer engines cite the clearest, best-sourced answer to the exact question — not the highest-ranked page. To get mentioned more:</p>
-            <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 10 }}>
+            <ol style={{ margin: 0, paddingLeft: 'var(--s5)', display: 'grid', gap: 'var(--s3)' }}>
               <li className="body-sm"><strong>Answer the exact prompts.</strong> Take the prompts below where you're <em>not</em> mentioned and publish a page that answers each one directly — a question-shaped H2 with a self-contained ~130–170 word answer an engine can lift verbatim. (Use Build → the SXO / Find tools to turn a prompt into a brief.)</li>
               <li className="body-sm"><strong>Be the source engines trust.</strong> LLMs lean on Wikipedia, Reddit, YouTube and authoritative industry press. Earn mentions and citations there, not just on your own site.</li>
               <li className="body-sm"><strong>Structure for machines.</strong> Add FAQ / Article / Organization schema, clear headings, and tables/lists. Well-structured pages are far easier to quote.</li>
@@ -280,7 +280,7 @@ export default function AIVisibilityPanel({ clientId }) {
             {Object.entries(summary.engines).map(([eng, e]) => (
               <Card key={eng} variant="outline">
                 <div className="caption">{ENGINE_LABEL[eng] || eng}</div>
-                <div className="row mt-3" style={{ alignItems: 'baseline', gap: 8 }}>
+                <div className="row mt-3" style={{ alignItems: 'baseline', gap: 'var(--s2)' }}>
                   <span className="metric">{e.share_of_voice}%</span>
                   <span className="body-sm">SoV</span>
                 </div>
@@ -302,7 +302,7 @@ export default function AIVisibilityPanel({ clientId }) {
                 key={c.name}
                 className="row between center"
                 style={{
-                  padding: '10px 12px',
+                  padding: 'var(--s3) var(--s3)',
                   borderBottom: i < arr.length - 1 ? '2px solid var(--oc-surface-raised)' : 'none',
                 }}
               >
@@ -320,18 +320,18 @@ export default function AIVisibilityPanel({ clientId }) {
       {sources?.total_citations > 0 && (
         <Section caption="Where AI pulls its answers from" title="Sources & citations">
           <Card>
-            <div className="row" style={{ gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div className="row" style={{ gap: 'var(--s5)', flexWrap: 'wrap', marginBottom: 'var(--s3)' }}>
               <div><div className="caption caption-muted">Your citation share</div><div className="metric mt-2" style={{ color: sources.own_share >= 20 ? 'var(--positive)' : sources.own_share >= 5 ? 'var(--warning)' : 'var(--negative)' }}>{sources.own_share}%</div></div>
               <div><div className="caption caption-muted">Your citations</div><div className="metric mt-2">{sources.own_citations} / {sources.total_citations}</div></div>
               <div><div className="caption caption-muted">Sources cited</div><div className="metric mt-2">{sources.domains.length}</div></div>
             </div>
-            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>The domains AI assistants pull answers from in your category. Getting your own pages cited is how you climb — aim content at the gaps below.</p>
-            <div className="grid grid-2" style={{ gap: 14 }}>
+            <p className="body-sm text-muted" style={{ marginBottom: 'var(--s3)' }}>The domains AI assistants pull answers from in your category. Getting your own pages cited is how you climb — aim content at the gaps below.</p>
+            <div className="grid grid-2" style={{ gap: 'var(--s4)' }}>
               <div>
                 <div className="caption mb-2">Most-cited domains</div>
                 {sources.domains.slice(0, 12).map((d, i, arr) => (
-                  <div key={d.host} className="row between center" style={{ padding: '7px 10px', borderBottom: i < arr.length - 1 ? '2px solid var(--oc-surface-raised)' : 'none', background: d.is_own ? 'var(--accent-soft)' : 'transparent' }}>
-                    <div className="row center" style={{ gap: 8, minWidth: 0 }}>
+                  <div key={d.host} className="row between center" style={{ padding: 'var(--s2) var(--s3)', borderBottom: i < arr.length - 1 ? '2px solid var(--oc-surface-raised)' : 'none', background: d.is_own ? 'var(--accent-soft)' : 'transparent' }}>
+                    <div className="row center" style={{ gap: 'var(--s2)', minWidth: 0 }}>
                       <span className="body-xs text-subtle" style={{ width: 20 }}>#{i + 1}</span>
                       <span className="body-sm" style={{ fontWeight: d.is_own ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.host}</span>
                       {d.is_own && <Chip>you</Chip>}
@@ -343,11 +343,11 @@ export default function AIVisibilityPanel({ clientId }) {
               <div>
                 <div className="caption mb-2">Your cited pages</div>
                 {sources.own_pages.length ? sources.own_pages.slice(0, 8).map((p, i, arr) => (
-                  <div key={p.url} className="row between center" style={{ padding: '7px 10px', borderBottom: i < arr.length - 1 ? '2px solid var(--oc-surface-raised)' : 'none', gap: 8 }}>
+                  <div key={p.url} className="row between center" style={{ padding: 'var(--s2) var(--s3)', borderBottom: i < arr.length - 1 ? '2px solid var(--oc-surface-raised)' : 'none', gap: 'var(--s2)' }}>
                     <a href={p.url} target="_blank" rel="noreferrer" className="body-sm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--accent-strong, #1a4fb4)' }}>{p.url.replace(/^https?:\/\//, '')}</a>
                     <span className="body-xs text-subtle">{p.count}</span>
                   </div>
-                )) : <p className="body-sm text-subtle" style={{ padding: '8px 0' }}>None of your pages have been cited yet — that's the opportunity.</p>}
+                )) : <p className="body-sm text-subtle" style={{ padding: 'var(--s2) 0' }}>None of your pages have been cited yet — that's the opportunity.</p>}
               </div>
             </div>
           </Card>
@@ -362,7 +362,7 @@ export default function AIVisibilityPanel({ clientId }) {
                 key={p.id}
                 className="row center"
                 style={{
-                  padding: '10px 12px',
+                  padding: 'var(--s3) var(--s3)',
                   borderBottom: '2px solid var(--oc-surface-raised)',
                   opacity: p.active ? 1 : 0.5,
                 }}
@@ -372,7 +372,7 @@ export default function AIVisibilityPanel({ clientId }) {
                 <Button variant="ghost" size="sm" onClick={() => deletePrompt(p)}>Delete</Button>
               </div>
             ))}
-            <div className="row" style={{ padding: 10 }}>
+            <div className="row" style={{ padding: 'var(--s3)' }}>
               <input
                 className="input"
                 value={newPrompt}
@@ -439,12 +439,12 @@ function SuggestedPanel({ suggested, onSave, onClose }) {
             key={i}
             className="row"
             style={{
-              padding: '6px 10px',
+              padding: 'var(--s2) var(--s3)',
               background: 'var(--oc-surface)',
               borderRadius: 'var(--r-sm)',
               cursor: 'pointer',
               alignItems: 'flex-start',
-              gap: 8,
+              gap: 'var(--s2)',
             }}
           >
             <input type="checkbox" checked={selected.has(s)} onChange={() => toggle(s)} />

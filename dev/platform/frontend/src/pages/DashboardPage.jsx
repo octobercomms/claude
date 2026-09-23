@@ -196,7 +196,7 @@ function StrategyOverview() {
                 <td className="text-subtle" style={{ textTransform: 'capitalize' }}>{[s.business_type, s.lifecycle_stage].filter(Boolean).join(' · ') || '—'}</td>
                 <td>{s.template_name || '—'}</td>
                 <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
                     <div style={{ flex: 1, maxWidth: 120, height: 6, background: 'var(--surface-raised)', borderRadius: 999, overflow: 'hidden' }}>
                       <div style={{ width: `${s.pct}%`, height: '100%', background: s.pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--accent)' }} />
                     </div>
