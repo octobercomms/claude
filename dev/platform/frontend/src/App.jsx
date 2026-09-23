@@ -31,6 +31,7 @@ import PublicCoveragePage from './pages/PublicCoveragePage';
 import PressReviewPage from './pages/PressReviewPage';
 import WatchPage from './pages/WatchPage';
 import ClientVideoTab from './pages/ClientVideoTab';
+import DesignSystemPage from './pages/DesignSystemPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -113,6 +114,7 @@ export default function App() {
             <Route path="tenders/:id" element={<TenderWorkspacePage />} />
             <Route path="leads/:id" element={<SnapshotStudioPage />} />
             <Route path="guide" element={<GuidePage />} />
+            <Route path="design" element={<DesignSystemPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="contacts/cleanup" element={<ContactCleanupPage />} />
             {/* Manage and Integrations were separate top-level pages; now both
