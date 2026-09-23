@@ -168,6 +168,9 @@ app.use('/api/public/snapshot', require('./routes/publicSnapshot'));
 // Public watch endpoints for the in-OMI recorder (token-gated playback + view
 // analytics). No auth — reached via an unguessable public_token share link.
 app.use('/api/public/watch', require('./routes/watchPublic'));
+// Public proposal page data + engagement tracking + accept. No auth; the
+// unguessable token is the access control. See routes/publicProposal.js.
+app.use('/api/public/proposal', require('./routes/publicProposal'));
 // Public integration artifacts (GTM container template — no secrets). Before
 // auth so a plain download link works.
 app.use('/api/integrations', require('./routes/integrations'));
@@ -223,6 +226,7 @@ app.use('/api/waitlist', require('./routes/waitlist'));
 app.use('/api/audiences', require('./routes/audiences'));
 app.use('/api/paid', require('./routes/paid'));
 app.use('/api/leads', require('./routes/leads'));
+app.use('/api/proposals', require('./routes/proposals'));
 app.use('/api/video', require('./routes/video'));
 app.use('/api/ai-visibility', require('./routes/aiVisibility'));
 app.use('/api/ai-seo', require('./routes/aiSeo'));

@@ -273,7 +273,7 @@ async function refine(id, message) {
 }
 
 async function updateLead(id, fields) {
-  const allowed = ['company_name', 'email', 'ig_handle', 'notes', 'status'];
+  const allowed = ['company_name', 'email', 'ig_handle', 'notes', 'status', 'contact_name', 'referral_source', 'call_notes'];
   const sets = [], vals = [];
   for (const k of allowed) {
     if (k in fields) { vals.push(fields[k]); sets.push(`${k} = $${vals.length}`); }
@@ -373,14 +373,17 @@ async function getByPublicToken(token) {
   return getLead(rows[0].id);
 }
 
-async function attachPublicEmail(token, email) {
+async function attachPublicEmail(token, email, { name = null, company = null, referral = null } = {}) {
   const lead = await getByPublicToken(token);
   if (!lead) throw new Error('Snapshot not found');
   await pool.query(
     `UPDATE snapshot_leads
-       SET email = COALESCE(email, $1), email_requested_at = COALESCE(email_requested_at, NOW())
+       SET email = COALESCE(email, $1), email_requested_at = COALESCE(email_requested_at, NOW()),
+           contact_name = COALESCE(contact_name, $3),
+           company_name = COALESCE(NULLIF($4, ''), company_name),
+           referral_source = COALESCE(referral_source, $5)
        WHERE id = $2`,
-    [email, lead.id]
+    [email, lead.id, name, company, referral]
   );
   return getByPublicToken(token);
 }
@@ -390,4 +393,5 @@ module.exports = {
   addImage, setImageFeatured, deleteImage,
   createPublicSnapshot, getByPublicToken, attachPublicEmail,
   normaliseUrl, parseSite, // exported for tests
+  crawlSite, assertPublicHost, // reused by the proposal engine
 };

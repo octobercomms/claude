@@ -9,7 +9,9 @@ const STATUS = {
   new: { label: 'New URL', tone: 'var(--text-subtle)' },
   drafted: { label: 'Drafted', tone: 'var(--accent)' },
   sent: { label: 'Snapshot sent', tone: 'var(--positive)' },
-  booked: { label: 'Booked', tone: 'var(--positive)' },
+  booked: { label: 'Call booked', tone: 'var(--positive)' },
+  proposal: { label: 'Proposal out', tone: 'var(--accent)' },
+  won: { label: 'Won', tone: 'var(--positive)' },
   archived: { label: 'Archived', tone: 'var(--text-subtle)' },
 };
 
@@ -71,7 +73,7 @@ export default function LeadsPage({ embedded = false } = {}) {
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <table className="table">
-            <thead><tr><th>Company</th><th>Website</th><th>Email</th><th>Status</th><th>Added</th></tr></thead>
+            <thead><tr><th>Company</th><th>Website</th><th>Email</th><th>Source</th><th>Status</th><th>Added</th></tr></thead>
             <tbody>
               {leads.map(l => {
                 const st = STATUS[l.status] || STATUS.new;
@@ -80,6 +82,7 @@ export default function LeadsPage({ embedded = false } = {}) {
                     <td className="strong">{l.company_name || host(l.url)}</td>
                     <td className="text-muted">{host(l.url)}</td>
                     <td className="text-muted">{l.email || '—'}</td>
+                    <td className="text-muted">{l.referral_source || (l.source === 'public' ? 'Snapshot' : 'Manual')}</td>
                     <td><span style={{ color: st.tone, fontWeight: 700 }}>{st.label}</span></td>
                     <td className="text-muted">{fmt(l.created_at)}</td>
                   </tr>

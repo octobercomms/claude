@@ -22,6 +22,9 @@ const DEFAULT_MODEL = 'claude-sonnet-4-6';
 // Opus for genuinely intelligent writing/thinking. The AM can still override.
 const FEATURE_DEFAULTS = {
   press_pitch: 'claude-opus-4-8',
+  // Proposals are the highest-value writing OMI does (a £20-30k/yr decision
+  // rides on one), so they default to Opus.
+  pipeline_proposal: 'claude-opus-4-8',
   // Follow-ups are lower-stakes chase emails (and now generated only for
   // journalists who actually opened), so they default to Sonnet, not Opus —
   // ~5× cheaper per call at more than good enough quality. The AM can raise it
@@ -68,6 +71,11 @@ const FEATURES = [
     { key: 'clarity_cro', label: 'Clarity CRO analysis', sensitive: false },
     { key: 'local_seo_ranking_playbook', label: 'Local SEO playbook', sensitive: false },
     { key: 'local_seo_competitor_xray', label: 'Local SEO competitor x-ray', sensitive: false },
+  ] },
+  { group: 'Sales pipeline', items: [
+    { key: 'snapshot_draft', label: 'Growth Snapshot draft', sensitive: false },
+    { key: 'pipeline_call_brief', label: 'Pre-call brief', sensitive: true },
+    { key: 'pipeline_proposal', label: 'Proposal drafting', sensitive: true },
   ] },
   { group: 'Tender agent', items: [
     { key: 'tender_score', label: 'Go/no-go qualifier', sensitive: false },
