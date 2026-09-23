@@ -137,8 +137,7 @@ export default function SnapshotStudioPage() {
             {busy === 'gather' ? 'Drafting…' : (hasDraft ? '↻ Re-draft' : '⚡ Draft')}
           </button>
           <button className="btn btn-secondary" onClick={downloadPdf} disabled={!hasDraft}>PDF</button>
-          {lead.status !== 'sent' && <button className="btn btn-primary" onClick={() => patch({ status: 'sent' })} disabled={!hasDraft}>Mark sent</button>}
-          {lead.status === 'sent' && <button className="btn btn-primary" onClick={() => patch({ status: 'booked' })}>Mark booked</button>}
+          {['new', 'drafted'].includes(lead.status) && <button className="btn btn-primary" onClick={() => patch({ status: 'sent' })} disabled={!hasDraft}>Mark sent</button>}
         </div>
       </div>
 
@@ -157,6 +156,8 @@ export default function SnapshotStudioPage() {
 
         {/* Cockpit */}
         <div className="stack" style={{ gap: 'var(--s4)' }}>
+          <PipelineCard lead={lead} onLead={setLead} patch={patch} />
+
           <div className="card">
             <div className="caption mb-3">Lead</div>
             <Field label="Email"><input className="input" defaultValue={lead.email || ''} placeholder="—"
@@ -225,4 +226,97 @@ function Field({ label, children }) {
       {children}
     </div>
   );
+}
+
+// Sales pipeline controls (docs/omi/sales-pipeline.md): who, how they found
+// us, the call and its brief, the call notes, then the proposal.
+function PipelineCard({ lead, onLead, patch }) {
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [callAt, setCallAt] = useState(lead.call_at ? toLocalInput(lead.call_at) : '');
+  const [busy, setBusy] = useState(null);
+  const [proposals, setProposals] = useState([]);
+  const [names, setNames] = useState(lead.contact_name || '');
+  const [angle, setAngle] = useState('');
+  const brief = lead.call_brief;
+
+  useEffect(() => { api.get(`/proposals/lead/${lead.id}`).then(setProposals).catch(() => {}); }, [lead.id]);
+
+  async function book() {
+    setBusy('book');
+    try {
+      await api.post(`/proposals/lead/${lead.id}/call`, { call_at: callAt ? new Date(callAt).toISOString() : null });
+      onLead(await api.post(`/proposals/lead/${lead.id}/brief`, {}));
+      toast('Call booked. Brief ready.', 'success');
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(null); }
+  }
+  async function regenBrief() {
+    setBusy('brief');
+    try { onLead(await api.post(`/proposals/lead/${lead.id}/brief`, {})); }
+    catch (e) { toast(e.message, 'error'); } finally { setBusy(null); }
+  }
+  async function draftProposal() {
+    setBusy('proposal');
+    try {
+      const notes = document.getElementById('pp-call-notes')?.value;
+      const p = await api.post('/proposals', { lead_id: lead.id, recipient_names: names, recipient_email: lead.email, call_notes: notes, angle });
+      navigate(`/proposals/${p.id}`);
+    } catch (e) { toast(`Draft failed: ${e.message}`, 'error'); setBusy(null); }
+  }
+
+  return (
+    <div className="card" style={{ borderColor: 'var(--accent)' }}>
+      <div className="caption mb-3">Pipeline</div>
+      <Field label="Contact name"><input className="input" defaultValue={lead.contact_name || ''} placeholder="—"
+        onBlur={e => e.target.value !== (lead.contact_name || '') && patch({ contact_name: e.target.value })} /></Field>
+      <Field label="How they heard about us"><input className="input" defaultValue={lead.referral_source || ''} placeholder="ADF, referral, Google…"
+        onBlur={e => e.target.value !== (lead.referral_source || '') && patch({ referral_source: e.target.value })} /></Field>
+
+      <div className="row" style={{ gap: 'var(--s2)', alignItems: 'flex-end' }}>
+        <div style={{ flex: 1 }}><Field label={lead.call_booked_at ? 'Call (booked)' : 'Call time'}>
+          <input className="input" type="datetime-local" value={callAt} onChange={e => setCallAt(e.target.value)} /></Field></div>
+        <button className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s3)' }} onClick={book} disabled={!!busy}>
+          {busy === 'book' ? 'Preparing…' : lead.call_booked_at ? 'Update' : 'Mark call booked'}</button>
+      </div>
+
+      {brief && (
+        <div className="body-sm" style={{ background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', padding: 'var(--s3)', marginBottom: 'var(--s3)' }}>
+          <div className="row between center"><strong>Call brief</strong>
+            <button className="btn btn-ghost btn-sm" onClick={regenBrief} disabled={!!busy}>{busy === 'brief' ? '…' : '↻'}</button></div>
+          <p className="mt-1"><em>Open with:</em> {brief.opener}</p>
+          <ol style={{ paddingLeft: 18, margin: '6px 0' }}>
+            {(brief.talking_points || []).map((t, i) => <li key={i}><strong>{t.point}</strong> <span className="text-muted">({t.evidence})</span></li>)}
+          </ol>
+          {brief.questions?.length > 0 && <><em>Ask:</em><ul style={{ paddingLeft: 18, margin: '4px 0' }}>{brief.questions.map((q, i) => <li key={i}>{q}</li>)}</ul></>}
+          {brief.likely_objection && <p className="mt-1"><em>Likely objection:</em> {brief.likely_objection.objection} <span className="text-muted">→ {brief.likely_objection.answer}</span></p>}
+        </div>
+      )}
+
+      <Field label="Call notes (type during the call, or paste the Meet notes/transcript)">
+        <textarea id="pp-call-notes" className="textarea" rows={5} defaultValue={lead.call_notes || ''}
+          placeholder="What they want, in their words. Budget, timeline, who decides, what they've tried."
+          onBlur={e => e.target.value !== (lead.call_notes || '') && patch({ call_notes: e.target.value })} /></Field>
+      <Field label="Address the proposal to"><input className="input" value={names} onChange={e => setNames(e.target.value)} placeholder="Shaun, Craig and Debbie" /></Field>
+      <Field label="Your angle (optional, one line)"><input className="input" value={angle} onChange={e => setAngle(e.target.value)} placeholder="e.g. it's a positioning problem, not a press problem" /></Field>
+      <button className="btn btn-primary" onClick={draftProposal} disabled={!!busy || !lead.email}>
+        {busy === 'proposal' ? 'Drafting the proposal (about a minute)…' : 'Draft proposal'}</button>
+      {!lead.email && <div className="body-xs text-muted mt-1">Add their email above first.</div>}
+
+      {proposals.length > 0 && (
+        <div className="mt-3">
+          {proposals.map(p => (
+            <button key={p.id} className="btn btn-ghost btn-sm" onClick={() => navigate(`/proposals/${p.id}`)}>
+              Proposal · {p.status}{p.open_count ? ` · opened ${p.open_count}×` : ''} →
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function toLocalInput(d) {
+  const t = new Date(d);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:${pad(t.getMinutes())}`;
 }

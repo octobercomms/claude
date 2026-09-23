@@ -30,6 +30,8 @@ import ContactCleanupPage from './pages/ContactCleanupPage';
 import PublicCoveragePage from './pages/PublicCoveragePage';
 import PressReviewPage from './pages/PressReviewPage';
 import WatchPage from './pages/WatchPage';
+import ProposalPublicPage from './pages/ProposalPublicPage';
+import ProposalEditorPage from './pages/ProposalEditorPage';
 import ClientVideoTab from './pages/ClientVideoTab';
 import DesignSystemPage from './pages/DesignSystemPage';
 
@@ -81,6 +83,7 @@ export default function App() {
           {/* /share is the Loom-parity public link; /watch kept as an alias. */}
           <Route path="/share/:token" element={<WatchPage />} />
           <Route path="/watch/:token" element={<WatchPage />} />
+          <Route path="/p/:token" element={<ProposalPublicPage />} />
           <Route path="/set-password/:token" element={<SetPasswordPage />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<DashboardPage />} />
@@ -113,6 +116,8 @@ export default function App() {
             <Route path="tenders" element={<Navigate to="/settings?tab=tenders" replace />} />
             <Route path="tenders/:id" element={<TenderWorkspacePage />} />
             <Route path="leads/:id" element={<SnapshotStudioPage />} />
+            <Route path="proposals" element={<Navigate to="/settings?tab=proposals" replace />} />
+            <Route path="proposals/:id" element={<ProposalEditorPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="design" element={<DesignSystemPage />} />
             <Route path="settings" element={<SettingsPage />} />

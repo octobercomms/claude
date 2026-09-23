@@ -112,10 +112,14 @@ router.post('/:token/email', emailLimiter, express.json(), async (req, res) => {
   try {
     const addr = String(req.body?.email || '').trim();
     if (!isEmail(addr)) return res.status(400).json({ error: 'Enter a valid email address.' });
-    const lead = await studio.attachPublicEmail(req.params.token, addr);
+    const clip = (v, n) => String(v || '').trim().slice(0, n) || null;
+    const name = clip(req.body?.name, 120);
+    const company = clip(req.body?.company, 160);
+    const referral = clip(req.body?.referral, 160);
+    const lead = await studio.attachPublicEmail(req.params.token, addr, { name, company, referral });
     if (!lead) return res.status(404).json({ error: 'Snapshot not found — run it again.' });
 
-    email.sendSnapshotEmailRequest({ company: lead.company_name, url: lead.url, email: addr }).catch(() => {});
+    email.sendSnapshotEmailRequest({ company: lead.company_name, url: lead.url, email: addr, name, referral }).catch(() => {});
     res.json(taste(lead, { full: true }));
   } catch (err) {
     res.status(400).json({ error: err.message || 'Something went wrong.' });
@@ -290,7 +294,9 @@ function renderEmbedHtml({ theme = 'light', intro = true, accent = 'e7cd41' } = 
     if(r.unlocked){ h+=renderFull(r); }
     else {
       h+='<div class="lock"><h3>The moves we\\'d make first →</h3><p>We\\'ve lined up the specific ideas we\\'d run — the finding, the idea, and the opportunity for '+esc(r.company_name||'you')+'. Enter your email to unlock them.</p>'
-        +'<form id="ef" style="margin-top:14px"><div class="row"><div class="f-url"><input id="em" type="email" placeholder="you@'+'company.com" required></div><button class="btn accent" id="ego" type="submit">Unlock the full snapshot</button></div><div class="hint">One email, no spam. We\\'ll also send a tidy PDF you can keep.</div><div class="err" id="eerr" style="display:none"></div></form></div>';
+        +'<form id="ef" style="margin-top:14px"><div class="row"><div class="f-ig"><label for="nm">Your name</label><input id="nm" type="text" autocomplete="name" required></div><div class="f-ig"><label for="co">Company</label><input id="co" type="text" autocomplete="organization" value="'+esc(r.company_name||'')+'" required></div></div>'
+        +'<div class="row" style="margin-top:12px"><div class="f-url"><label for="em">Work email</label><input id="em" type="email" placeholder="you@'+'company.com" autocomplete="email" required></div><div class="f-ig"><label for="rf">How did you hear about us? (optional)</label><input id="rf" type="text" placeholder="e.g. ADF, a friend, Google"></div></div>'
+        +'<div style="margin-top:14px"><button class="btn accent" id="ego" type="submit">Send me the full report</button></div><div class="hint">One email, no spam. We\\'ll also send a tidy PDF you can keep.</div><div class="err" id="eerr" style="display:none"></div></form></div>';
     }
     out.innerHTML=h;
     if(!r.unlocked) wireEmail();
@@ -312,10 +318,11 @@ function renderEmbedHtml({ theme = 'light', intro = true, accent = 'e7cd41' } = 
     var ef=document.getElementById('ef'),em=document.getElementById('em'),ego=document.getElementById('ego'),eerr=document.getElementById('eerr');
     ef.addEventListener('submit',function(e){e.preventDefault();eerr.style.display='none';
       var v=(em.value||'').trim();ego.disabled=true;ego.innerHTML='<span class="spin"></span>Unlocking…';
-      fetch('/api/public/snapshot/'+encodeURIComponent(token)+'/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:v})})
+      var val=function(id){var x=document.getElementById(id);return x?(x.value||'').trim():''};
+      fetch('/api/public/snapshot/'+encodeURIComponent(token)+'/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:v,name:val('nm'),company:val('co'),referral:val('rf')})})
         .then(function(res){return res.json().then(function(j){return {ok:res.ok,j:j}})})
         .then(function(o){if(!o.ok)throw new Error(o.j.error||'Something went wrong.');renderTaste(o.j)})
-        .catch(function(x){ego.disabled=false;ego.textContent='Unlock the full snapshot';eerr.textContent=x.message;eerr.style.display='block'});
+        .catch(function(x){ego.disabled=false;ego.textContent='Send me the full report';eerr.textContent=x.message;eerr.style.display='block'});
     });
   }
   var loadTimer=null;

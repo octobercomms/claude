@@ -45,6 +45,12 @@ function getTransporter() {
   return { sendMail: (message) => sendMailWithRetry(transporter, message) };
 }
 
+// HTML-escape user-supplied values (public Snapshot submissions) before they
+// go into an alert email body.
+function escapeForTemplate(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function getSenderAddress() {
   if (process.env.EMAIL_PROVIDER === 'ses') {
     return process.env.SES_FROM_EMAIL || process.env.GMAIL_USER;
@@ -712,14 +718,15 @@ async function sendSnapshotLeadAlert({ company, url, igHandle }) {
 
 // Alert #2 — a public Snapshot visitor entered their email to unlock the full
 // report. The warm lead: curate the PDF in the Studio and book the call.
-async function sendSnapshotEmailRequest({ company, url, email }) {
+async function sendSnapshotEmailRequest({ company, url, email, name = null, referral = null }) {
   return getTransporter().sendMail({
     from: getSenderAddress(),
     to: process.env.ALERT_EMAIL || 'octobercomms@gmail.com',
     subject: `Full report requested: ${company || url} (${email})`,
     text: `${company || url} entered their email to unlock the full Growth Snapshot.\nEmail: ${email}\nWebsite: ${url}\nOpen the Studio to curate + send the PDF and book the call.\n${new Date().toUTCString()}`,
     html: `<p><strong>${escapeForTemplate(company || url)}</strong> entered their email to unlock the full Growth Snapshot.</p>
-      <p>Email: <strong>${escapeForTemplate(email)}</strong></p>
+      <p>Email: <strong>${escapeForTemplate(email)}</strong>${name ? ` (${escapeForTemplate(name)})` : ''}</p>
+      ${referral ? `<p>Heard about us via: <strong>${escapeForTemplate(referral)}</strong></p>` : ''}
       <p>Website: <a href="${escapeForTemplate(url)}">${escapeForTemplate(url)}</a></p>
       <p style="color:#1a7a3c">Warm lead — curate the PDF in the Studio and book the call.</p>
       <p style="color:#888">${new Date().toUTCString()}</p>`,
@@ -1146,4 +1153,57 @@ async function sendCertExpiryAlert({ problems = [], alertDays = 14 }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest };
+
+// ── Sales pipeline (docs/omi/sales-pipeline.md) ─────────────────────────────
+const pipeEsc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pipelineFrom = () => process.env.PIPELINE_FROM || getSenderAddress();
+const pipelineReplyTo = () => process.env.PIPELINE_REPLY_TO || undefined;
+const pipelineAlertTo = () => process.env.PIPELINE_ALERT_EMAIL || process.env.ALERT_EMAIL || 'octobercomms@gmail.com';
+
+// The proposal itself — a short personal note and one link. The page is the
+// proposal; the email only has to get it opened.
+async function sendProposal({ to, subject, note, link, signoff = 'Daniel' }) {
+  const paras = String(note || '').split(/\n{2,}/).map(p => `<p>${pipeEsc(p).replace(/\n/g, '<br/>')}</p>`).join('');
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#111;max-width:560px">
+    ${paras}
+    <p><a href="${pipeEsc(link)}" style="background:#111;color:#fff;padding:12px 22px;border-radius:100px;text-decoration:none;display:inline-block;font-weight:700">Open your proposal</a></p>
+    <p>${pipeEsc(signoff)}</p>
+  </div>`;
+  const text = `${note}\n\nYour proposal: ${link}\n\n${signoff}`;
+  return getTransporter().sendMail({ from: pipelineFrom(), replyTo: pipelineReplyTo(), to, subject, html, text });
+}
+
+// Stage 2 — the single automated nudge to someone who unlocked their report
+// but hasn't booked. Written to read like a person, because it's from one.
+async function sendReportNudge({ to, name, company, bookUrl, finding }) {
+  const hi = name ? `Hi ${String(name).split(/\s+/)[0]},` : 'Hi,';
+  const line = finding
+    ? `One thing from the snapshot stood out: ${String(finding).replace(/\*\*/g, '')}`
+    : `A couple of things in the snapshot are worth talking through.`;
+  const text = `${hi}\n\nThanks for running the October snapshot on ${company || 'your site'}. ${line}\n\nIf it's useful, I'll walk you through the full report on a 20-minute call and tell you what I'd do first. No pitch deck.\n\n${bookUrl}\n\nDaniel`;
+  const html = text.split(/\n{2,}/).map(p => p === bookUrl
+    ? `<p><a href="${pipeEsc(bookUrl)}">Pick a time that suits</a></p>`
+    : `<p>${pipeEsc(p)}</p>`).join('');
+  return getTransporter().sendMail({
+    from: pipelineFrom(), replyTo: pipelineReplyTo(), to,
+    subject: `Your ${company || 'October'} snapshot`,
+    html: `<div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#111;max-width:560px">${html}</div>`,
+    text,
+  });
+}
+
+// Internal alert to Daniel. Every pipeline alert hands a human the moment plus
+// the context to act on it; nothing is ever sent to the prospect from here.
+async function sendPipelineAlert({ subject, headline, lines = [], suggestion, link }) {
+  const items = lines.map(l => `<li style="margin:4px 0">${pipeEsc(l)}</li>`).join('');
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;line-height:1.55;color:#111;max-width:600px">
+    <h2 style="font-size:18px;margin:0 0 10px">${pipeEsc(headline)}</h2>
+    ${items ? `<ul style="padding-left:18px;margin:0 0 14px">${items}</ul>` : ''}
+    ${suggestion ? `<div style="border-left:3px solid #e7cd41;padding:6px 12px;background:#faf8ec;margin:0 0 14px"><div style="font-size:11px;font-weight:700;color:#6f5e10;text-transform:uppercase;letter-spacing:.06em">Suggested next move</div><div style="margin-top:4px;white-space:pre-wrap">${pipeEsc(suggestion)}</div></div>` : ''}
+    ${link ? `<p><a href="${pipeEsc(link)}" style="color:#111;font-weight:700">Open in OMI →</a></p>` : ''}
+  </div>`;
+  const text = `${headline}\n\n${lines.map(l => '- ' + l).join('\n')}${suggestion ? `\n\nSuggested next move:\n${suggestion}` : ''}${link ? `\n\n${link}` : ''}`;
+  return getTransporter().sendMail({ from: getSenderAddress(), to: pipelineAlertTo(), subject, html, text });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert };

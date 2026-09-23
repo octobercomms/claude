@@ -65,6 +65,21 @@ cron.schedule('35 6 * * 1', async () => { // weekly (Monday) — it's the only p
 // keeps sending human-paced (never round-the-clock bursts) while respecting each
 // campaign's daily cap. Nothing here sends anything that wasn't approved by a
 // human; the compliance gates all live in services/prospecting/send.js.
+// Sales pipeline (docs/omi/sales-pipeline.md): proposal decay alerts to
+// Daniel (unopened / opened-no-reply / cooling) and the single Stage 2 report
+// nudge. Every 15 min so an alert lands close to its threshold.
+cron.schedule('*/15 * * * *', async () => {
+  const proposals = require('./proposals');
+  try {
+    const a = await proposals.runDecayAlerts();
+    if (a.sent) console.log(`[Scheduler] Pipeline: ${a.sent} proposal alert(s) sent`);
+  } catch (e) { console.error('[Scheduler] Pipeline alerts failed:', e.message); }
+  try {
+    const n = await proposals.runReportNudges();
+    if (n.sent) console.log(`[Scheduler] Pipeline: ${n.sent} report nudge(s) sent`);
+  } catch (e) { console.error('[Scheduler] Pipeline nudges failed:', e.message); }
+});
+
 cron.schedule('*/15 * * * *', async () => {
   try {
     const r = await require('./prospecting/send').dispatchDue({ log: (m) => console.log('[Scheduler]', m) });

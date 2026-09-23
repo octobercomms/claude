@@ -6,6 +6,8 @@ import ImportWizard from '../components/ImportWizard';
 import EditContactModal from '../components/EditContactModal';
 import ManageUsersPage from './ManageUsersPage';
 import LeadsPage from './LeadsPage';
+import ProposalsPage from './ProposalsPage';
+import ProofLibraryPage from './ProofLibraryPage';
 import SecurityPanel from '../components/SecurityPanel';
 import StrategyTemplatesPanel from '../components/StrategyTemplatesPanel';
 import TendersPanel from '../components/TendersPanel';
@@ -338,6 +340,8 @@ const SECTIONS = [
   ] },
   { key: 'bizdev', label: 'Biz dev', subs: [
     { k: 'leads', label: 'Leads' },
+    { k: 'proposals', label: 'Proposals' },
+    { k: 'proof', label: 'Proof library' },
     { k: 'tenders', label: 'Tenders' },
   ] },
   { key: 'account', label: 'Account', subs: [
@@ -602,6 +606,8 @@ export default function SettingsPage() {
       {tab === 'tags' && <TagsManager />}
       {tab === 'users' && <ManageUsersPage embedded />}
       {tab === 'leads' && <LeadsPage embedded />}
+      {tab === 'proposals' && <ProposalsPage />}
+      {tab === 'proof' && <ProofLibraryPage />}
       {tab === 'tenders' && <TendersPanel />}
       {tab === 'security' && <SecurityPanel />}
       {tab === 'strategy' && <StrategyTemplatesPanel />}
