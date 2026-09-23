@@ -1,0 +1,131 @@
+{%- comment -%}
+  Falcon stock system: per-variant stock state, computed in Liquid.
+
+  `product | json` has no inventory quantity, so this snippet is the only
+  source of stock state for the product page script.
+
+  Two modes, one rule (ARCHITECTURE.md section 3), so the server-rendered page
+  and the script can never disagree.
+
+  1. JSON (default). Renders the data block the product page script reads:
+       {% render 'falcon-variant-data',
+         product: product,
+         store: falcon_store,
+         date_format: falcon_date_format,
+         preorder_label: falcon_preorder_label,
+         add_label: falcon_add_label %}
+     Output:
+       <script type="application/json" id="FalconVariantData">
+         {"store":"uk","add_label":"Add to cart","preorder_label":"Pre-order",
+          "today":"2026-09-23",
+          "variants":{"44012345678901":{"id":44012345678901,"available":true,
+            "inventory_quantity":-3,"inventory_policy":"continue",
+            "inventory_management":"shopify","state":"preorder",
+            "expected_date":"2026-11-12","expected_date_label":"12 November 2026",
+            "preorder_note":"From the January container","max_qty":17}}}
+       </script>
+
+  2. State for one variant, captured by the template for the server-rendered
+     first paint (works with JavaScript off):
+       {%- capture falcon_state_raw -%}
+         {%- render 'falcon-variant-data', mode: 'state', product: product,
+           variant_id: current_variant.id, date_format: falcon_date_format -%}
+       {%- endcapture -%}
+     Output, pipe separated: state|expected_date|expected_date_label|max_qty
+       e.g. preorder|2026-11-12|12 November 2026|17
+            in_stock|||8
+            notify|||
+
+  States:
+    in_stock  can be bought now.
+    preorder  sold out, and preorder is on (all of: tracked by Shopify, policy
+              continue, expected_date set and today or later, preorder_limit
+              above 0, units sold below zero fewer than preorder_limit).
+              max_qty = preorder_limit + inventory_quantity.
+    notify    anything else, including "continue selling" without a valid
+              preorder setup. The theme blocks purchase in that case.
+
+  max_qty for in_stock: the stock on hand when Shopify tracks the variant
+  (so an order cannot quietly oversell into a preorder without the preorder
+  properties), otherwise empty (no cap).
+{%- endcomment -%}
+
+{%- assign falcon_today = 'now' | date: '%Y-%m-%d' -%}
+{%- assign falcon_json = '' -%}
+
+{%- for v in product.variants -%}
+	{%- if mode == 'state' -%}
+		{%- assign v_id_str = v.id | append: '' -%}
+		{%- assign want_id_str = variant_id | append: '' -%}
+		{%- if v_id_str != want_id_str -%}{%- continue -%}{%- endif -%}
+	{%- endif -%}
+
+	{%- assign v_qty = v.inventory_quantity | plus: 0 -%}
+	{%- assign v_tracked = false -%}
+	{%- if v.inventory_management == 'shopify' -%}{%- assign v_tracked = true -%}{%- endif -%}
+
+	{%- assign v_date = '' -%}
+	{%- assign v_date_label = '' -%}
+	{%- if v.metafields.falcon.expected_date.value != blank -%}
+		{%- assign v_date = v.metafields.falcon.expected_date.value | date: '%Y-%m-%d' -%}
+	{%- endif -%}
+	{%- assign v_limit = v.metafields.falcon.preorder_limit.value | plus: 0 -%}
+	{%- assign v_note = v.metafields.falcon.preorder_note.value | default: '' | strip -%}
+
+	{%- assign v_state = 'notify' -%}
+	{%- assign v_max = '' -%}
+
+	{%- if v_tracked == false -%}
+		{%- comment -%} Not tracked by Shopify: available means in stock. {%- endcomment -%}
+		{%- if v.available -%}{%- assign v_state = 'in_stock' -%}{%- endif -%}
+	{%- elsif v_qty > 0 -%}
+		{%- if v.available -%}
+			{%- assign v_state = 'in_stock' -%}
+			{%- assign v_max = v_qty -%}
+		{%- endif -%}
+	{%- elsif v.inventory_policy == 'continue' -%}
+		{%- comment -%} Tracked, zero or below, continue selling: preorder only if fully set up. {%- endcomment -%}
+		{%- if v_date != blank and v_date >= falcon_today and v_limit > 0 -%}
+			{%- assign v_below_zero = v_qty | times: -1 -%}
+			{%- if v_below_zero < v_limit -%}
+				{%- assign v_state = 'preorder' -%}
+				{%- assign v_max = v_limit | plus: v_qty -%}
+			{%- endif -%}
+		{%- endif -%}
+	{%- endif -%}
+
+	{%- if v_state == 'preorder' -%}
+		{%- assign v_date_label = v_date | date: date_format -%}
+	{%- else -%}
+		{%- comment -%} Dates only mean something to the customer while on preorder. {%- endcomment -%}
+		{%- assign v_date = '' -%}
+		{%- assign v_note = '' -%}
+	{%- endif -%}
+
+	{%- if mode == 'state' -%}
+		{{- v_state -}}|{{- v_date -}}|{{- v_date_label -}}|{{- v_max -}}
+		{%- break -%}
+	{%- endif -%}
+
+	{%- capture v_json -%}
+		{{- v.id | append: '' | json -}}:{
+			"id":{{- v.id | json -}},
+			"available":{{- v.available | json -}},
+			"inventory_quantity":{{- v_qty | json -}},
+			"inventory_policy":{{- v.inventory_policy | json -}},
+			"inventory_management":{{- v.inventory_management | json -}},
+			"state":{{- v_state | json -}},
+			"expected_date":{%- if v_date != blank -%}{{- v_date | json -}}{%- else -%}null{%- endif -%},
+			"expected_date_label":{%- if v_date_label != blank -%}{{- v_date_label | json -}}{%- else -%}null{%- endif -%},
+			"preorder_note":{%- if v_note != blank -%}{{- v_note | json -}}{%- else -%}null{%- endif -%},
+			"max_qty":{%- if v_max != blank -%}{{- v_max | json -}}{%- else -%}null{%- endif -%}
+		}
+	{%- endcapture -%}
+	{%- assign v_json = v_json | strip_newlines -%}
+	{%- if falcon_json != '' -%}{%- assign falcon_json = falcon_json | append: ',' -%}{%- endif -%}
+	{%- assign falcon_json = falcon_json | append: v_json -%}
+{%- endfor -%}
+
+{%- unless mode == 'state' -%}
+<script type="application/json" id="FalconVariantData">{"store":{{ store | default: '' | json }},"add_label":{{ add_label | default: 'Add to cart' | json }},"preorder_label":{{ preorder_label | default: 'Pre-order' | json }},"today":{{ falcon_today | json }},"variants":{ {{- falcon_json -}} }}</script>
+{%- endunless -%}

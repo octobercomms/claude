@@ -8,6 +8,21 @@
     {% assign current_variant = product.variants.first %}
   {% endif %}
 
+  {% comment %} Falcon stock system: per-store settings and the state of the variant on load (works with JavaScript off). {% endcomment %}
+  {% include 'falcon-config' %}
+  {%- capture falcon_state_raw -%}
+    {%- render 'falcon-variant-data', mode: 'state', product: product, variant_id: current_variant.id, date_format: falcon_date_format -%}
+  {%- endcapture -%}
+  {% assign falcon_state_parts = falcon_state_raw | strip | append: '|||| ' | split: '|' %}
+  {% assign falcon_state = falcon_state_parts[0] | strip | default: 'notify' %}
+  {% assign falcon_date_iso = falcon_state_parts[1] | strip %}
+  {% assign falcon_date_label = falcon_state_parts[2] | strip %}
+  {% assign falcon_max_qty = falcon_state_parts[3] | strip %}
+  {% assign falcon_note = '' %}
+  {% if falcon_state == 'preorder' %}
+    {% assign falcon_note = current_variant.metafields.falcon.preorder_note.value | default: '' | strip %}
+  {% endif %}
+
   {% assign variant_loop = product.selected_or_first_available_variant.metafields.variant %}
   {% for attribute in variant_loop %}
     {% assign key = attribute.first | replace: "_", " " %}
@@ -135,7 +150,7 @@
 					<div class="c-product-info__section c-product-info__section--checkout">
 						<div class="c-product__variants">
 
-							{% render 'restock-notify-form', product: product, current_variant: current_variant %}
+							{% render 'restock-notify-form', product: product, current_variant: current_variant, state: falcon_state, store: falcon_store, worker_url: falcon_worker_url, turnstile_sitekey: falcon_turnstile_sitekey %}
 
 							<form
 								action="/cart/add"
@@ -153,7 +168,7 @@
 									</select>
 								</div>
 
-								<div class="c-product-quantity u-margin-bottom"{% unless current_variant.available %} style="display:none;"{% endunless %}>
+								<div class="c-product-quantity u-margin-bottom"{% if falcon_state == 'notify' %} style="display:none;"{% endif %}>
 									<label for="quantity" class="c-product-quantity__title u-margin-bottom-small">Quantity</label>
 									<span class="c-quantity-selector">
 										<span class="c-quantity-selector__action c-quantity-selector__action--decrement js-decrease-quantity">
@@ -162,7 +177,7 @@
 											</span>
 											<span class="u-hide-visually">Decrease quantity</span>
 										</span>
-										<input class="c-quantity-selector__input js-quantity-input" name="quantity" type="number" value="1" min="1" />
+										<input class="c-quantity-selector__input js-quantity-input" name="quantity" type="number" value="1" min="1"{% if falcon_max_qty != blank %} max="{{ falcon_max_qty }}"{% endif %} />
 										<span class="c-quantity-selector__action c-quantity-selector__action--increment js-increase-quantity">
 											<span class="c-quantity-selector__icon">
 												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M 10,50 L 60,100 L 60,90 L 20,50  L 60,10 L 60,0 Z" class="arrow" transform="translate(100, 100) rotate(180) " fill="currentColor"></path></svg>
@@ -172,8 +187,10 @@
 									</span>
 								</div>
 
+								{% render 'preorder-message', state: falcon_state, date_iso: falcon_date_iso, date_label: falcon_date_label, note: falcon_note, preorder_label: falcon_preorder_label %}
+
 								<div class="c-product__btn">
-									<input type="submit" value="Add to cart" class="c-btn c-btn--brand e-h4 u-width-1/1 js-add-to-cart"{% unless current_variant.available %} style="display:none;"{% endunless %}
+									<input type="submit" value="{% if falcon_state == 'preorder' %}{{ falcon_preorder_label }}{% else %}{{ falcon_add_label }}{% endif %}" class="c-btn c-btn--brand e-h4 u-width-1/1 js-add-to-cart"{% if falcon_state == 'notify' %} style="display:none;"{% endif %}
 										onclick="dataLayer.push({ 'ecommerce': null });dataLayer.push({
 'event': 'add_to_cart',
 'ecommerce': {
@@ -313,6 +330,9 @@
 
 	</div>
 
+{% comment %} Falcon stock system: per-variant state for the script below (inventory is not in product | json). {% endcomment %}
+{% render 'falcon-variant-data', product: product, store: falcon_store, date_format: falcon_date_format, preorder_label: falcon_preorder_label, add_label: falcon_add_label %}
+
 <script type="text/javascript">
 
     (function defer() {
@@ -324,48 +344,127 @@
         }
 
         jQuery(function($) {
-            var baseUrl = window.location.href.split(/[?#]/)[0]
+            // Stock state per variant, computed in Liquid by
+            // snippets/falcon-variant-data.liquid. States: in_stock, preorder, notify.
+            var falcon = { variants: {} }
+            try {
+                falcon = JSON.parse(document.getElementById('FalconVariantData').textContent)
+            } catch (e) {}
+            var addLabel = falcon.add_label || 'Add to cart'
+            var preorderLabel = falcon.preorder_label || 'Pre-order'
+            var currentMax = null
 
-            function showAddToCart() {
-                $('.js-add-to-cart').show().removeAttr('disabled').val('Add to Cart')
-                $('.c-product-quantity').show()
-                $('.js-notify-wrap').hide()
+            function variantInfo(variant) {
+                var info = falcon.variants && falcon.variants[String(variant.id)]
+                if (info) return info
+                // Not in the data block (should not happen): never offer a preorder
+                // without its date, so fall back to buy or notify only.
+                return { state: variant.available ? 'in_stock' : 'notify', max_qty: null }
             }
 
-            function showNotify(variant) {
-                $('.js-add-to-cart').hide()
-                $('.c-product-quantity').hide()
-                $('.js-notify-wrap').show()
-                $('.js-notify-tags').val('restock-request, restock-' + variant.id)
-                $('.js-notify-return-url').val(baseUrl + '?variant=' + variant.id)
+            function showNotifyForm(show, variantId) {
+                if (window.FalconNotify) {
+                    if (variantId) window.FalconNotify.setVariant(variantId)
+                    show ? window.FalconNotify.show() : window.FalconNotify.hide()
+                } else {
+                    $('.js-notify-wrap').toggle(!!show)
+                    if (variantId) $('.js-notify-variant').val(variantId)
+                }
             }
+
+            function setPreorder(info) {
+                var on = !!(info && info.state === 'preorder' && info.expected_date)
+                var label = on ? (info.expected_date_label || info.expected_date) : ''
+                $('.js-preorder-date-input').val(on ? info.expected_date : '').prop('disabled', !on)
+                $('.js-preorder-label-input').val(on ? 'Ships from ' + label : '').prop('disabled', !on)
+                $('.js-preorder-date-label').text(label)
+                if (on && info.preorder_note) {
+                    $('.js-preorder-note').text(info.preorder_note).css('display', 'block')
+                } else {
+                    $('.js-preorder-note').text('').css('display', 'none')
+                }
+                $('.js-preorder-wrap').toggle(on)
+            }
+
+            function setMaxQuantity(max) {
+                var $qty = $('.js-quantity-input')
+                currentMax = (max === null || max === undefined || max === '') ? null : parseInt(max, 10)
+                if (currentMax && currentMax > 0) {
+                    $qty.attr('max', currentMax)
+                } else {
+                    currentMax = null
+                    $qty.removeAttr('max')
+                }
+                clampQuantity()
+            }
+
+            function clampQuantity() {
+                var $qty = $('.js-quantity-input')
+                var value = parseInt($qty.val(), 10)
+                if (isNaN(value) || value < 1) value = 1
+                if (currentMax && value > currentMax) value = currentMax
+                if (String(value) !== String($qty.val())) $qty.val(value)
+            }
+
+            function applyState(variant) {
+                var $button = $('.js-add-to-cart')
+                if (!variant) {
+                    // Option combination that does not exist.
+                    $button.hide()
+                    $('.c-product-quantity').hide()
+                    setPreorder(null)
+                    showNotifyForm(false)
+                    return
+                }
+                var info = variantInfo(variant)
+                if (info.state === 'preorder' && info.expected_date) {
+                    $button.show().removeAttr('disabled').val(preorderLabel)
+                    $('.c-product-quantity').show()
+                    setPreorder(info)
+                    setMaxQuantity(info.max_qty)
+                    showNotifyForm(false, variant.id)
+                } else if (info.state === 'in_stock') {
+                    $button.show().removeAttr('disabled').val(addLabel)
+                    $('.c-product-quantity').show()
+                    setPreorder(null)
+                    setMaxQuantity(info.max_qty)
+                    showNotifyForm(false, variant.id)
+                } else {
+                    $button.hide()
+                    $('.c-product-quantity').hide()
+                    setPreorder(null)
+                    setMaxQuantity(null)
+                    showNotifyForm(true, variant.id)
+                }
+            }
+
+            // Keep the quantity within max_qty (preorder cap, or stock on hand).
+            // The two native listeners use the capture phase, so they run before
+            // any add-to-cart handler in app.js reads the quantity.
+            $(document).on('change blur', '.js-quantity-input', clampQuantity)
+            $(document).on('click', '.js-increase-quantity, .js-decrease-quantity', function() {
+                setTimeout(clampQuantity, 0)
+            })
+            document.addEventListener('click', function(event) {
+                if (event.target && $(event.target).closest('.js-add-to-cart').length) clampQuantity()
+            }, true)
+            document.addEventListener('submit', function(event) {
+                if (event.target && $(event.target).is('.js-add-to-cart-form')) clampQuantity()
+            }, true)
 
             if ($('#product-select').length) {
                 new Shopify.OptionSelectors('product-select', {
                     product: {{ product | json }},
                     onVariantSelected: function(variant, selector) {
+                        applyState(variant)
                         if (variant) {
-                            if (variant.available) {
-                                showAddToCart()
-                            } else {
-                                showNotify(variant)
-                            }
                             $('.js-product-sku').text(variant.sku)
                             $('.js-product-price').text(Shopify.formatMoney(variant.price))
-                        } else {
-                            $('.js-add-to-cart').hide()
-                            $('.js-notify-wrap').hide()
                         }
                     },
                     enableHistoryState: true
                 })
             }
-
-            // Read by theme.liquid after the redirect to swap the thank-you
-            // modal copy to the back-in-stock message.
-            $(document).on('submit', '.js-notify-form', function() {
-                try { sessionStorage.setItem('restockNotifySubmitted', '1') } catch (e) {}
-            })
         })
     })()
 

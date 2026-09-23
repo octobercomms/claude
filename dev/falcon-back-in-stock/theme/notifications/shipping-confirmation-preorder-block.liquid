@@ -1,0 +1,148 @@
+{%- comment -%}
+  Falcon stock system: preorder block for the native SHIPPING CONFIRMATION email.
+  Settings > Notifications > Customer notifications > Shipping confirmation > Edit code.
+  Paste this whole file once, just above the "Items in this shipment" section
+  (see docs/falcon-back-in-stock/INSTALL-THEME.md). Renders nothing when neither this shipment nor the
+  rest of the order has preorder lines.
+
+  1. If this shipment contains preorder lines:
+       "Your pre-order is on its way. Thank you for waiting."
+  2. If preorder lines in the order are still unshipped, lists them with the
+     date promised at checkout (the `_preorder_date` property).
+
+  Shipped lines come from fulfillment.fulfillment_line_items (each has
+  `.line_item`); the rest of the order from line_items. Properties are read
+  defensively from `line.line_item.properties` or `line.properties`.
+  Store chosen from shop.currency (GBP uk, USD us, EUR eu).
+{%- endcomment -%}
+{%- assign fps_store = 'uk' -%}
+{%- case shop.currency -%}
+	{%- when 'USD' -%}{%- assign fps_store = 'us' -%}
+	{%- when 'EUR' -%}{%- assign fps_store = 'eu' -%}
+{%- endcase -%}
+{%- if fps_store == 'us' -%}
+	{%- assign fps_date_format = '%B %-d, %Y' -%}
+	{%- assign fps_label = 'Preorder' -%}
+{%- else -%}
+	{%- assign fps_date_format = '%-d %B %Y' -%}
+	{%- assign fps_label = 'Pre-order' -%}
+{%- endif -%}
+{%- assign fps_font = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#333333;" -%}
+
+{%- comment -%} 1. Preorder lines in this shipment {%- endcomment -%}
+{%- assign fps_shipped_pre = 0 -%}
+{%- for fline in fulfillment.fulfillment_line_items -%}
+	{%- assign fps_li = fline.line_item | default: fline -%}
+	{%- assign fps_props = fps_li.properties -%}
+	{%- if fps_props == blank -%}{%- assign fps_props = fline.properties -%}{%- endif -%}
+	{%- assign fps_date = '' -%}
+	{%- if fps_props['_preorder_date'] != blank -%}
+		{%- assign fps_date = fps_props['_preorder_date'] -%}
+	{%- else -%}
+		{%- for fps_prop in fps_props -%}
+			{%- assign fps_key = fps_prop.first -%}
+			{%- assign fps_val = fps_prop.last -%}
+			{%- if fps_prop.name != blank -%}
+				{%- assign fps_key = fps_prop.name -%}
+				{%- assign fps_val = fps_prop.value -%}
+			{%- endif -%}
+			{%- if fps_key == '_preorder_date' and fps_val != blank -%}{%- assign fps_date = fps_val -%}{%- endif -%}
+		{%- endfor -%}
+	{%- endif -%}
+	{%- if fps_date != blank -%}
+		{%- assign fps_shipped_pre = fps_shipped_pre | plus: 1 -%}
+	{%- endif -%}
+{%- endfor -%}
+
+{%- comment -%} 2. Preorder lines in the order still waiting to ship {%- endcomment -%}
+{%- assign fps_waiting = 0 -%}
+{%- capture fps_rows -%}
+	{%- for line in line_items -%}
+		{%- assign fps_props = line.properties -%}
+		{%- if fps_props == blank -%}{%- assign fps_props = line.line_item.properties -%}{%- endif -%}
+		{%- assign fps_date = '' -%}
+		{%- if fps_props['_preorder_date'] != blank -%}
+			{%- assign fps_date = fps_props['_preorder_date'] -%}
+		{%- else -%}
+			{%- for fps_prop in fps_props -%}
+				{%- assign fps_key = fps_prop.first -%}
+				{%- assign fps_val = fps_prop.last -%}
+				{%- if fps_prop.name != blank -%}
+					{%- assign fps_key = fps_prop.name -%}
+					{%- assign fps_val = fps_prop.value -%}
+				{%- endif -%}
+				{%- if fps_key == '_preorder_date' and fps_val != blank -%}{%- assign fps_date = fps_val -%}{%- endif -%}
+			{%- endfor -%}
+		{%- endif -%}
+		{%- if fps_date == blank -%}{%- continue -%}{%- endif -%}
+
+		{%- comment -%}
+			Units still to ship. fulfillable_quantity is the order's remaining
+			quantity for the line after this shipment (and after refunds). If the
+			template does not expose it, fall back to fulfillment_status.
+		{%- endcomment -%}
+		{%- assign fps_left = line.fulfillable_quantity -%}
+		{%- if fps_left == nil -%}
+			{%- if line.fulfillment_status == 'fulfilled' -%}
+				{%- assign fps_left = 0 -%}
+			{%- else -%}
+				{%- assign fps_left = line.quantity -%}
+			{%- endif -%}
+		{%- endif -%}
+		{%- assign fps_left = fps_left | plus: 0 -%}
+		{%- if fps_left < 1 -%}{%- continue -%}{%- endif -%}
+
+		{%- assign fps_waiting = fps_waiting | plus: 1 -%}
+		{%- assign fps_title = line.product.title | default: line.title -%}
+		{%- assign fps_variant = line.variant.title | default: line.variant_title -%}
+		<tr>
+			<td style="padding:0 0 12px 0;{{ fps_font }}">
+				<strong>{{ fps_title | escape }}</strong>{% if fps_variant != blank and fps_variant != 'Default Title' %} ({{ fps_variant | escape }}){% endif %} &times; {{ fps_left }}<br>
+				{{ fps_label }}: expected to ship from {{ fps_date | date: fps_date_format }}.
+			</td>
+		</tr>
+	{%- endfor -%}
+{%- endcapture -%}
+
+{%- if fps_shipped_pre > 0 or fps_waiting > 0 -%}
+<table class="row section" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border-spacing:0;">
+	<tr>
+		<td class="section__cell" style="padding:24px 0 8px 0;">
+			<center>
+				<table class="container" role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:100%;text-align:left;border-collapse:collapse;border-spacing:0;margin:0 auto;">
+					<tr>
+						<td style="padding:16px;border:2px solid #333333;">
+							<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border-spacing:0;">
+								{%- if fps_shipped_pre > 0 -%}
+								<tr>
+									<td style="padding:0 0 12px 0;{{ fps_font }}font-size:18px;font-weight:bold;">
+										{%- if fps_store == 'us' -%}Your preorder is on its way. Thank you for waiting.{%- else -%}Your pre-order is on its way. Thank you for waiting.{%- endif -%}
+									</td>
+								</tr>
+								{%- endif -%}
+								{%- if fps_waiting > 0 -%}
+								<tr>
+									<td style="padding:0 0 12px 0;{{ fps_font }}">
+										Still to come from this order. These ship separately when they arrive:
+									</td>
+								</tr>
+								{{ fps_rows }}
+								<tr>
+									<td style="padding:0;{{ fps_font }}">
+										{%- if fps_store == 'us' -%}
+											We'll email you when {% if fps_waiting > 1 %}each item is{% else %}it's{% endif %} on its way. If the date changes we'll tell you right away, and you can cancel for a full refund at any time before it ships.
+										{%- else -%}
+											We'll email you when {% if fps_waiting > 1 %}each item is{% else %}it's{% endif %} on its way. If the date changes we'll tell you straight away, and you can cancel for a full refund at any time before it's dispatched.
+										{%- endif -%}
+									</td>
+								</tr>
+								{%- endif -%}
+							</table>
+						</td>
+					</tr>
+				</table>
+			</center>
+		</td>
+	</tr>
+</table>
+{%- endif -%}

@@ -1,0 +1,33 @@
+{%- comment -%}
+  Preorder message and line item properties. Goes INSIDE the add-to-cart
+  <form>, above the button:
+    {% render 'preorder-message',
+      state: falcon_state,
+      date_iso: falcon_date_iso,
+      date_label: falcon_date_label,
+      note: falcon_note,
+      preorder_label: falcon_preorder_label %}
+
+  Shows "Ships from {date}. Payment taken today." and the optional
+  preorder_note, and carries two line item properties:
+    properties[_preorder_date]      2026-11-12                   (hidden, machine-readable)
+    properties[Pre-order]           Ships from 12 November 2026  (UK/EU)
+    properties[Preorder]            Ships from November 12, 2026 (US)
+  The property name comes from `preorder_label` (falcon-config).
+
+  The inputs are `disabled` unless the variant is on preorder, so they are
+  never submitted with an in-stock add to cart. The product page script
+  enables, fills and disables them on variant change (classes
+  js-preorder-date-input and js-preorder-label-input).
+{%- endcomment -%}
+{%- assign pm_on = false -%}
+{%- if state == 'preorder' and date_iso != blank -%}{%- assign pm_on = true -%}{%- endif -%}
+<div class="c-preorder js-preorder-wrap" aria-live="polite"{% unless pm_on %} style="display:none;"{% endunless %}>
+	<p class="c-preorder__message" style="margin:0 0 12px;padding:10px 12px;border:2px solid currentColor;font-size:16px;line-height:1.4;">
+		<strong class="c-preorder__date">Ships from <span class="js-preorder-date-label">{{ date_label | escape }}</span>.</strong>
+		<span class="c-preorder__payment">Payment taken today.</span>
+		<span class="c-preorder__note js-preorder-note" style="display:{% if pm_on and note != blank %}block{% else %}none{% endif %};margin-top:4px;font-size:14px;">{{ note | escape }}</span>
+	</p>
+	<input type="hidden" class="js-preorder-date-input" name="properties[_preorder_date]" value="{{ date_iso | escape }}"{% unless pm_on %} disabled{% endunless %}>
+	<input type="hidden" class="js-preorder-label-input" name="properties[{{ preorder_label | default: 'Pre-order' | escape }}]" value="Ships from {{ date_label | escape }}"{% unless pm_on %} disabled{% endunless %}>
+</div>

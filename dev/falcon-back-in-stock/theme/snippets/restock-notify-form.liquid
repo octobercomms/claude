@@ -1,0 +1,239 @@
+{%- comment -%}
+  Back-in-stock sign-up. Rendered by templates/product.liquid:
+    {% render 'restock-notify-form',
+      product: product,
+      current_variant: current_variant,
+      state: falcon_state,
+      store: falcon_store,
+      worker_url: falcon_worker_url,
+      turnstile_sitekey: falcon_turnstile_sitekey %}
+
+  Sends JSON with fetch to {worker_url}/subscribe:
+    {store, variant_id, email, marketing, turnstile_token}
+  The Worker verifies Turnstile, tags the customer `restock-request` and
+  `restock-{variant_id}`, and sets marketing consent only when `marketing` is
+  true. No Shopify customer form: that form subscribes everyone to marketing
+  and does not tag existing customers.
+
+  The inputs have no `name`, on purpose. Without JavaScript the form cannot
+  work (Turnstile needs it), and with no names a no-JS submit cannot leak the
+  email address into the page URL. A <noscript> line explains.
+
+  Hidden server-side unless the variant on load is in the `notify` state. The
+  product page script calls window.FalconNotify.setVariant(id) and
+  window.FalconNotify.show() / hide() on variant change.
+{%- endcomment -%}
+{%- assign fn_id = 'FalconNotify-' | append: product.id -%}
+<div class="c-notify js-notify-wrap"{% unless state == 'notify' %} style="display:none;"{% endunless %} data-store="{{ store | escape }}" data-endpoint="{{ worker_url | append: '/subscribe' | escape }}" data-sitekey="{{ turnstile_sitekey | escape }}">
+	<form class="c-notify-form js-notify-form" id="{{ fn_id }}-form" novalidate>
+		<input type="hidden" class="js-notify-variant" value="{{ current_variant.id }}">
+
+		<div class="js-notify-fields">
+			<label for="{{ fn_id }}-email" class="u-hide-visually">Email address</label>
+			<input
+				type="email"
+				id="{{ fn_id }}-email"
+				class="c-text-field u-width-1/1 js-notify-email"
+				placeholder="Enter your email address"
+				autocomplete="email"
+				inputmode="email"
+				required
+				aria-required="true"
+				aria-describedby="{{ fn_id }}-privacy {{ fn_id }}-error"
+			>
+
+			<label for="{{ fn_id }}-marketing" style="display:flex;align-items:flex-start;gap:6px;margin-top:8px;font-size:13px;text-align:left;">
+				<input type="checkbox" id="{{ fn_id }}-marketing" class="js-notify-marketing" style="margin-top:3px;">
+				<span>Also send me the Falcon newsletter</span>
+			</label>
+
+			<div class="js-notify-turnstile" style="margin-top:8px;min-height:65px;"></div>
+
+			<button type="submit" class="c-btn c-btn--brand e-h4 u-width-1/1 js-notify-submit" style="margin-top:8px;">Notify Me When Back In Stock</button>
+
+			<p id="{{ fn_id }}-privacy" style="margin-top:8px;font-size:12px;text-align:left;">
+				We'll only use your email to tell you when this item is back, unless you tick the box.
+			</p>
+		</div>
+
+		<p id="{{ fn_id }}-error" class="js-notify-error" role="alert" style="display:none;margin-top:8px;font-size:13px;text-align:left;color:#b00020;"></p>
+		<p class="js-notify-success" role="status" aria-live="polite" tabindex="-1" style="margin-top:8px;text-align:left;"></p>
+
+		<noscript>
+			<p style="margin-top:8px;font-size:13px;text-align:left;">Please turn on JavaScript to sign up for a back-in-stock email.</p>
+		</noscript>
+	</form>
+</div>
+
+<script>
+(function () {
+	var wrap = document.getElementById('{{ fn_id }}-form');
+	if (!wrap) { return; }
+	wrap = wrap.parentNode;
+	var form = wrap.querySelector('.js-notify-form');
+	var fields = wrap.querySelector('.js-notify-fields');
+	var variantInput = wrap.querySelector('.js-notify-variant');
+	var emailInput = wrap.querySelector('.js-notify-email');
+	var marketingInput = wrap.querySelector('.js-notify-marketing');
+	var turnstileBox = wrap.querySelector('.js-notify-turnstile');
+	var button = wrap.querySelector('.js-notify-submit');
+	var errorBox = wrap.querySelector('.js-notify-error');
+	var successBox = wrap.querySelector('.js-notify-success');
+	var endpoint = wrap.getAttribute('data-endpoint');
+	var store = wrap.getAttribute('data-store');
+	var sitekey = wrap.getAttribute('data-sitekey');
+	var buttonText = button.textContent;
+	var widgetId = null;
+	var sending = false;
+
+	var MESSAGES = {
+		success: "Thanks. We'll email you once, when this is back in stock.",
+		invalid_email: 'Please enter a valid email address.',
+		bot: 'We could not complete the security check. Please try again.',
+		turnstile_missing: 'Please wait for the security check to finish, then try again.',
+		unknown_variant: 'Sorry, we could not find this item. Please refresh the page and try again.',
+		server: 'Sorry, something went wrong. Please try again in a moment.',
+		network: 'Sorry, we could not connect. Please check your connection and try again.'
+	};
+
+	function showError(code) {
+		errorBox.textContent = MESSAGES[code] || MESSAGES.server;
+		errorBox.style.display = '';
+		if (code === 'invalid_email') {
+			emailInput.setAttribute('aria-invalid', 'true');
+			emailInput.focus();
+		}
+	}
+
+	function clearMessages() {
+		errorBox.textContent = '';
+		errorBox.style.display = 'none';
+		emailInput.removeAttribute('aria-invalid');
+	}
+
+	function resetForm() {
+		clearMessages();
+		successBox.textContent = '';
+		fields.style.display = '';
+		setSending(false);
+	}
+
+	function setSending(on) {
+		sending = on;
+		button.disabled = on;
+		button.setAttribute('aria-busy', on ? 'true' : 'false');
+		button.textContent = on ? 'Sending...' : buttonText;
+	}
+
+	// Cloudflare Turnstile, explicit render. The widget is rendered only while
+	// the form is visible (it misbehaves in hidden containers).
+	function renderTurnstile() {
+		if (widgetId !== null || !window.turnstile || wrap.style.display === 'none') { return; }
+		widgetId = window.turnstile.render(turnstileBox, {
+			sitekey: sitekey,
+			action: 'restock-subscribe'
+		});
+	}
+
+	function loadTurnstile() {
+		if (window.turnstile) { renderTurnstile(); return; }
+		window.__falconTurnstileQueue = window.__falconTurnstileQueue || [];
+		window.__falconTurnstileQueue.push(renderTurnstile);
+		if (document.getElementById('falcon-turnstile-api')) { return; }
+		window.falconTurnstileReady = function () {
+			var q = window.__falconTurnstileQueue || [];
+			for (var i = 0; i < q.length; i++) { q[i](); }
+			window.__falconTurnstileQueue = [];
+		};
+		var s = document.createElement('script');
+		s.id = 'falcon-turnstile-api';
+		s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=falconTurnstileReady';
+		s.async = true;
+		s.defer = true;
+		document.head.appendChild(s);
+	}
+
+	function resetTurnstile() {
+		if (widgetId !== null && window.turnstile) {
+			try { window.turnstile.reset(widgetId); } catch (e) {}
+		}
+	}
+
+	form.addEventListener('submit', function (event) {
+		event.preventDefault();
+		if (sending) { return; }
+		clearMessages();
+
+		var email = (emailInput.value || '').trim();
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+			showError('invalid_email');
+			return;
+		}
+
+		var token = '';
+		if (widgetId !== null && window.turnstile) {
+			token = window.turnstile.getResponse(widgetId) || '';
+		}
+		if (!token) {
+			renderTurnstile();
+			showError('turnstile_missing');
+			return;
+		}
+
+		setSending(true);
+
+		fetch(endpoint, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				store: store,
+				variant_id: String(variantInput.value),
+				email: email,
+				marketing: !!marketingInput.checked,
+				turnstile_token: token
+			})
+		}).then(function (response) {
+			return response.json().catch(function () {
+				return { ok: false, error: 'server' };
+			});
+		}).then(function (data) {
+			setSending(false);
+			if (data && data.ok) {
+				fields.style.display = 'none';
+				successBox.textContent = MESSAGES.success;
+				successBox.focus();
+				return;
+			}
+			resetTurnstile();
+			showError(data && data.error ? data.error : 'server');
+		}).catch(function () {
+			setSending(false);
+			resetTurnstile();
+			showError('network');
+		});
+	});
+
+	emailInput.addEventListener('input', function () {
+		if (emailInput.getAttribute('aria-invalid')) { clearMessages(); }
+	});
+
+	window.FalconNotify = {
+		setVariant: function (id) {
+			if (String(variantInput.value) !== String(id)) {
+				variantInput.value = id;
+				resetForm();
+				resetTurnstile();
+			}
+		},
+		show: function () {
+			wrap.style.display = '';
+			loadTurnstile();
+		},
+		hide: function () {
+			wrap.style.display = 'none';
+		}
+	};
+
+	if (wrap.style.display !== 'none') { loadTurnstile(); }
+})();
+</script>

@@ -1,0 +1,9 @@
+{
+  "name": "falcon-stock-worker",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker for the Falcon back-in-stock and preorder system. No dependencies.",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}
