@@ -1,91 +1,38 @@
-# Falcon back-in-stock notifications
+# Falcon stock system (back-in-stock + preorder)
 
 **Client:** Falcon Enamelware (UK, US and EU Shopify stores)
-**Code:** `dev/falcon-back-in-stock/`
-**Goal:** replace Purple Dot. This covers step one: fix the notify-me form, then send the emails.
+**Replaces:** Purple Dot
+**Code:** `dev/falcon-back-in-stock/` (theme files, Cloudflare Worker, Brevo email templates)
 
----
+A sold-out variant shows either a "Notify me" form or, when it has an expected date and a cap, a "Pre-order" button with full payment at checkout. Shopify Flow sends order and inventory events to a Cloudflare Worker (`falcon-stock`), which tags customers and orders, holds only the preorder lines, releases them oldest order first when stock arrives, and sends back-in-stock, date-change and staff emails through Brevo. A daily job at 07:00 UTC handles date changes, US consent deadlines and configuration alerts.
 
-## How it worked before this change
+## Documents
 
-- On a sold-out variant, the product page hides "Add to cart" and shows an email form.
-- The form posts to `/contact` as a Shopify customer form. The customer is tagged
-  `restock-request` and `restock-{variant_id}`.
-- The newsletter checkbox (optional) sets marketing consent.
-- `theme.liquid` swaps the thank-you modal text to a back-in-stock message.
-- **Nothing sends an email.** The tags have never been read by anything.
-- Purple Dot is not in the theme code. It loads as an app embed and does not hold
-  these sign-ups. Switching it off does not affect the waitlist.
-
-## What this change fixes (theme only)
-
-| Problem | Fix |
+| Document | What it is for |
 |---|---|
-| Variant tag set only by JavaScript. If the script failed, the sign-up had no variant. | Variant tag rendered server-side for the variant on load; the script updates it on variant change. |
-| Hand-written `<form>` with no spam protection | `{% form 'customer' %}`, which Shopify protects |
-| Submit handler used `$` before jQuery loaded, so the thank-you text swap failed | Handler moved inside the jQuery ready block and delegated |
-| "Add to cart" flashed on sold-out variants before the script ran | Hidden server-side when the variant is sold out |
-| Typo "Add me to the newsletter list)" | "Also send me the Falcon newsletter" |
-| No statement of how the email is used | One line under the button |
+| [`INSTALL.md`](INSTALL.md) | **Start here to install.** Master runbook for Claude in Chrome: pre-flight audit, accounts and secrets, Worker, Brevo, metafields, theme, notifications, Flows, tests, go-live, staff guide, Purple Dot switch-off, VERIFY list, legal items, rollback |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | The design: data model (metafields, tags, line item properties), components, Worker endpoints, email rules, Flows |
+| [`INSTALL-THEME.md`](INSTALL-THEME.md) | Step-by-step theme and notification template edits, with the storefront test checklist. Used by `INSTALL.md` phases 5 and 6 |
+| [`WORKER.md`](WORKER.md) | Worker code notes: environment, endpoints, DRY_RUN, idempotency, tests |
+| [`EMAILS.md`](EMAILS.md) | Brevo template names, subjects, parameters and sample data |
+| [`research/shopify.md`](research/shopify.md) | Shopify platform research behind the design (Flow, holds, selling plans, customer form) |
+| [`research/brevo-compliance.md`](research/brevo-compliance.md) | Brevo API and UK/US/EU legal research behind the email rules |
 
-## Install (per store: UK, US, EU)
+## Key decisions (short version)
 
-Test on a duplicate theme first.
+- **No Shopify customer form for the waitlist.** The notify form posts to the Worker's `/subscribe` endpoint, protected by Cloudflare Turnstile. Shopify's `{% form 'customer' %}` subscribes everyone to marketing and does not reliably tag existing customers, so it is no longer used. Marketing consent is set only when the customer ticks the newsletter box, and never downgraded.
+- **No preorder app and no selling plans.** Preorders use "Continue selling when out of stock", variant metafields (`falcon.expected_date`, `falcon.preorder_limit`) and a hidden `_preorder_date` line item property; the Worker places a fulfilment hold on the preorder lines only.
+- **Brevo sends every email** (transactional, one sender per store). Native Shopify Order and Shipping confirmations carry a preorder block; there are no separate confirmation emails.
+- **Nothing is cancelled, refunded or changed in consent automatically.** Staff do those, prompted by alerts.
+- **Existing waitlist carries over:** the Worker reads the same `restock-{variant_id}` customer tags the old form wrote. Consent remediation for those customers is Falcon's decision (see `INSTALL.md` Phase 0.3).
 
-1. Online Store → Themes → Duplicate the live theme.
-2. On the duplicate, add `snippets/restock-notify-form.liquid` from this folder.
-3. In `templates/product.liquid`:
-   - Replace the whole `<form method="post" action="/contact" class="js-notify-form" ...>...</form>` block with
-     `{% render 'restock-notify-form', product: product, current_variant: current_variant %}`
-   - Add `{% unless current_variant.available %} style="display:none;"{% endunless %}` to the
-     `.c-product-quantity` div and to the `.js-add-to-cart` input.
-   - Replace the `<script>` block at the bottom (the `defer()` function and the separate
-     `$('.js-notify-form').on('submit', ...)`) with the one in `templates/product.liquid` here.
-   - `templates/product.liquid` in this folder is the full UK file. On US and EU, apply the
-     three edits above rather than pasting the whole file, because Klarna locale and other
-     store-specific lines differ.
-4. `theme.liquid` cleanups:
-   - **Remove Dotdigital** (no longer used): the `r1-t.trackedlink.net/_dmpt.js` script tag and the
-     `_dmSetDomain('falconenamelware.com')` block. Dead third-party script loading on every page.
-   - **UK only, Klarna:** the library tag is missing its spaces and does not load:
-     `<scriptasyncsrc="https://eu-library.klarnaservices.com/lib.js"data-client-id="...">`
-     should be
-     `<script async src="https://eu-library.klarnaservices.com/lib.js" data-client-id="ac6af85e-d6d6-52d7-81b4-3c7eb2385f54"></script>`
-     Check whether the US and EU `theme.liquid` have the same typo.
+## Code layout
 
-## Tests before publishing
-
-| # | Test | Pass |
-|---|---|---|
-| 1 | Sold-out variant on load: form shows, no "Add to cart" flash | Form visible, button hidden |
-| 2 | Switch between in-stock and sold-out variants | Form and button swap; hidden tag field shows the right variant ID |
-| 3 | Submit with a new email | Customer created with `restock-request` and `restock-{id}`; thank-you modal shows back-in-stock copy |
-| 4 | **Submit with an existing customer's email, on a second variant** | Second `restock-{id}` tag added. **If not, stop and report.** Returning customers would be silently dropped from the waitlist. |
-| 5 | Submit with JavaScript disabled | Customer still gets the variant tag for the variant on load |
-| 6 | Newsletter box ticked vs unticked | Marketing consent set only when ticked |
-
-## Existing waitlist
-
-Customers → filter by tag `restock-request`, on each store. Record:
-- total sign-ups
-- sign-ups per `restock-{variant_id}` tag
-- sign-ups with `restock-request` but no variant tag (lost to the old JavaScript bug)
-
-This is the list the sending system inherits. Do not send to it until the sender is proven on a
-small variant (see Brief 03 deliverability).
-
-## Sending: decision pending
-
-Dotdigital is gone, so the sender needs choosing. Requirement: reach every sign-up, including
-those who did not tick the newsletter box. That rules out Shopify Email, which only sends to
-subscribed customers.
-
-| Option | How | Reaches non-subscribers | Cost across 3 stores | Trade-off |
-|---|---|---|---|---|
-| A. Back-in-stock app | App replaces this form and sends | Yes | App fee x3 stores | Fastest. Waitlist has to be imported into the app; data lives in the app. |
-| B. Flow + transactional email API (Brevo, Postmark or Resend) | Flow: stock goes above 0 → get customers tagged `restock-{id}` → HTTP request to the API per customer → swap tag to `restock-notified-{id}` | Yes | Free tier or low fee | Keeps this form and data in Shopify. Needs sending-domain authentication and the Flow built three times (exportable). |
-| C. Flow + Shopify Email | Flow "Send marketing email" | **No** | Included | Fails the requirement. |
-
-Before choosing B, confirm on each store: Flow's "Send HTTP request" action is available on
-the plan, and how many customers one "Get customer data" step returns (a popular variant
-could exceed it).
+| Path | Contents |
+|---|---|
+| `dev/falcon-back-in-stock/theme/snippets/` | `falcon-config`, `falcon-variant-data`, `restock-notify-form`, `preorder-message`, `preorder-cart-line` |
+| `dev/falcon-back-in-stock/theme/templates/product.liquid` | Finished UK product template (reference for the edits) |
+| `dev/falcon-back-in-stock/theme/notifications/` | Order and Shipping confirmation preorder blocks |
+| `dev/falcon-back-in-stock/worker/worker.js` | The Worker, pasted into the Cloudflare dashboard as-is |
+| `dev/falcon-back-in-stock/worker/tests/` | Node tests (`node --test dev/falcon-back-in-stock/worker/tests/`) |
+| `dev/falcon-back-in-stock/emails/` | Brevo template HTML |
