@@ -87,7 +87,7 @@ final class StripeConnector {
      *
      * @return array{id:string,status:string,error:string}
      */
-    public static function create_membership_subscription(string $customer_id, string $price_id, string $payment_method_id = '', array $metadata = []): array {
+    public static function create_membership_subscription(string $customer_id, string $price_id, string $payment_method_id = '', array $metadata = [], string $idempotency_key = ''): array {
         if ($customer_id === '' || $price_id === '' || ! self::is_ready()) {
             return ['id' => '', 'status' => '', 'error' => 'missing_customer_or_price'];
         }
@@ -103,7 +103,12 @@ final class StripeConnector {
         foreach ($metadata as $k => $v) {
             $params["metadata[{$k}]"] = (string) $v;
         }
-        $sub = self::request('POST', '/subscriptions', $params);
+        // An idempotency key collapses concurrent/retried creates (browser confirm
+        // + one or more webhook deliveries of payment_intent.succeeded) to a SINGLE
+        // subscription — Stripe returns the same one for a repeated key instead of
+        // billing the buyer again. Keyed on the PaymentIntent, so one purchase = one
+        // membership however many times this path runs.
+        $sub = self::request('POST', '/subscriptions', $params, $idempotency_key);
         $err = is_array($sub['error'] ?? null) ? $sub['error'] : [];
         return [
             'id'     => (string) ($sub['id'] ?? ''),
@@ -695,7 +700,7 @@ final class StripeConnector {
      * Unified request helper. Uses the SDK's raw request when available,
      * otherwise wp_remote_*.
      */
-    private static function request(string $method, string $path, array $params = []): array {
+    private static function request(string $method, string $path, array $params = [], string $idempotency_key = ''): array {
         if (! self::is_ready()) {
             Logger::log('Stripe call attempted without secret key', compact('path'));
             return [];
@@ -707,6 +712,9 @@ final class StripeConnector {
             try {
                 $client = new \Stripe\StripeClient(self::secret());
                 $opts   = ['api_key' => self::secret()];
+                if ($idempotency_key !== '') {
+                    $opts['idempotency_key'] = $idempotency_key;
+                }
                 // The low-level client expects the full API path *including* the
                 // version segment; our paths are version-relative (e.g.
                 // "/payment_intents") to match the REST fallback's API_BASE, so
@@ -737,6 +745,9 @@ final class StripeConnector {
                 'Content-Type'  => 'application/x-www-form-urlencoded',
             ],
         ];
+        if ($idempotency_key !== '') {
+            $args['headers']['Idempotency-Key'] = $idempotency_key;
+        }
         if ($method !== 'GET' && $params) {
             $args['body'] = http_build_query($params);
         } elseif ($method === 'GET' && $params) {
