@@ -185,9 +185,7 @@ export default function StrategistBriefingPanel({ clientId }) {
       <div className="row" style={{ gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
         {[{ key: 'briefing', label: 'Briefing' }, { key: 'chat', label: 'Ask the strategist' }].map(v => (
           <button key={v.key} onClick={() => setView(v.key)}
-            style={{ padding: '6px 16px', borderRadius: 'var(--r-pill)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-              border: 'var(--border-w) solid ' + (view === v.key ? 'var(--text)' : 'var(--card-border)'),
-              background: view === v.key ? 'var(--text)' : 'var(--surface)', color: view === v.key ? '#fff' : 'var(--text)' }}>
+            className={`tab ${view === v.key ? 'active' : ''}`}>
             {v.label}
           </button>
         ))}
