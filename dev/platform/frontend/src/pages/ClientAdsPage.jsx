@@ -10,6 +10,7 @@ import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
+import StatStrip from '../components/shells/StatStrip';
 import Stepper from '../components/Stepper';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import { useTabParam } from '../hooks/useTabParam';
@@ -196,16 +197,6 @@ export default function ClientAdsPage() {
     return { spend, imps, clicks, purchaseValue, roas, ctr, campaigns, store_label: entry.store_label };
   }
 
-  function MetricCard({ label, value, sub, feature }) {
-    return (
-      <div className={'stat' + (feature ? ' feature' : '')} style={{ flex: '1 1 150px', minHeight: 0, padding: 'var(--s4)' }}>
-        <div className="stat-label">{label}</div>
-        <div className="stat-value" style={{ fontSize: 'var(--fs-section)', marginTop: 'var(--s2)', letterSpacing: '-1px' }}>{value ?? '—'}</div>
-        {sub && <div className="stat-sub" style={{ marginTop: 'var(--s1)' }}>{sub}</div>}
-      </div>
-    );
-  }
-
   // Green / red pill for table figures (profit, ROAS) — matches the
   // dashboard's delta chips.
   function Pill({ positive, children }) {
@@ -284,13 +275,13 @@ export default function ClientAdsPage() {
               <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>
                 Combined · Google + Meta
               </div>
-              <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
-                <MetricCard label="Total Spend"   value={fmtCurrency(blended.spend)} feature />
-                <MetricCard label="Total Revenue" value={blended.revenue > 0 ? fmtCurrency(blended.revenue) : '—'} />
-                <MetricCard label="Blended ROAS"  value={blended.roas != null ? `${blended.roas.toFixed(2)}x` : '—'} />
-                {blended.profit != null && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(blended.profit)} sub="Revenue × margin − Spend" />}
-                <MetricCard label="Clicks" value={fmt(blended.clicks)} />
-              </div>
+              <StatStrip items={[
+                { label: 'Total Spend', value: fmtCurrency(blended.spend), feature: true },
+                { label: 'Total Revenue', value: blended.revenue > 0 ? fmtCurrency(blended.revenue) : '—' },
+                { label: 'Blended ROAS', value: blended.roas != null ? `${blended.roas.toFixed(2)}x` : '—' },
+                blended.profit != null && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(blended.profit), sub: 'Revenue × margin − Spend' },
+                { label: 'Clicks', value: fmt(blended.clicks) },
+              ].filter(Boolean)} />
               <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: 'var(--s6) 0 0' }} />
             </div>
           )}
@@ -300,14 +291,14 @@ export default function ClientAdsPage() {
               {googleEntries.filter(g => !g.error).length > 1 && (
                 <div style={{ marginBottom: 'var(--s7)' }}>
                   <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>All Countries — Combined</div>
-                  <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
-                    <MetricCard label="Total Spend" value={fmtCurrency(googleTotal.spend)} feature />
-                    <MetricCard label="Total Revenue" value={googleTotal.revenue > 0 ? fmtCurrency(googleTotal.revenue) : '—'} />
-                    <MetricCard label="Blended ROAS" value={googleTotal.spend > 0 && googleTotal.revenue > 0 ? `${(googleTotal.revenue / googleTotal.spend).toFixed(2)}x` : '—'} />
-                    {googleTotal.revenue > 0 && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(googleTotal.revenue * adsMargin - googleTotal.spend)} sub="Revenue × margin − Spend" />}
-                    <MetricCard label="Clicks" value={fmt(googleTotal.clicks)} />
-                    <MetricCard label="Conversions" value={fmt(googleTotal.convs)} />
-                  </div>
+                  <StatStrip items={[
+                    { label: 'Total Spend', value: fmtCurrency(googleTotal.spend), feature: true },
+                    { label: 'Total Revenue', value: googleTotal.revenue > 0 ? fmtCurrency(googleTotal.revenue) : '—' },
+                    { label: 'Blended ROAS', value: googleTotal.spend > 0 && googleTotal.revenue > 0 ? `${(googleTotal.revenue / googleTotal.spend).toFixed(2)}x` : '—' },
+                    googleTotal.revenue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(googleTotal.revenue * adsMargin - googleTotal.spend), sub: 'Revenue × margin − Spend' },
+                    { label: 'Clicks', value: fmt(googleTotal.clicks) },
+                    { label: 'Conversions', value: fmt(googleTotal.convs) },
+                  ].filter(Boolean)} />
                   <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: 'var(--s5) 0 var(--s2)' }} />
                 </div>
               )}
@@ -316,14 +307,16 @@ export default function ClientAdsPage() {
                   {g.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--s3)' }}>{g.store_label}</div>}
                   {g.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>{g.error}</div> : (
                     <>
-                      <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
-                        <MetricCard label="Spend" value={fmtCurrency(g.spend)} feature />
-                        <MetricCard label="Revenue" value={g.convValue > 0 ? fmtCurrency(g.convValue) : '—'} />
-                        <MetricCard label="ROAS" value={g.roas ? `${g.roas.toFixed(2)}x` : '—'} />
-                        {g.convValue > 0 && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(g.convValue * adsMargin - g.spend)} sub="Revenue × margin − Spend" />}
-                        <MetricCard label="Clicks" value={fmt(g.clicks)} />
-                        <MetricCard label="Conv." value={fmt(g.convs)} />
-                        <MetricCard label="CPC" value={fmtCurrency(g.avgCpc)} sub="avg" />
+                      <div style={{ marginBottom: 'var(--s4)' }}>
+                        <StatStrip items={[
+                          { label: 'Spend', value: fmtCurrency(g.spend), feature: true },
+                          { label: 'Revenue', value: g.convValue > 0 ? fmtCurrency(g.convValue) : '—' },
+                          { label: 'ROAS', value: g.roas ? `${g.roas.toFixed(2)}x` : '—' },
+                          g.convValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(g.convValue * adsMargin - g.spend), sub: 'Revenue × margin − Spend' },
+                          { label: 'Clicks', value: fmt(g.clicks) },
+                          { label: 'Conv.', value: fmt(g.convs) },
+                          { label: 'CPC', value: fmtCurrency(g.avgCpc), sub: 'avg' },
+                        ].filter(Boolean)} />
                       </div>
                       {g.campaigns?.length > 0 && (
                         <div style={{ overflowX: 'auto' }}>
@@ -372,14 +365,14 @@ export default function ClientAdsPage() {
               {metaEntries.filter(m => !m.error).length > 1 && (
                 <div style={{ marginBottom: 'var(--s7)' }}>
                   <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s3)' }}>All Countries — Combined</div>
-                  <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap' }}>
-                    <MetricCard label="Total Spend" value={fmtCurrency(metaTotal.spend)} feature />
-                    <MetricCard label="Total Revenue" value={metaTotal.revenue > 0 ? fmtCurrency(metaTotal.revenue) : '—'} />
-                    <MetricCard label="Blended ROAS" value={metaTotal.spend > 0 && metaTotal.revenue > 0 ? `${(metaTotal.revenue / metaTotal.spend).toFixed(2)}x` : '—'} />
-                    {metaTotal.revenue > 0 && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(metaTotal.revenue * adsMargin - metaTotal.spend)} sub="Revenue × margin − Spend" />}
-                    <MetricCard label="Clicks" value={fmt(metaTotal.clicks)} />
-                    <MetricCard label="Impressions" value={fmt(metaTotal.imps)} />
-                  </div>
+                  <StatStrip items={[
+                    { label: 'Total Spend', value: fmtCurrency(metaTotal.spend), feature: true },
+                    { label: 'Total Revenue', value: metaTotal.revenue > 0 ? fmtCurrency(metaTotal.revenue) : '—' },
+                    { label: 'Blended ROAS', value: metaTotal.spend > 0 && metaTotal.revenue > 0 ? `${(metaTotal.revenue / metaTotal.spend).toFixed(2)}x` : '—' },
+                    metaTotal.revenue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(metaTotal.revenue * adsMargin - metaTotal.spend), sub: 'Revenue × margin − Spend' },
+                    { label: 'Clicks', value: fmt(metaTotal.clicks) },
+                    { label: 'Impressions', value: fmt(metaTotal.imps) },
+                  ].filter(Boolean)} />
                   <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: 'var(--s5) 0 var(--s2)' }} />
                 </div>
               )}
@@ -388,14 +381,16 @@ export default function ClientAdsPage() {
                   {m.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--s3)' }}>{m.store_label}</div>}
                   {m.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 'var(--s2)' }}>{m.error}</div> : (
                     <>
-                      <div style={{ display: 'flex', gap: 'var(--s3)', flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
-                        <MetricCard label="Spend" value={fmtCurrency(m.spend)} feature />
-                        <MetricCard label="Revenue" value={m.purchaseValue > 0 ? fmtCurrency(m.purchaseValue) : '—'} />
-                        <MetricCard label="ROAS" value={m.roas ? `${m.roas.toFixed(2)}x` : '—'} />
-                        {m.purchaseValue > 0 && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(m.purchaseValue * adsMargin - m.spend)} sub="Revenue × margin − Spend" />}
-                        <MetricCard label="Impressions" value={fmt(m.imps)} />
-                        <MetricCard label="Clicks" value={fmt(m.clicks)} />
-                        <MetricCard label="CTR" value={m.ctr ? `${(m.ctr * 100).toFixed(2)}%` : '—'} />
+                      <div style={{ marginBottom: 'var(--s4)' }}>
+                        <StatStrip items={[
+                          { label: 'Spend', value: fmtCurrency(m.spend), feature: true },
+                          { label: 'Revenue', value: m.purchaseValue > 0 ? fmtCurrency(m.purchaseValue) : '—' },
+                          { label: 'ROAS', value: m.roas ? `${m.roas.toFixed(2)}x` : '—' },
+                          m.purchaseValue > 0 && { label: `Profit (${Math.round(adsMargin * 100)}%)`, value: fmtCurrency(m.purchaseValue * adsMargin - m.spend), sub: 'Revenue × margin − Spend' },
+                          { label: 'Impressions', value: fmt(m.imps) },
+                          { label: 'Clicks', value: fmt(m.clicks) },
+                          { label: 'CTR', value: m.ctr ? `${(m.ctr * 100).toFixed(2)}%` : '—' },
+                        ].filter(Boolean)} />
                       </div>
                       {m.campaigns?.length > 0 && (
                         <div style={{ overflowX: 'auto' }}>
