@@ -34,7 +34,7 @@ they live **with the code**, not in `docs/`:
 
 ## Current apps
 
-`dev/` contains: `ada-checker`, `architourian-pdf`, `brevo-widgets`,
+`dev/` contains: `ada-checker`, `architourian-pdf`, `brevo-widgets`, `falcon-back-in-stock`,
 `hillcroft-gardens`, `landing-pages`, `loom-tutorial-player`, `meta-ads`,
 `oc-ad-manager`, `oc-forms`, `october-admin-theme`, `october-event-tickets`,
 `october-outreach`, `platform`, `ticker-link`, `tour-dates-shortcode`,
