@@ -121,14 +121,15 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
       {mode === 'url' && (<>
       <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
         <input
+          className="input"
           value={url}
           onChange={e => setUrl(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && runNew()}
           placeholder="https://competitor.com/blog/post-to-outrank"
-          style={{ flex: 1, minWidth: 320, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1, minWidth: 320 }}
         />
         <select value={location} onChange={e => setLocation(Number(e.target.value))}
-          style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          className="select" style={{ fontFamily: 'inherit' }}>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !url.trim() })}>
@@ -356,11 +357,11 @@ function SxoMode({ clientId, onBuildContent }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
-        <input value={seed} onChange={e => setSeed(e.target.value)} onKeyDown={e => e.key === 'Enter' && run()}
+        <input className="input" value={seed} onChange={e => setSeed(e.target.value)} onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="e.g. best crm for small business"
-          style={{ flex: 1, minWidth: 300, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+          style={{ flex: 1, minWidth: 300 }} />
         <select value={location} onChange={e => setLocation(Number(e.target.value))}
-          style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          className="select" style={{ fontFamily: 'inherit' }}>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading || !seed.trim() })}>

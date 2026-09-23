@@ -91,15 +91,8 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
               <button
                 onClick={() => reachable && setStep(key)}
                 disabled={!reachable}
-                style={{
-                  display: 'flex', alignItems: 'center',
-                  background: 'none', border: 'none',
-                  cursor: reachable ? 'pointer' : 'default',
-                  padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-body)',
-                  fontWeight: step === key ? 700 : 500,
-                  color: reachable ? 'var(--text)' : 'var(--text-subtle)',
-                  flexShrink: 0,
-                }}>
+                className={`tab ${step === key ? 'active' : ''}`}
+                style={{ flexShrink: 0 }}>
                 <span className={`chip ${reachable ? 'chip-accent' : 'chip-neutral'}`} style={{ width: 24, height: 24, justifyContent: 'center', marginRight: 'var(--s2)', fontSize: 'var(--fs-caption)', fontWeight: 700 }}>{key}</span>
                 {label}
               </button>

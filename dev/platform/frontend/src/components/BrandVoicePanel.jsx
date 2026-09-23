@@ -63,7 +63,7 @@ export default function BrandVoicePanel({ clientId }) {
         <textarea
           value={urlsText} onChange={e => setUrlsText(e.target.value)} rows={6}
           placeholder="https://yoursite.com/blog/post-that-sounds-most-like-the-brand\nhttps://yoursite.com/about\nhttps://yoursite.com/blog/another-on-brand-post"
-          style={{ width: '100%', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', lineHeight: 1.5, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
+          className="textarea" style={{ width: '100%', lineHeight: 1.5, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
         />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">{urlCount} URL{urlCount === 1 ? '' : 's'} · {urlCount < 1 ? 'paste at least 1' : urlCount > 12 ? 'max 12' : 'ready'}</span>

@@ -373,7 +373,7 @@ export default function TendersPanel() {
                           <span style={{ display: 'inline-flex', gap: 'var(--s1)', alignItems: 'center' }}>
                             <input type="date" value={editDate.value} autoFocus
                               onChange={e => setEditDate({ id: n.id, value: e.target.value })}
-                              style={{ padding: 'var(--s1) var(--s1)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                              className="input" style={{ width: 'auto' }} />
                             <button className="btn btn-primary btn-sm" onClick={() => saveDate(n)}>Save</button>
                             <button className="btn btn-ghost btn-sm" onClick={() => setEditDate(null)}>✕</button>
                           </span>
@@ -423,8 +423,7 @@ export default function TendersPanel() {
 
       {/* Company details — the SQ facts every bid reuses */}
       <div className="card">
-        <button className="oview-grplabel" onClick={() => setCompanyOpen(o => !o)}
-          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+        <button className="oview-grplabel accordion-trigger" onClick={() => setCompanyOpen(o => !o)}>
           Company details {companyOpen ? '▾' : '▸'}
         </button>
         <p className="body-sm text-muted" style={{ margin: 'var(--s1) 0 0' }}>
@@ -441,7 +440,7 @@ export default function TendersPanel() {
                     <span style={{ fontWeight: 600 }}>{label}</span>
                     {multiline
                       ? <textarea value={company[key] || ''} rows={2} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))}
-                          style={{ resize: 'vertical', padding: 'var(--s2) var(--s2)', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                          className="textarea" style={{ resize: 'vertical' }} />
                       : <input className="input" value={company[key] || ''} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))} />}
                   </label>
                 );
@@ -564,7 +563,7 @@ function TenderChatModal({ notice, onClose }) {
           <textarea value={input} onChange={e => setInput(e.target.value)} rows={2}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
             placeholder="Ask about fit, risks, or a bid approach… (Enter to send)"
-            style={{ flex: 1, resize: 'vertical', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            className="textarea" style={{ flex: 1, resize: 'vertical' }} />
           <button className="btn btn-primary" disabled={sending || !input.trim()} onClick={() => send()}>{sending ? 'Sending…' : 'Send'}</button>
         </div>
       </div>

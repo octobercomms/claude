@@ -241,7 +241,7 @@ export function SearchConsoleTab({ clientId }) {
           <h2 className="h2" style={{ margin: 0 }}>Search Console</h2>
           {sites.length > 1 && (
             <select value={site || ''} onChange={e => setSite(e.target.value)} className="input"
-              style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', maxWidth: 320 }} title="Search Console property">
+              style={{ maxWidth: 320 }} title="Search Console property">
               {sites.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           )}
@@ -547,11 +547,12 @@ export function ContentGapsTab({ clientId, onBuildContent }) {
         </div>
         <div style={{ display: 'flex', gap: 'var(--s2)' }}>
           <input
+            className="input"
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addCompetitor()}
             placeholder="competitor.com"
-            style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+            style={{ flex: 1 }}
             disabled={competitors.length >= 5}
           />
           <button onClick={addCompetitor} className="btn btn-secondary" disabled={saving || !draft.trim() || competitors.length >= 5}>Add</button>
@@ -653,11 +654,12 @@ export function PlanningTab({ clientId, seed }) {
 
       <div style={{ display: 'flex', gap: 'var(--s2)', maxWidth: 600 }}>
         <input
+          className="input"
           value={keyword}
           onChange={e => { setKeyword(e.target.value); setSeeded(false); }}
           onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="e.g. how to season enamel cookware"
-          style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: `var(--border-w) solid ${seeded ? 'var(--accent)' : 'var(--card-border)'}`, borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1 }}
         />
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading || !keyword.trim() })}>
           {loading ? 'Generating…' : 'Generate brief'}
@@ -833,14 +835,15 @@ export function FanoutTab({ clientId, onBuildContent }) {
 
       <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s5)', flexWrap: 'wrap' }}>
         <input
+          className="input"
           value={seed}
           onChange={e => setSeed(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && runNew()}
           placeholder="e.g. how to fix a lawn full of weeds"
-          style={{ flex: 1, minWidth: 280, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1, minWidth: 280 }}
         />
         <select value={location} onChange={e => setLocation(Number(e.target.value))}
-          style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          className="select" style={{ fontFamily: 'inherit' }}>
           {FANOUT_LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !seed.trim() })}>

@@ -908,8 +908,7 @@ function BrevoConfig({ connector, onConfigSave }) {
       {lists === null ? (
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Loading…</span>
       ) : (
-        <select value={listId} onChange={e => setListId(e.target.value)}
-          style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: '1px solid #bbb' }}>
+        <select value={listId} onChange={e => setListId(e.target.value)} className="select" style={{ width: 'auto' }}>
           <option value="">All lists</option>
           {lists.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
         </select>
@@ -917,7 +916,7 @@ function BrevoConfig({ connector, onConfigSave }) {
       <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Automation</span>
       <input value={automation} onChange={e => setAutomation(e.target.value)}
         placeholder="All automations (optional ID/name)"
-        style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', width: 220 }} />
+        className="input" style={{ width: 220 }} />
       <button type="button" onClick={save} disabled={saving} className="btn btn-secondary btn-sm">{saving ? 'Saving…' : 'Save'}</button>
       {saved && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)', fontWeight: 600 }}>✓ Saved</span>}
       {listsError && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>Lists: {listsError}</span>}
@@ -985,7 +984,7 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Loading…</span>
       ) : (
         <select value={formId} onChange={e => setFormId(e.target.value)}
-          style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', minWidth: 240 }}>
+          className="select" style={{ width: 'auto', minWidth: 240 }}>
           <option value="">— Select a form —</option>
           {forms.map(f => <option key={f.value} value={f.value}>{f.label}{f.status && f.status !== 'publish' ? ` (${f.status})` : ''}</option>)}
         </select>
@@ -1109,7 +1108,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                     setEditingLabel(false);
                   } else if (e.key === 'Escape') { setEditingLabel(false); }
                 }}
-                style={{ fontSize: 'var(--fs-caption)', padding: 'var(--s1) var(--s2)', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', width: 120 }}
+                className="input" style={{ width: 120 }}
               />
               <button onClick={async () => {
                 const updated = await api.put(`/connectors/${connector.id}/config`, { ...(connector.config || {}), label: labelInput });
@@ -1259,7 +1258,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
           ) : accounts && accounts.length === 0 && MANUAL_ENTRY_TYPES.includes(connector.connector_type) ? (
             <div style={{ display: 'flex', gap: 'var(--s2)', flex: 1 }}>
               <input
-                className="input" style={{ flex: 1, fontSize: 'var(--fs-body)', padding: 'var(--s2) var(--s3)' }}
+                className="input" style={{ flex: 1, padding: 'var(--s2) var(--s3)' }}
                 value={manualValue}
                 onChange={e => setManualValue(e.target.value)}
                 placeholder={MANUAL_PLACEHOLDER[connector.connector_type] || 'Enter ID'}
@@ -1272,7 +1271,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
           ) : accounts && accounts.length === 0 ? (
             <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>No accounts found — check OAuth permissions.</span>
           ) : accounts ? (
-            <select className="input" style={{ flex: 1, fontSize: 'var(--fs-body)', padding: 'var(--s2) var(--s3)' }} value={selectedValue} onChange={handleAccountSelect}>
+            <select className="input" style={{ flex: 1, padding: 'var(--s2) var(--s3)' }} value={selectedValue} onChange={handleAccountSelect}>
               <option value="">— Select —</option>
               {accounts.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
             </select>

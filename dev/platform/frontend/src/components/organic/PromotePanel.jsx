@@ -217,25 +217,22 @@ export default function PromotePanel({ clientId }) {
         {showDrafter && (
           <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s5)', marginBottom: 'var(--s4)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
-              <select value={querySource} onChange={e => setQuerySource(e.target.value)}
-                style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+              <select className="select" value={querySource} onChange={e => setQuerySource(e.target.value)}>
                 <option value="featured">Featured.com</option>
                 <option value="qwoted">Qwoted</option>
                 <option value="sos">Source of Sources</option>
                 <option value="other">Other</option>
                 <option value="manual">Manual</option>
               </select>
-              <input value={journalistName} onChange={e => setJournalistName(e.target.value)} placeholder="Journalist name (optional)"
-                style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
-              <input value={outlet} onChange={e => setOutlet(e.target.value)} placeholder="Outlet (optional)"
-                style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
-              <input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)}
-                style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              <input className="input" value={journalistName} onChange={e => setJournalistName(e.target.value)} placeholder="Journalist name (optional)" />
+              <input className="input" value={outlet} onChange={e => setOutlet(e.target.value)} placeholder="Outlet (optional)" />
+              <input className="input" type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} />
             </div>
             <textarea
+              className="textarea"
               value={queryText} onChange={e => setQueryText(e.target.value)} rows={5}
               placeholder="Paste the journalist's query verbatim. The more context (who they're writing for, angle, deadline) the better."
-              style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
+              style={{ width: '100%', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
             />
             <div style={{ marginTop: 'var(--s3)' }}>
               <button className="btn btn-primary" {...roWrite(readOnly, { onClick: draftResponse, disabled: drafting || !queryText.trim() })}>
@@ -271,8 +268,7 @@ export default function PromotePanel({ clientId }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s3)' }}>
                     <div className="caption">Response draft</div>
                     <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                      <select value={editStatus} onChange={e => setEditStatus(e.target.value)}
-                        style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+                      <select className="select" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
                         <option value="draft">Draft</option>
                         <option value="sent">Sent</option>
                         <option value="won">Won (link earned)</option>
@@ -287,12 +283,12 @@ export default function PromotePanel({ clientId }) {
                   <div style={{ background: 'var(--surface-raised)', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s3)', lineHeight: 1.5 }}>
                     <strong style={{ color: 'var(--text)' }}>Q:</strong> {activeResponse.query_text}
                   </div>
-                  <textarea value={editBody} onChange={e => setEditBody(e.target.value)} rows={14}
-                    style={{ width: '100%', padding: 'var(--s3) var(--s4)', fontSize: 'var(--fs-body)', lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+                  <textarea className="textarea" value={editBody} onChange={e => setEditBody(e.target.value)} rows={14}
+                    style={{ width: '100%', lineHeight: 1.6, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
                   {(editStatus === 'won' || editStatus === 'sent') && (
-                    <input value={editUrl} onChange={e => setEditUrl(e.target.value)}
+                    <input className="input" value={editUrl} onChange={e => setEditUrl(e.target.value)}
                       placeholder="Published article URL (once it goes live)"
-                      style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', marginTop: 'var(--s2)', boxSizing: 'border-box' }} />
                   )}
                 </>
               ) : (

@@ -209,11 +209,7 @@ export default function ClientBrandPage({ embedded = false } = {}) {
 
 function FilterChip({ active, onClick, children }) {
   return (
-    <button onClick={onClick} style={{
-      padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', border: '1px solid ' + (active ? 'var(--text)' : 'var(--accent-soft)'),
-      background: active ? 'var(--text)' : 'var(--surface)', color: active ? 'var(--surface)' : 'var(--text-muted)',
-      cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: active ? 700 : 500,
-    }}>{children}</button>
+    <button onClick={onClick} className={`tab ${active ? 'active' : ''}`}>{children}</button>
   );
 }
 
@@ -364,7 +360,7 @@ function AssetCard({ asset, onDelete, onEdit, onUpdate }) {
           <select
             value={asset.metadata?.role || ''}
             onChange={e => setRole(e.target.value)}
-            style={{ marginTop: 'var(--s2)', width: '100%', padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: '2px solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)', color: 'var(--text)' }}
+            className="select" style={{ marginTop: 'var(--s2)', width: '100%' }}
           >
             {FONT_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
@@ -400,12 +396,12 @@ function PaletteForm({ clientId, asset, onClose, onSaved }) {
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
         <h2 style={{ margin: '0 0 var(--s3)', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{editing ? 'Edit palette' : 'Add palette'}</h2>
         <label style={modalStyles.label}>Name</label>
-        <input style={modalStyles.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Primary palette" />
+        <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Primary palette" />
         <label style={modalStyles.label}>Hex codes</label>
         {colors.map((c, i) => (
           <div key={i} style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s2)' }}>
             <input type="color" value={c} onChange={e => { const next = [...colors]; next[i] = e.target.value; setColors(next); }} style={{ width: 40, height: 32 }} />
-            <input value={c} onChange={e => { const next = [...colors]; next[i] = e.target.value; setColors(next); }} style={modalStyles.input} />
+            <input value={c} onChange={e => { const next = [...colors]; next[i] = e.target.value; setColors(next); }} className="input" />
             <button onClick={() => setColors(colors.filter((_, j) => j !== i))} className="btn btn-secondary btn-sm">×</button>
           </div>
         ))}
@@ -442,9 +438,9 @@ function GuidelineForm({ clientId, asset, onClose, onSaved }) {
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
         <h2 style={{ margin: '0 0 var(--s3)', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{editing ? 'Edit brand guideline' : 'Add brand guideline'}</h2>
         <label style={modalStyles.label}>Name</label>
-        <input style={modalStyles.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Voice & tone" />
+        <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Voice & tone" />
         <label style={modalStyles.label}>Notes</label>
-        <textarea style={{ ...modalStyles.input, minHeight: 140, resize: 'vertical', fontFamily: 'inherit' }} value={body} onChange={e => setBody(e.target.value)}
+        <textarea className="textarea" style={{ minHeight: 140, resize: 'vertical' }} value={body} onChange={e => setBody(e.target.value)}
           placeholder="Brand voice, do's and don'ts, key messaging pillars, terminology to use or avoid…" />
         <div style={modalStyles.footer}>
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
@@ -459,6 +455,5 @@ const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1000 },
   modal: { background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 460, padding: 'var(--s6)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 'var(--s3)', marginBottom: 'var(--s1)' },
-  input: { width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: '2px solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)', marginTop: 'var(--s4)' },
 };

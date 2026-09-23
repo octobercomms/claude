@@ -330,9 +330,8 @@ function MethodologyCard() {
     <Card variant="accent" className="mb-6">
       <button
         type="button"
-        className="row between"
+        className="row between accordion-trigger"
         onClick={() => setOpen(o => !o)}
-        style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
       >
         <div>
           <div className="caption">Methodology</div>

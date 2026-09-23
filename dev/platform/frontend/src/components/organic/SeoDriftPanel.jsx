@@ -95,8 +95,8 @@ export default function SeoDriftPanel({ clientId }) {
         <div className="caption mb-2">Capture a baseline</div>
         <div className="row between center" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
           <div className="row" style={{ gap: 'var(--s2)', flex: 1, minWidth: 260 }}>
-            <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Name it — e.g. Pre-migration, Before redesign"
-              style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            <input className="input" value={label} onChange={e => setLabel(e.target.value)} placeholder="Name it — e.g. Pre-migration, Before redesign"
+              style={{ flex: 1 }} />
             <button className="btn btn-primary" {...roWrite(readOnly, { onClick: capture, disabled: busy })}>
               {busy ? 'Working…' : '⦿ Capture baseline'}
             </button>
@@ -118,7 +118,7 @@ export default function SeoDriftPanel({ clientId }) {
             <div className="row center" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
               <span className="body-sm text-muted">Compare against</span>
               <select value={selected} onChange={e => setSelected(e.target.value)} className="input"
-                style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', minWidth: 260 }}>
+                style={{ minWidth: 260 }}>
                 {baselines.map(b => (
                   <option key={b.id} value={b.id}>{b.label ? `${b.label} — ` : ''}{fmtDate(b.captured_at)}</option>
                 ))}

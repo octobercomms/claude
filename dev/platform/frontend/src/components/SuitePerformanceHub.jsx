@@ -44,12 +44,7 @@ export default function SuitePerformanceHub({
         {primaryCta && (
           <button
             onClick={primaryCta.onClick}
-            style={{
-              padding: 'var(--s3) var(--s6)', fontSize: 'var(--fs-body)', fontWeight: 700,
-              background: 'var(--surface)', color: 'var(--text)',
-              border: 'none', borderRadius: 'var(--r-pill)', cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
+            className="btn btn-primary"
           >
             {primaryCta.label}
           </button>
@@ -127,11 +122,7 @@ export default function SuitePerformanceHub({
               {c.onClick && (
                 <button
                   onClick={c.onClick}
-                  style={{
-                    background: 'none', border: 'none', padding: 0, marginTop: 'var(--s2)',
-                    color: 'var(--text)', fontWeight: 700, fontSize: 'var(--fs-body)',
-                    textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-                  }}>
+                  className="row-trigger" style={{ marginTop: 'var(--s2)' }}>
                   Open {c.label}</button>
               )}
             </div>

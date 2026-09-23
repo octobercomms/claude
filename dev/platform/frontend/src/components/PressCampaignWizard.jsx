@@ -101,8 +101,7 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
               placeholder="London, 28 May 2026" className="input" />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--s2)' }}>
               <label className="field-label" style={{ margin: 0 }}>Body</label>
-              <button type="button" onClick={() => setShowBodyHtml(v => !v)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--fs-caption)' }}>
+              <button type="button" onClick={() => setShowBodyHtml(v => !v)} className="btn-link">
                 {showBodyHtml ? 'Show formatted preview' : 'Edit HTML'}
               </button>
             </div>

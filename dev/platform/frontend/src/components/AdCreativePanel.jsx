@@ -191,9 +191,8 @@ export default function AdCreativePanel({ clientId, clientName }) {
         <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', marginTop: 'var(--s3)', marginBottom: 'var(--s2)', display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
           <strong style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)' }}>Approval link ready —</strong>
           <input value={shareUrl} readOnly onFocus={e => e.target.select()}
-            style={{ flex: 1, padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} />
-          <button onClick={() => navigator.clipboard.writeText(shareUrl)}
-            style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>Copy</button>
+            className="input" style={{ flex: 1, fontFamily: 'monospace' }} />
+          <button onClick={() => navigator.clipboard.writeText(shareUrl)} className="btn btn-primary btn-sm">Copy</button>
           <button onClick={() => setShareUrl(null)} className="btn-icon" aria-label="Close">×</button>
         </div>
       )}
@@ -353,13 +352,13 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
         )}
 
         <label style={modalStyles.label}>Brief</label>
-        <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={4} style={modalStyles.textarea}
+        <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={4} className="textarea" style={modalStyles.textarea}
           placeholder="e.g. We're launching a new mug colour next week — UK + US targets, emphasise the studio kitchens crowd. Avoid heavy discount language." />
 
         <div style={{ display: 'flex', gap: 'var(--s4)', marginTop: 'var(--s2)' }}>
           <div style={{ flex: 1 }}>
             <label style={modalStyles.label}>Platform</label>
-            <select value={platform} onChange={e => setPlatform(e.target.value)} style={modalStyles.input}>
+            <select value={platform} onChange={e => setPlatform(e.target.value)} className="select" style={modalStyles.input}>
               <option value="meta">Meta (Facebook / Instagram)</option>
               <option value="google">Google</option>
               <option value="tiktok">TikTok</option>
@@ -369,14 +368,14 @@ export function BriefModal({ assets, submitting, onClose, onSubmit, onSubmitMatr
           <div style={{ width: matrix ? 150 : 110 }}>
             <label style={modalStyles.label}>{matrix ? 'Variants' : 'Concepts'}</label>
             {matrix ? (
-              <select value={matrixCount} onChange={e => setMatrixCount(parseInt(e.target.value) || 50)} style={modalStyles.input}>
+              <select value={matrixCount} onChange={e => setMatrixCount(parseInt(e.target.value) || 50)} className="select" style={modalStyles.input}>
                 <option value={25}>25 variants</option>
                 <option value={50}>50 variants</option>
                 <option value={75}>75 variants</option>
                 <option value={100}>100 variants</option>
               </select>
             ) : (
-              <input type="number" min="4" max="16" value={count} onChange={e => setCount(parseInt(e.target.value) || 8)} style={modalStyles.input} />
+              <input type="number" min="4" max="16" value={count} onChange={e => setCount(parseInt(e.target.value) || 8)} className="input" style={modalStyles.input} />
             )}
           </div>
         </div>
@@ -590,7 +589,7 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
               <>
                 <div className="field">SEED FROM IMAGE (OPTIONAL)</div>
                 <select value={fromImageId} onChange={e => setFromImageId(e.target.value)}
-                  style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  className="select" style={{ width: '100%', marginBottom: 'var(--s2)', boxSizing: 'border-box' }}>
                   <option value="">Text-to-video (Seedance)</option>
                   {seedableImages.map(i => (
                     <option key={i.id} value={i.id}>Image-to-video from {i.aspect_ratio} ({i.provider})</option>
@@ -605,7 +604,7 @@ export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFa
 
           <input value={styleBrief} onChange={e => setStyleBrief(e.target.value)}
             placeholder="Optional style brief (e.g. 'editorial 35mm film')"
-            style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
+            className="input" style={{ width: '100%', marginBottom: 'var(--s2)', boxSizing: 'border-box' }} />
           <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: go, disabled: rendering || (mode === 'image' && !aspects.size) })}>
             {rendering
               ? (mode === 'video' ? 'Rendering video…' : 'Rendering…')
@@ -631,10 +630,10 @@ function ImageThumb({ img, onDelete, onFanOut }) {
       <div style={{ position: "absolute", bottom: 2, left: 2, padding: "var(--s1) var(--s2)", background: "rgba(0,0,0,0.65)", color: "var(--surface)", fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', fontWeight: 700 }}>
         {isVideo ? `▶ ${img.aspect_ratio}${img.duration_seconds ? ` · ${img.duration_seconds}s` : ''}` : img.aspect_ratio}
       </div>
-      <button onClick={onDelete} className="text-negative" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "var(--surface)", border: "var(--border-w) solid var(--card-border)", cursor: "pointer", fontSize: 'var(--fs-caption)', lineHeight: 1 }}>×</button>
+      <button onClick={onDelete} className="btn-icon btn-icon-sm danger" style={{ position: "absolute", top: -6, right: -6 }}>×</button>
       {!isVideo && hovered && onFanOut && (
         <button onClick={() => onFanOut(img.id)} title="Adobe Photoshop generative resize — fan out to every other aspect ratio"
-          style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", background: "var(--text)", border: "none", cursor: "pointer", fontSize: 'var(--fs-body)', lineHeight: 1, color: "var(--surface)", fontWeight: 700 }}></button>
+          className="btn-icon btn-icon-sm" style={{ position: "absolute", bottom: -6, right: -6 }}></button>
       )}
     </div>
   );
@@ -703,7 +702,7 @@ const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s9) var(--s5)', zIndex: 1000 },
   modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 'var(--s6)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 'var(--s3)', marginBottom: 'var(--s1)' },
-  input: { width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
-  textarea: { width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  input: { width: '100%', boxSizing: 'border-box' },
+  textarea: { width: '100%', boxSizing: 'border-box', resize: 'vertical' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 'var(--s2)', marginTop: 'var(--s4)' },
 };

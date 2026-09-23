@@ -286,10 +286,7 @@ export default function GuidePage() {
 function AccordionItem({ section, isOpen, onToggle }) {
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-      <button onClick={onToggle} style={{
-        width: '100%', textAlign: 'left', padding: 'var(--s4) var(--s5)', background: 'transparent',
-        border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s4)',
-      }}>
+      <button onClick={onToggle} className="accordion-trigger" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s4)' }}>
         <div>
           <div className="h3">{section.title}</div>
           <div className="body-sm text-muted mt-2">{section.summary}</div>

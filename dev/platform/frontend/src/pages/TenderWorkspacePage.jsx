@@ -177,7 +177,7 @@ export default function TenderWorkspacePage() {
             {editingClose ? (
               <>
                 <input type="date" value={closeDraft} onChange={e => setCloseDraft(e.target.value)}
-                  style={{ padding: 'var(--s1) var(--s2)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                  className="input" style={{ width: 'auto' }} />
                 <button className="btn btn-primary btn-sm" onClick={saveClose}>Save</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setEditingClose(false)}>Cancel</button>
               </>
@@ -244,7 +244,7 @@ export default function TenderWorkspacePage() {
             <textarea value={input} onChange={e => setInput(e.target.value)} rows={2}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Ask for fit, a plan, or a drafted deliverable… (Enter to send)"
-              style={{ flex: 1, resize: 'vertical', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              className="textarea" style={{ flex: 1, resize: 'vertical' }} />
             <button className="btn btn-primary" disabled={sending || !input.trim()} onClick={() => send()}>{sending ? 'Sending…' : 'Send'}</button>
           </div>
         </div>
@@ -272,7 +272,7 @@ export default function TenderWorkspacePage() {
           </div>
 
           <div className="card">
-            <button className="oview-grplabel" onClick={() => setProfileOpen(o => !o)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+            <button className="oview-grplabel accordion-trigger" onClick={() => setProfileOpen(o => !o)}>
               October bid profile {profileOpen ? '▾' : '▸'}
             </button>
             <p className="caption" style={{ margin: 'var(--s1) 0 0', color: 'var(--text-subtle)' }}>Shared across every bid — Claude reads this and gets sharper as you add wins, losses and reusable boilerplate.</p>
@@ -295,7 +295,7 @@ export default function TenderWorkspacePage() {
             {profileOpen && (
               <div style={{ marginTop: 'var(--s3)' }}>
                 <textarea value={profileMd} onChange={e => setProfileMd(e.target.value)} rows={12}
-                  style={{ width: '100%', resize: 'vertical', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', fontFamily: 'ui-monospace, monospace', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                  className="textarea" style={{ width: '100%', resize: 'vertical', fontFamily: 'ui-monospace, monospace' }} />
                 <button className="btn btn-primary btn-sm" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: 'var(--s2)' }}>{savingProfile ? 'Saving…' : 'Save profile'}</button>
               </div>
             )}

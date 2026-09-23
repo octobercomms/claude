@@ -83,9 +83,9 @@ export default function KeywordFootprintPanel({ clientId, onSendToPipeline }) {
               <button onClick={() => setView('pages')} className={`btn btn-sm ${view === 'pages' ? 'btn-primary' : 'btn-secondary'}`}>Pages ({pages.length})</button>
               <button onClick={() => setView('phrases')} className={`btn btn-sm ${view === 'phrases' ? 'btn-primary' : 'btn-secondary'}`}>Phrases ({phraseRollup.length})</button>
             </div>
-            <input value={search} onChange={e => setSearch(e.target.value)}
+            <input className="input" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search…"
-              style={{ flex: 1, maxWidth: 280, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              style={{ flex: 1, maxWidth: 280 }} />
             <span className="body-xs text-subtle">Last audit: {new Date(audit.completed_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 

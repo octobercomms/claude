@@ -198,8 +198,7 @@ export default function OverviewChat({ clientId, pillar }) {
           <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)', alignItems: 'flex-end' }}>
             <textarea ref={taRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKeyDown} rows={2}
               placeholder={`Ask ${cfg.label}… (Enter to send, Shift+Enter for a new line). Prefix /report for a downloadable report.`}
-              style={{ flex: 1, resize: 'vertical', padding: 'var(--s3) var(--s3)', fontSize: 'var(--fs-body)', fontFamily: 'inherit',
-                border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              className="textarea" style={{ flex: 1 }} />
             <button className="btn btn-primary" disabled={sending || !input.trim()} onClick={() => send()}>
               {sending ? 'Sending…' : 'Send'}
             </button>

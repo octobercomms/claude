@@ -212,8 +212,7 @@ export default function StrategistBriefingPanel({ clientId }) {
           <textarea value={steerText} onChange={e => setSteerText(e.target.value)} rows={2}
             onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addSteer(); } }}
             placeholder="e.g. We're pushing the autumn collection — lean into SEO and social, ease off paid until stock lands."
-            style={{ flex: 1, resize: 'vertical', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', fontFamily: 'inherit',
-              border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            className="textarea" style={{ flex: 1 }} />
           <button className="btn btn-secondary btn-sm" disabled={!steerText.trim()} onClick={addSteer}>Add</button>
         </div>
         {steer.length > 0 && (
@@ -224,8 +223,7 @@ export default function StrategistBriefingPanel({ clientId }) {
                   {n.source === 'chat' && <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-subtle)', marginRight: 'var(--s2)' }}>from chat</span>}
                   {n.text}
                 </span>
-                <button onClick={() => removeSteer(n.id)} title="Remove"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-title)', lineHeight: 1, padding: 0 }}>×</button>
+                <button onClick={() => removeSteer(n.id)} title="Remove" className="btn-icon btn-icon-sm">×</button>
               </div>
             ))}
           </div>
@@ -288,9 +286,7 @@ export default function StrategistBriefingPanel({ clientId }) {
               <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)', flexWrap: 'wrap' }}>
                 {PILLARS.map(p => (
                   <button key={p.key} onClick={() => setPillar(p.key)}
-                    style={{ padding: 'var(--s1) var(--s4)', borderRadius: 'var(--r-pill)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                      border: 'var(--border-w) solid ' + (pillar === p.key ? 'var(--text)' : 'var(--card-border)'),
-                      background: pillar === p.key ? 'var(--text)' : 'var(--surface)', color: pillar === p.key ? '#fff' : 'var(--text)' }}>
+                    className={`tab ${pillar === p.key ? 'active' : ''}`}>
                     {p.label}
                   </button>
                 ))}
@@ -312,7 +308,7 @@ export default function StrategistBriefingPanel({ clientId }) {
               {/* Per-pillar sections */}
               {visibleSections.map(s => (
                 <div className="card body-sm" key={s.pillar} style={{ marginBottom: 'var(--s3)' }}>
-                  <button onClick={() => toggleSection(s.pillar)} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 700, fontSize: 'var(--fs-body)', cursor: 'pointer', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+                  <button onClick={() => toggleSection(s.pillar)} className="accordion-trigger">
                     <span style={{ fontSize: 'var(--fs-title)', width: 16, display: 'inline-block' }}>{openSections.has(s.pillar) ? '−' : '+'}</span>
                     {PILLAR_LABEL[s.pillar] || s.pillar}
                     {!s.ok && <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--text-subtle)' }}>· no data</span>}
@@ -330,7 +326,7 @@ export default function StrategistBriefingPanel({ clientId }) {
                 <div style={{ flex: 1, minWidth: 260 }}>
                   <label style={{ display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 'var(--s1)' }}>Monday email recipients</label>
                   <input type="text" value={recipients} onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }} placeholder="you@octobercomms.com"
-                    style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                    className="input" style={{ width: '100%' }} />
                 </div>
                 {recipientsDirty && <button onClick={saveRecipients} className="btn btn-secondary btn-sm">Save</button>}
               </div>

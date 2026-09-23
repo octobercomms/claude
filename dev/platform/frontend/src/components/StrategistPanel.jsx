@@ -192,7 +192,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                     value={recipients}
                     onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
                     placeholder="email@example.com, another@example.com"
-                    style={{ flex: 1, padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+                    className="input" style={{ flex: 1 }}
                   />
                   {recipientsDirty && (
                     <button onClick={saveRecipients} disabled={savingRecipients} className="btn btn-secondary btn-sm">

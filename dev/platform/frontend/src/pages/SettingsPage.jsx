@@ -576,11 +576,6 @@ export default function SettingsPage() {
           );
         }
         const byKey = Object.fromEntries(section.subs.map(x => [x.k, x]));
-        const pill = (active) => ({
-          padding: 'var(--s2) var(--s3)', borderRadius: 'var(--r-pill)', cursor: 'pointer', fontSize: 'var(--fs-body)', fontWeight: 600,
-          fontFamily: 'inherit', border: 'var(--border-w) solid ' + (active ? 'var(--accent)' : 'var(--card-border)'),
-          background: active ? 'var(--accent)' : 'var(--surface)', color: active ? 'var(--accent-on)' : 'var(--text)',
-        });
         return (
           <div className="stepper-grouped" style={{ marginBottom: 'var(--s5)' }}>
             {groups.map(g => (
@@ -588,7 +583,7 @@ export default function SettingsPage() {
                 <div className="stepper-group-heading">{g.label}</div>
                 <div className="row wrap" style={{ gap: 'var(--s2)' }}>
                   {g.subs.filter(k => byKey[k]).map(k => (
-                    <button key={k} onClick={() => switchTab(k)} style={pill(tab === k)}>
+                    <button key={k} onClick={() => switchTab(k)} className={`tab ${tab === k ? 'active' : ''}`}>
                       {byKey[k].label}
                     </button>
                   ))}
@@ -638,7 +633,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => toggleCategory(cat.title)}
-                  className="row between center" style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
+                  className="row between center accordion-trigger"
                 >
                   <div>
                     <div className="h3">{cat.title}</div>
@@ -1034,12 +1029,12 @@ function PublicationsPanel() {
           <span>{selected.size} selected · Showing {shownCount.toLocaleString()} of {totalCount.toLocaleString()} matching</span>
           <div style={{ flex: 1 }} />
           {selected.size > 0 && (
-            <button onClick={deleteSelected} className="btn btn-sm btn-danger" style={{ background: 'var(--negative)', color: '#fff', border: 'none' }}>
+            <button onClick={deleteSelected} className="btn btn-sm btn-danger">
               Delete selected ({selected.size})
             </button>
           )}
           {visibleOutlets.length > 0 && (
-            <button onClick={deleteAllMatching} className="btn btn-sm" style={{ background: 'var(--negative)', color: '#fff', border: 'none' }}>
+            <button onClick={deleteAllMatching} className="btn btn-sm btn-danger">
               Delete all {visibleOutlets.length} matching
             </button>
           )}
@@ -1090,7 +1085,7 @@ function PublicationsPanel() {
                   </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                     <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete"
-                      style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-title)', lineHeight: 1, padding: 'var(--s1) var(--s2)' }}>
+                      className="btn-icon danger">
                       ×
                     </button>
                   </td>
@@ -1261,8 +1256,7 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
 
         <div className="row end" style={{ gap: 'var(--s2)' }}>
           <button type="button" onClick={deleteOutlet}
-            className="btn btn-sm"
-            style={{ background: 'var(--negative)', color: '#fff', border: 'none' }}
+            className="btn btn-sm btn-danger"
             title="Hard-delete this publication. Coverage and journalists pointing at it stay (their Publication becomes blank).">
             Delete publication
           </button>
@@ -1563,7 +1557,7 @@ function ProviderCard({ entry }) {
         {hasDiag && (
           <button type="button" onClick={() => setShowDiag((v) => !v)}
             title="Show raw breakdown from the API response"
-            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', padding: 0 }}>
+            className="btn-link" style={{ marginLeft: 'auto' }}>
             {showDiag ? '× close' : 'diagnose'}
           </button>
         )}
@@ -2659,12 +2653,12 @@ function ContactsLibrary() {
                         {r.status === 'do_not_contact'
                           ? <span title="Opted out of all email" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                               opted out · <button onClick={() => allowOne(r)} title="Allow contact again"
-                                style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', font: 'inherit', textDecoration: 'underline', padding: 0 }}>allow</button>
+                                className="btn-link">allow</button>
                             </span>
                           : <button onClick={() => optOutOne(r)} title="Mark do-not-contact (unsubscribe from everything)"
-                              style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', fontSize: 'var(--fs-caption)', textDecoration: 'underline', padding: 0 }}>unsubscribe</button>}
+                              className="btn-link">unsubscribe</button>}
                         <button onClick={() => destroyOne(r.id)} title="Delete from library"
-                          style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-title)', lineHeight: 1, padding: 'var(--s1) var(--s2)', marginLeft: 'var(--s2)' }}>
+                          className="btn-icon danger" style={{ marginLeft: 'var(--s2)' }}>
                           ×
                         </button>
                       </td>
@@ -2996,7 +2990,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             <div style={tidyStyles.eyebrow}>Tidy with Claude</div>
             <h2 style={{ margin: 0, fontSize: 'var(--fs-title)', fontWeight: 700 }}>Journalist data cleanup</h2>
           </div>
-          <button onClick={onClose} style={tidyStyles.closeBtn}>×</button>
+          <button onClick={onClose} className="btn-icon">×</button>
         </div>
 
         {err && <div style={tidyStyles.err}>{err}</div>}
@@ -3017,9 +3011,9 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
               </div>
             </div>
             <div style={tidyStyles.footer}>
-              <button onClick={onClose} style={tidyStyles.ghostBtn}>Cancel</button>
+              <button onClick={onClose} className="btn btn-secondary">Cancel</button>
               <div style={{ flex: 1 }} />
-              <button {...roWrite(readOnly, { onClick: runAnalyse })} style={tidyStyles.btn}>Start analysis</button>
+              <button {...roWrite(readOnly, { onClick: runAnalyse })} className="btn btn-primary">Start analysis</button>
             </div>
           </div>
         )}
@@ -3094,14 +3088,14 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             <div style={tidyStyles.footer}>
               {!!result.suggestions.length && (
                 <>
-                  <button onClick={() => setSelected(new Set(result.suggestions.map((_, i) => i)))} style={tidyStyles.ghostBtn}>Tick all</button>
-                  <button onClick={() => setSelected(new Set())} style={tidyStyles.ghostBtn}>Untick all</button>
+                  <button onClick={() => setSelected(new Set(result.suggestions.map((_, i) => i)))} className="btn btn-secondary">Tick all</button>
+                  <button onClick={() => setSelected(new Set())} className="btn btn-secondary">Untick all</button>
                 </>
               )}
               <div style={{ flex: 1 }} />
               <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{selected.size} of {result.suggestions.length} ticked</span>
               <button onClick={apply} disabled={!selected.size}
-                style={!selected.size ? { ...tidyStyles.btn, opacity: 0.5 } : tidyStyles.btn}>
+                className="btn btn-primary">
                 Apply {selected.size} change{selected.size === 1 ? '' : 's'}
               </button>
             </div>
@@ -3119,7 +3113,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             </div>
             <div style={tidyStyles.footer}>
               <div style={{ flex: 1 }} />
-              <button onClick={onClose} style={tidyStyles.btn}>Done</button>
+              <button onClick={onClose} className="btn btn-primary">Done</button>
             </div>
           </div>
         )}
