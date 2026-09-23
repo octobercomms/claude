@@ -177,7 +177,7 @@ export default function TenderWorkspacePage() {
             {editingClose ? (
               <>
                 <input type="date" value={closeDraft} onChange={e => setCloseDraft(e.target.value)}
-                  style={{ padding: '3px 6px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                  style={{ padding: '3px 6px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
                 <button className="btn btn-primary btn-sm" onClick={saveClose}>Save</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setEditingClose(false)}>Cancel</button>
               </>
@@ -185,7 +185,7 @@ export default function TenderWorkspacePage() {
               <>
                 {notice?.closing_at ? fmtDate(notice.closing_at) : <span style={{ color: 'var(--danger, #c0392b)' }}>not set</span>}
                 <button className="btn-link" onClick={() => { setCloseDraft(toDateInput(notice?.closing_at)); setEditingClose(true); }}
-                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--link, #06c)', textDecoration: 'underline', fontSize: 12 }}>
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--link, #06c)', textDecoration: 'underline', fontSize: 'var(--fs-caption)' }}>
                   {notice?.closing_at ? 'edit' : 'add'}
                 </button>
               </>
@@ -215,7 +215,7 @@ export default function TenderWorkspacePage() {
                   maxWidth: m.role === 'user' ? '80%' : '96%',
                   background: m.role === 'user' ? 'var(--text)' : undefined, color: m.role === 'user' ? '#fff' : undefined,
                   borderRadius: m.role === 'user' ? 'var(--r-md)' : undefined, padding: m.role === 'user' ? '10px 14px' : undefined,
-                  fontSize: 14, lineHeight: 1.55,
+                  fontSize: 'var(--fs-body)', lineHeight: 1.55,
                 }}>
                   {m.role === 'user'
                     ? <span style={{ whiteSpace: 'pre-wrap' }}>{m.content}</span>
@@ -244,7 +244,7 @@ export default function TenderWorkspacePage() {
             <textarea value={input} onChange={e => setInput(e.target.value)} rows={2}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Ask for fit, a plan, or a drafted deliverable… (Enter to send)"
-              style={{ flex: 1, resize: 'vertical', padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              style={{ flex: 1, resize: 'vertical', padding: '10px 12px', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
             <button className="btn btn-primary" disabled={sending || !input.trim()} onClick={() => send()}>{sending ? 'Sending…' : 'Send'}</button>
           </div>
         </div>
@@ -258,7 +258,7 @@ export default function TenderWorkspacePage() {
             <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? 'Uploading…' : 'Upload files'}</button>
             <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {files.map(f => (
-                <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-body)' }}>
                   <button className="btn-link" onClick={() => downloadBlob(`/tender/files/${f.id}/download`, f.filename, toast)}
                     style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', flex: 1, cursor: 'pointer', color: 'var(--link, #06c)', textDecoration: 'underline' }}>
                     {f.filename}
@@ -295,7 +295,7 @@ export default function TenderWorkspacePage() {
             {profileOpen && (
               <div style={{ marginTop: 10 }}>
                 <textarea value={profileMd} onChange={e => setProfileMd(e.target.value)} rows={12}
-                  style={{ width: '100%', resize: 'vertical', padding: '8px 10px', fontSize: 12.5, fontFamily: 'ui-monospace, monospace', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                  style={{ width: '100%', resize: 'vertical', padding: '8px 10px', fontSize: 'var(--fs-body)', fontFamily: 'ui-monospace, monospace', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
                 <button className="btn btn-primary btn-sm" onClick={saveProfile} disabled={savingProfile} style={{ marginTop: 8 }}>{savingProfile ? 'Saving…' : 'Save profile'}</button>
               </div>
             )}
@@ -307,14 +307,14 @@ export default function TenderWorkspacePage() {
 }
 
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 17, fontWeight: 700, margin: '10px 0 8px' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 15, fontWeight: 700, margin: '12px 0 6px' }} {...p} />,
-  h3: ({ node, ...p }) => <h3 style={{ fontSize: 14, fontWeight: 700, margin: '10px 0 5px' }} {...p} />,
+  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '10px 0 8px' }} {...p} />,
+  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '12px 0 6px' }} {...p} />,
+  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '10px 0 5px' }} {...p} />,
   p: ({ node, ...p }) => <p style={{ margin: '0 0 10px', lineHeight: 1.55 }} {...p} />,
   ul: ({ node, ...p }) => <ul style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
   ol: ({ node, ...p }) => <ol style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
   li: ({ node, ...p }) => <li style={{ marginBottom: 5, lineHeight: 1.5 }} {...p} />,
-  table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }} {...p} /></div>,
-  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 12 }} {...p} />,
+  table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }} {...p} /></div>,
+  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
   td: ({ node, ...p }) => <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--card-border)' }} {...p} />,
 };

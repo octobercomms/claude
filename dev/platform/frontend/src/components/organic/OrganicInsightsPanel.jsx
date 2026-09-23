@@ -102,7 +102,7 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {distribution.map(b => (
-                <div key={b.label} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 40px', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                <div key={b.label} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 40px', alignItems: 'center', gap: 8, fontSize: 'var(--fs-caption)' }}>
                   <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{b.label}</span>
                   <div style={{ height: 14, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${(b.count / maxDist) * 100}%`, background: 'var(--accent)' }} />
@@ -124,7 +124,7 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
               {intentRows.map(([label, count]) => {
                 const pct = Math.round((count / tracked) * 100);
                 return (
-                  <div key={label} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 60px', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                  <div key={label} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 60px', alignItems: 'center', gap: 8, fontSize: 'var(--fs-caption)' }}>
                     <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
                     <div style={{ height: 14, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${pct}%`, background: INTENT_COLOURS[label] || 'var(--text-subtle)' }} />
@@ -145,10 +145,10 @@ export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, on
           ) : (
             <>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
-                <span className="metric" style={{ fontSize: 36 }}>{aioCoverage}%</span>
+                <span className="metric" style={{ fontSize: 'var(--fs-display)' }}>{aioCoverage}%</span>
                 <span className="body-sm text-muted">brand cited where AIO appears</span>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.6 }}>
                 AIO present on <strong style={{ color: 'var(--text)' }}>{aioPresent}</strong> of {tracked} tracked queries.<br />
                 Brand cited on <strong style={{ color: 'var(--positive)' }}>{aioCited}</strong> of those.
               </div>
@@ -174,7 +174,7 @@ function Stat({ label, value, sub, tone }) {
     <div className="card">
       <div className="caption">{label}</div>
       <div className="metric" style={{ color: valueColour, marginTop: 4 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -183,13 +183,13 @@ function MoverList({ title, rows, tone }) {
   const arrowColour = tone === 'positive' ? 'var(--positive)' : 'var(--negative)';
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: arrowColour, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: arrowColour, marginBottom: 6 }}>{title}</div>
       {!rows.length ? (
-        <p style={{ fontSize: 11, color: 'var(--text-subtle)' }}>None</p>
+        <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>None</p>
       ) : (
         <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {rows.map(r => (
-            <li key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12 }}>
+            <li key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 'var(--fs-caption)' }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.keyword}>{r.keyword}</span>
               <span style={{ color: arrowColour, fontWeight: 700, whiteSpace: 'nowrap' }}>
                 {tone === 'positive' ? '↑' : '↓'} {Math.abs(r.change)} <span style={{ color: 'var(--text-subtle)', fontWeight: 500 }}>(#{r.current_position})</span>

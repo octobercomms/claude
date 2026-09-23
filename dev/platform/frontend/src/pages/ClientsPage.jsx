@@ -76,7 +76,7 @@ export default function ClientsPage() {
 
       {showNew && (
         <div className="card">
-          <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>New Client</h3>
+          <h3 style={{ margin: '0 0 16px', fontSize: 'var(--fs-body)' }}>New Client</h3>
           <form onSubmit={handleCreate} >
             {error && <div className="text-negative">{error}</div>}
             <div >
@@ -114,9 +114,9 @@ export default function ClientsPage() {
             {visible.map(c => (
               <tr key={c.id} style={{ opacity: c.active ? 1 : 0.7 }}>
                 <td ><strong>{c.name}</strong></td>
-                <td><code className="text-subtle" style={{ fontSize: 12 }}>{c.slug}</code></td>
+                <td><code className="text-subtle" style={{ fontSize: 'var(--fs-caption)' }}>{c.slug}</code></td>
                 <td>
-                  <span className={c.active ? 'text-positive' : 'text-subtle'} style={{ fontSize: 12 }}>
+                  <span className={c.active ? 'text-positive' : 'text-subtle'} style={{ fontSize: 'var(--fs-caption)' }}>
                     {c.active ? 'Active' : 'Archived'}
                   </span>
                 </td>

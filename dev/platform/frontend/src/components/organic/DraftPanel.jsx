@@ -103,13 +103,13 @@ export default function DraftPanel({ clientId, onNext }) {
         <textarea
           value={brief} onChange={e => setBrief(e.target.value)} rows={4}
           placeholder="Paste a brief — title, outline, target intent, key questions, word count. Or write a brief directly from a Brief step run."
-          style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
+          style={{ width: '100%', padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
         />
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <input
             value={targetKeyword} onChange={e => setTargetKeyword(e.target.value)}
             placeholder="Target keyword (optional)"
-            style={{ flex: 1, padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+            style={{ flex: 1, padding: '7px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
           />
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: generate, disabled: generating || !brief.trim() })}>
             {generating ? 'Writing — 30-90s…' : 'Write draft'}
@@ -122,7 +122,7 @@ export default function DraftPanel({ clientId, onNext }) {
       {loading && !drafts.length ? (
         <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
       ) : !drafts.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
           No drafts yet. Paste a brief above to generate the first one.
         </div>
       ) : (
@@ -134,14 +134,14 @@ export default function DraftPanel({ clientId, onNext }) {
                 style={{ padding: 10, marginBottom: 8, cursor: 'pointer',
                   background: d.id === activeDraft?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
                 onClick={() => openDraft(d.id)}>
-                <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.3 }}>{d.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                <div style={{ fontWeight: 600, fontSize: 'var(--fs-caption)', lineHeight: 1.3 }}>{d.title}</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
                   {new Date(d.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short' })}
                   {' · '}{d.word_count?.toLocaleString() || 0} words
                   {' · '}<span style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>{d.status}</span>
                 </div>
                 {(d.publications || []).length > 0 && (
-                  <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 4 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
                     Published to {d.publications.map(p => p.platform).join(', ')}
                   </div>
                 )}
@@ -170,22 +170,22 @@ export default function DraftPanel({ clientId, onNext }) {
                   value={editTitle}
                   onChange={e => { setEditTitle(e.target.value); setDirty(true); }}
                   placeholder="Title"
-                  style={{ width: '100%', padding: '10px 12px', fontSize: 18, fontWeight: 700, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--fs-title)', fontWeight: 700, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
                 />
                 <input
                   value={editMeta}
                   onChange={e => { setEditMeta(e.target.value); setDirty(true); }}
                   placeholder="Meta description (≤155 chars)"
                   maxLength={160}
-                  style={{ width: '100%', padding: '7px 12px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '7px 12px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
                 />
                 <textarea
                   value={editBody}
                   onChange={e => { setEditBody(e.target.value); setDirty(true); }}
                   rows={28}
-                  style={{ width: '100%', padding: '12px 14px', fontSize: 13, lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
+                  style={{ width: '100%', padding: '12px 14px', fontSize: 'var(--fs-body)', lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
                 />
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6 }}>
                   Markdown · {editBody.split(/\s+/).filter(Boolean).length.toLocaleString()} words
                 </div>
                   </div>

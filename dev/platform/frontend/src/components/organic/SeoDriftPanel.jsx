@@ -96,7 +96,7 @@ export default function SeoDriftPanel({ clientId }) {
         <div className="row between center" style={{ gap: 10, flexWrap: 'wrap' }}>
           <div className="row" style={{ gap: 8, flex: 1, minWidth: 260 }}>
             <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Name it — e.g. Pre-migration, Before redesign"
-              style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              style={{ flex: 1, padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
             <button className="btn btn-primary" {...roWrite(readOnly, { onClick: capture, disabled: busy })}>
               {busy ? 'Working…' : '⦿ Capture baseline'}
             </button>
@@ -109,7 +109,7 @@ export default function SeoDriftPanel({ clientId }) {
       {loading ? (
         <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>
       ) : !baselines.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
           No baselines yet. Capture one above — it takes a snapshot of the current SEO signals to compare against later.
         </div>
       ) : (
@@ -118,7 +118,7 @@ export default function SeoDriftPanel({ clientId }) {
             <div className="row center" style={{ gap: 8, flexWrap: 'wrap' }}>
               <span className="body-sm text-muted">Compare against</span>
               <select value={selected} onChange={e => setSelected(e.target.value)} className="input"
-                style={{ padding: '6px 10px', fontSize: 13, minWidth: 260 }}>
+                style={{ padding: '6px 10px', fontSize: 'var(--fs-body)', minWidth: 260 }}>
                 {baselines.map(b => (
                   <option key={b.id} value={b.id}>{b.label ? `${b.label} — ` : ''}{fmtDate(b.captured_at)}</option>
                 ))}
@@ -141,7 +141,7 @@ export default function SeoDriftPanel({ clientId }) {
                   {['critical', 'warning', 'info'].map(s => (
                     <div key={s} className="card" style={{ padding: '10px 12px' }}>
                       <div className="caption">{SEV[s].label}</div>
-                      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2, color: SEV[s].tone }}>{report.summary[s] || 0}</div>
+                      <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, marginTop: 2, color: SEV[s].tone }}>{report.summary[s] || 0}</div>
                     </div>
                   ))}
                 </div>
@@ -153,11 +153,11 @@ export default function SeoDriftPanel({ clientId }) {
                     <div key={i} className="card" style={{ padding: '10px 12px', borderLeft: `3px solid ${SEV[c.severity].tone}` }}>
                       <div className="row between center" style={{ gap: 10 }}>
                         <div style={{ minWidth: 0 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-subtle)' }}>{c.area}</span>
-                          <div style={{ fontSize: 13, fontWeight: 600 }}>{c.metric}</div>
+                          <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-subtle)' }}>{c.area}</span>
+                          <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>{c.metric}</div>
                         </div>
                         <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: c.direction === 'up' ? 'var(--positive)' : SEV[c.severity].tone }}>
+                          <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: c.direction === 'up' ? 'var(--positive)' : SEV[c.severity].tone }}>
                             {c.from ?? '—'} → {c.to ?? '—'} {c.direction === 'up' ? '↑' : '↓'}
                           </span>
                           {c.note && <div className="body-xs text-subtle">{c.note}</div>}

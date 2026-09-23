@@ -128,8 +128,8 @@ export default function FormsTab({ clientId, connectors }) {
   if (!formsConnector) {
     return (
       <div style={cardStyle}>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>October Forms not connected</div>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 8 }}>October Forms not connected</div>
+        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: 0 }}>
           Add an October Forms connector for this client under the <strong>Connectors</strong> tab to see form analytics here.
         </p>
       </div>
@@ -139,8 +139,8 @@ export default function FormsTab({ clientId, connectors }) {
   if (!formId) {
     return (
       <div style={cardStyle}>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>No form selected</div>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 8 }}>No form selected</div>
+        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: 0 }}>
           The October Forms connector is configured, but no form has been picked yet. Open the connector in the <strong>Connectors</strong> tab and choose which form belongs to this client.
         </p>
       </div>
@@ -153,14 +153,14 @@ export default function FormsTab({ clientId, connectors }) {
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>{formLabel || `Form ${formId}`}</div>
+            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</div>
+            <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)' }}>{formLabel || `Form ${formId}`}</div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>From</label>
+            <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>From</label>
             <input type="date" value={range.from} onChange={e => setRange(r => ({ ...r, from: e.target.value }))}
               style={dateInputStyle} />
-            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>To</label>
+            <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>To</label>
             <input type="date" value={range.to} onChange={e => setRange(r => ({ ...r, to: e.target.value }))}
               style={dateInputStyle} />
           </div>
@@ -178,7 +178,7 @@ export default function FormsTab({ clientId, connectors }) {
       {/* KPI row */}
       {stats && (
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>
             Performance — {range.from} to {range.to}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
@@ -197,7 +197,7 @@ export default function FormsTab({ clientId, connectors }) {
       {/* Funnel */}
       {funnel?.steps?.length > 0 && (
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Funnel — step drop-off</div>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Funnel — step drop-off</div>
           <FunnelBars steps={funnel.steps} />
         </div>
       )}
@@ -205,7 +205,7 @@ export default function FormsTab({ clientId, connectors }) {
       {/* Timeseries */}
       {timeseries?.days?.length > 0 && (
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Daily volume</div>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Daily volume</div>
           <Sparkline days={timeseries.days} />
         </div>
       )}
@@ -213,7 +213,7 @@ export default function FormsTab({ clientId, connectors }) {
       {/* Submissions */}
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Submissions {submissionsTotal ? `(${submissionsTotal.toLocaleString()})` : ''}
           </div>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...dateInputStyle, padding: '6px 10px' }}>
@@ -223,12 +223,12 @@ export default function FormsTab({ clientId, connectors }) {
           </select>
         </div>
         {submissions == null ? (
-          <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>
+          <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>
         ) : submissions.length === 0 ? (
-          <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>No submissions in this range.</div>
+          <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>No submissions in this range.</div>
         ) : (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }}>
               <thead>
                 <tr>
                   {['ID', 'Status', 'Step reached', 'Started', 'Last activity', ''].map(h => (
@@ -239,7 +239,7 @@ export default function FormsTab({ clientId, connectors }) {
               <tbody>
                 {submissions.map(s => (
                   <tr key={s.id}>
-                    <td style={tdStyle}><code style={{ fontSize: 11 }}>{s.id}</code></td>
+                    <td style={tdStyle}><code style={{ fontSize: 'var(--fs-caption)' }}>{s.id}</code></td>
                     <td style={tdStyle}>
                       <span style={{ ...statusPill, background: s.status === 'complete' ? 'var(--positive-soft)' : 'var(--warning-soft)', color: s.status === 'complete' ? 'var(--positive)' : 'var(--warning)' }}>
                         {s.status}
@@ -257,7 +257,7 @@ export default function FormsTab({ clientId, connectors }) {
             </table>
             {submissionsTotal > PAGE_SIZE && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                   Page {page + 1} of {Math.ceil(submissionsTotal / PAGE_SIZE)}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -284,8 +284,8 @@ export default function FormsTab({ clientId, connectors }) {
 function Kpi({ label, value, accent = false }) {
   return (
     <div style={{ padding: '12px 14px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: accent ? 'var(--warning-soft)' : 'var(--surface-raised)' }}>
-      <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700 }}>{value}</div>
     </div>
   );
 }
@@ -300,7 +300,7 @@ function FunnelBars({ steps }) {
         const dropPct = i > 0 ? ((steps[i - 1].reached - s.reached) / (steps[i - 1].reached || 1)) * 100 : 0;
         return (
           <div key={s.step_id || i}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', marginBottom: 3 }}>
               <span><strong>{i + 1}.</strong> {s.title || s.step_id}</span>
               <span style={{ color: 'var(--text-muted)' }}>
                 {(s.reached || 0).toLocaleString()} ({((s.reached / start) * 100).toFixed(1)}%)
@@ -334,7 +334,7 @@ function Sparkline({ days }) {
         {series('starts', 'var(--accent)')}
         {series('completes', 'var(--positive)')}
       </svg>
-      <div style={{ display: 'flex', gap: 16, fontSize: 12, marginTop: 6, color: 'var(--text-muted)' }}>
+      <div style={{ display: 'flex', gap: 16, fontSize: 'var(--fs-caption)', marginTop: 6, color: 'var(--text-muted)' }}>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--text-subtle)', marginRight: 5, verticalAlign: 'middle' }} />Views</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--accent)', marginRight: 5, verticalAlign: 'middle' }} />Starts</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--positive)', marginRight: 5, verticalAlign: 'middle' }} />Completes</span>
@@ -357,14 +357,14 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
     <div style={modalOverlay} onClick={onClose}>
       <div style={{ ...modalStyle, maxWidth: 720 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Submission <code style={{ fontSize: 13 }}>{submissionId}</code></div>
+          <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)' }}>Submission <code style={{ fontSize: 'var(--fs-body)' }}>{submissionId}</code></div>
           <button onClick={onClose} style={btnSmStyle}>Close</button>
         </div>
-        {err && <div style={{ color: 'var(--negative)', fontSize: 13 }}>{err}</div>}
+        {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>{err}</div>}
         {!data && !err && <div style={{ color: 'var(--text-subtle)' }}>Loading…</div>}
         {data && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 'var(--fs-body)' }}>
               <div><strong>Status:</strong> {data.status}</div>
               <div><strong>Step reached:</strong> {data.step_reached ?? '—'}</div>
               <div><strong>Created:</strong> {data.created_at ? new Date(data.created_at).toLocaleString('en-GB') : '—'}</div>
@@ -373,8 +373,8 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
             </div>
             {data.answers_table?.length > 0 && (
               <div>
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Answers</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 6 }}>Answers</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-caption)' }}>
                   <tbody>
                     {data.answers_table.map((a, i) => (
                       <tr key={i} style={{ borderTop: i ? '1px solid #f0f0f0' : 'none' }}>
@@ -388,14 +388,14 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
             )}
             {data.files?.length > 0 && (
               <div>
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Files</div>
+                <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 6 }}>Files</div>
                 <ul style={{ paddingLeft: 18, margin: 0 }}>
                   {data.files.map((f, i) => (
                     <li key={i} style={{ marginBottom: 4 }}>
                       <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)' }}>
                         {f.filename || f.name || f.url}
                       </a>
-                      {f.size && <span style={{ color: 'var(--text-subtle)', fontSize: 11, marginLeft: 6 }}>({Math.round(f.size / 1024)} KB)</span>}
+                      {f.size && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginLeft: 6 }}>({Math.round(f.size / 1024)} KB)</span>}
                     </li>
                   ))}
                 </ul>
@@ -409,10 +409,10 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
 }
 
 const cardStyle = { background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 20 };
-const dateInputStyle = { padding: '5px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 };
-const thStyle = { textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 11, color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 };
+const dateInputStyle = { padding: '5px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' };
+const thStyle = { textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 };
 const tdStyle = { padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' };
-const statusPill = { fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-md)', textTransform: 'capitalize' };
-const btnSmStyle = { background: 'var(--surface)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600 };
+const statusPill = { fontSize: 'var(--fs-caption)', fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-md)', textTransform: 'capitalize' };
+const btnSmStyle = { background: 'var(--surface)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '6px 14px', fontSize: 'var(--fs-caption)', cursor: 'pointer', fontWeight: 600 };
 const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
 const modalStyle = { background: 'white', borderRadius: 'var(--r-sm)', padding: 24, width: '100%', maxWidth: 720, maxHeight: '90vh', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' };

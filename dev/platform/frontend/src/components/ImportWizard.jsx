@@ -198,7 +198,7 @@ export default function ImportWizard({
         <div style={header}>
           <div>
             <div style={eyebrow}>Step {step} of 3</div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Import {plural}</h2>
+            <h2 style={{ margin: 0, fontSize: 'var(--fs-title)', fontWeight: 700 }}>Import {plural}</h2>
           </div>
           <button onClick={onClose} style={closeBtn}>×</button>
         </div>
@@ -214,7 +214,7 @@ export default function ImportWizard({
             <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onPickFile} />
             <div style={{ marginTop: 14 }}>
               <button onClick={() => fileRef.current?.click()} style={btn}>Choose CSV file</button>
-              {file && <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--text-muted)' }}>{file.name}</span>}
+              {file && <span style={{ marginLeft: 12, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{file.name}</span>}
             </div>
           </div>
         )}
@@ -226,7 +226,7 @@ export default function ImportWizard({
               Anything mapped to "ignore" is dropped on import. <strong>Email</strong> is required.
             </p>
             <div style={{ overflowX: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginTop: 10 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-caption)' }}>
                 <thead>
                   <tr>
                     {headers.map(h => (
@@ -260,7 +260,7 @@ export default function ImportWizard({
             </div>
 
             <div style={{ marginTop: 18 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 Import these as {kindColumnMapped ? '(fallback)' : <span style={{ color: 'var(--negative)' }}>— required</span>}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
@@ -270,13 +270,13 @@ export default function ImportWizard({
                   <option value="industry">Industry contacts</option>
                   <option value="prospect">Prospects</option>
                 </select>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                   {kindColumnMapped
                     ? <>Used for rows with no value in your <strong>Type</strong> column.</>
                     : <>You haven't mapped a <strong>Type</strong> column, so <strong>every</strong> {entityLabel} will be imported as this. Pick carefully.</>}
                 </span>
               </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 Apply these tags to every imported {entityLabel}
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
@@ -293,7 +293,7 @@ export default function ImportWizard({
               </div>
               {!!knownTags.length && (
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 4 }}>Existing tags — click to add:</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 4 }}>Existing tags — click to add:</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {knownTags.slice(0, 24).filter(t => !tags.has(t.tag)).map(t => (
                       <button key={t.tag} onClick={() => toggleTag(t.tag)} style={tagChip}>
@@ -307,11 +307,11 @@ export default function ImportWizard({
 
             {allowClients && (
               <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                   Also attach to (optional)
                 </div>
                 {!clients.length
-                  ? <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No clients to choose — {plural} will land in the library only.</div>
+                  ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No clients to choose — {plural} will land in the library only.</div>
                   : (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {clients.map(c => (
@@ -333,10 +333,10 @@ export default function ImportWizard({
               </button>
             </div>
             {!mappingHasEmail && (
-              <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 6 }}>Map one column to Email to continue.</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 6 }}>Map one column to Email to continue.</div>
             )}
             {mappingHasEmail && !kindReady && (
-              <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 6 }}>Choose what type these contacts are (Press / Industry / Prospects) to continue.</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 6 }}>Choose what type these contacts are (Press / Industry / Prospects) to continue.</div>
             )}
           </div>
         )}
@@ -344,7 +344,7 @@ export default function ImportWizard({
         {step === 3 && !result && (
           <div>
             <p style={hint}>Here's what's about to be imported. Click Import to send it.</p>
-            <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 14, fontSize: 13, lineHeight: 1.8, marginTop: 10 }}>
+            <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 14, fontSize: 'var(--fs-body)', lineHeight: 1.8, marginTop: 10 }}>
               <div><strong>{builtRows.length}</strong> {plural} with a valid email</div>
               <div>Importing as: <strong>{kindColumnMapped ? `per your Type column (fallback ${KIND_LABEL[defaultKind] || '—'})` : KIND_LABEL[defaultKind] || '—'}</strong></div>
               <div>Library: <strong>add new or merge tags into existing</strong> (re-imports are safe)</div>
@@ -369,7 +369,7 @@ export default function ImportWizard({
 
         {step === 3 && result && (
           <div>
-            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 13 }}>
+            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
               ✓ Imported {result.inserted} new {entityLabel}{result.inserted === 1 ? '' : 's'}, merged tags into {result.reused} existing.
               {clientIdForAttach && ` Attached to this client.`}
               {allowClients && attachClients.size > 0 && ` Attached to ${attachClients.size} client${attachClients.size === 1 ? '' : 's'}.`}
@@ -409,14 +409,14 @@ function splitCsvLine(line) {
 const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' };
 const modal = { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 880, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
 const header = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 };
-const eyebrow = { fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 };
-const closeBtn = { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 };
-const hint = { fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 };
+const eyebrow = { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 };
+const closeBtn = { background: 'none', border: 'none', fontSize: 'var(--fs-section)', cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 };
+const hint = { fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 };
 const footer = { display: 'flex', alignItems: 'center', gap: 8, marginTop: 18, paddingTop: 14, borderTop: '1px solid #eee' };
-const btn = { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
-const ghostBtn = { background: 'var(--surface)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
-const input = { padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' };
-const select = { padding: '5px 8px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)', cursor: 'pointer', width: '100%' };
-const tagChip = { padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 11, border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' };
-const tagChipOn = { padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 11, border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer' };
-const errBox = { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 12, marginBottom: 12 };
+const btn = { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: '9px 18px', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' };
+const ghostBtn = { background: 'var(--surface)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '8px 16px', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' };
+const input = { padding: '7px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' };
+const select = { padding: '5px 8px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)', cursor: 'pointer', width: '100%' };
+const tagChip = { padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' };
+const tagChipOn = { padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 'var(--fs-caption)', border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer' };
+const errBox = { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', marginBottom: 12 };

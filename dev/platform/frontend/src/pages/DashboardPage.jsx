@@ -27,7 +27,7 @@ export default function DashboardPage() {
   if (loading) return <div className="text-subtle text-center p-s8">Loading dashboard…</div>;
   if (error) {
     return (
-      <div className="px-s4 py-s3 rounded-sm border border-negative bg-negative-soft text-negative text-[13px] leading-[1.5] mb-s5">
+      <div className="px-s4 py-s3 rounded-sm border border-negative bg-negative-soft text-negative text-[length:var(--fs-body)] leading-[1.5] mb-s5">
         {error}
       </div>
     );
@@ -50,7 +50,7 @@ export default function DashboardPage() {
           Renders as wrapping inline text (not a rigid flex row) so the
           line reflows cleanly on narrow screens; tighter tracking on
           mobile keeps it readable. */}
-      <div className="text-[11px] font-bold tracking-[0.14em] max-md:tracking-[0.08em] uppercase text-subtle leading-[1.7] mb-s3">
+      <div className="text-[length:var(--fs-caption)] font-bold tracking-[0.14em] max-md:tracking-[0.08em] uppercase text-subtle leading-[1.7] mb-s3">
         <span className="inline-block w-2 h-2 bg-accent rounded-pill align-middle mr-2" />
         Overview · <b className="text-ink">{clients.length} {clients.length === 1 ? 'client' : 'clients'}</b> ·{' '}
         {expiredTokens.length
@@ -58,14 +58,14 @@ export default function DashboardPage() {
           : 'all systems healthy'}
       </div>
       <header className="flex justify-between items-end flex-wrap gap-s4 border-b border-ink pb-s5 mb-s7">
-        <h1 className="text-[54px] font-extrabold leading-none tracking-[-1.6px] text-ink m-0 max-md:text-[40px]">Dashboard</h1>
-        <div className="text-[13px] text-muted font-medium">{today}</div>
+        <h1 className="text-[length:var(--fs-display)] font-extrabold leading-none tracking-[-1.6px] text-ink m-0 max-md:text-[length:var(--fs-display)]">Dashboard</h1>
+        <div className="text-[length:var(--fs-body)] text-muted font-medium">{today}</div>
       </header>
 
       {api_spend && <ApiSpendBanner spend={api_spend} />}
 
       {expiredTokens.length > 0 && (
-        <div className="px-s4 py-s3 rounded-sm border border-negative bg-negative-soft text-negative text-[13px] leading-[1.5] mb-s5">
+        <div className="px-s4 py-s3 rounded-sm border border-negative bg-negative-soft text-negative text-[length:var(--fs-body)] leading-[1.5] mb-s5">
           <strong>⚠ Meta token expired</strong> — {expiredTokens.map(t => t.client_name).join(', ')}
           {' — '}
           <Link to="/clients" className="text-inherit underline">Reauthorise</Link>
@@ -77,7 +77,7 @@ export default function DashboardPage() {
         <Stat feature label="Active clients" value={clients.length} sub="under management" />
         <Stat
           label="Connectors live"
-          value={<>{connActive}<span className="text-[20px] text-subtle tracking-normal font-bold">/{connTotal}</span></>}
+          value={<>{connActive}<span className="text-[length:var(--fs-title)] text-subtle tracking-normal font-bold">/{connTotal}</span></>}
           sub={connTotal ? `${healthPct}% healthy` : 'none connected'}
         />
         <Stat label="Recent reports" value={recent_reports.length} sub="latest activity" />
@@ -91,7 +91,7 @@ export default function DashboardPage() {
 
       {/* Clients */}
       <div className="flex items-baseline justify-between mt-s7 mb-s4">
-        <h2 className="text-[24px] font-extrabold tracking-[-0.5px] text-ink m-0">Clients</h2>
+        <h2 className="text-[length:var(--fs-section)] font-extrabold tracking-[-0.5px] text-ink m-0">Clients</h2>
         <Link to="/clients" className="btn btn-primary btn-sm">View all →</Link>
       </div>
       <div className="grid gap-s4 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
@@ -216,9 +216,9 @@ function StrategyOverview() {
 function Stat({ label, value, sub, subTone, feature = false, fn }) {
   return (
     <div className={`border rounded-md p-s5 flex flex-col gap-s3 min-h-[140px] ${feature ? 'bg-ink border-ink' : 'bg-surface border-cardborder'}`}>
-      <div className={`text-[11px] font-bold tracking-[0.12em] uppercase ${feature ? 'text-white/60' : 'text-muted'}`}>{fn && <Pip fn={fn} />}{label}</div>
-      <div className={`text-[46px] font-extrabold leading-[0.9] tracking-[-2px] mt-auto ${feature ? 'text-white' : 'text-ink'}`}>{value}</div>
-      <div className={`text-[12px] flex items-center gap-1.5 ${feature ? 'text-white/60' : subTone === 'warn' ? 'text-warning font-semibold' : 'text-subtle'}`}>{sub}</div>
+      <div className={`text-[length:var(--fs-caption)] font-bold tracking-[0.12em] uppercase ${feature ? 'text-white/60' : 'text-muted'}`}>{fn && <Pip fn={fn} />}{label}</div>
+      <div className={`text-[length:var(--fs-display)] font-extrabold leading-[0.9] tracking-[-2px] mt-auto ${feature ? 'text-white' : 'text-ink'}`}>{value}</div>
+      <div className={`text-[length:var(--fs-caption)] flex items-center gap-1.5 ${feature ? 'text-white/60' : subTone === 'warn' ? 'text-warning font-semibold' : 'text-subtle'}`}>{sub}</div>
     </div>
   );
 }
@@ -234,18 +234,18 @@ function ClientCard({ client }) {
     <div className="bg-surface border border-cardborder rounded-md p-s5 max-md:p-s4 text-ink flex flex-col gap-s3">
       <div className="flex justify-between items-start">
         <div>
-          <div className="text-[17px] font-extrabold leading-[1.2] tracking-[-0.3px] text-ink m-0">{client.name}</div>
-          <div className="text-[12px] leading-[1.4] text-subtle mt-1">{client.slug}</div>
+          <div className="text-[length:var(--fs-title)] font-extrabold leading-[1.2] tracking-[-0.3px] text-ink m-0">{client.name}</div>
+          <div className="text-[length:var(--fs-caption)] leading-[1.4] text-subtle mt-1">{client.slug}</div>
         </div>
         <div className={`w-2.5 h-2.5 rounded-pill mt-1.5 ${dotColor}`} title={`${active}/${total} connectors active`} />
       </div>
       <div className="flex flex-col flex-1 space-y-s2">
-        <div className="flex justify-between text-[13px] text-muted">
+        <div className="flex justify-between text-[length:var(--fs-body)] text-muted">
           <span>Connectors</span>
           <strong className="text-ink font-semibold">{active}/{total} active</strong>
         </div>
         {client.last_report && (
-          <div className="flex justify-between text-[13px] text-muted">
+          <div className="flex justify-between text-[length:var(--fs-body)] text-muted">
             <span>Last report</span>
             <strong className="text-ink font-semibold">
               <StatusBadge status={client.last_report.status} /> {formatDate(client.last_report.created_at)}
@@ -255,10 +255,10 @@ function ClientCard({ client }) {
       </div>
       <Link
         to={`/clients/${client.id}/sales-traffic`}
-        className="flex justify-between items-center text-[12px] font-extrabold text-ink no-underline border-t border-cardborder pt-s3 mt-s2"
+        className="flex justify-between items-center text-[length:var(--fs-caption)] font-extrabold text-ink no-underline border-t border-cardborder pt-s3 mt-s2"
       >
         <span>Manage client</span>
-        <span className="text-[15px]">→</span>
+        <span className="text-[length:var(--fs-body)]">→</span>
       </Link>
     </div>
   );
@@ -304,18 +304,18 @@ function ApiSpendBanner({ spend }) {
   return (
     <div className={`flex items-center gap-3 flex-wrap ${ring} rounded-md px-s5 py-s3 mb-s5`}>
       <span className={`w-2 h-2 rounded-pill ${dotColor}`} />
-      <span className="text-[13px] text-white">
+      <span className="text-[length:var(--fs-body)] text-white">
         <strong>API spend this month:</strong>{' '}
         {hasSpend
           ? <span className="text-accent font-bold">{entries.map(([cur, amt]) => fmtMoney(amt, cur)).join(' + ')}</span>
           : <span className="text-white/70">not reported yet</span>}
         {hasSpend && (
-          <span className={`ml-3 text-[12px] ${flag === 'red' ? 'text-red-300 font-bold' : flag === 'amber' ? 'text-yellow-200' : 'text-white/55'}`}>
+          <span className={`ml-3 text-[length:var(--fs-caption)] ${flag === 'red' ? 'text-red-300 font-bold' : flag === 'amber' ? 'text-yellow-200' : 'text-white/55'}`}>
             · ${dailyAvg.toFixed(2)}/day average{flag === 'red' ? ' — burning fast' : ''}
           </span>
         )}
       </span>
-      <Link to="/settings" className="ml-auto text-[12px] font-bold text-white underline">Breakdown →</Link>
+      <Link to="/settings" className="ml-auto text-[length:var(--fs-caption)] font-bold text-white underline">Breakdown →</Link>
     </div>
   );
 }

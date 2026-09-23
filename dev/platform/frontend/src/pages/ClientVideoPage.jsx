@@ -115,7 +115,7 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
     <div className="suite-video">
       {!embedded && <div className="kicker"><span className="pip" /><span>Video Studio · auto-edit</span></div>}
       {!embedded && <header className="hero"><div><h1 className="display mt-2">Video Studio</h1></div></header>}
-      <p style={{ fontSize: 13, color: 'var(--text-subtle)', maxWidth: 720, margin: '0 0 18px' }}>
+      <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', maxWidth: 720, margin: '0 0 18px' }}>
         Drop raw clips, pick a brand style, and run the auto-edit — it trims dead air, adds captions
         and motion graphics, grades the result, and re-edits until it passes. Rendering runs on the
         dedicated worker; this screen queues the job and tracks it.
@@ -145,15 +145,15 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
             <div className="caption mb-2">Google Drive delivery folder</div>
             <input className="input" placeholder="https://drive.google.com/drive/folders/…" value={driveFolder} onChange={e => setDriveFolder(e.target.value)} style={{ marginBottom: 8 }} />
             <button className="btn btn-secondary btn-sm" onClick={saveDriveFolder} disabled={savingFolder}>{savingFolder ? 'Saving…' : 'Save folder'}</button>
-            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6 }}>Masters from “Deliver: Drive” projects land here. Needs an active Google connector with Drive access.</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6 }}>Masters from “Deliver: Drive” projects land here. Needs an active Google connector with Drive access.</div>
           </div>
           <div className="h3" style={{ marginBottom: 8 }}>Projects</div>
-          {!projects.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No projects yet.</div>}
+          {!projects.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No projects yet.</div>}
           {projects.map(p => (
             <div key={p.id} className="card" style={{ padding: 10, marginBottom: 8, cursor: 'pointer', background: p.id === active?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
               onClick={() => openProject(p.id)}>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3 }}>
+              <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>{p.name}</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 3 }}>
                 {p.clip_count || 0} clip{(p.clip_count || 0) === 1 ? '' : 's'} · {STATUS_LABEL[p.status] || p.status}
               </div>
             </div>
@@ -163,13 +163,13 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
         {/* Right: active project */}
         <div>
           {!active ? (
-            <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>Select or create a project.</div>
+            <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>Select or create a project.</div>
           ) : (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
                   <div className="h2">{active.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Status: {STATUS_LABEL[active.status] || active.status}{active.error ? ` — ${active.error}` : ''}{active.score != null ? ` · QA score ${active.score}/100` : ''}</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Status: {STATUS_LABEL[active.status] || active.status}{active.error ? ` — ${active.error}` : ''}{active.score != null ? ` · QA score ${active.score}/100` : ''}</div>
                   {active.status === 'done' && active.output_url && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                       <a className="btn btn-primary btn-sm" href={`/api/video/projects/${active.id}/output`} target="_blank" rel="noreferrer">↓ Download finished video</a>
@@ -179,7 +179,7 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
                     </div>
                   )}
                   {active.status === 'done' && active.output_url && (
-                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>Files are auto-removed from the server 7 days after finishing.</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>Files are auto-removed from the server 7 days after finishing.</div>
                   )}
                 </div>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteProject(active.id)}>Delete</button>
@@ -203,7 +203,7 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
                       </tr>
                     ))}
                   </tbody></table>
-                ) : <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No clips yet — add your raw footage.</div>}
+                ) : <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No clips yet — add your raw footage.</div>}
               </div>
 
               <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runEdit, disabled: !active.clips?.length || ['queued', 'processing'].includes(active.status) })}>
@@ -214,7 +214,7 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
                 <div className="card" style={{ marginTop: 14 }}>
                   <div className="caption mb-2">Pipeline</div>
                   {active.jobs.map(j => (
-                    <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderTop: '1px solid var(--card-border)' }}>
+                    <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', padding: '4px 0', borderTop: '1px solid var(--card-border)' }}>
                       <span style={{ textTransform: 'capitalize' }}>{j.stage}</span>
                       <span style={{ color: j.status === 'failed' ? 'var(--negative)' : j.status === 'done' ? 'var(--positive)' : 'var(--text-subtle)' }}>{j.status}{j.error ? ` — ${j.error}` : ''}</span>
                     </div>

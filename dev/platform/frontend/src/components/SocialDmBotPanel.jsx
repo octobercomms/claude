@@ -256,7 +256,7 @@ export default function SocialDmBotPanel({ clientId }) {
         <div className="row between center" style={{ flexWrap: 'wrap', gap: 8 }}>
           <div className="caption">Live auto-send (Instagram)</div>
           {live?.config && (
-            <span style={{ fontSize: 12, fontWeight: 700, color: live.config.enabled ? 'var(--positive, #1a7f37)' : 'var(--text-subtle)' }}>
+            <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: live.config.enabled ? 'var(--positive, #1a7f37)' : 'var(--text-subtle)' }}>
               {live.config.enabled ? '● Live' : '○ Off'}
             </span>
           )}

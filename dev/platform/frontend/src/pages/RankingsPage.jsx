@@ -210,7 +210,7 @@ export default function RankingsPage() {
 
       {showAddForm && (
         <div className="card">
-          <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>Add Keyword</h3>
+          <h3 style={{ margin: '0 0 16px', fontSize: 'var(--fs-body)' }}>Add Keyword</h3>
           <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: 12 }}>
               <div className="field">
@@ -252,13 +252,13 @@ export default function RankingsPage() {
 
       {showBulkForm && (
         <div className="card">
-          <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Bulk Import Keywords</h3>
-          <p style={{ margin: '0 0 16px', fontSize: 12, color: 'var(--text-subtle)' }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 'var(--fs-body)' }}>Bulk Import Keywords</h3>
+          <p style={{ margin: '0 0 16px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
             One keyword per line. Optional columns: <code>keyword, target_url, tag</code>
           </p>
           <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <textarea
-              className="input" style={{ minHeight: 180, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+              className="input" style={{ minHeight: 180, resize: 'vertical', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
               placeholder={'enamel mug\nenamel teapot\nenamel dinner set, https://falconenamelware.com/collections/dinner, tableware'}
               value={bulkText}
               onChange={e => setBulkText(e.target.value)}
@@ -286,7 +286,7 @@ export default function RankingsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button type="submit" className="btn btn-primary" disabled={bulking}>{bulking ? 'Importing…' : 'Import Keywords'}</button>
               <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} className="btn btn-secondary">Cancel</button>
-              {bulkMsg && <span style={{ fontSize: 13, color: bulkMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{bulkMsg}</span>}
+              {bulkMsg && <span style={{ fontSize: 'var(--fs-body)', color: bulkMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{bulkMsg}</span>}
             </div>
           </form>
         </div>
@@ -315,8 +315,8 @@ export default function RankingsPage() {
                 return (
                   <tr key={kw.id} style={{ cursor: 'pointer' }} onClick={() => openHistory(kw)}>
                     <td >
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{kw.keyword}</div>
-                      {kw.target_url && <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{kw.target_url}</div>}
+                      <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>{kw.keyword}</div>
+                      {kw.target_url && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{kw.target_url}</div>}
                     </td>
                     <td >
                       <span className="chip chip-neutral">{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span>
@@ -324,11 +324,11 @@ export default function RankingsPage() {
                     <td ><span className="chip chip-neutral">{kw.device}</span></td>
                     <td >{kw.tag ? <span className="chip chip-neutral">{kw.tag}</span> : '—'}</td>
                     <td >
-                      <span style={{ fontSize: 16, fontWeight: 700, color: kw.current_position ? 'var(--text)' : 'var(--text-subtle)' }}>
+                      <span style={{ fontSize: 'var(--fs-title)', fontWeight: 700, color: kw.current_position ? 'var(--text)' : 'var(--text-subtle)' }}>
                         {kw.current_position || '—'}
                       </span>
                       {change !== null && (
-                        <span style={{ marginLeft: 6, fontSize: 11, color: change > 0 ? 'var(--positive)' : change < 0 ? 'var(--negative)' : 'var(--text-subtle)' }}>
+                        <span style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', color: change > 0 ? 'var(--positive)' : change < 0 ? 'var(--negative)' : 'var(--text-subtle)' }}>
                           {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '–'}
                         </span>
                       )}
@@ -351,14 +351,14 @@ export default function RankingsPage() {
         <div  onClick={() => setHistoryModal(null)}>
           <div  onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 15 }}>{historyModal.keyword}</h3>
-              <button onClick={() => setHistoryModal(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-subtle)' }}>×</button>
+              <h3 style={{ margin: 0, fontSize: 'var(--fs-body)' }}>{historyModal.keyword}</h3>
+              <button onClick={() => setHistoryModal(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--text-subtle)' }}>×</button>
             </div>
             {history.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={history} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
-                  <XAxis dataKey="checked_at" tickFormatter={d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} tick={{ fontSize: 10 }} />
-                  <YAxis reversed domain={['auto', 'auto']} tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="checked_at" tickFormatter={d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} tick={{ fontSize: 'var(--fs-caption)' }} />
+                  <YAxis reversed domain={['auto', 'auto']} tick={{ fontSize: 'var(--fs-caption)' }} />
                   <Tooltip formatter={v => [`Position ${v}`, 'Rank']} />
                   <Line type="monotone" dataKey="position" stroke="#1a1a1a" strokeWidth={2} dot={{ r: 3 }} connectNulls />
                 </LineChart>

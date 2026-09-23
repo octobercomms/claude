@@ -161,7 +161,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                         <button className="btn btn-ghost btn-sm" title="Rename" style={{ padding: '0 4px', lineHeight: 1 }}
                           onClick={e => { e.stopPropagation(); startRename(it, name); }}>✎</button>
                         <a href={it.url} target="_blank" rel="noreferrer" title="Open original reel"
-                          onClick={e => e.stopPropagation()} style={{ fontSize: 12, color: 'var(--text)' }}>↗</a>
+                          onClick={e => e.stopPropagation()} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)' }}>↗</a>
                       </div>
                     )}
                     <div className="body-xs text-subtle" style={{ marginTop: 2, overflowWrap: 'anywhere' }}>
@@ -169,7 +169,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }} onClick={e => e.stopPropagation()}>
-                    <span className={`chip ${st.cls}`} style={{ fontSize: 10 }}>{st.label}</span>
+                    <span className={`chip ${st.cls}`} style={{ fontSize: 'var(--fs-caption)' }}>{st.label}</span>
                     {it.status === 'failed' && <button className="btn btn-secondary btn-sm" onClick={() => retry(it.id)}>Retry</button>}
                     <button className="btn btn-ghost btn-sm" onClick={() => remove(it.id)} title="Delete">✕</button>
                     {canExpand && (
@@ -183,7 +183,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                 </div>
 
                 {cardOpen(it.id) && it.status === 'failed' && it.error && (
-                  <div className="callout callout-warning" style={{ marginTop: 10, fontSize: 13 }}>{it.error}</div>
+                  <div className="callout callout-warning" style={{ marginTop: 10, fontSize: 'var(--fs-body)' }}>{it.error}</div>
                 )}
 
                 {cardOpen(it.id) && card && (
@@ -200,7 +200,7 @@ export default function SwipeFilePanel({ clientId, onUseAsBrief }) {
                     )}
                     {Array.isArray(card.tags) && card.tags.length > 0 && (
                       <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {card.tags.map((t, i) => <span key={i} className="chip chip-outline" style={{ fontSize: 10 }}>{t}</span>)}
+                        {card.tags.map((t, i) => <span key={i} className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)' }}>{t}</span>)}
                       </div>
                     )}
                     {onUseAsBrief && (

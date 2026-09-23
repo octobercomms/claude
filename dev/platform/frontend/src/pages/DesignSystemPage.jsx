@@ -14,7 +14,7 @@ function Frame({ code, name, note, children }) {
   return (
     <div style={{ marginBottom: 'var(--s8)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
-        <span style={{ fontWeight: 800, color: 'var(--accent-on)', background: 'var(--accent)', borderRadius: 'var(--r-pill)', padding: '2px 10px', fontSize: 12 }}>{code}</span>
+        <span style={{ fontWeight: 800, color: 'var(--accent-on)', background: 'var(--accent)', borderRadius: 'var(--r-pill)', padding: '2px 10px', fontSize: 'var(--fs-caption)' }}>{code}</span>
         <span className="ds-shell__title">{name}</span>
         {note && <span className="ds-shell__sub">{note}</span>}
       </div>

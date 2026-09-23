@@ -103,7 +103,7 @@ export default function GoogleAdsPlaybook() {
           <div className="caption">Reference</div>
           <h3 className="h3" style={{ margin: '4px 0 0' }}>Google Ads playbook — four-layer account structure</h3>
         </div>
-        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Build top to bottom — broadest reach at the top, most defensive at the base</span>
+        <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Build top to bottom — broadest reach at the top, most defensive at the base</span>
       </div>
 
       <div className="ads-funnel">
@@ -133,7 +133,7 @@ export default function GoogleAdsPlaybook() {
         </div>
       </div>
 
-      <p style={{ marginTop: 'var(--s5)', fontSize: 11, color: 'var(--text-subtle)', lineHeight: 1.6, maxWidth: 720 }}>
+      <p style={{ marginTop: 'var(--s5)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', lineHeight: 1.6, maxWidth: 720 }}>
         Only once layers 1–3 are running cleanly should you dabble with YouTube or Demand Gen. Google is best at capturing demand, not generating it — get the foundation right first.
       </p>
     </div>

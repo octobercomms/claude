@@ -62,7 +62,7 @@ export default function HomePage() {
             <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
               <img src="/logo-black.gif" alt="October Communications" style={{ height: 32, display: 'block' }} />
             </Link>
-            <nav style={{ display: 'flex', gap: 22, fontSize: 13, alignItems: 'center' }}>
+            <nav style={{ display: 'flex', gap: 22, fontSize: 'var(--fs-body)', alignItems: 'center' }}>
               <a href="#what" style={styles.topLink}>what it does</a>
               <a href="#how" style={styles.topLink}>how it works</a>
               <a href="#pricing" style={styles.topLink}>pricing</a>
@@ -209,8 +209,8 @@ export default function HomePage() {
                 { role: 'claude', text: 'google ads spend was flat but impressions fell. likely quality score drop or competition on brand terms. audit negatives, check bid-strategy changes around 14th.' },
               ].map((m, i) => (
                 <div key={i} style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: m.role === 'you' ? YELLOW : '#a3e635', textTransform: 'uppercase', letterSpacing: 0.5, minWidth: 50 }}>{m.role}</span>
-                  <span style={{ color: m.role === 'you' ? '#e5e7eb' : MUTED, fontSize: 13, lineHeight: 1.55 }}>{m.text}</span>
+                  <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: m.role === 'you' ? YELLOW : '#a3e635', textTransform: 'uppercase', letterSpacing: 0.5, minWidth: 50 }}>{m.role}</span>
+                  <span style={{ color: m.role === 'you' ? '#e5e7eb' : MUTED, fontSize: 'var(--fs-body)', lineHeight: 1.55 }}>{m.text}</span>
                 </div>
               ))}
             </div>
@@ -249,10 +249,10 @@ export default function HomePage() {
                 {p.highlight && <div style={styles.priceFlag}>most popular</div>}
                 <div style={styles.priceName}>{p.name}</div>
                 <div style={styles.priceFig}>
-                  <span style={{ fontSize: 56, fontWeight: 800, letterSpacing: -2 }}>{p.price}</span>
-                  <span style={{ fontSize: 16, color: MUTED, marginLeft: 4 }}>{p.period}</span>
+                  <span style={{ fontSize: 'var(--fs-display)', fontWeight: 800, letterSpacing: -2 }}>{p.price}</span>
+                  <span style={{ fontSize: 'var(--fs-title)', color: MUTED, marginLeft: 4 }}>{p.period}</span>
                 </div>
-                <div style={{ fontSize: 13, color: MUTED, marginBottom: 26 }}>{p.blurb}</div>
+                <div style={{ fontSize: 'var(--fs-body)', color: MUTED, marginBottom: 26 }}>{p.blurb}</div>
                 <ul style={styles.priceList}>
                   {p.features.map(f => <li key={f} style={styles.priceFeat}><Arrow size={11} /> <span>{f}</span></li>)}
                 </ul>
@@ -295,7 +295,7 @@ export default function HomePage() {
       <footer className="row end">
         <div style={styles.container}>
           <img src="/logo-black.gif" alt="October Communications" style={{ height: 40, display: 'block', marginBottom: 26 }} />
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, fontSize: 12, color: MUTED }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, fontSize: 'var(--fs-caption)', color: MUTED }}>
             <div>october communications · octobercomms.com</div>
             <a href="#what" style={{ color: MUTED, textDecoration: 'none' }}>what it does</a>
             <a href="#how" style={{ color: MUTED, textDecoration: 'none' }}>how it works</a>
@@ -303,7 +303,7 @@ export default function HomePage() {
             <Link to="/login" style={{ color: MUTED, textDecoration: 'none' }}>log in</Link>
             <a href="mailto:hello@octobercomms.com" style={{ color: MUTED, textDecoration: 'none' }}>contact</a>
           </div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 22 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'rgba(255,255,255,0.3)', marginTop: 22 }}>
             © {new Date().getFullYear()} october communications ltd. company no. 8816416. vat no. gb 176 6335 82.
           </div>
         </div>
@@ -418,44 +418,44 @@ const styles = {
   section: { background: BLACK, padding: '90px 0' },
   thinSection: { background: BLACK, padding: '20px 0', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)' },
 
-  eyebrow: { fontSize: 12, color: YELLOW, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 20 },
+  eyebrow: { fontSize: 'var(--fs-caption)', color: YELLOW, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 20 },
   h1: { fontSize: 'clamp(40px, 6vw, 78px)', fontWeight: 800, margin: 0, letterSpacing: -2.5, lineHeight: 1.02 },
   h2: { fontSize: 'clamp(32px, 4.2vw, 56px)', fontWeight: 800, margin: '0 0 24px', letterSpacing: -1.8, lineHeight: 1.05 },
   heroLede: { fontSize: 'clamp(15px, 1.2vw, 18px)', color: MUTED, maxWidth: 720, marginTop: 32, lineHeight: 1.55 },
-  body: { fontSize: 14, color: MUTED, lineHeight: 1.75, margin: '0 0 18px' },
+  body: { fontSize: 'var(--fs-body)', color: MUTED, lineHeight: 1.75, margin: '0 0 18px' },
 
   // White CTA pill — solid white background, dark text. The primary
   // action everywhere.
   pillWhite: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     background: WHITE, color: BLACK, padding: '11px 22px', borderRadius: 999,
-    fontWeight: 700, fontSize: 13, textDecoration: 'none', border: 'none',
+    fontWeight: 700, fontSize: 'var(--fs-body)', textDecoration: 'none', border: 'none',
     cursor: 'pointer', fontFamily: FONT,
   },
   pillWhiteSm: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     background: WHITE, color: BLACK, padding: '8px 16px', borderRadius: 999,
-    fontWeight: 700, fontSize: 12, textDecoration: 'none', border: 'none',
+    fontWeight: 700, fontSize: 'var(--fs-caption)', textDecoration: 'none', border: 'none',
     cursor: 'pointer', fontFamily: FONT,
   },
   // White-outlined pill — used as the secondary action throughout.
   pillOutline: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     background: 'transparent', color: WHITE, padding: '10px 22px', borderRadius: 999,
-    fontWeight: 600, fontSize: 13, textDecoration: 'none',
+    fontWeight: 600, fontSize: 'var(--fs-body)', textDecoration: 'none',
     border: `1.5px solid ${WHITE}`, cursor: 'pointer', fontFamily: FONT,
   },
 
   audienceInner: { display: 'flex', gap: 28, alignItems: 'center', flexWrap: 'wrap' },
-  audienceChip: { fontSize: 14, color: WHITE, letterSpacing: 0.2 },
+  audienceChip: { fontSize: 'var(--fs-body)', color: WHITE, letterSpacing: 0.2 },
 
   threeCol: { display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 1fr 1fr', gap: 48 },
 
   howGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 },
   howStep: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 28 },
-  howN: { fontSize: 11, color: YELLOW, fontWeight: 800, letterSpacing: 1.5, marginBottom: 18 },
-  howTitle: { fontSize: 26, fontWeight: 800, color: WHITE, letterSpacing: -0.8, marginBottom: 12 },
-  howBody: { fontSize: 14, color: MUTED, lineHeight: 1.7, margin: 0 },
+  howN: { fontSize: 'var(--fs-caption)', color: YELLOW, fontWeight: 800, letterSpacing: 1.5, marginBottom: 18 },
+  howTitle: { fontSize: 'var(--fs-section)', fontWeight: 800, color: WHITE, letterSpacing: -0.8, marginBottom: 12 },
+  howBody: { fontSize: 'var(--fs-body)', color: MUTED, lineHeight: 1.7, margin: 0 },
 
   aiGrid: { display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) 1.6fr', gap: 48, alignItems: 'flex-start' },
   chatPanel: { background: '#161616', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 22 },
@@ -467,26 +467,26 @@ const styles = {
   },
   capCard: { background: BLACK, padding: 26, minHeight: 140 },
   capDot: { width: 10, height: 10, borderRadius: 5, background: YELLOW, marginBottom: 14 },
-  capTitle: { fontSize: 16, fontWeight: 700, color: WHITE, marginBottom: 8, letterSpacing: -0.2 },
-  capDesc: { fontSize: 13, color: MUTED, lineHeight: 1.6 },
+  capTitle: { fontSize: 'var(--fs-title)', fontWeight: 700, color: WHITE, marginBottom: 8, letterSpacing: -0.2 },
+  capDesc: { fontSize: 'var(--fs-body)', color: MUTED, lineHeight: 1.6 },
 
   integGrid: {
     display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 1,
     background: 'rgba(255,255,255,0.08)',
     border: '1px solid rgba(255,255,255,0.08)',
   },
-  integCell: { background: BLACK, padding: '20px 18px', fontSize: 13, color: WHITE, fontWeight: 500 },
+  integCell: { background: BLACK, padding: '20px 18px', fontSize: 'var(--fs-body)', color: WHITE, fontWeight: 500 },
 
   priceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 22 },
   priceCard: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 32, position: 'relative' },
   priceCardHi: { boxShadow: `inset 0 0 0 2px ${WHITE}` },
-  priceFlag: { position: 'absolute', top: -10, left: 24, background: WHITE, color: BLACK, fontSize: 10, fontWeight: 800, padding: '3px 12px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: 0.5 },
-  priceName: { fontSize: 13, fontWeight: 700, color: YELLOW, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 },
+  priceFlag: { position: 'absolute', top: -10, left: 24, background: WHITE, color: BLACK, fontSize: 'var(--fs-caption)', fontWeight: 800, padding: '3px 12px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: 0.5 },
+  priceName: { fontSize: 'var(--fs-body)', fontWeight: 700, color: YELLOW, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 },
   priceFig: { display: 'flex', alignItems: 'baseline', marginBottom: 6 },
   priceList: { listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 },
-  priceFeat: { fontSize: 13, color: MUTED, display: 'flex', gap: 4, alignItems: 'center', lineHeight: 1.5 },
+  priceFeat: { fontSize: 'var(--fs-body)', color: MUTED, display: 'flex', gap: 4, alignItems: 'center', lineHeight: 1.5 },
 
-  emailInput: { flex: 1, padding: '12px 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: WHITE, fontSize: 14, outline: 'none', fontFamily: FONT },
+  emailInput: { flex: 1, padding: '12px 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: WHITE, fontSize: 'var(--fs-body)', outline: 'none', fontFamily: FONT },
 
   footer: { background: BLACK, borderTop: '1px solid rgba(255,255,255,0.08)', padding: '40px 0' },
 };

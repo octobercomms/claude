@@ -104,7 +104,7 @@ function MailboxCard({ mailbox, onEdit, onRemove, onTogglePause }) {
         Today: <strong>{sent} / {cap}</strong> sent
         {mailbox.last_used_at && <span> · last used {new Date(mailbox.last_used_at).toLocaleString('en-GB')}</span>}
       </p>
-      {mailbox.error_message && <div className="callout callout-danger mt-3" style={{ fontSize: 11 }}>{mailbox.error_message}</div>}
+      {mailbox.error_message && <div className="callout callout-danger mt-3" style={{ fontSize: 'var(--fs-caption)' }}>{mailbox.error_message}</div>}
       <div className="row mt-4 wrap">
         <button className="btn btn-secondary btn-sm" onClick={onEdit}>Edit</button>
         <button className="btn btn-secondary btn-sm" onClick={onTogglePause}>

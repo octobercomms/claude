@@ -154,7 +154,7 @@ export default function LocalSeoPanel({ clientId, tool }) {
   return (
     <div>
       <h2 className="h2">{meta.title}</h2>
-      <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 16px', maxWidth: 780 }}>{meta.blurb}</p>
+      <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '0 0 16px', maxWidth: 780 }}>{meta.blurb}</p>
 
       <div className="lsp-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 400px) 1fr', gap: 24, alignItems: 'start' }}>
         {/* Input — left column */}
@@ -164,7 +164,7 @@ export default function LocalSeoPanel({ clientId, tool }) {
               <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span className="field-label">{f.label}</span>
                 {f.kind === 'urls'
-                  ? <textarea className="input" style={{ minHeight: 70, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+                  ? <textarea className="input" style={{ minHeight: 70, resize: 'vertical', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
                       value={form[f.key] || ''} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))} placeholder={f.placeholder} />
                   : <input className="input" value={form[f.key] || ''} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value }))}
                       onKeyDown={e => { if (e.key === 'Enter' && f.kind !== 'urls' && canRun && !running) runNow(); }} placeholder={f.placeholder} />}
@@ -183,9 +183,9 @@ export default function LocalSeoPanel({ clientId, tool }) {
           {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
 
           {loading ? (
-            <div className="card" style={{ color: 'var(--text-subtle)', padding: 28, fontSize: 13 }}>Loading…</div>
+            <div className="card" style={{ color: 'var(--text-subtle)', padding: 28, fontSize: 'var(--fs-body)' }}>Loading…</div>
           ) : !runs.length ? (
-            <div className="card" style={{ color: 'var(--text-subtle)', padding: 28, fontSize: 13, textAlign: 'center' }}>
+            <div className="card" style={{ color: 'var(--text-subtle)', padding: 28, fontSize: 'var(--fs-body)', textAlign: 'center' }}>
               No runs yet — fill in the form and run it. Results appear here.
             </div>
           ) : (
@@ -195,8 +195,8 @@ export default function LocalSeoPanel({ clientId, tool }) {
                 {runs.map(r => (
                   <div key={r.id} className="card" style={{ padding: 10, marginBottom: 8, cursor: 'pointer', background: r.id === activeId ? 'var(--accent-soft)' : 'var(--surface)' }}
                     onClick={() => setActiveId(r.id)}>
-                    <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.3, wordBreak: 'break-word' }}>{r.title || '(run)'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>{fmtWhen(r.created_at)}</div>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--fs-caption)', lineHeight: 1.3, wordBreak: 'break-word' }}>{r.title || '(run)'}</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>{fmtWhen(r.created_at)}</div>
                   </div>
                 ))}
               </div>
@@ -223,7 +223,7 @@ function Summary({ text }) {
   return (
     <div className="card" style={{ marginBottom: 14 }}>
       <div className="caption mb-2">Briefing</div>
-      <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{text}</div>
+      <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{text}</div>
     </div>
   );
 }
@@ -231,7 +231,7 @@ function Summary({ text }) {
 function Chips({ items }) {
   if (!items?.length) return null;
   return (
-    <ul style={{ margin: '0 0 0 18px', padding: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--text-muted)' }}>
+    <ul style={{ margin: '0 0 0 18px', padding: 0, fontSize: 'var(--fs-body)', lineHeight: 1.7, color: 'var(--text-muted)' }}>
       {items.map((x, i) => <li key={i}>{x}</li>)}
     </ul>
   );
@@ -246,22 +246,22 @@ function ToolResult({ tool, output }) {
         {(output.content_gaps || []).map((g, i) => (
           <div key={i} className="card" style={{ marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-              <strong style={{ fontSize: 14 }}>{g.title}</strong>
+              <strong style={{ fontSize: 'var(--fs-body)' }}>{g.title}</strong>
               {g.competition_level && <span className={`chip ${LEVEL_CHIP[g.competition_level] || 'chip-neutral'}`} style={{ flex: '0 0 auto' }}>{g.competition_level} comp.</span>}
             </div>
-            {g.description && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>{g.description}</div>}
-            {g.why_they_rank && <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 4 }}><em>Why they rank:</em> {g.why_they_rank}</div>}
+            {g.description && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 4 }}>{g.description}</div>}
+            {g.why_they_rank && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}><em>Why they rank:</em> {g.why_they_rank}</div>}
           </div>
         ))}
         <h3 className="h3" style={{ marginTop: 18 }}>Topics to create</h3>
         {(output.topics_to_create || []).map((t, i) => (
           <div key={i} className="card" style={{ marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-              <strong style={{ fontSize: 14 }}>{t.title}</strong>
+              <strong style={{ fontSize: 'var(--fs-body)' }}>{t.title}</strong>
               {t.target_intent && <span className={`chip ${INTENT_CHIP[t.target_intent] || 'chip-neutral'}`} style={{ flex: '0 0 auto' }}>{t.target_intent}</span>}
             </div>
-            {t.angle && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>{t.angle}</div>}
-            {t.why_it_will_rank && <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 4 }}><em>Why it ranks:</em> {t.why_it_will_rank}</div>}
+            {t.angle && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 4 }}>{t.angle}</div>}
+            {t.why_it_will_rank && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}><em>Why it ranks:</em> {t.why_it_will_rank}</div>}
           </div>
         ))}
         {output.trust_gaps?.length > 0 && (
@@ -279,7 +279,7 @@ function ToolResult({ tool, output }) {
       <>
         <div className="card" style={{ marginBottom: 14, borderLeft: `3px solid ${output.localbusiness_present ? 'var(--positive)' : 'var(--negative)'}` }}>
           <strong>{output.localbusiness_present ? '✓ LocalBusiness schema present' : '✗ No LocalBusiness schema'}</strong>
-          {output.summary && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.6 }}>{output.summary}</div>}
+          {output.summary && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.6 }}>{output.summary}</div>}
         </div>
         {output.existing?.length > 0 && (<>
           <h3 className="h3">Existing schema</h3>
@@ -291,7 +291,7 @@ function ToolResult({ tool, output }) {
                   <tr key={i}>
                     <td><strong>{e.type}</strong></td>
                     <td><span className={`chip ${VERDICT_CHIP[e.verdict] || 'chip-neutral'}`}>{e.verdict}</span></td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{e.note}</td>
+                    <td style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{e.note}</td>
                   </tr>
                 ))}
               </tbody>
@@ -308,7 +308,7 @@ function ToolResult({ tool, output }) {
                   <tr key={i}>
                     <td><strong>{m.type}</strong></td>
                     <td><span className={`chip ${PRIORITY_CHIP[m.priority] || 'chip-neutral'}`}>{m.priority}</span></td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{m.why}</td>
+                    <td style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{m.why}</td>
                   </tr>
                 ))}
               </tbody>
@@ -323,7 +323,7 @@ function ToolResult({ tool, output }) {
                 <strong>{g.type}</strong>
                 <CopyButton text={g.jsonld} />
               </div>
-              <pre style={{ margin: 0, padding: 12, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflowX: 'auto', fontSize: 11, lineHeight: 1.5 }}>{g.jsonld}</pre>
+              <pre style={{ margin: 0, padding: 12, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', overflowX: 'auto', fontSize: 'var(--fs-caption)', lineHeight: 1.5 }}>{g.jsonld}</pre>
             </div>
           ))}
         </>)}
@@ -344,7 +344,7 @@ function ToolResult({ tool, output }) {
                   <td><strong>{k.keyword}</strong></td>
                   <td><span className={`chip ${INTENT_CHIP[k.intent_type] || 'chip-neutral'}`}>{k.intent_type}</span></td>
                   <td>{k.long_tail ? '✓' : '—'}</td>
-                  <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{k.why_converts}</td>
+                  <td style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{k.why_converts}</td>
                 </tr>
               ))}
             </tbody>
@@ -381,7 +381,7 @@ function ToolResult({ tool, output }) {
               <thead><tr><th>Dimension</th><th>You</th><th>Competitors</th></tr></thead>
               <tbody>
                 {output.comparison.map((c, i) => (
-                  <tr key={i}><td><strong>{c.dimension}</strong></td><td style={{ fontSize: 12 }}>{c.you}</td><td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.competitors}</td></tr>
+                  <tr key={i}><td><strong>{c.dimension}</strong></td><td style={{ fontSize: 'var(--fs-caption)' }}>{c.you}</td><td style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{c.competitors}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -391,8 +391,8 @@ function ToolResult({ tool, output }) {
           <h3 className="h3">Advantages to exploit</h3>
           {output.advantages.map((a, i) => (
             <div key={i} className="card" style={{ marginBottom: 10 }}>
-              <strong style={{ fontSize: 14 }}>{a.advantage}</strong>
-              {a.how_to_exploit && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>→ {a.how_to_exploit}</div>}
+              <strong style={{ fontSize: 'var(--fs-body)' }}>{a.advantage}</strong>
+              {a.how_to_exploit && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginTop: 4 }}>→ {a.how_to_exploit}</div>}
             </div>
           ))}
         </>)}
@@ -419,8 +419,8 @@ function ToolResult({ tool, output }) {
               </div>
               <CopyButton text={p.body} label="Copy post" />
             </div>
-            <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.body}</div>
-            {p.cta && <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6, color: 'var(--text)' }}>{p.cta}</div>}
+            <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.body}</div>
+            {p.cta && <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, marginTop: 6, color: 'var(--text)' }}>{p.cta}</div>}
           </div>
         ))}
       </>
@@ -443,7 +443,7 @@ function ToolResult({ tool, output }) {
                   <tr key={i}>
                     <td><span className={`chip ${LEVEL_CHIP[l.impact] || 'chip-neutral'}`}>{l.impact || '—'}</span></td>
                     <td style={{ fontWeight: 600 }}>{l.lever}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{l.evidence}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)' }}>{l.evidence}</td>
                   </tr>
                 ))}
               </tbody>
@@ -453,15 +453,15 @@ function ToolResult({ tool, output }) {
         <div className="card" style={{ marginBottom: 10 }}>
           <div className="caption mb-2">Review strategy</div>
           {rs.keyword_themes?.length > 0 && <div style={{ marginBottom: 6 }}><Chips items={rs.keyword_themes} /></div>}
-          {rs.pacing && <div style={{ fontSize: 13, marginBottom: 3 }}><strong>Pacing:</strong> {rs.pacing}</div>}
-          {rs.rating_target && <div style={{ fontSize: 13, marginBottom: 3 }}><strong>Rating target:</strong> {rs.rating_target}</div>}
-          {rs.reply_approach && <div style={{ fontSize: 13 }}><strong>Replies:</strong> {rs.reply_approach}</div>}
+          {rs.pacing && <div style={{ fontSize: 'var(--fs-body)', marginBottom: 3 }}><strong>Pacing:</strong> {rs.pacing}</div>}
+          {rs.rating_target && <div style={{ fontSize: 'var(--fs-body)', marginBottom: 3 }}><strong>Rating target:</strong> {rs.rating_target}</div>}
+          {rs.reply_approach && <div style={{ fontSize: 'var(--fs-body)' }}><strong>Replies:</strong> {rs.reply_approach}</div>}
         </div>
         <div className="card">
           <div className="caption mb-2">Photo strategy</div>
           {ps.priority_types?.length > 0 && <div style={{ marginBottom: 6 }}><Chips items={ps.priority_types} /></div>}
-          {ps.cadence && <div style={{ fontSize: 13, marginBottom: 3 }}><strong>Cadence:</strong> {ps.cadence}</div>}
-          {ps.notes && <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{ps.notes}</div>}
+          {ps.cadence && <div style={{ fontSize: 'var(--fs-body)', marginBottom: 3 }}><strong>Cadence:</strong> {ps.cadence}</div>}
+          {ps.notes && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>{ps.notes}</div>}
         </div>
       </>
     );
@@ -502,7 +502,7 @@ function ToolResult({ tool, output }) {
 function XRayRow({ label, items }) {
   if (!items?.length) return null;
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13 }}>
+    <div style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 'var(--fs-body)' }}>
       <span style={{ flex: '0 0 110px', color: 'var(--text-subtle)' }}>{label}</span>
       <span style={{ color: 'var(--text-muted)' }}>{items.join(', ')}</span>
     </div>

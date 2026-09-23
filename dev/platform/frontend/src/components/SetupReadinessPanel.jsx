@@ -32,7 +32,7 @@ export default function SetupReadinessPanel({ clientId }) {
     <div className="card" style={{ marginBottom: 18 }}>
       <div className="row between center" style={{ flexWrap: 'wrap', gap: 8 }}>
         <div className="caption">Setup readiness</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--text-muted)' }}>
+        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--text-muted)' }}>
           {score.done}/{score.total} complete
         </div>
       </div>

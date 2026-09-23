@@ -41,10 +41,10 @@ function VerdictBadge({ verdict, reason }) {
     nogo: { label: 'No-go', bg: 'rgba(192,57,43,0.12)', fg: '#c0392b' },
   };
   const v = map[verdict];
-  if (!v) return <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }} title="Claude is still qualifying this one">qualifying…</span>;
+  if (!v) return <span style={{ marginLeft: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }} title="Claude is still qualifying this one">qualifying…</span>;
   return (
     <span title={reason || ''} style={{
-      marginLeft: 8, fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 999,
+      marginLeft: 8, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: '1px 7px', borderRadius: 999,
       background: v.bg, color: v.fg, whiteSpace: 'nowrap',
     }}>{v.label}</span>
   );
@@ -322,7 +322,7 @@ export default function TendersPanel() {
           </div>
         ) : (
           <div className="md-table-wrap">
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }}>
               <thead>
                 <tr>
                   <th style={{ ...thStyle, width: 28 }}>
@@ -351,18 +351,18 @@ export default function TendersPanel() {
                           const tip = n.url ? 'Open the notice' : n.source_url ? 'The page Claude read to find this notice' : 'No direct link — search the web for this notice';
                           return (<>
                             <a href={href} target="_blank" rel="noopener noreferrer" title={tip}>{n.title || n.external_ref}</a>
-                            {tag && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-subtle)' }}>↗ {tag}</span>}
+                            {tag && <span style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>↗ {tag}</span>}
                           </>);
                         })()}
                         {n.needs_manual_check && (
-                          <span className="badge" style={{ marginLeft: 8, fontSize: 11 }}
+                          <span className="badge" style={{ marginLeft: 8, fontSize: 'var(--fs-caption)' }}
                             title="Closing date couldn’t be read automatically — open the notice to confirm the deadline before bidding.">
                             deadline?
                           </span>
                         )}
                         <VerdictBadge verdict={n.verdict} reason={n.verdict_reason} />
                         {(n.verdict_reason || n.relevance_reason) && (
-                          <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>· {n.verdict_reason || n.relevance_reason}</span>
+                          <span style={{ marginLeft: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>· {n.verdict_reason || n.relevance_reason}</span>
                         )}
                       </td>
                       <td style={tdStyle}>{n.buyer_name || '—'}</td>
@@ -373,7 +373,7 @@ export default function TendersPanel() {
                           <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
                             <input type="date" value={editDate.value} autoFocus
                               onChange={e => setEditDate({ id: n.id, value: e.target.value })}
-                              style={{ padding: '2px 5px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                              style={{ padding: '2px 5px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
                             <button className="btn btn-primary btn-sm" onClick={() => saveDate(n)}>Save</button>
                             <button className="btn btn-ghost btn-sm" onClick={() => setEditDate(null)}>✕</button>
                           </span>
@@ -383,7 +383,7 @@ export default function TendersPanel() {
                             {dl != null && dl >= 0 && dl <= 14 && <span style={{ marginLeft: 6, color: 'var(--danger, #c0392b)', fontWeight: 700 }}>{dl}d</span>}
                             <button className="btn-link" title="Set / edit closing date"
                               onClick={() => setEditDate({ id: n.id, value: n.closing_at ? new Date(n.closing_at).toISOString().slice(0, 10) : '' })}
-                              style={{ marginLeft: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--link, #06c)', fontSize: 12 }}>✎</button>
+                              style={{ marginLeft: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--link, #06c)', fontSize: 'var(--fs-caption)' }}>✎</button>
                           </>
                         )}
                       </td>
@@ -408,7 +408,7 @@ export default function TendersPanel() {
           matches each time — nothing to check by hand.
         </p>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14 }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 'var(--fs-body)' }}>
             <input type="checkbox" checked={digestEnabled} onChange={e => setDigestEnabled(e.target.checked)} />
             Email me new tenders
           </label>
@@ -437,11 +437,11 @@ export default function TendersPanel() {
               {companyFields.map(([key, label]) => {
                 const multiline = ['registered_address', 'trading_address', 'directors', 'turnover', 'insurances', 'accreditations', 'policies', 'additional', 'bid_contact'].includes(key);
                 return (
-                  <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5 }}>
+                  <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--fs-body)' }}>
                     <span style={{ fontWeight: 600 }}>{label}</span>
                     {multiline
                       ? <textarea value={company[key] || ''} rows={2} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))}
-                          style={{ resize: 'vertical', padding: '7px 9px', fontSize: 13, fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                          style={{ resize: 'vertical', padding: '7px 9px', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
                       : <input className="input" value={company[key] || ''} onChange={e => setCompany(c => ({ ...c, [key]: e.target.value }))} />}
                   </label>
                 );
@@ -458,7 +458,7 @@ export default function TendersPanel() {
       <div className="card">
         <div className="oview-grplabel">Sources</div>
         <div className="md-table-wrap">
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }}>
             <thead>
               <tr>
                 <th style={thStyle}>Source</th><th style={thStyle}>Market</th><th style={thStyle}>Status</th>
@@ -528,7 +528,7 @@ function TenderChatModal({ notice, onClose }) {
       <div className="card" onClick={e => e.stopPropagation()} style={{ width: 'min(760px, 96vw)', maxHeight: '88vh', display: 'flex', flexDirection: 'column', padding: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
           <div>
-            <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>Start with Claude</h3>
+            <h3 style={{ margin: '0 0 2px', fontSize: 'var(--fs-title)', fontWeight: 700 }}>Start with Claude</h3>
             <p className="caption" style={{ margin: 0, color: 'var(--text-subtle)' }}>{notice.title || notice.external_ref}</p>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
@@ -549,7 +549,7 @@ function TenderChatModal({ notice, onClose }) {
                 maxWidth: m.role === 'user' ? '80%' : '92%',
                 background: m.role === 'user' ? 'var(--text)' : undefined, color: m.role === 'user' ? '#fff' : undefined,
                 borderRadius: m.role === 'user' ? 'var(--r-md)' : undefined, padding: m.role === 'user' ? '10px 14px' : undefined,
-                fontSize: 14, lineHeight: 1.55,
+                fontSize: 'var(--fs-body)', lineHeight: 1.55,
               }}>
                 {m.role === 'user'
                   ? <span style={{ whiteSpace: 'pre-wrap' }}>{m.content}</span>
@@ -564,7 +564,7 @@ function TenderChatModal({ notice, onClose }) {
           <textarea value={input} onChange={e => setInput(e.target.value)} rows={2}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
             placeholder="Ask about fit, risks, or a bid approach… (Enter to send)"
-            style={{ flex: 1, resize: 'vertical', padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            style={{ flex: 1, resize: 'vertical', padding: '10px 12px', fontSize: 'var(--fs-body)', fontFamily: 'inherit', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
           <button className="btn btn-primary" disabled={sending || !input.trim()} onClick={() => send()}>{sending ? 'Sending…' : 'Send'}</button>
         </div>
       </div>
@@ -573,16 +573,16 @@ function TenderChatModal({ notice, onClose }) {
 }
 
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 17, fontWeight: 700, margin: '10px 0 8px' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 15, fontWeight: 700, margin: '12px 0 6px' }} {...p} />,
+  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '10px 0 8px' }} {...p} />,
+  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '12px 0 6px' }} {...p} />,
   p: ({ node, ...p }) => <p style={{ margin: '0 0 10px', lineHeight: 1.55 }} {...p} />,
   ul: ({ node, ...p }) => <ul style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
   ol: ({ node, ...p }) => <ol style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
   li: ({ node, ...p }) => <li style={{ marginBottom: 5, lineHeight: 1.5 }} {...p} />,
-  table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }} {...p} /></div>,
-  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 12 }} {...p} />,
+  table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }} {...p} /></div>,
+  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
   td: ({ node, ...p }) => <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--card-border)' }} {...p} />,
 };
 
-const thStyle = { textAlign: 'left', padding: '7px 9px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' };
+const thStyle = { textAlign: 'left', padding: '7px 9px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)', whiteSpace: 'nowrap' };
 const tdStyle = { padding: '7px 9px', borderBottom: '1px solid var(--card-border)', verticalAlign: 'top' };

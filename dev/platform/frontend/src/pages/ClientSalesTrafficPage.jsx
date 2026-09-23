@@ -196,16 +196,16 @@ export default function ClientSalesTrafficPage() {
       {showCustom && (
         <div className="row mb-4" style={{ alignItems: 'center', gap: 6 }}>
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            style={{ padding: '5px 8px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13 }} />
-          <span style={{ color: 'var(--text-subtle)', fontSize: 13 }}>to</span>
+            style={{ padding: '5px 8px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)' }} />
+          <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            style={{ padding: '5px 8px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13 }} />
+            style={{ padding: '5px 8px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)' }} />
           <button onClick={applyCustom}
-            style={{ padding: '6px 16px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
+            style={{ padding: '6px 16px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' }}>Apply</button>
         </div>
       )}
       <div className="row mb-4" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>{fmtDay(start)} – {fmtDay(end)}</span>
+        <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{fmtDay(start)} – {fmtDay(end)}</span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {[7, 14, 30, 90].map(d => (
             <button key={d} onClick={() => selectDays(d)}
@@ -215,7 +215,7 @@ export default function ClientSalesTrafficPage() {
           ))}
           <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
             onChange={e => selectPreset(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '6px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             <option value="">Period…</option>
             <option value="mtd">Month to date</option>
             <option value="ytd">Year to date</option>
@@ -247,9 +247,9 @@ export default function ClientSalesTrafficPage() {
               {data.salesTrend && data.salesTrend.length ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={data.salesTrend} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                    <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fontSize: 10 }} minTickGap={24} />
-                    <YAxis yAxisId="r" tick={{ fontSize: 10 }} />
-                    <YAxis yAxisId="o" orientation="right" tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fontSize: 'var(--fs-caption)' }} minTickGap={24} />
+                    <YAxis yAxisId="r" tick={{ fontSize: 'var(--fs-caption)' }} />
+                    <YAxis yAxisId="o" orientation="right" tick={{ fontSize: 'var(--fs-caption)' }} allowDecimals={false} />
                     <Tooltip labelFormatter={fmtDay} />
                     <Legend />
                     <Line yAxisId="r" type="monotone" dataKey="revenue" name="Revenue" stroke={cRevenue} strokeWidth={2.5} dot={false} />
@@ -263,8 +263,8 @@ export default function ClientSalesTrafficPage() {
               {data.trafficTrend && data.trafficTrend.length ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={data.trafficTrend} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                    <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fontSize: 10 }} minTickGap={24} />
-                    <YAxis tick={{ fontSize: 10 }} />
+                    <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fontSize: 'var(--fs-caption)' }} minTickGap={24} />
+                    <YAxis tick={{ fontSize: 'var(--fs-caption)' }} />
                     <Tooltip labelFormatter={fmtDay} />
                     <Legend />
                     <Line type="monotone" dataKey="sessions" name="Sessions" stroke={cSessions} strokeWidth={2.5} dot={false} />
@@ -280,8 +280,8 @@ export default function ClientSalesTrafficPage() {
             {data.channels && data.channels.length ? (
               <ResponsiveContainer width="100%" height={Math.max(140, data.channels.length * 34)}>
                 <BarChart data={data.channels} layout="vertical" margin={{ top: 4, right: 16, left: 24, bottom: 4 }}>
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis type="category" dataKey="channel" tick={{ fontSize: 11 }} width={120} />
+                  <XAxis type="number" tick={{ fontSize: 'var(--fs-caption)' }} />
+                  <YAxis type="category" dataKey="channel" tick={{ fontSize: 'var(--fs-caption)' }} width={120} />
                   <Tooltip />
                   <Bar dataKey="sessions" name="Sessions" fill={cSessions} radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -303,7 +303,7 @@ export default function ClientSalesTrafficPage() {
               {ecom.topProducts && ecom.topProducts.length > 0 && (
                 <div className="card">
                   <div className="caption">Top products by revenue</div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }}>
                     <thead>
                       <tr style={{ textAlign: 'left', color: 'var(--text-subtle)' }}>
                         <th style={{ padding: '6px 8px', fontWeight: 600 }}>Product</th>
@@ -327,7 +327,7 @@ export default function ClientSalesTrafficPage() {
           )}
 
           {data.notes && data.notes.length > 0 && (
-            <p style={{ marginTop: 12, fontSize: 12, color: 'var(--text-subtle)' }}>{data.notes.join(' · ')}</p>
+            <p style={{ marginTop: 12, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{data.notes.join(' · ')}</p>
           )}
         </>
       ) : null}

@@ -126,7 +126,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
     <div className="modal-backdrop" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="modal modal-wide">
         <div className="modal-head">
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+          <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>
             {reportType === 'weekly' ? 'Weekly' : 'Monthly'} report template — {clientName}
           </h2>
           <button type="button" onClick={onClose} className="modal-close">×</button>
@@ -142,31 +142,31 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
               {!history.length && (
                 <div className="body-sm text-muted">
                   Tell Claude what to include. Examples:
-                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 12 }}>
+                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 'var(--fs-caption)' }}>
                     <li>"B2C revenue summary across all stores, then B2B, then Google Ads ROAS."</li>
                     <li>"Same as last month, but add a Meta Ads block and drop the SEO table."</li>
                     <li>"Just three things: total spend, total revenue, and net per channel."</li>
                   </ul>
-                  <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+                  <div style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                     Or attach a PDF/image of an old report (📎) and Claude will recreate it as a template.
                   </div>
-                  <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-subtle)' }}>
+                  <div style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                     Connectors available: {connectors.length ? connectors.map(c => `${c.type}${c.storeLabel ? ` (${c.storeLabel})` : ''}`).join(', ') : '(none configured)'}
                   </div>
                 </div>
               )}
               {history.map((m, i) => (
                 <div key={i} className={`chat-bubble ${m.role === "user" ? "user" : "assistant"}`} style={{ marginBottom: 10 }}>
-                  <div className="caption mb-2" style={{ fontSize: 10 }}>{m.role === 'user' ? 'You' : 'Claude'}</div>
-                  <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</div>
+                  <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>{m.role === 'user' ? 'You' : 'Claude'}</div>
+                  <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</div>
                 </div>
               ))}
-              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 10 }}><div className="caption mb-2" style={{ fontSize: 10 }}>Claude</div><div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
+              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 10 }}><div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Claude</div><div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
             </div>
             {attachment && (
               <div className="chip chip-accent" style={{ marginTop: 8 }}>
-                <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: 'var(--text-subtle)' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
-                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 16, padding: "0 2px" }} title="Remove attachment">×</button>
+                <span style={{ fontSize: 'var(--fs-caption)' }}>📎 {attachment.name} <span style={{ color: 'var(--text-subtle)' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
+                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 'var(--fs-title)', padding: "0 2px" }} title="Remove attachment">×</button>
               </div>
             )}
             <div className="chat-input-row">
@@ -214,7 +214,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
             {proposed ? (
               <TemplatePreview template={proposed} onChange={setProposed} />
             ) : (
-              <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                 {saved ? 'A template is locked. Ask Claude to change it.' : 'Ask Claude for a starting point.'}
               </div>
             )}
@@ -264,18 +264,18 @@ function TemplatePreview({ template, onChange }) {
     onChange?.({ ...template, sections: sections.filter(s => s.id !== id) });
   }
   return (
-    <div style={{ fontSize: 12 }}>
+    <div style={{ fontSize: 'var(--fs-caption)' }}>
       {sections.map((s, i) => (
         <div key={s.id || i} className="card" style={{ padding: "8px 10px", marginBottom: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
             <strong>{s.title || s.id}</strong>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <span className="chip chip-accent" style={{ fontSize: 10 }}>{s.type}</span>
+              <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{s.type}</span>
               {onChange && (
                 <button
                   type="button"
                   onClick={() => removeSection(s.id)}
-                  className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "0 4px" }}
+                  className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 'var(--fs-body)', padding: "0 4px" }}
                   title="Remove this section"
                 >×</button>
               )}

@@ -54,7 +54,7 @@ export default class ErrorBoundary extends React.Component {
           </p>
           <details style={{ marginBottom: 20 }}>
             <summary className="body-sm text-subtle" style={{ cursor: "pointer", userSelect: "none" }}>Error detail (for support)</summary>
-            <pre className="card" style={{ padding: 12, marginTop: 8, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "auto" }}>{msg}</pre>
+            <pre className="card" style={{ padding: 12, marginTop: 8, fontSize: 'var(--fs-caption)', whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "auto" }}>{msg}</pre>
           </details>
           <div className="row">
             <button type="button" onClick={this.handleReset} className="btn btn-primary">Try again</button>

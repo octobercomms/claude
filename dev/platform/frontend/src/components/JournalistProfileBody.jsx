@@ -148,9 +148,9 @@ export default function JournalistProfileBody({ id, mode = 'page', onClose, onDe
           <h3 className="h3 mb-2">Latest articles <span className="body-sm text-muted">· from their outlet's feed</span></h3>
           <div className="card" style={{ marginBottom: 16 }}>
             {c.latest_articles.map((a, i) => (
-              <div key={i} style={{ padding: '7px 0', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 13 }}>
+              <div key={i} style={{ padding: '7px 0', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 'var(--fs-body)' }}>
                 {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{(a.title || a.url).slice(0, 110)}</a> : (a.title || '—')}
-                {a.published_at && <span className="text-muted" style={{ fontSize: 11 }}> · {fmtDate(a.published_at)}</span>}
+                {a.published_at && <span className="text-muted" style={{ fontSize: 'var(--fs-caption)' }}> · {fmtDate(a.published_at)}</span>}
               </div>
             ))}
           </div>

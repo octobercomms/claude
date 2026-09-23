@@ -59,11 +59,11 @@ export default function AiModelsPanel() {
                     {it.label}
                     {it.sensitive && <span title="Sends real client/customer data to the model — keep on Claude for privacy." style={{ marginLeft: 6, cursor: 'help' }}>🔒</span>}
                   </span>
-                  <select className="input" style={{ width: 'auto', fontSize: 13, padding: '4px 8px' }}
+                  <select className="input" style={{ width: 'auto', fontSize: 'var(--fs-body)', padding: '4px 8px' }}
                     value={sel} onChange={e => setModel(it.key, e.target.value)} title={spec.note || ''}>
                     {modelEntries.map(([id, m]) => <option key={id} value={id}>{m.label} ({m.tier})</option>)}
                   </select>
-                  {warn && <span className="chip chip-warning" style={{ fontSize: 10 }} title="This task handles real client data and you've routed it to DeepSeek.">⚠ client data → DeepSeek</span>}
+                  {warn && <span className="chip chip-warning" style={{ fontSize: 'var(--fs-caption)' }} title="This task handles real client data and you've routed it to DeepSeek.">⚠ client data → DeepSeek</span>}
                 </div>
               );
             })}

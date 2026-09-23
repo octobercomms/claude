@@ -49,11 +49,11 @@ export function SocialPublishContent({ plans = [], client, onPauseToggle, onOpen
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {upcoming.map(p => (
-                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 13 }}>
+                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-body)' }}>
                   <button onClick={() => onOpenPlan?.(p.id)} className="btn btn-ghost btn-sm" style={{ padding: 0, color: 'var(--text)', textAlign: 'left' }}>
                     {p.title || p.angle || 'Untitled post'}
                   </button>
-                  <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                     {new Date(p.scheduled_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </li>
@@ -69,11 +69,11 @@ export function SocialPublishContent({ plans = [], client, onPauseToggle, onOpen
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {recent.map(p => (
-                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 13 }}>
+                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-body)' }}>
                   <button onClick={() => onOpenPlan?.(p.id)} className="btn btn-ghost btn-sm" style={{ padding: 0, color: 'var(--text)', textAlign: 'left' }}>
                     {p.title || p.angle || 'Untitled post'}
                   </button>
-                  <span style={{ fontSize: 11, color: 'var(--positive)', fontWeight: 700 }}>
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)', fontWeight: 700 }}>
                     {(p.publications || []).filter(pub => pub.status === 'posted').length}× posted
                   </span>
                 </li>

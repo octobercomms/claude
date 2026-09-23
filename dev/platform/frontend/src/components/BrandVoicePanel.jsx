@@ -63,7 +63,7 @@ export default function BrandVoicePanel({ clientId }) {
         <textarea
           value={urlsText} onChange={e => setUrlsText(e.target.value)} rows={6}
           placeholder="https://yoursite.com/blog/post-that-sounds-most-like-the-brand\nhttps://yoursite.com/about\nhttps://yoursite.com/blog/another-on-brand-post"
-          style={{ width: '100%', padding: '10px 12px', fontSize: 13, lineHeight: 1.5, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--fs-body)', lineHeight: 1.5, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }}
         />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">{urlCount} URL{urlCount === 1 ? '' : 's'} · {urlCount < 1 ? 'paste at least 1' : urlCount > 12 ? 'max 12' : 'ready'}</span>
@@ -96,7 +96,7 @@ export default function BrandVoicePanel({ clientId }) {
                   <tr key={h.id}>
                     <td>{new Date(h.started_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                     <td>{Array.isArray(h.source_urls) ? h.source_urls.length : 0} URLs</td>
-                    <td style={{ textTransform: 'uppercase', fontSize: 11, color: h.status === 'failed' ? 'var(--negative)' : h.status === 'running' ? 'var(--warning)' : 'var(--text-muted)' }}>{h.status}</td>
+                    <td style={{ textTransform: 'uppercase', fontSize: 'var(--fs-caption)', color: h.status === 'failed' ? 'var(--negative)' : h.status === 'running' ? 'var(--warning)' : 'var(--text-muted)' }}>{h.status}</td>
                   </tr>
                 ))}
               </tbody>
@@ -137,7 +137,7 @@ function ProfileView({ profile }) {
           <div className="caption mb-2">Tone</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {tones.map(t => (
-              <span key={t} style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--r-pill)', background: 'var(--accent)', color: 'var(--accent-on)' }}>{t}</span>
+              <span key={t} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--r-pill)', background: 'var(--accent)', color: 'var(--accent-on)' }}>{t}</span>
             ))}
           </div>
         </div>
@@ -147,7 +147,7 @@ function ProfileView({ profile }) {
         {!!vocab.length && (
           <div className="card">
             <div className="caption mb-2">Vocabulary patterns</div>
-            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, lineHeight: 1.7 }}>
+            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', lineHeight: 1.7 }}>
               {vocab.map((v, i) => <li key={i}>{v}</li>)}
             </ul>
           </div>
@@ -157,7 +157,7 @@ function ProfileView({ profile }) {
             <>
               <div className="caption mb-2" style={{ color: 'var(--positive)' }}>Signature phrases</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 'var(--s3)' }}>
-                {signature.map((s, i) => <span key={i} style={{ fontSize: 12, padding: '2px 8px', borderRadius: 'var(--r-sm)', background: 'var(--positive-soft)', color: 'var(--positive)' }}>"{s}"</span>)}
+                {signature.map((s, i) => <span key={i} style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', borderRadius: 'var(--r-sm)', background: 'var(--positive-soft)', color: 'var(--positive)' }}>"{s}"</span>)}
               </div>
             </>
           )}
@@ -165,7 +165,7 @@ function ProfileView({ profile }) {
             <>
               <div className="caption mb-2" style={{ color: 'var(--negative)' }}>Avoid</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {avoid.map((s, i) => <span key={i} style={{ fontSize: 12, padding: '2px 8px', borderRadius: 'var(--r-sm)', background: 'var(--negative-soft)', color: 'var(--negative)' }}>"{s}"</span>)}
+                {avoid.map((s, i) => <span key={i} style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', borderRadius: 'var(--r-sm)', background: 'var(--negative-soft)', color: 'var(--negative)' }}>"{s}"</span>)}
               </div>
             </>
           )}
@@ -176,7 +176,7 @@ function ProfileView({ profile }) {
         {!!dos.length && (
           <div className="card">
             <div className="caption mb-2" style={{ color: 'var(--positive)' }}>Do — sounds like this brand</div>
-            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, lineHeight: 1.7 }}>
+            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', lineHeight: 1.7 }}>
               {dos.map((s, i) => <li key={i} style={{ color: 'var(--text)' }}>✓ {s}</li>)}
             </ul>
           </div>
@@ -184,7 +184,7 @@ function ProfileView({ profile }) {
         {!!donts.length && (
           <div className="card">
             <div className="caption mb-2" style={{ color: 'var(--negative)' }}>Don't — would feel off-brand</div>
-            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, lineHeight: 1.7 }}>
+            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 'var(--fs-body)', lineHeight: 1.7 }}>
               {donts.map((s, i) => <li key={i} style={{ color: 'var(--text-muted)' }}>✗ {s}</li>)}
             </ul>
           </div>

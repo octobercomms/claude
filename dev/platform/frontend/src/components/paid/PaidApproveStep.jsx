@@ -21,14 +21,14 @@ export default function PaidApproveStep({ pipeline, onNext, onBack }) {
       banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
-        <div className="callout" style={{ fontSize: 13 }}>
+        <div className="callout" style={{ fontSize: 'var(--fs-body)' }}>
           No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : (
         <>
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="caption mb-2">Batch summary</div>
-            <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6 }}>
               {creatives.length} concepts · {conceptsWithImages} with rendered assets · {totalImages} total images / videos
             </div>
             {totalImages === 0 && (
@@ -45,11 +45,11 @@ export default function PaidApproveStep({ pipeline, onNext, onBack }) {
 
           {shareUrl && (
             <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: '12px 16px', borderRadius: 'var(--r-sm)', marginTop: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <strong style={{ fontSize: 12, color: 'var(--positive)' }}>Link ready —</strong>
+              <strong style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)' }}>Link ready —</strong>
               <input value={shareUrl} readOnly onFocus={e => e.target.select()}
-                style={{ flex: 1, padding: '5px 10px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} />
+                style={{ flex: 1, padding: '5px 10px', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} />
               <button onClick={() => navigator.clipboard.writeText(shareUrl)} className="btn btn-primary btn-sm">Copy</button>
-              <button onClick={() => setShareUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--positive)' }}>×</button>
+              <button onClick={() => setShareUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--positive)' }}>×</button>
             </div>
           )}
         </>

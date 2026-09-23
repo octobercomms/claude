@@ -41,7 +41,7 @@ function statsOf(findings) {
 
 function SiteChip({ label }) {
   const flag = getCountryFlag(label);
-  return <span className="chip chip-neutral" style={{ fontSize: 10 }}>{flag ? `${flag} ` : ''}{label}</span>;
+  return <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{flag ? `${flag} ` : ''}{label}</span>;
 }
 
 function Overview({ summary, findings }) {
@@ -63,7 +63,7 @@ function Overview({ summary, findings }) {
             </PieChart>
           </ResponsiveContainer>
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-            <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1 }}>{total}</div>
+            <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, lineHeight: 1 }}>{total}</div>
             <div className="body-xs text-subtle">issue{total === 1 ? '' : 's'}</div>
           </div>
         </div>
@@ -99,7 +99,7 @@ function FindingCard({ f, open, onToggleExpand, onToggleDone, showSite }) {
           style={{ marginTop: 2, width: 18, height: 18, accentColor: 'var(--accent)', flex: '0 0 auto', cursor: 'pointer' }} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, color: p.color, background: p.bg, padding: '2px 8px', borderRadius: 999, flex: '0 0 auto' }}>{p.label}</span>
+            <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, color: p.color, background: p.bg, padding: '2px 8px', borderRadius: 999, flex: '0 0 auto' }}>{p.label}</span>
             {showSite && f.site && <SiteChip label={f.site} />}
             {f.url && <a href={f.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="body-xs" title={f.url}
               style={{ color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{shortUrl(f.url)}</a>}
@@ -111,7 +111,7 @@ function FindingCard({ f, open, onToggleExpand, onToggleDone, showSite }) {
             </div>
           )}
         </div>
-        <span style={{ flex: '0 0 auto', color: 'var(--text-subtle)', fontSize: 12, marginTop: 2, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▾</span>
+        <span style={{ flex: '0 0 auto', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 2, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▾</span>
       </div>
     </div>
   );

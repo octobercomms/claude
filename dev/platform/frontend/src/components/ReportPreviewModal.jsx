@@ -80,7 +80,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
       <div className="modal modal-fullscreen" onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+            <h2 style={{ margin: 0, fontSize: 'var(--fs-title)', fontWeight: 700 }}>
               {reportType === 'weekly' ? 'Weekly' : 'Monthly'} preview — {clientName}
             </h2>
             <div className="body-sm text-muted">
@@ -131,7 +131,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
         )}
 
         {errorCount > 0 && (
-          <div className="callout callout-danger" style={{ margin: '8px 20px', fontSize: 11 }}>
+          <div className="callout callout-danger" style={{ margin: '8px 20px', fontSize: 'var(--fs-caption)' }}>
             {Object.entries(dataErrors).map(([k, v]) => (
               <div key={k}><strong>{k}:</strong> {v}</div>
             ))}

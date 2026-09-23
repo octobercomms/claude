@@ -79,7 +79,7 @@ export default function AutoEditPanel({ clientId, post }) {
     <div style={{ marginTop: 10, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
       {!project ? (
         <>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 8 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 8 }}>
             Upload your raw footage and the auto-edit pipeline trims dead air, adds captions and motion
             graphics, grades the result, and re-edits until it passes. Rendering runs on the dedicated
             worker — it lands here when it's done.
@@ -96,7 +96,7 @@ export default function AutoEditPanel({ clientId, post }) {
         </>
       ) : (
         <div>
-          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 8 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 8 }}>
             Status: {STATUS_LABEL[project.status] || project.status}
             {project.error ? ` — ${project.error}` : ''}
             {project.score != null ? ` · QA score ${project.score}/100` : ''}
@@ -114,7 +114,7 @@ export default function AutoEditPanel({ clientId, post }) {
           {project.jobs?.length > 0 && (
             <div style={{ marginTop: 4 }}>
               {project.jobs.map(j => (
-                <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0', borderTop: '1px solid var(--card-border)' }}>
+                <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', padding: '3px 0', borderTop: '1px solid var(--card-border)' }}>
                   <span style={{ textTransform: 'capitalize' }}>{j.stage}</span>
                   <span style={{ color: j.status === 'failed' ? 'var(--negative)' : j.status === 'done' ? 'var(--positive)' : 'var(--text-subtle)' }}>
                     {j.status}{j.error ? ` — ${j.error}` : ''}

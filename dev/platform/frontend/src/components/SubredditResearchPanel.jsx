@@ -181,7 +181,7 @@ export default function SubredditResearchPanel({ clientId, onUseAsBrief }) {
               </div>
               {res.reel_script.keyword && (
                 <div className="callout" style={{ marginTop: 10, background: 'var(--accent-soft)', padding: 12, borderRadius: 'var(--r-sm)' }}>
-                  <div className="body-sm">Comment keyword: <strong style={{ fontSize: 16, letterSpacing: 1 }}>{res.reel_script.keyword}</strong></div>
+                  <div className="body-sm">Comment keyword: <strong style={{ fontSize: 'var(--fs-title)', letterSpacing: 1 }}>{res.reel_script.keyword}</strong></div>
                   <div className="body-xs text-subtle" style={{ marginTop: 4 }}>Set this as a comment trigger keyword under <strong>Engage → DM bot → Live auto-send</strong>, and anyone who comments it gets the lead magnet auto-DM'd.</div>
                 </div>
               )}

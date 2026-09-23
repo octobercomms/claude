@@ -91,21 +91,21 @@ export default function QuickWinsPanel({ clientId, onRefresh }) {
             <tbody>
               {visible.map(w => (
                 <tr key={w.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                  <td style={{ padding: '8px 10px', fontSize: 13 }}>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-body)' }}>
                     <strong>{w.keyword}</strong>
-                    {w.intent && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text-muted)' }}>{String(w.intent).slice(0, 4).toUpperCase()}</span>}
-                    {w.aio_present && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--r-sm)', background: w.aio_brand_cited ? 'var(--positive-soft)' : 'var(--warning-soft)', color: w.aio_brand_cited ? 'var(--positive)' : 'var(--warning)' }}>AIO{w.aio_brand_cited ? '+CITED' : ''}</span>}
+                    {w.intent && <span style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text-muted)' }}>{String(w.intent).slice(0, 4).toUpperCase()}</span>}
+                    {w.aio_present && <span style={{ marginLeft: 6, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--r-sm)', background: w.aio_brand_cited ? 'var(--positive-soft)' : 'var(--warning-soft)', color: w.aio_brand_cited ? 'var(--positive)' : 'var(--warning)' }}>AIO{w.aio_brand_cited ? '+CITED' : ''}</span>}
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 13, textAlign: 'right', fontWeight: 700 }}>#{w.current_position}</td>
-                  <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: w.trend > 0 ? 'var(--positive)' : w.trend < 0 ? 'var(--negative)' : 'var(--text-subtle)', fontWeight: 700 }}>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-body)', textAlign: 'right', fontWeight: 700 }}>#{w.current_position}</td>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right', color: w.trend > 0 ? 'var(--positive)' : w.trend < 0 ? 'var(--negative)' : 'var(--text-subtle)', fontWeight: 700 }}>
                     {w.trend === 0 || !w.previous_position ? '—' : (w.trend > 0 ? '↑' : '↓') + ' ' + Math.abs(w.trend)}
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>
                     <span style={{ background: w.effort_score <= 3 ? 'var(--positive-soft)' : w.effort_score <= 6 ? 'var(--warning-soft)' : 'var(--negative-soft)',
                                     color: w.effort_score <= 3 ? 'var(--positive)' : w.effort_score <= 6 ? 'var(--warning)' : 'var(--negative)',
                                     padding: '2px 8px', borderRadius: 'var(--r-pill)', fontWeight: 700 }}>{w.effort_score}/10</span>
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-subtle)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {w.target_url ? <a href={w.target_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)' }}>{w.target_url.replace(/^https?:\/\//, '').slice(0, 60)}</a> : <em style={{ color: 'var(--text-subtle)' }}>none mapped</em>}
                   </td>
                   <td style={{ padding: '8px 10px', textAlign: 'right' }}>

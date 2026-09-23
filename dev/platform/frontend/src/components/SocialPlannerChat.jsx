@@ -266,7 +266,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
     <div className="modal-backdrop" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="modal modal-wide">
         <div className="modal-head">
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+          <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>
             Social post plan — {clientName}
           </h2>
           <button type="button" onClick={onClose} className="modal-close">×</button>
@@ -281,7 +281,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
               {!history.length && (
                 <div className="body-sm text-muted">
                   Examples:
-                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 12 }}>
+                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 'var(--fs-caption)' }}>
                     <li>"60-second Reel about our new Quiet Luxury collection — Instagram + TikTok. Audience: design-led 35-50s."</li>
                     <li>"3-post carousel for LinkedIn explaining our attribution methodology."</li>
                     <li>"Talking-head Story showing behind-the-scenes of yesterday's shoot."</li>
@@ -290,16 +290,16 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
               )}
               {history.map((m, i) => (
                 <div key={i} className={`chat-bubble ${m.role === "user" ? "user" : "assistant"}`} style={{ marginBottom: 10 }}>
-                  <div className="caption mb-2" style={{ fontSize: 10 }}>{m.role === 'user' ? 'You' : 'Claude'}</div>
-                  <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</div>
+                  <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>{m.role === 'user' ? 'You' : 'Claude'}</div>
+                  <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</div>
                 </div>
               ))}
-              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 10 }}><div className="caption mb-2" style={{ fontSize: 10 }}>Claude</div><div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
+              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 10 }}><div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Claude</div><div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
             </div>
             {attachment && (
               <div className="chip chip-accent" style={{ marginTop: 8 }}>
-                <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: 'var(--text-subtle)' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
-                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 16, padding: "0 2px" }} title="Remove attachment">×</button>
+                <span style={{ fontSize: 'var(--fs-caption)' }}>📎 {attachment.name} <span style={{ color: 'var(--text-subtle)' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
+                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 'var(--fs-title)', padding: "0 2px" }} title="Remove attachment">×</button>
               </div>
             )}
             <div className="chat-input-row">
@@ -340,7 +340,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             {proposed ? (
               <PlanPreview plan={proposed} />
             ) : (
-              <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                 {saved ? 'A plan is locked. Ask Claude to change it.' : 'Tell Claude about the post.'}
               </div>
             )}
@@ -364,39 +364,39 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '0 1 auto' }}>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Publish at</span>
+                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>Publish at</span>
                 <input
                   type="datetime-local"
                   value={schedule.scheduled_at}
                   onChange={e => { setSchedule(s => ({ ...s, scheduled_at: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+                  style={{ padding: '4px 8px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                 />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '1 1 240px' }}>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Google Drive folder (where you'll drop the final media)</span>
+                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>Google Drive folder (where you'll drop the final media)</span>
                 <input
                   type="url"
                   placeholder="https://drive.google.com/drive/folders/..."
                   value={schedule.drive_folder_url}
                   onChange={e => { setSchedule(s => ({ ...s, drive_folder_url: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+                  style={{ padding: '4px 8px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                 />
               </label>
             </div>
             <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
               {['instagram', 'facebook', 'linkedin'].map(p => (
-                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', textTransform: 'capitalize' }}>
+                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-caption)', cursor: 'pointer', textTransform: 'capitalize' }}>
                   <input type="checkbox" checked={schedule.target_platforms.includes(p)} onChange={() => togglePlatform(p)} /> {p}
                 </label>
               ))}
             </div>
             {schedule.scheduled_at && schedule.target_platforms.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+              <div style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                 Will publish to {schedule.target_platforms.join(', ')} on {new Date(schedule.scheduled_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.
               </div>
             )}
             {publishTargets && schedule.target_platforms.length > 0 && (
-              <div style={{ marginTop: 6, fontSize: 11, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ marginTop: 6, fontSize: 'var(--fs-caption)', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {schedule.target_platforms.map(p => {
                   const t = publishTargets[p];
                   if (!t) return null;
@@ -417,7 +417,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   {checkingDrive ? 'Checking…' : '📁 Check Drive folder'}
                 </button>
                 {driveFiles !== null && (
-                  <div style={{ marginTop: 6, fontSize: 11 }}>
+                  <div style={{ marginTop: 6, fontSize: 'var(--fs-caption)' }}>
                     {driveFiles.length === 0 ? (
                       <div style={{ color: 'var(--negative)' }}>No video / image files found yet. Drop the final media into the folder and re-check.</div>
                     ) : (
@@ -430,13 +430,13 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                             <div key={f.id} style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
                               <span style={{ color: 'var(--text-muted)' }}>{f.name}</span>
                               {f.aspect_ratio && (
-                                <span style={{ color: 'var(--text-subtle)', fontSize: 10 }}>
+                                <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>
                                   {f.width}×{f.height}
                                   {f.duration_ms ? ` · ${Math.round(f.duration_ms / 1000)}s` : ''}
                                 </span>
                               )}
                               {f.warnings?.length > 0 && (
-                                <span style={{ color: 'var(--warning)', fontSize: 10 }} title={f.warnings.join(' · ')}>⚠</span>
+                                <span style={{ color: 'var(--warning)', fontSize: 'var(--fs-caption)' }} title={f.warnings.join(' · ')}>⚠</span>
                               )}
                             </div>
                           ))}
@@ -446,7 +446,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                         {driveFiles.some(f => f.warnings?.length > 0) && (
                           <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--warning-soft)', border: '1px solid #ffe0a3', borderRadius: 'var(--r-sm)' }}>
                             {driveFiles.filter(f => f.warnings?.length > 0).slice(0, 5).map(f => (
-                              <div key={f.id} style={{ color: 'var(--warning)', fontSize: 11 }}>
+                              <div key={f.id} style={{ color: 'var(--warning)', fontSize: 'var(--fs-caption)' }}>
                                 <b>{f.name}</b>: {f.warnings.join(' · ')}
                               </div>
                             ))}
@@ -466,8 +466,8 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 {captionPreview && (
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {Object.entries(captionPreview).map(([platform, text]) => (
-                      <div key={platform} style={{ padding: '8px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12, whiteSpace: 'pre-wrap' }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{platform}</div>
+                      <div key={platform} style={{ padding: '8px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', whiteSpace: 'pre-wrap' }}>
+                        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{platform}</div>
                         {text}
                       </div>
                     ))}
@@ -484,19 +484,19 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 <button type="button" {...roWrite(readOnly, { onClick: publishNow, disabled: publishing })} className="btn btn-primary btn-sm">
                   {publishing ? 'Publishing…' : '🚀 Publish now'}
                 </button>
-                <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>
+                <span style={{ marginLeft: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                   Or wait — the scheduler will pick this up at the time above.
                 </span>
                 {publications && publications.length > 0 && (
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {publications.map(pub => (
-                      <div key={pub.platform} style={{ padding: '6px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div key={pub.platform} style={{ padding: '6px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, textTransform: 'capitalize', minWidth: 80 }}>{pub.platform}</span>
                         <span style={{ color: pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : 'var(--text-muted)' }}>
                           {pub.status === 'posted' ? '✓ posted' : pub.status === 'failed' ? '✗ failed' : pub.status}
                         </span>
                         {pub.posted_url && <a href={pub.posted_url} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', color: 'var(--text)' }}>view →</a>}
-                        {pub.error_message && <span style={{ color: 'var(--negative)', fontSize: 11, marginLeft: 'auto' }}>{pub.error_message}</span>}
+                        {pub.error_message && <span style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginLeft: 'auto' }}>{pub.error_message}</span>}
                       </div>
                     ))}
                   </div>
@@ -533,8 +533,8 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
 function PlanPreview({ plan }) {
   if (!plan) return null;
   return (
-    <div style={{ fontSize: 12 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{plan.title || '(untitled)'}</div>
+    <div style={{ fontSize: 'var(--fs-caption)' }}>
+      <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 4 }}>{plan.title || '(untitled)'}</div>
       {plan.platforms?.length > 0 && (
         <div style={{ color: 'var(--text-muted)', marginBottom: 6 }}>
           {plan.platforms.join(', ')}
@@ -543,7 +543,7 @@ function PlanPreview({ plan }) {
       )}
       {plan.framework && (
         <div style={{ marginBottom: 8 }}>
-          <span className="chip chip-accent" style={{ fontSize: 10 }}>{plan.framework}</span>
+          <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{plan.framework}</span>
           {plan.framework_rationale && <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>{plan.framework_rationale}</span>}
         </div>
       )}
