@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
-import ProcessRail from '../components/ProcessRail';
+import StepRail from '../components/shells/StepRail';
 import SuiteOverview from '../components/SuiteOverview';
 import MailboxesPanel from '../components/MailboxesPanel';
 import OutreachTasksPanel from '../components/OutreachTasksPanel';
@@ -488,7 +488,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
         // Embedded in Owned → Email: a stepped Build → Run rail (verbs), to
         // match every other suite group. ✓ derives from real state.
         <div className="stepper-block">
-          <ProcessRail numbered wrap grouped activeKey={tab} onStep={setTab} steps={[
+          <StepRail numbered wrap grouped activeKey={tab} onStep={setTab} steps={[
             { groupLabel: 'Your list' },
             { key: 'contacts',  title: 'Find',  sub: 'Your lead list',           status: contacts.length ? 'done' : 'todo' },
             { key: 'campaigns', title: 'Write', sub: 'The email sequence',        status: outreachCampaigns.length ? 'done' : 'todo' },

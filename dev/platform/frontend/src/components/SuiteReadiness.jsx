@@ -8,7 +8,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
-import ProcessRail from './ProcessRail';
+import StepRail from './shells/StepRail';
 
 export default function SuiteReadiness({ clientId, suite, steps, title = 'Setup progress' }) {
   const [status, setStatus] = useState({});
@@ -35,7 +35,7 @@ export default function SuiteReadiness({ clientId, suite, steps, title = 'Setup 
           {complete && ' ✓'}
         </span>
       </div>
-      <ProcessRail
+      <StepRail
         steps={railSteps}
         onStep={(key) => { const st = steps.find(s => s.key === key); if (st && st.onClick) st.onClick(); }}
       />

@@ -7,7 +7,6 @@ import FormsTab from '../components/FormsTab';
 import ClientOutreachPage from './ClientOutreachPage';
 import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
-import Stepper from '../components/Stepper';
 import { useTabParam } from '../hooks/useTabParam';
 
 import {
@@ -18,7 +17,7 @@ import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import AiSeoPanel from '../components/organic/AiSeoPanel';
 import SuiteOverview from '../components/SuiteOverview';
 import OverviewChat from '../components/OverviewChat';
-import ProcessRail from '../components/ProcessRail';
+import StepRail from '../components/shells/StepRail';
 import StatStrip from '../components/shells/StatStrip';
 import { Accordion, AccordionItem } from '../components/ui/Accordion';
 import FindPanel from '../components/organic/FindPanel';
@@ -1223,15 +1222,21 @@ export default function ClientSEOPage() {
             <SuiteTabs tabs={topTabs} />
             {currentGroup === 'content' ? (
               <div className="stepper-block">
-                <Stepper
-                  steps={CONTENT_META}
-                  current={Math.max(1, CONTENT_KEYS.indexOf(activeTab) + 1)}
-                  onStep={n => setActiveTab(CONTENT_KEYS[n - 1])}
+                <StepRail
+                  numbered
+                  activeKey={activeTab}
+                  onStep={setActiveTab}
+                  steps={CONTENT_META.map((m, i) => ({
+                    key: CONTENT_KEYS[i],
+                    label: m.title,
+                    sub: m.sub,
+                    status: i < Math.max(0, CONTENT_KEYS.indexOf(activeTab)) ? 'done' : 'todo',
+                  }))}
                 />
               </div>
             ) : RAIL_GROUPS.has(currentGroup) ? (
               <div className="stepper-block">
-                <ProcessRail numbered wrap grouped={railGrouped} activeKey={activeTab} onStep={setActiveTab} steps={railSteps} />
+                <StepRail numbered wrap grouped={railGrouped} activeKey={activeTab} onStep={setActiveTab} steps={railSteps} />
               </div>
             ) : (
               subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />
