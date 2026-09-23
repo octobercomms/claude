@@ -9,6 +9,7 @@ import OutreachTasksPanel from '../components/OutreachTasksPanel';
 import { useToast } from '../context/ToastContext';
 import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
+import ListDetail from '../components/shells/ListDetail';
 import NewCampaignModal from '../components/NewCampaignModal';
 import ImportWizard from '../components/ImportWizard';
 import SequenceBuilder from '../components/SequenceBuilder';
@@ -172,7 +173,7 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
   const [deepLoading, setDeepLoading] = useState(false);
   const [expandedCampaign, setExpandedCampaign] = useState(null);
   const [wizardCampaignId, setWizardCampaignId] = useState(null);
-  const [editingContact, setEditingContact] = useState(null);
+  const [selectedContactId, setSelectedContactId] = useState(null);
   const [selectedContacts, setSelectedContacts] = useState(() => new Set());
   const [contactFilter, setContactFilter] = useState({ search: '', contact_type: '', location: '' });
   const [sendCfg, setSendCfg] = useState({});
@@ -426,6 +427,8 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
       return true;
     });
   }, [contacts, contactFilter]);
+
+  const selectedContact = contacts.find(c => c.id === selectedContactId) || null;
 
   const allSelected = filteredContacts.length > 0 && filteredContacts.every(c => selectedContacts.has(c.id));
   function toggleContactSelected(cid) {
@@ -770,57 +773,73 @@ export default function ClientOutreachPage({ embedded = false, clientId: clientI
               onChange={e => setContactFilter(f => ({ ...f, location: e.target.value }))} />
           </div>
 
-          {/* Contacts table */}
-          <div className="card" style={{ marginTop: 'var(--s3)' }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th style={{ width: 32 }}>
+          {/* Contacts workbench — a selectable list on the left, the full
+              detail/edit view on the right (lifted out of the old modal). */}
+          <div style={{ marginTop: 'var(--s3)' }}>
+            <ListDetail
+              sidebar
+              list={
+                <div className="card" style={{ padding: 0, maxHeight: '68vh', overflowY: 'auto' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1 }}>
                     <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
-                  </th>
-                  {['Name', 'Email', 'Company', 'Type', 'Location', 'Status', 'Added', ''].map(h => <th key={h} >{h}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredContacts.length === 0 ? (
-                  <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>
-                    {contacts.length === 0 ? 'No leads yet — add manually, find new, or import a CSV.' : 'No leads match these filters.'}
-                  </td></tr>
-                ) : filteredContacts.map(c => (
-                  <tr key={c.id}>
-                    <td ><input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleContactSelected(c.id)} /></td>
-                    <td >{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
-                    <td>
-                      {c.email || '—'}
-                      <VerifyBadge contact={c} onVerified={(updated) => setContacts(prev => prev.map(x => x.id === c.id ? { ...x, ...updated } : x))} />
-                    </td>
-                    <td >{c.company || '—'}</td>
-                    <td >{c.contact_type || '—'}</td>
-                    <td >{c.location || '—'}</td>
-                    <td ><span className="chip chip-neutral">{c.status}</span></td>
-                    <td >{c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'}</td>
-                    <td >
-                      <button onClick={() => setEditingContact(c)} className="btn btn-secondary" style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)' }}>Edit</button>
-                      <button onClick={() => deleteContact(c.id)} className="btn btn-danger" style={{ padding: 'var(--s1) var(--s3)', fontSize: 'var(--fs-caption)', marginLeft: 'var(--s1)' }}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    Select all · {filteredContacts.length} of {contacts.length}
+                  </label>
+                  {filteredContacts.length === 0 ? (
+                    <div style={{ padding: 'var(--s4)', textAlign: 'center', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>
+                      {contacts.length === 0 ? 'No leads yet — add manually, find new, or import a CSV.' : 'No leads match these filters.'}
+                    </div>
+                  ) : filteredContacts.map(c => {
+                    const active = c.id === selectedContactId;
+                    return (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: '1px solid var(--card-border)', background: active ? 'var(--surface-raised)' : 'transparent' }}>
+                        <input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleContactSelected(c.id)} />
+                        <button type="button" onClick={() => setSelectedContactId(c.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}>
+                          <div style={{ fontSize: 'var(--fs-body)', fontWeight: active ? 700 : 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || '—'}
+                          </div>
+                          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {[c.company, c.contact_type].filter(Boolean).join(' · ') || c.email}
+                          </div>
+                        </button>
+                        <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)', flexShrink: 0 }}>{c.status}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              }
+              detail={
+                selectedContact ? (
+                  <div>
+                    <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)', flexWrap: 'wrap', gap: 'var(--s2)' }}>
+                      <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+                        {selectedContact.email || 'No email on file'}
+                        <VerifyBadge contact={selectedContact} onVerified={(updated) => setContacts(prev => prev.map(x => x.id === selectedContact.id ? { ...x, ...updated } : x))} />
+                      </span>
+                    </div>
+                    <EditContactModal
+                      key={selectedContact.id}
+                      embedded
+                      contact={selectedContact}
+                      entityLabel="lead"
+                      onSaved={onContactUpdated}
+                      onClose={() => setSelectedContactId(null)}
+                    />
+                    <div className="row end" style={{ marginTop: 'var(--s2)' }}>
+                      <button type="button" className="btn btn-danger btn-sm"
+                        onClick={async () => { await deleteContact(selectedContact.id); setSelectedContactId(null); }}>
+                        Delete lead
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
+                    Select a lead on the left to view and edit its details, coverage and activity.
+                  </div>
+                )
+              }
+            />
           </div>
-          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s2)' }}>
-            Showing {filteredContacts.length} of {contacts.length} lead{contacts.length === 1 ? '' : 's'}.
-          </p>
         </div>
-      )}
-
-      {editingContact && (
-        <EditContactModal
-          contact={editingContact}
-          entityLabel="lead"
-          onClose={() => setEditingContact(null)}
-          onSaved={onContactUpdated}
-        />
       )}
 
       <ImportWizard
