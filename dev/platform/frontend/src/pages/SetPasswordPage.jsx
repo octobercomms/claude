@@ -65,7 +65,7 @@ export default function SetPasswordPage() {
       <form onSubmit={submit} style={card}>
         <h1 className="h2" style={{ marginBottom: 4 }}>Set your password</h1>
         <p className="body-sm text-muted" style={{ marginBottom: 16 }}>Signing in as <strong>{email}</strong></p>
-        {err && <div className="callout callout-warning" style={{ marginBottom: 12, fontSize: 13 }}>{err}</div>}
+        {err && <div className="callout callout-warning" style={{ marginBottom: 12, fontSize: 'var(--fs-body)' }}>{err}</div>}
         <label className="field-label">New password</label>
         <input className="input" type="password" value={pw} onChange={e => setPw(e.target.value)} autoFocus placeholder="At least 8 characters" style={{ marginBottom: 12 }} />
         <label className="field-label">Confirm password</label>

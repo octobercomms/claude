@@ -91,8 +91,8 @@ export default function StillsReelPanel({ clientId, onSubmitted }) {
           onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
           onClick={() => fileRef.current?.click()}
           style={{ border: `2px dashed ${dragOver ? 'var(--text)' : 'var(--card-border)'}`, borderRadius: 'var(--r-md)', padding: 64, textAlign: 'center', cursor: 'pointer', background: 'var(--surface)' }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Drop 2–12 images, or click to choose</div>
-          <div style={{ fontSize: 13, color: 'var(--text-subtle)', marginTop: 6 }}>Each still is animated into a short cinematic clip, then stitched into one reel</div>
+          <div style={{ fontWeight: 700, fontSize: 'var(--fs-title)' }}>Drop 2–12 images, or click to choose</div>
+          <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', marginTop: 6 }}>Each still is animated into a short cinematic clip, then stitched into one reel</div>
         </div>
       ) : (
         <div className="edit-split"
@@ -108,7 +108,7 @@ export default function StillsReelPanel({ clientId, onSubmitted }) {
                 {images.map((im, i) => (
                   <div key={im.id} style={{ position: 'relative', borderRadius: 'var(--r-sm)', overflow: 'hidden', border: 'var(--border-w) solid var(--card-border)', aspectRatio: `${aw} / ${ah}`, background: '#000' }}>
                     <img src={im.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    <span style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(0,0,0,.7)', color: '#fff', fontWeight: 800, fontSize: 11, borderRadius: 3, padding: '1px 6px' }}>{i + 1}</span>
+                    <span style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(0,0,0,.7)', color: '#fff', fontWeight: 800, fontSize: 'var(--fs-caption)', borderRadius: 3, padding: '1px 6px' }}>{i + 1}</span>
                     <div style={{ position: 'absolute', bottom: 4, left: 4, right: 4, display: 'flex', gap: 4, justifyContent: 'center' }}>
                       <button className="btn btn-secondary btn-sm" disabled={i === 0} onClick={() => move(im.id, -1)} style={{ padding: '0 6px' }} title="Earlier">←</button>
                       <button className="btn btn-secondary btn-sm" disabled={i === images.length - 1} onClick={() => move(im.id, 1)} style={{ padding: '0 6px' }} title="Later">→</button>
@@ -128,7 +128,7 @@ export default function StillsReelPanel({ clientId, onSubmitted }) {
               <select value={motion} onChange={e => setMotion(e.target.value)} className="input" style={{ width: '100%' }}>
                 {(opts.motions || Object.keys(MOTION_LABELS)).map(m => <option key={m} value={m}>{MOTION_LABELS[m] || m}</option>)}
               </select>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>Applied to every still — subtle moves montage best.</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>Applied to every still — subtle moves montage best.</div>
             </div>
 
             <div>
@@ -143,10 +143,10 @@ export default function StillsReelPanel({ clientId, onSubmitted }) {
             <div>
               <label className="caption" style={{ display: 'block', marginBottom: 6 }}>Each clip: {perClip.toFixed(1)}s</label>
               <input type="range" min="0.6" max="4" step="0.1" value={perClip} onChange={e => setPerClip(Number(e.target.value))} style={{ width: '100%' }} />
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>Reel length ~{reelSeconds.toFixed(1)}s across {images.length} clip{images.length === 1 ? '' : 's'}.</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>Reel length ~{reelSeconds.toFixed(1)}s across {images.length} clip{images.length === 1 ? '' : 's'}.</div>
             </div>
 
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: 'var(--r-sm)', padding: 10 }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: 'var(--r-sm)', padding: 10 }}>
               Animating {images.length} still{images.length === 1 ? '' : 's'} · est. <strong>${estimate.toFixed(2)}</strong> in fal render spend. Runs in the background — you can leave this page.
             </div>
 

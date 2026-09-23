@@ -210,7 +210,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
               const sec = Math.round(words / 2.5); // ~150 wpm
               const dur = sec >= 60 ? `${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, '0')}s` : `${sec}s`;
               return (
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: -2 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: -2 }}>
                   {words} words · ≈ {dur} spoken{sec >= 90 ? ` · ≈ $${(sec / 60).toFixed(2)} at ~$1/min` : ''}
                 </div>
               );
@@ -218,11 +218,11 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
             {(() => {
               const canPause = !!opts.voices.find(v => v.id === voice)?.supportsPause;
               return (
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', lineHeight: 1.6, marginTop: -4 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', lineHeight: 1.6, marginTop: -4 }}>
                   {canPause ? (
                     <>Pacing: drop a pause of{' '}
                       <select value={pauseDur} onChange={e => setPauseDur(e.target.value)}
-                        style={{ fontSize: 11, padding: '1px 4px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 4 }}>
+                        style={{ fontSize: 'var(--fs-caption)', padding: '1px 4px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 4 }}>
                         {['0.3s', '0.5s', '1s', '1.5s', '2s'].map(d => <option key={d} value={d}>{d}</option>)}
                       </select>{' '}
                       <button type="button" className="btn-inline-link"
@@ -239,7 +239,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
               <span className="field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <span>Avatar / Digital Twin{avatar && opts.avatars.find(a => `${a.type}:${a.id}` === avatar) ? ` — ${opts.avatars.find(a => `${a.type}:${a.id}` === avatar).name}` : ''}</span>
                 <button type="button" onClick={loadOptions} disabled={reloadingOpts}
-                  className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px' }} title="Pull your latest avatars from HeyGen">
+                  className="btn btn-ghost btn-sm" style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px' }} title="Pull your latest avatars from HeyGen">
                   {reloadingOpts ? 'Syncing…' : '↻ Sync'}
                 </button>
               </span>
@@ -288,7 +288,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                   className={'btn btn-sm ' + (fit === 'contain' ? 'btn-primary' : 'btn-secondary')}
                   title="Fit the whole avatar inside the frame (may show background bars)">Fit whole avatar</button>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
                 <strong>Fill</strong> stops a reel from letterboxing the avatar into a smaller box.
               </div>
             </div>
@@ -300,7 +300,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                   <option value="medium">Medium — natural</option>
                   <option value="high">High — lively, more gesture</option>
                 </select>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
                   Photo avatars only. HeyGen defaults to Low (stiff) — Medium/High give more lifelike motion. (Not used with Avatar V.)
                 </div>
               </label>
@@ -308,7 +308,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
             {canAvatarV && (
               <label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input type="checkbox" checked={engine === 'avatar_v'} onChange={e => setEngine(e.target.checked ? 'avatar_v' : '')} />
-                <span style={{ fontSize: 13 }}>
+                <span style={{ fontSize: 'var(--fs-body)' }}>
                   <strong>Highest fidelity (Avatar V)</strong>{' '}
                   <span style={{ color: 'var(--text-subtle)' }}>— best lip-sync for this Digital Twin. Costs a little more.</span>
                 </span>
@@ -316,7 +316,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
             )}
             <label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={caption} onChange={e => setCaption(e.target.checked)} />
-              <span style={{ fontSize: 13 }}>
+              <span style={{ fontSize: 'var(--fs-body)' }}>
                 <strong>Burn in captions</strong>{' '}
                 <span style={{ color: 'var(--text-subtle)' }}>— subtitles baked into the video (recommended for silent autoplay).</span>
               </span>
@@ -342,7 +342,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
               return (
                 <div key={r.id} className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
                   <button type="button" onClick={() => remove(r.id)} title="Delete"
-                    style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>✕</button>
+                    style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 'var(--fs-caption)', lineHeight: 1 }}>✕</button>
                   <div
                     onClick={() => done && setModalReel(r)}
                     style={{ position: 'relative', aspectRatio: '9 / 16', background: '#000', cursor: done ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -351,18 +351,18 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
                         <video src={r.video_url} preload="metadata" muted playsInline
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ width: 40, height: 40, borderRadius: 20, background: 'rgba(0,0,0,0.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>▶</span>
+                          <span style={{ width: 40, height: 40, borderRadius: 20, background: 'rgba(0,0,0,0.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-title)' }}>▶</span>
                         </div>
                       </>
                     ) : (
-                      <div style={{ textAlign: 'center', color: 'var(--text-subtle)', fontSize: 12, padding: 12 }}>
+                      <div style={{ textAlign: 'center', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', padding: 12 }}>
                         {r.status === 'failed' ? '⚠︎ Failed' : '⏳ Rendering…'}
                       </div>
                     )}
-                    <span className={`chip ${st.cls}`} style={{ position: 'absolute', bottom: 6, left: 6, fontSize: 9 }}>{st.label}</span>
+                    <span className={`chip ${st.cls}`} style={{ position: 'absolute', bottom: 6, left: 6, fontSize: 'var(--fs-caption)' }}>{st.label}</span>
                   </div>
                   <div style={{ padding: 'var(--s3)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
                     <div className="body-xs text-subtle" style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.avatar_name || r.avatar_id}{r.duration_s ? ` · ${Math.round(r.duration_s)}s` : ''}
                     </div>
@@ -386,7 +386,7 @@ export default function HeygenReelsPanel({ clientId, draft, editReelId, onEditCo
             style={{ maxWidth: 380, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
               <div style={{ minWidth: 0 }}>
-                <strong style={{ fontSize: 14 }}>{modalReel.title || 'Reel'}</strong>
+                <strong style={{ fontSize: 'var(--fs-body)' }}>{modalReel.title || 'Reel'}</strong>
                 <div className="body-xs text-subtle">{modalReel.avatar_name || modalReel.avatar_id}{modalReel.duration_s ? ` · ${Math.round(modalReel.duration_s)}s` : ''}</div>
               </div>
               <button className="btn btn-ghost btn-sm" onClick={() => setModalReel(null)}>✕</button>

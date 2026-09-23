@@ -28,7 +28,7 @@ function AttrStat({ value, label, big, hint }) {
       <div style={{ fontSize: big ? 26 : 20, fontWeight: 700, lineHeight: 1, color: big ? 'var(--accent)' : 'var(--text)' }}>
         {value == null ? '—' : value}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3 }}>{label}{hint ? ' ⓘ' : ''}</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 3 }}>{label}{hint ? ' ⓘ' : ''}</div>
     </div>
   );
 }
@@ -420,8 +420,8 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
         <button onClick={onExit} className="btn btn-secondary btn-sm">← Back to campaigns</button>
         <div style={{ padding: 20, background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 'var(--r-sm)', color: 'var(--warning)' }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>This campaign isn't linked to a press release</div>
-          <div style={{ fontSize: 13, lineHeight: 1.5 }}>It's tagged as a press campaign but has no parsed release attached. Delete it and start a new one via <strong>+ New press campaign</strong>.</div>
-          <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>Server said: {loadError}</div>
+          <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5 }}>It's tagged as a press campaign but has no parsed release attached. Delete it and start a new one via <strong>+ New press campaign</strong>.</div>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 8 }}>Server said: {loadError}</div>
         </div>
       </div>
     );
@@ -439,7 +439,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const visibleTags = pressTags.filter(t => !tagSearch || t.tag.toLowerCase().includes(tagSearch.toLowerCase()));
   const TagChip = ({ tag, count, on }) => (
     <button type="button" onClick={() => toggleTag(tag)}
-      style={{ padding: '4px 10px', borderRadius: 14, fontSize: 12, cursor: 'pointer', margin: '0 6px 6px 0',
+      style={{ padding: '4px 10px', borderRadius: 14, fontSize: 'var(--fs-caption)', cursor: 'pointer', margin: '0 6px 6px 0',
         border: `1px solid ${on ? 'var(--accent)' : 'var(--card-border)'}`, background: on ? 'var(--accent)' : 'var(--surface)',
         color: on ? '#111' : 'var(--text)', fontWeight: on ? 700 : 400 }}>
       {on ? '✓ ' : ''}{tag}{count != null ? <span style={{ opacity: 0.6 }}> · {count}</span> : ''}
@@ -462,12 +462,12 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               background: active ? 'var(--accent-soft)' : 'var(--surface)', flex: '1 1 120px', minWidth: 0, textAlign: 'left' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 11, flexShrink: 0,
               background: isDone ? 'var(--success, #1a9d5a)' : (active ? 'var(--accent)' : 'var(--card-border)'),
-              color: isDone || active ? '#fff' : 'var(--text-subtle)', fontSize: 12, fontWeight: 700 }}>
+              color: isDone || active ? '#fff' : 'var(--text-subtle)', fontSize: 'var(--fs-caption)', fontWeight: 700 }}>
               {isDone ? '✓' : i + 1}
             </span>
             <span style={{ minWidth: 0 }}>
-              <span style={{ fontSize: 13, fontWeight: active ? 700 : 600, color: 'var(--text)', display: 'block' }}>{s.label}</span>
-              <span style={{ fontSize: 10, color: 'var(--text-subtle)' }}>{s.hint}</span>
+              <span style={{ fontSize: 'var(--fs-body)', fontWeight: active ? 700 : 600, color: 'var(--text)', display: 'block' }}>{s.label}</span>
+              <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{s.hint}</span>
             </span>
           </button>
         );
@@ -548,10 +548,10 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 4 }}>press release</div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{release.title}</h2>
-          {release.dateline && <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{release.dateline}</div>}
-          {release.source_url && <a href={release.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--text)', display: 'inline-block', marginTop: 6 }}>↗ source page</a>}
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 4 }}>press release</div>
+          <h2 style={{ fontSize: 'var(--fs-section)', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{release.title}</h2>
+          {release.dateline && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{release.dateline}</div>}
+          {release.source_url && <a href={release.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', display: 'inline-block', marginTop: 6 }}>↗ source page</a>}
         </div>
         <button onClick={togglePause} disabled={pausing}
           className={`btn btn-sm ${paused ? 'btn-primary' : 'btn-secondary'}`}
@@ -563,8 +563,8 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
       {attribution?.launched && (
         <div style={{ marginTop: 16, padding: 14, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 3 }}>Backlink attribution · {attribution.window_days} days after launch</div>
-          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 10, maxWidth: 640, lineHeight: 1.45 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 3 }}>Backlink attribution · {attribution.window_days} days after launch</div>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 10, maxWidth: 640, lineHeight: 1.45 }}>
             The SEO payoff of this pitch: websites that started linking to the client in the {attribution.window_days} days since launch. Links take days to weeks to appear, so early numbers stay low.
           </div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'baseline' }}>
@@ -597,7 +597,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div className="h3">1 · Who — the audience</div>
-                <p style={{ color: 'var(--text-subtle)', fontSize: 12, margin: '2px 0 0' }}>Click tags to add whole segments of your media database. Your selection is saved automatically.</p>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', margin: '2px 0 0' }}>Click tags to add whole segments of your media database. Your selection is saved automatically.</p>
               </div>
               <button {...roWrite(readOnly, { onClick: runAutopilot, disabled: autopiloting })} className="btn btn-secondary btn-sm">
                 {autopiloting ? '✨ Choosing…' : '✨ Suggest audience'}
@@ -606,7 +606,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
             {sender && (
               <div style={{
-                marginTop: 12, padding: '9px 12px', borderRadius: 'var(--r-sm)', fontSize: 12.5,
+                marginTop: 12, padding: '9px 12px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)',
                 display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
                 border: `1px solid ${sender.source === 'default' ? '#e0b400' : 'var(--card-border)'}`,
                 background: sender.source === 'default' ? 'var(--warning-soft, #fff8e1)' : 'var(--surface-raised)',
@@ -625,13 +625,13 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
             {senderEdit && (
               <div className="card" style={{ marginTop: 8, padding: 12, background: 'var(--surface-raised)' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Who these emails send from</div>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, marginBottom: 8 }}>Who these emails send from</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <label className="field"><span className="field-label">From name</span><input className="input" value={senderEdit.from_name} onChange={(e) => setSenderEdit((s) => ({ ...s, from_name: e.target.value }))} placeholder="October Communications" /></label>
                   <label className="field"><span className="field-label">From email</span><input className="input" value={senderEdit.from_email} onChange={(e) => setSenderEdit((s) => ({ ...s, from_email: e.target.value }))} placeholder="press@yourdomain.com" /></label>
                   <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Reply-To (where replies land)</span><input className="input" value={senderEdit.reply_to} onChange={(e) => setSenderEdit((s) => ({ ...s, reply_to: e.target.value }))} placeholder="hello@yourdomain.com" /></label>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 10px' }}>The From address must be on a domain you've verified for sending. Applies to every email for this client that isn't sent from a mailbox — including everything not yet sent in this campaign.</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '6px 0 10px' }}>The From address must be on a domain you've verified for sending. Applies to every email for this client that isn't sent from a mailbox — including everything not yet sent in this campaign.</div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn btn-primary btn-sm" disabled={savingSender || !senderEdit.from_email.trim()} onClick={saveSender}>{savingSender ? 'Saving…' : 'Save sender'}</button>
                   <button className="btn btn-secondary btn-sm" disabled={savingSender} onClick={() => setSenderEdit(null)}>Cancel</button>
@@ -641,40 +641,40 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
             {suggestions && suggestions.length > 0 && (
               <div style={{ marginTop: 12, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>✨ Suggested for this story — and why</div>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>✨ Suggested for this story — and why</div>
                 {suggestions.map(s => (
                   <div key={s.tag} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
                     <span style={{ flexShrink: 0 }}><TagChip tag={s.tag} count={s.count} on={selTags.has(s.tag)} /></span>
-                    {s.reason && <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4, paddingTop: 4 }}>{s.reason}</span>}
+                    {s.reason && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.4, paddingTop: 4 }}>{s.reason}</span>}
                   </div>
                 ))}
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>Not right? Toggle any off, or add others below — precise beats broad.</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>Not right? Toggle any off, or add others below — precise beats broad.</div>
               </div>
             )}
 
             <div style={{ marginTop: 12 }}>
               <input value={tagSearch} onChange={e => setTagSearch(e.target.value)} placeholder="filter tags…" className="input" style={{ marginBottom: 8, maxWidth: 260 }} />
               <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                {!visibleTags.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No tags found. Tag your journalists, or add journalists individually below.</div>}
+                {!visibleTags.length && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No tags found. Tag your journalists, or add journalists individually below.</div>}
                 {visibleTags.map(t => <TagChip key={t.tag} tag={t.tag} count={t.count} on={selTags.has(t.tag)} />)}
               </div>
             </div>
 
             <div style={{ marginTop: 12, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)', display: 'flex', alignItems: 'baseline', gap: 10 }}>
-              <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{resolving ? '…' : totalRecipients.toLocaleString()}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>recipients{selTags.size ? ` · ${selTags.size} tag${selTags.size === 1 ? '' : 's'}` : ''}{extras.size ? ` · ${extras.size} added by hand` : ''}</div>
+              <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{resolving ? '…' : totalRecipients.toLocaleString()}</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>recipients{selTags.size ? ` · ${selTags.size} tag${selTags.size === 1 ? '' : 's'}` : ''}{extras.size ? ` · ${extras.size} added by hand` : ''}</div>
             </div>
 
             {/* Individual adds */}
             <div style={{ marginTop: 12, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Add specific journalists</div>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Add specific journalists</div>
                 <button className="btn btn-link btn-sm" onClick={() => setShowPaste(v => !v)}>{showPaste ? 'close paste' : '📋 paste a list'}</button>
               </div>
               {showPaste && (
                 <div style={{ marginBottom: 8 }}>
                   <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={3} className="input"
-                    placeholder="Paste anything — a spreadsheet, signatures, 'Jane Doe, arts editor, The Times, jane@…'. Claude sorts + de-dupes into your DB and adds them here." style={{ width: '100%', boxSizing: 'border-box', fontSize: 12 }} />
+                    placeholder="Paste anything — a spreadsheet, signatures, 'Jane Doe, arts editor, The Times, jane@…'. Claude sorts + de-dupes into your DB and adds them here." style={{ width: '100%', boxSizing: 'border-box', fontSize: 'var(--fs-caption)' }} />
                   <button {...roWrite(readOnly, { onClick: doPasteImport, disabled: pasting || !pasteText.trim() })} className="btn btn-secondary btn-sm" style={{ marginTop: 6 }}>{pasting ? 'Sorting…' : 'Sort & add'}</button>
                 </div>
               )}
@@ -684,12 +684,12 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               </div>
               {globalResults && (
                 <div style={{ maxHeight: 180, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginTop: 8 }}>
-                  {!globalResults.length && <div style={{ padding: 10, color: 'var(--text-subtle)', fontSize: 12 }}>No journalists found.</div>}
+                  {!globalResults.length && <div style={{ padding: 10, color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>No journalists found.</div>}
                   {globalResults.map(c => (
                     <div key={c.id} className="row center" style={{ gap: 8, padding: '6px 10px', borderTop: 'var(--border-w) solid var(--accent-soft)' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>{c.name || '(no name)'}{c.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {c.company}</span>}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{c.email}</div>
+                        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>{c.name || '(no name)'}{c.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {c.company}</span>}</div>
+                        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{c.email}</div>
                       </div>
                       {extras.has(c.id)
                         ? <button className="btn btn-secondary btn-sm" onClick={() => removeExtra(c.id)}>added ✓</button>
@@ -703,7 +703,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                   {[...extras.values()].slice(0, 20).map(c => (
                     <span key={c.id} className="chip" style={{ cursor: 'pointer' }} onClick={() => removeExtra(c.id)} title="click to remove">{c.name || c.email} ✕</span>
                   ))}
-                  {extras.size > 20 && <span style={{ fontSize: 11, color: 'var(--text-subtle)', alignSelf: 'center' }}>+{extras.size - 20} more</span>}
+                  {extras.size > 20 && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', alignSelf: 'center' }}>+{extras.size - 20} more</span>}
                 </div>
               )}
             </div>
@@ -718,7 +718,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
         {step === 'what' && (
           <div className="card" style={{ padding: 16, marginTop: 16 }}>
             <div className="h3">2 · What — the emails</div>
-            <div style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '2px 0 10px' }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '2px 0 10px' }}>
               Four subjects try different angles: if they’ve opened, the follow-up sends; if not, we resend the pitch with a fresh subject. Replies stop the chase.
             </div>
             <button {...roWrite(readOnly, { onClick: suggestSubjects, disabled: suggesting })} className="btn btn-secondary btn-sm" style={{ marginBottom: 10 }}>
@@ -727,17 +727,17 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             {steps.map(s => (
               <div key={s.step_number} style={{ marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', minWidth: 60 }}>{s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`}</span>
-                  {s.step_number === 1 ? <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>sends immediately</span> : (
-                    <span style={{ fontSize: 11, color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: 4 }}>after
+                  <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', minWidth: 60 }}>{s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`}</span>
+                  {s.step_number === 1 ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>sends immediately</span> : (
+                    <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: 4 }}>after
                       <input type="number" min="1" value={s.delay_days ?? ''} onChange={e => setStepField(s.step_number, 'delay_days', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                        style={{ width: 46, padding: '2px 5px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} /> days
+                        style={{ width: 46, padding: '2px 5px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} /> days
                     </span>
                   )}
                 </div>
                 <input value={s.subject ?? ''} onChange={e => setStepField(s.step_number, 'subject', e.target.value)}
                   placeholder="Subject line — {{first_name}} to personalise"
-                  style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', padding: '6px 9px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                 {release.followups_ai === false && (
                   <textarea
                     value={s.step_number === 1
@@ -750,21 +750,21 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                     placeholder={s.step_number === 1
                       ? "Write the first email — your invite / announcement, sent to everyone as-is. {{first_name}} / {{company}} to personalise. (Turn off 'Embed the full release' below for a plain email.)"
                       : "Write this follow-up email — sent to everyone as-is. {{first_name}} / {{company}} to personalise. Leave blank to just resend the first email with the new subject."}
-                    style={{ width: '100%', minHeight: 90, marginTop: 4, padding: '8px 9px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+                    style={{ width: '100%', minHeight: 90, marginTop: 4, padding: '8px 9px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
                 )}
               </div>
             ))}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.embed_full_release !== false}
                 onChange={async e => { const next = e.target.checked; setRelease(r => ({ ...r, embed_full_release: next })); try { await api.patch(`/press/releases/${release.id}`, { embed_full_release: next }); if (previewing) preview(previewing, true); } catch (err) { toast(err.message, 'error'); } }} />
               <span><strong>Embed the full release in the first email.</strong> <span style={{ color: 'var(--text-subtle)' }}>Off = pitch + link only. Follow-ups are always short, personal emails.</span></span>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.followup_hero !== false}
                 onChange={async e => { const next = e.target.checked; setRelease(r => ({ ...r, followup_hero: next })); try { await api.patch(`/press/releases/${release.id}`, { followup_hero: next }); if (previewing) preview(previewing, true); } catch (err) { toast(err.message, 'error'); } }} />
               <span><strong>Add the hero image at the foot of follow-ups.</strong> <span style={{ color: 'var(--text-subtle)' }}>Sits below your sign-off as a reminder of the story. Follow-ups read as standalone pitches; the last one offers a quick 1/2/3 reply.</span></span>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.followups_ai === false}
                 onChange={e => setFollowupsAi(!e.target.checked)} />
               <span><strong>One email for everyone (no per-person AI).</strong> <span style={{ color: 'var(--text-subtle)' }}>On = one first email AND one set of follow-ups, sent to everyone as-is ({'{{first_name}}'} / {'{{company}}'} still personalise) — no per-person AI and no per-person cost. You can write them in the boxes above, or have AI draft them once with the button below. Best for a big blast or a plain invite. Off (default) = AI writes a unique pitch per journalist (most expensive — best for small, targeted cold lists).</span></span>
@@ -774,10 +774,10 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: draftSharedEmail, disabled: draftingShared })}>
                   {draftingShared ? '✨ Writing one email…' : '✨ Draft one shared email with AI'}
                 </button>
-                <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>One AI call (~$0.03) for the whole list — fills the boxes above; edit freely.</span>
+                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>One AI call (~$0.03) for the whole list — fills the boxes above; edit freely.</span>
               </div>
             )}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>
               <input type="checkbox" checked={release.include_release_link !== false}
                 onChange={async e => { const next = e.target.checked; setRelease(r => ({ ...r, include_release_link: next })); try { await api.patch(`/press/releases/${release.id}`, { include_release_link: next }); if (previewing) preview(previewing, true); } catch (err) { toast(err.message, 'error'); } }} />
               <span><strong>Include the “Read the release” button.</strong> <span style={{ color: 'var(--text-subtle)' }}>On by default. Turn off (with embedding off above) to send plain personal emails — e.g. an invitation or announcement — with no release link on the first email or the follow-ups.</span></span>
@@ -785,10 +785,10 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
             {/* Configurable footer / signature */}
             <div style={{ marginTop: 14, paddingTop: 10, borderTop: 'var(--border-w) solid var(--card-border)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Your footer</div>
-              <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 6 }}>Appears under your sign-off on every pitch <em>and</em> follow-up. Plain text works, or paste <strong>HTML</strong> for a logo, GIF or table layout — it’s rendered as-is.</div>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Your footer</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 6 }}>Appears under your sign-off on every pitch <em>and</em> follow-up. Plain text works, or paste <strong>HTML</strong> for a logo, GIF or table layout — it’s rendered as-is.</div>
               <textarea value={signature} onChange={e => setSignature(e.target.value)} rows={5} className="input"
-                placeholder={"Plain text, e.g.\nOctober Communications · +44 20 1234 5678\noctobercomms.com · @octobercomms\n\n…or paste your HTML signature (with <img>/<table>)."} style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, fontFamily: /<[a-z][\s\S]*>/i.test(signature) ? 'monospace' : 'inherit' }} />
+                placeholder={"Plain text, e.g.\nOctober Communications · +44 20 1234 5678\noctobercomms.com · @octobercomms\n\n…or paste your HTML signature (with <img>/<table>)."} style={{ width: '100%', boxSizing: 'border-box', fontSize: 'var(--fs-body)', fontFamily: /<[a-z][\s\S]*>/i.test(signature) ? 'monospace' : 'inherit' }} />
               <button {...roWrite(readOnly, { onClick: saveSignature, disabled: savingSig })} className="btn btn-secondary btn-sm" style={{ marginTop: 6 }}>{savingSig ? 'Saving…' : 'Save footer'}</button>
             </div>
 
@@ -806,7 +806,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
         {step === 'test' && (
           <div className="card" style={{ padding: 16, marginTop: 16 }}>
             <div className="h3">3 · Test — send yourself one</div>
-            <div style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '2px 0 12px' }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '2px 0 12px' }}>
               A faithful copy — the real template, a real journalist’s personalised pitch, your footer — lands in your inbox, marked <strong>[TEST]</strong>. Nothing is tracked or sent to journalists.
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', maxWidth: 520 }}>
@@ -818,15 +818,15 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                 const on = testSteps.has(s.step_number);
                 return (
                   <label key={s.step_number} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 'var(--r-sm)', cursor: 'pointer',
-                    border: `1px solid ${on ? 'var(--accent)' : 'var(--card-border)'}`, background: on ? 'var(--accent-soft)' : 'var(--surface)', fontSize: 12 }}>
+                    border: `1px solid ${on ? 'var(--accent)' : 'var(--card-border)'}`, background: on ? 'var(--accent-soft)' : 'var(--surface)', fontSize: 'var(--fs-caption)' }}>
                     <input type="checkbox" checked={on} onChange={() => toggleTestStep(s.step_number)} />
                     {s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`}
                   </label>
                 );
               })}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 8 }}>Tick every email you want to check — they’ll all send in one click.</div>
-            {tested && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--success, #1a9d5a)', fontWeight: 600 }}>✓ Test sent. Check your inbox, then move on.</div>}
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 8 }}>Tick every email you want to check — they’ll all send in one click.</div>
+            {tested && <div style={{ marginTop: 12, fontSize: 'var(--fs-body)', color: 'var(--success, #1a9d5a)', fontWeight: 600 }}>✓ Test sent. Check your inbox, then move on.</div>}
 
             <NavRow>
               <button className="btn btn-primary btn-sm" onClick={goNext}>Next: preview emails ›</button>
@@ -838,7 +838,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
         {step === 'preview' && (
           <div className="card" style={{ padding: 16, marginTop: 16 }}>
             <div className="h3">4 · Preview — see &amp; edit each email</div>
-            <div style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '2px 0 12px' }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '2px 0 12px' }}>
               Pick a journalist to see the exact email Claude will send them. Edit the pitch or any follow-up body — subjects come from step&nbsp;2.
             </div>
 
@@ -860,13 +860,13 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
             {showHtmlEdit && (
               <div style={{ marginBottom: 12, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-                <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 6 }}>Edit the embedded release directly — remove anything weird, fix a caption, delete a stray duplicate. Saved for the whole campaign; previews regenerate.</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 6 }}>Edit the embedded release directly — remove anything weird, fix a caption, delete a stray duplicate. Saved for the whole campaign; previews regenerate.</div>
                 <label className="field-label" style={{ marginTop: 2 }}>Release body (HTML)</label>
                 <textarea value={bodyHtmlDraft} onChange={e => setBodyHtmlDraft(e.target.value)} rows={12} className="input"
-                  style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: 12 }} />
+                  style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }} />
                 <label className="field-label" style={{ marginTop: 8 }}>Notes to editors / boilerplate (HTML)</label>
                 <textarea value={boilerplateDraft} onChange={e => setBoilerplateDraft(e.target.value)} rows={8} className="input"
-                  placeholder="The 'Notes to editors' / About section below the release." style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: 12 }} />
+                  placeholder="The 'Notes to editors' / About section below the release." style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }} />
                 <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
                   <button {...roWrite(readOnly, { onClick: saveReleaseHtml, disabled: savingBody })} className="btn btn-secondary btn-sm">{savingBody ? 'Saving…' : 'Save release content'}</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => setShowHtmlEdit(false)}>Cancel</button>
@@ -874,7 +874,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               </div>
             )}
 
-            {!previewing && <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: 20, border: '1px dashed var(--card-border)', borderRadius: 'var(--r-sm)' }}>Pick a journalist above to preview and edit the personalised pitch + follow-ups.</div>}
+            {!previewing && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: 20, border: '1px dashed var(--card-border)', borderRadius: 'var(--r-sm)' }}>Pick a journalist above to preview and edit the personalised pitch + follow-ups.</div>}
             {previewing && !previewData && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Generating pitch + follow-ups…</div>}
             {previewData && (
               <div>
@@ -890,7 +890,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                   <button className="btn btn-secondary btn-sm" onClick={openInNewTab}>↗ Open in new tab</button>
                 </div>
 
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 6 }}>
                   <strong>Subject:</strong> {steps[emailIdx]?.subject || <span style={{ color: 'var(--text-subtle)' }}>(set in step 2)</span>}
                   {emailIdx === 0 && <span style={{ color: 'var(--text-subtle)' }}> · {release.embed_full_release !== false ? 'pitch + embedded release' : (release.include_release_link !== false ? 'pitch + link' : 'plain email')}</span>}
                 </div>
@@ -902,16 +902,16 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                   {emailIdx === 0 ? (
                     <div>
                       <div className="field-label">Edit this journalist’s pitch</div>
-                      <textarea value={editIntro ?? ''} onChange={e => setEditIntro(e.target.value)} rows={5} className="input" style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 14 }} />
+                      <textarea value={editIntro ?? ''} onChange={e => setEditIntro(e.target.value)} rows={5} className="input" style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 'var(--fs-body)' }} />
                     </div>
                   ) : (
                     <div>
                       <div className="field-label">Edit follow-up {emailIdx} — body only</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 4 }}>Subject is shared across all recipients — change it in step 2.</div>
+                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 4 }}>Subject is shared across all recipients — change it in step 2.</div>
                       <textarea
                         value={editFollowUps?.[emailIdx - 1]?.body ?? ''}
                         onChange={e => setEditFollowUps(prev => (prev || []).map((f, j) => j === emailIdx - 1 ? { ...f, body: e.target.value } : f))}
-                        rows={5} className="input" style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 14 }} />
+                        rows={5} className="input" style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 'var(--fs-body)' }} />
                     </div>
                   )}
                   <button {...roWrite(readOnly, { onClick: saveRecipientEmail, disabled: savingEmail })} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>{savingEmail ? 'Saving…' : 'Save this email'}</button>
@@ -929,7 +929,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
         {step === 'confirm' && (
           <div className="card" style={{ padding: 16, marginTop: 16 }}>
             <div className="h3">5 · Confirm — final checks</div>
-            <div style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '2px 0 14px' }}>Everything below should be green before you send.</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '2px 0 14px' }}>Everything below should be green before you send.</div>
 
             {[
               { ok: done.who, label: 'Audience chosen', detail: `${totalRecipients.toLocaleString()} recipient${totalRecipients === 1 ? '' : 's'}${selTags.size ? ` · ${selTags.size} tag${selTags.size === 1 ? '' : 's'}` : ''}${extras.size ? ` · ${extras.size} added by hand` : ''}`, hard: true },
@@ -950,12 +950,12 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             ].map((c, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderTop: i ? 'var(--border-w) solid var(--card-border)' : 'none' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 11, flexShrink: 0, marginTop: 1,
-                  background: c.ok ? 'var(--success, #1a9d5a)' : (c.hard ? 'var(--danger, #c0392b)' : 'var(--card-border)'), color: c.ok || c.hard ? '#fff' : 'var(--text-subtle)', fontSize: 13, fontWeight: 700 }}>
+                  background: c.ok ? 'var(--success, #1a9d5a)' : (c.hard ? 'var(--danger, #c0392b)' : 'var(--card-border)'), color: c.ok || c.hard ? '#fff' : 'var(--text-subtle)', fontSize: 'var(--fs-body)', fontWeight: 700 }}>
                   {c.ok ? '✓' : (c.hard ? '!' : '○')}
                 </span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{c.label}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>{c.detail}</div>
+                  <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text)' }}>{c.label}</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{c.detail}</div>
                 </div>
               </div>
             ))}
@@ -963,22 +963,22 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             {/* Claude sanity check */}
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: 'var(--border-w) solid var(--card-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>Claude’s sanity check</div>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Claude’s sanity check</div>
                 <button {...roWrite(readOnly, { onClick: runReview, disabled: reviewing || !done.who })} className="btn btn-secondary btn-sm">{reviewing ? '✨ Reviewing…' : (review ? '↻ Re-run' : '✨ Review this campaign')}</button>
               </div>
-              {!review && !reviewing && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Claude looks over the audience, subjects and timing and tells you if it looks like a good campaign to send.</div>}
+              {!review && !reviewing && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Claude looks over the audience, subjects and timing and tells you if it looks like a good campaign to send.</div>}
               {review && (
                 <div style={{ padding: 12, borderRadius: 'var(--r-sm)',
                   background: review.rating === 'good' ? 'var(--success-soft, #e7f6ee)' : review.rating === 'concerns' ? 'var(--warning-soft, #fdf3d8)' : 'var(--surface-raised)',
                   border: `1px solid ${review.rating === 'good' ? 'var(--success, #1a9d5a)' : review.rating === 'concerns' ? '#f0d260' : 'var(--card-border)'}` }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, textTransform: 'capitalize' }}>
+                  <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 4, textTransform: 'capitalize' }}>
                     {review.rating === 'good' ? '✓ Looks good' : review.rating === 'concerns' ? '⚠ Some concerns' : 'OK, with notes'}
                   </div>
-                  {review.verdict && <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{review.verdict}</div>}
+                  {review.verdict && <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.5 }}>{review.verdict}</div>}
                   {Array.isArray(review.checks) && review.checks.length > 0 && (
                     <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
                       {review.checks.map((ck, i) => (
-                        <div key={i} style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 6 }}>
+                        <div key={i} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', display: 'flex', gap: 6 }}>
                           <span>{ck.status === 'good' ? '✓' : '⚠'}</span>
                           <span><strong>{ck.label}:</strong> {ck.note}</span>
                         </div>
@@ -991,7 +991,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
 
             <NavRow>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{totalRecipients.toLocaleString()} recipient{totalRecipients === 1 ? '' : 's'}</div>
+                <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>{totalRecipients.toLocaleString()} recipient{totalRecipients === 1 ? '' : 's'}</div>
                 <button {...roWrite(readOnly, { onClick: send, disabled: !totalRecipients || sending })} className="btn btn-primary">{sending ? 'Queueing…' : `Send to ${totalRecipients.toLocaleString()}`}</button>
               </div>
             </NavRow>

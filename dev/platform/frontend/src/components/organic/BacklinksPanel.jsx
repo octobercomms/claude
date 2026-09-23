@@ -41,9 +41,9 @@ function ChangeList({ title, colour, dateLabel, rows, dateKey, empty }) {
     <div className="card">
       <div className="caption" style={{ marginBottom: 12, color: colour }}>{title}</div>
       {!rows?.length ? (
-        <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{empty}</div>
+        <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{empty}</div>
       ) : (
-        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+        <table style={{ width: '100%', fontSize: 'var(--fs-body)', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', color: 'var(--text-subtle)', borderBottom: '1px solid var(--border)' }}>
               <th style={{ padding: '6px 8px' }}>Domain</th>
@@ -153,20 +153,20 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
         capture a fresh cycle now rather than waiting for the scheduler.
       </p>
 
-      {err && <div className="card text-negative" style={{ fontSize: 13, marginBottom: 16 }}>{err}</div>}
+      {err && <div className="card text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 16 }}>{err}</div>}
 
       {loading && !trend && (
-        <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading snapshots…</div>
+        <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading snapshots…</div>
       )}
 
       {!loading && !hasSnapshot && !hasLiveData && (
-        <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
+        <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
           No backlink snapshot captured yet. The 3-day sweep will populate this automatically, or hit
           <strong> Refresh snapshot</strong> to run one now.
         </div>
       )}
       {!loading && !hasSnapshot && hasLiveData && (
-        <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
+        <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
           Headline totals, the trend and the referring-domains table populate from the stored 3-day snapshot —
           none captured yet, so hit <strong>Refresh snapshot</strong> to store one. The anchor text and dofollow
           split below are pulled live.
@@ -191,15 +191,15 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
             <div className="card">
               <div className="metric">{latest.dofollow_ratio == null ? '—' : `${Math.round(latest.dofollow_ratio * 100)}%`}</div>
               <div className="caption">Dofollow</div>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>healthy ≈ 60–80%</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>healthy ≈ 60–80%</div>
             </div>
             <div className="card">
               <div className="metric">{latest.spam_score == null ? '—' : latest.spam_score}</div>
               <div className="caption">Spam score</div>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>lower is better</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>lower is better</div>
             </div>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 24 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 24 }}>
             Snapshot captured {fmtDate(latest.captured_at)} · domain rank {latest.rank == null ? '—' : latest.rank}
           </div>
 
@@ -207,9 +207,9 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
           <div className="card" style={{ marginBottom: 24 }}>
             <div className="caption" style={{ marginBottom: 12 }}>Top referring domains ({rds?.domains?.length || 0})</div>
             {!rds?.domains?.length ? (
-              <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>No referring domains in the latest snapshot.</div>
+              <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>No referring domains in the latest snapshot.</div>
             ) : (
-              <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', fontSize: 'var(--fs-body)', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--text-subtle)', borderBottom: '1px solid var(--border)' }}>
                     <th style={{ padding: '6px 8px' }}>Domain</th>
@@ -242,7 +242,7 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
           <div style={{ marginBottom: 24 }}>
             <div className="caption" style={{ marginBottom: 4 }}>Since last snapshot</div>
             {!changes?.previous ? (
-              <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
+              <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
                 Only one snapshot so far — the new / lost feed appears once a second cycle has run (the next
                 3-day sweep, or hit <strong>Refresh snapshot</strong> twice).
               </div>
@@ -275,9 +275,9 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
         {/* Anchor text */}
         <div className="card">
           <div className="caption" style={{ marginBottom: 12 }}>Anchor text</div>
-          {anchorsMsg && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{anchorsMsg}</div>}
-          {!anchorsMsg && !anchors && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>}
-          {anchors && !anchors.length && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>No anchors returned.</div>}
+          {anchorsMsg && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{anchorsMsg}</div>}
+          {!anchorsMsg && !anchors && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>}
+          {anchors && !anchors.length && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>No anchors returned.</div>}
           {anchors && anchors.length > 0 && (
             <>
               {/* Brand / commercial / other roll-up */}
@@ -288,14 +288,14 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
                     <div style={{ width: `${(rollup.commercial / rollupTotal) * 100}%`, background: 'var(--warning, #d98a00)' }} title="Commercial" />
                     <div style={{ width: `${(rollup.other / rollupTotal) * 100}%`, background: 'var(--border)' }} title="Other" />
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-subtle)', display: 'flex', gap: 12 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', display: 'flex', gap: 12 }}>
                     <span>Brand {Math.round((rollup.brand / rollupTotal) * 100)}%</span>
                     <span>Commercial {Math.round((rollup.commercial / rollupTotal) * 100)}%</span>
                     <span>Other {Math.round((rollup.other / rollupTotal) * 100)}%</span>
                   </div>
                 </div>
               )}
-              <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', fontSize: 'var(--fs-body)', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--text-subtle)', borderBottom: '1px solid var(--border)' }}>
                     <th style={{ padding: '6px 8px' }}>Anchor</th>
@@ -320,8 +320,8 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
         {/* Dofollow split */}
         <div className="card">
           <div className="caption" style={{ marginBottom: 12 }}>Dofollow / nofollow</div>
-          {splitMsg && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{splitMsg}</div>}
-          {!splitMsg && !split && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>}
+          {splitMsg && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{splitMsg}</div>}
+          {!splitMsg && !split && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>}
           {split && (
             <div>
               <div className="metric">{split.total ? `${Math.round((split.dofollow / split.total) * 100)}%` : '—'}</div>
@@ -330,10 +330,10 @@ export default function BacklinksPanel({ clientId, clientName, domain }) {
                 <div style={{ width: split.total ? `${(split.dofollow / split.total) * 100}%` : '0%', background: 'var(--accent)' }} />
                 <div style={{ width: split.total ? `${(split.nofollow / split.total) * 100}%` : '0%', background: 'var(--border)' }} />
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                 {fmt(split.dofollow)} dofollow · {fmt(split.nofollow)} nofollow
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>Most natural profiles sit around 60–80% dofollow.</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 8 }}>Most natural profiles sit around 60–80% dofollow.</div>
             </div>
           )}
         </div>

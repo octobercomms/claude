@@ -58,7 +58,7 @@ export default function ClarityConnectorCard({ clientId }) {
   return (
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Behaviour Analytics</h3>
+        <h3 style={{ margin: 0, fontSize: 'var(--fs-body)', fontWeight: 700 }}>Behaviour Analytics</h3>
       </div>
 
       {sites === null ? (
@@ -73,7 +73,7 @@ export default function ClarityConnectorCard({ clientId }) {
                   <span style={{ width: 10, height: 10, borderRadius: 999, flex: '0 0 auto', background: 'var(--positive)' }} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>Microsoft Clarity</span>
+                      <span style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>Microsoft Clarity</span>
                       <span style={getLabelStyle(s.label)}>{flag ? `${flag} ` : ''}{s.label}</span>
                     </div>
                     <div className="body-xs text-subtle" style={{ marginTop: 2 }}>Connected · powers the CRO / Funnel scan</div>

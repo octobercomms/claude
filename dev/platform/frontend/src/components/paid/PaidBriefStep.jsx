@@ -39,7 +39,7 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
       </div>
 
       {!assets.length && (
-        <div className="callout" style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 12, borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--warning)', marginBottom: 16 }}>
+        <div className="callout" style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 12, borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', marginBottom: 16 }}>
           No brand assets uploaded yet — visit the <strong>Brand</strong> tab and add logos, product photos, palette and guidelines so generations look on-brand.
         </div>
       )}
@@ -57,17 +57,17 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
       {generating && <GeneratingModal clientName={clientName} />}
 
       {loaded && ensuringExample && !exampleBatch ? (
-        <div className="card" style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>
+        <div className="card" style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
           Drafting a worked example for {clientName || 'this client'} — a real batch you can walk through every step…
         </div>
       ) : loaded && !batches.length ? (
         // No briefs at all — offer to build the worked example, or write a real brief.
         <div className="card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 12, maxWidth: 620 }}>
+          <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', lineHeight: 1.5, marginBottom: 12, maxWidth: 620 }}>
             No briefs yet. Generate a <strong>worked example</strong> from {clientName || 'this client'}'s profile — a real batch you can walk through every step and show a client — or write your own with <strong>+ New brief</strong>.
           </div>
           {exampleError && (
-            <div className="callout callout-danger" style={{ fontSize: 12, marginBottom: 12 }}>
+            <div className="callout callout-danger" style={{ fontSize: 'var(--fs-caption)', marginBottom: 12 }}>
               Couldn't generate the example: {exampleError}
             </div>
           )}
@@ -94,14 +94,14 @@ export default function PaidBriefStep({ pipeline, onNext, clientId, clientName }
                 }}
                 onClick={() => selectBatch(b.id)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {isExample && <span className="chip chip-accent" style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5 }}>Example</span>}
+                  <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {isExample && <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Example</span>}
                     {new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{b.creative_count} concepts · {b.platform}</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{b.creative_count} concepts · {b.platform}</div>
                 </div>
                 {b.brief && (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 8 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 8 }}>
                     {b.brief.slice(0, 160)}{b.brief.length > 160 ? '…' : ''}
                   </div>
                 )}

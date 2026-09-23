@@ -16,11 +16,11 @@ export default function PaidRenderStep({ pipeline, onNext, onBack }) {
       banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
-        <div className="callout" style={{ fontSize: 13 }}>
+        <div className="callout" style={{ fontSize: 'var(--fs-body)' }}>
           No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : !creatives.length ? (
-        <div className="callout" style={{ fontSize: 13 }}>
+        <div className="callout" style={{ fontSize: 'var(--fs-body)' }}>
           No concepts on this brief yet — generate them on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : (

@@ -27,7 +27,7 @@ export default function PaidConceptsStep({ pipeline, clientName, clientId, onNex
       banner={activeBatch?.is_example ? <ExampleBanner onNewBrief={onBack} /> : null}
     >
       {!activeBatch ? (
-        <div className="callout" style={{ fontSize: 13 }}>
+        <div className="callout" style={{ fontSize: 'var(--fs-body)' }}>
           No brief selected — pick one on the <button onClick={onBack} className="btn-inline-link">Brief</button> step.
         </div>
       ) : !creatives.length ? (

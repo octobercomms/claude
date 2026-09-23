@@ -45,7 +45,7 @@ export default function SuitePerformanceHub({
           <button
             onClick={primaryCta.onClick}
             style={{
-              padding: '12px 24px', fontSize: 15, fontWeight: 700,
+              padding: '12px 24px', fontSize: 'var(--fs-body)', fontWeight: 700,
               background: 'var(--surface)', color: 'var(--text)',
               border: 'none', borderRadius: 'var(--r-pill)', cursor: 'pointer',
               fontFamily: 'inherit',
@@ -63,7 +63,7 @@ export default function SuitePerformanceHub({
             <span key={i}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '6px 14px', fontSize: 13, fontWeight: 600,
+                padding: '6px 14px', fontSize: 'var(--fs-body)', fontWeight: 600,
                 borderRadius: 'var(--r-pill)',
                 background: 'var(--surface)',
                 border: 'var(--border-w) solid var(--card-border)',
@@ -101,15 +101,15 @@ export default function SuitePerformanceHub({
                     width: 44, height: 44, borderRadius: '50%',
                     background: 'var(--accent)', color: 'var(--accent-on)',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 18, fontWeight: 800, marginBottom: 'var(--s3)',
+                    fontSize: 'var(--fs-title)', fontWeight: 800, marginBottom: 'var(--s3)',
                   }}>
                   {i + 1}
                 </div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{step.label}</div>
+                <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', color: 'var(--text)' }}>{step.label}</div>
                 {step.detail && <div className="body-xs text-muted mt-2">{step.detail}</div>}
               </div>
               {i < flow.length - 1 && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', fontSize: 22, fontWeight: 700, marginTop: -8 }}>→</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', fontSize: 'var(--fs-section)', fontWeight: 700, marginTop: -8 }}>→</div>
               )}
             </React.Fragment>
           ))}
@@ -129,7 +129,7 @@ export default function SuitePerformanceHub({
                   onClick={c.onClick}
                   style={{
                     background: 'none', border: 'none', padding: 0, marginTop: 'var(--s2)',
-                    color: 'var(--text)', fontWeight: 700, fontSize: 13,
+                    color: 'var(--text)', fontWeight: 700, fontSize: 'var(--fs-body)',
                     textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
                   }}>
                   Open {c.label} →

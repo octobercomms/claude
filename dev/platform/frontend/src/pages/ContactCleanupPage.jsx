@@ -156,7 +156,7 @@ export default function ContactCleanupPage() {
       <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h1 className="display">Cleanup Centre</h1>
-          <p style={{ color: 'var(--text-subtle)', fontSize: 14, margin: '6px 0 0' }}>
+          <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: '6px 0 0' }}>
             Trim duplicates, fold orphaned coverage onto real journalists, and let Claude tidy the obvious fixes.
           </p>
         </div>
@@ -178,7 +178,7 @@ export default function ContactCleanupPage() {
       {tab === 'duplicates' && (
         <div>
           <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
+            <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
               {scanning ? 'Scanning the journalist library…' : clusters
                 ? `${remaining.length} cluster${remaining.length === 1 ? '' : 's'} to review${exactCount ? ` · ${exactCount} same-email (safe to auto-merge)` : ''}`
                 : 'Click Scan to look for duplicates.'}
@@ -192,7 +192,7 @@ export default function ContactCleanupPage() {
           </div>
 
           {!scanning && clusters && remaining.length === 0 && (
-            <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 13 }}>
+            <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
               ✓ No duplicates left. Your journalist library is clean.
             </div>
           )}
@@ -217,7 +217,7 @@ export default function ContactCleanupPage() {
       {tab === 'coverage' && (
         <div>
           <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
+            <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
               {scanning
                 ? 'Scanning for coverage-only journalists that match a richer library record…'
                 : clusters
@@ -228,7 +228,7 @@ export default function ContactCleanupPage() {
           </div>
 
           {!scanning && clusters && remaining.length === 0 && (
-            <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 13 }}>
+            <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
               ✓ No coverage matchups left. Every journalist with coverage history is already on a journalist record with an email.
             </div>
           )}
@@ -271,9 +271,9 @@ function ClusterCard({ cluster, ci, chosenId, onChoose, onMerge, onDelete, busy 
           Merge {cluster.members.length - 1} into selected →
         </button>
       </div>
-      <table className="table" style={{ width: '100%', fontSize: 13 }}>
+      <table className="table" style={{ width: '100%', fontSize: 'var(--fs-body)' }}>
         <thead>
-          <tr style={{ color: 'var(--text-subtle)', fontSize: 11, textTransform: 'uppercase' }}>
+          <tr style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', textTransform: 'uppercase' }}>
             <th style={{ width: 36, textAlign: 'left' }}>Keep</th>
             <th style={{ textAlign: 'left' }}>Name</th>
             <th style={{ textAlign: 'left' }}>Email</th>
@@ -378,7 +378,7 @@ function TidyFixesTab({ onChanged }) {
     <div>
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 className="h3 mb-2">Field cleanups</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', marginBottom: 12 }}>
           Claude reads every journalist in your library and proposes fixes — capitalisation, missing company derived from email domain, lowercase emails, URL schemes, name splits. You review each suggestion before anything changes; every applied change writes an audit row.
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -392,7 +392,7 @@ function TidyFixesTab({ onChanged }) {
       </div>
 
       {phase === 'running' && (
-        <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+        <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-body)' }}>
           <div style={{ marginBottom: 10 }}>
             Claude is reading the journalists in batches of 40 — {progress.processed.toLocaleString()} of {progress.total.toLocaleString()} done.
           </div>
@@ -403,14 +403,14 @@ function TidyFixesTab({ onChanged }) {
               transition: 'width 400ms ease',
             }} />
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
             {progress.found.toLocaleString()} suggestion{progress.found === 1 ? '' : 's'} found so far · You can switch tabs — the run continues in the background.
           </div>
         </div>
       )}
 
       {phase === 'review' && suggestions.length === 0 && (
-        <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 13 }}>
+        <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
           ✓ Claude has no cleanup suggestions — the library is already tidy.
         </div>
       )}
@@ -418,7 +418,7 @@ function TidyFixesTab({ onChanged }) {
       {phase === 'review' && suggestions.length > 0 && (
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>
               {suggestions.length} suggestion{suggestions.length === 1 ? '' : 's'} · {selected.size} ticked
             </span>
             <div style={{ flex: 1 }} />
@@ -427,9 +427,9 @@ function TidyFixesTab({ onChanged }) {
             <button className="btn btn-primary btn-sm" onClick={apply} disabled={!selected.size}>Apply {selected.size} fix{selected.size === 1 ? '' : 'es'}</button>
           </div>
           <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-            <table className="table" style={{ width: '100%', fontSize: 13 }}>
+            <table className="table" style={{ width: '100%', fontSize: 'var(--fs-body)' }}>
               <thead>
-                <tr style={{ color: 'var(--text-subtle)', fontSize: 11, textTransform: 'uppercase' }}>
+                <tr style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', textTransform: 'uppercase' }}>
                   <th style={{ width: 28 }}></th>
                   <th style={{ textAlign: 'left' }}>Journalist</th>
                   <th style={{ textAlign: 'left' }}>Field</th>
@@ -447,10 +447,10 @@ function TidyFixesTab({ onChanged }) {
                       setSelected(n);
                     }} /></td>
                     <td style={{ fontWeight: 600 }}>{s.contact_name || s.contact_email || '—'}</td>
-                    <td><code style={{ background: 'var(--surface-raised)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>{s.field}</code></td>
+                    <td><code style={{ background: 'var(--surface-raised)', padding: '1px 6px', borderRadius: 4, fontSize: 'var(--fs-caption)' }}>{s.field}</code></td>
                     <td style={{ color: 'var(--text-muted)' }}>{s.before || <em>(empty)</em>}</td>
                     <td style={{ color: 'var(--text)' }}>{s.new_value}</td>
-                    <td style={{ color: 'var(--text-subtle)', fontSize: 12 }}>{s.why || ''}</td>
+                    <td style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{s.why || ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -460,11 +460,11 @@ function TidyFixesTab({ onChanged }) {
       )}
 
       {phase === 'applying' && (
-        <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Applying…</div>
+        <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-body)' }}>Applying…</div>
       )}
 
       {phase === 'done' && (
-        <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 13 }}>
+        <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
           ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. Every change wrote an audit row visible from the journalist's Edit modal.
         </div>
       )}
@@ -554,7 +554,7 @@ function PublicationDupesTab() {
   return (
     <div>
       <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
+        <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
           {scanning ? 'Scanning the publications list…' : clusters
             ? `${remaining.length} cluster${remaining.length === 1 ? '' : 's'} to review${exactCount ? ` · ${exactCount} exact-safe` : ''}`
             : 'Click Scan to look for duplicates.'}
@@ -566,7 +566,7 @@ function PublicationDupesTab() {
       </div>
 
       {!scanning && clusters && remaining.length === 0 && (
-        <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 13 }}>
+        <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
           ✓ No duplicate publications — the list is clean.
         </div>
       )}
@@ -586,9 +586,9 @@ function PublicationDupesTab() {
                 </button>
               </div>
             </div>
-            <table className="table" style={{ width: '100%', fontSize: 13 }}>
+            <table className="table" style={{ width: '100%', fontSize: 'var(--fs-body)' }}>
               <thead>
-                <tr style={{ color: 'var(--text-subtle)', fontSize: 11, textTransform: 'uppercase' }}>
+                <tr style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', textTransform: 'uppercase' }}>
                   <th style={{ width: 36, textAlign: 'left' }}>Keep</th>
                   <th style={{ textAlign: 'left' }}>Publication</th>
                 </tr>

@@ -145,7 +145,7 @@ function PostReviewCard({ post, responses, onRespond }) {
       <div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{post.caption}</div>
       {(post.hashtags || []).length > 0 && (
         <div className="mt-2">
-          {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 11, marginRight: 6 }}>#{h.replace(/^#/, '')}</span>)}
+          {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 'var(--fs-caption)', marginRight: 6 }}>#{h.replace(/^#/, '')}</span>)}
         </div>
       )}
       <DecisionForm onRespond={onRespond} />
@@ -170,7 +170,7 @@ function CreativeReviewCard({ creative, responses, onRespond }) {
       )}
       <div className="h2 mb-2">{creative.headline}</div>
       <div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{creative.body}</div>
-      <div className="text-accent mt-2" style={{ fontSize: 12, fontWeight: 700 }}>{creative.cta}</div>
+      <div className="text-accent mt-2" style={{ fontSize: 'var(--fs-caption)', fontWeight: 700 }}>{creative.cta}</div>
       <DecisionForm onRespond={onRespond} />
       <ResponsesList responses={responses} />
     </div>

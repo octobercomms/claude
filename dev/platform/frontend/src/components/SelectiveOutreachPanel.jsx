@@ -16,7 +16,7 @@ function FitBadge({ verdict, score }) {
   if (!verdict) return <span className="body-sm text-muted">unscored</span>;
   const c = FIT_COLOUR[verdict] || '#888';
   return (
-    <span style={{ color: c, fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+    <span style={{ color: c, fontWeight: 700, fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.4 }}>
       {verdict}{score != null ? ` · ${score}` : ''}
     </span>
   );
@@ -442,7 +442,7 @@ function SetupView({ campaign, clientId, onChange }) {
         )}
       </div>
 
-      {F('Sequence (JSON)', <textarea className="input" rows={7} value={form.sequence} onChange={e => setForm(f => ({ ...f, sequence: e.target.value }))} style={{ fontFamily: 'monospace', fontSize: 12 }} />, 'Steps: [{ "step":1, "wait_days":0, "angle":"first touch…" }, …]. Each follow-up is drafted into the queue after the prior step sends — it still needs approval.')}
+      {F('Sequence (JSON)', <textarea className="input" rows={7} value={form.sequence} onChange={e => setForm(f => ({ ...f, sequence: e.target.value }))} style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }} />, 'Steps: [{ "step":1, "wait_days":0, "angle":"first touch…" }, …]. Each follow-up is drafted into the queue after the prior step sends — it still needs approval.')}
 
       <div><button className="btn btn-primary" onClick={save}>Save campaign</button></div>
     </div>

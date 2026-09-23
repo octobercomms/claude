@@ -95,7 +95,7 @@ export default function SecurityPanel() {
         <div>
           <div className="caption">Security posture</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: risk.color, background: risk.bg, padding: '3px 10px', borderRadius: 999 }}>{risk.label}</span>
+            <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: risk.color, background: risk.bg, padding: '3px 10px', borderRadius: 999 }}>{risk.label}</span>
             <span className="body-sm text-muted">{risk.blurb}</span>
           </div>
           <div className="body-xs text-subtle" style={{ marginTop: 8 }}>
@@ -138,12 +138,12 @@ export default function SecurityPanel() {
               {byArea[area].map(f => (
                 <div key={f.id} className="card" style={{ padding: '10px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <span style={{ color: STATUS_COLOR[f.status], fontWeight: 700, fontSize: 15, lineHeight: '20px', width: 16, textAlign: 'center' }}>{STATUS_ICON[f.status] || '–'}</span>
+                    <span style={{ color: STATUS_COLOR[f.status], fontWeight: 700, fontSize: 'var(--fs-body)', lineHeight: '20px', width: 16, textAlign: 'center' }}>{STATUS_ICON[f.status] || '–'}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <span className="body" style={{ fontWeight: 600 }}>{f.title}</span>
                         {f.status !== 'pass' && f.severity !== 'info' && (
-                          <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: SEV_COLOR[f.severity] || 'var(--text-muted)' }}>{f.severity}</span>
+                          <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: SEV_COLOR[f.severity] || 'var(--text-muted)' }}>{f.severity}</span>
                         )}
                       </div>
                       <div className="body-sm text-muted" style={{ marginTop: 2 }}>{f.detail}</div>
@@ -172,7 +172,7 @@ export default function SecurityPanel() {
 function Tally({ n, label, color }) {
   return (
     <div style={{ textAlign: 'center', minWidth: 40 }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: n ? color : 'var(--text-subtle)' }}>{n}</div>
+      <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, color: n ? color : 'var(--text-subtle)' }}>{n}</div>
       <div className="body-xs text-subtle">{label}</div>
     </div>
   );

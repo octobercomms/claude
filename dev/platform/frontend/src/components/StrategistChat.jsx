@@ -119,7 +119,7 @@ export default function StrategistChat({ clientId }) {
               color: m.role === 'user' ? '#fff' : undefined,
               borderRadius: m.role === 'user' ? 'var(--r-md)' : undefined,
               padding: m.role === 'user' ? '10px 14px' : undefined,
-              fontSize: 14, lineHeight: 1.55,
+              fontSize: 'var(--fs-body)', lineHeight: 1.55,
             }}>
               {m.role === 'user'
                 ? <span style={{ whiteSpace: 'pre-wrap' }}>{m.content}</span>
@@ -149,7 +149,7 @@ export default function StrategistChat({ clientId }) {
       <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'flex-end' }}>
         <textarea ref={taRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKeyDown} rows={2}
           placeholder="Ask the strategist… (Enter to send, Shift+Enter for a new line). Prefix /report for a downloadable report."
-          style={{ flex: 1, resize: 'vertical', padding: '10px 12px', fontSize: 14, fontFamily: 'inherit',
+          style={{ flex: 1, resize: 'vertical', padding: '10px 12px', fontSize: 'var(--fs-body)', fontFamily: 'inherit',
             border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
         <button className="btn btn-primary" disabled={sending || !input.trim()} onClick={() => send()}>
           {sending ? 'Sending…' : 'Send'}
@@ -160,17 +160,17 @@ export default function StrategistChat({ clientId }) {
 }
 
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 18, fontWeight: 700, margin: '10px 0 8px' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 15, fontWeight: 700, margin: '14px 0 8px' }} {...p} />,
-  h3: ({ node, ...p }) => <h3 style={{ fontSize: 14, fontWeight: 700, margin: '12px 0 6px' }} {...p} />,
+  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '10px 0 8px' }} {...p} />,
+  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '14px 0 8px' }} {...p} />,
+  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '12px 0 6px' }} {...p} />,
   p: ({ node, ...p }) => <p style={{ margin: '0 0 10px', lineHeight: 1.55 }} {...p} />,
   ul: ({ node, ...p }) => <ul style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
   ol: ({ node, ...p }) => <ol style={{ margin: '0 0 10px', paddingLeft: 20 }} {...p} />,
   li: ({ node, ...p }) => <li style={{ marginBottom: 5, lineHeight: 1.5 }} {...p} />,
-  table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }} {...p} /></div>,
-  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '7px 9px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 12 }} {...p} />,
+  table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }} {...p} /></div>,
+  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '7px 9px', borderBottom: '2px solid var(--text)', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
   td: ({ node, ...p }) => <td style={{ padding: '6px 9px', borderBottom: '1px solid var(--card-border)', verticalAlign: 'top' }} {...p} />,
   code: ({ node, inline, ...p }) => inline
-    ? <code style={{ background: 'var(--surface-2, #f3f3f3)', padding: '1px 5px', borderRadius: 4, fontSize: 12.5 }} {...p} />
-    : <code style={{ display: 'block', background: 'var(--surface-2, #f3f3f3)', padding: 10, borderRadius: 6, fontSize: 12.5, overflowX: 'auto' }} {...p} />,
+    ? <code style={{ background: 'var(--surface-2, #f3f3f3)', padding: '1px 5px', borderRadius: 4, fontSize: 'var(--fs-body)' }} {...p} />
+    : <code style={{ display: 'block', background: 'var(--surface-2, #f3f3f3)', padding: 10, borderRadius: 6, fontSize: 'var(--fs-body)', overflowX: 'auto' }} {...p} />,
 };

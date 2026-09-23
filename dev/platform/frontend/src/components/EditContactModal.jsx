@@ -89,7 +89,7 @@ export default function EditContactModal({ contact, onClose, onSaved, entityLabe
     <div className="modal-backdrop" onClick={onClose}>
       <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal modal-wide">
         <div className="modal-head">
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{contact.name || contact.email || Cap}</h2>
+          <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>{contact.name || contact.email || Cap}</h2>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button type="button" onClick={onClose} className="modal-close">×</button>
           </div>
@@ -191,10 +191,10 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
   const toast = useToast();
   const [working, setWorking] = useState(null);
   if (err) {
-    return <div style={{ padding: 20, color: 'var(--negative)', fontSize: 13 }}>Couldn't load activity: {err}</div>;
+    return <div style={{ padding: 20, color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>Couldn't load activity: {err}</div>;
   }
   if (!activity) {
-    return <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>;
+    return <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>;
   }
   const { events, totals, memberships, bounce } = activity;
   const fmtTime = (t) => {
@@ -236,11 +236,11 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
       </div>
 
       {bounce && (
-        <div style={{ background: 'var(--negative-soft)', border: '1px solid #f5c6cb', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--negative)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: 'var(--negative-soft)', border: '1px solid #f5c6cb', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <div>
             <strong>Hard bounce</strong> · {fmtTime(bounce.bounced_at)}
-            {bounce.reason && <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 4 }}>{bounce.reason}</div>}
-            <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 4 }}>
+            {bounce.reason && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 4 }}>{bounce.reason}</div>}
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 4 }}>
               This {entityLabel} is suppressed across every client until cleared.
             </div>
           </div>
@@ -251,7 +251,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
       )}
 
       {!!unsubByClient.length && (
-        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--warning)', marginBottom: 14 }}>
+        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', marginBottom: 14 }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Unsubscribed</div>
           {unsubByClient.map(m => (
             <div key={m.client_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderTop: '1px solid #f0d260', marginTop: 4 }}>
@@ -265,7 +265,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
       )}
 
       {!events.length && (
-        <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13, textAlign: 'center' }}>
+        <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', textAlign: 'center' }}>
           No emails sent to this {entityLabel} yet.
         </div>
       )}
@@ -276,20 +276,20 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
             <div key={i} style={eventRow}>
               <div style={{ ...iconBadge, background: badgeColor(e.type) }}>{iconFor(e.type)}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {labelFor(e)}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {e.label}
                   {e.client_id && <span style={{ marginLeft: 8 }}>· {clientNameById[e.client_id] || ''}</span>}
                   {e.type === 'clicked' && e.url && <span style={{ marginLeft: 8 }}>→ {shorten(e.url)}</span>}
                   {e.type === 'replied' && e.classification && <span style={{ marginLeft: 8 }}>· {e.classification.replace(/_/g, ' ')}</span>}
                 </div>
                 {e.type === 'replied' && e.summary && (
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{e.summary}</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{e.summary}</div>
                 )}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>{fmtTime(e.at)}</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>{fmtTime(e.at)}</div>
             </div>
           ))}
         </div>
@@ -301,8 +301,8 @@ function ActivityPanel({ contact, activity, err, onReloadActivity, entityLabel =
 function Stat({ label, value }) {
   return (
     <div style={statBox}>
-      <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>{value}</div>
-      <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, color: 'var(--text)' }}>{value}</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>{label}</div>
     </div>
   );
 }
@@ -326,13 +326,13 @@ function shorten(u) {
 const statRow = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 };
 const statBox = { padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', textAlign: 'center' };
 const eventRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderTop: '1px solid #f4f4f4' };
-const iconBadge = { width: 28, height: 28, borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 };
-const resubBtn = { background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--text)', whiteSpace: 'nowrap' };
+const iconBadge = { width: 28, height: 28, borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-body)', flexShrink: 0 };
+const resubBtn = { background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '4px 10px', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', color: 'var(--text)', whiteSpace: 'nowrap' };
 
 function Section({ title, children }) {
   return (
     <div>
-      <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: '0 0 12px', paddingBottom: 8, borderBottom: '1px solid #e8e8e8' }}>{title}</h3>
+      <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text)', margin: '0 0 12px', paddingBottom: 8, borderBottom: '1px solid #e8e8e8' }}>{title}</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{children}</div>
     </div>
   );
@@ -340,7 +340,7 @@ function Section({ title, children }) {
 function Field({ label, children, full }) {
   return (
     <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
-      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{label}</label>
+      <label style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{label}</label>
       {children}
     </div>
   );
@@ -351,61 +351,61 @@ function Field({ label, children, full }) {
 // JournalistProfilePage used to show, so the modal is the full profile and
 // there's no separate page to navigate to. Loads from /pr/contacts/:id.
 function CoveragePanel({ profile, err, entityLabel = 'contact' }) {
-  if (err) return <div style={{ padding: 20, color: 'var(--negative)', fontSize: 13 }}>Couldn't load coverage: {err}</div>;
-  if (!profile) return <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>;
+  if (err) return <div style={{ padding: 20, color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>Couldn't load coverage: {err}</div>;
+  if (!profile) return <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>Loading…</div>;
   const coverage = profile.coverage || [];
   const published = coverage.filter(r => r.status === 'published' || r.status === 'download').length;
   return (
     <div style={{ padding: '12px 0' }}>
       {profile.outlet && (
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', margin: '0 0 12px' }}>
           Currently associated with <strong style={{ color: 'var(--text)' }}>{profile.outlet}</strong>.
         </p>
       )}
       <div style={{ display: 'flex', gap: 24, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Published</div><div style={{ fontSize: 22, fontWeight: 800 }}>{published}</div></div>
-        <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Tracked</div><div style={{ fontSize: 22, fontWeight: 800 }}>{coverage.length}</div></div>
+        <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Published</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{published}</div></div>
+        <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Tracked</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{coverage.length}</div></div>
         {Array.isArray(profile.beats) && profile.beats.length > 0 && (
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Beats</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Beats</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {profile.beats.map(b => <span key={b} className="chip" style={{ fontSize: 11 }}>{b}</span>)}
+              {profile.beats.map(b => <span key={b} className="chip" style={{ fontSize: 'var(--fs-caption)' }}>{b}</span>)}
             </div>
           </div>
         )}
         {Array.isArray(profile.auto_topics) && profile.auto_topics.length > 0 && (
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Writes about <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from recent articles</span></div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Writes about <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from recent articles</span></div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {profile.auto_topics.map((t, i) => <span key={i} className="chip" style={{ fontSize: 11 }}>{t}</span>)}
+              {profile.auto_topics.map((t, i) => <span key={i} className="chip" style={{ fontSize: 'var(--fs-caption)' }}>{t}</span>)}
             </div>
           </div>
         )}
       </div>
       {Array.isArray(profile.latest_articles) && profile.latest_articles.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Latest articles <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from their outlet's feed</span></div>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Latest articles <span style={{ textTransform: 'none', letterSpacing: 0 }}>· from their outlet's feed</span></div>
           <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflow: 'auto' }}>
             {profile.latest_articles.map((a, i) => (
-              <div key={i} style={{ padding: '7px 10px', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 13 }}>
+              <div key={i} style={{ padding: '7px 10px', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 'var(--fs-body)' }}>
                 {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{(a.title || a.url).slice(0, 100)}</a> : (a.title || '—')}
-                {a.published_at && <span style={{ color: 'var(--text-subtle)', fontSize: 11 }}> · {fmtDate(a.published_at)}</span>}
+                {a.published_at && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}> · {fmtDate(a.published_at)}</span>}
               </div>
             ))}
           </div>
         </div>
       )}
       {coverage.length === 0 ? (
-        <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>No coverage logged for this {entityLabel} yet.</p>
+        <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>No coverage logged for this {entityLabel} yet.</p>
       ) : (
-        <table className="table" style={{ width: '100%', fontSize: 13 }}>
+        <table className="table" style={{ width: '100%', fontSize: 'var(--fs-body)' }}>
           <thead><tr><th>Client</th><th>Publication</th><th>Status</th><th>Date</th><th>Story</th></tr></thead>
           <tbody>
             {coverage.map((r, i) => (
               <tr key={i}>
                 <td>{r.client || '—'}</td>
                 <td style={{ color: 'var(--text-muted)' }}>{r.outlet || '—'}</td>
-                <td><span className="chip" style={{ fontSize: 11 }}>{r.status}</span></td>
+                <td><span className="chip" style={{ fontSize: 'var(--fs-caption)' }}>{r.status}</span></td>
                 <td style={{ color: 'var(--text-muted)' }}>{fmtDate(r.issue_date)}</td>
                 <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
               </tr>

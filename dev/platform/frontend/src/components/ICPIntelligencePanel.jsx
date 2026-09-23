@@ -95,8 +95,8 @@ export default function ICPIntelligencePanel({ clientId }) {
   return (
     <div className="stack" style={{ gap: 18 }}>
       <div>
-        <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 4px' }}>ICP — Ideal Customer Profile</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 640, margin: 0, lineHeight: 1.5 }}>
+        <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 800, margin: '0 0 4px' }}>ICP — Ideal Customer Profile</h2>
+        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', maxWidth: 640, margin: 0, lineHeight: 1.5 }}>
           The customer-research layer that seeds resonant creative and sharper audience targeting. Paste real call transcripts and win-loss notes —
           Claude extracts the awareness stage, market sophistication and Voice-of-Customer in the prospect’s own words.
           It only uses what you give it: thin inputs get an honest “insufficient” rather than an invented customer.
@@ -127,13 +127,13 @@ export default function ICPIntelligencePanel({ clientId }) {
           <button className="btn btn-secondary" onClick={saveInputs} disabled={!dirty || saving || building}>
             {saving ? 'Saving…' : dirty ? 'Save inputs' : 'Saved'}
           </button>
-          {pack?.generated_at && <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Last built {new Date(pack.generated_at).toLocaleString('en-GB')}</span>}
+          {pack?.generated_at && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Last built {new Date(pack.generated_at).toLocaleString('en-GB')}</span>}
         </div>
       </div>
 
       {/* Sufficiency guardrail */}
       {built && suff && !suff.sufficient && (
-        <div className="callout callout-warning" style={{ fontSize: 13 }}>
+        <div className="callout callout-warning" style={{ fontSize: 'var(--fs-body)' }}>
           <strong>Inputs are thin.</strong> For a reliable pack, add: {suff.missing?.length ? suff.missing.join(', ') : 'more real customer language (transcripts, quotes)'}. What’s below is a best-effort read on limited material — treat it as provisional.
         </div>
       )}
@@ -150,7 +150,7 @@ export default function ICPIntelligencePanel({ clientId }) {
                   <div key={s} title={STAGE_LABEL[s]} style={{ flex: 1, height: 6, borderRadius: 3, background: aware?.stage === s ? 'var(--accent)' : 'var(--card-border)' }} />
                 ))}
               </div>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>{aware?.stage ? STAGE_LABEL[aware.stage] : '—'}</div>
+              <div style={{ fontWeight: 800, fontSize: 'var(--fs-body)' }}>{aware?.stage ? STAGE_LABEL[aware.stage] : '—'}</div>
               {aware?.rationale && <div className="body-sm" style={{ marginTop: 6, lineHeight: 1.45, color: 'var(--text-muted)' }}>{aware.rationale}</div>}
               {aware?.directness && <div className="body-xs" style={{ marginTop: 8 }}><strong>Ad directness:</strong> {aware.directness}</div>}
             </div>
@@ -163,7 +163,7 @@ export default function ICPIntelligencePanel({ clientId }) {
                   <div key={n} style={{ flex: 1, height: 6, borderRadius: 3, background: (pack.sophistication_level || 0) >= n ? 'var(--accent)' : 'var(--card-border)' }} />
                 ))}
               </div>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>{pack.sophistication_level ? SOPH_LABEL[pack.sophistication_level] : '—'}</div>
+              <div style={{ fontWeight: 800, fontSize: 'var(--fs-body)' }}>{pack.sophistication_level ? SOPH_LABEL[pack.sophistication_level] : '—'}</div>
               {pack.sophistication_note && <div className="body-sm" style={{ marginTop: 6, lineHeight: 1.45, color: 'var(--text-muted)' }}>{pack.sophistication_note}</div>}
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function ICPIntelligencePanel({ clientId }) {
       )}
 
       {!built && (
-        <div className="card" style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13, lineHeight: 1.5 }}>
+        <div className="card" style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1.5 }}>
           No pack yet. Add whatever real customer material you have above and hit <strong>Build with Claude</strong>.
           Even a couple of call transcripts produces a sharper brief; the pack later seeds ad creative in Paid.
         </div>

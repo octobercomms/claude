@@ -291,7 +291,7 @@ export default function IgOutreachPanel({ clientId }) {
                           >
                             <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>@{p.username}</span>
                             {p.display_name && p.display_name !== p.username && <span className="text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {p.display_name}</span>}
-                            <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
+                            <span className={`chip ${st.cls}`} style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
                             <span className="body-xs text-subtle" style={{ flex: '0 0 auto' }}>▸</span>
                           </div>
                         );
@@ -302,11 +302,11 @@ export default function IgOutreachPanel({ clientId }) {
                             <div style={{ minWidth: 0 }}>
                               <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>@{p.username}</a>
                               {p.display_name && p.display_name !== p.username && <span className="text-subtle"> · {p.display_name}</span>}
-                              {p.email && <span className="chip chip-success" style={{ fontSize: 10, marginLeft: 8 }}>✉ {p.email}</span>}
+                              {p.email && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', marginLeft: 8 }}>✉ {p.email}</span>}
                               {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{p.bio}</div>}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
-                              <span className={`chip ${st.cls}`} style={{ fontSize: 10 }}>{st.label}</span>
+                              <span className={`chip ${st.cls}`} style={{ fontSize: 'var(--fs-caption)' }}>{st.label}</span>
                               {queueTab === 'done' && <button className="btn btn-ghost btn-sm" onClick={() => setExpanded(prev => { const n = { ...prev }; delete n[p.id]; return n; })} title="Collapse">▴</button>}
                             </div>
                           </div>
@@ -357,8 +357,8 @@ export default function IgOutreachPanel({ clientId }) {
                           }}>
                             <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>@{p.username}</a>
                             {p.display_name && p.display_name !== p.username && <span className="text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {p.display_name}</span>}
-                            <span className="chip chip-outline" style={{ fontSize: 10, flex: '0 0 auto' }}>no search</span>
-                            <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
+                            <span className="chip chip-outline" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>no search</span>
+                            <span className={`chip ${st.cls}`} style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
                           </div>
                         );
                       })}

@@ -85,7 +85,7 @@ export default function KeywordFootprintPanel({ clientId, onSendToPipeline }) {
             </div>
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search…"
-              style={{ flex: 1, maxWidth: 280, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+              style={{ flex: 1, maxWidth: 280, padding: '6px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
             <span className="body-xs text-subtle">Last audit: {new Date(audit.completed_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
@@ -94,7 +94,7 @@ export default function KeywordFootprintPanel({ clientId, onSendToPipeline }) {
               {filteredPages.map(p => (
                 <div key={p.page_url} className="card">
                   <div className="row between center wrap" style={{ gap: 12, marginBottom: 'var(--s3)' }}>
-                    <a href={p.page_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all' }}>
+                    <a href={p.page_url} target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all' }}>
                       {p.page_url.replace(/^https?:\/\//, '')}
                     </a>
                     {onSendToPipeline && (
@@ -104,7 +104,7 @@ export default function KeywordFootprintPanel({ clientId, onSendToPipeline }) {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {p.phrases.map(ph => (
                       <span key={ph.phrase} style={{
-                        fontSize: 12, padding: '3px 10px', borderRadius: 'var(--r-pill)',
+                        fontSize: 'var(--fs-caption)', padding: '3px 10px', borderRadius: 'var(--r-pill)',
                         background: ph.rank === 1 ? 'var(--accent)' : 'var(--surface-sunken)',
                         color: ph.rank === 1 ? 'var(--accent-on)' : 'var(--text-muted)',
                         fontWeight: ph.rank === 1 ? 700 : 500,
@@ -133,10 +133,10 @@ export default function KeywordFootprintPanel({ clientId, onSendToPipeline }) {
                     const top = p.pages.sort((a, b) => b.frequency - a.frequency)[0];
                     return (
                       <tr key={p.phrase} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                        <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: 600 }}>{p.phrase}</td>
-                        <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{p.totalFreq}</td>
-                        <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{p.pages.length}</td>
-                        <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-subtle)', maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '8px 10px', fontSize: 'var(--fs-body)', fontWeight: 600 }}>{p.phrase}</td>
+                        <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>{p.totalFreq}</td>
+                        <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>{p.pages.length}</td>
+                        <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <a href={top.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)' }}>{top.page_url.replace(/^https?:\/\//, '').slice(0, 60)}</a>
                           <span style={{ marginLeft: 6 }}>({top.frequency}×)</span>
                         </td>

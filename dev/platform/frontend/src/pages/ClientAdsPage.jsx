@@ -200,7 +200,7 @@ export default function ClientAdsPage() {
     return (
       <div className={'stat' + (feature ? ' feature' : '')} style={{ flex: '1 1 150px', minHeight: 0, padding: 'var(--s4)' }}>
         <div className="stat-label">{label}</div>
-        <div className="stat-value" style={{ fontSize: 30, marginTop: 'var(--s2)', letterSpacing: '-1px' }}>{value ?? '—'}</div>
+        <div className="stat-value" style={{ fontSize: 'var(--fs-section)', marginTop: 'var(--s2)', letterSpacing: '-1px' }}>{value ?? '—'}</div>
         {sub && <div className="stat-sub" style={{ marginTop: 'var(--s1)' }}>{sub}</div>}
       </div>
     );
@@ -210,7 +210,7 @@ export default function ClientAdsPage() {
   // dashboard's delta chips.
   function Pill({ positive, children }) {
     return (
-      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 'var(--r-sm)', fontWeight: 700, fontSize: 12, background: positive ? 'var(--positive-soft)' : 'var(--negative-soft)', color: positive ? 'var(--positive)' : 'var(--negative)' }}>{children}</span>
+      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 'var(--r-sm)', fontWeight: 700, fontSize: 'var(--fs-caption)', background: positive ? 'var(--positive-soft)' : 'var(--negative-soft)', color: positive ? 'var(--positive)' : 'var(--negative)' }}>{children}</span>
     );
   }
 
@@ -242,16 +242,16 @@ export default function ClientAdsPage() {
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {[7, 14, 30, 90].map(d => (
           <button key={d} onClick={() => handlePeriodChange(d)}
-            style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid ' + (days === d ? 'var(--text)' : 'var(--card-border)'), background: days === d ? 'var(--text)' : 'var(--surface)', color: days === d ? '#fff' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid ' + (days === d ? 'var(--text)' : 'var(--card-border)'), background: days === d ? 'var(--text)' : 'var(--surface)', color: days === d ? '#fff' : 'var(--text)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {d}d
           </button>
         ))}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)' }}>
-          <span style={{ fontSize: 11, color: 'var(--text-subtle)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
+          <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
           <input type="number" min="0" max="100" step="1" value={adsMarginInput}
             onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
-            style={{ width: 42, padding: '2px 4px', border: 'none', fontSize: 13, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
-          <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>%</span>
+            style={{ width: 42, padding: '2px 4px', border: 'none', fontSize: 'var(--fs-body)', textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
+          <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>%</span>
         </div>
         <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Analyst →</Link>
       </div>
@@ -259,11 +259,11 @@ export default function ClientAdsPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-subtle)' }}>Loading ads data…</div>
       ) : adsData?.error ? (
-        <div className="text-negative" style={{ padding: 20, fontSize: 14 }}>Error: {adsData.error}</div>
+        <div className="text-negative" style={{ padding: 20, fontSize: 'var(--fs-body)' }}>Error: {adsData.error}</div>
       ) : noConnectors ? (
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-subtle)', fontSize: 14 }}>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
           No active Google Ads or Meta Ads connectors found for this client.<br />
-          <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Connect them on the client's Connectors tab, then return here.</span>
+          <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Connect them on the client's Connectors tab, then return here.</span>
         </div>
       ) : (() => {
         // Blended totals across Google + Meta when both are connected,
@@ -281,7 +281,7 @@ export default function ClientAdsPage() {
         <>
           {showBlended && (
             <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
                 Combined · Google + Meta
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -299,7 +299,7 @@ export default function ClientAdsPage() {
               <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Google Ads</h2>
               {googleEntries.filter(g => !g.error).length > 1 && (
                 <div style={{ marginBottom: 28 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <MetricCard label="Total Spend" value={fmtCurrency(googleTotal.spend)} feature />
                     <MetricCard label="Total Revenue" value={googleTotal.revenue > 0 ? fmtCurrency(googleTotal.revenue) : '—'} />
@@ -313,8 +313,8 @@ export default function ClientAdsPage() {
               )}
               {googleEntries.map((g, i) => (
                 <div key={i} style={{ marginBottom: 28 }}>
-                  {g.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>{g.store_label}</div>}
-                  {g.error ? <div className="text-negative" style={{ fontSize: 13, marginBottom: 8 }}>{g.error}</div> : (
+                  {g.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>{g.store_label}</div>}
+                  {g.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 8 }}>{g.error}</div> : (
                     <>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
                         <MetricCard label="Spend" value={fmtCurrency(g.spend)} feature />
@@ -371,7 +371,7 @@ export default function ClientAdsPage() {
               <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Meta Ads</h2>
               {metaEntries.filter(m => !m.error).length > 1 && (
                 <div style={{ marginBottom: 28 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <MetricCard label="Total Spend" value={fmtCurrency(metaTotal.spend)} feature />
                     <MetricCard label="Total Revenue" value={metaTotal.revenue > 0 ? fmtCurrency(metaTotal.revenue) : '—'} />
@@ -385,8 +385,8 @@ export default function ClientAdsPage() {
               )}
               {metaEntries.map((m, i) => (
                 <div key={i} style={{ marginBottom: 28 }}>
-                  {m.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>{m.store_label}</div>}
-                  {m.error ? <div className="text-negative" style={{ fontSize: 13, marginBottom: 8 }}>{m.error}</div> : (
+                  {m.store_label && <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>{m.store_label}</div>}
+                  {m.error ? <div className="text-negative" style={{ fontSize: 'var(--fs-body)', marginBottom: 8 }}>{m.error}</div> : (
                     <>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
                         <MetricCard label="Spend" value={fmtCurrency(m.spend)} feature />

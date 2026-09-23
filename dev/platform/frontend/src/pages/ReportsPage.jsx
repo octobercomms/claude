@@ -94,7 +94,7 @@ export default function ReportsPage() {
 
       {showTrigger && (
         <div className="card">
-          <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>Trigger Report</h3>
+          <h3 style={{ margin: '0 0 16px', fontSize: 'var(--fs-body)' }}>Trigger Report</h3>
           <form onSubmit={handleTrigger} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div className="field">
@@ -165,11 +165,11 @@ export default function ReportsPage() {
                 </td>
                 <td >{fmtDate(r.period_start)} – {fmtDate(r.period_end)}</td>
                 <td >
-                  <span style={{ color: STATUS_COLORS[r.status] || 'var(--text-subtle)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>
+                  <span style={{ color: STATUS_COLORS[r.status] || 'var(--text-subtle)', fontSize: 'var(--fs-caption)', fontWeight: 600, textTransform: 'uppercase' }}>
                     {r.status}
                   </span>
                   {r.status === 'failed' && r.error_log && (
-                    <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 4, maxWidth: 300, wordBreak: 'break-word' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)', marginTop: 4, maxWidth: 300, wordBreak: 'break-word' }}>
                       {r.error_log}
                     </div>
                   )}

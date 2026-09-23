@@ -85,7 +85,7 @@ export default function AgentReadinessPanel({ clientId }) {
               border: `4px solid ${scoreColor(report.score)}`,
             }}>
               <div style={{ textAlign: 'center', lineHeight: 1 }}>
-                <div style={{ fontSize: 26, fontWeight: 800, color: scoreColor(report.score) }}>{report.score}</div>
+                <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, color: scoreColor(report.score) }}>{report.score}</div>
                 <div className="body-xs text-subtle" style={{ marginTop: 2 }}>/ 100</div>
               </div>
             </div>
@@ -111,7 +111,7 @@ export default function AgentReadinessPanel({ clientId }) {
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 700 }}>{c.label}</span>
-                        <span className="chip" style={{ background: tone.bg, color: tone.fg, fontSize: 10 }}>{tone.label}</span>
+                        <span className="chip" style={{ background: tone.bg, color: tone.fg, fontSize: 'var(--fs-caption)' }}>{tone.label}</span>
                         {c.weight === 0 && <span className="body-xs text-subtle">informational</span>}
                       </div>
                       <div className="body-sm text-muted" style={{ marginTop: 4 }}>{c.summary}</div>
@@ -136,9 +136,9 @@ export default function AgentReadinessPanel({ clientId }) {
                           <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
                             {it.ok !== undefined && <span style={{ color: it.ok ? 'var(--positive)' : 'var(--negative)' }}>{it.ok ? '✓' : '✕'}</span>}
                             <span style={{ fontWeight: 600 }}>{it.issue}</span>
-                            {it.selector && <code className="text-subtle" style={{ fontSize: 11 }}>{it.selector}</code>}
+                            {it.selector && <code className="text-subtle" style={{ fontSize: 'var(--fs-caption)' }}>{it.selector}</code>}
                           </div>
-                          {it.snippet && <div className="text-subtle" style={{ marginTop: 2, fontFamily: 'monospace', fontSize: 11, overflowWrap: 'anywhere' }}>{it.snippet}</div>}
+                          {it.snippet && <div className="text-subtle" style={{ marginTop: 2, fontFamily: 'monospace', fontSize: 'var(--fs-caption)', overflowWrap: 'anywhere' }}>{it.snippet}</div>}
                         </div>
                       ))}
                     </div>

@@ -46,7 +46,7 @@ export default function ClientHomeDashboard() {
       .catch(() => setKpiState('none'));
   }, [cid]);
 
-  if (err) return <div className="card text-negative" style={{ margin: 24, fontSize: 13 }}>{err}</div>;
+  if (err) return <div className="card text-negative" style={{ margin: 24, fontSize: 'var(--fs-body)' }}>{err}</div>;
   if (!data) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
   const { client, latest_report, recent_posts = [], tiles = {} } = data;
@@ -89,7 +89,7 @@ export default function ClientHomeDashboard() {
       {/* LIVE commercial KPIs — the headline band. */}
       <div className="caption caption-muted" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
         <span>Live performance · last 30 days</span>
-        {kpiState === 'ready' && <span className="chip chip-positive" style={{ fontSize: 9 }}>● Live</span>}
+        {kpiState === 'ready' && <span className="chip chip-positive" style={{ fontSize: 'var(--fs-caption)' }}>● Live</span>}
       </div>
       {kpiState === 'none' ? (
         <div className="card" style={{ marginBottom: 24 }}>
@@ -114,7 +114,7 @@ export default function ClientHomeDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 26 }}>
         {signals.map(s => (
           <div key={s.label} className="card" style={{ padding: '12px 16px' }}>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>{s.value}</div>
+            <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700 }}>{s.value}</div>
             <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{s.label}</div>
           </div>
         ))}
@@ -126,7 +126,7 @@ export default function ClientHomeDashboard() {
           <div className="caption caption-muted" style={{ marginBottom: 12 }}>Latest report</div>
           {latest_report ? (
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, textTransform: 'capitalize' }}>{latest_report.report_type} report</div>
+              <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, textTransform: 'capitalize' }}>{latest_report.report_type} report</div>
               <div className="body-xs text-subtle" style={{ marginTop: 4 }}>
                 {fmtDate(latest_report.period_start)} – {fmtDate(latest_report.period_end)}
               </div>
@@ -147,7 +147,7 @@ export default function ClientHomeDashboard() {
             <div className="stack" style={{ gap: 10 }}>
               {recent_posts.slice(0, 4).map(p => (
                 <div key={p.id} style={{ borderBottom: 'var(--border-w) solid var(--card-border)', paddingBottom: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
+                  <div style={{ fontSize: 'var(--fs-body)', fontWeight: 600, lineHeight: 1.3 }}>
                     {p.hook || (p.caption || '').slice(0, 80) || '(post)'}
                   </div>
                   <div className="body-xs text-subtle" style={{ marginTop: 2, display: 'flex', gap: 8 }}>
@@ -167,7 +167,7 @@ export default function ClientHomeDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
         {sections.map(s => (
           <Link key={s.label} to={s.to} className="card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>{s.label}</div>
+            <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>{s.label}</div>
             <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{s.sub}</div>
             <div className="body-xs" style={{ marginTop: 8, color: 'var(--text)' }}>Open →</div>
           </Link>

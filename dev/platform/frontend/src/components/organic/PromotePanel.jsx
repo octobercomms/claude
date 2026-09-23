@@ -163,7 +163,7 @@ export default function PromotePanel({ clientId }) {
         </div>
         {err && <div className="callout callout-danger" style={{ marginBottom: 10 }}>{err}</div>}
         {!prospects.length ? (
-          <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: '12px 0' }}>
+          <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: '12px 0' }}>
             {dfsUnlocked
               ? 'No prospects yet. Run a scan — needs at least one competitor domain set on the Content Gaps tab.'
               : 'Feature is built and ready. The DataForSEO Backlinks endpoint requires a paid commitment that activates 1 July 2026; until then this button is disabled.'}
@@ -183,14 +183,14 @@ export default function PromotePanel({ clientId }) {
               <tbody>
                 {prospects.slice(0, 50).map(p => (
                   <tr key={p.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                    <td style={{ padding: '8px 10px', fontSize: 12 }}>
+                    <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)' }}>
                       <strong>{p.source_domain}</strong>
-                      {p.source_url && <div style={{ fontSize: 10, color: 'var(--text-subtle)' }}>{p.source_url.slice(0, 80)}</div>}
+                      {p.source_url && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{p.source_url.slice(0, 80)}</div>}
                     </td>
-                    <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-subtle)' }}>{p.competitor_domain || '—'}</td>
-                    <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{p.domain_rank ?? '—'}</td>
-                    <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', fontWeight: 700 }}>{p.relevance_score}</td>
-                    <td style={{ padding: '8px 10px', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>{p.status}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{p.competitor_domain || '—'}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>{p.domain_rank ?? '—'}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right', fontWeight: 700 }}>{p.relevance_score}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>{p.status}</td>
                   </tr>
                 ))}
               </tbody>
@@ -218,7 +218,7 @@ export default function PromotePanel({ clientId }) {
           <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 'var(--s5)', marginBottom: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
               <select value={querySource} onChange={e => setQuerySource(e.target.value)}
-                style={{ padding: '7px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+                style={{ padding: '7px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
                 <option value="featured">Featured.com</option>
                 <option value="qwoted">Qwoted</option>
                 <option value="sos">Source of Sources</option>
@@ -226,16 +226,16 @@ export default function PromotePanel({ clientId }) {
                 <option value="manual">Manual</option>
               </select>
               <input value={journalistName} onChange={e => setJournalistName(e.target.value)} placeholder="Journalist name (optional)"
-                style={{ padding: '7px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                style={{ padding: '7px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
               <input value={outlet} onChange={e => setOutlet(e.target.value)} placeholder="Outlet (optional)"
-                style={{ padding: '7px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                style={{ padding: '7px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
               <input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)}
-                style={{ padding: '7px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+                style={{ padding: '7px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
             </div>
             <textarea
               value={queryText} onChange={e => setQueryText(e.target.value)} rows={5}
               placeholder="Paste the journalist's query verbatim. The more context (who they're writing for, angle, deadline) the better."
-              style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
+              style={{ width: '100%', padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
             />
             <div style={{ marginTop: 10 }}>
               <button className="btn btn-primary" {...roWrite(readOnly, { onClick: draftResponse, disabled: drafting || !queryText.trim() })}>
@@ -253,12 +253,12 @@ export default function PromotePanel({ clientId }) {
                   style={{ padding: 10, marginBottom: 8, cursor: 'pointer',
                     background: r.id === activeResponse?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
                   onClick={() => openResponse(r)}>
-                  <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
                     {r.source}{r.outlet ? ` · ${r.outlet}` : ''} · <span style={{ fontWeight: 700 }}>{r.status}</span>
                   </div>
-                  <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.3 }}>{r.query_text.slice(0, 100)}{r.query_text.length > 100 ? '…' : ''}</div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--fs-caption)', lineHeight: 1.3 }}>{r.query_text.slice(0, 100)}{r.query_text.length > 100 ? '…' : ''}</div>
                   {r.deadline && (
-                    <div style={{ fontSize: 10, color: new Date(r.deadline) < new Date() ? 'var(--negative)' : 'var(--text-subtle)', marginTop: 4 }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: new Date(r.deadline) < new Date() ? 'var(--negative)' : 'var(--text-subtle)', marginTop: 4 }}>
                       Deadline: {new Date(r.deadline).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
@@ -272,7 +272,7 @@ export default function PromotePanel({ clientId }) {
                     <div className="caption">Response draft</div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <select value={editStatus} onChange={e => setEditStatus(e.target.value)}
-                        style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
+                        style={{ padding: '4px 8px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
                         <option value="draft">Draft</option>
                         <option value="sent">Sent</option>
                         <option value="won">Won (link earned)</option>
@@ -284,15 +284,15 @@ export default function PromotePanel({ clientId }) {
                       <button onClick={() => deleteResponse(activeResponse.id)} className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
                     </div>
                   </div>
-                  <div style={{ background: 'var(--surface-raised)', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>
+                  <div style={{ background: 'var(--surface-raised)', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>
                     <strong style={{ color: 'var(--text)' }}>Q:</strong> {activeResponse.query_text}
                   </div>
                   <textarea value={editBody} onChange={e => setEditBody(e.target.value)} rows={14}
-                    style={{ width: '100%', padding: '12px 14px', fontSize: 13, lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+                    style={{ width: '100%', padding: '12px 14px', fontSize: 'var(--fs-body)', lineHeight: 1.6, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
                   {(editStatus === 'won' || editStatus === 'sent') && (
                     <input value={editUrl} onChange={e => setEditUrl(e.target.value)}
                       placeholder="Published article URL (once it goes live)"
-                      style={{ width: '100%', padding: '7px 10px', fontSize: 12, marginTop: 8, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '7px 10px', fontSize: 'var(--fs-caption)', marginTop: 8, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box' }} />
                   )}
                 </>
               ) : (
@@ -309,7 +309,7 @@ export default function PromotePanel({ clientId }) {
           <div key={t.key} className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
               <div className="h3" style={{ flex: 1 }}>{t.title}</div>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
+              <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
                               padding: '2px 6px', borderRadius: 'var(--r-sm)',
                               background: t.available === 'after' && dfsUnlocked ? 'var(--positive-soft)' : 'var(--warning-soft)',
                               color: t.available === 'after' && dfsUnlocked ? 'var(--positive)' : 'var(--warning)' }}>

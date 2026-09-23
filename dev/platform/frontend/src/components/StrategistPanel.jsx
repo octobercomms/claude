@@ -183,7 +183,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
           {completed && (
             <div className="card strategist-topbar">
               <div style={{ flex: 1, minWidth: 280 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
                   Monday email recipients
                 </label>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -192,7 +192,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                     value={recipients}
                     onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
                     placeholder="email@example.com, another@example.com"
-                    style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+                    style={{ flex: 1, padding: '6px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                   />
                   {recipientsDirty && (
                     <button onClick={saveRecipients} disabled={savingRecipients} className="btn btn-secondary btn-sm">
@@ -244,7 +244,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                 <div style={{ color: 'var(--text-subtle)' }}>Generating… this usually takes 30–60 seconds.</div>
               )}
               {selected && selected.status === 'failed' && (
-                <div style={{ padding: 12, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 13 }}>
+                <div style={{ padding: 12, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 'var(--fs-body)' }}>
                   Generation failed: {selected.error_message || 'unknown error'}
                 </div>
               )}
@@ -279,17 +279,17 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
               <div className="card body-sm">
                 {actions.length > 0 && (
                   <div style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)', borderRadius: 'var(--r-sm)', padding: '12px 14px', marginBottom: 'var(--s4)' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
                       Actions for the week — {actions.filter(a => a.done).length} of {actions.length} done
                     </div>
                     <ol style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                       {actions.map(a => (
                         <li key={a.id} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0e7c0' }}>
                           <input type="checkbox" checked={a.done} onChange={() => toggleAction(a)} style={{ marginTop: 3, cursor: 'pointer' }} />
-                          <div style={{ flex: 1, fontSize: 13, lineHeight: 1.4, color: a.done ? 'var(--text-subtle)' : 'var(--text)', textDecoration: a.done ? 'line-through' : 'none' }}>
+                          <div style={{ flex: 1, fontSize: 'var(--fs-body)', lineHeight: 1.4, color: a.done ? 'var(--text-subtle)' : 'var(--text)', textDecoration: a.done ? 'line-through' : 'none' }}>
                             {a.text}
                             {a.done && a.done_at && (
-                              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2, textDecoration: 'none' }}>
+                              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2, textDecoration: 'none' }}>
                                 ✓ done {new Date(a.done_at).toLocaleDateString('en-GB')}
                               </div>
                             )}
@@ -411,8 +411,8 @@ function ScorecardCard({ reportId, section }) {
   const doneCount = table.rows.filter((_, i) => done.has(i)).length;
   return (
     <div className="card">
-      <h2 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 4px' }}>Summary Scorecard</h2>
-      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 12 }}>
+      <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '0 0 4px' }}>Summary Scorecard</h2>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 12 }}>
         {doneCount} of {table.rows.length} actioned
       </div>
       <div className="md-table-wrap">
@@ -444,21 +444,21 @@ function ScorecardCard({ reportId, section }) {
 // Inline styles that give the markdown a tighter, document feel instead
 // of the default browser margins react-markdown emits.
 const mdComponents = {
-  h1: ({ node, ...p }) => <h1 style={{ fontSize: 22, fontWeight: 700, margin: '24px 0 12px' }} {...p} />,
-  h2: ({ node, ...p }) => <h2 style={{ fontSize: 17, fontWeight: 700, margin: '24px 0 10px', paddingBottom: 6, borderBottom: '1px solid #e8e8e8' }} {...p} />,
-  h3: ({ node, ...p }) => <h3 style={{ fontSize: 14, fontWeight: 700, margin: '18px 0 8px', color: 'var(--text)' }} {...p} />,
-  p: ({ node, ...p }) => <p style={{ margin: '0 0 12px', lineHeight: 1.6, fontSize: 14, color: 'var(--text)' }} {...p} />,
+  h1: ({ node, ...p }) => <h1 style={{ fontSize: 'var(--fs-section)', fontWeight: 700, margin: '24px 0 12px' }} {...p} />,
+  h2: ({ node, ...p }) => <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '24px 0 10px', paddingBottom: 6, borderBottom: '1px solid #e8e8e8' }} {...p} />,
+  h3: ({ node, ...p }) => <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '18px 0 8px', color: 'var(--text)' }} {...p} />,
+  p: ({ node, ...p }) => <p style={{ margin: '0 0 12px', lineHeight: 1.6, fontSize: 'var(--fs-body)', color: 'var(--text)' }} {...p} />,
   ul: ({ node, ...p }) => <ul style={{ margin: '0 0 12px', paddingLeft: 22 }} {...p} />,
   ol: ({ node, ...p }) => <ol style={{ margin: '0 0 12px', paddingLeft: 22 }} {...p} />,
-  li: ({ node, ...p }) => <li style={{ marginBottom: 6, lineHeight: 1.6, fontSize: 14 }} {...p} />,
+  li: ({ node, ...p }) => <li style={{ marginBottom: 6, lineHeight: 1.6, fontSize: 'var(--fs-body)' }} {...p} />,
   strong: ({ node, ...p }) => <strong style={{ color: 'var(--text)' }} {...p} />,
-  table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }} {...p} /></div>,
-  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid #1a1a1a', fontWeight: 700, fontSize: 12 }} {...p} />,
+  table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }} {...p} /></div>,
+  th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid #1a1a1a', fontWeight: 700, fontSize: 'var(--fs-caption)' }} {...p} />,
   td: ({ node, ...p }) => <td style={{ padding: '6px 10px', borderBottom: '1px solid #eee', verticalAlign: 'top' }} {...p} />,
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '20px 0' }} />,
   blockquote: ({ node, ...p }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', paddingLeft: 14, color: 'var(--text-muted)', margin: '10px 0' }} {...p} />,
   code: ({ node, inline, ...p }) => inline
-    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 6px', borderRadius: 'var(--r-sm)', fontSize: 12 }} {...p} />
-    : <pre style={{ background: 'var(--surface-sunken)', padding: 12, borderRadius: 'var(--r-sm)', fontSize: 12, overflowX: 'auto' }}><code {...p} /></pre>,
+    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 6px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} {...p} />
+    : <pre style={{ background: 'var(--surface-sunken)', padding: 12, borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', overflowX: 'auto' }}><code {...p} /></pre>,
 };
 

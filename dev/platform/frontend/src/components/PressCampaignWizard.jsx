@@ -76,8 +76,8 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>New press campaign</h2>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
+        <h2 style={{ margin: '0 0 4px', fontSize: 'var(--fs-title)', fontWeight: 700 }}>New press campaign</h2>
+        <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
           Paste a downloadfor.press URL (or another public release page). The platform fetches the content,
           creates a campaign for it, and stages a 4-step sequence (initial pitch + three follow-ups). Claude
           personalises the pitch per recipient when you pick journalists.
@@ -102,13 +102,13 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
               <label className="field-label" style={{ margin: 0 }}>Body</label>
               <button type="button" onClick={() => setShowBodyHtml(v => !v)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 11 }}>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--fs-caption)' }}>
                 {showBodyHtml ? 'Show formatted preview' : 'Edit HTML'}
               </button>
             </div>
             {showBodyHtml ? (
               <textarea rows={8} value={parsed.body_html || ''} onChange={e => setParsed({ ...parsed, body_html: e.target.value })}
-                className="input" style={{ minHeight: 160, fontFamily: 'monospace', fontSize: 12 }} />
+                className="input" style={{ minHeight: 160, fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }} />
             ) : (
               <iframe title="Release preview" srcDoc={bodyPreviewDoc(parsed.body_html)} sandbox=""
                 style={{ width: '100%', height: 220, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} />

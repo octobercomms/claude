@@ -235,7 +235,7 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
             <label className="field-label">Assigned client{role === 'client' ? '' : 's'}</label>
             <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 4, background: 'var(--surface-raised)' }}>
               {clients.map(c => (
-                <label key={c.id} className="row center" style={{ gap: 8, padding: '6px 8px', fontSize: 13, cursor: 'pointer' }}>
+                <label key={c.id} className="row center" style={{ gap: 8, padding: '6px 8px', fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
                   <input
                     type="checkbox"
                     checked={clientIds.has(c.id)}
@@ -315,7 +315,7 @@ function InviteClientModal({ clients, onClose, onDone }) {
                 : <>User created, but the email didn't send{result.emailError ? ` (${result.emailError})` : ''}. Copy the link below and send it to them.</>}
             </div>
             <label className="field-label">Set-password link</label>
-            <input className="input" readOnly value={result.link} onFocus={e => e.target.select()} style={{ fontSize: 12 }} />
+            <input className="input" readOnly value={result.link} onFocus={e => e.target.select()} style={{ fontSize: 'var(--fs-caption)' }} />
             <div className="row" style={{ gap: 8, marginTop: 14 }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigator.clipboard?.writeText(result.link)}>Copy link</button>
               <button type="button" className="btn btn-primary btn-sm" onClick={onClose}>Done</button>
@@ -323,7 +323,7 @@ function InviteClientModal({ clients, onClose, onDone }) {
           </div>
         ) : (
           <>
-            {error && <div className="callout callout-warning" style={{ marginBottom: 12, fontSize: 13 }}>{error}</div>}
+            {error && <div className="callout callout-warning" style={{ marginBottom: 12, fontSize: 'var(--fs-body)' }}>{error}</div>}
             <div className="field">
               <label className="field-label">Client's email</label>
               <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com" autoFocus />
@@ -333,7 +333,7 @@ function InviteClientModal({ clients, onClose, onDone }) {
               <label className="field-label">Give them access to</label>
               <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 4, background: 'var(--surface-raised)' }}>
                 {clients.map(c => (
-                  <label key={c.id} className="row center" style={{ gap: 8, padding: '6px 8px', fontSize: 13, cursor: 'pointer' }}>
+                  <label key={c.id} className="row center" style={{ gap: 8, padding: '6px 8px', fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
                     <input type="checkbox" checked={clientIds.has(c.id)} onChange={() => toggle(c.id)} />
                     <span>{c.name}</span>
                   </label>

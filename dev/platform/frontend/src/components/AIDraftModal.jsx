@@ -28,7 +28,7 @@ export default function AIDraftModal({ title, hint, draft, onAccept, onClose }) 
     <div className="modal-backdrop" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="modal">
         <div className="modal-head">
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{title}</h2>
+          <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>{title}</h2>
           <button type="button" onClick={onClose} className="modal-close">×</button>
         </div>
         {hint && <p className="body-sm text-muted">{hint}</p>}

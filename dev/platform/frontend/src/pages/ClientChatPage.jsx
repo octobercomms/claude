@@ -14,23 +14,23 @@ import { useAuth } from '../context/AuthContext';
 // and code blocks legible inside a chat bubble. Same component set is
 // reused for every assistant message.
 const MD_COMPONENTS = {
-  h1: ({ children }) => <div style={{ fontSize: 17, fontWeight: 700, margin: '12px 0 6px' }}>{children}</div>,
-  h2: ({ children }) => <div style={{ fontSize: 15, fontWeight: 700, margin: '10px 0 5px' }}>{children}</div>,
-  h3: ({ children }) => <div style={{ fontSize: 13, fontWeight: 700, margin: '8px 0 4px' }}>{children}</div>,
+  h1: ({ children }) => <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: '12px 0 6px' }}>{children}</div>,
+  h2: ({ children }) => <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '10px 0 5px' }}>{children}</div>,
+  h3: ({ children }) => <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, margin: '8px 0 4px' }}>{children}</div>,
   p: ({ children }) => <p style={{ margin: '4px 0' }}>{children}</p>,
   ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: 20 }}>{children}</ul>,
   ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: 20 }}>{children}</ol>,
   li: ({ children }) => <li style={{ margin: '2px 0' }}>{children}</li>,
   table: ({ children }) => (
     <div style={{ overflowX: 'auto', margin: '8px 0' }}>
-      <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>{children}</table>
+      <table style={{ borderCollapse: 'collapse', fontSize: 'var(--fs-body)', width: '100%' }}>{children}</table>
     </div>
   ),
   th: ({ children }) => <th style={{ border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface-sunken)', padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
   td: ({ children }) => <td style={{ border: 'var(--border-w) solid var(--card-border)', padding: '4px 8px', verticalAlign: 'top' }}>{children}</td>,
   code: ({ inline, children }) => inline
-    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 5px', borderRadius: 'var(--r-sm)', fontFamily: 'monospace', fontSize: 12 }}>{children}</code>
-    : <code style={{ display: 'block', background: 'var(--surface-raised)', padding: 10, borderRadius: 'var(--r-sm)', fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap', margin: '6px 0' }}>{children}</code>,
+    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 5px', borderRadius: 'var(--r-sm)', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}>{children}</code>
+    : <code style={{ display: 'block', background: 'var(--surface-raised)', padding: 10, borderRadius: 'var(--r-sm)', fontFamily: 'monospace', fontSize: 'var(--fs-caption)', whiteSpace: 'pre-wrap', margin: '6px 0' }}>{children}</code>,
   pre: ({ children }) => <pre style={{ background: 'transparent', padding: 0, margin: 0 }}>{children}</pre>,
   blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', padding: '2px 10px', margin: '6px 0', color: 'var(--text-muted)', fontStyle: 'italic' }}>{children}</blockquote>,
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '10px 0' }} />,
@@ -309,10 +309,10 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
         <div className="chat-thread">
           {messages.length === 0 && !sending && (
             <div style={{ padding: '32px 0', textAlign: 'center' }}>
-              <div style={{ fontSize: 15, color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>
+              <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>
                 Start investigating {client?.name}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-subtle)', marginBottom: 24, maxWidth: 480, margin: '0 auto 24px' }}>
+              <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', marginBottom: 24, maxWidth: 480, margin: '0 auto 24px' }}>
                 Claude can pull live data, spot anomalies, check rankings, and log decisions — ask anything.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, maxWidth: 540, margin: '0 auto' }}>
@@ -330,7 +330,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
                 {msg.role === 'assistant' && msg.tools_used?.length > 0 && (
                   <div className="row wrap mb-2" style={{ gap: 4 }}>
                     {msg.tools_used.map((t, i) => (
-                      <span key={i} className="chip chip-accent" style={{ fontSize: 10 }}>{TOOL_LABELS[t] || t}</span>
+                      <span key={i} className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{TOOL_LABELS[t] || t}</span>
                     ))}
                   </div>
                 )}
@@ -383,10 +383,10 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
           {attachedFiles.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {attachedFiles.map((f, i) => (
-                <span key={i} style={{ fontSize: 12, background: 'var(--surface-sunken)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span key={i} style={{ fontSize: 'var(--fs-caption)', background: 'var(--surface-sunken)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
                   📎 {f.name}
                   <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: 0, lineHeight: 1 }}>×</button>
                 </span>
               ))}
             </div>
@@ -398,7 +398,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
               real client data; DeepSeek for cheap, non-sensitive questions. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingLeft: 4 }}>
             <span className="caption" style={{ color: 'var(--text-subtle)' }}>🧠 Model</span>
-            <select className="input" style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
+            <select className="input" style={{ width: 'auto', fontSize: 'var(--fs-caption)', padding: '4px 8px' }}
               value={model} onChange={e => setModel(e.target.value)} disabled={sending}>
               {CHAT_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
@@ -411,7 +411,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
               "Auto" sends no range so the analyst chooses per question. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingLeft: 4 }}>
             <span className="caption" style={{ color: 'var(--text-subtle)' }}>📅 Data window</span>
-            <select className="input" style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
+            <select className="input" style={{ width: 'auto', fontSize: 'var(--fs-caption)', padding: '4px 8px' }}
               value={rangePreset} onChange={e => setRangePreset(e.target.value)} disabled={sending}>
               <option value="auto">Auto (analyst decides)</option>
               <option value="7d">Last 7 days</option>
@@ -425,10 +425,10 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
             </select>
             {rangePreset === 'custom' && (
               <>
-                <input type="date" className="input" style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
+                <input type="date" className="input" style={{ width: 'auto', fontSize: 'var(--fs-caption)', padding: '4px 8px' }}
                   value={customStart} max={customEnd || undefined} onChange={e => setCustomStart(e.target.value)} disabled={sending} />
                 <span className="caption" style={{ color: 'var(--text-subtle)' }}>to</span>
-                <input type="date" className="input" style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
+                <input type="date" className="input" style={{ width: 'auto', fontSize: 'var(--fs-caption)', padding: '4px 8px' }}
                   value={customEnd} min={customStart || undefined} onChange={e => setCustomEnd(e.target.value)} disabled={sending} />
               </>
             )}
@@ -448,7 +448,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
             />
             <input ref={fileInputRef} type="file" accept="image/*,.pdf" multiple onChange={handleFileChange} style={{ display: 'none' }} />
             <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach image or PDF"
-              className="btn btn-secondary" style={{ fontSize: 18, padding: '0 14px' }}>
+              className="btn btn-secondary" style={{ fontSize: 'var(--fs-title)', padding: '0 14px' }}>
               📎
             </button>
             <button type="submit" {...roWrite(readOnly, { disabled: sending || (!input.trim() && attachedFiles.length === 0) })} className="btn btn-primary">
@@ -460,13 +460,13 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
 
       {/* Context log sidebar */}
       <div className="chat-sidebar">
-        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14, color: 'var(--text)' }}>
+        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 14, color: 'var(--text)' }}>
           Context Log
           <span style={{ fontWeight: 400, color: 'var(--text-subtle)', marginLeft: 6 }}>{openEntries.length} open</span>
         </div>
 
         {openEntries.length === 0 && (
-          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 12 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 12 }}>
             No open items. Claude will log decisions and investigations here automatically.
           </div>
         )}
@@ -475,7 +475,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
           <div key={entry.id} className={`log-entry ${entry.type || ''}`}>
             <div className="log-entry-head">
               <span className="log-entry-type">{entry.type}</span>
-              <button onClick={() => handleDeleteEntry(entry.id)} className="btn-ghost" style={{ fontSize: 11, padding: "0 2px" }} title="Remove">✕</button>
+              <button onClick={() => handleDeleteEntry(entry.id)} className="btn-ghost" style={{ fontSize: 'var(--fs-caption)', padding: "0 2px" }} title="Remove">✕</button>
             </div>
             <div className="log-entry-body">{entry.content}</div>
             <div className="log-entry-date">
@@ -485,7 +485,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
         ))}
 
         {resolvedEntries.length > 0 && (
-          <button onClick={() => setShowResolved(p => !p)} className="btn btn-secondary" style={{ width: '100%', marginTop: 8, fontSize: 11 }}>
+          <button onClick={() => setShowResolved(p => !p)} className="btn btn-secondary" style={{ width: '100%', marginTop: 8, fontSize: 'var(--fs-caption)' }}>
             {showResolved ? 'Hide' : 'Show'} {resolvedEntries.length} resolved
           </button>
         )}
@@ -506,7 +506,7 @@ export default function ClientChatPage({ embedded = false, clientId: clientIdPro
 
 const suggestionStyle = {
   padding: '10px 14px', background: 'white', border: 'var(--border-w) solid var(--card-border)',
-  borderRadius: 'var(--r-sm)', cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)',
+  borderRadius: 'var(--r-sm)', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)',
   textAlign: 'left', lineHeight: 1.4,
 };
 

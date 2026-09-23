@@ -86,14 +86,14 @@ export default function CtrBoostPanel({ clientId }) {
             <tbody>
               {opps.map((o, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                  <td style={{ padding: '8px 10px', fontSize: 13 }}><strong>{o.query}</strong></td>
-                  <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-subtle)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-body)' }}><strong>{o.query}</strong></td>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {o.url ? <a href={o.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)' }}>{o.url.replace(/^https?:\/\//, '').slice(0, 50)}</a> : <em>—</em>}
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 13, textAlign: 'right', fontWeight: 700 }}>#{o.position}</td>
-                  <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: 'var(--negative)', fontWeight: 700 }}>{(o.ctr * 100).toFixed(1)}%</td>
-                  <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: 'var(--text-subtle)' }}>{(o.expected_ctr * 100).toFixed(1)}%</td>
-                  <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-body)', textAlign: 'right', fontWeight: 700 }}>#{o.position}</td>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right', color: 'var(--negative)', fontWeight: 700 }}>{(o.ctr * 100).toFixed(1)}%</td>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right', color: 'var(--text-subtle)' }}>{(o.expected_ctr * 100).toFixed(1)}%</td>
+                  <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>
                     <span style={{ background: 'var(--positive-soft)', color: 'var(--positive)', padding: '2px 8px', borderRadius: 'var(--r-pill)', fontWeight: 700 }}>+{o.missed_clicks.toLocaleString()}</span>
                   </td>
                   <td style={{ padding: '8px 10px', textAlign: 'right' }}>
@@ -156,9 +156,9 @@ function RewriteModal({ clientId, opp, onClose }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Rewrite snippet to win the click</div>
-            <h2 style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700 }}>{opp.query}</h2>
-            <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 4 }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Rewrite snippet to win the click</div>
+            <h2 style={{ margin: '4px 0 0', fontSize: 'var(--fs-title)', fontWeight: 700 }}>{opp.query}</h2>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
               #{opp.position} · {(opp.ctr * 100).toFixed(1)}% CTR vs {(opp.expected_ctr * 100).toFixed(1)}% expected · +{opp.missed_clicks.toLocaleString()} clicks on the table
             </div>
           </div>
@@ -172,10 +172,10 @@ function RewriteModal({ clientId, opp, onClose }) {
           </p>
           <label className="caption">Current title tag</label>
           <input value={currentTitle} onChange={e => setCurrentTitle(e.target.value)} placeholder="(optional)"
-            style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: '4px 0 12px' }} />
+            style={{ width: '100%', padding: '7px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: '4px 0 12px' }} />
           <label className="caption">Current meta description</label>
           <textarea value={currentDesc} onChange={e => setCurrentDesc(e.target.value)} placeholder="(optional)" rows={2}
-            style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: '4px 0 12px', fontFamily: 'inherit', resize: 'vertical' }} />
+            style={{ width: '100%', padding: '7px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', margin: '4px 0 12px', fontFamily: 'inherit', resize: 'vertical' }} />
 
           <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading })}>
             {loading ? 'Drafting…' : suggestion ? 'Re-draft' : 'Draft new snippet'}
@@ -193,7 +193,7 @@ function RewriteModal({ clientId, opp, onClose }) {
               {suggestion.rationale && (
                 <div style={{ marginTop: 6 }}>
                   <div className="caption mb-2">Why this wins the click</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>{suggestion.rationale}</div>
+                  <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.6 }}>{suggestion.rationale}</div>
                 </div>
               )}
             </div>
@@ -211,7 +211,7 @@ function Suggested({ label, value, hint, onCopy, copied }) {
         <div className="caption mb-2">{label} <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>· {hint}</span></div>
         <button onClick={onCopy} className="btn btn-ghost btn-sm" style={{ color: copied ? 'var(--positive)' : 'var(--accent)', padding: '0 6px' }}>{copied ? 'Copied' : 'Copy'}</button>
       </div>
-      <div className="card" style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text)' }}>{value}</div>
+      <div className="card" style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, color: 'var(--text)' }}>{value}</div>
     </div>
   );
 }

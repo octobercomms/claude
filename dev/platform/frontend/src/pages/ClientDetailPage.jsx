@@ -490,10 +490,10 @@ export default function ClientDetailPage() {
               className={`card ${client.active ? 'success' : ''}`}
               style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', cursor: 'pointer', padding: '12px 16px' }}>
               <span style={{ width: 10, height: 10, borderRadius: 'var(--r-pill)', background: client.active ? 'var(--positive)' : 'var(--text-subtle)' }} />
-              <span style={{ fontWeight: 600, fontSize: 14, color: client.active ? 'var(--positive)' : 'var(--text)' }}>
+              <span style={{ fontWeight: 600, fontSize: 'var(--fs-body)', color: client.active ? 'var(--positive)' : 'var(--text)' }}>
                 {client.active ? '✓ Client is active' : 'Client is inactive'}
               </span>
-              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-subtle)' }}>
+              <span style={{ marginLeft: 'auto', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                 {client.active ? 'Click to deactivate' : 'Click to activate'}
               </span>
             </button>
@@ -512,7 +512,7 @@ export default function ClientDetailPage() {
             <button type="button" {...roWrite(readOnly, { onClick: handleCompleteBriefing, disabled: loadingBriefing || !client.domain })} className="btn btn-secondary">
               {loadingBriefing ? 'Researching…' : '✦ Complete with Claude'}
             </button>
-            {!client.domain && <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Set the domain first to use Claude</span>}
+            {!client.domain && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Set the domain first to use Claude</span>}
           </div>
         </form>
       )}
@@ -532,7 +532,7 @@ export default function ClientDetailPage() {
             return (
               <div key={group.label} className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{group.label}</h3>
+                  <h3 style={{ margin: 0, fontSize: 'var(--fs-body)', fontWeight: 700 }}>{group.label}</h3>
                   {group.oauth && unconnected.length > 0 && (
                     <button onClick={() => {
                       if (group.oauth === 'google') setConnectGoogleModal({ types: unconnected });
@@ -569,7 +569,7 @@ export default function ClientDetailPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {unconnected.map(type => (
                       <div key={type} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', border: '1px dashed #ddd' }}>
-                        <span style={{ fontSize: 13, color: 'var(--text-subtle)' }}>{CONNECTOR_LABELS[type]}</span>
+                        <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)' }}>{CONNECTOR_LABELS[type]}</span>
                         {!group.oauth && (
                           <button onClick={() => addConnector(type)} className="btn btn-secondary btn-sm">+ Add</button>
                         )}
@@ -618,13 +618,13 @@ export default function ClientDetailPage() {
         <div className="card mt-6">
           <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Recent reports</h2>
           {reports.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--text-subtle)', margin: '12px 0 0' }}>No reports generated yet — use the buttons above, or wait for the schedule.</p>
+            <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-subtle)', margin: '12px 0 0' }}>No reports generated yet — use the buttons above, or wait for the schedule.</p>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)', marginTop: 12 }}>
               <thead>
                 <tr>
                   {['Type', 'Period start', 'Status', 'Generated', ''].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 11, color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
+                    <th key={h} style={{ textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -644,7 +644,7 @@ export default function ClientDetailPage() {
                     </tr>
                     {r.status === 'failed' && r.error_log && (
                       <tr>
-                        <td colSpan={5} style={{ padding: '0 12px 8px 0', color: 'var(--negative)', fontSize: 12, fontFamily: 'monospace', lineHeight: 1.5 }}>
+                        <td colSpan={5} style={{ padding: '0 12px 8px 0', color: 'var(--negative)', fontSize: 'var(--fs-caption)', fontFamily: 'monospace', lineHeight: 1.5 }}>
                           ⚠ {r.error_log}
                         </td>
                       </tr>
@@ -682,7 +682,7 @@ export default function ClientDetailPage() {
               </div>
 
               <Field label="Recipients (one per line)">
-                <textarea className="input" style={{ minHeight: 90, fontFamily: 'monospace', fontSize: 12 }}
+                <textarea className="input" style={{ minHeight: 90, fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
                   value={(client.report_recipients?.weekly || []).join('\n')}
                   onChange={e => setClient(p => ({ ...p, report_recipients: { ...p.report_recipients, weekly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } }))} />
               </Field>
@@ -692,12 +692,12 @@ export default function ClientDetailPage() {
                 <button type="button" onClick={() => setTemplateChatType('weekly')} className="btn btn-secondary btn-sm">✦ {templateSummary.weekly ? 'Edit with Claude' : 'Design with Claude'}</button>
               </div>
               {(templateSummary.weekly?.sections || []).length ? (
-                <ol style={{ fontSize: 12, color: 'var(--text-muted)', paddingLeft: 18, margin: 0 }}>
+                <ol style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 18, margin: 0 }}>
                   {templateSummary.weekly.sections.map(s => (
-                    <li key={s.id} style={{ marginBottom: 2 }}><strong>{s.title}</strong> <span style={{ color: 'var(--text-subtle)', fontFamily: 'monospace', fontSize: 10 }}>{s.type}</span></li>
+                    <li key={s.id} style={{ marginBottom: 2 }}><strong>{s.title}</strong> <span style={{ color: 'var(--text-subtle)', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}>{s.type}</span></li>
                   ))}
                 </ol>
-              ) : <div style={{ fontSize: 12, color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
+              ) : <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
 
               <div style={{ display: 'flex', gap: 8, marginTop: 'var(--s5)' }}>
                 <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview</button>
@@ -717,7 +717,7 @@ export default function ClientDetailPage() {
               </Field>
 
               <Field label="Recipients (one per line)">
-                <textarea className="input" style={{ minHeight: 90, fontFamily: 'monospace', fontSize: 12 }}
+                <textarea className="input" style={{ minHeight: 90, fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}
                   value={(client.report_recipients?.monthly || []).join('\n')}
                   onChange={e => setClient(p => ({ ...p, report_recipients: { ...p.report_recipients, monthly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } }))} />
               </Field>
@@ -737,12 +737,12 @@ export default function ClientDetailPage() {
                 <button type="button" onClick={() => setTemplateChatType('monthly')} className="btn btn-secondary btn-sm">✦ {templateSummary.monthly ? 'Edit with Claude' : 'Design with Claude'}</button>
               </div>
               {(templateSummary.monthly?.sections || []).length ? (
-                <ol style={{ fontSize: 12, color: 'var(--text-muted)', paddingLeft: 18, margin: 0 }}>
+                <ol style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', paddingLeft: 18, margin: 0 }}>
                   {templateSummary.monthly.sections.map(s => (
-                    <li key={s.id} style={{ marginBottom: 2 }}><strong>{s.title}</strong> <span style={{ color: 'var(--text-subtle)', fontFamily: 'monospace', fontSize: 10 }}>{s.type}</span></li>
+                    <li key={s.id} style={{ marginBottom: 2 }}><strong>{s.title}</strong> <span style={{ color: 'var(--text-subtle)', fontFamily: 'monospace', fontSize: 'var(--fs-caption)' }}>{s.type}</span></li>
                   ))}
                 </ol>
-              ) : <div style={{ fontSize: 12, color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
+              ) : <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using the auto-generated default.</div>}
 
               <div style={{ display: 'flex', gap: 8, marginTop: 'var(--s5)' }}>
                 <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview</button>
@@ -904,23 +904,23 @@ function BrevoConfig({ connector, onConfigSave }) {
 
   return (
     <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>List</span>
+      <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>List</span>
       {lists === null ? (
-        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</span>
+        <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Loading…</span>
       ) : (
         <select value={listId} onChange={e => setListId(e.target.value)}
-          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb' }}>
+          style={{ fontSize: 'var(--fs-caption)', padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb' }}>
           <option value="">All lists</option>
           {lists.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
         </select>
       )}
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Automation</span>
+      <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Automation</span>
       <input value={automation} onChange={e => setAutomation(e.target.value)}
         placeholder="All automations (optional ID/name)"
-        style={{ fontSize: 12, padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', width: 220 }} />
+        style={{ fontSize: 'var(--fs-caption)', padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', width: 220 }} />
       <button type="button" onClick={save} disabled={saving} className="btn btn-secondary btn-sm">{saving ? 'Saving…' : 'Save'}</button>
-      {saved && <span style={{ fontSize: 12, color: 'var(--positive)', fontWeight: 600 }}>✓ Saved</span>}
-      {listsError && <span style={{ fontSize: 11, color: 'var(--negative)' }}>Lists: {listsError}</span>}
+      {saved && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)', fontWeight: 600 }}>✓ Saved</span>}
+      {listsError && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>Lists: {listsError}</span>}
     </div>
   );
 }
@@ -980,19 +980,19 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
 
   return (
     <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</span>
+      <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</span>
       {forms === null ? (
-        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</span>
+        <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Loading…</span>
       ) : (
         <select value={formId} onChange={e => setFormId(e.target.value)}
-          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', minWidth: 240 }}>
+          style={{ fontSize: 'var(--fs-caption)', padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', minWidth: 240 }}>
           <option value="">— Select a form —</option>
           {forms.map(f => <option key={f.value} value={f.value}>{f.label}{f.status && f.status !== 'publish' ? ` (${f.status})` : ''}</option>)}
         </select>
       )}
       <button type="button" onClick={save} disabled={saving || !formId} className="btn btn-secondary btn-sm">{saving ? 'Saving…' : 'Save'}</button>
-      {saved && <span style={{ fontSize: 12, color: 'var(--positive)', fontWeight: 600 }}>✓ Saved</span>}
-      {formsError && <span style={{ fontSize: 11, color: 'var(--negative)' }}>Forms: {formsError}</span>}
+      {saved && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)', fontWeight: 600 }}>✓ Saved</span>}
+      {formsError && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>Forms: {formsError}</span>}
     </div>
   );
 }
@@ -1090,9 +1090,9 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
     <div className={`card ${statusClass}`} style={{ padding: '10px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
+          <span style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
           {connector.auth_mode && connector.auth_mode !== 'oauth' && (
-            <span title="Durable auth — never expires" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-muted)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '1px 6px' }}>
+            <span title="Durable auth — never expires" style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-muted)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '1px 6px' }}>
               {connector.auth_mode === 'mcc_link' ? 'MCC link' : 'Service acct'}
             </span>
           )}
@@ -1109,7 +1109,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                     setEditingLabel(false);
                   } else if (e.key === 'Escape') { setEditingLabel(false); }
                 }}
-                style={{ fontSize: 12, padding: '1px 6px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', width: 120 }}
+                style={{ fontSize: 'var(--fs-caption)', padding: '1px 6px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', width: 120 }}
               />
               <button onClick={async () => {
                 const updated = await api.put(`/connectors/${connector.id}/config`, { ...(connector.config || {}), label: labelInput });
@@ -1122,12 +1122,12 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               {connector.store_label
                 ? <span style={getLabelStyle(connector.store_label)}>{getCountryFlag(connector.store_label)} {connector.store_label}</span>
-                : <span style={{ fontSize: 11, color: 'var(--text-subtle)', cursor: 'pointer' }} onClick={() => setEditingLabel(true)}>+ add label</span>
+                : <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', cursor: 'pointer' }} onClick={() => setEditingLabel(true)}>+ add label</span>
               }
-              {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-subtle)', padding: 0 }} title="Edit label">✎</button>}
+              {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', padding: 0 }} title="Edit label">✎</button>}
             </span>
           )}
-          <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? 'var(--positive)' : (statusColor[connector.status] || 'var(--text-subtle)') }}>
+          <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: isActive ? 'var(--positive)' : (statusColor[connector.status] || 'var(--text-subtle)') }}>
             {isActive ? '✓ Connected' : connector.status}
           </span>
         </div>
@@ -1162,10 +1162,10 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
         </div>
       </div>
       {diagnoseResult && (
-        <div style={{ marginTop: 10, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', padding: '10px 12px', fontSize: 12, fontFamily: 'monospace' }}>
+        <div style={{ marginTop: 10, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', padding: '10px 12px', fontSize: 'var(--fs-caption)', fontFamily: 'monospace' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <strong style={{ fontSize: 11, fontFamily: 'sans-serif', textTransform: 'uppercase', letterSpacing: 0.5 }}>Diagnosis</strong>
-            <button onClick={() => setDiagnoseResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14 }}>×</button>
+            <strong style={{ fontSize: 'var(--fs-caption)', fontFamily: 'sans-serif', textTransform: 'uppercase', letterSpacing: 0.5 }}>Diagnosis</strong>
+            <button onClick={() => setDiagnoseResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>×</button>
           </div>
           {/* Credentials stored */}
           {diagnoseResult.credentials && (
@@ -1188,7 +1188,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                   : `✓ Account: ${diagnoseResult.token_info.email || 'unknown'} (expires ${diagnoseResult.token_info.expires_in})`}
               </div>
               {diagnoseResult.token_info.note && (
-                <div style={{ color: diagnoseResult.token_info.note_kind === 'error' ? 'var(--negative)' : 'var(--text-subtle)', fontSize: 11, marginTop: 4 }}>
+                <div style={{ color: diagnoseResult.token_info.note_kind === 'error' ? 'var(--negative)' : 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 4 }}>
                   {diagnoseResult.token_info.note}
                 </div>
               )}
@@ -1201,13 +1201,13 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                 ? `✓ ${diagnoseResult.live_test.detail}`
                 : `✗ ${diagnoseResult.live_test.http_status ? `HTTP ${diagnoseResult.live_test.http_status} — ` : ''}${typeof diagnoseResult.live_test.error === 'string' ? diagnoseResult.live_test.error : JSON.stringify(diagnoseResult.live_test.error)}`}
               {diagnoseResult.live_test.login_customer_id && (
-                <div style={{ color: 'var(--text-subtle)', fontSize: 11, marginTop: 2 }}>via login-customer-id {diagnoseResult.live_test.login_customer_id}</div>
+                <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 2 }}>via login-customer-id {diagnoseResult.live_test.login_customer_id}</div>
               )}
               {diagnoseResult.live_test.accounts_visible?.length > 0 && (
-                <div style={{ color: 'var(--text-subtle)', fontSize: 11, marginTop: 2 }}>Accounts visible: {diagnoseResult.live_test.accounts_visible.join(', ')}</div>
+                <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 2 }}>Accounts visible: {diagnoseResult.live_test.accounts_visible.join(', ')}</div>
               )}
               {diagnoseResult.live_test.note && (
-                <div style={{ color: 'var(--text-subtle)', fontSize: 11, marginTop: 4, fontFamily: 'sans-serif', lineHeight: 1.4 }}>{diagnoseResult.live_test.note}</div>
+                <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 4, fontFamily: 'sans-serif', lineHeight: 1.4 }}>{diagnoseResult.live_test.note}</div>
               )}
             </div>
           )}
@@ -1251,15 +1251,15 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
       )}
       {isOAuth && isActive && (
         <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
             {ACCOUNT_LABEL[connector.connector_type] || 'Account'}
           </span>
           {loadingAccounts ? (
-            <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</span>
+            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Loading…</span>
           ) : accounts && accounts.length === 0 && MANUAL_ENTRY_TYPES.includes(connector.connector_type) ? (
             <div style={{ display: 'flex', gap: 8, flex: 1 }}>
               <input
-                className="input" style={{ flex: 1, fontSize: 13, padding: '6px 10px' }}
+                className="input" style={{ flex: 1, fontSize: 'var(--fs-body)', padding: '6px 10px' }}
                 value={manualValue}
                 onChange={e => setManualValue(e.target.value)}
                 placeholder={MANUAL_PLACEHOLDER[connector.connector_type] || 'Enter ID'}
@@ -1268,11 +1268,11 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               <button onClick={handleManualSave} className="btn btn-secondary btn-sm">Save</button>
             </div>
           ) : accountsError ? (
-            <span style={{ fontSize: 12, color: 'var(--negative)' }} title={accountsError}>Error loading accounts — {accountsError.length > 80 ? accountsError.slice(0, 80) + '…' : accountsError}</span>
+            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)' }} title={accountsError}>Error loading accounts — {accountsError.length > 80 ? accountsError.slice(0, 80) + '…' : accountsError}</span>
           ) : accounts && accounts.length === 0 ? (
-            <span style={{ fontSize: 12, color: 'var(--negative)' }}>No accounts found — check OAuth permissions.</span>
+            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>No accounts found — check OAuth permissions.</span>
           ) : accounts ? (
-            <select className="input" style={{ flex: 1, fontSize: 13, padding: '6px 10px' }} value={selectedValue} onChange={handleAccountSelect}>
+            <select className="input" style={{ flex: 1, fontSize: 'var(--fs-body)', padding: '6px 10px' }} value={selectedValue} onChange={handleAccountSelect}>
               <option value="">— Select —</option>
               {accounts.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
             </select>
@@ -1289,10 +1289,10 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
   return (
     <div className="modal-backdrop">
       <div className="modal">
-        <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>{CONNECTOR_LABELS[connector.connector_type]} Credentials</h3>
-        {connector.store_label && <p style={{ margin: '0 0 16px', color: 'var(--text-subtle)', fontSize: 13 }}>{connector.store_label}</p>}
+        <h3 style={{ margin: '0 0 16px', fontSize: 'var(--fs-body)' }}>{CONNECTOR_LABELS[connector.connector_type]} Credentials</h3>
+        {connector.store_label && <p style={{ margin: '0 0 16px', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{connector.store_label}</p>}
         {isShopify && (
-          <p style={{ margin: '-8px 0 16px', fontSize: 12, color: 'var(--text-muted)', background: 'var(--surface-sunken)', padding: '10px 12px', borderRadius: 'var(--r-sm)', lineHeight: 1.5 }}>
+          <p style={{ margin: '-8px 0 16px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', background: 'var(--surface-sunken)', padding: '10px 12px', borderRadius: 'var(--r-sm)', lineHeight: 1.5 }}>
             Get the access token from your store admin: <strong>Settings → Apps → Develop apps → Create app → Configure scopes → Install → copy Admin API access token</strong> (starts with shpat_)
           </p>
         )}
@@ -1323,8 +1323,8 @@ function AddAnotherModal({ type, typeName, onConfirm, onClose }) {
   return (
     <div className="modal-backdrop">
       <div className="modal">
-        <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Add another {typeName}</h3>
-        <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-muted)' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 'var(--fs-body)' }}>Add another {typeName}</h3>
+        <p style={{ margin: '0 0 16px', fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>
           Give this account a short label to tell it apart (e.g. "B2C", "B2B", "UK site").
         </p>
         <Field label="Label">
@@ -1355,8 +1355,8 @@ function ShopifyModal({ onConfirm, onClose }) {
   return (
     <div className="modal-backdrop">
       <div className="modal">
-        <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Connect Shopify Store</h3>
-        <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-muted)' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 'var(--fs-body)' }}>Connect Shopify Store</h3>
+        <p style={{ margin: '0 0 16px', fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>
           Enter the store domain. You'll approve access in a Shopify popup.
         </p>
         <Field label="Store Domain">
@@ -1367,14 +1367,14 @@ function ShopifyModal({ onConfirm, onClose }) {
           />
         </Field>
         <div style={{ margin: '14px 0 0' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>
             <input type="checkbox" checked={useOwnApp} onChange={e => setUseOwnApp(e.target.checked)} />
             This client has their own Shopify app (different API Key)
           </label>
         </div>
         {useOwnApp && (
           <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <p style={{ margin: '0 0 4px', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            <p style={{ margin: '0 0 4px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5 }}>
               Create an app in <strong>Shopify Partners → Apps</strong> for this client's store. Paste the credentials below — they're encrypted and stored per-connector.
             </p>
             <Field label="API Key (Client ID)">
@@ -1402,7 +1402,7 @@ function ShopifyModal({ onConfirm, onClose }) {
 function Field({ label, children }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</label>
+      <label style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</label>
       {children}
     </div>
   );
@@ -1447,8 +1447,8 @@ function ConnectGoogleModal({ types, onOAuth, onDurable, onClose }) {
     return (
       <div className="modal-backdrop">
         <div className="modal">
-          <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>{CONNECTOR_LABELS[type]} — next step</h3>
-          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>{durable.grant}</p>
+          <h3 style={{ margin: '0 0 8px', fontSize: 'var(--fs-body)' }}>{CONNECTOR_LABELS[type]} — next step</h3>
+          <p style={{ margin: '0 0 14px', fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{durable.grant}</p>
           {type !== 'google_ads' && email && (
             <Field label="Service-account email">
               <div style={{ display: 'flex', gap: 8 }}>
@@ -1460,17 +1460,17 @@ function ConnectGoogleModal({ types, onOAuth, onDurable, onClose }) {
             </Field>
           )}
           {type === 'google_ads' && (
-            <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-muted)' }}>
+            <p style={{ margin: '0 0 12px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
               Manager account (MCC): <strong>{done.diagnose?.mcc_id || 'set GOOGLE_ADS_MCC_ID in Settings'}</strong>
             </p>
           )}
           {live && (
-            <p style={{ margin: '12px 0 0', fontSize: 12, color: liveColour, lineHeight: 1.5 }}>
+            <p style={{ margin: '12px 0 0', fontSize: 'var(--fs-caption)', color: liveColour, lineHeight: 1.5 }}>
               Live check: {live.status === 'ok' ? live.detail : (live.error || 'pending access')}
               {live.note ? ` — ${live.note}` : ''}
             </p>
           )}
-          <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+          <p style={{ margin: '12px 0 0', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
             Then choose the {accLabel} for this connector in the row below and run Diagnose to confirm.
           </p>
           <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
@@ -1485,8 +1485,8 @@ function ConnectGoogleModal({ types, onOAuth, onDurable, onClose }) {
     <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', padding: '10px 12px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: choice === value ? 'var(--surface-raised)' : 'transparent' }}>
       <input type="radio" name="authmode" checked={choice === value} onChange={() => setChoice(value)} style={{ marginTop: 2 }} />
       <span>
-        <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{title}</span>
-        <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>{sub}</span>
+        <span style={{ display: 'block', fontSize: 'var(--fs-body)', fontWeight: 600 }}>{title}</span>
+        <span style={{ display: 'block', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{sub}</span>
       </span>
     </label>
   );
@@ -1494,8 +1494,8 @@ function ConnectGoogleModal({ types, onOAuth, onDurable, onClose }) {
   return (
     <div className="modal-backdrop">
       <div className="modal">
-        <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Connect {types.length > 1 ? 'Google' : CONNECTOR_LABELS[type]}</h3>
-        <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 'var(--fs-body)' }}>Connect {types.length > 1 ? 'Google' : CONNECTOR_LABELS[type]}</h3>
+        <p style={{ margin: '0 0 14px', fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.5 }}>
           Choose how this connector authenticates. The durable path never expires; OAuth is one click but breaks when staff leave or passwords change.
         </p>
         {types.length > 1 && (

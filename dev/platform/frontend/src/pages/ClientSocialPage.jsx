@@ -802,16 +802,16 @@ function BrainstormTab({
               <span className="caption">{p.platform} · {p.kind}</span>
               <span className="body-xs text-subtle">#{i + 1}</span>
             </div>
-            <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
               {p.hook || cap.slice(0, 80) || '(no hook)'}
             </div>
             {cap && (
               <div className="body-xs text-subtle" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cap}</div>
             )}
             <div style={{ marginTop: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-              {p.framework && <span className="chip chip-neutral" style={{ fontSize: 9 }}>{p.framework}</span>}
-              {media.length > 0 && <span className="chip chip-accent" style={{ fontSize: 9 }}>{media.length} media</span>}
-              {p.status === 'published' && <span className="chip chip-success" style={{ fontSize: 9 }}>published</span>}
+              {p.framework && <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{p.framework}</span>}
+              {media.length > 0 && <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{media.length} media</span>}
+              {p.status === 'published' && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)' }}>published</span>}
             </div>
             <div className="row between center" style={{ gap: 8 }}>
               <span className="body-xs" style={{ color: 'var(--text)' }}>Open to edit →</span>
@@ -885,17 +885,17 @@ function BrainstormTab({
                   <div key={b.id} className="card" style={{ padding: 0, overflow: 'hidden', borderColor: open ? 'var(--accent)' : 'var(--card-border)' }}>
                     <div onClick={() => { if (!open) onSelectBatch(b.id); }}
                       style={{ cursor: open ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
-                      <span aria-hidden style={{ color: 'var(--text-subtle)', fontSize: 12 }}>{open ? '▾' : '▸'}</span>
+                      <span aria-hidden style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{open ? '▾' : '▸'}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 14 }}>
+                        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>
                           {new Date(b.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {b.post_count} posts
                         </div>
                         {b.brief && <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.brief}</div>}
                       </div>
-                      <button className="btn-inline-link" style={{ fontSize: 11, flex: '0 0 auto' }}
+                      <button className="btn-inline-link" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}
                         onClick={(e) => { e.stopPropagation(); onReuseBrief(b); goStep(1); }} title="Load this brief into a new batch">Reuse brief</button>
                       <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this batch and its posts?')) onDeleteBatch(b.id); }}
-                        title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
+                        title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 2 }}>✕</button>
                     </div>
                     {open && (
                       <div style={{ padding: '0 16px 16px' }}>
@@ -995,9 +995,9 @@ function ProdThumb({ it, onClick }) {
       style={{ aspectRatio: '1 / 1', background: 'var(--surface-sunken)', display: 'grid', placeItems: 'center', overflow: 'hidden', cursor: clickable ? 'pointer' : 'default', position: 'relative' }}>
       {it.thumb && !broken
         ? <img src={it.thumb} alt="" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span style={{ fontSize: 34 }}>{PROD_ICON[it.kind] || '📄'}</span>}
+        : <span style={{ fontSize: 'var(--fs-display)' }}>{PROD_ICON[it.kind] || '📄'}</span>}
       {clickable && it.kind !== 'image' && (
-        <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 30, color: 'rgba(0,0,0,0.55)' }}>▶</span>
+        <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 'var(--fs-section)', color: 'rgba(0,0,0,0.55)' }}>▶</span>
       )}
     </div>
   );
@@ -1064,12 +1064,12 @@ function ProduceBoard({ clientId, onOpenReels, onEditReel, onNext }) {
             return (
               <div key={it.key} className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <button onClick={() => del(it)} title="Delete asset"
-                  style={{ position: 'absolute', top: 6, right: 6, zIndex: 2, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>✕</button>
+                  style={{ position: 'absolute', top: 6, right: 6, zIndex: 2, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 'var(--fs-body)', lineHeight: 1 }}>✕</button>
                 <ProdThumb it={it} onClick={() => setPreview(it)} />
                 <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span className="chip" style={{ fontSize: 9, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{it.label}</span>
-                    <span className="chip" style={{ fontSize: 9, background: st.bg, color: st.fg }}>{st.label}</span>
+                    <span className="chip" style={{ fontSize: 'var(--fs-caption)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{it.label}</span>
+                    <span className="chip" style={{ fontSize: 'var(--fs-caption)', background: st.bg, color: st.fg }}>{st.label}</span>
                     {it.platform && <span className="body-xs text-subtle" style={{ textTransform: 'capitalize' }}>{it.platform}</span>}
                   </div>
                   <div className="body-sm" style={{ fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{it.title}</div>
@@ -1092,7 +1092,7 @@ function ProduceBoard({ clientId, onOpenReels, onEditReel, onNext }) {
         <div className="modal-backdrop" onClick={() => setPreview(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
             <div className="modal-head">
-              <h2 className="h2" style={{ fontSize: 15 }}>{preview.title}</h2>
+              <h2 className="h2" style={{ fontSize: 'var(--fs-body)' }}>{preview.title}</h2>
               <button type="button" className="modal-close" onClick={() => setPreview(null)}>×</button>
             </div>
             {preview.kind === 'image'
@@ -1121,14 +1121,14 @@ function BatchRail({ batches, activeBatchId, onSelectBatch, onDeleteBatch, onReu
           <div key={b.id} className="card" style={{ padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderColor: b.id === activeBatchId ? 'var(--accent)' : 'var(--card-border)' }}
             onClick={() => onSelectBatch(b.id)} title="Open this batch in Review">
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>
                 {new Date(b.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {b.post_count} posts
               </div>
               {b.brief && <div className="body-xs text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.brief}</div>}
             </div>
-            <button onClick={(e) => { e.stopPropagation(); onReuseBrief(b); }} className="btn-inline-link" style={{ fontSize: 11, flex: '0 0 auto' }} title="Load this brief into the form">Reuse</button>
+            <button onClick={(e) => { e.stopPropagation(); onReuseBrief(b); }} className="btn-inline-link" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }} title="Load this brief into the form">Reuse</button>
             <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this batch and its posts?')) onDeleteBatch(b.id); }}
-              title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 13, lineHeight: 1, padding: 2 }}>✕</button>
+              title="Delete batch" style={{ flex: '0 0 auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 2 }}>✕</button>
           </div>
         ))}
       </div>
@@ -1208,8 +1208,8 @@ function EditableText({ label, value, multiline, placeholder, onSave }) {
         </div>
       ) : (
         multiline
-          ? <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{value || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
-          : <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>{value || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
+          ? <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.5, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{value || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
+          : <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, lineHeight: 1.4 }}>{value || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
       )}
     </div>
   );
@@ -1316,22 +1316,22 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div style={{ background: 'white', borderRadius: 'var(--r-sm)', width: 720, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>Bulk schedule {selected.size} of {posts.length} posts</h2>
-          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
+          <h2 style={{ margin: 0, fontSize: 'var(--fs-title)' }}>Bulk schedule {selected.size} of {posts.length} posts</h2>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-title)', cursor: 'pointer' }}>×</button>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 14 }}>
           Each ticked post becomes its own plan. The autopilot picks them up one per scheduled slot — fetches captions, reads the Drive folder, posts to the platforms below.
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Posts</div>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Posts</div>
           <div style={{ maxHeight: 200, overflow: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
             {posts.map(p => (
-              <label key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', fontSize: 12 }}>
+              <label key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', fontSize: 'var(--fs-caption)' }}>
                 <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} style={{ marginTop: 2 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{p.hook || p.caption?.slice(0, 60) || '(no hook)'}</div>
-                  <div style={{ color: 'var(--text-subtle)', fontSize: 11 }}>{p.platform} · {p.kind}{p.framework ? ` · ${p.framework}` : ''}</div>
+                  <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{p.platform} · {p.kind}{p.framework ? ` · ${p.framework}` : ''}</div>
                 </div>
               </label>
             ))}
@@ -1340,31 +1340,31 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 14, marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Target platforms</div>
+            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Target platforms</div>
             <div style={{ display: 'flex', gap: 12 }}>
               {['instagram','facebook','linkedin'].map(p => (
-                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', textTransform: 'capitalize' }}>
+                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-caption)', cursor: 'pointer', textTransform: 'capitalize' }}>
                   <input type="checkbox" checked={targetPlatforms.includes(p)} onChange={() => togglePlatform(p)} /> {p}
                 </label>
               ))}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Drive folder URL (shared)</div>
+            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Drive folder URL (shared)</div>
             <input type="text" value={driveFolderUrl} onChange={e => setDriveFolderUrl(e.target.value)}
               placeholder="https://drive.google.com/drive/folders/…"
-              style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }} />
+              style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: 14, marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Days of week</div>
+            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Days of week</div>
             <div style={{ display: 'flex', gap: 4 }}>
               {dayLabels.map((label, i) => (
                 <button key={i} type="button" onClick={() => toggleDay(i)}
                   style={{
-                    flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 600,
+                    flex: 1, padding: '6px 0', fontSize: 'var(--fs-caption)', fontWeight: 600,
                     background: daysOfWeek.includes(i) ? 'var(--text)' : 'white',
                     color: daysOfWeek.includes(i) ? 'white' : 'var(--text-muted)',
                     border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer',
@@ -1374,19 +1374,19 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Start date</div>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Start date</div>
               <input type="date" value={startAt} onChange={e => setStartAt(e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }} />
+                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Time</div>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Time</div>
               <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }} />
+                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }} />
             </div>
           </div>
         </div>
 
-        {error && <div style={{ padding: '8px 12px', background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 12, borderRadius: 'var(--r-sm)', marginBottom: 12 }}>{error}</div>}
+        {error && <div style={{ padding: '8px 12px', background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)', marginBottom: 12 }}>{error}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
@@ -1433,9 +1433,9 @@ function HookVaultList({ clientId, onUse }) {
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search hooks…"
-          style={{ flex: 1, padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 13 }} />
+          style={{ flex: 1, padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)' }} />
         <select value={framework} onChange={e => setFramework(e.target.value)}
-          style={{ padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
+          style={{ padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>
           <option value="">All frameworks</option>
           <option value="Hook-Story-Offer">Hook-Story-Offer</option>
           <option value="AIDA">AIDA</option>
@@ -1444,9 +1444,9 @@ function HookVaultList({ clientId, onUse }) {
         </select>
       </div>
       {loading ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 12 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 'var(--fs-caption)' }}>Loading…</div>
       ) : !hooks.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 12 }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 'var(--fs-caption)' }}>
           No hooks yet. Generate a brainstorm batch — every hook you save lands here.
         </div>
       ) : (
@@ -1454,8 +1454,8 @@ function HookVaultList({ clientId, onUse }) {
           {hooks.map((h, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
               <div style={{ flex: 1, marginRight: 12 }}>
-                <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3, display: 'flex', gap: 8 }}>
+                <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 3, display: 'flex', gap: 8 }}>
                   {h.framework && <span>{h.framework}</span>}
                   <span>·</span>
                   <span>{h.platform} / {h.kind}</span>
@@ -1464,7 +1464,7 @@ function HookVaultList({ clientId, onUse }) {
                 </div>
               </div>
               <button type="button" onClick={() => onUse(h.hook)}
-                style={{ background: 'var(--text)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                style={{ background: 'var(--text)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', padding: '6px 14px', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 Use this →
               </button>
             </div>
@@ -1481,10 +1481,10 @@ function HookVaultModal({ clientId, onClose, onUse }) {
       <div style={{ background: 'white', borderRadius: 'var(--r-sm)', width: 760, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 18 }}>Hook Vault</h2>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Every hook this client has used, sorted by best reach.</div>
+            <h2 style={{ margin: 0, fontSize: 'var(--fs-title)' }}>Hook Vault</h2>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginTop: 4 }}>Every hook this client has used, sorted by best reach.</div>
           </div>
-          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-title)', cursor: 'pointer' }}>×</button>
         </div>
         <HookVaultList clientId={clientId} onUse={onUse} />
       </div>
@@ -1615,14 +1615,14 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
       </div>
     <div style={{ marginBottom: 22, padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Locked plans
         </div>
         <div style={{ display: 'flex', gap: 0, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
           {['list', 'calendar'].map(v => (
             <button key={v} type="button" onClick={() => setView(v)}
               style={{
-                padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                padding: '4px 10px', fontSize: 'var(--fs-caption)', fontWeight: 600,
                 background: view === v ? 'var(--text)' : 'white',
                 color: view === v ? 'white' : 'var(--text-muted)',
                 border: 'none', cursor: 'pointer', textTransform: 'capitalize',
@@ -1643,7 +1643,7 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
           const hasEng = Number(eng.likes || 0) + Number(eng.comments || 0) + Number(eng.shares || 0) > 0;
           return (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-              <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, color: 'var(--text)' }}>
+              <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 'var(--fs-body)', fontWeight: 600, padding: 0, color: 'var(--text)' }}>
                 {p.title || '(untitled)'}
               </button>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -1653,19 +1653,19 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
                   const icon = pub.status === 'posted' ? '✓' : pub.status === 'failed' ? '✗' : '·';
                   return (
                     <span key={pub.platform} title={pub.error_message || pub.posted_url || pub.status}
-                          style={{ fontSize: 11, color: colour, background: bg, padding: '2px 6px', borderRadius: 'var(--r-sm)', textTransform: 'capitalize' }}>
+                          style={{ fontSize: 'var(--fs-caption)', color: colour, background: bg, padding: '2px 6px', borderRadius: 'var(--r-sm)', textTransform: 'capitalize' }}>
                       {icon} {pub.platform}
                     </span>
                   );
                 })}
                 {hasEng && (
-                  <span style={{ fontSize: 11, color: 'var(--text)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)' }}>
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)' }}>
                     {eng.reach ? `${formatNum(eng.reach)} reach · ` : ''}{formatNum(eng.likes)} ♡ · {formatNum(eng.comments)} 💬{eng.shares ? ` · ${formatNum(eng.shares)} ↗` : ''}
                   </span>
                 )}
                 {p.scheduled_at && !pubs.some(x => x.status === 'posted') && editingPlanId !== p.id && (
                   <button type="button" onClick={() => beginEdit(p)}
-                    style={{ fontSize: 11, color: 'var(--text)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
+                    style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer' }}
                     title="Click to reschedule">
                     ⏰ {new Date(p.scheduled_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                     {p.target_platforms?.length ? ` · ${p.target_platforms.join(', ')}` : ''}
@@ -1674,21 +1674,21 @@ function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
                 {editingPlanId === p.id && (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <input type="datetime-local" value={editDraft} onChange={e => setEditDraft(e.target.value)}
-                      style={{ fontSize: 11, padding: '2px 4px', border: '1px solid #1a56db', borderRadius: 'var(--r-sm)' }} />
+                      style={{ fontSize: 'var(--fs-caption)', padding: '2px 4px', border: '1px solid #1a56db', borderRadius: 'var(--r-sm)' }} />
                     <button type="button" onClick={() => saveEdit(p.id)} disabled={savingEdit}
-                      style={{ fontSize: 11, padding: '2px 8px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+                      style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button type="button" onClick={() => setEditingPlanId(null)}
-                      style={{ fontSize: 11, padding: '2px 8px', background: 'white', color: 'var(--text-muted)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+                      style={{ fontSize: 'var(--fs-caption)', padding: '2px 8px', background: 'white', color: 'var(--text-muted)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
                       Cancel
                     </button>
                   </span>
                 )}
-                <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
-                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ PDF</button>
-                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ Word</button>
-                <button type="button" onClick={() => deletePlan(p.id)} title="Delete plan" style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--negative)', cursor: 'pointer' }}>✕</button>
+                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
+                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>↓ PDF</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', cursor: 'pointer' }}>↓ Word</button>
+                <button type="button" onClick={() => deletePlan(p.id)} title="Delete plan" style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 'var(--fs-caption)', color: 'var(--negative)', cursor: 'pointer' }}>✕</button>
               </div>
             </div>
           );
@@ -1734,19 +1734,19 @@ function PlansCalendar({ plans, onOpen }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>← Prev</button>
-        <div style={{ fontWeight: 700, fontSize: 13 }}>{monthLabel}</div>
-        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Next →</button>
+        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>← Prev</button>
+        <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>{monthLabel}</div>
+        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 'var(--fs-caption)', cursor: 'pointer' }}>Next →</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
-          <div key={d} style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', textAlign: 'center', padding: '4px 0' }}>{d}</div>
+          <div key={d} style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', textAlign: 'center', padding: '4px 0' }}>{d}</div>
         ))}
         {cells.map((cell, i) => (
           <div key={i} style={{ minHeight: 70, background: cell ? 'white' : 'transparent', border: cell ? '1px solid #eee' : 'none', borderRadius: 'var(--r-sm)', padding: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
             {cell && (
               <>
-                <div style={{ fontSize: 10, color: 'var(--text-subtle)', textAlign: 'right' }}>{cell.getDate()}</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textAlign: 'right' }}>{cell.getDate()}</div>
                 {(byDay.get(cell.getDate()) || []).map(p => {
                   const pubs = Array.isArray(p.publications) ? p.publications : [];
                   const allPosted = pubs.length > 0 && pubs.every(x => x.status === 'posted');
@@ -1757,7 +1757,7 @@ function PlansCalendar({ plans, onOpen }) {
                   return (
                     <button key={p.id} type="button" onClick={() => onOpen(p.id)}
                       title={p.title || '(untitled)'}
-                      style={{ background: bg, color: fg, border: 'none', borderRadius: 'var(--r-sm)', padding: '3px 5px', fontSize: 10, fontWeight: 600, textAlign: 'left', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      style={{ background: bg, color: fg, border: 'none', borderRadius: 'var(--r-sm)', padding: '3px 5px', fontSize: 'var(--fs-caption)', fontWeight: 600, textAlign: 'left', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {t} · {(p.title || '').slice(0, 22)}
                     </button>
                   );
@@ -1800,7 +1800,7 @@ function CompetitorEditor({ competitors, onSave }) {
         {competitors.map(c => (
           <span key={c} className="chip chip-outline" style={{ fontFamily: 'monospace' }}>
             {c}
-            {editing && <button onClick={() => remove(c)} className="btn-ghost" style={{ fontSize: 14, padding: '0 2px' }}>×</button>}
+            {editing && <button onClick={() => remove(c)} className="btn-ghost" style={{ fontSize: 'var(--fs-body)', padding: '0 2px' }}>×</button>}
           </span>
         ))}
         {editing && (
@@ -1810,7 +1810,7 @@ function CompetitorEditor({ competitors, onSave }) {
               onChange={e => setDraft(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
               placeholder="instagram:handle"
-              style={{ padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+              style={{ padding: '6px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
             />
             <button onClick={add} className="btn btn-secondary btn-sm">Add</button>
             <button onClick={() => setEditing(false)} className="btn btn-primary btn-sm">Done</button>
@@ -1872,7 +1872,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
         {/* LEFT — the brief, given room to write */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <label style={modalStyles.label}>Brief</label>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
             Optional — the more specific you are, the more useful the output. Examples: "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy." Leave empty for a balanced batch.
           </p>
           <textarea value={brief} onChange={e => setBrief(e.target.value)}
@@ -1906,7 +1906,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
               </button>
             ))}
           </div>
-          <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0' }}>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '6px 0 0' }}>
             {length === 'short' ? 'Punchy captions, 1–2 lines.' : length === 'long' ? 'Detailed, storytelling captions.' : 'A short paragraph per post.'}
           </p>
           <label style={modalStyles.label}>Platforms</label>
@@ -1927,7 +1927,7 @@ function BriefForm({ clientId, brief, setBrief, platforms, setPlatforms, count =
               </button>
               {uploads.map(u => <span key={u.id} style={modalStyles.pill}>{u.kind === 'b_roll_clip' ? '🎬' : '🖼'} {u.name.slice(0, 22)}</span>)}
             </div>
-            <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0', lineHeight: 1.5 }}>
+            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: '6px 0 0', lineHeight: 1.5 }}>
               Reference images/clips are saved to this client's brand assets and used to ground the generated posts.
             </p>
           </>)}
@@ -1953,17 +1953,17 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
   return (
     <div style={{ background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '10px 14px', marginTop: 10, marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: sounds.length ? 8 : 0 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Trending TikTok sounds
         </span>
-        <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+        <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
           {sounds.length ? `${sounds.length} cached` : '(none pulled yet — click Refresh)'}
         </span>
-        <button {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', borderRadius: 'var(--r-pill)', cursor: 'pointer' }}>
+        <button {...roWrite(readOnly, { onClick: onRefresh, disabled: refreshing })} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', borderRadius: 'var(--r-pill)', cursor: 'pointer' }}>
           {refreshing ? 'Pulling…' : 'Refresh'}
         </button>
         {sounds.length > 5 && (
-          <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 11 }}>
+          <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--fs-caption)' }}>
             {open ? 'collapse' : `show all ${sounds.length}`}
           </button>
         )}
@@ -1972,10 +1972,10 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {visible.map((s, i) => (
             <a key={s.id || i} href={s.tiktok_url || '#'} target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, padding: '4px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
+              style={{ fontSize: 'var(--fs-caption)', padding: '4px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
               title={`${s.title} — ${s.author || 'unknown'}`}>
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
-              {s.use_count && <span style={{ color: 'var(--text-subtle)', fontSize: 10 }}>{s.use_count.toLocaleString()}</span>}
+              {s.use_count && <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>{s.use_count.toLocaleString()}</span>}
             </a>
           ))}
         </div>
@@ -1991,11 +1991,11 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
   return (
     <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: '12px 14px', borderRadius: 'var(--r-sm)', marginTop: 10, marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Top performers — last 90 days
         </div>
         {reachSeries.length > 1 && (
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 11, color: 'var(--warning)' }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--warning)' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span style={{ color: 'var(--text-subtle)' }}>Reach 30d</span>
               <Sparkline values={reachSeries} width={90} height={22} />
@@ -2010,7 +2010,7 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
       {frameworkBreakdown?.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {frameworkBreakdown.map(b => (
-            <span key={b.framework} style={{ fontSize: 11, padding: '3px 10px', background: 'var(--surface)', border: '1px solid #f0d260', borderRadius: 'var(--r-pill)', color: 'var(--warning)' }}>
+            <span key={b.framework} style={{ fontSize: 'var(--fs-caption)', padding: '3px 10px', background: 'var(--surface)', border: '1px solid #f0d260', borderRadius: 'var(--r-pill)', color: 'var(--warning)' }}>
               <strong>{b.framework}</strong>: {b.avg_engagement_rate}% engagement
               <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>({b.posts} post{b.posts === 1 ? '' : 's'})</span>
             </span>
@@ -2021,16 +2021,16 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
         {winners.map(w => (
           <a key={w.id} href={w.published_url} target="_blank" rel="noreferrer" style={{ display: 'block', flex: '1 1 220px', minWidth: 220, padding: 10, background: 'var(--surface)', border: '1px solid #f0e0a0', borderRadius: 'var(--r-sm)', textDecoration: 'none', color: 'inherit', position: 'relative' }}>
             {w.is_heater && (
-              <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 6px', background: 'var(--negative)', color: 'white', borderRadius: 'var(--r-sm)', letterSpacing: 0.5 }}>🔥 HEATER</span>
+              <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 'var(--fs-caption)', fontWeight: 700, padding: '2px 6px', background: 'var(--negative)', color: 'white', borderRadius: 'var(--r-sm)', letterSpacing: 0.5 }}>🔥 HEATER</span>
             )}
-            <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{w.platform} · {w.kind}</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: '4px 0', lineHeight: 1.3, paddingRight: w.is_heater ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{(w.caption || '').slice(0, 110)}…</div>
-            <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: 'var(--warning)' }}>{w.engagement_rate}% engagement</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{w.platform} · {w.kind}</div>
+            <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text)', margin: '4px 0', lineHeight: 1.3, paddingRight: w.is_heater ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.4 }}>{(w.caption || '').slice(0, 110)}…</div>
+            <div style={{ marginTop: 6, fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--warning)' }}>{w.engagement_rate}% engagement</div>
           </a>
         ))}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>The next batch you generate will model these. 🔥 Heater = 2× the 30-day median reach.</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 8 }}>The next batch you generate will model these. 🔥 Heater = 2× the 30-day median reach.</div>
     </div>
   );
 }
@@ -2053,20 +2053,20 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
         </button>
       </div>
       {top.length === 0 ? (
-        <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No scrape yet. Sunday's cron will populate this, or click Refresh now.</div>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No scrape yet. Sunday's cron will populate this, or click Refresh now.</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
           {top.map(p => (
             <a key={p.id} href={p.post_url} target="_blank" rel="noreferrer"
               style={{ display: 'block', padding: 10, background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', textDecoration: 'none', color: 'inherit' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
                 <span>@{p.handle} · {p.platform}</span>
                 {p.view_count && <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>{formatNum(p.view_count)}</span>}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text)', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>
                 {p.hook || (p.caption || '').slice(0, 80) || '(no caption)'}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                 {p.likes_count ? `${formatNum(p.likes_count)} ♡` : ''}
                 {p.likes_count && p.comments_count ? ' · ' : ''}
                 {p.comments_count ? `${formatNum(p.comments_count)} 💬` : ''}
@@ -2075,7 +2075,7 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
           ))}
         </div>
       )}
-      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>Scraped weekly. Hooks here feed into the next batch's prompt as exemplars.</div>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 8 }}>Scraped weekly. Hooks here feed into the next batch's prompt as exemplars.</div>
     </div>
   );
 }
@@ -2112,7 +2112,7 @@ function ExamplePostCard() {
         <span className="chip chip-outline">PAS</span>
       </div>
       <div className="field">HOOK</div>
-      <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3 }}>POV: your living room finally feels finished</div>
+      <div style={{ fontSize: 'var(--fs-title)', fontWeight: 700, lineHeight: 1.3 }}>POV: your living room finally feels finished</div>
       <div className="field" style={{ marginTop: 8 }}>CAPTION</div>
       <div className="body-sm">The linen two-seater in Oatmeal — handmade in the UK, delivered in 4 weeks. Swipe to see it styled three ways. 🛋️</div>
       <div className="field" style={{ marginTop: 8 }}>HASHTAGS</div>
@@ -2161,11 +2161,11 @@ function ExampleCompetitors() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
       {posts.map((p, i) => (
         <div key={i} className="card" style={{ padding: 10 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
             <span>@{p.handle} · {p.platform}</span>
             <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>{p.views}</span>
           </div>
-          <div style={{ fontSize: 12, margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>{p.hook}</div>
+          <div style={{ fontSize: 'var(--fs-caption)', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>{p.hook}</div>
         </div>
       ))}
     </div>
@@ -2192,9 +2192,9 @@ function StyleBadge({ code, duration }) {
       <span style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         width: 22, height: 22, borderRadius: 'var(--r-sm)', background: c.bg, color: c.fg,
-        fontSize: 11, fontWeight: 700,
+        fontSize: 'var(--fs-caption)', fontWeight: 700,
       }}>{code}</span>
-      <span style={{ fontSize: 10, color: 'var(--text-subtle)', fontWeight: 600 }}>
+      <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 600 }}>
         {c.label}{duration ? ` · ${duration}s` : ''}
       </span>
     </span>
@@ -2205,13 +2205,13 @@ function ShareLinkBanner({ url, onDismiss }) {
   const [copied, setCopied] = useState(false);
   return (
     <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 'var(--r-sm)', marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-      <strong style={{ fontSize: 12, color: 'var(--positive)' }}>Approval link ready —</strong>
-      <input value={url} readOnly style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
+      <strong style={{ fontSize: 'var(--fs-caption)', color: 'var(--positive)' }}>Approval link ready —</strong>
+      <input value={url} readOnly style={{ flex: 1, padding: '4px 8px', fontSize: 'var(--fs-caption)', border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
       <button onClick={() => { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-        style={{ padding: '4px 12px', fontSize: 11, background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+        style={{ padding: '4px 12px', fontSize: 'var(--fs-caption)', background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
         {copied ? 'Copied' : 'Copy'}
       </button>
-      <button onClick={onDismiss} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--positive)' }}>×</button>
+      <button onClick={onDismiss} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--positive)' }}>×</button>
     </div>
   );
 }
@@ -2263,11 +2263,11 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <span className="chip chip-neutral" style={{ fontSize: 10 }}>{post.platform}</span>
-          <span className="chip chip-neutral" style={{ fontSize: 10 }}>{post.kind}</span>
-          <span className="chip chip-neutral" style={{ fontSize: 10 }}>{post.status}</span>
+          <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{post.platform}</span>
+          <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{post.kind}</span>
+          <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{post.status}</span>
         </div>
-        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', fontSize: 18, lineHeight: 1 }}>×</button>
+        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', fontSize: 'var(--fs-title)', lineHeight: 1 }}>×</button>
       </div>
 
       <EditableText label="HOOK" value={post.hook} onSave={v => onChange({ hook: v })} />
@@ -2275,7 +2275,7 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
 
       {(post.hashtags || []).length > 0 && (
         <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', columnGap: 6, rowGap: 2 }}>
-          {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 11 }}>#{h.replace(/^#/, '')}</span>)}
+          {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 'var(--fs-caption)' }}>#{h.replace(/^#/, '')}</span>)}
         </div>
       )}
 
@@ -2286,21 +2286,21 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
               <a href={u} target="_blank" rel="noreferrer">
                 <img src={u} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--card-border)" }} />
               </a>
-              <a href={u} download target="_blank" rel="noreferrer" style={{ fontSize: 10, color: 'var(--text)', fontWeight: 700 }}>↓</a>
+              <a href={u} download target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>↓</a>
             </div>
           ))}
         </div>
       )}
 
       {engagement && (
-        <div style={{ marginTop: 10, padding: '6px 10px', background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 'var(--r-sm)', fontSize: 11, color: 'var(--warning)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 10, padding: '6px 10px', background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--warning)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {engagement.reach != null && <span><strong>{engagement.reach.toLocaleString()}</strong> reach</span>}
           {engagement.views != null && <span><strong>{engagement.views.toLocaleString()}</strong> views</span>}
           {engagement.likes != null && <span><strong>{engagement.likes.toLocaleString()}</strong> likes</span>}
           {engagement.comments != null && <span><strong>{engagement.comments.toLocaleString()}</strong> comments</span>}
           {engagement.shares != null && <span><strong>{engagement.shares.toLocaleString()}</strong> shares</span>}
           {engagement.saves != null && <span><strong>{engagement.saves.toLocaleString()}</strong> saves</span>}
-          <button {...roWrite(readOnly, { onClick: onRefreshInsights })} style={{ background: 'none', border: 'none', color: 'var(--warning)', textDecoration: 'underline', cursor: 'pointer', fontSize: 11, padding: 0 }}>refresh</button>
+          <button {...roWrite(readOnly, { onClick: onRefreshInsights })} style={{ background: 'none', border: 'none', color: 'var(--warning)', textDecoration: 'underline', cursor: 'pointer', fontSize: 'var(--fs-caption)', padding: 0 }}>refresh</button>
         </div>
       )}
 
@@ -2310,18 +2310,18 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
             <div key={v.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ position: 'relative' }}>
                 <video src={v.url} controls style={{ width: 180, borderRadius: 'var(--r-sm)', background: '#000' }} />
-                <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
+                <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>×</button>
               </div>
-              <a href={v.url} download target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--text)', fontWeight: 700 }}>↓ Download</a>
+              <a href={v.url} download target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>↓ Download</a>
             </div>
           ))}
           {audios.map(a => (
             <div key={a.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 220 }}>
               <div style={{ position: 'relative' }}>
                 <audio src={a.url} controls style={{ width: '100%' }} />
-                <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
+                <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>×</button>
               </div>
-              <a href={a.url} download target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--text)', fontWeight: 700 }}>↓ Download</a>
+              <a href={a.url} download target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700 }}>↓ Download</a>
             </div>
           ))}
         </div>
@@ -2399,10 +2399,10 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
 
       {showPublish && (
         <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 6, lineHeight: 1.5 }}>
             Paste the live Instagram, TikTok or LinkedIn URL once it's published. We'll pull engagement automatically (IG only — paste numbers manually for other networks via Edit).
           </div>
-          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', marginBottom: 8 }} />
+          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', marginBottom: 8 }} />
           <button {...roWrite(readOnly, { onClick: () => { onPublish(publishUrl); setShowPublish(false); setPublishUrl(''); }, disabled: !publishUrl.trim() })}
             className="btn btn-primary btn-sm">
             Save & pull insights
@@ -2413,36 +2413,36 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
       {open && (
         <div style={{ marginTop: 10, borderTop: '1px solid #eee', paddingTop: 10 }}>
           <div className="caption mb-2">VISUAL CONCEPT</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 10 }}>{post.visual_concept}</div>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 10 }}>{post.visual_concept}</div>
           <div className="caption mb-2">STORYBOARD</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-caption)' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Style</th>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">#</th>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Shot</th>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">On-screen</th>
-                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Voiceover</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Style</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">#</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Shot</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">On-screen</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Voiceover</th>
               </tr>
             </thead>
             <tbody>
               {(post.storyboard || []).map((f, i) => (
                 <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>
                     {f.style ? <StyleBadge code={f.style} duration={f.duration_sec} /> : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
                   </td>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.frame ?? i + 1}</td>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.shot}</td>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.on_screen_text || ''}</td>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>{f.frame ?? i + 1}</td>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>{f.shot}</td>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>{f.on_screen_text || ''}</td>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 'var(--fs-caption)', lineHeight: 1.4 }}>
                     {f.voiceover || ''}
-                    {f.delivery && <div style={{ marginTop: 4, fontSize: 10, color: 'var(--text)', fontStyle: 'italic' }}>🎬 {f.delivery}</div>}
+                    {f.delivery && <div style={{ marginTop: 4, fontSize: 'var(--fs-caption)', color: 'var(--text)', fontStyle: 'italic' }}>🎬 {f.delivery}</div>}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {post.notes && <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-subtle)', fontStyle: 'italic' }}>{post.notes}</div>}
+          {post.notes && <div style={{ marginTop: 8, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>{post.notes}</div>}
         </div>
       )}
 
@@ -2463,9 +2463,9 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
             value={styleBrief}
             onChange={e => setStyleBrief(e.target.value)}
             placeholder="Style brief — e.g. Josef Müller-Brockmann style"
-            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '6px 10px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
           />
-          {err && <div style={{ color: 'var(--negative)', fontSize: 11, marginBottom: 6 }}>{err}</div>}
+          {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 6 }}>{err}</div>}
           <button {...roWrite(readOnly, { onClick: generateImage, disabled: generating })} className="btn btn-primary btn-sm">
             {generating ? 'Rendering…' : `Render with ${provider}`}
           </button>
@@ -2481,9 +2481,9 @@ function PostCard({ post, clientId, engagement, media, onChange, onDelete, onPub
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  label: { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
-  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
-  pill: { padding: '5px 12px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 'var(--r-pill)', textTransform: 'capitalize' },
-  pillOn: { padding: '5px 12px', fontSize: 12, border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: 700, textTransform: 'capitalize' },
+  label: { display: 'block', fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
+  textarea: { width: '100%', padding: '8px 10px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  pill: { padding: '5px 12px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 'var(--r-pill)', textTransform: 'capitalize' },
+  pillOn: { padding: '5px 12px', fontSize: 'var(--fs-caption)', border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: 700, textTransform: 'capitalize' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
 };

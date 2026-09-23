@@ -294,7 +294,7 @@ function AccordionItem({ section, isOpen, onToggle }) {
           <div className="h3">{section.title}</div>
           <div className="body-sm text-muted mt-2">{section.summary}</div>
         </div>
-        <span className="text-muted" style={{ fontSize: 18, flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
+        <span className="text-muted" style={{ fontSize: 'var(--fs-title)', flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
       </button>
       {isOpen && (
         <div style={{ padding: '4px 20px 20px', borderTop: 'var(--border-w) solid var(--card-border)' }}>
@@ -316,7 +316,7 @@ function AccordionItem({ section, isOpen, onToggle }) {
 function WorkflowDiagram({ workflow }) {
   return (
     <div style={{ margin: '10px 0 14px', padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
         Workflow — {workflow.title}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 6 }}>
@@ -328,13 +328,13 @@ function WorkflowDiagram({ workflow }) {
               display: 'flex', flexDirection: 'column', gap: 4,
             }}>
               <div style={{
-                fontSize: 9, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5,
+                fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5,
               }}>Step {i + 1}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{step.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{step.sub}</div>
+              <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{step.label}</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', lineHeight: 1.4 }}>{step.sub}</div>
             </div>
             {i < workflow.steps.length - 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-subtle)', fontSize: 18, flexShrink: 0 }}>→</div>
+              <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-subtle)', fontSize: 'var(--fs-title)', flexShrink: 0 }}>→</div>
             )}
           </React.Fragment>
         ))}
@@ -352,6 +352,6 @@ function bolden(s) {
 }
 
 const chip = {
-  padding: '5px 12px', fontSize: 11, border: 'var(--border-w) solid var(--card-border)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
+  padding: '5px 12px', fontSize: 'var(--fs-caption)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
   cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: 600,
 };

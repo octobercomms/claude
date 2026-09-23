@@ -105,7 +105,7 @@ export default function AiSeoPanel({ clientId }) {
                   <tr key={k.id}>
                     <td style={{ fontWeight: 700, color: 'var(--text-subtle)' }}>{k.priority}</td>
                     <td style={{ fontWeight: 600 }}>{k.keyword}</td>
-                    <td><span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, color: INTENT_COLOR[k.intent] || 'var(--text-subtle)' }}>{k.intent || '—'}</span></td>
+                    <td><span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, color: INTENT_COLOR[k.intent] || 'var(--text-subtle)' }}>{k.intent || '—'}</span></td>
                     <td className="body-sm text-muted">{k.rationale || '—'}</td>
                   </tr>
                 ))}
@@ -134,7 +134,7 @@ export default function AiSeoPanel({ clientId }) {
                 <div key={s.id} className="card" style={{ padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ textAlign: 'center', minWidth: 44 }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: scoreColor(s.score) }}>{s.score ?? '—'}</div>
+                      <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, color: scoreColor(s.score) }}>{s.score ?? '—'}</div>
                       <div className="body-xs text-subtle">fit</div>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>

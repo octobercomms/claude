@@ -93,7 +93,7 @@ function Library({ clientId, onOpen, embedded = false }) {
                 <div style={{ padding: 12 }}>
                   <div className="strong" style={{ marginBottom: 4 }}>{p.name}</div>
                   <div className="row between center">
-                    <span style={{ color: st.tone, fontWeight: 700, fontSize: 12 }}>{st.label}</span>
+                    <span style={{ color: st.tone, fontWeight: 700, fontSize: 'var(--fs-caption)' }}>{st.label}</span>
                     <span className="text-subtle body-xs">{p.variant_count || 0} variant{p.variant_count === 1 ? '' : 's'} · {fmt(p.created_at)}</span>
                   </div>
                   {p.created_by_name && <div className="text-subtle body-xs mt-1">by {p.created_by_name}</div>}
@@ -317,7 +317,7 @@ function Studio({ clientId, projectId, onBack }) {
                   <button key={s.id} onClick={() => setActive(variant.id, s.id)} title={s.kind === 'correction' ? (s.instruction || 'fix') : 'generation'}
                     style={{ flex: '0 0 auto', border: '2px solid ' + (s.id === activeId ? 'var(--accent)' : 'var(--card-border)'), borderRadius: 8, padding: 0, background: 'none', cursor: 'pointer', position: 'relative', lineHeight: 0 }}>
                     <img src={s.image_url} alt="" style={{ width: 66, height: 88, objectFit: 'cover', display: 'block', borderRadius: 6 }} />
-                    <span style={{ position: 'absolute', bottom: 3, left: 3, background: s.kind === 'correction' ? 'var(--accent)' : 'rgba(0,0,0,.6)', color: s.kind === 'correction' ? 'var(--accent-on)' : '#fff', fontSize: 8, fontWeight: 800, borderRadius: 3, padding: '0 4px' }}>{s.kind === 'correction' ? 'FIX' : 'GEN'}</span>
+                    <span style={{ position: 'absolute', bottom: 3, left: 3, background: s.kind === 'correction' ? 'var(--accent)' : 'rgba(0,0,0,.6)', color: s.kind === 'correction' ? 'var(--accent-on)' : '#fff', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 3, padding: '0 4px' }}>{s.kind === 'correction' ? 'FIX' : 'GEN'}</span>
                   </button>
                 ))}
               </div>
@@ -334,7 +334,7 @@ function Studio({ clientId, projectId, onBack }) {
                     <div className="caption">Finish — lock the approved image, then export 4K</div>
                     <div className="row center" style={{ gap: 8 }}>
                       {variant.locked_step_id === activeStep.id
-                        ? <span className="chip chip-accent" style={{ fontSize: 11 }}>✓ Locked</span>
+                        ? <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>✓ Locked</span>
                         : <button className="btn btn-secondary btn-sm" onClick={() => lock(activeStep.id)}>🔒 Lock this</button>}
                       <button className="btn btn-primary btn-sm" onClick={doExport} disabled={!variant.locked_step_id || exporting}>
                         {exporting ? 'Upscaling…' : '⬇ Export 4K'}
@@ -548,7 +548,7 @@ function InputsPanel({ clientId, project, preset, onChange }) {
                 {items.map(i => (
                   <div key={i.id} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--card-border)', aspectRatio: '1' }}>
                     <img src={i.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <button onClick={() => remove(i.id)} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 11, lineHeight: 1, cursor: 'pointer' }}>×</button>
+                    <button onClick={() => remove(i.id)} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', lineHeight: 1, cursor: 'pointer' }}>×</button>
                   </div>
                 ))}
               </div>

@@ -76,7 +76,7 @@ export default function OutletProfileBody({ id, mode = 'page', onClose, onDelete
         <label className="field"><span className="field-label">Notes</span><textarea className="input" rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} /></label>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
-          <span style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{published} published · {(o.coverage || []).length} tracked</span>
+          <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{published} published · {(o.coverage || []).length} tracked</span>
           <div style={{ flex: 1 }} />
           <button className="btn btn-danger btn-sm" onClick={deleteOutlet}
             title="Hard-delete this publication. Coverage and journalists pointing at it stay (they just become outlet-less). Cannot be undone — for merging duplicates, use Settings → Publications → Find duplicates instead.">

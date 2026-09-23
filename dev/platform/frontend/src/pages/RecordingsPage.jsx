@@ -395,7 +395,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
       ['bottom-left', '◣'], ['bottom-center', '▼'], ['bottom-right', '◢'],
     ];
     const pill = (active) => ({
-      padding: '4px 9px', borderRadius: 'var(--r-sm)', fontSize: 12, cursor: 'pointer',
+      padding: '4px 9px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', cursor: 'pointer',
       border: 'var(--border-w) solid var(--card-border)',
       background: active ? 'var(--accent)' : 'var(--surface)', color: active ? 'var(--accent-on)' : 'var(--text)', fontWeight: active ? 700 : 500,
     });
@@ -462,17 +462,17 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
         <div className="card" style={{ marginTop: 16 }}>
           {phase === 'idle' && (
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 10 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-body)', marginBottom: 10 }}>
                 <input type="checkbox" checked={withMic} onChange={e => setWithMic(e.target.checked)} />
                 Record my microphone (narration)
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 14 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-body)', marginBottom: 14 }}>
                 <input type="checkbox" checked={withCam} onChange={e => setWithCam(e.target.checked)} />
                 Show my camera (a bubble in the corner)
               </label>
               {withCam && camControls()}
               <button onClick={startRecording}
-                style={{ padding: '11px 24px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
+                style={{ padding: '11px 24px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 800, fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
                 ● Start recording
               </button>
               <p className="body-sm text-subtle" style={{ marginTop: 10, margin: '10px 0 0' }}>
@@ -493,11 +493,11 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
               {withCam && camControls()}
               <div className="row" style={{ marginTop: 12, gap: 10 }}>
                 <button onClick={togglePause}
-                  style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+                  style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
                   {paused ? '▶ Resume' : '❚❚ Pause'}
                 </button>
                 <button onClick={stopRecording}
-                  style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--text)', color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
+                  style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--text)', color: '#fff', fontWeight: 800, fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
                   ■ Stop
                 </button>
               </div>
@@ -509,15 +509,15 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
               {previewUrl && <video src={previewUrl} controls style={{ width: '100%', maxHeight: 340, background: '#000', borderRadius: 'var(--r-md)' }} />}
               <div style={{ marginTop: 12 }}>
                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Give it a title…" disabled={phase === 'saving'}
-                  style={{ width: '100%', maxWidth: 420, padding: '9px 12px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 14, fontFamily: 'inherit' }} />
+                  style={{ width: '100%', maxWidth: 420, padding: '9px 12px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)', fontFamily: 'inherit' }} />
               </div>
               <div className="row" style={{ gap: 10, marginTop: 12 }}>
                 <button onClick={save} disabled={phase === 'saving'}
-                  style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 800, fontSize: 15, cursor: phase === 'saving' ? 'default' : 'pointer', opacity: phase === 'saving' ? 0.6 : 1 }}>
+                  style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 800, fontSize: 'var(--fs-body)', cursor: phase === 'saving' ? 'default' : 'pointer', opacity: phase === 'saving' ? 0.6 : 1 }}>
                   {phase === 'saving' ? 'Saving…' : 'Save & copy link'}
                 </button>
                 <button onClick={discard} disabled={phase === 'saving'}
-                  style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+                  style={{ padding: '10px 22px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 'var(--fs-body)', cursor: 'pointer' }}>
                   Discard
                 </button>
               </div>
@@ -540,10 +540,10 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
             </p>
             <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={5} disabled={importing}
               placeholder="https://www.loom.com/share/…&#10;https://www.loom.com/share/…, 128, 2024-11-02"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'monospace', resize: 'vertical' }} />
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)', fontFamily: 'monospace', resize: 'vertical' }} />
             <div className="row" style={{ gap: 10, alignItems: 'center', marginTop: 10 }}>
               <button onClick={runLoomImport} disabled={importing}
-                style={{ padding: '9px 20px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 800, fontSize: 14, cursor: importing ? 'default' : 'pointer', opacity: importing ? 0.6 : 1 }}>
+                style={{ padding: '9px 20px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 800, fontSize: 'var(--fs-body)', cursor: importing ? 'default' : 'pointer', opacity: importing ? 0.6 : 1 }}>
                 {importing ? 'Importing…' : 'Import'}
               </button>
               <span className="body-sm text-subtle">Up to 20 per batch. Keeps the original Loom link as the share ID.</span>
@@ -566,19 +566,19 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
               <p className="body-sm text-subtle" style={{ margin: '0 0 10px' }}>
                 For anything Loom won’t release: download the MP4 from Loom, then upload it here with its details. This always works.
               </p>
-              <input ref={fileImportRef} type="file" accept="video/*" disabled={fileUploading} style={{ fontSize: 13 }} />
+              <input ref={fileImportRef} type="file" accept="video/*" disabled={fileUploading} style={{ fontSize: 'var(--fs-body)' }} />
               <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <input value={fileMeta.title} onChange={e => setFileMeta(m => ({ ...m, title: e.target.value }))} placeholder="Title"
-                  style={{ flex: '2 1 200px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'inherit' }} />
+                  style={{ flex: '2 1 200px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)', fontFamily: 'inherit' }} />
                 <input value={fileMeta.date} onChange={e => setFileMeta(m => ({ ...m, date: e.target.value }))} type="date" title="Original date"
-                  style={{ flex: '1 1 130px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'inherit' }} />
+                  style={{ flex: '1 1 130px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)', fontFamily: 'inherit' }} />
                 <input value={fileMeta.share_id} onChange={e => setFileMeta(m => ({ ...m, share_id: e.target.value }))} placeholder="Loom ID (optional)"
-                  style={{ flex: '1 1 150px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'inherit' }} />
+                  style={{ flex: '1 1 150px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)', fontFamily: 'inherit' }} />
                 <input value={fileMeta.views} onChange={e => setFileMeta(m => ({ ...m, views: e.target.value }))} type="number" min="0" placeholder="Prior views"
-                  style={{ flex: '1 1 110px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontFamily: 'inherit' }} />
+                  style={{ flex: '1 1 110px', padding: '7px 10px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)', fontFamily: 'inherit' }} />
               </div>
               <button onClick={uploadImport} disabled={fileUploading}
-                style={{ marginTop: 10, padding: '9px 20px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 14, cursor: fileUploading ? 'default' : 'pointer', opacity: fileUploading ? 0.6 : 1 }}>
+                style={{ marginTop: 10, padding: '9px 20px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 700, fontSize: 'var(--fs-body)', cursor: fileUploading ? 'default' : 'pointer', opacity: fileUploading ? 0.6 : 1 }}>
                 {fileUploading ? 'Uploading…' : 'Upload video'}
               </button>
             </div>
@@ -591,7 +591,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
         <h2 className="h5" style={{ margin: 0 }}>{clientId ? 'Videos' : 'My recordings'}</h2>
         {canEdit && selected.size > 0 && (
           <button onClick={bulkDelete}
-            style={{ padding: '7px 16px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--negative)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ padding: '7px 16px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--negative)', color: '#fff', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' }}>
             Delete selected ({selected.size})
           </button>
         )}
@@ -618,10 +618,10 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                 {canEdit && (
                 <div className="row" style={{ gap: 6, marginTop: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                   {(r.client_ids || []).map(cid => (
-                    <span key={cid} style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'var(--accent-tint, rgba(0,0,0,0.06))', border: 'var(--border-w) solid var(--card-border)' }}>{clientName(cid)}</span>
+                    <span key={cid} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'var(--accent-tint, rgba(0,0,0,0.06))', border: 'var(--border-w) solid var(--card-border)' }}>{clientName(cid)}</span>
                   ))}
                   <button onClick={() => openClientEditor(r)}
-                    style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-pill)', border: '1px dashed var(--card-border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-subtle)' }}>
+                    style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-pill)', border: '1px dashed var(--card-border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-subtle)' }}>
                     {(r.client_ids || []).length ? 'Edit clients' : '+ Add to client'}
                   </button>
                 </div>
@@ -631,7 +631,7 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                     <div className="body-sm" style={{ fontWeight: 700, marginBottom: 8 }}>Attach to clients</div>
                     <div style={{ maxHeight: 180, overflowY: 'auto', display: 'grid', gap: 4 }}>
                       {clients.map(c => (
-                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-body)' }}>
                           <input type="checkbox" checked={editClients.set.has(c.id)} onChange={() => toggleClientSel(c.id)} />
                           {c.name}
                         </label>
@@ -639,44 +639,44 @@ export default function RecordingsPage({ embedded = false, clientId = null, onSe
                       {!clients.length && <span className="body-sm text-subtle">No clients found.</span>}
                     </div>
                     <div className="row" style={{ gap: 8, marginTop: 10 }}>
-                      <button onClick={saveClients} style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Save</button>
-                      <button onClick={() => setEditClients(null)} style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                      <button onClick={saveClients} style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontWeight: 700, fontSize: 'var(--fs-body)', cursor: 'pointer' }}>Save</button>
+                      <button onClick={() => setEditClients(null)} style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontWeight: 600, fontSize: 'var(--fs-body)', cursor: 'pointer' }}>Cancel</button>
                     </div>
                   </div>
                 )}
               </div>
               <div className="row" style={{ gap: 8 }}>
                 <a href={r.share_path} target="_blank" rel="noopener noreferrer"
-                  style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', fontSize: 13, fontWeight: 600, textDecoration: 'none', color: 'var(--text)' }}>Open</a>
+                  style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-body)', fontWeight: 600, textDecoration: 'none', color: 'var(--text)' }}>Open</a>
                 <button onClick={() => copyLink(r)}
-                  style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Copy link</button>
+                  style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' }}>Copy link</button>
                 {canEdit && r.status === 'ready' && ['mp4', 'gif'].map(fmt => {
                   const has = fmt === 'gif' ? r.has_gif : r.has_mp4;
                   const label = fmt.toUpperCase();
                   if (has) return (
                     <button key={fmt} onClick={() => downloadExport(r, fmt)} title={`Download ${label}`}
-                      style={{ padding: '7px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⬇ {label}</button>
+                      style={{ padding: '7px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' }}>⬇ {label}</button>
                   );
                   if (r.export_status === 'processing') return (
                     <button key={fmt} disabled title="Rendering…"
-                      style={{ padding: '7px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, opacity: 0.6, cursor: 'default' }}>… {label}</button>
+                      style={{ padding: '7px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, opacity: 0.6, cursor: 'default' }}>… {label}</button>
                   );
                   return (
                     <button key={fmt} onClick={() => exportRec(r, fmt)} title={`Render a shareable ${label}`}
-                      style={{ padding: '7px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{label}</button>
+                      style={{ padding: '7px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' }}>{label}</button>
                   );
                 })}
                 {canEdit && clientId && r.status === 'ready' && (
                   <button onClick={() => sendToEdit(r)} title="Trim / caption this in the editor"
-                    style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Send to Edit</button>
+                    style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' }}>Send to Edit</button>
                 )}
                 {canEdit && !r.has_transcript && (
                   <button onClick={() => transcribeOne(r)} title="Generate a transcript"
-                    style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Transcribe</button>
+                    style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' }}>Transcribe</button>
                 )}
                 {canEdit && (
                 <button onClick={() => remove(r)}
-                  style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--negative)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                  style={{ padding: '7px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--negative)', fontSize: 'var(--fs-body)', fontWeight: 600, cursor: 'pointer' }}>Delete</button>
                 )}
               </div>
             </div>

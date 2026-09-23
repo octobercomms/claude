@@ -139,7 +139,7 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
       {loading && !audit && !history.length ? (
         <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
       ) : !audit ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
           {running
             ? 'First crawl in progress — this usually takes 60–90 seconds depending on site size.'
             : 'No audit yet. Click Run first audit to start the crawl.'}
@@ -193,13 +193,13 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
                     <tbody>
                       {rows.map(r => (
                         <tr key={r.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                          <td style={{ padding: '8px 10px', fontSize: 12, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <a href={r.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>
                               {r.page_url.replace(/^https?:\/\//, '').slice(0, 70)}
                             </a>
                           </td>
-                          <td style={{ padding: '8px 10px', fontSize: 12, color: 'var(--text-muted)' }}>{r.detail}</td>
-                          <td style={{ padding: '8px 10px', fontSize: 11, color: SEVERITY_TONE[r.severity], fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{r.severity}</td>
+                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{r.detail}</td>
+                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: SEVERITY_TONE[r.severity], fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{r.severity}</td>
                           <td style={{ padding: '8px 10px', textAlign: 'right' }}>
                             {r.status === 'open' && (
                               <>
@@ -235,7 +235,7 @@ export default function SiteAuditPanel({ clientId, onSendToPipeline }) {
                         <td>{new Date(h.started_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                         <td className="num">{h.score ?? '—'}</td>
                         <td className="num">{h.pages_crawled}</td>
-                        <td style={{ textTransform: 'uppercase', fontSize: 11, color: h.status === 'failed' ? 'var(--negative)' : h.status === 'running' ? 'var(--warning)' : 'var(--text-muted)' }}>{h.status}</td>
+                        <td style={{ textTransform: 'uppercase', fontSize: 'var(--fs-caption)', color: h.status === 'failed' ? 'var(--negative)' : h.status === 'running' ? 'var(--warning)' : 'var(--text-muted)' }}>{h.status}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -290,7 +290,7 @@ function CoreWebVitals({ clientId }) {
         </div>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
           <input value={url} onChange={e => setUrl(e.target.value)} placeholder="URL (optional)"
-            style={{ padding: '6px 10px', fontSize: 12, width: 220, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+            style={{ padding: '6px 10px', fontSize: 'var(--fs-caption)', width: 220, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
           {['mobile', 'desktop'].map(s => (
             <button key={s} onClick={() => setStrategy(s)} className={`btn btn-sm ${strategy === s ? 'btn-primary' : 'btn-secondary'}`}>{s}</button>
           ))}
@@ -316,7 +316,7 @@ function CoreWebVitals({ clientId }) {
               return (
                 <div key={key} className="card" style={{ padding: '10px 12px' }}>
                   <div className="caption" title={m?.note || ''}>{meta.label}{m?.note ? ' *' : ''}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4, color: has ? (RATING_TONE[m.rating] || 'var(--text)') : 'var(--text-subtle)' }}>
+                  <div style={{ fontSize: 'var(--fs-title)', fontWeight: 800, marginTop: 4, color: has ? (RATING_TONE[m.rating] || 'var(--text)') : 'var(--text-subtle)' }}>
                     {has ? meta.fmt(m.value) : '—'}
                   </div>
                 </div>

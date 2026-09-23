@@ -52,7 +52,7 @@ export default function SocialSuiteOverview({
           removed; the Overview tab already does the suite pitch, so
           repeating it on Performance was duplicate surface. */}
       {client?.social_autopilot_paused && (
-        <div className="callout" style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', fontSize: 13, color: 'var(--warning)', marginBottom: 'var(--s5)' }}>
+        <div className="callout" style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-body)', color: 'var(--warning)', marginBottom: 'var(--s5)' }}>
           Autopilot is paused — toggle from the top bar to resume scheduled publishing.
         </div>
       )}
@@ -157,7 +157,7 @@ function StatusPill({ label, value, tone }) {
     <span
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '6px 14px', fontSize: 13, fontWeight: 600,
+        padding: '6px 14px', fontSize: 'var(--fs-body)', fontWeight: 600,
         borderRadius: 'var(--r-pill)',
         background: 'var(--surface)',
         border: 'var(--border-w) solid var(--card-border)',

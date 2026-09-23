@@ -183,9 +183,9 @@ export default function SnapshotStudioPage() {
                   <div key={img.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '2px solid ' + (img.featured ? 'var(--accent)' : 'var(--card-border)'), cursor: 'pointer', aspectRatio: '1' }}
                     onClick={() => toggleFeatured(img)} title={img.featured ? 'Featured — click to remove' : 'Click to feature'}>
                     <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    {img.featured && <span style={{ position: 'absolute', top: 3, left: 3, background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 10, fontWeight: 800, borderRadius: 4, padding: '0 5px' }}>✓</span>}
-                    {img.kind !== 'site' && <span style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 8, fontWeight: 700, borderRadius: 3, padding: '0 4px' }}>UP</span>}
-                    <button onClick={e => { e.stopPropagation(); deleteImage(img); }} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 11, lineHeight: 1, cursor: 'pointer' }}>×</button>
+                    {img.featured && <span style={{ position: 'absolute', top: 3, left: 3, background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 'var(--fs-caption)', fontWeight: 800, borderRadius: 4, padding: '0 5px' }}>✓</span>}
+                    {img.kind !== 'site' && <span style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', fontWeight: 700, borderRadius: 3, padding: '0 4px' }}>UP</span>}
+                    <button onClick={e => { e.stopPropagation(); deleteImage(img); }} style={{ position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 'var(--fs-caption)', lineHeight: 1, cursor: 'pointer' }}>×</button>
                   </div>
                 ))}
               </div>

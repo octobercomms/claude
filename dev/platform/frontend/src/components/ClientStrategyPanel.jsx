@@ -22,7 +22,7 @@ const SOSTAC = {
 function Chips({ items }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-      {items.map((v, i) => <span key={i} className="chip chip-neutral" style={{ fontSize: 10 }}>{v}</span>)}
+      {items.map((v, i) => <span key={i} className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>{v}</span>)}
     </div>
   );
 }
@@ -94,7 +94,7 @@ function Profile({ profile }) {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                   {o.baseline && <span className="body-xs text-subtle">{o.baseline}</span>}
                   {o.baseline && o.target && <span className="text-subtle">→</span>}
-                  {o.target && <span className="metric" style={{ fontSize: 22 }}>{o.target}</span>}
+                  {o.target && <span className="metric" style={{ fontSize: 'var(--fs-section)' }}>{o.target}</span>}
                 </div>
                 {o.timeframe && <div className="body-xs text-subtle" style={{ marginTop: 4 }}>{o.timeframe}</div>}
               </div>
@@ -109,12 +109,12 @@ function Profile({ profile }) {
           <div className="grid grid-auto">
             {p.personas.map((pe, i) => (
               <div key={i} className="card">
-                <span className="chip chip-accent" style={{ fontSize: 10 }}>{pe.label}</span>
+                <span className="chip chip-accent" style={{ fontSize: 'var(--fs-caption)' }}>{pe.label}</span>
                 {pe.who && <p className="body-sm" style={{ margin: '8px 0 0' }}>{pe.who}</p>}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                  {pe.age && <span className="chip chip-neutral" style={{ fontSize: 10 }}>🎂 {pe.age}</span>}
-                  {pe.budget && <span className="chip chip-neutral" style={{ fontSize: 10 }}>💷 {pe.budget}</span>}
-                  {pe.location && <span className="chip chip-neutral" style={{ fontSize: 10 }}>📍 {pe.location}</span>}
+                  {pe.age && <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>🎂 {pe.age}</span>}
+                  {pe.budget && <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>💷 {pe.budget}</span>}
+                  {pe.location && <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)' }}>📍 {pe.location}</span>}
                 </div>
                 {!!pe.values?.length && <Chips items={pe.values} />}
               </div>
@@ -176,7 +176,7 @@ function Profile({ profile }) {
               p.funnel[key].length ? (
                 <div key={key} className="card" style={{ padding: 'var(--s4)', borderTop: '3px solid var(--accent)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ width: 20, height: 20, borderRadius: 999, background: 'var(--text)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>{idx + 1}</span>
+                    <span style={{ width: 20, height: 20, borderRadius: 999, background: 'var(--text)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-caption)', fontWeight: 800 }}>{idx + 1}</span>
                     <div className="h3">{label}</div>
                   </div>
                   <ul style={{ margin: 0, paddingLeft: 18 }}>{p.funnel[key].map((t, i) => <li key={i} className="body-sm" style={{ marginBottom: 4 }}>{t}</li>)}</ul>
@@ -199,7 +199,7 @@ function Profile({ profile }) {
                       <div className="body-sm" style={{ fontWeight: 600 }}>{m.outlet}</div>
                       {m.topic && <div className="body-xs text-subtle">{m.topic}</div>}
                     </div>
-                    {m.tier && <span className="chip chip-neutral" style={{ fontSize: 10, flex: '0 0 auto' }}>Tier {m.tier}</span>}
+                    {m.tier && <span className="chip chip-neutral" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>Tier {m.tier}</span>}
                   </div>
                 ))}
               </div>
@@ -333,7 +333,7 @@ export default function ClientStrategyPanel({ clientId }) {
               return (
                 <div key={pi} className="card" style={{ padding: 0, overflow: 'hidden', borderLeft: `5px solid ${s.color}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', background: s.tint, borderBottom: '1px solid var(--card-border)' }}>
-                    <span style={{ width: 34, height: 34, borderRadius: 999, background: s.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, flex: '0 0 auto' }}>{s.n}</span>
+                    <span style={{ width: 34, height: 34, borderRadius: 999, background: s.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-title)', fontWeight: 800, flex: '0 0 auto' }}>{s.n}</span>
                     <div className="h2" style={{ color: s.color, margin: 0 }}>{ph.title}</div>
                   </div>
                   <div className="stack stack-sm" style={{ padding: '16px 18px' }}>
@@ -344,7 +344,7 @@ export default function ClientStrategyPanel({ clientId }) {
                           <div className="body-sm" style={{ textDecoration: it.done ? 'line-through' : 'none', color: it.done ? 'var(--text-subtle)' : 'var(--text)' }}>{it.text}</div>
                           <input
                             className="input"
-                            style={{ marginTop: 4, fontSize: 12, padding: '4px 8px' }}
+                            style={{ marginTop: 4, fontSize: 'var(--fs-caption)', padding: '4px 8px' }}
                             placeholder="Add a note…"
                             defaultValue={it.note || ''}
                             onBlur={e => { if (e.target.value !== (it.note || '')) saveNote(it.id, e.target.value); }}

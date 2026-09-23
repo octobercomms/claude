@@ -125,10 +125,10 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
           onChange={e => setUrl(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && runNew()}
           placeholder="https://competitor.com/blog/post-to-outrank"
-          style={{ flex: 1, minWidth: 320, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1, minWidth: 320, padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
         />
         <select value={location} onChange={e => setLocation(Number(e.target.value))}
-          style={{ padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          style={{ padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: runNew, disabled: running || !url.trim() })}>
@@ -141,7 +141,7 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
       {loading && !runs.length ? (
         <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
       ) : !runs.length ? (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
           No URL gap runs yet. Paste a competitor blog URL above — DFS returns up to 200 ranked keywords for the page, we score the top 50 by volume against your ranks, Claude summarises the gaps.
         </div>
       ) : (
@@ -153,10 +153,10 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
                 style={{ padding: 10, marginBottom: 8, cursor: 'pointer',
                   background: r.id === activeRun?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
                 onClick={() => openRun(r.id)}>
-                <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.3, wordBreak: 'break-all' }}>
+                <div style={{ fontWeight: 600, fontSize: 'var(--fs-caption)', lineHeight: 1.3, wordBreak: 'break-all' }}>
                   {r.competitor_url.replace(/^https?:\/\//, '').slice(0, 60)}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 4 }}>
                   {new Date(r.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   {' · '}<span style={{ color: 'var(--negative)', fontWeight: 700 }}>{r.gap_count}</span> gaps of {r.page_keyword_count}
                 </div>
@@ -173,17 +173,17 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
                     <a href={activeRun.competitor_url} target="_blank" rel="noreferrer" className="h3" style={{ marginTop: 4, marginBottom: 6, display: 'block', wordBreak: 'break-all', color: 'var(--text)' }}>
                       {activeRun.competitor_url}
                     </a>
-                    <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                       Ranks for {activeRun.page_keyword_count} keywords in top 100 · <strong style={{ color: 'var(--negative)' }}>{activeRun.gap_count}</strong> are gaps for you
                     </div>
                   </div>
-                  <button onClick={() => deleteRun(activeRun.id)} className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Delete</button>
+                  <button onClick={() => deleteRun(activeRun.id)} className="btn btn-ghost btn-sm" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Delete</button>
                 </div>
 
                 {activeRun.summary_md && (
                   <div className="card" style={{ marginBottom: 14 }}>
                     <div className="caption mb-2">Briefing</div>
-                    <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{activeRun.summary_md}</div>
+                    <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{activeRun.summary_md}</div>
                   </div>
                 )}
 
@@ -202,11 +202,11 @@ export default function FindPanel({ clientId, onNext, onBuildContent }) {
                     <tbody>
                       {keywords.map(k => (
                         <tr key={k.id} style={{ borderBottom: '1px solid #f5f5f5', background: k.is_gap ? 'var(--negative-soft)' : 'transparent' }}>
-                          <td style={{ padding: '8px 10px', fontSize: 12 }}><strong>{k.keyword}</strong></td>
-                          <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{k.search_volume?.toLocaleString() || '—'}</td>
-                          <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>#{k.competitor_position}</td>
-                          <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{k.client_position ? `#${k.client_position}` : '—'}</td>
-                          <td style={{ padding: '8px 10px', fontSize: 11, color: k.is_gap ? 'var(--negative)' : 'var(--text-subtle)', fontWeight: k.is_gap ? 700 : 400 }}>
+                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)' }}><strong>{k.keyword}</strong></td>
+                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>{k.search_volume?.toLocaleString() || '—'}</td>
+                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>#{k.competitor_position}</td>
+                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', textAlign: 'right' }}>{k.client_position ? `#${k.client_position}` : '—'}</td>
+                          <td style={{ padding: '8px 10px', fontSize: 'var(--fs-caption)', color: k.is_gap ? 'var(--negative)' : 'var(--text-subtle)', fontWeight: k.is_gap ? 700 : 400 }}>
                             {k.is_gap ? 'GAP' : (k.client_position && k.client_position <= 10 ? 'covered' : '—')}
                           </td>
                           {onBuildContent && (
@@ -267,7 +267,7 @@ function OwnSiteMode({ clientId }) {
   if (err) return <div className="callout callout-danger">{err}</div>;
   if (!contentIssues.length && !wins.length && !otherIssues.length) {
     return (
-      <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+      <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
         Nothing surfaced. Run a Site audit on Performance, or get keywords ranking in the #11–#20 range before this mode has anything to show.
       </div>
     );
@@ -280,7 +280,7 @@ function OwnSiteMode({ clientId }) {
           <p className="body-xs text-subtle mt-2 mb-3">From the latest Site audit. Each row is a page that came in under 300 words — prime candidates for the Pipeline → Draft refresh flow.</p>
           <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
             {thinContent.map(i => (
-              <li key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 12 }}>
+              <li key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-caption)' }}>
                 <a href={i.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{i.page_url.replace(/^https?:\/\//, '')}</a>
                 <div style={{ color: 'var(--text-subtle)', marginTop: 2 }}>{i.detail}</div>
               </li>
@@ -294,11 +294,11 @@ function OwnSiteMode({ clientId }) {
           <p className="body-xs text-subtle mt-2 mb-3">Pages where no recurring phrase appears often enough for Google to anchor a ranking on. A refresh that picks one primary keyword and weaves it through headings + body usually fixes this in weeks.</p>
           <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
             {noClearFocus.map(i => (
-              <li key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 12 }}>
+              <li key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-caption)' }}>
                 <a href={i.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{i.page_url.replace(/^https?:\/\//, '')}</a>
                 <div style={{ color: 'var(--text-subtle)', marginTop: 2 }}>{i.detail}</div>
                 {Array.isArray(i.metadata?.topPhrases) && !!i.metadata.topPhrases.length && (
-                  <div style={{ color: 'var(--text-subtle)', marginTop: 4, fontSize: 11 }}>
+                  <div style={{ color: 'var(--text-subtle)', marginTop: 4, fontSize: 'var(--fs-caption)' }}>
                     Currently scattered across: {i.metadata.topPhrases.join(' · ')}
                   </div>
                 )}
@@ -313,7 +313,7 @@ function OwnSiteMode({ clientId }) {
           <p className="body-xs text-subtle mt-2 mb-3">One refresh away from page 1.</p>
           <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
             {wins.slice(0, 20).map(w => (
-              <li key={w.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+              <li key={w.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 'var(--fs-caption)', display: 'flex', justifyContent: 'space-between' }}>
                 <span><strong>{w.keyword}</strong>{w.target_url && <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>· {w.target_url.replace(/^https?:\/\//, '').slice(0, 50)}</span>}</span>
                 <span style={{ color: 'var(--text-muted)' }}>#{w.current_position} · effort {w.effort_score}/10</span>
               </li>
@@ -358,9 +358,9 @@ function SxoMode({ clientId, onBuildContent }) {
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
         <input value={seed} onChange={e => setSeed(e.target.value)} onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="e.g. best crm for small business"
-          style={{ flex: 1, minWidth: 300, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
+          style={{ flex: 1, minWidth: 300, padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }} />
         <select value={location} onChange={e => setLocation(Number(e.target.value))}
-          style={{ padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          style={{ padding: '8px 12px', fontSize: 'var(--fs-body)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <button className="btn btn-primary" {...roWrite(readOnly, { onClick: run, disabled: loading || !seed.trim() })}>
@@ -370,7 +370,7 @@ function SxoMode({ clientId, onBuildContent }) {
 
       {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
       {!data && !loading && !err && (
-        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 'var(--fs-body)' }}>
           Type a query a customer would search. We pull the live top-10 and infer the page-type Google rewards.
         </div>
       )}
@@ -384,7 +384,7 @@ function SxoMode({ clientId, onBuildContent }) {
                   <div className="caption">Google rewards</div>
                   <div className="h2" style={{ marginTop: 4, textTransform: 'capitalize' }}>{data.dominant_page_type || '—'}</div>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+                <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
                   padding: '3px 8px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text)' }}>
                   {data.confidence || '—'} confidence
                 </span>
@@ -399,9 +399,9 @@ function SxoMode({ clientId, onBuildContent }) {
                 <div className="stack" style={{ gap: 8 }}>
                   {data.personas.map((p, i) => (
                     <div key={i} style={{ display: 'grid', gridTemplateColumns: '130px 1fr auto', gap: 10, alignItems: 'baseline' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.wants}</div>
-                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: SERVED_TONE[p.served_by_serp] || 'var(--text-subtle)' }}>
+                      <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>{p.name}</div>
+                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{p.wants}</div>
+                      <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', color: SERVED_TONE[p.served_by_serp] || 'var(--text-subtle)' }}>
                         {p.served_by_serp || '—'}
                       </span>
                     </div>
@@ -420,7 +420,7 @@ function SxoMode({ clientId, onBuildContent }) {
                 </div>
                 <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8 }}>
                   {data.recommended_wireframe.map((s, i) => (
-                    <li key={i} style={{ fontSize: 13 }}>
+                    <li key={i} style={{ fontSize: 'var(--fs-body)' }}>
                       <strong>{s.section}</strong>
                       {s.purpose && <span style={{ color: 'var(--text-muted)' }}> — {s.purpose}</span>}
                     </li>
@@ -436,8 +436,8 @@ function SxoMode({ clientId, onBuildContent }) {
             <div className="stack" style={{ gap: 6 }}>
               {data.serp.map(r => (
                 <div key={r.rank} className="card" style={{ padding: 8, background: r.is_client ? 'var(--accent-soft)' : 'var(--surface)', borderColor: r.is_client ? 'var(--accent)' : 'var(--card-border)' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>{r.rank}. {r.title || '(no title)'}{r.is_client && <span style={{ color: 'var(--text)' }}> · you</span>}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-subtle)', wordBreak: 'break-all', marginTop: 2 }}>{(r.url || '').replace(/^https?:\/\//, '').slice(0, 54)}</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, lineHeight: 1.3 }}>{r.rank}. {r.title || '(no title)'}{r.is_client && <span style={{ color: 'var(--text)' }}> · you</span>}</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', wordBreak: 'break-all', marginTop: 2 }}>{(r.url || '').replace(/^https?:\/\//, '').slice(0, 54)}</div>
                 </div>
               ))}
             </div>

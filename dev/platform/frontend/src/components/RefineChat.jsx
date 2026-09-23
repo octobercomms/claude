@@ -108,11 +108,11 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
         )}
         {messages.map((m, i) => (
           <div key={i} style={{ marginBottom: 'var(--s4)' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: m.role === 'user' ? 'var(--accent)' : 'var(--text-subtle)', marginBottom: 4 }}>
+            <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: m.role === 'user' ? 'var(--accent)' : 'var(--text-subtle)', marginBottom: 4 }}>
               {m.role === 'user' ? 'You' : 'Claude'}
             </div>
             <div style={{
-              fontSize: 13, lineHeight: 1.55,
+              fontSize: 'var(--fs-body)', lineHeight: 1.55,
               whiteSpace: 'pre-wrap',
               padding: 'var(--s3)',
               borderRadius: 'var(--r-sm)',
@@ -147,7 +147,7 @@ export default function RefineChat({ clientId, kind, artifact, artifactMeta, onA
           }}
           rows={2}
           placeholder={'Tell Claude what to change…  (⌘+Enter to send)'}
-          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 13, lineHeight: 1.4, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+          style={{ width: '100%', padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-body)', lineHeight: 1.4, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
         />
         <div className="row between center mt-2">
           <span className="body-xs text-subtle">{messages.length ? `${messages.filter(m => m.role === 'user').length} turn${messages.filter(m => m.role === 'user').length === 1 ? '' : 's'}` : ' '}</span>

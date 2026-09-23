@@ -34,7 +34,7 @@ function StatusPill({ status, label }) {
     ? { background: s.bg, color: s.fg, border: `1px solid ${s.border}`, fontWeight: 700 }
     : { background: '#f1f1f1', color: '#595959', border: '1px solid #d4d4d4', fontWeight: 600 };
   return (
-    <span className="chip" style={{ ...style, padding: '2px 10px', fontSize: 11, letterSpacing: 0.2, whiteSpace: 'nowrap' }}>
+    <span className="chip" style={{ ...style, padding: '2px 10px', fontSize: 'var(--fs-caption)', letterSpacing: 0.2, whiteSpace: 'nowrap' }}>
       {label || status}
     </span>
   );
@@ -608,7 +608,7 @@ export default function ClientPRPage() {
   const renderShare = () => (
         <div className="card">
           <h3 className="h3 mb-2">Automated reports &amp; alerts</h3>
-          <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Email the client a coverage digest on a schedule, and a "you've been featured" alert when a piece is marked published.</p>
+          <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 10 }}>Email the client a coverage digest on a schedule, and a "you've been featured" alert when a piece is marked published.</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label className="field" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}><span className="field-label">Report / alert email</span><input className="input" value={reports.alert_email || ''} onChange={(e) => setReports((r) => ({ ...r, alert_email: e.target.value }))} placeholder="client@example.com" /></label>
             <label className="field" style={{ marginBottom: 0 }}><span className="field-label">Cadence</span><select className="input" value={reports.report_cadence || 'off'} onChange={(e) => setReports((r) => ({ ...r, report_cadence: e.target.value }))}><option value="off">Off</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
@@ -617,7 +617,7 @@ export default function ClientPRPage() {
           </div>
           <div style={{ marginTop: 16, borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 16 }}>
             <button className="btn-link" onClick={copyPortalLink}>🔗 Copy client coverage link</button>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 8, marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 8, marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
           </div>
         </div>
   );
@@ -649,7 +649,7 @@ export default function ClientPRPage() {
                   <button className="btn btn-primary" {...roWrite(readOnly, { onClick: createPitchCampaign, title: 'Pitch this release to journalists in the Email tab' })}>{pr.campaign_id ? 'Open pitch campaign →' : '📣 Create pitch campaign →'}</button>
                 )}
               </div>
-              <label className="field"><span className="field-label">Release body <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>— Claude marks assumptions in [brackets] to fill in</span></span><textarea className="input" rows={16} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13 }} value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} /></label>
+              <label className="field"><span className="field-label">Release body <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>— Claude marks assumptions in [brackets] to fill in</span></span><textarea className="input" rows={16} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-body)' }} value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} /></label>
               <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                 <button className="btn btn-primary" disabled={prSaving} onClick={() => savePR()}>{prSaving ? 'Saving…' : 'Save'}</button>
                 <button className="btn btn-secondary" onClick={() => { setPr(null); loadReleases(); }}>Cancel</button>
@@ -658,7 +658,7 @@ export default function ClientPRPage() {
           ) : (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>Write a release from a brief, have Claude draft it, then send a client approval link for sign-off.</p>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>Write a release from a brief, have Claude draft it, then send a client approval link for sign-off.</p>
                 <button className="btn btn-primary" onClick={newRelease}>+ New press release</button>
               </div>
               <table className="table">
@@ -699,12 +699,12 @@ export default function ClientPRPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
               <div>
                 <h3 className="h3 mb-2">Press campaigns</h3>
-                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>Pitch a release to journalists — paste a URL, ✨ auto-build the audience, personalise every email, then send and watch who’s interested.</p>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>Pitch a release to journalists — paste a URL, ✨ auto-build the audience, personalise every email, then send and watch who’s interested.</p>
               </div>
               <button className="btn btn-primary" {...roWrite(readOnly, { onClick: () => setShowPressWizard(true) })}>+ New press campaign</button>
             </div>
             {!pressReleases.length ? (
-              <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>No press campaigns yet — start one from a downloadfor.press URL.</p>
+              <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>No press campaigns yet — start one from a downloadfor.press URL.</p>
             ) : (
               <table className="table">
                 <thead><tr><th>Campaign</th><th>Created</th><th style={{ textAlign: 'right' }}>Sending</th><th></th><th></th></tr></thead>
@@ -725,7 +725,7 @@ export default function ClientPRPage() {
                             onChange={(e) => setRenameText(e.target.value)}
                             onBlur={() => saveRename(r)}
                             onKeyDown={(e) => { if (e.key === 'Enter') saveRename(r); if (e.key === 'Escape') setRenamingPR(null); }}
-                            style={{ minWidth: 260, padding: '4px 8px', fontSize: 13 }} />
+                            style={{ minWidth: 260, padding: '4px 8px', fontSize: 'var(--fs-body)' }} />
                         ) : (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                             <button className="link-btn" title="Open campaign"
@@ -734,11 +734,11 @@ export default function ClientPRPage() {
                               {r.display_name || r.title || '(untitled release)'}
                             </button>
                             <button className="btn btn-secondary btn-sm" title="Rename campaign" aria-label="Rename"
-                              {...roWrite(readOnly, { onClick: () => startRename(r) })} style={{ padding: '1px 6px', fontSize: 12 }}>✎</button>
+                              {...roWrite(readOnly, { onClick: () => startRename(r) })} style={{ padding: '1px 6px', fontSize: 'var(--fs-caption)' }}>✎</button>
                           </span>
                         )}
                         {r.display_name && renamingPR !== r.id && (
-                          <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>{r.title}</div>
+                          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>{r.title}</div>
                         )}
                         {/* Live sending visual — a bar under the campaign name with
                             status, live counts and an ETA. Auto-refreshes while
@@ -754,7 +754,7 @@ export default function ClientPRPage() {
                               <div style={{ height: 7, background: 'var(--accent-soft, #eee)', borderRadius: 999, overflow: 'hidden' }}>
                                 <div style={{ width: `${pct}%`, height: '100%', background: paused ? 'var(--warning, #b45309)' : 'var(--positive, #15803d)', borderRadius: 999, transition: 'width .4s' }} />
                               </div>
-                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4, fontSize: 11.5, color: 'var(--text-subtle)' }}>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4, fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: statusColor }}>
                                   {sending && <span className="spinner" style={{ width: 10, height: 10, borderWidth: 2 }} />}
                                   {statusText}
@@ -793,7 +793,7 @@ export default function ClientPRPage() {
                     {expanded && (
                       <tr>
                         <td colSpan={5} style={{ background: 'var(--surface-raised)' }}>
-                          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center', padding: '4px 2px', fontSize: 13 }}>
+                          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center', padding: '4px 2px', fontSize: 'var(--fs-body)' }}>
                             <span><strong>{num(sent)}</strong> <span style={{ color: 'var(--text-subtle)' }}>of {num(firstTotal)} emailed</span></span>
                             {pending > 0 && <span style={{ color: 'var(--text-muted)' }}>⧗ {num(pending)} still going out</span>}
                             {failed > 0 && <span style={{ color: 'var(--negative)' }}>✕ {num(failed)} failed</span>}
@@ -815,7 +815,7 @@ export default function ClientPRPage() {
 
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your journalists' beats and your relationship history to build a targeted list.</p>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your journalists' beats and your relationship history to build a targeted list.</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
               <label className="field" style={{ flex: 1, minWidth: 240 }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
               <button className="btn btn-primary" {...roWrite(readOnly, { onClick: findTargets, disabled: pitchLoading })}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
@@ -823,7 +823,7 @@ export default function ClientPRPage() {
             <label className="field"><span className="field-label">…or paste a brief</span><textarea className="input" rows={2} value={pitch.brief} onChange={(e) => setPitch((p) => ({ ...p, brief: e.target.value }))} placeholder="What's the story?" /></label>
             {pitchResult && (
               <div style={{ marginTop: 12 }}>
-                {pitchResult.angle && <p style={{ fontSize: 13, marginBottom: 8 }}><strong>Angle:</strong> {pitchResult.angle}</p>}
+                {pitchResult.angle && <p style={{ fontSize: 'var(--fs-body)', marginBottom: 8 }}><strong>Angle:</strong> {pitchResult.angle}</p>}
                 {pitchResult.targets && pitchResult.targets.length ? (
                   <table className="table">
                     <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Why</th></tr></thead>
@@ -833,19 +833,19 @@ export default function ClientPRPage() {
                           <td><button type="button" className="link-btn" onClick={() => setProfileTarget({ type: 'journalist', id: t.id })}>{t.name}</button>{t.strength_label ? <span className="chip" style={{ marginLeft: 6 }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 6 }}>no email</span>}</td>
                           <td>{t.outlet || '—'}</td>
                           <td>{t.tier ? `T${t.tier}` : '—'}</td>
-                          <td style={{ fontSize: 13 }}>{t.reason}</td>
+                          <td style={{ fontSize: 'var(--fs-body)' }}>{t.reason}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{pitchResult.note || 'No strong matches found.'}</p>}
+                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{pitchResult.note || 'No strong matches found.'}</p>}
               </div>
             )}
           </div>
 
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <h3 className="h3 mb-2">🎯 Best contacts for a story</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginTop: 0, marginBottom: 8 }}>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginTop: 0, marginBottom: 8 }}>
               Paste the release (or describe the story). OMI ranks journalists by what they actually write about — from their real recent articles, not just old tags — and who’s covered {client?.name || 'this client'} before.
             </p>
             <textarea className="input" rows={4} value={matchText} onChange={(e) => setMatchText(e.target.value)} placeholder="Paste your press release or a sentence about the story…" style={{ marginBottom: 8 }} />
@@ -854,11 +854,11 @@ export default function ClientPRPage() {
             </button>
             {matchTerms.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 6 }}>
                   {matchMode === 'semantic'
                     ? <span title="Ranked by meaning — understands related topics even when the exact words differ.">🧠 Semantic match · </span>
                     : <span title="Ranked by shared topic/word overlap. Add an OpenAI key in Settings to enable meaning-based matching.">Keyword match · </span>}
-                  key themes: {matchTerms.map((t, i) => <span key={i} className="chip" style={{ fontSize: 10, marginRight: 4 }}>{t}</span>)}
+                  key themes: {matchTerms.map((t, i) => <span key={i} className="chip" style={{ fontSize: 'var(--fs-caption)', marginRight: 4 }}>{t}</span>)}
                 </div>
                 {matchItems.length === 0 ? (
                   <p className="body-sm text-muted" style={{ margin: 0 }}>No strong matches on file yet — this sharpens as the feeds learn more journalists.</p>
@@ -871,14 +871,14 @@ export default function ClientPRPage() {
                           <tr key={m.id}>
                             <td>
                               <div style={{ fontWeight: 600 }}>{m.name}</div>
-                              <div style={{ fontSize: 11, color: m.verification_status === 'guessed' ? 'var(--danger, #c62828)' : 'var(--text-subtle)' }}>
+                              <div style={{ fontSize: 'var(--fs-caption)', color: m.verification_status === 'guessed' ? 'var(--danger, #c62828)' : 'var(--text-subtle)' }}>
                                 {m.email}{m.verification_status === 'guessed' ? ' · guess' : ''}
                               </div>
                             </td>
-                            <td style={{ fontSize: 12 }}>{m.outlet || '—'}{m.tier ? ` · T${m.tier}` : ''}</td>
-                            <td style={{ fontSize: 12 }}>
+                            <td style={{ fontSize: 'var(--fs-caption)' }}>{m.outlet || '—'}{m.tier ? ` · T${m.tier}` : ''}</td>
+                            <td style={{ fontSize: 'var(--fs-caption)' }}>
                               {(m.matched || []).slice(0, 4).join(', ')}
-                              {m.covered_client && <span className="chip" style={{ fontSize: 9, marginLeft: 6 }}>covered before</span>}
+                              {m.covered_client && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 6 }}>covered before</span>}
                             </td>
                             <td><span className="chip">{m.fit != null ? `${m.fit}%` : m.score}</span></td>
                           </tr>
@@ -895,7 +895,7 @@ export default function ClientPRPage() {
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: suggestions.length ? 12 : 0 }}>
               <div style={{ flex: 1, minWidth: 240 }}>
                 <h3 className="h3 mb-2">🔭 Find new journalists</h3>
-                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>
                   Claude researches the web for journalists who cover {client?.name || 'this client'}’s beats and aren’t on your list yet. Nothing’s added until you approve it.
                 </p>
               </div>
@@ -906,7 +906,7 @@ export default function ClientPRPage() {
             {suggestions.length > 0 && (
               <>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
                   <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve', suggestions.map((s) => s.id)) })}>Add all {suggestions.length}</button>
                   {selSugg.size > 0 && <>
                     <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected</button>
@@ -922,17 +922,17 @@ export default function ClientPRPage() {
                         <td>
                           <div style={{ fontWeight: 600 }}>
                             {s.name}
-                            {s.source === 'rss' && <span className="chip" style={{ fontSize: 9, marginLeft: 6 }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
+                            {s.source === 'rss' && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 6 }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
                           </div>
                           {s.email
-                            ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div>
+                            ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{s.email}</div>
                             : s.guessed_email
-                              ? <div style={{ fontSize: 11, color: 'var(--danger, #c62828)', fontWeight: 600 }} title="Guessed from this outlet's email pattern — NOT confirmed">{s.guessed_email} <span style={{ fontWeight: 400 }}>· guess</span></div>
-                              : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
+                              ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--danger, #c62828)', fontWeight: 600 }} title="Guessed from this outlet's email pattern — NOT confirmed">{s.guessed_email} <span style={{ fontWeight: 400 }}>· guess</span></div>
+                              : <span className="chip" style={{ fontSize: 'var(--fs-caption)' }}>no email</span>}
                         </td>
                         <td>{s.outlet || '—'}</td>
-                        <td style={{ fontSize: 12 }}>{s.beat || '—'}</td>
-                        <td style={{ fontSize: 12 }}>
+                        <td style={{ fontSize: 'var(--fs-caption)' }}>{s.beat || '—'}</td>
+                        <td style={{ fontSize: 'var(--fs-caption)' }}>
                           {s.why || '—'}
                           {s.source_url && <> · <a href={s.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></>}
                         </td>
@@ -972,7 +972,7 @@ export default function ClientPRPage() {
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ flex: 1, minWidth: 240 }}>
                 <h3 className="h3 mb-2">Thank-yous</h3>
-                <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>
                   Journalists who featured {client?.name || 'this client'} and have a real email on file but haven't been thanked yet. Claude drafts a fresh, never-repeating note — review and send.
                 </p>
               </div>
@@ -986,7 +986,7 @@ export default function ClientPRPage() {
               )}
             </div>
             {thankSettings && thankSettings.record && (thankSettings.record.approved + thankSettings.record.edited + thankSettings.record.rejected + thankSettings.record.auto > 0) && (
-              <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginBottom: 12 }}>
+              <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginBottom: 12 }}>
                 Track record: {thankSettings.record.approved} approved · {thankSettings.record.edited} edited · {thankSettings.record.auto} auto-sent · {thankSettings.record.rejected} skipped.
                 {thankSettings.thank_stage === 'assist' ? ' Once the approvals build up, switch on supervised or auto sending above.' : ''}
               </p>
@@ -1084,7 +1084,7 @@ export default function ClientPRPage() {
           {combinedResult && (
             <div className="card" style={{ marginBottom: 'var(--s4)', borderLeft: '3px solid var(--accent)' }}>
               <strong>{combinedResult.skipped} rows skipped.</strong> Unmatched client names (no platform client with that name):
-              <div style={{ marginTop: 6, color: 'var(--text-subtle)', fontSize: 13 }}>{combinedResult.unmatched.join(', ')}</div>
+              <div style={{ marginTop: 6, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{combinedResult.unmatched.join(', ')}</div>
             </div>
           )}
 
@@ -1136,7 +1136,7 @@ export default function ClientPRPage() {
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}
                         <button type="button" title="Delete this coverage entry" aria-label="Delete" onClick={() => deleteEntry(r)}
-                          style={{ border: 'none', background: 'none', color: 'var(--danger, #c0392b)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '4px 6px', borderRadius: 4 }}>✕</button>
+                          style={{ border: 'none', background: 'none', color: 'var(--danger, #c0392b)', cursor: 'pointer', fontSize: 'var(--fs-body)', lineHeight: 1, padding: '4px 6px', borderRadius: 4 }}>✕</button>
                       </td>
                     </tr>
                   ));
@@ -1147,11 +1147,11 @@ export default function ClientPRPage() {
 
           <div className="card">
             <h3 className="h3 mb-2">Coverage monitor</h3>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 12 }}>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', marginBottom: 12 }}>
               Saved searches check Google News (via Serper) and your Google Alerts RSS on a schedule (twice daily). New hits land in the review queue below for you to confirm or dismiss.
             </p>
             {!serperOn && (
-              <div className="card" style={{ background: 'var(--warning-soft)', color: 'var(--warning)', fontSize: 13, marginBottom: 12, padding: '10px 12px' }}>
+              <div className="card" style={{ background: 'var(--warning-soft)', color: 'var(--warning)', fontSize: 'var(--fs-body)', marginBottom: 12, padding: '10px 12px' }}>
                 <strong>Google News is off.</strong> No Serper API key is set, so News searches return nothing — add one in <strong>Settings → October Outreach</strong>. Google Alerts RSS searches still work without it.
               </div>
             )}
@@ -1184,7 +1184,7 @@ export default function ClientPRPage() {
               <h3 className="h3" style={{ margin: 0 }}>Review queue {queue.length ? `(${queue.length})` : ''}</h3>
               {queueSel.size > 0 && (
                 <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>{queueSel.size} selected</span>
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{queueSel.size} selected</span>
                   <button className="btn btn-primary btn-sm" disabled={bulkBusy} onClick={() => bulkReview('published')}>✓ Confirm selected</button>
                   <button className="btn btn-secondary btn-sm" disabled={bulkBusy} onClick={() => bulkReview('dismissed')}>Dismiss selected</button>
                 </span>
@@ -1329,7 +1329,7 @@ export default function ClientPRPage() {
           {warmCount ? (
             <div className="card" style={{ borderColor: '#f0a868', background: '#fff8f2' }}>
               <h3 className="h3 mb-2">🔥 Showing interest</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 10px' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-body)', margin: '0 0 10px' }}>
                 {warmCount} journalist{warmCount === 1 ? ' is' : 's are'} engaging with your press outreach right now — a great moment for a personal follow-up.
               </p>
               <div className="task-row">
@@ -1338,7 +1338,7 @@ export default function ClientPRPage() {
                     {w.name}{w.outlet ? ` · ${w.outlet}` : ''}{w.warm_reason ? ` — ${w.warm_reason}` : ''}
                   </span>
                 ))}
-                {warmCount > 8 ? <span style={{ fontSize: 12, color: 'var(--text-subtle)', alignSelf: 'center' }}>+{warmCount - 8} more</span> : null}
+                {warmCount > 8 ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', alignSelf: 'center' }}>+{warmCount - 8} more</span> : null}
               </div>
             </div>
           ) : null}
@@ -1352,7 +1352,7 @@ export default function ClientPRPage() {
                 {awaitingSignoff ? <button className="task-chip" onClick={() => setTab('press')}>✍️ <span><span className="n">{awaitingSignoff}</span> release{awaitingSignoff === 1 ? '' : 's'} awaiting sign-off</span></button> : null}
                 {quietCount ? <button className="task-chip" onClick={() => setTab('journalists')}>📉 <span><span className="n">{quietCount}</span> key journalist{quietCount === 1 ? '' : 's'} gone quiet</span></button> : null}
               </div>
-            ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
+            ) : <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', margin: 0 }}>All clear — nothing needs you right now.</p>}
           </div>
           <OverviewChat clientId={id} pillar="earned" />
         </div>
@@ -1366,7 +1366,7 @@ export default function ClientPRPage() {
         <div className="modal-backdrop" onClick={() => !saving && setEditing(null)}>
           <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
-              <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{editing.id ? 'Edit entry' : 'New entry'}</h2>
+              <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>{editing.id ? 'Edit entry' : 'New entry'}</h2>
               <button type="button" onClick={() => setEditing(null)} className="modal-close" aria-label="Close">×</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -1394,12 +1394,12 @@ export default function ClientPRPage() {
                       <>
                         <input ref={attachRef} type="file" accept="application/pdf,.pdf" onChange={uploadAttachment} style={{ display: 'none' }} />
                         <button className="btn btn-secondary btn-sm" type="button" disabled={attaching} onClick={() => attachRef.current && attachRef.current.click()}>{attaching ? 'Uploading…' : '↑ Attach PDF'}</button>
-                        <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>For coverage that only exists in print.</span>
+                        <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>For coverage that only exists in print.</span>
                       </>
                     )}
                   </div>
                 ) : (
-                  <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>Save the entry first, then re-open to attach a PDF.</span>
+                  <span style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>Save the entry first, then re-open to attach a PDF.</span>
                 )}
               </div>
             </div>
@@ -1420,12 +1420,12 @@ export default function ClientPRPage() {
             ) : (
               <>
                 {thankDraft.tone || thankDraft.confidence ? (
-                  <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginBottom: 10 }}>
+                  <p style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginBottom: 10 }}>
                     {thankDraft.tone ? <>Tone: <strong>{thankDraft.tone}</strong>. </> : null}
                     {thankDraft.confidence ? <>Claude confidence: <strong>{Math.round(thankDraft.confidence * 100)}%</strong></> : null}
                   </p>
                 ) : null}
-                {!thankDraft.to && <div className="card" style={{ borderLeft: '3px solid var(--accent)', marginBottom: 10, fontSize: 13 }}>No real email on file for this journalist — can't send.</div>}
+                {!thankDraft.to && <div className="card" style={{ borderLeft: '3px solid var(--accent)', marginBottom: 10, fontSize: 'var(--fs-body)' }}>No real email on file for this journalist — can't send.</div>}
                 <label className="field" style={{ marginBottom: 10 }}><span className="field-label">To</span><input className="input" value={thankDraft.to} readOnly placeholder="—" /></label>
                 <label className="field" style={{ marginBottom: 10 }}><span className="field-label">Subject</span><input className="input" value={thankDraft.subject} onChange={(e) => setThankDraft((t) => ({ ...t, subject: e.target.value, edited: true }))} /></label>
                 <label className="field" style={{ marginBottom: 10 }}><span className="field-label">Message</span><textarea className="input" rows={8} value={thankDraft.body} onChange={(e) => setThankDraft((t) => ({ ...t, body: e.target.value, edited: true }))} /></label>

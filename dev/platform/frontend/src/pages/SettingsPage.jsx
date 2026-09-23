@@ -577,7 +577,7 @@ export default function SettingsPage() {
         }
         const byKey = Object.fromEntries(section.subs.map(x => [x.k, x]));
         const pill = (active) => ({
-          padding: '6px 12px', borderRadius: 'var(--r-pill)', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+          padding: '6px 12px', borderRadius: 'var(--r-pill)', cursor: 'pointer', fontSize: 'var(--fs-body)', fontWeight: 600,
           fontFamily: 'inherit', border: 'var(--border-w) solid ' + (active ? 'var(--accent)' : 'var(--card-border)'),
           background: active ? 'var(--accent)' : 'var(--surface)', color: active ? 'var(--accent-on)' : 'var(--text)',
         });
@@ -646,7 +646,7 @@ export default function SettingsPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span className={`chip ${configuredCount === groupsInCat.length ? 'chip-success' : 'chip-accent'}`}>{configuredCount} / {groupsInCat.length}</span>
-                    <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
+                    <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
                   </div>
                 </button>
 
@@ -662,7 +662,7 @@ export default function SettingsPage() {
                       <div key={group.title} style={{ borderLeft: `4px solid ${groupSet ? 'var(--positive)' : 'var(--card-border)'}`, background: groupSet ? 'var(--positive-soft)' : 'var(--surface-raised)', borderRadius: 'var(--r-sm)', padding: '14px 16px' }}>
                         <div className="row between center" style={{ marginBottom: 8 }}>
                           <div className="h3" style={{ margin: 0 }}>{group.title}</div>
-                          {groupSet && <span className="chip chip-success" style={{ fontSize: 10, flex: '0 0 auto' }}>✓ Set</span>}
+                          {groupSet && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>✓ Set</span>}
                         </div>
                         {group.hint && <p className="body-sm text-muted">{group.hint}</p>}
                         {group.note && (
@@ -680,7 +680,7 @@ export default function SettingsPage() {
                             <div key={key} className="field" style={{ borderLeft: `3px solid ${fieldSet && !groupSet ? 'var(--positive)' : 'transparent'}`, background: fieldSet && !groupSet ? 'var(--positive-soft)' : 'transparent', borderRadius: 'var(--r-sm)', padding: fieldSet && !groupSet ? '8px 10px' : '0', marginLeft: fieldSet && !groupSet ? '-10px' : '0', transition: 'background .15s, border-color .15s' }}>
                               <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 {label}
-                                {fieldSet && <span className="chip chip-success" style={{ fontSize: 9, flex: '0 0 auto' }}>✓ set</span>}
+                                {fieldSet && <span className="chip chip-success" style={{ fontSize: 'var(--fs-caption)', flex: '0 0 auto' }}>✓ set</span>}
                               </label>
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 <input
@@ -712,17 +712,17 @@ export default function SettingsPage() {
                           <div style={{ marginTop: 12 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                               <button type="button" onClick={handleTestDataForSEO} disabled={testingDfs}
-                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
+                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
                                 {testingDfs ? 'Testing…' : 'Test connection'}
                               </button>
                               {dfsTestMsg && (
-                                <span style={{ fontSize: 12, color: dfsTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                                <span style={{ fontSize: 'var(--fs-caption)', color: dfsTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
                                   {dfsTestMsg.ok ? '✓ ' : '✗ '}{dfsTestMsg.message}
                                 </span>
                               )}
                             </div>
                             {dfsTestMsg && dfsTestMsg.sent && (
-                              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
                                 Sent login <code>{dfsTestMsg.sent.login}</code>, password {dfsTestMsg.sent.passwordLength} chars ({dfsTestMsg.sent.passwordPreview}){dfsTestMsg.code != null ? `. DataForSEO code ${dfsTestMsg.code}` : ''}.
                               </div>
                             )}
@@ -732,16 +732,16 @@ export default function SettingsPage() {
                           <div style={{ marginTop: 12 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                               <button type="button" onClick={handleTestFlareSolverr} disabled={testingFs}
-                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
+                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
                                 {testingFs ? 'Testing… (can take ~15s)' : 'Test connection'}
                               </button>
                               {fsTestMsg && (
-                                <span style={{ fontSize: 12, color: fsTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                                <span style={{ fontSize: 'var(--fs-caption)', color: fsTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
                                   {fsTestMsg.ok ? '✓ ' : '✗ '}{fsTestMsg.message}
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
                               Pings the service and solves a sample page end-to-end. Save the URL first if you've just changed it.
                             </div>
                           </div>
@@ -750,16 +750,16 @@ export default function SettingsPage() {
                           <div style={{ marginTop: 12 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                               <button type="button" onClick={handleTestPageSpeed} disabled={testingPsi}
-                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
+                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
                                 {testingPsi ? 'Testing… (~10s)' : 'Test connection'}
                               </button>
                               {psiTestMsg && (
-                                <span style={{ fontSize: 12, color: psiTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                                <span style={{ fontSize: 'var(--fs-caption)', color: psiTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
                                   {psiTestMsg.ok ? '✓ ' : '✗ '}{psiTestMsg.message}
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
                               Save the key first, then this runs a real PageSpeed check against a sample URL.
                             </div>
                           </div>
@@ -768,27 +768,27 @@ export default function SettingsPage() {
                           <div style={{ marginTop: 12 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                               <button type="button" onClick={handleTestHeyGen} disabled={testingHg}
-                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
+                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
                                 {testingHg ? 'Testing… (up to ~20s)' : 'Test connection'}
                               </button>
                               {hgTestMsg && (
-                                <span style={{ fontSize: 12, color: hgTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                                <span style={{ fontSize: 'var(--fs-caption)', color: hgTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
                                   {hgTestMsg.ok ? '✓ ' : '✗ '}{hgTestMsg.message}
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
                               Pings HeyGen with the saved key. Save the key first if you've just changed it. Tells you if it's the key (✗ rejected) or the connection (✗ didn't respond).
                             </div>
                           </div>
                         )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
                           <button type="button" onClick={() => handleSaveSection(group)} disabled={savingSection === group.title}
-                            className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
+                            className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
                             {savingSection === group.title ? 'Saving…' : 'Save'}
                           </button>
                           {sectionResult && sectionResult.title === group.title && (
-                            <span style={{ fontSize: 12, fontWeight: 600, color: sectionResult.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                            <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: sectionResult.ok ? 'var(--positive)' : 'var(--negative)' }}>
                               {sectionResult.ok ? '✓ Saved' : `✗ ${sectionResult.message}`}
                             </span>
                           )}
@@ -807,11 +807,11 @@ export default function SettingsPage() {
                             value={testEmail} onChange={e => setTestEmail(e.target.value)}
                             className="input" style={{ flex: '1 1 200px' }}
                           />
-                          <button type="button" {...roWrite(readOnly, { onClick: handleTestEmail, disabled: sendingTest })} className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
+                          <button type="button" {...roWrite(readOnly, { onClick: handleTestEmail, disabled: sendingTest })} className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 'var(--fs-caption)' }}>
                             {sendingTest ? 'Sending…' : 'Send Test'}
                           </button>
                         </div>
-                        {testMsg && <div style={{ marginTop: 6, fontSize: 12, color: testMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{testMsg}</div>}
+                        {testMsg && <div style={{ marginTop: 6, fontSize: 'var(--fs-caption)', color: testMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{testMsg}</div>}
                       </div>
                     )}
                   </div>
@@ -847,10 +847,10 @@ function ScopesBlock({ scopes }) {
           {copied ? '✓ Copied' : 'Copy all'}
         </button>
       </div>
-      <code className="card" style={{ display: "block", fontSize: 11, fontFamily: "monospace", padding: "6px 8px", wordBreak: "break-all" }}>{csv}</code>
+      <code className="card" style={{ display: "block", fontSize: 'var(--fs-caption)', fontFamily: "monospace", padding: "6px 8px", wordBreak: "break-all" }}>{csv}</code>
       <div className="row wrap mt-3" style={{ gap: 4 }}>
         {scopes.values.map(s => (
-          <span key={s} className="chip chip-outline" style={{ fontFamily: "monospace", fontSize: 10 }}>{s}</span>
+          <span key={s} className="chip chip-outline" style={{ fontFamily: "monospace", fontSize: 'var(--fs-caption)' }}>{s}</span>
         ))}
       </div>
     </div>
@@ -1030,7 +1030,7 @@ function PublicationsPanel() {
       <input className="input" placeholder="Search publications…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)} style={{ maxWidth: 320, margin: '10px 0' }} />
 
       {outlets && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '8px 0 12px', fontSize: 12, color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '8px 0 12px', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
           <span>{selected.size} selected · Showing {shownCount.toLocaleString()} of {totalCount.toLocaleString()} matching</span>
           <div style={{ flex: 1 }} />
           {selected.size > 0 && (
@@ -1070,12 +1070,12 @@ function PublicationsPanel() {
                     <span style={{ color: 'var(--text)', fontWeight: 500 }}>{o.name}</span>
                   </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
-                    {rssBusy === o.id ? <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>…</span>
+                    {rssBusy === o.id ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>…</span>
                       : o.rss_status === 'found' && o.rss_url
-                        ? <a href={o.rss_url} target="_blank" rel="noopener noreferrer" title={`Feed: ${o.rss_url}`} style={{ color: '#e8871e', textDecoration: 'none', fontSize: 15 }}>🛰</a>
+                        ? <a href={o.rss_url} target="_blank" rel="noopener noreferrer" title={`Feed: ${o.rss_url}`} style={{ color: '#e8871e', textDecoration: 'none', fontSize: 'var(--fs-body)' }}>🛰</a>
                         : o.rss_status === 'none'
-                          ? <button onClick={() => findRss(o)} title="No feed found — click to try again" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14 }}>—</button>
-                          : <button onClick={() => findRss(o)} title="Find this publication's RSS feed" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14 }}>＋</button>}
+                          ? <button onClick={() => findRss(o)} title="No feed found — click to try again" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>—</button>
+                          : <button onClick={() => findRss(o)} title="Find this publication's RSS feed" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>＋</button>}
                   </td>
                   <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.coverage}</td>
                   <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.contacts || 0}</td>
@@ -1085,12 +1085,12 @@ function PublicationsPanel() {
                         the modal — one click, one fix. */}
                     {(() => {
                       const label = (TIERS.find(([v]) => v === (o.tier || '')) || ['', '—'])[1];
-                      return <span style={{ color: o.tier ? 'var(--text)' : 'var(--text-subtle)', fontSize: 13 }}>{label}</span>;
+                      return <span style={{ color: o.tier ? 'var(--text)' : 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{label}</span>;
                     })()}
                   </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                     <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete"
-                      style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
+                      style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-title)', lineHeight: 1, padding: '2px 6px' }}>
                       ×
                     </button>
                   </td>
@@ -1101,7 +1101,7 @@ function PublicationsPanel() {
           </table>
         </div>
       )}
-      {err && <div style={{ color: 'var(--negative)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginTop: 8 }}>{err}</div>}
     </Card>
     {openOutlet && (
       <OutletEditModal
@@ -1196,11 +1196,11 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
     <div className="modal-backdrop" onClick={onClose}>
       <form onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); save(); }} className="modal modal-wide">
         <div className="modal-head">
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{data.name || 'Publication'}</h2>
+          <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>{data.name || 'Publication'}</h2>
           <button type="button" onClick={onClose} className="modal-close">×</button>
         </div>
 
-        {err && <div style={{ color: 'var(--negative)', fontSize: 12, padding: '0 0 8px' }}>{err}</div>}
+        {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', padding: '0 0 8px' }}>{err}</div>}
 
         <div className="grid">
           <MSection title="Publication">
@@ -1227,25 +1227,25 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
 
           <MSection title="Activity">
             <div style={{ display: 'flex', gap: 18, marginBottom: 14 }}>
-              <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Published</div><div style={{ fontSize: 22, fontWeight: 800 }}>{published}</div></div>
-              <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Tracked</div><div style={{ fontSize: 22, fontWeight: 800 }}>{(data.coverage || []).length}</div></div>
-              <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Journalists</div><div style={{ fontSize: 22, fontWeight: 800 }}>{(data.journalists || []).length}</div></div>
+              <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Published</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{published}</div></div>
+              <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Tracked</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{(data.coverage || []).length}</div></div>
+              <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Journalists</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{(data.journalists || []).length}</div></div>
             </div>
             {(data.journalists || []).length > 0 && (
               <>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Journalists here</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Journalists here</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
                   {(data.journalists || []).slice(0, 20).map((j) => (
                     <Link key={j.id} to={`/media/journalist/${j.id}`} onClick={onClose}
-                      className="chip" style={{ textDecoration: 'none', fontSize: 12 }}>{j.name}</Link>
+                      className="chip" style={{ textDecoration: 'none', fontSize: 'var(--fs-caption)' }}>{j.name}</Link>
                   ))}
                 </div>
               </>
             )}
             {(data.coverage || []).length > 0 && (
               <>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Recent coverage</div>
-                <div style={{ maxHeight: 220, overflowY: 'auto', fontSize: 12 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Recent coverage</div>
+                <div style={{ maxHeight: 220, overflowY: 'auto', fontSize: 'var(--fs-caption)' }}>
                   {(data.coverage || []).slice(0, 12).map((r, i) => (
                     <div key={i} style={{ padding: '4px 0', borderBottom: '1px solid var(--card-border)' }}>
                       <span style={{ fontWeight: 600 }}>{r.client || '—'}</span>
@@ -1315,7 +1315,7 @@ function PrAddonPanel() {
       <div className="field" style={{ marginBottom: 10 }}>
         <label className="field-label">API base URL</label>
         <div style={{ display: 'flex', gap: 8 }}>
-          <input className="input" readOnly value={base} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }} />
+          <input className="input" readOnly value={base} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-caption)' }} />
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(base)}>Copy</button>
         </div>
       </div>
@@ -1323,7 +1323,7 @@ function PrAddonPanel() {
         <label className="field-label">API key (X-OMI-Key)</label>
         {key ? (
           <div style={{ display: 'flex', gap: 8 }}>
-            <input className="input" readOnly value={reveal ? key : masked} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }} />
+            <input className="input" readOnly value={reveal ? key : masked} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-caption)' }} />
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReveal((r) => !r)}>{reveal ? 'Hide' : 'Reveal'}</button>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(key)}>Copy</button>
           </div>
@@ -1386,10 +1386,10 @@ function CostsPanel() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {totalThisMonth > 0 && (
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Total spent this month</div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Total spent this month</div>
+              <div style={{ fontSize: 'var(--fs-title)', fontWeight: 800 }}>
                 ${totalThisMonth.toFixed(2)}
-                {gbpPerUsd ? <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-subtle)', marginLeft: 8 }}>≈ £{(totalThisMonth * gbpPerUsd).toFixed(2)}</span> : null}
+                {gbpPerUsd ? <span style={{ fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text-subtle)', marginLeft: 8 }}>≈ £{(totalThisMonth * gbpPerUsd).toFixed(2)}</span> : null}
               </div>
             </div>
           )}
@@ -1398,8 +1398,8 @@ function CostsPanel() {
           </button>
         </div>
       </div>
-      {err && <div style={{ color: 'var(--negative)', fontSize: 12, marginBottom: 8 }}>{err}</div>}
-      {!rows && <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: 10 }}>Loading…</div>}
+      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 8 }}>{err}</div>}
+      {!rows && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: 10 }}>Loading…</div>}
       {rows && (() => {
         const configured = r => !r.snapshot || r.snapshot.status !== 'no_credentials';
         const live = rows.filter(r => !r.manual && configured(r));
@@ -1449,28 +1449,28 @@ function KeywordSpendPanel() {
           Use it to size a daily spending cap on the DataForSEO dashboard as a runaway-cost backstop.
         </p>
       </div>
-      {err && <div style={{ color: 'var(--negative)', fontSize: 12, marginBottom: 8 }}>{err}</div>}
-      {!data && !err && <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: 10 }}>Loading…</div>}
+      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 8 }}>{err}</div>}
+      {!data && !err && <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', padding: 10 }}>Loading…</div>}
       {data && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
             <div className="card" style={{ padding: 12 }}>
               <div className="caption mb-2">Active keywords</div>
-              <div style={{ fontSize: 22, fontWeight: 700 }}>{data.active_keywords.toLocaleString()}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 2 }}>across {data.active_clients} active client{data.active_clients === 1 ? '' : 's'}</div>
+              <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700 }}>{data.active_keywords.toLocaleString()}</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>across {data.active_clients} active client{data.active_clients === 1 ? '' : 's'}</div>
             </div>
             <div className="card" style={{ padding: 12 }}>
               <div className="caption mb-2">Est. spend / month</div>
-              <div style={{ fontSize: 22, fontWeight: 700 }}>{fmtCurrency(data.est_monthly_gbp, 'GBP')}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 2 }}>≈ {fmtCurrency(data.est_monthly_usd, 'USD')} · rank {fmtCurrency(data.rank.monthly_usd, 'USD')} + AIO {fmtCurrency(data.aio.monthly_usd, 'USD')}</div>
+              <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700 }}>{fmtCurrency(data.est_monthly_gbp, 'GBP')}</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>≈ {fmtCurrency(data.est_monthly_usd, 'USD')} · rank {fmtCurrency(data.rank.monthly_usd, 'USD')} + AIO {fmtCurrency(data.aio.monthly_usd, 'USD')}</div>
             </div>
             <div className="card success" style={{ padding: 12 }}>
               <div className="caption mb-2">Suggested daily cap</div>
-              <div style={{ fontSize: 22, fontWeight: 700 }}>{fmtCurrency(data.recommended_daily_cap_usd, 'USD')}<span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>/ day</span></div>
-              <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 2 }}>3× peak run-day ({fmtCurrency(data.peak_day_usd, 'USD')})</div>
+              <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700 }}>{fmtCurrency(data.recommended_daily_cap_usd, 'USD')}<span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>/ day</span></div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>3× peak run-day ({fmtCurrency(data.peak_day_usd, 'USD')})</div>
             </div>
           </div>
-          <div className="callout" style={{ marginTop: 12, fontSize: 12, lineHeight: 1.6 }}>
+          <div className="callout" style={{ marginTop: 12, fontSize: 'var(--fs-caption)', lineHeight: 1.6 }}>
             <strong>Set the backstop:</strong> DataForSEO dashboard → <em>API Settings → Spending limits</em> → set the
             <strong> General Daily Limit</strong> to <strong>{fmtCurrency(data.recommended_daily_cap_usd, 'USD')}</strong>.
             Spend is spiky (every keyword is checked on one run day every 4 days), so this sits ~3× above a normal sweep —
@@ -1488,19 +1488,19 @@ function ProviderCard({ entry }) {
   const [showDiag, setShowDiag] = useState(false);
   let body, statusColour = 'var(--text-subtle)';
   if (!s) {
-    body = <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No data yet — click Refresh.</div>;
+    body = <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>No data yet — click Refresh.</div>;
   } else if (s.status === 'no_credentials') {
-    body = <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Not configured</div>;
+    body = <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>Not configured</div>;
   } else if (s.status === 'error') {
-    body = <div style={{ fontSize: 12, color: 'var(--negative)' }}>{s.error_message || 'Error'}</div>;
+    body = <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--negative)' }}>{s.error_message || 'Error'}</div>;
     statusColour = 'var(--negative)';
   } else {
     body = (
       <div>
         {s.cost_this_period != null && (
-          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+          <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, color: 'var(--text)' }}>
             {fmtCurrency(s.cost_this_period, s.currency)}
-            <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>this month</span>
+            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>this month</span>
           </div>
         )}
         {s.cost_this_period == null && s.balance_remaining != null && (
@@ -1509,11 +1509,11 @@ function ProviderCard({ entry }) {
               // Spend is the headline — the panel exists to answer "how much
               // does this app cost me per month". Balance is the footnote.
               <>
-                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+                <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, color: 'var(--text)' }}>
                   {fmtCurrency(entry.spend_this_month, s.currency)}
-                  <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>this month</span>
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>this month</span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 2 }}>
                   {fmtCurrency(s.balance_remaining, s.currency)} remaining in pool
                 </div>
               </>
@@ -1521,25 +1521,25 @@ function ProviderCard({ entry }) {
               // No diff yet (one snapshot in the window) — show the balance
               // as the headline so the card isn't empty. Once a second
               // snapshot lands, spend swaps in.
-              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+              <div style={{ fontSize: 'var(--fs-section)', fontWeight: 700, color: 'var(--text)' }}>
                 {fmtCurrency(s.balance_remaining, s.currency)}
-                <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>remaining</span>
+                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>remaining</span>
               </div>
             )}
           </>
         )}
         {s.units_used != null && (
-          <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 2 }}>
+          <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text)', marginTop: 2 }}>
             {s.units_used.toLocaleString()}{s.units_limit ? ` / ${s.units_limit.toLocaleString()}` : ''}{' '}
             <span style={{ color: 'var(--text-subtle)' }}>{s.unit_label || ''}</span>
           </div>
         )}
         {(s.cost_this_period == null && s.balance_remaining == null && s.units_used == null) && (
-          <div style={{ fontSize: 11, color: 'var(--text-subtle)', fontStyle: 'italic' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', fontStyle: 'italic' }}>
             {s.raw?.note || 'Configured — no balance API.'}
           </div>
         )}
-        <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 6 }}>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 6 }}>
           {s.snapshot_at ? `Updated ${new Date(s.snapshot_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
         </div>
       </div>
@@ -1563,48 +1563,48 @@ function ProviderCard({ entry }) {
         {hasDiag && (
           <button type="button" onClick={() => setShowDiag((v) => !v)}
             title="Show raw breakdown from the API response"
-            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-subtle)', padding: 0 }}>
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', padding: 0 }}>
             {showDiag ? '× close' : 'diagnose'}
           </button>
         )}
       </div>
       {body}
       {showDiag && hasDiag && (
-        <div style={{ marginTop: 10, padding: 8, background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', fontSize: 11, color: 'var(--text-muted)' }}>
+        <div style={{ marginTop: 10, padding: 8, background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Workspaces seen ({(diag._workspaces_seen || []).length})</div>
-          <div style={{ fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all', marginBottom: 8 }}>{(diag._workspaces_seen || []).join(', ') || '(none)'}</div>
+          <div style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', wordBreak: 'break-all', marginBottom: 8 }}>{(diag._workspaces_seen || []).join(', ') || '(none)'}</div>
           {diag._by_cost_type && Object.keys(diag._by_cost_type).length > 0 && (
             <>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>By cost type</div>
-              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_cost_type, null, 2)}</pre>
+              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_cost_type, null, 2)}</pre>
             </>
           )}
           {diag._by_model && Object.keys(diag._by_model).length > 0 && (
             <>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>By model</div>
-              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_model, null, 2)}</pre>
+              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_model, null, 2)}</pre>
             </>
           )}
           {diag._by_workspace && Object.keys(diag._by_workspace).length > 0 && (
             <>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>By workspace</div>
-              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_workspace, null, 2)}</pre>
+              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_workspace, null, 2)}</pre>
             </>
           )}
           {diag._top_5_amounts && diag._top_5_amounts.length > 0 && (
             <>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>Top 5 individual amounts</div>
-              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._top_5_amounts, null, 2)}</pre>
+              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._top_5_amounts, null, 2)}</pre>
             </>
           )}
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Counters</div>
-          <div style={{ fontSize: 10, fontFamily: 'monospace' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontFamily: 'monospace' }}>
             unique_lines={diag._aggregated_unique_lines} · buckets={diag._aggregated_buckets} · pages={diag._aggregated_pages}
           </div>
           {diag._bucket_samples && (
             <details style={{ marginTop: 8 }}>
               <summary style={{ cursor: 'pointer', fontWeight: 700 }}>First 2 buckets verbatim</summary>
-              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._bucket_samples, null, 2)}</pre>
+              <pre style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._bucket_samples, null, 2)}</pre>
             </details>
           )}
         </div>
@@ -1636,7 +1636,7 @@ function Field({ label, children }) {
 }
 function InfoRow({ label, value }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: 13 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: 'var(--fs-body)' }}>
       <span style={{ color: 'var(--text-muted)' }}>{label}</span>
       <code style={{ color: 'var(--text)' }}>{value}</code>
     </div>
@@ -1709,7 +1709,7 @@ function MediaAssistant() {
           <div style={{ maxHeight: 340, overflow: 'auto', border: '1px solid var(--card-border, #eee)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
             {messages.map((m, i) => (
               <div key={i} style={{ marginBottom: 8, textAlign: m.role === 'user' ? 'right' : 'left' }}>
-                <span style={{ display: 'inline-block', maxWidth: '85%', padding: '7px 11px', borderRadius: 10, fontSize: 13, whiteSpace: 'pre-wrap',
+                <span style={{ display: 'inline-block', maxWidth: '85%', padding: '7px 11px', borderRadius: 10, fontSize: 'var(--fs-body)', whiteSpace: 'pre-wrap',
                   background: m.role === 'user' ? 'var(--accent, #2d6cdf)' : 'var(--surface-raised, #f4f4f5)',
                   color: m.role === 'user' ? '#fff' : 'var(--text)' }}>{m.content}</span>
               </div>
@@ -1721,15 +1721,15 @@ function MediaAssistant() {
         {actions.length > 0 && (
           <div style={{ border: '1px solid var(--accent, #2d6cdf)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>Proposed changes — untick anything you don’t want</div>
+              <div style={{ fontWeight: 600, fontSize: 'var(--fs-body)' }}>Proposed changes — untick anything you don’t want</div>
               <button className="btn btn-secondary btn-sm" onClick={() => setSel(sel.size === actions.length ? new Set() : new Set(actions.map((_, i) => i)))}>
                 {sel.size === actions.length ? 'Untick all' : 'Tick all'}
               </button>
             </div>
             {actions.map((a, i) => (
-              <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, padding: '5px 0', borderTop: i ? '1px solid #f2f2f2' : 'none', cursor: 'pointer', opacity: sel.has(i) ? 1 : 0.5 }}>
+              <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 'var(--fs-body)', padding: '5px 0', borderTop: i ? '1px solid #f2f2f2' : 'none', cursor: 'pointer', opacity: sel.has(i) ? 1 : 0.5 }}>
                 <input type="checkbox" checked={sel.has(i)} onChange={() => toggleAction(i)} style={{ marginTop: 2 }} />
-                <span>{actionLabel(a)}{a.why ? <span className="text-muted" style={{ fontSize: 11 }}> — {a.why}</span> : null}</span>
+                <span>{actionLabel(a)}{a.why ? <span className="text-muted" style={{ fontSize: 'var(--fs-caption)' }}> — {a.why}</span> : null}</span>
               </label>
             ))}
             <div style={{ marginTop: 8 }}>
@@ -1740,7 +1740,7 @@ function MediaAssistant() {
         )}
 
         {applied && (
-          <div style={{ marginBottom: 10, fontSize: 13 }}>
+          <div style={{ marginBottom: 10, fontSize: 'var(--fs-body)' }}>
             {applied.map((r, i) => (
               <div key={i} style={{ color: r.ok ? 'var(--positive, #157a3f)' : 'var(--danger, #c62828)' }}>
                 {r.ok ? '✓' : '✕'} {actionLabel(r)} — {r.detail}
@@ -1933,7 +1933,7 @@ function JournalistTasks() {
 
   return (
     <div className="stack stack-lg">
-      {err && <div style={{ padding: 8, background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 12, borderRadius: 'var(--r-sm)' }}>{err}</div>}
+      {err && <div style={{ padding: 8, background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 'var(--fs-caption)', borderRadius: 'var(--r-sm)' }}>{err}</div>}
 
       <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', background: 'var(--surface-raised, #fafafa)' }}>
         <div className="body-sm text-muted" style={{ flex: 1, minWidth: 220 }}>
@@ -1975,7 +1975,7 @@ function JournalistTasks() {
         {suggestions.length > 0 && (
           <div style={{ marginTop: 14 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
+              <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--text-muted)' }}>{suggestions.length} to review{selSugg.size ? ` · ${selSugg.size} selected` : ''}</span>
               <button className="btn btn-primary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve', true) })}>Add all {suggestions.length}</button>
               {selSugg.size > 0 && <>
                 <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => bulkSuggestions('approve') })}>Add selected</button>
@@ -1992,18 +1992,18 @@ function JournalistTasks() {
                       <td>
                         <div style={{ fontWeight: 600 }}>
                           {s.name}
-                          {s.source === 'rss' && <span className="chip" style={{ fontSize: 9, marginLeft: 6 }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
+                          {s.source === 'rss' && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginLeft: 6 }} title="Discovered from this outlet's RSS feed">🛰 via feed</span>}
                         </div>
                         {s.email
-                          ? <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{s.email}</div>
+                          ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{s.email}</div>
                           : s.guessed_email
-                            ? <div style={{ fontSize: 11, color: 'var(--danger, #c62828)', fontWeight: 600 }} title="Guessed from this outlet's email pattern — NOT confirmed">{s.guessed_email} <span style={{ fontWeight: 400 }}>· guess</span></div>
-                            : <span className="chip" style={{ fontSize: 10 }}>no email</span>}
+                            ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--danger, #c62828)', fontWeight: 600 }} title="Guessed from this outlet's email pattern — NOT confirmed">{s.guessed_email} <span style={{ fontWeight: 400 }}>· guess</span></div>
+                            : <span className="chip" style={{ fontSize: 'var(--fs-caption)' }}>no email</span>}
                       </td>
-                      <td style={{ fontSize: 12 }}>{s.client_name}</td>
+                      <td style={{ fontSize: 'var(--fs-caption)' }}>{s.client_name}</td>
                       <td>{s.outlet || '—'}</td>
-                      <td style={{ fontSize: 12 }}>{s.beat || '—'}</td>
-                      <td style={{ fontSize: 12 }}>
+                      <td style={{ fontSize: 'var(--fs-caption)' }}>{s.beat || '—'}</td>
+                      <td style={{ fontSize: 'var(--fs-caption)' }}>
                         {s.why || '—'}
                         {s.source_url && <> · <a href={s.source_url} target="_blank" rel="noopener noreferrer">source ↗</a></>}
                       </td>
@@ -2031,7 +2031,7 @@ function JournalistTasks() {
             <div style={{ maxHeight: 320, overflow: 'auto' }}>
               {archiveReview.slice(0, 100).map((c) => (
                 <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
-                  <div style={{ fontSize: 13 }}><strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''}</div>
+                  <div style={{ fontSize: 'var(--fs-body)' }}><strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''}</div>
                   <div style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'archive')}>Archive</button>{' '}
                     <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'unarchive')}>Keep</button>
@@ -2055,7 +2055,7 @@ function JournalistTasks() {
               {nudges.slice(0, 50).map((n) => (
                 <div key={n.id} style={{ padding: '8px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                    <div style={{ fontSize: 13, flex: 1, minWidth: 200 }}>
+                    <div style={{ fontSize: 'var(--fs-body)', flex: 1, minWidth: 200 }}>
                       <strong>{n.name || '—'}</strong>{n.outlet ? ` · ${n.outlet}` : ''}<br />
                       <a href={n.article_url} target="_blank" rel="noreferrer">{(n.article_title || n.article_url).slice(0, 90)}</a>
                       {n.article_date ? <span className="text-muted"> · {n.article_date}</span> : null}
@@ -2095,7 +2095,7 @@ function JournalistTasks() {
           <div style={{ maxHeight: 320, overflow: 'auto' }}>
             {moves.map((m) => (
               <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
-                <div style={{ fontSize: 13 }}>
+                <div style={{ fontSize: 'var(--fs-body)' }}>
                   <strong>{m.name || '—'}</strong> · {m.from_outlet || '—'} <span className="text-muted">→</span> <strong>{m.to_outlet || '—'}</strong>
                   {m.article_url && <> · <a href={m.article_url} target="_blank" rel="noreferrer">{(m.article_title || 'byline').slice(0, 60)} ↗</a></>}
                 </div>
@@ -2120,10 +2120,10 @@ function JournalistTasks() {
                 <div className="body-sm text-muted" style={{ marginBottom: 4 }}>{c.method === 'exact_email' ? 'Same email' : c.method === 'name_and_outlet' ? 'Same name & outlet' : 'Same name & domain'}</div>
                 {c.members.map((m) => (
                   <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '2px 0' }}>
-                    <div style={{ fontSize: 13 }}>
-                      {m.id === c.suggested && <span className="chip" style={{ fontSize: 9, marginRight: 6 }}>keep</span>}
+                    <div style={{ fontSize: 'var(--fs-body)' }}>
+                      {m.id === c.suggested && <span className="chip" style={{ fontSize: 'var(--fs-caption)', marginRight: 6 }}>keep</span>}
                       <strong>{m.name}</strong>{m.email ? ` · ${m.email}` : ''}{m.outlet ? ` · ${m.outlet}` : ''}
-                      <span className="text-muted" style={{ fontSize: 11 }}> · {m.coverage} coverage · {m.clients} client{m.clients === 1 ? '' : 's'}</span>
+                      <span className="text-muted" style={{ fontSize: 'var(--fs-caption)' }}> · {m.coverage} coverage · {m.clients} client{m.clients === 1 ? '' : 's'}</span>
                     </div>
                     <button className="btn btn-secondary btn-sm" {...roWrite(readOnly, { onClick: () => mergeDupe(c, m.id) })} title="Merge the others into this record">Keep this</button>
                   </div>
@@ -2147,9 +2147,9 @@ function JournalistTasks() {
               <div className="body-sm" style={{ fontWeight: 600, marginBottom: 4 }}>Bounced — kept out of sends until fixed ({attention.bounced.length})</div>
               <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 12 }}>
                 {attention.bounced.slice(0, 100).map((c) => (
-                  <div key={c.id} style={{ fontSize: 13, padding: '4px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                  <div key={c.id} style={{ fontSize: 'var(--fs-body)', padding: '4px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
                     <strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''} · <span style={{ color: 'var(--danger, #c62828)' }}>{c.email}</span>
-                    {c.bounce_reason && <span className="text-muted" style={{ fontSize: 11 }}> · {String(c.bounce_reason).slice(0, 50)}</span>}
+                    {c.bounce_reason && <span className="text-muted" style={{ fontSize: 'var(--fs-caption)' }}> · {String(c.bounce_reason).slice(0, 50)}</span>}
                   </div>
                 ))}
               </div>
@@ -2161,7 +2161,7 @@ function JournalistTasks() {
               <p className="body-sm text-muted" style={{ marginTop: 0, marginBottom: 6 }}>Guessed from the outlet's pattern — worth confirming before a big send.</p>
               <div style={{ maxHeight: 200, overflow: 'auto' }}>
                 {attention.guessed.slice(0, 100).map((c) => (
-                  <div key={c.id} style={{ fontSize: 13, padding: '4px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                  <div key={c.id} style={{ fontSize: 'var(--fs-body)', padding: '4px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
                     <strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''} · <span style={{ color: 'var(--danger, #c62828)' }}>{c.email}</span>
                   </div>
                 ))}
@@ -2475,7 +2475,7 @@ function ContactsLibrary() {
                   placeholder={`Filter ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
                   value={tagSearch}
                   onChange={e => setTagSearch(e.target.value)}
-                  className="input" style={{ padding: '5px 9px', fontSize: 12, maxWidth: 280, marginBottom: 8 }}
+                  className="input" style={{ padding: '5px 9px', fontSize: 'var(--fs-caption)', maxWidth: 280, marginBottom: 8 }}
                 />
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, width: '100%' }}>
                   {visible.map(t => {
@@ -2500,7 +2500,7 @@ function ContactsLibrary() {
                     </button>
                   )}
                   {!filtered.length && (
-                    <span style={{ fontSize: 11, color: 'var(--text-subtle)', alignSelf: 'center' }}>No tags match "{tagSearch}"</span>
+                    <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', alignSelf: 'center' }}>No tags match "{tagSearch}"</span>
                   )}
                 </div>
               </div>
@@ -2508,12 +2508,12 @@ function ContactsLibrary() {
           })()}
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
-        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 12 }}>{info}</div>}
+        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 'var(--fs-caption)' }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 'var(--fs-caption)' }}>{info}</div>}
 
         {!filtered && <div style={{ marginTop: 16, color: 'var(--text-subtle)' }}>Loading…</div>}
         {filtered && !filtered.length && (
-          <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 13 }}>
+          <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
             {search.trim() || activeTags.size
               ? 'No journalists match this filter.'
               : `No journalists yet. Use ↑ Import CSV above, or add them from a client's Earned → Pitch — they'll show up here automatically.`}
@@ -2523,7 +2523,7 @@ function ContactsLibrary() {
         {filtered && !!filtered.length && (
           <div style={{ marginTop: 14, overflowX: 'auto' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                 {selected.size} selected
                 {total > filtered.length
                   ? <> · Showing <strong>{filtered.length.toLocaleString()}</strong> of <strong>{total.toLocaleString()}</strong> matching</>
@@ -2549,7 +2549,7 @@ function ContactsLibrary() {
 
             {bulkTagsOpen && (
               <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 8 }}>
                   Add tags to the {selected.size} selected journalist{selected.size === 1 ? '' : 's'}:
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
@@ -2586,7 +2586,7 @@ function ContactsLibrary() {
 
             {attachOpen && (
               <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Attach the {selected.size} selected journalist{selected.size === 1 ? '' : 's'} to:</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 8 }}>Attach the {selected.size} selected journalist{selected.size === 1 ? '' : 's'} to:</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {clients.map(c => (
                     <button key={c.id} onClick={() => attachTo(c.id)} className="btn btn-secondary btn-sm">
@@ -2632,39 +2632,39 @@ function ContactsLibrary() {
                       </td>
                       <td  onClick={() => setOpenContact(r)}>{r.company || r.outlet_name || '—'}</td>
                       <td  onClick={() => setOpenContact(r)}>
-                        <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+                        <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                           {Array.isArray(r.beats) && r.beats.length ? r.beats.join(', ') : '—'}
                         </span>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                           {(r.tags || []).map(t => (
-                            <span key={t} style={{ cursor: 'default', padding: '1px 7px', fontSize: 10, color: '#111', border: '1px solid #d1d5db', borderRadius: 20, background: 'transparent' }}>{t}</span>
+                            <span key={t} style={{ cursor: 'default', padding: '1px 7px', fontSize: 'var(--fs-caption)', color: '#111', border: '1px solid #d1d5db', borderRadius: 20, background: 'transparent' }}>{t}</span>
                           ))}
                         </div>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                           {(r.client_ids || []).length
                             ? (r.client_ids || []).map(cid => clientNameById[cid] || '…').join(', ')
                             : <span style={{ color: 'var(--text-subtle)' }}>library only</span>}
                         </div>
                       </td>
                       <td  onClick={() => setOpenContact(r)} title={totalsTip}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                           {r.total_sent ? `${r.total_sent} sent · ${r.total_opened || 0} opened` : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
                         </div>
                       </td>
                       <td  onClick={e => e.stopPropagation()} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {r.status === 'do_not_contact'
-                          ? <span title="Opted out of all email" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          ? <span title="Opted out of all email" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
                               opted out · <button onClick={() => allowOne(r)} title="Allow contact again"
                                 style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', font: 'inherit', textDecoration: 'underline', padding: 0 }}>allow</button>
                             </span>
                           : <button onClick={() => optOutOne(r)} title="Mark do-not-contact (unsubscribe from everything)"
-                              style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', padding: 0 }}>unsubscribe</button>}
+                              style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', fontSize: 'var(--fs-caption)', textDecoration: 'underline', padding: 0 }}>unsubscribe</button>}
                         <button onClick={() => destroyOne(r.id)} title="Delete from library"
-                          style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px', marginLeft: 8 }}>
+                          style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 'var(--fs-title)', lineHeight: 1, padding: '2px 6px', marginLeft: 8 }}>
                           ×
                         </button>
                       </td>
@@ -2794,10 +2794,10 @@ function TagsManager() {
         {plan && plan.operations && plan.operations.length > 0 && (
           <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 'var(--r-md)', background: 'var(--warning-soft)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>
+              <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>
                 Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
               </div>
-              <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-subtle)' }}>×</button>
+              <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-title)', color: 'var(--text-subtle)' }}>×</button>
             </div>
             <p className="body-sm text-muted" style={{ marginBottom: 12  }}>
               Untick anything you disagree with, then apply. Each operation rewrites tags on journalists and can't be undone in one click.
@@ -2817,9 +2817,9 @@ function TagsManager() {
                         return n;
                       });
                     }} style={{ marginTop: 3 }} />
-                    <div style={{ flex: 1, fontSize: 12 }}>
+                    <div style={{ flex: 1, fontSize: 'var(--fs-caption)' }}>
                       <div style={{ marginBottom: 3 }}>
-                        <span className="chip chip-outline" style={{ padding: '1px 8px', fontSize: 10, marginRight: 6  }}>{op.type}</span>
+                        <span className="chip chip-outline" style={{ padding: '1px 8px', fontSize: 'var(--fs-caption)', marginRight: 6  }}>{op.type}</span>
                         <OpSummary op={op} />
                       </div>
                       {op.why && <div style={{ color: 'var(--text-subtle)', fontStyle: 'italic' }}>{op.why}</div>}
@@ -2832,7 +2832,7 @@ function TagsManager() {
               <button onClick={() => setSelectedOps(new Set(plan.operations.map((_, i) => i)))} className="btn btn-secondary btn-sm">Tick all</button>
               <button onClick={() => setSelectedOps(new Set())} className="btn btn-secondary btn-sm">Untick all</button>
               <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selectedOps.size} of {plan.operations.length} ticked</span>
+              <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{selectedOps.size} of {plan.operations.length} ticked</span>
               <button onClick={applyPlan} disabled={!selectedOps.size || applying}
                 className="btn btn-primary btn-sm">
                 {applying ? 'Applying…' : `Apply ${selectedOps.size} operation${selectedOps.size === 1 ? '' : 's'}`}
@@ -2847,18 +2847,18 @@ function TagsManager() {
             value={search} onChange={e => setSearch(e.target.value)}
             className="input" style={{ flex: '1 1 240px' }}
           />
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
             Sort:
             <button onClick={() => setSort('count')} className="chip" style={{ cursor: 'pointer', border: 'var(--border-w) solid ' + (sort === 'count' ? 'var(--text)' : 'var(--card-border)'), background: sort === 'count' ? 'var(--text)' : 'var(--surface)', color: sort === 'count' ? '#fff' : 'var(--text)' }}>by count</button>
             <button onClick={() => setSort('name')} className="chip" style={{ cursor: 'pointer', border: 'var(--border-w) solid ' + (sort === 'name' ? 'var(--text)' : 'var(--card-border)'), background: sort === 'name' ? 'var(--text)' : 'var(--surface)', color: sort === 'name' ? '#fff' : 'var(--text)' }}>A → Z</button>
           </div>
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
-        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 12 }}>{info}</div>}
+        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 'var(--fs-caption)' }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 'var(--fs-caption)' }}>{info}</div>}
 
         {!filtered.length ? (
-          <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 13 }}>
+          <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
             {q ? `No tags match "${search}".` : 'No tags yet.'}
           </div>
         ) : (
@@ -2991,7 +2991,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         <div style={tidyStyles.header}>
           <div>
             <div style={tidyStyles.eyebrow}>Tidy with Claude</div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Journalist data cleanup</h2>
+            <h2 style={{ margin: 0, fontSize: 'var(--fs-title)', fontWeight: 700 }}>Journalist data cleanup</h2>
           </div>
           <button onClick={onClose} style={tidyStyles.closeBtn}>×</button>
         </div>
@@ -3009,7 +3009,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             </p>
             <div style={tidyStyles.summary}>
               <div><strong>{(totalInFilter || 0).toLocaleString()}</strong> journalists will be analysed</div>
-              <div style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 4 }}>
+              <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 4 }}>
                 Runs in the background — you can close this modal and come back. Roughly ~$1 per 500 journalists in Claude API spend.
               </div>
             </div>
@@ -3023,7 +3023,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
 
         {phase === 'analysing' && (
           <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: 13, marginBottom: 10 }}>
+            <div style={{ fontSize: 'var(--fs-body)', marginBottom: 10 }}>
               Claude is reading the journalists in batches of 40 — {progress.processed.toLocaleString()} of {(progress.total || totalInFilter || 0).toLocaleString()} done.
             </div>
             <div style={{ background: 'var(--surface-raised)', borderRadius: 999, height: 8, overflow: 'hidden', margin: '8px auto 12px', maxWidth: 420 }}>
@@ -3034,7 +3034,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                 transition: 'width 400ms ease',
               }} />
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
               {progress.found.toLocaleString()} suggestion{progress.found === 1 ? '' : 's'} found so far · You can close this modal — the run continues in the background.
             </div>
           </div>
@@ -3045,26 +3045,26 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             <div style={tidyStyles.summary}>
               <div>Analysed <strong>{result.analysed.toLocaleString()}</strong> journalist{result.analysed === 1 ? '' : 's'} — Claude proposes <strong>{result.suggestions.length}</strong> change{result.suggestions.length === 1 ? '' : 's'} across <strong>{grouped.length}</strong> record{grouped.length === 1 ? '' : 's'}.</div>
               {result.capped && (
-                <div style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 4 }}>
+                <div style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)', marginTop: 4 }}>
                   Hit the 500-journalist cap — re-run with a narrower filter to cover the rest.
                 </div>
               )}
             </div>
             {!result.suggestions.length ? (
-              <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13, textAlign: 'center' }}>
+              <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 'var(--fs-body)', textAlign: 'center' }}>
                 Nothing to clean up — the records in this filter look healthy.
               </div>
             ) : (
               <div style={{ maxHeight: 460, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 0 }}>
                 {grouped.map(g => (
                   <div key={g.id} style={{ padding: '10px 12px', borderBottom: '1px solid #f1f1f1' }}>
-                    <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 700, marginBottom: 6 }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text)', fontWeight: 700, marginBottom: 6 }}>
                       {g.label}
                     </div>
                     {g.suggestions.map(({ idx, s }) => {
                       const ticked = selected.has(idx);
                       return (
-                        <label key={idx} style={{ display: 'flex', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 12 }}>
+                        <label key={idx} style={{ display: 'flex', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 'var(--fs-caption)' }}>
                           <input type="checkbox" checked={ticked} onChange={() => {
                             setSelected(prev => {
                               const n = new Set(prev);
@@ -3079,7 +3079,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                               {' → '}
                               <span style={{ color: 'var(--positive)', fontWeight: 700 }}>"{s.new_value}"</span>
                             </div>
-                            {s.why && <div style={{ color: 'var(--text-subtle)', fontStyle: 'italic', fontSize: 11 }}>{s.why}</div>}
+                            {s.why && <div style={{ color: 'var(--text-subtle)', fontStyle: 'italic', fontSize: 'var(--fs-caption)' }}>{s.why}</div>}
                           </div>
                         </label>
                       );
@@ -3096,7 +3096,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                 </>
               )}
               <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selected.size} of {result.suggestions.length} ticked</span>
+              <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{selected.size} of {result.suggestions.length} ticked</span>
               <button onClick={apply} disabled={!selected.size}
                 style={!selected.size ? { ...tidyStyles.btn, opacity: 0.5 } : tidyStyles.btn}>
                 Apply {selected.size} change{selected.size === 1 ? '' : 's'}
@@ -3106,12 +3106,12 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         )}
 
         {phase === 'applying' && (
-          <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Applying…</div>
+          <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-body)' }}>Applying…</div>
         )}
 
         {phase === 'done' && (
           <div>
-            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-md)', color: 'var(--positive)', fontSize: 13 }}>
+            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-md)', color: 'var(--positive)', fontSize: 'var(--fs-body)' }}>
               ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The journalist audit history records what changed, by whom, and why.
             </div>
             <div style={tidyStyles.footer}>
@@ -3149,21 +3149,21 @@ const tidyStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(20,20,24,0.72)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
   modal: { background: '#fff', color: 'var(--text)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid var(--card-border)' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  eyebrow: { fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 },
-  hint: { fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 },
-  summary: { background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 14, fontSize: 13, marginTop: 12 },
+  eyebrow: { fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
+  closeBtn: { background: 'none', border: 'none', fontSize: 'var(--fs-section)', cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 },
+  hint: { fontSize: 'var(--fs-body)', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 },
+  summary: { background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 14, fontSize: 'var(--fs-body)', marginTop: 12 },
   footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
-  btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
-  err: { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 12, marginBottom: 12 },
-  fieldChip: { background: 'var(--warning-soft)', padding: '1px 6px', borderRadius: 'var(--r-sm)', fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
+  btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: '8px 16px', fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer' },
+  ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '7px 14px', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer' },
+  err: { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', marginBottom: 12 },
+  fieldChip: { background: 'var(--warning-soft)', padding: '1px 6px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)', fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
 };
 
 // Human-readable summary of a single tag-tidy operation. Rendered
 // alongside the checkbox in the plan panel.
 function OpSummary({ op }) {
-  const chip = (txt) => <code style={{ background: 'var(--warning-soft)', padding: '1px 5px', borderRadius: 'var(--r-sm)', fontSize: 11 }}>{txt}</code>;
+  const chip = (txt) => <code style={{ background: 'var(--warning-soft)', padding: '1px 5px', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-caption)' }}>{txt}</code>;
   if (op.type === 'rename') return <span>Rename {chip(op.from)} → {chip(op.to)}</span>;
   if (op.type === 'merge') return <span>Merge {op.from.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}{chip(t)}</React.Fragment>)} → {chip(op.into)}</span>;
   if (op.type === 'delete') return <span>Delete {chip(op.tag)} everywhere</span>;
@@ -3224,27 +3224,27 @@ function SpendControlsPanel() {
       {loading && !data ? <p className="body-sm text-muted">Loading…</p> : (
         <>
           {loadErr && (
-            <div className="callout callout-danger" style={{ margin: '10px 0', fontSize: 13 }}>
+            <div className="callout callout-danger" style={{ margin: '10px 0', fontSize: 'var(--fs-body)' }}>
               ⚠️ Couldn’t read this month’s spend ({loadErr}). You can still set a cap below — it’ll take effect straight away. <button className="btn btn-link btn-sm" onClick={load} style={{ padding: 0 }}>Retry</button>
             </div>
           )}
           <div style={{ margin: '10px 0 14px' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>This month so far</span>
-            <div style={{ fontSize: 22, fontWeight: 800 }}>{mtd == null ? '—' : fmt(mtd)}</div>
+            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>This month so far</span>
+            <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{mtd == null ? '—' : fmt(mtd)}</div>
           </div>
           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
               <div style={{ marginBottom: 4 }}>Monthly hard cap ($) — blank / 0 = off</div>
               <input className="input" type="number" min="0" step="10" value={cap} onChange={(e) => setCap(e.target.value)} placeholder="e.g. 100" style={{ width: 140 }} />
             </label>
-            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
               <div style={{ marginBottom: 4 }}>Daily alert email over ($)</div>
               <input className="input" type="number" min="0" step="5" value={daily} onChange={(e) => setDaily(e.target.value)} placeholder="25" style={{ width: 140 }} />
             </label>
             <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
           </div>
           {capBelowMtd && (
-            <div className="callout callout-danger" style={{ marginTop: 12, fontSize: 13 }}>
+            <div className="callout callout-danger" style={{ marginTop: 12, fontSize: 'var(--fs-body)' }}>
               ⚠️ You've already spent {fmt(mtd)} this month, which is at or above this cap. Saving it will <strong>pause all AI in OMI until the 1st</strong>. Set a higher number for this month if you don't want that.
             </div>
           )}
@@ -3292,12 +3292,12 @@ function CostLogPanel() {
         </select>
       </div>
 
-      {err && <div style={{ color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
+      {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)' }}>{err}</div>}
       {!data ? <p className="body-sm text-muted">Loading…</p> : (
         <>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 14 }}>
-            <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Total · last {days} days</div><div style={{ fontSize: 22, fontWeight: 800 }}>{fmt(totalUsd)}</div></div>
-            <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Daily average</div><div style={{ fontSize: 22, fontWeight: 800, color: flagColor }}>{fmt(dailyAvg)}<span style={{ fontSize: 11, marginLeft: 8, color: flagColor }}>● {burnFlag}</span></div></div>
+            <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Total · last {days} days</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800 }}>{fmt(totalUsd)}</div></div>
+            <div><div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Daily average</div><div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, color: flagColor }}>{fmt(dailyAvg)}<span style={{ fontSize: 'var(--fs-caption)', marginLeft: 8, color: flagColor }}>● {burnFlag}</span></div></div>
           </div>
 
           <h3 className="h3 mb-2">By feature</h3>
@@ -3327,10 +3327,10 @@ function CostLogPanel() {
                 <tbody>
                   {data.recent.slice(0, 30).map((r) => (
                     <tr key={r.id}>
-                      <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{new Date(r.ts).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-caption)' }}>{new Date(r.ts).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                       <td style={{ fontWeight: 600 }}>{r.feature}</td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{r.meta?.model || r.provider}</td>
-                      <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 12 }}>{Number(r.meta?.input_tokens || 0).toLocaleString()} / {Number(r.meta?.output_tokens || 0).toLocaleString()}</td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-caption)' }}>{r.meta?.model || r.provider}</td>
+                      <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 'var(--fs-caption)' }}>{Number(r.meta?.input_tokens || 0).toLocaleString()} / {Number(r.meta?.output_tokens || 0).toLocaleString()}</td>
                       <td style={{ textAlign: 'right' }}>{fmt(r.cost_usd)}</td>
                     </tr>
                   ))}

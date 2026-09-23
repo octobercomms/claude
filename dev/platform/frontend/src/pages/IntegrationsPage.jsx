@@ -183,7 +183,7 @@ function IntegrationTools() {
       </div>
 
       <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', paddingTop: 16 }}>
-        <div className="caption mb-2" style={{ fontSize: 10 }}>Generate a pairing token</div>
+        <div className="caption mb-2" style={{ fontSize: 'var(--fs-caption)' }}>Generate a pairing token</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
           <select
             value={clientId}
@@ -233,7 +233,7 @@ function AccordionItem({ section, isOpen, onToggle }) {
           <div className="h3">{section.title}</div>
           <div className="body-sm text-muted mt-2">{section.summary}</div>
         </div>
-        <span className="text-muted" style={{ fontSize: 18, flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
+        <span className="text-muted" style={{ fontSize: 'var(--fs-title)', flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
       </button>
       {isOpen && (
         <div style={{ padding: '4px 20px 20px', borderTop: 'var(--border-w) solid var(--card-border)' }}>
