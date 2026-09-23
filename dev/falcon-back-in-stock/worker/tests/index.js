@@ -3,3 +3,4 @@
 // makes `node --test dev/falcon-back-in-stock/worker/tests/` run the suite.
 import './worker.test.mjs';
 import './review-fixes.test.mjs';
+import './review-fixes-2.test.mjs';

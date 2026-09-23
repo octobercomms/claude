@@ -27,6 +27,8 @@ export const DEFAULT_API_VERSION = '2026-07';
 export const TOKEN_TTL_DAYS = 120;
 export const FANOUT_MAX_PER_INVOCATION = 400;
 export const DRY_RUN_MAX_PER_BATCH = 5;
+/** Total time for one /hooks/inventory run in waitUntil (Cloudflare allows 30 s after the response). */
+export const INVENTORY_BUDGET_MS = 25000;
 const TURNSTILE_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_ACTION = 'restock-subscribe';
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
@@ -75,24 +77,55 @@ export function hasExactTag(tags, tag) {
   return parseTags(tags).some((t) => t.toLowerCase() === want);
 }
 
-/** Highest n among `preorder-delay-{n}` tags (0 if none). */
-export function maxDelayNumber(tags) {
+function escapeRe(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Variant id part of a per-variant tag pattern: the given id, or any id when omitted. */
+function vidPattern(variantId) {
+  return variantId === undefined || variantId === null || variantId === '' ? '\\d+' : escapeRe(numericId(variantId));
+}
+
+/**
+ * Highest n among `preorder-delay-v{variantId}-{n}` tags (0 if none).
+ * Delays are numbered per (order, variant): a delay to one item in an order
+ * does not count as a delay to another item in the same order.
+ */
+export function maxDelayNumber(tags, variantId) {
+  const re = new RegExp(`^preorder-delay-v${vidPattern(variantId)}-(\\d+)$`, 'i');
   let max = 0;
   for (const t of parseTags(tags)) {
-    const m = t.match(/^preorder-delay-(\d+)$/i);
+    const m = t.match(re);
     if (m) max = Math.max(max, Number(m[1]));
   }
   return max;
 }
 
-/** Dates in the `preorder-keep-by-{YYYY-MM-DD}` tags, sorted ascending. */
-export function keepByDates(tags) {
+/** Dates in the `preorder-keep-by-v{variantId}-{YYYY-MM-DD}` tags, sorted ascending. */
+export function keepByDates(tags, variantId) {
+  const re = new RegExp(`^preorder-keep-by-v${vidPattern(variantId)}-(\\d{4}-\\d{2}-\\d{2})$`, 'i');
   return parseTags(tags)
-    .map((t) => t.match(/^preorder-keep-by-(\d{4}-\d{2}-\d{2})$/i))
+    .map((t) => t.match(re))
     .filter(Boolean)
     .map((m) => m[1])
     .sort();
 }
+
+/** Numeric variant ids from an order's `preorder-v{id}` tags. */
+export function preorderVariantIdsFromTags(tags) {
+  return [...new Set(parseTags(tags).map((t) => t.match(/^preorder-v(\d+)$/i)).filter(Boolean).map((m) => m[1]))];
+}
+
+/** Per-variant order tags (see ARCHITECTURE section 3). */
+export const orderTags = {
+  delay: (vid, n) => `preorder-delay-v${vid}-${n}`,
+  kept: (vid, n) => `preorder-kept-v${vid}-${n}`,
+  keepBy: (vid, date) => `preorder-keep-by-v${vid}-${date}`,
+  cancelDue: (vid) => `preorder-cancel-due-v${vid}`,
+  cancelRequested: (vid) => `preorder-cancel-requested-v${vid}`,
+  cancelRequestedOn: (vid, date) => `preorder-cancel-requested-v${vid}-on-${date}`,
+  oversold: (vid) => `oversold-v${vid}`,
+};
 
 /** Numeric variant ids from `restock-{id}` tags (not restock-request / restock-notified-*). */
 export function restockVariantIds(tags) {
@@ -292,6 +325,77 @@ export function preorderLinesFromOrder(order) {
       quantity: Number(li.quantity) || 0,
       unfulfilledQuantity: li.unfulfilledQuantity === undefined ? Number(li.quantity) || 0 : Number(li.unfulfilledQuantity) || 0,
     });
+  }
+  return out;
+}
+
+/** Units of a line not yet fulfilled. */
+function lineOpenQty(li) {
+  return li.unfulfilledQuantity === undefined || li.unfulfilledQuantity === null ? Number(li.quantity) || 0 : Number(li.unfulfilledQuantity) || 0;
+}
+
+function hasPreorderProperty(li) {
+  return (li.customAttributes || []).some((a) => a && a.key === '_preorder_date');
+}
+
+/**
+ * Cheap pre-check for /hooks/order: false when no line carries
+ * `_preorder_date` and no line's variant is at or below zero (a normal order).
+ * Untracked variants are ignored (their quantity means nothing).
+ */
+export function orderNeedsPreorderCheck(order) {
+  const nodes = (order && order.lineItems && order.lineItems.nodes) || [];
+  return nodes.some((li) => {
+    if (hasPreorderProperty(li)) return true;
+    const v = li.variant;
+    if (!v || v.inventoryQuantity === undefined || v.inventoryQuantity === null) return false;
+    if (v.inventoryItem && v.inventoryItem.tracked === false) return false;
+    return Number(v.inventoryQuantity) <= 0;
+  });
+}
+
+/**
+ * Unlabelled oversell: lines WITHOUT `_preorder_date` whose variant is now
+ * below zero. The theme caps quantity per add only, so a customer (or another
+ * sales channel) can take an in-stock variant into negative stock without the
+ * preorder label. The units below zero that this order is responsible for
+ * are treated as preorder units. This order's labelled units for the variant
+ * are counted as below zero first, and never more than -inventoryQuantity.
+ * Untracked variants are skipped. Returns
+ * [{ variantId, units, qty, policy, lines: [{ lineItemId, holdQty }] }].
+ */
+export function unlabelledOversell(order) {
+  const nodes = (order && order.lineItems && order.lineItems.nodes) || [];
+  const byVariant = new Map();
+  for (const li of nodes) {
+    const v = li.variant;
+    if (!v || !v.id) continue;
+    const vid = numericId(v.id);
+    if (!byVariant.has(vid)) byVariant.set(vid, { variant: v, labelled: 0, unlabelled: [] });
+    const entry = byVariant.get(vid);
+    const open = lineOpenQty(li);
+    if (hasPreorderProperty(li)) entry.labelled += open;
+    else if (open > 0) entry.unlabelled.push({ lineItemId: li.id, open });
+  }
+  const out = [];
+  for (const [variantId, { variant, labelled, unlabelled }] of byVariant) {
+    if (!unlabelled.length) continue;
+    if (variant.inventoryItem && variant.inventoryItem.tracked === false) continue;
+    if (variant.inventoryQuantity === undefined || variant.inventoryQuantity === null) continue;
+    const qty = Number(variant.inventoryQuantity);
+    if (!(qty < 0)) continue;
+    const unlabelledTotal = unlabelled.reduce((s, l) => s + l.open, 0);
+    const units = Math.max(0, Math.min(unlabelledTotal, -qty - labelled));
+    if (units <= 0) continue;
+    let left = units;
+    const lines = [];
+    for (const l of unlabelled) {
+      if (left <= 0) break;
+      const holdQty = Math.min(l.open, left);
+      lines.push({ lineItemId: l.lineItemId, holdQty });
+      left -= holdQty;
+    }
+    out.push({ variantId, units, qty, policy: String(variant.inventoryPolicy || '').toUpperCase(), lines });
   }
   return out;
 }
@@ -607,7 +711,7 @@ const Q_CUSTOMERS_BY_TAG = `query FalconCustomersByTag($q: String!, $after: Stri
 const ORDER_CORE = `
   id name createdAt tags email cancelledAt closed statusPageUrl
   customer { id firstName }
-  lineItems(first: 30) { nodes { id quantity unfulfilledQuantity title variantTitle variant { id title } product { title } customAttributes { key value } } }
+  lineItems(first: 30) { nodes { id quantity unfulfilledQuantity title variantTitle variant { id title inventoryQuantity inventoryPolicy inventoryItem { tracked } } product { title } customAttributes { key value } } }
 `;
 // VERIFY: FulfillmentHold.handle (added 2025-01) and FulfillmentOrderLineItem.lineItem.
 const FO_FIELDS = `
@@ -890,17 +994,30 @@ function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...headers } });
 }
 
-function storefrontOrigins(env) {
-  const shops = getShops(env);
-  const map = {};
-  for (const store of STORES) {
-    if (shops[store] && shops[store].storefront) {
-      try {
-        map[new URL(shops[store].storefront).origin] = store;
-      } catch {}
-    }
+/**
+ * Origins allowed to call /subscribe for one store: `SHOPS[store].origins`
+ * (storefront domain, myshopify domain, any theme-preview origin), falling
+ * back to `storefront` alone. Normalised to URL origins; junk is dropped.
+ */
+export function allowedOrigins(shop) {
+  if (!shop) return [];
+  const list = Array.isArray(shop.origins) && shop.origins.length ? shop.origins : [shop.storefront];
+  const out = [];
+  for (const o of list) {
+    try {
+      const origin = new URL(String(o)).origin;
+      if (origin && origin !== 'null' && !out.includes(origin)) out.push(origin);
+    } catch {}
   }
-  return map;
+  return out;
+}
+
+/** True when `origin` is allowed for `store` (or, with no store, for any store). */
+function originAllowed(env, origin, store = null) {
+  if (!origin) return false;
+  const shops = getShops(env);
+  const stores = store ? [store] : STORES;
+  return stores.some((s) => STORES.includes(s) && shops[s] && allowedOrigins(shops[s]).includes(origin));
 }
 
 function corsHeaders(origin) {
@@ -962,16 +1079,15 @@ async function findCustomerByEmail(ctx, email) {
 
 async function handleSubscribe(request, env) {
   const origin = request.headers.get('Origin') || '';
-  const origins = storefrontOrigins(env);
   let body;
   try {
     body = await readJson(request);
   } catch {
-    return json({ ok: false, error: 'server' }, 400, origins[origin] ? corsHeaders(origin) : {});
+    return json({ ok: false, error: 'server' }, 400, originAllowed(env, origin) ? corsHeaders(origin) : {});
   }
   const store = String(body.store || '');
-  // CORS: the request must come from this store's own storefront origin.
-  if (!origins[origin] || origins[origin] !== store) {
+  // CORS: the request must come from one of this store's own origins.
+  if (!originAllowed(env, origin, store)) {
     log('subscribe_bad_origin', { origin, store });
     return json({ ok: false, error: 'forbidden' }, 403);
   }
@@ -1050,13 +1166,32 @@ async function handleSubscribe(request, env) {
 // POST /hooks/order
 // ---------------------------------------------------------------------------
 
-/** Hold one variant's lines on every open fulfillment order that has them. */
-async function holdVariantLines(ctx, order, variantId, fulfillmentOrders, notes) {
+/**
+ * Hold specific order lines (by line item id, not by variant) on the
+ * fulfillment orders that carry them. `want` maps line item GID -> units to
+ * hold. Fulfillment orders already held by us are counted first, so a retry
+ * never holds units that were meant to ship (an unlabelled line can be held
+ * in part). Only when the whole fulfillment order is wanted is it held without
+ * a line list; otherwise Shopify moves the rest to a new open fulfillment
+ * order that ships now.
+ */
+async function holdOrderLines(ctx, order, variantId, fulfillmentOrders, want, notes) {
+  const remaining = new Map(want);
   const results = [];
-  for (const fo of fulfillmentOrders) {
-    const lines = foLinesForVariant(fo, variantId);
-    if (!lines.length) continue;
-    if (ourHolds(fo).length && foOtherLines(fo, variantId).length === 0) {
+  const openLines = (fo) => ((fo.lineItems && fo.lineItems.nodes) || []).filter((l) => Number(l.remainingQuantity) > 0);
+  const sorted = [...fulfillmentOrders].sort((a, b) => (ourHolds(b).length ? 1 : 0) - (ourHolds(a).length ? 1 : 0));
+  for (const fo of sorted) {
+    const lines = openLines(fo);
+    const plan = lines
+      .filter((l) => l.lineItem && (remaining.get(l.lineItem.id) || 0) > 0)
+      .map((l) => ({ id: l.id, lineItemId: l.lineItem.id, quantity: Math.min(Number(l.remainingQuantity), remaining.get(l.lineItem.id)), remainingQuantity: Number(l.remainingQuantity) }));
+    if (!plan.length) continue;
+    const whole = plan.length === lines.length && plan.every((p) => p.quantity === p.remainingQuantity);
+    const consume = () => {
+      for (const p of plan) remaining.set(p.lineItemId, remaining.get(p.lineItemId) - p.quantity);
+    };
+    if (ourHolds(fo).length && whole) {
+      consume();
       results.push({ fo: fo.id, ok: true, already: true });
       continue;
     }
@@ -1066,19 +1201,41 @@ async function holdVariantLines(ctx, order, variantId, fulfillmentOrders, notes)
       results.push({ fo: fo.id, ok: false, reason: `fulfillment order status ${fo.status}` });
       continue;
     }
-    const others = foOtherLines(fo, variantId);
     const input = { reason: 'OTHER', reasonNotes: notes, handle: HOLD_HANDLE, notifyMerchant: false };
-    // Only pass line items when holding part of the fulfillment order; Shopify
-    // moves the rest to a new (open) fulfillment order that ships now.
-    if (others.length) input.fulfillmentOrderLineItems = lines.map((l) => ({ id: l.id, quantity: Number(l.remainingQuantity) }));
-    const r = await mutate(ctx, 'fulfillmentOrderHold', M_HOLD, { id: fo.id, fulfillmentHold: input }, { order: order.name, fulfillment_order: fo.id, variant_id: variantId, lines: lines.length, partial: others.length > 0 });
+    if (!whole) input.fulfillmentOrderLineItems = plan.map((p) => ({ id: p.id, quantity: p.quantity }));
+    const r = await mutate(ctx, 'fulfillmentOrderHold', M_HOLD, { id: fo.id, fulfillmentHold: input }, { order: order.name, fulfillment_order: fo.id, variant_id: variantId, lines: plan.length, partial: !whole });
+    if (r.ok) consume();
     results.push({ fo: fo.id, ok: r.ok, reason: r.ok ? '' : r.userErrors.map((e) => e.message).join('; ') });
   }
   if (!results.length) results.push({ fo: null, ok: false, reason: 'no fulfillment order with unfulfilled preorder lines' });
   return results;
 }
 
-export async function handleOrderHook(ctx, body) {
+/** Same state rule as the theme, ignoring the cap (the cap check runs separately). */
+export function hasValidPreorderSetup(variant, today) {
+  if (!variant || !variant.tracked) return false;
+  return (
+    variantPreorderState(
+      { tracked: true, inventory_policy: variant.policy, inventory_quantity: 0, available: true, expected_date: variant.expectedDate, preorder_limit: variant.preorderLimit },
+      today,
+    ).state === 'preorder'
+  );
+}
+
+/**
+ * POST /hooks/order. Flow calls this for EVERY order (no condition), so a
+ * normal order costs one order query: exit early unless a line has
+ * `_preorder_date` or a line's variant is at or below zero.
+ *
+ * Labelled preorder lines are held. Unlabelled oversell (see
+ * unlabelledOversell) is held like a preorder when the variant has a valid
+ * preorder setup (tagged `preorder-unlabelled`, staff told the customer was
+ * shown no date), otherwise tagged `oversold-v{id}` and staff alerted.
+ * `preorder` (the idempotency marker) goes on last, only after every hold
+ * succeeded. A failed hold tags `preorder-hold-failed` (one staff alert, not
+ * one per Flow retry); the daily job retries those orders.
+ */
+export async function handleOrderHook(ctx, body, { source = 'flow' } = {}) {
   const orderGid = toGid('Order', body.order_id);
   if (!orderGid) return { status: 400, body: { ok: false, error: 'bad_order_id' } };
   const order = await getOrder(ctx, orderGid);
@@ -1094,33 +1251,85 @@ export async function handleOrderHook(ctx, body) {
     log('order_hook_skip_cancelled', { store: ctx.store, order: order.name });
     return { status: 200, body: { ok: true, skipped: 'cancelled' } };
   }
-  const lines = preorderLinesFromOrder(order);
-  if (!lines.length) return { status: 200, body: { ok: true, preorder: false } };
+  if (!orderNeedsPreorderCheck(order)) return { status: 200, body: { ok: true, preorder: false } };
 
-  const variantIds = [...new Set(lines.map((l) => l.variantId))];
-  // Tag per-variant first so the release and daily jobs can always find the
-  // order; the plain `preorder` tag (the idempotency marker) goes on last,
-  // only after every hold succeeded, so a Flow retry redoes anything missed.
-  const vt = await addTags(ctx, order.id, variantIds.map((v) => `preorder-v${v}`), { order: order.name });
+  const lines = preorderLinesFromOrder(order);
   const problems = [];
-  if (!vt.ok) problems.push(['Tagging', order.name, vt.userErrors.map((e) => e.message).join('; ')]);
+  // variantId -> Map(lineItemGid -> units to hold)
+  const holdSpec = new Map();
+  const want = (vid, lineItemId, qty) => {
+    if (!(qty > 0)) return;
+    if (!holdSpec.has(vid)) holdSpec.set(vid, new Map());
+    const m = holdSpec.get(vid);
+    m.set(lineItemId, (m.get(lineItemId) || 0) + qty);
+  };
+  for (const l of lines) want(l.variantId, l.lineItemId, l.unfulfilledQuantity);
+  const notesDates = new Map();
+  for (const l of lines) {
+    if (!notesDates.has(l.variantId)) notesDates.set(l.variantId, new Set());
+    notesDates.get(l.variantId).add(formatDate(l.date, ctx.store) || l.date);
+  }
+
+  // Unlabelled oversell.
+  const variantCache = new Map();
+  const unlabelledVariants = [];
+  const oversoldTags = [];
+  for (const u of unlabelledOversell(order)) {
+    let variant;
+    try {
+      variant = await getVariant(ctx, u.variantId);
+    } catch (err) {
+      problems.push(['Oversell check failed', `${order.name}, variant ${u.variantId}`, String(err.message || err)]);
+      continue;
+    }
+    if (!variant || !variant.tracked) continue;
+    variantCache.set(u.variantId, variant);
+    const item = `${variant.productTitle} ${cleanVariantTitle(variant.title)} (${u.variantId})`.replace(/\s+/g, ' ');
+    if (variant.policy !== 'DENY' && hasValidPreorderSetup(variant, ctx.today)) {
+      for (const l of u.lines) want(u.variantId, l.lineItemId, l.holdQty);
+      unlabelledVariants.push(u.variantId);
+      if (!notesDates.has(u.variantId)) notesDates.set(u.variantId, new Set());
+      notesDates.get(u.variantId).add(`${formatDate(variant.expectedDate, ctx.store)} (customer not shown a date)`);
+      if (!hasExactTag(order.tags, 'preorder-unlabelled')) {
+        problems.push([
+          'Pre-order sold without a date shown',
+          `${order.name}: ${item}, ${u.units} unit(s)`,
+          `Held until stock arrives. The customer was NOT shown a dispatch date. Contact them: expected ${formatDate(variant.expectedDate, ctx.store)}; they may cancel for a full refund`,
+        ]);
+      }
+    } else {
+      oversoldTags.push(orderTags.oversold(u.variantId));
+      if (!hasExactTag(order.tags, orderTags.oversold(u.variantId))) {
+        problems.push(['Oversold, not held', `${order.name}: ${item}, ${u.units} unit(s)`, `Stock is now ${u.qty} and there is no valid pre-order setup (policy ${variant.policy}). Decide whether this order can be fulfilled and contact the customer`]);
+      }
+    }
+  }
+
+  const variantIds = [...holdSpec.keys()];
+  if (!variantIds.length && !oversoldTags.length && !problems.length) return { status: 200, body: { ok: true, preorder: false } };
+
+  // Tag per-variant first so the release and daily jobs can always find the order.
+  const firstTags = [...variantIds.map((v) => `preorder-v${v}`), ...(unlabelledVariants.length ? ['preorder-unlabelled'] : []), ...oversoldTags];
+  if (firstTags.length) {
+    const vt = await addTags(ctx, order.id, firstTags, { order: order.name });
+    if (!vt.ok) problems.push(['Tagging', order.name, vt.userErrors.map((e) => e.message).join('; ')]);
+  }
 
   let fos = (order.fulfillmentOrders && order.fulfillmentOrders.nodes) || [];
   for (let i = 0; i < variantIds.length; i++) {
     const v = variantIds[i];
     if (i > 0) fos = await getOrderFulfillmentOrders(ctx, order.id); // earlier holds split fulfillment orders
-    const dates = [...new Set(lines.filter((l) => l.variantId === v).map((l) => l.date))];
-    const notes = `Pre-order, expected ${dates.map((d) => formatDate(d, ctx.store) || d).join(', ')}`;
-    const res = await holdVariantLines(ctx, order, v, fos, notes);
+    const notes = `Pre-order, expected ${[...(notesDates.get(v) || [])].join(', ')}`;
+    const res = await holdOrderLines(ctx, order, v, fos, holdSpec.get(v), notes);
     for (const r of res) if (!r.ok) problems.push(['Hold failed', `${order.name}, variant ${v}`, r.reason || 'see logs']);
   }
 
   // Cap: at or past the limit, stop selling. Past it: flag the order.
   let overCap = false;
   for (const v of variantIds) {
-    let variant;
+    let variant = variantCache.get(v);
     try {
-      variant = await getVariant(ctx, v);
+      if (!variant) variant = await getVariant(ctx, v);
     } catch (err) {
       problems.push(['Cap check failed', `variant ${v}`, String(err.message || err)]);
       continue;
@@ -1146,22 +1355,31 @@ export async function handleOrderHook(ctx, body) {
   }
 
   const holdFailed = problems.some((p) => p[0] === 'Hold failed' || p[0] === 'Tagging');
-  if (problems.length) {
+  const alreadyAlerted = holdFailed && hasExactTag(order.tags, 'preorder-hold-failed');
+  if (problems.length && !alreadyAlerted) {
     await staffAlert(ctx, {
       subject: `Pre-order order ${order.name} needs attention`,
-      intro: `The Worker processed pre-order ${order.name} and found the problems below. Admin: ${adminOrderUrl(ctx, order.id)}`,
+      intro: `The Worker processed order ${order.name} and found the items below. Admin: ${adminOrderUrl(ctx, order.id)}${holdFailed ? '. A hold failed: hold the pre-order line(s) by hand, or wait for the automatic retry (every Flow retry and the daily job try again; you will not be emailed again about this order).' : ''}`,
       rows: [['Issue', 'Item', 'Detail'], ...problems],
-      key: `order|${numericId(order.id)}|${ctx.today}`,
+      key: `order|${numericId(order.id)}|${ctx.today}|${[...new Set(problems.map((p) => p[0]))].sort().join(',')}`,
     });
+  } else if (alreadyAlerted) {
+    log('order_hook_alert_deduped', { store: ctx.store, order: order.name, source });
   }
   if (holdFailed) {
-    // No `preorder` tag: Flow's retry (non-2xx) runs the holds again.
+    // No `preorder` tag: Flow's retry (non-2xx) and the daily job run the holds again.
+    if (!hasExactTag(order.tags, 'preorder-hold-failed')) await addTags(ctx, order.id, ['preorder-hold-failed'], { order: order.name });
     return { status: 500, body: { ok: false, error: 'hold_failed', problems: problems.length } };
+  }
+  if (!variantIds.length) {
+    log('order_hook_oversold', { store: ctx.store, order: order.name, tags: oversoldTags });
+    return { status: 200, body: { ok: true, preorder: false, oversold: oversoldTags.map((t) => t.slice('oversold-v'.length)) } };
   }
   const done = await addTags(ctx, order.id, ['preorder'], { order: order.name });
   if (!done.ok) return { status: 500, body: { ok: false, error: 'tag_failed' } };
-  log('order_hook_done', { store: ctx.store, order: order.name, variants: variantIds, over_cap: overCap });
-  return { status: 200, body: { ok: true, preorder: true, variants: variantIds, over_cap: overCap } };
+  if (hasExactTag(order.tags, 'preorder-hold-failed')) await removeTags(ctx, order.id, ['preorder-hold-failed'], { order: order.name });
+  log('order_hook_done', { store: ctx.store, order: order.name, variants: variantIds, unlabelled: unlabelledVariants, over_cap: overCap, source });
+  return { status: 200, body: { ok: true, preorder: true, variants: variantIds, unlabelled: unlabelledVariants, over_cap: overCap } };
 }
 
 // ---------------------------------------------------------------------------
@@ -1172,33 +1390,60 @@ export async function handleOrderHook(ctx, body) {
  * Release held preorder lines for a variant, oldest order first, as far as
  * stock_for_preorders = inventoryQuantity + held units covers whole orders.
  * `orders` may be passed in (daily job) to save a query.
+ *
+ * Safe when two runs overlap (a Flow retry, two inventory events, the daily
+ * job): each order's fulfillment orders are re-read just before its release
+ * and only holds still present are released, so a hold is never released
+ * twice and an order released by another run is skipped. Released-but-
+ * unshipped units stay committed in inventoryQuantity, so a run that starts
+ * after another's release computes the same total.
+ *
+ * `deadline` (ms epoch, 0 = none): stop planning or releasing once passed.
+ * Planning is oldest first, so a partial plan only ever releases orders the
+ * full plan would also release; the daily job finishes the rest.
  */
-export async function releaseForVariant(ctx, variantId, inventoryQuantity, orders = null) {
+export async function releaseForVariant(ctx, variantId, inventoryQuantity, orders = null, { deadline = 0 } = {}) {
   const vid = String(variantId);
   const releasedTag = `preorder-released-v${vid}`;
-  const candidates = (orders || (await listOpenOrdersWithTag(ctx, `preorder-v${vid}`))).filter(
-    (o) => hasExactTag(o.tags, `preorder-v${vid}`) && !hasExactTag(o.tags, releasedTag) && !o.cancelledAt && !o.closed,
-  );
-  if (!candidates.length) return { released: [], held_units: 0 };
+  const pastDeadline = () => deadline && runtime.now() > deadline;
+  const candidates = (orders || (await listOpenOrdersWithTag(ctx, `preorder-v${vid}`)))
+    .filter((o) => hasExactTag(o.tags, `preorder-v${vid}`) && !hasExactTag(o.tags, releasedTag) && !o.cancelledAt && !o.closed)
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
+  if (!candidates.length) return { released: [], held_units: 0, incomplete: false };
 
+  const heldFos = (fos) => fos.filter((fo) => fo.status === 'ON_HOLD' && ourHolds(fo).length && foLinesForVariant(fo, vid).length);
   const held = [];
+  let incomplete = false;
   for (const o of candidates) {
-    const fos = await getOrderFulfillmentOrders(ctx, o.id);
-    const ours = fos.filter((fo) => fo.status === 'ON_HOLD' && ourHolds(fo).length && foLinesForVariant(fo, vid).length);
+    if (pastDeadline()) {
+      incomplete = true;
+      break;
+    }
+    const ours = heldFos(await getOrderFulfillmentOrders(ctx, o.id));
     const units = ours.reduce((sum, fo) => sum + foLinesForVariant(fo, vid).reduce((s, l) => s + Number(l.remainingQuantity), 0), 0);
-    if (units > 0) held.push({ id: o.id, name: o.name, createdAt: o.createdAt, units, fos: ours });
+    if (units > 0) held.push({ id: o.id, name: o.name, createdAt: o.createdAt, units });
     else log('release_no_hold_found', { store: ctx.store, order: o.name, variant_id: vid });
   }
   const heldUnits = held.reduce((s, o) => s + o.units, 0);
   const stockForPreorders = Number(inventoryQuantity) + heldUnits;
   const toRelease = allocateReleases(held, stockForPreorders);
-  log('release_plan', { store: ctx.store, variant_id: vid, inventory_quantity: inventoryQuantity, held_units: heldUnits, stock_for_preorders: stockForPreorders, held_orders: held.length, releasing: toRelease.map((o) => o.name) });
+  log('release_plan', { store: ctx.store, variant_id: vid, inventory_quantity: inventoryQuantity, held_units: heldUnits, stock_for_preorders: stockForPreorders, held_orders: held.length, releasing: toRelease.map((o) => o.name), incomplete });
 
   const released = [];
   const problems = [];
   for (const o of toRelease) {
+    if (pastDeadline()) {
+      incomplete = true;
+      break;
+    }
+    // Re-read just before acting: another run may have released it meanwhile.
+    const current = heldFos(await getOrderFulfillmentOrders(ctx, o.id));
+    if (!current.length) {
+      log('release_already_done', { store: ctx.store, order: o.name, variant_id: vid });
+      continue;
+    }
     let allOk = true;
-    for (const fo of o.fos) {
+    for (const fo of current) {
       if (foOtherLines(fo, vid).length) {
         // Should not happen (holds are per variant). Releasing would ship other lines early.
         allOk = false;
@@ -1226,7 +1471,7 @@ export async function releaseForVariant(ctx, variantId, inventoryQuantity, order
       key: `release|${vid}|${ctx.today}`,
     });
   }
-  return { released, held_units: heldUnits, stock_for_preorders: stockForPreorders, problems: problems.length };
+  return { released, held_units: heldUnits, stock_for_preorders: stockForPreorders, problems: problems.length, incomplete };
 }
 
 // ---------------------------------------------------------------------------
@@ -1282,12 +1527,30 @@ export async function fanOutWaitlist(ctx, variant, budget) {
     price: formatPrice(variant.price, currency, ctx.store),
   };
 
-  await mapLimit(batch, 4, async (c) => {
+  await mapLimit(batch, 4, async (listed) => {
+    let c = listed;
     if (budget.deadline && runtime.now() > budget.deadline) {
       stats.more = true;
       return;
     }
     const cid = numericId(c.id);
+    // Re-read the customer just before acting: an overlapping run (a second
+    // inventory event, the daily job) may already have emailed them.
+    let current;
+    try {
+      const d = await shopifyGraphQL(ctx, Q_CUSTOMER, { id: c.id });
+      current = d && d.customer;
+    } catch (err) {
+      stats.failed++;
+      log('fanout_reread_failed', { store: ctx.store, customer: c.id, variant_id: vid, error: String(err.message || err) });
+      return;
+    }
+    if (!current || !hasExactTag(current.tags, waitTag)) {
+      stats.skipped++;
+      log('fanout_no_longer_waiting', { store: ctx.store, customer: c.id, variant_id: vid });
+      return;
+    }
+    c = current;
     if (hasExactTag(c.tags, notifiedTag)) {
       // Emailed already; an earlier run stopped before removing the wait tag. Finish up, no email.
       if (!ctx.dryRun) {
@@ -1336,9 +1599,15 @@ export async function fanOutWaitlist(ctx, variant, budget) {
 // POST /hooks/inventory
 // ---------------------------------------------------------------------------
 
-export async function handleInventoryHook(ctx, body, { deadlineMs = 25000 } = {}) {
+/**
+ * POST /hooks/inventory work. The router answers Flow 202 straight after
+ * auth and validation and runs this in `waitUntil`, inside one total time
+ * budget (release + fan-out); the daily job completes anything left.
+ */
+export async function handleInventoryHook(ctx, body, { deadlineMs = INVENTORY_BUDGET_MS } = {}) {
   const vid = numericId(body.variant_id);
   if (!vid) return { status: 400, body: { ok: false, error: 'bad_variant_id' } };
+  const deadline = runtime.now() + deadlineMs;
   // Re-read the variant: the live quantity is the source of truth, not the Flow payload.
   const variant = await getVariant(ctx, vid);
   if (!variant) {
@@ -1346,12 +1615,14 @@ export async function handleInventoryHook(ctx, body, { deadlineMs = 25000 } = {}
     return { status: 200, body: { ok: false, error: 'unknown_variant' } };
   }
   log('inventory_hook', { store: ctx.store, variant_id: vid, flow_qty: body.inventory_quantity, flow_prior: body.inventory_quantity_prior, live_qty: variant.qty });
-  const release = await releaseForVariant(ctx, vid, variant.qty);
+  const release = await releaseForVariant(ctx, vid, variant.qty, null, { deadline });
   let fanout = null;
   if (variant.qty > 0 && variant.tracked) {
-    fanout = await fanOutWaitlist(ctx, variant, { emails: FANOUT_MAX_PER_INVOCATION, deadline: runtime.now() + deadlineMs });
+    if (runtime.now() > deadline) fanout = { variant_id: vid, sent: 0, more: true };
+    else fanout = await fanOutWaitlist(ctx, variant, { emails: FANOUT_MAX_PER_INVOCATION, deadline });
   }
-  return { status: 200, body: { ok: true, released: release.released, fanout } };
+  log('inventory_hook_done', { store: ctx.store, variant_id: vid, released: release.released, release_incomplete: !!release.incomplete, fanout });
+  return { status: 200, body: { ok: true, released: release.released, release_incomplete: !!release.incomplete, fanout } };
 }
 
 // ---------------------------------------------------------------------------
@@ -1374,27 +1645,58 @@ function pendingOrdersForVariant(orders, vid) {
   );
 }
 
-/** Daily step 1 for one variant. `rows` collects digest rows. */
+/** The `_preorder_date` the customer saw at checkout for this variant ('' if none: unlabelled line). */
+function promisedDate(order, vid) {
+  const nodes = (order.lineItems && order.lineItems.nodes) || [];
+  for (const li of nodes) {
+    if (!li.variant || numericId(li.variant.id) !== String(vid)) continue;
+    const a = (li.customAttributes || []).find((x) => x && x.key === '_preorder_date');
+    if (a && isIsoDate(String(a.value || '').trim())) return String(a.value).trim();
+  }
+  return '';
+}
+
+function toldBeforeFor(order, vid) {
+  return parseTags(order.tags).some((t) => t.toLowerCase().startsWith(`preorder-notice-v${vid}-`));
+}
+
+/**
+ * Daily step 1 for one variant. `rows` collects digest rows.
+ *
+ * First setup (notified_date empty): customers may already have ordered at a
+ * date that staff changed before this first run. Every open order whose own
+ * checkout date differs from expected_date gets the normal date-change
+ * notice (old date = its `_preorder_date`); only then is notified_date set.
+ * With nobody to tell, notified_date is simply set (also in DRY_RUN: that
+ * tells no one anything).
+ */
 export async function processDateChange(ctx, v, rows, orders = null) {
   if (!isIsoDate(v.expectedDate)) {
     rows.push(['Invalid expected_date', `${v.productTitle} ${cleanVariantTitle(v.title)} (${v.id})`, `Value "${v.expectedDate}"`]);
     return { changed: false };
   }
-  if (!v.notifiedDate) {
-    // First setup: record the date customers were shown; no email. (Done in
-    // DRY_RUN too: it tells no one anything, and without it no change is ever detected.)
-    {
-      const r = await mutate(ctx, 'metafieldsSet', M_METAFIELDS_SET, { metafields: [{ ownerId: v.gid, namespace: 'falcon', key: 'notified_date', type: 'date', value: v.expectedDate }] }, { variant_id: v.id, reason: 'initial' });
-      if (!r.ok) rows.push(['Could not set notified_date', `${v.productTitle} (${v.id})`, 'See Worker logs']);
-    }
-    return { changed: false };
-  }
-  if (v.notifiedDate === v.expectedDate) return { changed: false };
-
-  const oldDate = v.notifiedDate;
+  const firstSetup = !v.notifiedDate;
+  if (!firstSetup && v.notifiedDate === v.expectedDate) return { changed: false };
   const newDate = v.expectedDate;
-  const later = newDate > oldDate;
   const item = `${v.productTitle} ${cleanVariantTitle(v.title)} (${v.id})`.replace(/\s+/g, ' ');
+
+  // Query by the per-variant tag (not the `preorder` tag): an order whose hold
+  // failed has no `preorder` tag yet, and its customer must still be told.
+  const pending = pendingOrdersForVariant(orders || (await listOpenOrdersWithTag(ctx, `preorder-v${v.id}`)), v.id);
+
+  let oldDate = v.notifiedDate;
+  if (firstSetup) {
+    // Only customers with a checkout date different from the new one need telling.
+    const told = pending.map((o) => promisedDate(o, v.id)).filter((d) => d && d !== newDate).sort();
+    if (!told.length) {
+      const r = await mutate(ctx, 'metafieldsSet', M_METAFIELDS_SET, { metafields: [{ ownerId: v.gid, namespace: 'falcon', key: 'notified_date', type: 'date', value: newDate }] }, { variant_id: v.id, reason: 'initial' });
+      if (!r.ok) rows.push(['Could not set notified_date', `${v.productTitle} (${v.id})`, 'See Worker logs']);
+      return { changed: false };
+    }
+    oldDate = told[0]; // reference only (reason wait, delay_count, logs); each order uses its own date
+    log('date_change_first_setup', { store: ctx.store, variant_id: v.id, new_date: newDate, orders_to_tell: told.length });
+  }
+  const later = newDate > oldDate;
   if (later && !v.delayReason.trim()) {
     const daysLeft = daysBetween(ctx.today, oldDate);
     if (daysLeft > 2) {
@@ -1403,28 +1705,33 @@ export async function processDateChange(ctx, v, rows, orders = null) {
     }
   }
 
-  // Query by the per-variant tag (not the `preorder` tag): an order whose hold
-  // failed has no `preorder` tag yet, and its customer must still be told.
-  const pending = pendingOrdersForVariant(orders || (await listOpenOrdersWithTag(ctx, `preorder-v${v.id}`)), v.id);
-  // One marker per change event (variant, delay count, old date, new date):
-  // never email the same change twice. The old date is part of it because an
-  // earlier move and a later move back can share a delay count and new date
-  // (B to C earlier, C to D earlier, D to C later), and the second is news.
-  const marker = changeMarker(v.id, v.delayCount, oldDate, newDate);
   let failures = 0;
   let sent = 0;
   let dryRunCount = 0;
   for (const order of pending) {
-    if (hasExactTag(order.tags, marker)) continue;
     const line = lineForVariant(order, v.id);
-    const promised = String(((line.customAttributes || []).find((a) => a.key === '_preorder_date') || {}).value || '').trim();
+    const promised = promisedDate(order, v.id);
     // The date this customer was last given: the checkout date, unless they
     // have since had a date-change email for this variant (then notified_date).
     // Comparing only the checkout date would skip a customer who was told an
     // earlier date and whose date then moved back to the checkout date.
-    const toldBefore = parseTags(order.tags).some((t) => t.toLowerCase().startsWith(`preorder-notice-v${v.id}-`));
-    const orderOld = !toldBefore && isIsoDate(promised) ? promised : oldDate;
+    const toldBefore = toldBeforeFor(order, v.id);
+    let orderOld;
+    if (firstSetup) {
+      if (!promised) continue; // unlabelled line: never shown a date (staff were told to contact them)
+      orderOld = promised;
+    } else {
+      orderOld = !toldBefore && promised ? promised : oldDate;
+    }
     if (orderOld === newDate) continue; // this customer already has this date
+    // One marker per change event (variant, delay count, old date, new date):
+    // never email the same change twice. The old date is part of it because an
+    // earlier move and a later move back can share a delay count and new date
+    // (B to C earlier, C to D earlier, D to C later), and the second is news.
+    // First setup has no variant-level old date, so the order's own is used.
+    const markerOld = firstSetup ? orderOld : oldDate;
+    const marker = changeMarker(v.id, v.delayCount, markerOld, newDate);
+    if (hasExactTag(order.tags, marker)) continue;
     if (!order.email) {
       // Permanent, so not a failure: counting it would block notified_date forever.
       rows.push(['Pre-order customer has no email', order.name, `Tell the customer by hand: ${item} now expected ${formatDate(newDate, ctx.store)}`]);
@@ -1432,7 +1739,7 @@ export async function processDateChange(ctx, v, rows, orders = null) {
     }
     if (ctx.dryRun && dryRunCount >= DRY_RUN_MAX_PER_BATCH) break;
     const orderLater = newDate > orderOld;
-    const priorDelays = maxDelayNumber(order.tags);
+    const priorDelays = maxDelayNumber(order.tags, v.id);
     const cls = classifyDelay({ store: ctx.store, old_date: orderOld, new_date: newDate, delay_count_before: priorDelays, has_definite_date: true, today: ctx.today });
     const n = orderLater ? priorDelays + 1 : priorDelays;
     const oid = numericId(order.id);
@@ -1462,7 +1769,7 @@ export async function processDateChange(ctx, v, rows, orders = null) {
       template: cls.template,
       to: { email: order.email, name: (order.customer && order.customer.firstName) || '' },
       params,
-      key: `delay|${ctx.store}|${v.id}|${oid}|${v.delayCount}|${oldDate}|${newDate}`,
+      key: `delay|${ctx.store}|${v.id}|${oid}|${v.delayCount}|${markerOld}|${newDate}`,
     });
     if (!res.ok) {
       failures++;
@@ -1472,8 +1779,8 @@ export async function processDateChange(ctx, v, rows, orders = null) {
     sent++;
     if (ctx.dryRun) continue; // the real customer was not told; record nothing
     const tags = [marker];
-    if (orderLater) tags.push(`preorder-delay-${n}`);
-    if (cls.template === 'delay_us_consent') tags.push(`preorder-keep-by-${cls.keep_by_date}`);
+    if (orderLater) tags.push(orderTags.delay(v.id, n));
+    if (cls.template === 'delay_us_consent') tags.push(orderTags.keepBy(v.id, cls.keep_by_date));
     let t = await addTags(ctx, order.id, tags, { order: order.name, variant_id: v.id, template: cls.template });
     if (!t.ok) t = await addTags(ctx, order.id, tags, { order: order.name, variant_id: v.id, retry: true });
     if (!t.ok) {
@@ -1485,42 +1792,57 @@ export async function processDateChange(ctx, v, rows, orders = null) {
   if (failures === 0 && !ctx.dryRun) {
     const metafields = [{ ownerId: v.gid, namespace: 'falcon', key: 'notified_date', type: 'date', value: newDate }];
     if (later) metafields.push({ ownerId: v.gid, namespace: 'falcon', key: 'delay_count', type: 'number_integer', value: String(v.delayCount + 1) });
-    const r = await mutate(ctx, 'metafieldsSet', M_METAFIELDS_SET, { metafields }, { variant_id: v.id, old_date: oldDate, new_date: newDate });
+    const r = await mutate(ctx, 'metafieldsSet', M_METAFIELDS_SET, { metafields }, { variant_id: v.id, old_date: oldDate, new_date: newDate, first_setup: firstSetup });
     if (!r.ok) rows.push(['Could not update notified_date', item, 'Emails were sent; the next run will not resend (orders are tagged)']);
     if (v.delayReason) {
       await mutate(ctx, 'metafieldsDelete', M_METAFIELDS_DELETE, { metafields: [{ ownerId: v.gid, namespace: 'falcon', key: 'delay_reason' }] }, { variant_id: v.id });
     }
   }
-  log('date_change_done', { store: ctx.store, variant_id: v.id, old_date: oldDate, new_date: newDate, later, orders: pending.length, sent, failures, dry_run: ctx.dryRun });
+  log('date_change_done', { store: ctx.store, variant_id: v.id, old_date: oldDate, new_date: newDate, later, first_setup: firstSetup, orders: pending.length, sent, failures, dry_run: ctx.dryRun });
   return { changed: true, sent, failures };
 }
 
-/** Daily step 2: US consent deadlines. Returns rows for the digest. */
+/** "Pie Dish Grey (111)" from the order's own line, for staff emails. */
+function orderItemLabel(order, vid) {
+  const li = ((order.lineItems && order.lineItems.nodes) || []).find((x) => x.variant && numericId(x.variant.id) === String(vid));
+  if (!li) return `variant ${vid}`;
+  const title = (li.product && li.product.title) || li.title || '';
+  return `${title} ${cleanVariantTitle(li.variantTitle || (li.variant && li.variant.title) || '')} (${vid})`.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Daily step 2: US consent deadlines, per (order, variant). A missed keep-by
+ * for one item flags only that item (`preorder-cancel-due-v{id}`); other
+ * pre-order items in the same order are unaffected.
+ */
 export async function checkConsentDeadlines(ctx, orders, rows) {
   for (const order of orders) {
-    const dates = keepByDates(order.tags);
-    if (!dates.length) continue;
-    const latest = dates[dates.length - 1];
-    if (!keepByPassed(latest, ctx.today)) continue;
-    // Every pre-order line already released for shipping (stock came in before
-    // the deadline): nothing is left to cancel.
-    const preVariants = parseTags(order.tags).map((t) => t.match(/^preorder-v(\d+)$/i)).filter(Boolean).map((m) => m[1]);
-    if (preVariants.length && preVariants.every((id) => hasExactTag(order.tags, `preorder-released-v${id}`))) continue;
-    const n = maxDelayNumber(order.tags);
-    if (hasExactTag(order.tags, `preorder-kept-${n}`)) continue;
-    const refundBy = formatDate(addWorkingDays(ctx.today, 7), ctx.store);
-    if (hasExactTag(order.tags, 'preorder-cancel-due')) {
-      rows.push(['Cancel due (still open)', order.name, `No consent after delay ${n}. Cancel and refund in full`]);
-      continue;
+    const variantIds = [...new Set(parseTags(order.tags).map((t) => t.match(/^preorder-keep-by-v(\d+)-\d{4}-\d{2}-\d{2}$/i)).filter(Boolean).map((m) => m[1]))];
+    for (const vid of variantIds) {
+      const dates = keepByDates(order.tags, vid);
+      const latest = dates[dates.length - 1];
+      if (!keepByPassed(latest, ctx.today)) continue;
+      // Released for shipping (stock came in before the deadline), or the line
+      // is no longer unfulfilled: nothing is left to cancel.
+      if (hasExactTag(order.tags, `preorder-released-v${vid}`)) continue;
+      if (order.lineItems && order.lineItems.nodes && !lineForVariant(order, vid)) continue;
+      const n = maxDelayNumber(order.tags, vid);
+      if (hasExactTag(order.tags, orderTags.kept(vid, n))) continue;
+      const item = orderItemLabel(order, vid);
+      const refundBy = formatDate(addWorkingDays(ctx.today, 7), ctx.store);
+      if (hasExactTag(order.tags, orderTags.cancelDue(vid))) {
+        rows.push(['Cancel due (still open)', `${order.name}: ${item}`, `No consent after delay ${n}. Cancel this item and refund it in full`]);
+        continue;
+      }
+      const t = await addTags(ctx, order.id, [orderTags.cancelDue(vid)], { order: order.name, variant_id: vid, keep_by: latest });
+      await staffAlert(ctx, {
+        subject: `Cancel and refund ${order.name} (${item}) by ${refundBy}`,
+        intro: `The customer did not confirm they want to keep the preorder item ${item} after delay ${n} (deadline ${formatDate(latest, ctx.store)}). Under the FTC rule this item must be canceled and refunded in full. Other items in the order are not affected. The Worker does not cancel or refund; please do it in Shopify admin.`,
+        rows: [['Order', 'Item', 'Refund by', 'Admin'], [order.name, item, refundBy, adminOrderUrl(ctx, order.id)]],
+        key: `cancel-due|${numericId(order.id)}|${vid}|${n}`,
+      });
+      rows.push(['Cancel due', `${order.name}: ${item}`, `Refund by ${refundBy}${t.ok ? '' : ` (could not tag ${orderTags.cancelDue(vid)})`}`]);
     }
-    const t = await addTags(ctx, order.id, ['preorder-cancel-due'], { order: order.name, keep_by: latest });
-    await staffAlert(ctx, {
-      subject: `Cancel and refund ${order.name} by ${refundBy}`,
-      intro: `The customer did not confirm they want to keep their preorder after delay ${n} (deadline ${formatDate(latest, ctx.store)}). Under the FTC rule the order must be canceled and refunded in full. The Worker does not cancel or refund; please do it in Shopify admin.`,
-      rows: [['Order', 'Refund by', 'Admin'], [order.name, refundBy, adminOrderUrl(ctx, order.id)]],
-      key: `cancel-due|${numericId(order.id)}|${n}`,
-    });
-    rows.push(['Cancel due', order.name, `Refund by ${refundBy}${t.ok ? '' : ' (could not tag preorder-cancel-due)'}`]);
   }
 }
 
@@ -1530,6 +1852,21 @@ export async function runDailyForStore(ctx, { budget } = {}) {
   const summary = { store: ctx.store, date_changes: 0, released: 0, fanout_sent: 0 };
   const variants = await listAllVariants(ctx);
   const byId = new Map(variants.map((v) => [v.id, v]));
+
+  // 0. Retry holds that failed (Flow retries may have given up). Done first
+  // so an order that now succeeds is tagged `preorder` and seen below.
+  try {
+    const failed = await listOpenOrdersWithTag(ctx, 'preorder-hold-failed');
+    for (const o of failed) {
+      if (hasExactTag(o.tags, 'preorder')) continue;
+      const r = await handleOrderHook(ctx, { order_id: o.id }, { source: 'daily' });
+      if (r.status === 200) summary.holds_retried = (summary.holds_retried || 0) + 1;
+      else rows.push(['Pre-order hold still failing', o.name, `Hold the pre-order line(s) by hand (Fulfillment > Hold), then remove the tag preorder-hold-failed. Admin: ${adminOrderUrl(ctx, o.id)}`]);
+    }
+  } catch (err) {
+    rows.push(['Hold retry job error', '-', String(err.message || err)]);
+  }
+
   const openOrders = await listOpenOrdersWithTag(ctx, 'preorder');
 
   // 1. Date changes
@@ -1607,14 +1944,19 @@ export async function runDailyForStore(ctx, { budget } = {}) {
     }
   }
   for (const o of openOrders) {
-    if (!hasExactTag(o.tags, 'preorder-cancel-requested')) continue;
-    const on = parseTags(o.tags)
-      .map((t) => t.match(/^preorder-cancel-requested-on-(\d{4}-\d{2}-\d{2})$/i))
-      .filter(Boolean)
-      .map((m) => m[1])
-      .sort()[0];
-    if (!on || daysBetween(on, ctx.today) > 3) {
-      rows.push(['Cancel request still open after 3 days', o.name, `Requested ${on ? formatDate(on, ctx.store) : 'on an unknown date'}. Refund by ${on ? formatDate(refundDeadline(ctx.store, on), ctx.store) : 'as soon as possible'}`]);
+    // Cancel requests, per variant: still open after 3 days while that item is unfulfilled.
+    const requested = new Map();
+    for (const t of parseTags(o.tags)) {
+      const m = t.match(/^preorder-cancel-requested-v(\d+)-on-(\d{4}-\d{2}-\d{2})$/i);
+      if (m && (!requested.has(m[1]) || m[2] < requested.get(m[1]))) requested.set(m[1], m[2]);
+      const p = t.match(/^preorder-cancel-requested-v(\d+)$/i);
+      if (p && !requested.has(p[1])) requested.set(p[1], '');
+    }
+    for (const [vid, on] of requested) {
+      if (!lineForVariant(o, vid)) continue; // cancelled/refunded or shipped: nothing left to chase
+      if (!on || daysBetween(on, ctx.today) > 3) {
+        rows.push(['Cancel request still open after 3 days', `${o.name}: ${orderItemLabel(o, vid)}`, `Requested ${on ? formatDate(on, ctx.store) : 'on an unknown date'}. Refund by ${on ? formatDate(refundDeadline(ctx.store, on), ctx.store) : 'as soon as possible'}`]);
+      }
     }
   }
 
@@ -1771,29 +2113,40 @@ async function handleLinkPage(request, env, action) {
     return renderPage({ store, title: 'You have been removed', paragraphs: ['You will not get back-in-stock emails from us. This does not change any orders or newsletter settings.', helpLine] });
   }
 
-  // ---- /k and /c: order actions
+  // ---- /k and /c: order actions, always for one variant of one order
+  const vid = numericId(payload.v);
+  if (!vid) {
+    log('link_invalid', { action, method: request.method, reason: 'no_variant' });
+    return invalidLinkPage(store, env);
+  }
   const orderGid = toGid('Order', payload.o);
   const order = await getOrder(ctx, orderGid).catch(() => null);
   if (!order) return renderPage({ store, title: 'We could not find this order', paragraphs: [helpLine || 'Please contact us.'], status: 404 });
   const orderName = order.name;
   const n = Number(payload.n) || 0;
+  const variantLines = ((order.lineItems && order.lineItems.nodes) || []).filter((li) => li.variant && numericId(li.variant.id) === vid);
+  const openUnits = variantLines.reduce((sum, li) => sum + lineOpenQty(li), 0);
+  const itemName = variantLines.length
+    ? `${(variantLines[0].product && variantLines[0].product.title) || variantLines[0].title || ''} ${cleanVariantTitle(variantLines[0].variantTitle || '')}`.replace(/\s+/g, ' ').trim()
+    : '';
+  const theItem = itemName ? `${itemName} in ${orderName}` : `the ${c.preorder} in ${orderName}`;
 
   if (action === 'k') {
-    if (hasExactTag(order.tags, `preorder-kept-${n}`)) {
-      return renderPage({ store, title: 'Your order is kept', paragraphs: [`You have already told us to keep ${orderName}. Thank you.`, helpLine] });
+    if (hasExactTag(order.tags, orderTags.kept(vid, n))) {
+      return renderPage({ store, title: 'Your order is kept', paragraphs: [`You have already told us to keep ${theItem}. Thank you.`, helpLine] });
     }
-    const keepBy = keepByDates(order.tags).pop();
-    const tooLate = order.cancelledAt || hasExactTag(order.tags, 'preorder-cancel-due') || keepByPassed(keepBy, ctx.today) || n !== maxDelayNumber(order.tags);
+    const keepBy = keepByDates(order.tags, vid).pop();
+    const tooLate = order.cancelledAt || hasExactTag(order.tags, orderTags.cancelDue(vid)) || keepByPassed(keepBy, ctx.today) || n !== maxDelayNumber(order.tags, vid);
     if (tooLate) {
-      return renderPage({ store, title: 'This link can no longer be used', paragraphs: [`We could not record your answer for ${orderName} online, because the deadline has passed or there is a newer update about this order.`, helpLine || 'Please contact us.'] });
+      return renderPage({ store, title: 'This link can no longer be used', paragraphs: [`We could not record your answer for ${theItem} online, because the deadline has passed or there is a newer update about this order.`, helpLine || 'Please contact us.'] });
     }
     if (request.method === 'GET') {
-      return renderPage({ store, title: `Keep your ${c.preorder}?`, paragraphs: [`Press the button to keep ${orderName} with the new date. You can still cancel for a full refund at any time before it ships.`], form: { action: '/k', token, button: 'Keep my order' } });
+      return renderPage({ store, title: `Keep your ${c.preorder}?`, paragraphs: [`Press the button to keep ${theItem} with the new date. You can still cancel for a full refund at any time before it ships.`], form: { action: '/k', token, button: 'Keep my order' } });
     }
-    const r = await addTags(ctx, order.id, [`preorder-kept-${n}`], { order: orderName, action: 'keep' });
+    const r = await addTags(ctx, order.id, [orderTags.kept(vid, n)], { order: orderName, variant_id: vid, action: 'keep' });
     if (!r.ok) return renderPage({ store, title: 'Something went wrong', paragraphs: ['We could not record your answer just now. Please try again in a few minutes.', helpLine], form: { action: '/k', token, button: 'Try again' }, status: 500 });
-    log('preorder_kept', { store, order: orderName, n });
-    return renderPage({ store, title: 'Thank you, your order is kept', paragraphs: [`We will ship ${orderName} as soon as it arrives. You can still cancel for a full refund at any time before it ships.`, helpLine] });
+    log('preorder_kept', { store, order: orderName, variant_id: vid, n });
+    return renderPage({ store, title: 'Thank you, your order is kept', paragraphs: [`We will ship ${theItem} as soon as it arrives. You can still cancel for a full refund at any time before it ships.`, helpLine] });
   }
 
   // action === 'c'
@@ -1801,30 +2154,43 @@ async function handleLinkPage(request, env, action) {
     return renderPage({ store, title: `This order is already ${c.cancelled}`, paragraphs: [`${orderName} has already been ${c.cancelled}.`, helpLine] });
   }
   const refundText = store === 'us' ? 'within 7 business days' : 'within 14 days';
-  if (hasExactTag(order.tags, 'preorder-cancel-requested')) {
-    return renderPage({ store, title: 'We have your request', paragraphs: [`We already have your request to cancel the ${c.preorder} in ${orderName}. We will refund you in full ${refundText} and email you when it is done.`, helpLine] });
+  if (hasExactTag(order.tags, orderTags.cancelRequested(vid))) {
+    return renderPage({ store, title: 'We have your request', paragraphs: [`We already have your request to cancel ${theItem}. We will refund you in full ${refundText} and email you when it is done.`, helpLine] });
+  }
+  if (variantLines.length && openUnits === 0) {
+    // Already dispatched: a cancellation is now a return.
+    log('preorder_cancel_refused_fulfilled', { store, order: orderName, variant_id: vid, method: request.method });
+    return renderPage({
+      store,
+      title: 'This item has already been dispatched',
+      paragraphs: [`${itemName || `The ${c.preorder}`} in ${orderName} has already been dispatched, so it can no longer be ${c.cancelled} here. If you do not want it, please use our returns process once it arrives.`, helpLine],
+    });
   }
   if (request.method === 'GET') {
-    return renderPage({ store, title: `Cancel this ${c.preorder}?`, paragraphs: [`Press the button to cancel the ${c.preorder} in ${orderName}. We will refund you in full ${refundText}.`], form: { action: '/c', token, button: `Cancel this ${c.preorder}` } });
+    return renderPage({ store, title: `Cancel this ${c.preorder}?`, paragraphs: [`Press the button to cancel ${theItem}. We will refund you in full ${refundText}.`], form: { action: '/c', token, button: `Cancel this ${c.preorder}` } });
   }
-  const r = await addTags(ctx, order.id, ['preorder-cancel-requested', `preorder-cancel-requested-on-${ctx.today}`], { order: orderName, action: 'cancel_request' });
+  const r = await addTags(ctx, order.id, ['preorder-cancel-requested', orderTags.cancelRequested(vid), orderTags.cancelRequestedOn(vid, ctx.today)], { order: orderName, variant_id: vid, action: 'cancel_request' });
   if (!r.ok) return renderPage({ store, title: 'Something went wrong', paragraphs: ['We could not record your request just now. Please try again in a few minutes.', helpLine], form: { action: '/c', token, button: 'Try again' }, status: 500 });
   const refundBy = refundDeadline(store, ctx.today);
-  const variant = payload.v ? await getVariant(ctx, payload.v).catch(() => null) : null;
+  let staffItem = itemName ? `${itemName} (${vid})` : '';
+  if (!staffItem) {
+    const variant = await getVariant(ctx, vid).catch(() => null);
+    staffItem = variant ? `${variant.productTitle} ${cleanVariantTitle(variant.title)} (${vid})`.replace(/\s+/g, ' ') : `variant ${vid}`;
+  }
   await staffAlert(ctx, {
-    subject: `Cancel request: ${orderName}, refund by ${formatDate(refundBy, store)}`,
-    intro: `The customer asked to cancel their ${c.preorder} using the link in the date-change email. The Worker does not cancel or refund; please cancel the ${c.preorder} item(s) and refund in full${store === 'us' ? '' : ', including delivery,'} by ${formatDate(refundBy, store)}.`,
+    subject: `Cancel request: ${orderName}, ${staffItem}, refund by ${formatDate(refundBy, store)}`,
+    intro: `The customer asked to cancel one ${c.preorder} item using the link in the date-change email. Cancel only this item (${openUnits} unfulfilled unit(s)); other items in the order are not affected. The Worker does not cancel or refund; please cancel it and refund it in full${store === 'us' ? '' : ', including delivery,'} by ${formatDate(refundBy, store)}.`,
     rows: [
-      ['Order', 'Item', 'Requested', 'Refund by', 'Admin'],
-      [orderName, variant ? `${variant.productTitle} ${cleanVariantTitle(variant.title)} (${variant.id})` : String(payload.v || ''), formatDate(ctx.today, store), formatDate(refundBy, store), adminOrderUrl(ctx, order.id)],
+      ['Order', 'Item', 'Quantity', 'Requested', 'Refund by', 'Admin'],
+      [orderName, staffItem, String(openUnits), formatDate(ctx.today, store), formatDate(refundBy, store), adminOrderUrl(ctx, order.id)],
     ],
-    key: `cancel|${numericId(order.id)}`,
+    key: `cancel|${numericId(order.id)}|${vid}`,
   });
-  log('preorder_cancel_requested', { store, order: orderName, variant_id: payload.v || null });
+  log('preorder_cancel_requested', { store, order: orderName, variant_id: vid, units: openUnits });
   return renderPage({
     store,
     title: 'We have your cancellation request',
-    paragraphs: [`We received your request to cancel the ${c.preorder} in ${orderName} on ${formatDate(ctx.today, store)}. We will refund you in full ${refundText} and email you when it is done.`, helpLine],
+    paragraphs: [`We received your request to cancel ${theItem} on ${formatDate(ctx.today, store)}. We will refund you in full ${refundText} and email you when it is done.`, helpLine],
   });
 }
 
@@ -1832,7 +2198,7 @@ async function handleLinkPage(request, env, action) {
 // Router
 // ---------------------------------------------------------------------------
 
-async function handleHook(request, env, kind) {
+async function handleHook(request, env, kind, execCtx = null) {
   if (!checkFlowKey(request, env)) {
     log('hook_unauthorised', { kind });
     return json({ ok: false, error: 'unauthorised' }, 401);
@@ -1851,8 +2217,23 @@ async function handleHook(request, env, kind) {
   const store = String(body.store || '');
   if (!STORES.includes(store) || !getShops(env)[store]) return json({ ok: false, error: 'unknown_store' }, 400);
   const ctx = makeCtx(env, store, { baseUrl: new URL(request.url).origin });
+  if (kind === 'inventory') {
+    // Answer Flow at once; release + fan-out run after the response within
+    // one time budget. Flow never waits on (or retries because of) slow work.
+    if (!numericId(body.variant_id)) return json({ ok: false, error: 'bad_variant_id' }, 400);
+    const work = handleInventoryHook(ctx, body).catch((err) => {
+      log('hook_error', { kind, store, error: String(err.message || err) });
+      return { status: 500, body: { ok: false, error: 'server' } };
+    });
+    if (execCtx && typeof execCtx.waitUntil === 'function') {
+      execCtx.waitUntil(work);
+      return json({ ok: true, accepted: true }, 202);
+    }
+    const r = await work; // no execution context (local tools): run inline
+    return json(r.body, r.status);
+  }
   try {
-    const r = kind === 'order' ? await handleOrderHook(ctx, body) : await handleInventoryHook(ctx, body);
+    const r = await handleOrderHook(ctx, body);
     return json(r.body, r.status);
   } catch (err) {
     log('hook_error', { kind, store, error: String(err.message || err) });
@@ -1868,7 +2249,7 @@ export async function handleRequest(request, env, ctx) {
   if (path === '/subscribe') {
     if (method === 'OPTIONS') {
       const origin = request.headers.get('Origin') || '';
-      if (!storefrontOrigins(env)[origin]) return new Response(null, { status: 403 });
+      if (!originAllowed(env, origin)) return new Response(null, { status: 403 });
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
     if (method === 'POST') return handleSubscribe(request, env);
@@ -1876,7 +2257,7 @@ export async function handleRequest(request, env, ctx) {
   }
   if (path === '/hooks/order' || path === '/hooks/inventory' || path === '/hooks/daily') {
     if (method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405, { Allow: 'POST' });
-    return handleHook(request, env, path.slice('/hooks/'.length));
+    return handleHook(request, env, path.slice('/hooks/'.length), ctx);
   }
   if (path === '/u' || path === '/k' || path === '/c') {
     if (method !== 'GET' && method !== 'POST') return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, POST' } });

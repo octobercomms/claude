@@ -67,17 +67,21 @@ Staff rule: never set "Continue selling when out of stock" without both `expecte
 | Customer | `restock-request` | Has ever joined a waitlist |
 | Customer | `restock-{variant_id}` | Waiting on this variant |
 | Customer | `restock-notified-{variant_id}` | Was emailed that this variant is back |
-| Order | `preorder` | Contains at least one preorder line |
+| Order | `preorder` | Contains at least one preorder line, and every hold succeeded (idempotency marker) |
 | Order | `preorder-v{variant_id}` | Contains a preorder line for this variant (Flow/Admin search has no variant filter) |
+| Order | `preorder-unlabelled` | Held units were sold below zero without the pre-order label: the customer was not shown a date |
+| Order | `oversold-v{variant_id}` | Sold below zero without the label and the variant has no valid pre-order setup: not held, staff alerted |
+| Order | `preorder-hold-failed` | A hold was refused; staff alerted once; the daily job retries |
 | Order | `preorder-released-v{variant_id}` | Hold released for this variant |
-| Order | `preorder-delay-{n}` | Delay notice n sent |
-| Order | `preorder-keep-by-{YYYY-MM-DD}` | US: customer must confirm by this date |
-| Order | `preorder-kept-{n}` | US: customer confirmed after delay n |
-| Order | `preorder-cancel-requested` | Customer asked to cancel via email link |
-| Order | `preorder-cancel-due` | US: consent deadline passed; staff must cancel and refund |
+| Order | `preorder-delay-v{variant_id}-{n}` | Delay notice n sent for this variant (numbered per order and variant) |
+| Order | `preorder-keep-by-v{variant_id}-{YYYY-MM-DD}` | US: customer must confirm this item by this date |
+| Order | `preorder-kept-v{variant_id}-{n}` | US: customer confirmed this item after its delay n |
+| Order | `preorder-cancel-requested` | Customer asked to cancel at least one item via email link (admin search) |
+| Order | `preorder-cancel-requested-v{variant_id}` | Customer asked to cancel this item |
+| Order | `preorder-cancel-requested-v{variant_id}-on-{date}` | Worker: when that request arrived (drives the 3-day staff chase) |
+| Order | `preorder-cancel-due-v{variant_id}` | US: consent deadline for this item passed; staff must cancel and refund it |
 | Order | `preorder-over-cap` | Order took the variant past its cap |
 | Order | `preorder-notice-v{id}-{n}-{old_date}-{new_date}` | Worker: date-change notice already sent (stops duplicates) |
-| Order | `preorder-cancel-requested-on-{date}` | Worker: when the cancel request arrived (drives the 3-day staff chase) |
 
 Variant IDs are the numeric ID (e.g. `44012345678901`), never the GID.
 
@@ -118,7 +122,7 @@ Single file `dev/falcon-back-in-stock/worker/worker.js` (ES module, no dependenc
 
 | Name | Type | Notes |
 |---|---|---|
-| `SHOPS` | JSON var | `{"uk":{"domain":"falcon-uk.myshopify.com","storefront":"https://www.falconenamelware.com","sender":{"name":"Falcon Enamelware","email":"hello@falconenamelware.com"},"templates":{"bis":1,"delay_uk":2,"delay_us_notice":3,"delay_us_consent":4,"staff":5},"staff_email":"...","withdrawal_url":null}, "us":{...}, "eu":{...,"withdrawal_url":"https://eu.falconenamelware.com/pages/withdrawal"}}` |
+| `SHOPS` | JSON var | `{"uk":{"domain":"falcon-uk.myshopify.com","storefront":"https://www.falconenamelware.com","origins":["https://www.falconenamelware.com","https://falcon-uk.myshopify.com"],"sender":{"name":"Falcon Enamelware","email":"hello@falconenamelware.com"},"templates":{"bis":1,"delay_uk":2,"delay_us_notice":3,"delay_us_consent":4,"staff":5},"staff_email":"...","withdrawal_url":null}, "us":{...}, "eu":{...,"withdrawal_url":"https://eu.falconenamelware.com/pages/withdrawal"}}` |
 | `ADMIN_TOKEN_UK`, `ADMIN_TOKEN_US`, `ADMIN_TOKEN_EU` | secret | Admin API access token per store (custom app) |
 | `BREVO_API_KEY` | secret | |
 | `TURNSTILE_SECRET` | secret | |
@@ -136,16 +140,16 @@ Admin API scopes per store: `read_products, write_products, read_inventory, read
 
 | Method + path | Caller | Behaviour |
 |---|---|---|
-| `POST /subscribe` | Theme | Body `{store, variant_id, email, marketing, turnstile_token}`. CORS allow only that store's storefront origin. Verify Turnstile; validate email; confirm variant exists on that store. Find customer by email; create if missing. `tagsAdd ["restock-request","restock-{id}"]`. If `marketing` true and not already subscribed, set email marketing consent SUBSCRIBED (SINGLE_OPT_IN). Never change consent otherwise. Respond `{ok:true}` or `{ok:false,error:"invalid_email"|"bot"|"unknown_variant"|"server"}`. |
-| `POST /hooks/order` | Flow (Order created) | Header `X-Falcon-Key`. Body `{store, order_id}`. Idempotent (skip if already tagged `preorder`). Find lines with `_preorder_date`. None → 200. Tag order `preorder` + `preorder-v{id}`. For each open fulfillment order holding those lines: `fulfillmentOrderHold` with only those `fulfillmentOrderLineItems`, reason OTHER, handle `falcon-preorder`, notes `Pre-order, expected {date}`. Cap: if variant `inventoryQuantity <= -preorder_limit`, set variant inventory policy DENY (`productVariantsBulkUpdate`); if it went below the cap, tag `preorder-over-cap` and alert staff. |
-| `POST /hooks/inventory` | Flow (Variant inventory quantity changed) | Header `X-Falcon-Key`. Body `{store, variant_id, inventory_quantity, inventory_quantity_prior}`. (a) **Release:** held preorder lines for the variant exist → `stock_for_preorders = inventory_quantity + held_units`; release holds oldest order first while cumulative units ≤ `stock_for_preorders`; tag `preorder-released-v{id}`. (b) **Back in stock:** `inventory_quantity > 0` → waitlist fan-out (below). |
+| `POST /subscribe` | Theme | Body `{store, variant_id, email, marketing, turnstile_token}`. CORS allow only that store's `origins` (storefront, myshopify domain, any preview origin; falls back to `storefront`). Verify Turnstile; validate email; confirm variant exists on that store. Find customer by email; create if missing. `tagsAdd ["restock-request","restock-{id}"]`. If `marketing` true and not already subscribed, set email marketing consent SUBSCRIBED (SINGLE_OPT_IN). Never change consent otherwise. Respond `{ok:true}` or `{ok:false,error:"invalid_email"|"bot"|"unknown_variant"|"server"}`. |
+| `POST /hooks/order` | Flow (Order created, **every order**, no condition) | Header `X-Falcon-Key`. Body `{store, order_id}`. Idempotent (skip if already tagged `preorder`). Early exit (one order query) when no line has `_preorder_date` and no line's variant is at or below zero. Pre-order lines = lines with `_preorder_date`, plus **unlabelled oversell**: lines without it whose tracked variant is now below zero; the units this order took below zero are held if the variant has a valid pre-order setup (tags `preorder-unlabelled`; staff told the customer saw no date), otherwise tagged `oversold-v{id}` + staff alert, not held. Tag order `preorder-v{id}`. Hold by **line item**: only fulfillment order line items whose `lineItem.id` is a pre-order line, one `fulfillmentOrderHold` per variant, reason OTHER, handle `falcon-preorder`, notes `Pre-order, expected {date}`. Hold refused → tag `preorder-hold-failed`, one staff alert, non-2xx (daily job retries). Cap: if variant `inventoryQuantity <= -preorder_limit`, set variant inventory policy DENY (`productVariantsBulkUpdate`); if it went below the cap, tag `preorder-over-cap` and alert staff. `preorder` last. |
+| `POST /hooks/inventory` | Flow (Variant inventory quantity changed) | Header `X-Falcon-Key`. Body `{store, variant_id, inventory_quantity, inventory_quantity_prior}`. Responds 202 at once after auth/validation; the work runs in `waitUntil` within a 25 s total budget (daily job completes the rest). Overlapping runs re-read fulfillment orders / customers before each mutation, so nothing is released or emailed twice. (a) **Release:** held preorder lines for the variant exist → `stock_for_preorders = inventory_quantity + held_units`; release holds oldest order first while cumulative units ≤ `stock_for_preorders`; tag `preorder-released-v{id}`. (b) **Back in stock:** `inventory_quantity > 0` → waitlist fan-out (below). |
 | `GET /u?t=` | Email link | Confirmation page with a button; `POST /u` removes `restock-{id}` from the customer. |
-| `GET /k?t=` | US consent email | Page with "Keep my order" button; `POST /k` tags `preorder-kept-{n}`. |
-| `GET /c?t=` | Delay emails | Page with "Cancel this pre-order" button; `POST /c` tags `preorder-cancel-requested` and alerts staff with refund deadline (UK/EU: 14 days; US: 7 working days). |
+| `GET /k?t=` | US consent email | Page with "Keep my order" button; `POST /k` tags `preorder-kept-v{id}-{n}`. |
+| `GET /c?t=` | Delay emails | Per variant (token carries `v`). Page with "Cancel this pre-order" button; `POST /c` tags `preorder-cancel-requested`, `preorder-cancel-requested-v{id}` and `preorder-cancel-requested-v{id}-on-{date}` and alerts staff naming the item, its unfulfilled quantity and the refund deadline (UK/EU: 14 days; US: 7 working days). If that variant's line is already fulfilled: "already dispatched, use returns" page, nothing tagged. |
 | `scheduled` | Cron daily | Jobs below. |
 | `POST /hooks/daily` | Manual (staff) | Same as cron, header `X-Falcon-Key`. For "I just changed a date, send now". |
 
-GET never changes state: email scanners prefetch links. Every change is a POST from the confirmation page. Link token: `base64url(payload).base64url(HMAC-SHA256(LINK_SECRET, payload))`, payload `{s:store, a:action, c:customer_id?, o:order_id?, v:variant_id, n:delay_no?, d:1 (DRY_RUN only; POST then changes nothing)?, exp}`; expiry 120 days.
+GET never changes state: email scanners prefetch links. Every change is a POST from the confirmation page. Link token: `base64url(payload).base64url(HMAC-SHA256(LINK_SECRET, payload))`, payload `{s:store, a:action, c:customer_id?, o:order_id?, v:variant_id (required for k and c), n:delay_no (per variant)?, d:1 (DRY_RUN only; POST then changes nothing)?, exp}`; expiry 120 days.
 
 ### Waitlist fan-out
 
@@ -153,11 +157,12 @@ Page through `customers(query:"tag:'restock-{id}'")` (verify exact match: skip c
 
 ### Daily job, per store
 
-1. **Date changes.** For every variant with `expected_date` (page through products): if `notified_date` is empty → set it to `expected_date`, no email (first setup). If they differ → find open orders `tag:preorder-v{id}` (unfulfilled or partial) whose line for that variant is still unfulfilled and not released; send the right delay email per §7; tag `preorder-delay-{n}`; then set `notified_date = expected_date`, `delay_count += 1` (only for a later date; an earlier date sends the UK/EU-style update without consent logic and does not increment). Clear `delay_reason` after sending.
-2. **US consent deadlines.** Orders tagged `preorder-keep-by-{date}` where date < today and no matching `preorder-kept-{n}` → tag `preorder-cancel-due`, staff alert.
+0. **Hold retry.** Open orders tagged `preorder-hold-failed` → run the order hook again; still failing → digest row.
+1. **Date changes.** For every variant with `expected_date` (page through products): if `notified_date` is empty (first setup) → open pre-orders whose own `_preorder_date` differs from `expected_date` get the date-change email (old date = their checkout date), then set `notified_date` (no email when nobody differs). If they differ → find open orders `tag:preorder-v{id}` (unfulfilled or partial) whose line for that variant is still unfulfilled and not released; send the right delay email per §7; tag `preorder-delay-v{id}-{n}` (n counted per order and variant); then set `notified_date = expected_date`, `delay_count += 1` (only for a later date; an earlier date sends the UK/EU-style update without consent logic and does not increment). Clear `delay_reason` after sending.
+2. **US consent deadlines.** Per (order, variant): `preorder-keep-by-v{id}-{date}` passed and no matching `preorder-kept-v{id}-{n}` → tag `preorder-cancel-due-v{id}` (that item only), staff alert naming the item.
 3. **Waitlist leftovers.** Customers tagged `restock-request` with a `restock-{id}` tag whose variant now has `inventoryQuantity > 0` → fan-out.
 4. **Release re-check.** Variants with held preorder lines → run release logic (covers missed Flow runs).
-5. **Config alerts.** Variants with policy CONTINUE and missing `expected_date` or `preorder_limit`; `expected_date` in the past with held lines; `preorder-cancel-requested` older than 3 days still open. One digest email to staff.
+5. **Config alerts.** Variants with policy CONTINUE and missing `expected_date` or `preorder_limit`; `expected_date` in the past with held lines; `preorder-cancel-requested-v{id}` older than 3 days while that line is still unfulfilled. One digest email to staff.
 
 ## 7. Email rules (Brevo templates)
 
@@ -182,7 +187,7 @@ Copy rules:
 
 | Flow | Trigger | Condition | Action |
 |---|---|---|---|
-| `Falcon – preorder order` | Order created | any line item custom attribute key = `_preorder_date` | Send HTTP request POST `{worker}/hooks/order`, header `X-Falcon-Key: {{secrets.falcon_worker_key}}`, body `{"store":"uk","order_id":"{{order.id}}"}` |
+| `Falcon – preorder order` | Order created | **none: every order** (the Worker detects unlabelled oversells and exits early for normal orders) | Send HTTP request POST `{worker}/hooks/order`, header `X-Falcon-Key: {{secrets.falcon_worker_key}}`, body `{"store":"uk","order_id":"{{order.id}}"}` |
 | `Falcon – inventory changed` | Product variant inventory quantity changed | `inventoryQuantity > inventoryQuantityPrior` | Send HTTP request POST `{worker}/hooks/inventory`, body with store, variant id, quantities |
 
 ## 9. Existing data and Purple Dot

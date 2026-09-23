@@ -16,7 +16,7 @@ Have these ready. Stop and ask if any is missing.
 |---|---|
 | Worker URL, for example `https://falcon-stock.falcon-enamelware.workers.dev` (no trailing slash) | Cloudflare dashboard > Workers & Pages > `falcon-stock` |
 | Turnstile **site key** (public, starts `0x`). Not the secret key. | Cloudflare dashboard > Turnstile > the Falcon widget. Its hostname list must include `www.falconenamelware.com`, `us.falconenamelware.com`, `eu.falconenamelware.com` |
-| Variant metafield definitions `falcon.expected_date` (date), `falcon.preorder_limit` (integer), `falcon.preorder_note` (single line text) | Settings > Custom data > Variants. Created in the main install. |
+| All six variant metafield definitions from ARCHITECTURE §3: `falcon.expected_date` (date), `falcon.preorder_limit` (integer), `falcon.preorder_note` (single line text), `falcon.delay_reason` (single line text), `falcon.notified_date` (date, **Worker only**: staff never edit it), `falcon.delay_count` (integer, **Worker only**) | Settings > Custom data > Variants. Created in the main install. |
 | One test product with four variants you can set up (in stock, preorder, sold out, misconfigured) | Section 8 |
 
 The store's code editor: Online Store > Themes > (duplicate theme) > `...` > **Edit code**.
@@ -306,7 +306,7 @@ Record pass/fail for each. On any fail, stop and report the step, what you expec
 | 9.14 | Notify form on C: submit with a bad email, then with your test email and the newsletter box unticked | Bad email: inline error, no request. Good email: button disabled while sending, then "Thanks. We'll email you once, when this is back in stock." Customer (Customers > search email) is tagged `restock-request` and `restock-{C id}`, and email marketing is **not** subscribed |
 | 9.15 | Repeat 9.14 on D with the box ticked, same email | Tag `restock-{D id}` added (first tag kept); marketing now subscribed |
 | 9.16 | Switch from C to D after a successful sign-up | Form resets for D (fields visible again, no success text) |
-| 9.17 | Place a test order with A and B together (Bogus gateway or a 100% discount code on the duplicate theme preview) | Order confirmation email: "About your pre-order" box listing B with "Pre-order: expected to ship from {date}.", the "We'll email you..." sentence, and "Anything else in this order that's in stock ships now." The order summary shows "Pre-order: Ships from {date}" under B |
+| 9.17 | Place a test order with A and B together. On a live store use a real card for a low-value order (set the test product's price low for the test) and refund it afterwards; never switch a live store's payment provider to the Bogus/test gateway (real customers would check out with it). A development store may use test payments | Order confirmation email: "About your pre-order" box listing B with "Pre-order: expected to ship from {date}.", the "We'll email you..." sentence, and "Anything else in this order that's in stock ships now." The order summary shows "Pre-order: Ships from {date}" under B |
 | 9.18 | Order with only B | Same box without the "Anything else..." sentence |
 | 9.19 | Fulfil only A on the order from 9.17 | Shipping confirmation: no "on its way" pre-order line; "Still to come from this order" lists B with its date |
 | 9.20 | Then fulfil B | Shipping confirmation: "Your pre-order is on its way. Thank you for waiting." and no "Still to come" |
@@ -314,7 +314,7 @@ Record pass/fail for each. On any fail, stop and report the step, what you expec
 | 9.22 | Page source (Ctrl/Cmd+U): search `FalconVariantData` | One JSON block; paste it into a JSON validator: valid |
 | 9.23 | `theme.liquid` checks from 6.6; Klarna badge still shows on UK product page | Pass |
 
-Clean up afterwards: cancel and refund the test orders; remove the test tags from your test customer; reset the test product variants.
+Clean up afterwards: cancel and refund the test orders (in full, so the card is repaid); remove the test tags from your test customer; reset the test product variants.
 
 ---
 
@@ -327,4 +327,5 @@ Clean up afterwards: cancel and refund the test orders; remove the test tags fro
 
 - `app.js` is not in the repo. Whether it sends line item properties (9.9) and how it renders the quick cart ghost row (9.12) can only be checked live.
 - The notify form needs JavaScript (Turnstile). With JavaScript off it shows a message and does not submit.
+- Time zones: the theme's "today" check uses the shop's time zone, the Worker uses UTC. Around midnight they can disagree by one day about whether a date has passed. Accepted.
 - Page caching: the "today" check for preorder dates uses the shop's timezone when the page was rendered. A variant whose date passes becomes "notify" once Shopify re-renders the page (usually within minutes).

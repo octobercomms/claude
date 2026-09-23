@@ -150,11 +150,14 @@ describe('tags', () => {
   test('restock variant ids ignore restock-request and restock-notified-*', () => {
     assert.deepEqual(restockVariantIds(['restock-request', 'restock-111', 'restock-notified-222', 'restock-333']), ['111', '333']);
   });
-  test('delay numbers and keep-by dates', () => {
-    const tags = ['preorder', 'preorder-delay-1', 'preorder-delay-2', 'preorder-keep-by-2026-11-12', 'preorder-keep-by-2026-10-01'];
-    assert.equal(maxDelayNumber(tags), 2);
-    assert.equal(maxDelayNumber(['preorder']), 0);
-    assert.deepEqual(keepByDates(tags), ['2026-10-01', '2026-11-12']);
+  test('delay numbers and keep-by dates are per variant', () => {
+    const tags = ['preorder', 'preorder-delay-v111-1', 'preorder-delay-v111-2', 'preorder-delay-v222-5', 'preorder-keep-by-v111-2026-11-12', 'preorder-keep-by-v111-2026-10-01', 'preorder-keep-by-v222-2026-12-24'];
+    assert.equal(maxDelayNumber(tags, '111'), 2);
+    assert.equal(maxDelayNumber(tags, '222'), 5);
+    assert.equal(maxDelayNumber(tags, '1'), 0, 'exact variant id, not a prefix');
+    assert.equal(maxDelayNumber(['preorder'], '111'), 0);
+    assert.deepEqual(keepByDates(tags, '111'), ['2026-10-01', '2026-11-12']);
+    assert.deepEqual(keepByDates(tags, '222'), ['2026-12-24']);
   });
 });
 
@@ -466,7 +469,7 @@ describe('end to end', () => {
   test('GET /c never changes state; POST /c tags and alerts staff', async () => {
     const orderGid = 'gid://shopify/Order/5001';
     mock = installFetch({
-      FalconOrder: (v) => ({ order: { id: v.id, name: '#UK1001', tags: ['preorder', 'preorder-v111', 'preorder-delay-1'], cancelledAt: null, lineItems: { nodes: [] }, fulfillmentOrders: { nodes: [] } } }),
+      FalconOrder: (v) => ({ order: { id: v.id, name: '#UK1001', tags: ['preorder', 'preorder-v111', 'preorder-delay-v111-1'], cancelledAt: null, lineItems: { nodes: [] }, fulfillmentOrders: { nodes: [] } } }),
       FalconTagsAdd: (v) => ({ tagsAdd: { node: { id: v.id }, userErrors: [] } }),
       FalconVariant: (v) => ({ productVariant: { id: v.id, title: 'Pigeon Grey', product: { id: 'gid://shopify/Product/9', title: 'Pie Dish' } } }),
     });
@@ -485,7 +488,8 @@ describe('end to end', () => {
     const tagCall = mock.calls.find((c) => c.op === 'FalconTagsAdd');
     assert.equal(tagCall.variables.id, orderGid);
     assert.equal(tagCall.variables.tags[0], 'preorder-cancel-requested');
-    assert.match(tagCall.variables.tags[1], /^preorder-cancel-requested-on-\d{4}-\d{2}-\d{2}$/);
+    assert.equal(tagCall.variables.tags[1], 'preorder-cancel-requested-v111');
+    assert.match(tagCall.variables.tags[2], /^preorder-cancel-requested-v111-on-\d{4}-\d{2}-\d{2}$/);
     const mail = mock.calls.find((c) => c.kind === 'brevo');
     assert.equal(mail.body.templateId, 5);
     assert.equal(mail.body.to[0].email, 'staff@example.com');

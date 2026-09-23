@@ -123,6 +123,7 @@ describe('DRY_RUN safety', () => {
     mock = installFetch({
       FalconCustomersByTag: () => ({ customers: { pageInfo: { hasNextPage: false }, nodes: [{ id: 'gid://shopify/Customer/7', firstName: 'Jane', tags: ['restock-111'], defaultEmailAddress: { emailAddress: 'jane@example.com' } }] } }),
       FalconShop: () => ({ shop: { currencyCode: 'GBP' } }),
+      FalconCustomer: (v) => ({ customer: { id: v.id, firstName: 'Jane', tags: ['restock-111'], defaultEmailAddress: { emailAddress: 'jane@example.com' } } }),
     });
     const ctx = makeCtx('uk', { dryRun: true });
     const variant = { id: '111', qty: 3, title: 'Grey', productTitle: 'Pie Dish', handle: 'pie-dish', price: '22.00', productStatus: 'ACTIVE' };
@@ -147,18 +148,18 @@ describe('US keep-by deadline', () => {
 
   test('daily job does not flag an order the UTC day after the deadline', async () => {
     mock = installFetch({ FalconTagsAdd: (v) => ({ tagsAdd: { node: { id: v.id }, userErrors: [] } }) });
-    const order = { id: 'gid://shopify/Order/1', name: '#US1', tags: ['preorder', 'preorder-v111', 'preorder-delay-2', 'preorder-keep-by-2026-11-12'] };
+    const order = { id: 'gid://shopify/Order/1', name: '#US1', tags: ['preorder', 'preorder-v111', 'preorder-delay-v111-2', 'preorder-keep-by-v111-2026-11-12'] };
     const rows = [];
     await checkConsentDeadlines(makeCtx('us', { today: '2026-11-13' }), [order], rows);
     assert.equal(rows.length, 0);
     await checkConsentDeadlines(makeCtx('us', { today: '2026-11-14' }), [order], rows);
     assert.equal(rows.length, 1);
-    assert.deepEqual(mock.calls.find((c) => c.op === 'FalconTagsAdd').variables.tags, ['preorder-cancel-due']);
+    assert.deepEqual(mock.calls.find((c) => c.op === 'FalconTagsAdd').variables.tags, ['preorder-cancel-due-v111']);
   });
 
   test('an order whose pre-order lines were all released is not flagged for cancellation', async () => {
     mock = installFetch({});
-    const order = { id: 'gid://shopify/Order/1', name: '#US1', tags: ['preorder', 'preorder-v111', 'preorder-released-v111', 'preorder-delay-2', 'preorder-keep-by-2026-11-12'] };
+    const order = { id: 'gid://shopify/Order/1', name: '#US1', tags: ['preorder', 'preorder-v111', 'preorder-released-v111', 'preorder-delay-v111-2', 'preorder-keep-by-v111-2026-11-12'] };
     const rows = [];
     await checkConsentDeadlines(makeCtx('us', { today: '2026-11-20' }), [order], rows);
     assert.equal(rows.length, 0);
@@ -171,7 +172,7 @@ describe('US keep-by deadline', () => {
     runtime.now = () => fixed;
     try {
       mock = installFetch({
-        FalconOrder: (v) => ({ order: { id: v.id, name: '#US1', tags: ['preorder', 'preorder-v111', 'preorder-delay-2', 'preorder-keep-by-2026-11-12'], cancelledAt: null, lineItems: { nodes: [] }, fulfillmentOrders: { nodes: [] } } }),
+        FalconOrder: (v) => ({ order: { id: v.id, name: '#US1', tags: ['preorder', 'preorder-v111', 'preorder-delay-v111-2', 'preorder-keep-by-v111-2026-11-12'], cancelledAt: null, lineItems: { nodes: [] }, fulfillmentOrders: { nodes: [] } } }),
       });
       const t = await signToken({ s: 'us', a: 'k', o: '1', v: '111', n: 2 }, SECRET, { nowMs: fixed });
       const res = await worker.fetch(new Request(`https://w.example/k?t=${encodeURIComponent(t)}`), makeEnv(), {});
@@ -221,7 +222,7 @@ describe('date-change job', () => {
     assert.equal(mails[0].body.params.earlier, false);
     const tags = mock.calls.find((c) => c.op === 'FalconTagsAdd').variables.tags;
     assert.ok(tags.includes(changeMarker('111', 1, '2026-11-01', '2026-11-12')));
-    assert.ok(tags.includes('preorder-delay-1'));
+    assert.ok(tags.includes('preorder-delay-v111-1'));
     assert.equal(r.failures, 0);
   });
 
