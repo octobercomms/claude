@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
+import ListDetail from '../components/shells/ListDetail';
 
 // Video Studio (slice 1) — create an edit project, upload raw clips, and run
 // the auto-edit pipeline. Editing itself runs on the dedicated render worker
@@ -121,8 +122,9 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
         dedicated worker; this screen queues the job and tracks it.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 'var(--s6)' }}>
-        {/* Left: create + project list */}
+      <ListDetail
+        sidebar
+        list={(
         <div>
           <form onSubmit={createProject} className="card" style={{ marginBottom: 'var(--s4)' }}>
             <div className="caption mb-2">New edit</div>
@@ -159,8 +161,8 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
             </div>
           ))}
         </div>
-
-        {/* Right: active project */}
+        )}
+        detail={(
         <div>
           {!active ? (
             <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-body)' }}>Select or create a project.</div>
@@ -224,7 +226,8 @@ export default function ClientVideoPage({ embedded = false, clientId: clientIdPr
             </>
           )}
         </div>
-      </div>
+        )}
+      />
     </div>
   );
 }

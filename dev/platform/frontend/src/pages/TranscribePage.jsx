@@ -3,6 +3,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { roWrite } from '../utils/readOnly';
+import ListDetail from '../components/shells/ListDetail';
 
 // Produce → Transcribe. Upload an audio file; ElevenLabs Scribe transcribes it
 // with speaker separation; the AM names each detected voice, then reads/copies/
@@ -105,8 +106,9 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
   const speakers = current?.speakers || [];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: embedded ? '260px 1fr' : '300px 1fr', gap: 'var(--s4)', alignItems: 'start' }}>
-      {/* Left: upload + history */}
+    <ListDetail
+      sidebar
+      list={(
       <div>
         <div className="card" style={{ marginBottom: 'var(--s4)' }}>
           <h3 className="h3 mb-2">Transcribe audio</h3>
@@ -132,8 +134,8 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
           </div>
         ))}
       </div>
-
-      {/* Right: current transcript */}
+      )}
+      detail={(
       <div>
         {!current && (
           <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
@@ -211,6 +213,7 @@ export default function TranscribePage({ embedded = false, clientId = null } = {
           </div>
         )}
       </div>
-    </div>
+      )}
+    />
   );
 }

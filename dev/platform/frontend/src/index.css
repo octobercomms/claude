@@ -1873,6 +1873,8 @@ a:hover > .card-stat,
 
 /* L5 · ListDetail — searchable list + detail drawer. */
 .ds-workbench { display: grid; grid-template-columns: 1.25fr 1fr; gap: var(--gap-comp); align-items: start; }
+/* sidebar variant — a fixed-width picker rail on the left (short lists). */
+.ds-workbench--sidebar { grid-template-columns: 300px 1fr; }
 
 /* L6 · ChatCanvas — converse left, live artifact right. */
 .ds-chatcanvas { display: grid; grid-template-columns: 1fr 1.1fr; gap: var(--gap-comp); align-items: start; }
