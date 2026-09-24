@@ -81,7 +81,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 | `cancel_url` | yes | `https://falcon-stock.example.workers.dev/c?t=...` | Signed `/c` link |
 | `withdrawal_url` | EU only | `https://eu.falconenamelware.com/pages/withdrawal` | `""` on UK. Shows the "Withdraw from contract here" block |
 | `earlier` | yes | `false` | Boolean. `true` = good-news wording, no apology |
-| `ship_together` | yes | `true` | Boolean. `true` shows "The rest of your order will ship with it, as you chose at checkout." (mixed order, customer chose Ship together) |
+| `ship_together` | yes | `true` | Boolean. `true` shows "The rest of your order is being held so it all ships together in one delivery." (mixed order, customer chose Ship together) |
 | `logo_url` | no | | See setup notes |
 
 ```json
@@ -120,7 +120,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 | `reason` | no | `The shipment from our factory left two weeks late.` | |
 | `cancel_url` | yes | `https://falcon-stock.example.workers.dev/c?t=...` | |
 | `earlier` | yes | `false` | Boolean |
-| `ship_together` | yes | `false` | Boolean. `true` shows "The rest of your order will ship with it, as you chose at checkout." |
+| `ship_together` | yes | `false` | Boolean. `true` shows "The rest of your order is being held so it all ships together in one delivery." |
 | `logo_url` | no | | |
 
 ```json
@@ -158,7 +158,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 | `keep_url` | yes | `https://falcon-stock.example.workers.dev/k?t=...` | Signed `/k` link |
 | `keep_by_date` | yes | `December 9, 2026` | The date currently promised (`old_date`), or 7 days after the notice if that date is sooner. Set by the Worker; rule flagged for legal review |
 | `cancel_url` | yes | `https://falcon-stock.example.workers.dev/c?t=...` | |
-| `ship_together` | yes | `true` | Boolean. `true` shows "The rest of your order will ship with it, as you chose at checkout." |
+| `ship_together` | yes | `true` | Boolean. `true` shows "The rest of your order is being held so it all ships together in one delivery." |
 | `logo_url` | no | | |
 
 ```json

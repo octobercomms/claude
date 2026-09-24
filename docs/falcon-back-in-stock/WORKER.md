@@ -112,5 +112,5 @@ Search `VERIFY:` in `worker.js`. Also confirm that `tag:'restock-123'` search be
 - **Ship together is the default.** An order with no `Delivery preference` attribute is treated as ship together, so every mixed order placed before the theme sends the attribute has its in-stock part held until its pre-order ships.
 
 - **Time zones.** The theme decides "date not in the past" in the shop's time zone; the Worker uses UTC (unlabelled-oversell setup check, date-change job). Around midnight the two can disagree by one day. Accepted.
-- **Newsletter consent is single opt-in.** `/subscribe` sets `SUBSCRIBED` / `SINGLE_OPT_IN` when the box is ticked. Whether UK/EU sign-ups need double opt-in is a legal decision still pending; nothing is built for it yet.
+- **Newsletter consent is single opt-in.** `/subscribe` sets `SUBSCRIBED` / `SINGLE_OPT_IN` when the box is ticked. Single opt-in was confirmed by Falcon for all stores; double opt-in is not built.
 - **Unlabelled oversell is judged when the hook runs.** A restock or another order between checkout and the Flow call changes what is held; the daily release re-check corrects holds, not missed ones.

@@ -66,6 +66,8 @@
 			{%- assign dc_fee_price = dc_item.price -%}
 			{%- continue -%}
 		{%- endif -%}
+		{%- comment -%} Lines that don't ship (gift cards, digital) never make a basket mixed. {%- endcomment -%}
+		{%- unless dc_item.requires_shipping -%}{%- continue -%}{%- endunless -%}
 		{%- assign dc_lines = dc_lines | plus: 1 -%}
 		{%- for dc_prop in dc_item.properties -%}
 			{%- if dc_prop.first == '_preorder_date' and dc_prop.last != blank -%}
@@ -180,6 +182,7 @@
 			var s = { fee: [], pre: 0, lines: 0, attr: (cart.attributes || {})[ATTR] || '' };
 			$.each(cart.items || [], function (i, item) {
 				if (isFee(item)) { s.fee.push(item); return; }
+				if (item.requires_shipping === false) { return; } // gift cards and digital lines never make a basket mixed
 				s.lines += 1;
 				if (isPreorder(item)) { s.pre += 1; }
 			});

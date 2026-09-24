@@ -748,7 +748,7 @@ describe('fan-out and the per-product opt-out', () => {
 describe('email templates', () => {
   const dir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'emails');
   const read = (f) => readFileSync(join(dir, f), 'utf8');
-  const SHIP_LINE = 'The rest of your order will ship with it, as you chose at checkout.';
+  const SHIP_LINE = 'The rest of your order is being held so it all ships together in one delivery.';
 
   test('no em dashes in any template', () => {
     for (const f of readdirSync(dir).filter((x) => x.endsWith('.html'))) {
