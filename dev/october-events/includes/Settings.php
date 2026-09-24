@@ -33,6 +33,8 @@ final class Settings {
         'quo_api_key'            => 'OE_QUO_API_KEY',
         'brevo_api_key'          => 'OE_BREVO_API_KEY',
         'brevo_smtp_key'         => 'OE_BREVO_SMTP_KEY',
+        'meta_app_secret'        => 'OE_META_APP_SECRET',
+        'linkedin_client_secret' => 'OE_LINKEDIN_CLIENT_SECRET',
     ];
 
     public static function defaults(): array {
@@ -219,6 +221,11 @@ final class Settings {
             // the built-in October defaults (Brockmann + brand yellow).
             'theme_accent'      => '', // e.g. #E7CD41
             'theme_accent_on'   => '', // text colour on the accent, e.g. #1a1a1a
+            // Social publishing (Meta + LinkedIn). Secrets live in SECRET_CONSTANTS;
+            // these are the non-secret ids/URNs. Empty = that network stays off.
+            'meta_app_id'            => '',
+            'linkedin_client_id'     => '',
+            'linkedin_org_urn'       => '', // urn:li:organization:12345 (or a bare id)
             'theme_sidebar_bg'  => '', // e.g. #0b0b0c
             'theme_page_bg'     => '', // e.g. #faf9f5
             'theme_logo_light'  => '', // logo URL for light surfaces (login)

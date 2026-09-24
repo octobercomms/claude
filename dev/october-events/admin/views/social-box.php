@@ -87,6 +87,41 @@ defined('ABSPATH') || exit;
         </style>
     <?php endif; ?>
 
+    <?php
+    // ---- Schedule to social ---------------------------------------------
+    $meta_on  = \OE\Connectors\MetaConnector::is_ready();
+    $meta_ig  = $meta_on && \OE\Connectors\MetaConnector::connection()['ig_user_id'] !== '';
+    $li_on    = \OE\Connectors\LinkedInConnector::is_ready();
+    $any_on   = $meta_on || $li_on;
+    $first_cap = (string) ($captions[0] ?? '');
+    ?>
+    <hr style="margin:18px 0">
+    <p style="margin:0 0 4px"><strong><?php esc_html_e('Schedule to social', 'october-events'); ?></strong>
+        <span class="description"><?php esc_html_e('Post a caption + the featured image to Meta and LinkedIn at a set time.', 'october-events'); ?></span></p>
+    <?php if (! $any_on) : ?>
+        <p class="description" style="margin:2px 0 0"><?php printf(
+            /* translators: %s: settings link */
+            esc_html__('No network is connected yet. Connect Facebook/Instagram and LinkedIn under %s, then schedule from here.', 'october-events'),
+            '<a href="' . esc_url(admin_url('admin.php?page=oe-settings#social')) . '">' . esc_html__('Settings → Social publishing', 'october-events') . '</a>'
+        ); ?></p>
+    <?php else : ?>
+        <div id="oe-social-sched" data-post="<?php echo (int) $post->ID; ?>" data-nonce="<?php echo esc_attr(wp_create_nonce('oe_social_schedule')); ?>">
+            <p style="margin:6px 0 2px">
+                <?php if ($meta_ig) : ?><label style="margin-right:12px"><input type="checkbox" class="oe-net" value="instagram"> <?php esc_html_e('Instagram', 'october-events'); ?></label><?php endif; ?>
+                <?php if ($meta_on) : ?><label style="margin-right:12px"><input type="checkbox" class="oe-net" value="facebook"> <?php esc_html_e('Facebook', 'october-events'); ?></label><?php endif; ?>
+                <?php if ($li_on) : ?><label><input type="checkbox" class="oe-net" value="linkedin"> <?php esc_html_e('LinkedIn', 'october-events'); ?></label><?php endif; ?>
+            </p>
+            <p style="margin:6px 0"><textarea id="oe-social-cap" rows="3" class="large-text" placeholder="<?php esc_attr_e('Caption to post…', 'october-events'); ?>"><?php echo esc_textarea($first_cap); ?></textarea></p>
+            <p style="margin:6px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <label><?php esc_html_e('When', 'october-events'); ?> <input type="datetime-local" id="oe-social-when"></label>
+                <button type="button" class="button button-primary" id="oe-social-do"><?php esc_html_e('Schedule post', 'october-events'); ?></button>
+                <span id="oe-social-schmsg" class="description" style="font-weight:600"></span>
+            </p>
+            <p class="description" style="margin:0 0 4px"><?php esc_html_e('Posts the event’s featured image. Instagram and Facebook go out together via Meta.', 'october-events'); ?></p>
+            <div id="oe-social-rows"><?php echo \OE\Social\Scheduler::rows_html($post->ID); // phpcs: built with esc_* ?></div>
+        </div>
+    <?php endif; ?>
+
     <script>
     (function () {
         var box = document.getElementById('oe-social');
@@ -146,6 +181,48 @@ defined('ABSPATH') || exit;
                         }
                     })
                     .catch(function () { gen.disabled = false; msg.style.color = '#b32d2e'; msg.textContent = 'Error'; });
+            });
+        }
+
+        // Schedule to social (AJAX; the metabox can't nest a form).
+        var sched = document.getElementById('oe-social-sched');
+        if (sched) {
+            var SNONCE = sched.getAttribute('data-nonce');
+            var SPOST = sched.getAttribute('data-post');
+            var rowsBox = document.getElementById('oe-social-rows');
+            var schmsg = document.getElementById('oe-social-schmsg');
+
+            document.getElementById('oe-social-do').addEventListener('click', function () {
+                var nets = Array.prototype.map.call(sched.querySelectorAll('.oe-net:checked'), function (c) { return c.value; });
+                var cap = document.getElementById('oe-social-cap').value;
+                var when = document.getElementById('oe-social-when').value;
+                schmsg.style.color = '#50575e'; schmsg.textContent = <?php echo wp_json_encode(__('Scheduling…', 'october-events')); ?>;
+                var body = new URLSearchParams();
+                body.append('action', 'oe_social_schedule');
+                body.append('nonce', SNONCE);
+                body.append('event_id', SPOST);
+                body.append('caption', cap);
+                body.append('when', when);
+                nets.forEach(function (n) { body.append('networks[]', n); });
+                fetch(ajaxurl, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+                    .then(function (r) { return r.json(); })
+                    .then(function (j) {
+                        if (j && j.success) { rowsBox.innerHTML = j.data.rows; schmsg.style.color = '#1a7f37'; schmsg.textContent = <?php echo wp_json_encode(__('Scheduled.', 'october-events')); ?>; }
+                        else { schmsg.style.color = '#b32d2e'; schmsg.textContent = (j && j.data && j.data.message) || 'Error'; }
+                    })
+                    .catch(function () { schmsg.style.color = '#b32d2e'; schmsg.textContent = 'Error'; });
+            });
+
+            rowsBox.addEventListener('click', function (e) {
+                var btn = e.target.closest('.oe-social-cancel');
+                if (!btn) { return; }
+                var body = new URLSearchParams();
+                body.append('action', 'oe_social_cancel');
+                body.append('nonce', btn.getAttribute('data-nonce'));
+                body.append('id', btn.getAttribute('data-id'));
+                fetch(ajaxurl, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+                    .then(function (r) { return r.json(); })
+                    .then(function (j) { if (j && j.success) { rowsBox.innerHTML = j.data.rows; } });
             });
         }
     })();
