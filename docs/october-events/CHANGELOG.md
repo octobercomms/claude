@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.170.0 — Queue ticket confirmation emails (faster manual adds)
+
+- The ticket confirmation email now sends on WP-cron just after the order is
+  created, instead of blocking the request while it talks to the mail server.
+  Each manual add (and each checkout) returns immediately.
+- Why: delivering the email inline added seconds to every order. A run of
+  manual adds then stacked up long admin requests, which a host rate limiter
+  answers with **429 Too Many Requests**. Off-loading the send removes that
+  stall, so adding several attendees in a row no longer trips the limit.
+- The email content, recipients and count are unchanged; only the timing moves
+  (it lands within the minute). If the job can't be scheduled it falls back to
+  an inline send, so a confirmation is never dropped.
+
 ## 1.169.0 — Preview the automated ticket emails
 
 - **Settings → Email tools** now has two **Preview** buttons: one for the ticket

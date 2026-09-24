@@ -54,6 +54,9 @@ final class Cron {
         add_action(self::HOOK_DIGEST, [$this, 'run_digest']);
         add_action(self::HOOK_HOURLY, [$this, 'run_hourly']);
         add_action(self::HOOK_DISPATCH, [$this, 'run_dispatch']);
+        // Ticket confirmations are queued off the order-create request and
+        // delivered here (see Orders::queue_confirmation).
+        add_action(\OE\Ticketing\Orders::HOOK_CONFIRM, ['\OE\Ticketing\Orders', 'send_confirmation'], 10, 1);
         // Traffic-driven fallback so campaigns still send on a low-traffic site.
         add_action('init', ['\OE\Mail\Campaigns', 'maybe_dispatch']);
 

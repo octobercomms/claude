@@ -285,7 +285,11 @@ final class Orders {
         }
 
         AuditLog::record('order_created', $order_id, 'order', $source);
-        self::send_confirmation($order_id);
+        // Send the confirmation off the request. Delivering inline (SES/SMTP) adds
+        // seconds to the create call; a burst of manual adds then piles up long
+        // admin requests that a host rate limiter answers with a 429. Queue it on
+        // WP-cron (runs within the minute) so each add returns immediately.
+        self::queue_confirmation($order_id);
 
         return ['order_id' => $order_id, 'tickets' => self::ticket_dtos($tickets)];
     }
@@ -586,6 +590,36 @@ final class Orders {
     }
 
     /* ------------------------------------------------------------------ */
+
+    /** Cron hook that delivers a queued confirmation. Registered in Cron::init(). */
+    public const HOOK_CONFIRM = 'oe_send_confirmation';
+
+    /**
+     * Queue the confirmation for near-immediate delivery on WP-cron, keeping the
+     * order-create request fast. Falls back to an inline send only if the event
+     * can't be scheduled, so a confirmation is never silently dropped.
+     */
+    public static function queue_confirmation(int $order_id): void {
+        if ($order_id <= 0) {
+            return;
+        }
+        // Due now: WP runs it on the next cron tick (a low-traffic site still has
+        // the plugin's per-minute dispatch spawning cron). Identical args dedupe,
+        // so a re-queued order won't double-send.
+        if (! wp_next_scheduled(self::HOOK_CONFIRM, [$order_id])) {
+            $scheduled = wp_schedule_single_event(time(), self::HOOK_CONFIRM, [$order_id]);
+            if ($scheduled === false || is_wp_error($scheduled)) {
+                self::send_confirmation($order_id); // scheduling failed — don't lose the email
+                return;
+            }
+            // Kick cron so the confirmation actually goes out on this request's
+            // loopback rather than waiting for the next tick (matches the campaign
+            // dispatch pattern). Non-blocking; deduped by the doing_cron lock.
+            if (function_exists('spawn_cron')) {
+                spawn_cron();
+            }
+        }
+    }
 
     public static function send_confirmation(int $order_id): void {
         $order = self::get($order_id);
