@@ -98,7 +98,8 @@
         <tr>
           <td class="pad" style="padding:24px 40px 28px 40px; background-color:#f0f2f8; font-family:Arial, Helvetica, sans-serif; color:#555555;">
             <p style="margin:0 0 10px 0; font-size:13px; line-height:20px;">You're getting this email because you asked Falcon Enamelware to tell you when {{ params.product_title }} was back in stock. We only send it once, and it doesn't sign you up to anything else.</p>
-            <p style="margin:0 0 10px 0; font-size:13px; line-height:20px;">Didn't ask for this, or don't want back-in-stock emails from us? <a href="{{ params.remove_url }}" style="color:#243588; text-decoration:underline;">Remove me</a></p>
+            {% if params.optout_url %}<p style="margin:0 0 10px 0; font-size:13px; line-height:20px;"><a href="{{ params.optout_url }}" style="color:#243588; text-decoration:underline;">Don't email me about this product again</a></p>{% endif %}
+            <p style="margin:0 0 10px 0; font-size:13px; line-height:20px;">Didn't ask for this, or don't want back-in-stock emails from us? <a href="{{ params.remove_url }}" style="color:#243588; text-decoration:underline;">Remove me from all waitlists</a></p>
             <p style="margin:0; font-size:13px; line-height:20px;"><strong style="color:#243588;">Falcon Enamelware</strong><br>
               <a href="{% if params.store == "us" %}https://us.falconenamelware.com{% endif %}{% if params.store == "eu" %}https://eu.falconenamelware.com{% endif %}{% if params.store == "uk" %}https://www.falconenamelware.com{% endif %}" style="color:#555555; text-decoration:underline;">{% if params.store == "us" %}us.falconenamelware.com{% endif %}{% if params.store == "eu" %}eu.falconenamelware.com{% endif %}{% if params.store == "uk" %}www.falconenamelware.com{% endif %}</a>
               &nbsp;|&nbsp; <a href="mailto:hello@falconenamelware.com" style="color:#555555; text-decoration:underline;">hello@falconenamelware.com</a></p>

@@ -121,7 +121,9 @@ const line = (id, variant, quantity, { preorderDate = null, unfulfilled = quanti
 });
 const foLine = (id, lineId, variantId, remaining) => ({ id: `gid://shopify/FulfillmentOrderLineItem/${id}`, remainingQuantity: remaining, totalQuantity: remaining, lineItem: { id: `gid://shopify/LineItem/${lineId}`, variant: { id: `gid://shopify/ProductVariant/${variantId}` } } });
 const fo = (id, lines, { status = 'OPEN', held = false } = {}) => ({ id: `gid://shopify/FulfillmentOrder/${id}`, status, fulfillmentHolds: held ? [{ id: `gid://shopify/FulfillmentHold/${id}`, handle: 'falcon-preorder', reason: 'OTHER' }] : [], lineItems: { nodes: lines } });
-const makeOrder = (lines, fos, tags = []) => ({ id: 'gid://shopify/Order/5001', name: '#UK1001', createdAt: '2026-09-23T09:00:00Z', tags, email: 'jane@example.com', cancelledAt: null, closed: false, lineItems: { nodes: lines }, fulfillmentOrders: { nodes: fos } });
+// Mixed orders here pin "Ship separately" (the pre-existing behaviour); ship-together has its own tests.
+const SEPARATELY = [{ key: 'Delivery preference', value: 'Ship separately' }];
+const makeOrder = (lines, fos, tags = [], customAttributes = SEPARATELY) => ({ id: 'gid://shopify/Order/5001', name: '#UK1001', createdAt: '2026-09-23T09:00:00Z', tags, email: 'jane@example.com', cancelledAt: null, closed: false, customAttributes, lineItems: { nodes: lines }, fulfillmentOrders: { nodes: fos } });
 const fullVariant = (id, { qty = -2, policy = 'CONTINUE', tracked = true, expected = future, limit = '10' } = {}) => ({
   productVariant: {
     id: `gid://shopify/ProductVariant/${id}`,
@@ -169,7 +171,7 @@ describe('unlabelled oversell', () => {
     const body = await res.json();
     assert.equal(res.status, 200, JSON.stringify(body));
     assert.deepEqual(body.unlabelled, ['111']);
-    assert.deepEqual(tagCalls()[0], ['preorder-v111', 'preorder-unlabelled']);
+    assert.deepEqual(tagCalls()[0], ['preorder-v111', 'preorder-unlabelled', 'ship-separately', 'split-fee-missing']);
     const hold = mock.calls.find((c) => c.op === 'FalconHold').variables;
     assert.deepEqual(hold.fulfillmentHold.fulfillmentOrderLineItems, [{ id: 'gid://shopify/FulfillmentOrderLineItem/1', quantity: 2 }], 'only the 2 units below zero');
     assert.deepEqual(tagCalls().at(-1), ['preorder']);

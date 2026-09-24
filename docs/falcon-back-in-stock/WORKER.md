@@ -7,7 +7,7 @@ Code-level notes only. The design is `docs/falcon-back-in-stock/ARCHITECTURE.md`
 | File | What |
 |---|---|
 | `worker.js` | The whole Worker. One ES module, no imports. Paste into the Cloudflare dashboard editor as-is. `export default { fetch, scheduled }`; the named exports are pure helpers for tests (Cloudflare ignores them). |
-| `tests/worker.test.mjs`, `tests/review-fixes.test.mjs`, `tests/review-fixes-2.test.mjs` | Node built-in test runner. Pure helpers plus mocked-fetch end-to-end tests of `/subscribe`, `/hooks/order`, `/hooks/inventory`, `/c`, `/k` and the daily job. |
+| `tests/worker.test.mjs`, `tests/review-fixes.test.mjs`, `tests/review-fixes-2.test.mjs`, `tests/ship-together-waitlist.test.mjs` | Node built-in test runner. Pure helpers plus mocked-fetch end-to-end tests of `/subscribe`, `/hooks/order`, `/hooks/inventory`, `/u`, `/c`, `/k`, the daily job, and checks on the Brevo template files (`../emails/*.html`). |
 | `tests/index.js` | Lets `node --test tests/` work on Node 22, which does not expand directories. |
 | `package.json` | Only `"type": "module"` so Node loads `worker.js` as ESM. No dependencies. |
 | `wrangler.toml` | Reference only. |
@@ -26,7 +26,7 @@ Needs Node 19 or later (global `crypto.subtle`, `fetch`, `Request`, `Response`, 
 
 | Name | Type | Notes |
 |---|---|---|
-| `SHOPS` | JSON var | Per store (`uk`, `us`, `eu`): `domain` (myshopify domain), `storefront` (public storefront URL, used in product links), `origins` (array of origins allowed by CORS on `/subscribe`: the storefront, the `https://{store}.myshopify.com` domain and any theme-preview origin; when missing, only `storefront` is allowed), `sender` `{name,email}`, `templates` `{bis,delay_uk,delay_us_notice,delay_us_consent,staff}` (Brevo IDs), `staff_email`, `withdrawal_url` (EU only). Optional: `reply_to` `{email,name}` (Brevo `replyTo`), `logo_url` (sent as the `logo_url` param). |
+| `SHOPS` | JSON var | Per store (`uk`, `us`, `eu`): `domain` (myshopify domain), `storefront` (public storefront URL, used in product links), `origins` (array of origins allowed by CORS on `/subscribe`: the storefront, the `https://{store}.myshopify.com` domain and any theme-preview origin; when missing, only `storefront` is allowed), `sender` `{name,email}`, `templates` `{bis,waitlist_joined,delay_uk,delay_us_notice,delay_us_consent,staff}` (Brevo IDs; without `waitlist_joined` the sign-up email is skipped and logged), `staff_email`, `withdrawal_url` (EU only), `split_fee_variant_id` (numeric string: the variant id of the store's "Second delivery" product, see below; without it every fee line is invisible to the Worker and no order counts as having paid the fee). Optional: `reply_to` `{email,name}` (Brevo `replyTo`), `logo_url` (sent as the `logo_url` param). |
 | `ADMIN_TOKEN_UK` / `_US` / `_EU` | secret | Admin API token per store. |
 | `BREVO_API_KEY` | secret | |
 | `TURNSTILE_SECRET` | secret | The widget must use action `restock-subscribe` (the theme does). |
@@ -42,11 +42,11 @@ Needs Node 19 or later (global `crypto.subtle`, `fetch`, `Request`, `Response`, 
 
 | Route | Auth | Notes |
 |---|---|---|
-| `OPTIONS/POST /subscribe` | CORS: `Origin` must be in `SHOPS[body.store].origins` (fallback: `storefront`) | Returns `{ok:true}` or `{ok:false,error:"invalid_email"\|"bot"\|"unknown_variant"\|"server"}` (403 `forbidden` for a wrong origin). |
+| `OPTIONS/POST /subscribe` | CORS: `Origin` must be in `SHOPS[body.store].origins` (fallback: `storefront`) | Returns `{ok:true}` or `{ok:false,error:"invalid_email"\|"bot"\|"unknown_variant"\|"server"}` (403 `forbidden` for a wrong origin). A **new** sign-up also sends `waitlist_joined` (see below). |
 | `POST /hooks/order` | `X-Falcon-Key` | `{store, order_id}` (GID or number). **Flow must call this for every order (no condition)**, see below. Non-2xx on hold failure so Flow retries. |
 | `POST /hooks/inventory` | `X-Falcon-Key` | `{store, variant_id, ...}`. Answers `202 {ok:true, accepted:true}` straight after auth and validation (400 for a bad store or variant id); release and fan-out then run in `waitUntil` inside one 25 s budget (`INVENTORY_BUDGET_MS`). Anything left over is finished by the daily run. Re-reads the live quantity; the Flow quantities are only logged. |
 | `POST /hooks/daily` | `X-Falcon-Key` | Optional `{store}`. Same as the cron. |
-| `GET/POST /u /k /c` | signed token `t` | GET shows a page with a button; only POST changes anything. |
+| `GET/POST /u /k /c` | signed token `t` | GET shows a page with a button; only POST changes anything. `/u` with `v` in the token = one product; without = all waitlists. |
 | cron `0 7 * * *` | | `runDaily` for every store in `SHOPS`. |
 
 ## Flow change: the order Flow has no condition
@@ -63,12 +63,37 @@ Needs Node 19 or later (global `crypto.subtle`, `fetch`, `Request`, `Response`, 
 - **Holds are by line item.** Only fulfillment order line items whose `lineItem.id` is a pre-order line (or the held part of an unlabelled line) are held, one `fulfillmentOrderHold` per variant. A same-variant line in the order that is not a pre-order ships now. Fulfillment orders already held by us are counted first, so a retry never holds units meant to ship.
 - **Hold refused** (fulfillment order not OPEN, or a user error): the order is tagged `preorder-hold-failed` and staff get one alert; Flow retries (non-2xx) and later runs do not alert again. The daily job retries every open order tagged `preorder-hold-failed` first; on success it adds `preorder` and removes `preorder-hold-failed`; if it still fails the digest lists it.
 
-- **Idempotency.** Brevo `headers.idempotencyKey` = UUID v5 of a key string (`bis|store|variant|customer|date`, `delay|store|variant|order|delayCount|oldDate|newDate`, `staff|store|...`). Brevo's window is 30 minutes, so Shopify tags are the real record.
+- **Idempotency.** Brevo `headers.idempotencyKey` = UUID v5 of a key string (`bis|store|variant|customer|date`, `joined|store|variant|customer|date`, `delay|store|variant|order|delayCount|oldDate|newDate`, `staff|store|...`). Brevo's window is 30 minutes, so Shopify tags are the real record.
 - **Order hook ordering.** `preorder-v{id}` (+ `preorder-unlabelled`, `oversold-v{id}`) tags first, then one `fulfillmentOrderHold` per preorder variant (so each variant sits on its own held fulfillment order and can be released on its own), then the cap check, then `preorder` last. The `preorder` tag (the idempotency marker) is only added once every hold succeeded.
-- **Release.** Only holds with handle `falcon-preorder` are released (`holdIds`). A held fulfillment order that also carries other items is never released automatically.
+- **Release.** Only holds with handle `falcon-preorder` are released (`holdIds`) by variant; `falcon-ship-together` holds only by the ship-together rule below. A held fulfillment order that also carries other items is never released automatically.
+
+### Tags and hold handles (summary)
+
+| Where | Tag / handle | Set by | Meaning |
+|---|---|---|---|
+| Order | `ship-together` / `ship-separately` | `/hooks/order` | Mixed order, the customer's delivery choice |
+| Order | `split-fee-missing` | `/hooks/order` | Split chosen, no "Second delivery" line (staff alerted) |
+| Order | `split-fee-unneeded` | `/hooks/order` | Fee line present but not needed (staff alerted: refund it) |
+| Order | `ship-together-released` | release / daily | The ship-together holds have been released |
+| Customer | `restock-optout-{id}` | `/u` with `v` | Never email about this variant; removed on a new sign-up for it |
+| Fulfillment hold | `falcon-preorder` | `/hooks/order` | Pre-order lines |
+| Fulfillment hold | `falcon-ship-together` | `/hooks/order` | In-stock lines waiting for the pre-order (notes "Ship together with pre-order") |
 - **Overlapping runs** (two inventory events, a Flow retry, the daily job). Release re-reads each order's fulfillment orders just before releasing and releases only holds still present, so nothing is released twice. Released-but-unshipped units stay committed in `inventoryQuantity`, so a run that starts after another's release computes the same total. The fan-out re-reads each customer just before emailing and skips anyone no longer tagged `restock-{id}` or already tagged `restock-notified-{id}`; the Brevo idempotency key is the second line of defence. With a time budget, planning is oldest first, so a partial plan only releases orders the full plan would also release.
-- **Waitlist.** Skipped (everyone stays waiting) while the product is not ACTIVE. Send, then one request that adds `restock-notified-{id}` and removes `restock-{id}`. A customer found with both tags is cleaned up without a second email. `/subscribe` removes an old `restock-notified-{id}` so a re-subscriber is emailed next time.
-- **`/u` removes every `restock-{id}` tag** (all waitlists), per the email copy. Token payload is `{s, a:"u", c}`.
+- **Waitlist.** Skipped (everyone stays waiting) while the product is not ACTIVE. Send, then one request that adds `restock-notified-{id}` and removes `restock-{id}`. A customer found with both tags is cleaned up without a second email. A customer tagged `restock-optout-{id}` is never emailed about that variant: the fan-out skips them and removes their `restock-{id}` (not in DRY_RUN). `/subscribe` removes an old `restock-notified-{id}` so a re-subscriber is emailed next time. The `bis` email carries `optout_url` (this product) and `remove_url` (all waitlists).
+- **Waitlist sign-up email (`waitlist_joined`).** `/subscribe` sends it only when the customer did not already have `restock-{id}` (a new customer, or an existing one newly added); a repeat sign-up gets nothing. It is sent after the tags and consent are written, in `waitUntil` when the runtime gives one (so it never slows the response). DRY_RUN applies as for every customer email. Idempotency key `joined|store|variant|customer|date`. A failure (Brevo error, missing template id, missing `WORKER_URL`) is logged as `waitlist_joined_failed` / `waitlist_joined_no_template`; the sign-up still returns `{ok:true}` and the tag stays.
+- **Per-product opt-out.** A sign-up for a variant the customer had opted out of (`restock-optout-{id}`) removes that opt-out tag: they asked again.
+- **`/u` links.** Token payload `{s, a:"u", c}` = all waitlists; `{s, a:"u", c, v}` = one product.
+  - Without `v`: GET "Leave all waitlists?"; POST removes every `restock-{id}` tag. `restock-optout-*` tags stay.
+  - With `v`: GET "Stop emails about {product}?" (reads the variant for the name; "this product" if it is gone); POST adds `restock-optout-{v}` and removes `restock-{v}` in one request (`FalconWaitlistOptOut`, add first). Other waitlists are untouched.
+- **Mixed baskets: delivery preference** (shared contract with the theme). A mixed order has at least one pre-order line (`_preorder_date`, or units held as unlabelled oversell) **and** at least one shippable line that is not a pre-order line (`requiresShipping` not false, units left to ship). An order of only pre-order lines, even for several variants, is not mixed. The order attribute `Delivery preference` (from the cart attribute; key and value matched case-insensitively) decides: a value containing "separately" = split; anything else or missing = **ship together** (the default).
+  - **Fee line.** `SHOPS[store].split_fee_variant_id` names the "Second delivery" product (non-physical, no inventory tracking, priced at the standard delivery rate). Fee lines are removed before every pre-order, mixed and oversell rule, so they are never held, never oversold and never make an order mixed. An order whose only reason to run is a fee line still costs just the one order query plus the tag and alert.
+  - **Split** (`Ship separately`): pre-order lines are held as before; tag `ship-separately`. No fee line: also `split-fee-missing` and one staff alert (the choice is honoured anyway).
+  - **Together**: pre-order lines are held as before, then the order's fulfillment orders are re-read and every one still OPEN with unfulfilled lines and no `falcon-preorder` hold (the in-stock part, which Shopify moved to a new fulfillment order when the partial pre-order hold was placed) is held whole with handle `falcon-ship-together`, notes "Ship together with pre-order". Tag `ship-together`. This hold is only attempted once every pre-order hold is on; a failed ship-together hold counts as a hold failure (non-2xx, `preorder-hold-failed`, one alert, retried by Flow and the daily job). A fulfillment order already held with `falcon-ship-together` counts as done on a retry.
+  - **Fee on an order that does not need it**: a fee line on a non-mixed order, or on a mixed order whose customer chose together, tags `split-fee-unneeded` and alerts staff to refund the fee (once: the tag stops repeats).
+  - Only mixed orders get `ship-together` / `ship-separately`.
+- **Ship-together release.** After the release step releases an order's pre-order hold for a variant, a `ship-together` order is re-read: when no fulfillment order still carries a `falcon-preorder` hold with unfulfilled lines, its `falcon-ship-together` holds are released in the same run (only those hold ids) and the order is tagged `ship-together-released` (Worker-internal marker). Orders without `preorder`, or tagged `preorder-hold-failed`, are never released this way. The daily job also checks every open `ship-together` order not yet released: if nothing is left to wait for (the pre-order item was refunded, cancelled, shipped, or its hold released by hand) it releases the rest and adds a digest row "Ship-together order released".
+- **Delay emails** get `ship_together` (`true` for an order tagged `ship-together` and not yet `ship-together-released`, else `false`).
+- **`/c` on a ship-together order.** The staff alert adds: "After cancelling the pre-order item, the rest of this order will be released automatically at the next daily check (or release it now by hand)." 
 - **Date-change markers.** Each order emailed about a change gets `preorder-notice-v{id}-{delayCount}-{oldDate}-{newDate}` (new tag type) so a crashed or repeated run never emails twice (the old date is in it because an earlier move and a later move back can share a count and new date). Delay numbers `n` and `delay_count_before` are counted per **(order, variant)** from its `preorder-delay-v{id}-{n}` tags: a delay to one item never makes another item's first delay a "second delay". The old date used per order is its `_preorder_date` if it has had no notice for that variant yet, otherwise `notified_date`; an order whose old date already equals the new date is skipped. `notified_date` / `delay_count` are only updated when every email for that change succeeded. An order with no email address is listed in the digest but does not block that update.
 - **Date changed before the first daily run.** If `notified_date` is empty (first setup) the job still loads the variant's open pre-orders: any order whose own `_preorder_date` differs from `expected_date` gets the normal date-change notice (old date = its checkout date; marker and idempotency key use that date), and only then is `notified_date` set. With nobody to tell it is set straight away (in DRY_RUN too). Unlabelled orders have no checkout date and are skipped (staff were told to contact them).
 - **Missing `delay_reason`.** For a later date the job waits (and flags it in the digest) until 2 days before the old date, then sends without a reason.
@@ -83,6 +108,8 @@ Needs Node 19 or later (global `crypto.subtle`, `fetch`, `Request`, `Response`, 
 Search `VERIFY:` in `worker.js`. Also confirm that `tag:'restock-123'` search behaves as expected. The code re-checks exact tags either way.
 
 ## Known limits
+
+- **Ship together is the default.** An order with no `Delivery preference` attribute is treated as ship together, so every mixed order placed before the theme sends the attribute has its in-stock part held until its pre-order ships.
 
 - **Time zones.** The theme decides "date not in the past" in the shop's time zone; the Worker uses UTC (unlabelled-oversell setup check, date-change job). Around midnight the two can disagree by one day. Accepted.
 - **Newsletter consent is single opt-in.** `/subscribe` sets `SUBSCRIBED` / `SINGLE_OPT_IN` when the box is ticked. Whether UK/EU sign-ups need double opt-in is a legal decision still pending; nothing is built for it yet.

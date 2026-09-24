@@ -1,11 +1,12 @@
 # Falcon Brevo templates
 
-Five transactional templates for the Falcon stock system (ARCHITECTURE.md §7). Each `.html` file is pasted into Brevo as-is:
+Six transactional templates for the Falcon stock system (ARCHITECTURE.md §7). Each `.html` file is pasted into Brevo as-is:
 Brevo → Transactional → Templates → New template → **Paste your code**. Set the subject and preview text in the template settings as listed below. Save each template, note its numeric ID, and put the IDs in the Worker's `SHOPS[store].templates`.
 
 | File | Brevo template name | Stores | `SHOPS.templates` key |
 |---|---|---|---|
 | `bis.html` | `Falcon – Back in stock` | UK, US, EU | `bis` |
+| `waitlist-joined.html` | `Falcon – Waitlist joined` | UK, US, EU | `waitlist_joined` |
 | `delay-uk.html` | `Falcon – Pre-order date change (UK/EU)` | UK, EU | `delay_uk` |
 | `delay-us-notice.html` | `Falcon – Preorder delay notice (US)` | US | `delay_us_notice` |
 | `delay-us-consent.html` | `Falcon – Preorder delay, action needed (US)` | US | `delay_us_consent` |
@@ -15,6 +16,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 
 - **Template language.** All templates use Brevo's New Template Language: `{{ params.x }}` and `{% if params.x %}...{% else %}...{% endif %}`. No `{% elif %}` is used (the store switch in `bis.html` uses three separate `if` blocks) so nothing depends on less-documented syntax.
 - **Empty values.** Pass optional params as `""` (or leave them out) to hide their block. `{% if %}` treats an empty string, `false` and a missing key as false. Pass `earlier` as JSON `true`/`false`, not the string `"false"` (a non-empty string is true).
+- **Booleans.** Pass `earlier` and `ship_together` as JSON `true`/`false`.
 - **Logo.** Every template shows `params.logo_url` if given, otherwise `https://REPLACE_ME.example.com/falcon-logo.png`. Before going live, either upload the logo to Brevo's image library and replace the `REPLACE_ME` URL in each file, or have the Worker always send `logo_url`. The image links to the storefront in `bis.html` only.
 - **Preview text.** Each file carries its own hidden preheader `<div>` as the first thing in `<body>`. Leave Brevo's "Preview text" field empty, or delete the `<div>`, so it does not show twice.
 - **Subjects with a condition.** `delay-uk.html` and `delay-us-notice.html` switch the subject on `params.earlier`. **VERIFY** that Brevo evaluates `{% if %}` in the subject field (it does evaluate `{{ params.x }}`). If it does not, set the subject to the "later date" version and have the Worker pass `subject` in the API body for `earlier` sends (**VERIFY** that Brevo honours `subject` alongside `templateId`).
@@ -40,10 +42,11 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 | `product_url` | yes | `https://www.falconenamelware.com/products/pie-dish?variant=44012345678901&utm_source=brevo&utm_medium=email&utm_campaign=back_in_stock` | Link to the variant |
 | `image_url` | no | `https://cdn.shopify.com/s/files/1/0000/0000/products/pie-dish-grey.jpg?width=800` | Variant image, else product image. Block hidden if empty |
 | `price` | no | `£22.00` | Pre-formatted in the store currency |
-| `remove_url` | yes | `https://falcon-stock.example.workers.dev/u?t=eyJzIjoidWsi...` | Signed `/u` link |
+| `remove_url` | yes | `https://falcon-stock.example.workers.dev/u?t=eyJzIjoidWsi...` | Signed `/u` link, all waitlists ("Remove me from all waitlists", footer) |
+| `optout_url` | no | `https://falcon-stock.example.workers.dev/u?t=eyJzIjoidWsi...` | Signed `/u` link for this product only ("Don't email me about this product again"). Line hidden if empty |
 | `logo_url` | no | `https://img.mailinblue.com/.../falcon-logo.png` | See setup notes |
 
-**Copy note.** The Worker removes the `restock-{id}` tag when it sends this email, so the "Remove me" link is worded as "Didn't ask for this, or don't want back-in-stock emails from us?". `POST /u` removes **all** of the customer's `restock-{id}` tags, so the wording holds.
+**Copy note.** The Worker removes the `restock-{id}` tag when it sends this email, so the all-waitlists link is worded as "Didn't ask for this, or don't want back-in-stock emails from us? Remove me from all waitlists". `POST /u` without a product removes **all** of the customer's `restock-{id}` tags, so the wording holds. The per-product link tags the customer `restock-optout-{id}`, so a later automatic re-add (for example by staff) never emails them about that product; signing up again on the product page clears it.
 
 ```json
 {
@@ -54,6 +57,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
   "image_url": "https://cdn.shopify.com/s/files/1/0000/0000/products/pie-dish-grey.jpg?width=800",
   "price": "£22.00",
   "remove_url": "https://falcon-stock.example.workers.dev/u?t=TEST",
+  "optout_url": "https://falcon-stock.example.workers.dev/u?t=TEST2",
   "logo_url": ""
 }
 ```
@@ -77,6 +81,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 | `cancel_url` | yes | `https://falcon-stock.example.workers.dev/c?t=...` | Signed `/c` link |
 | `withdrawal_url` | EU only | `https://eu.falconenamelware.com/pages/withdrawal` | `""` on UK. Shows the "Withdraw from contract here" block |
 | `earlier` | yes | `false` | Boolean. `true` = good-news wording, no apology |
+| `ship_together` | yes | `true` | Boolean. `true` shows "The rest of your order will ship with it, as you chose at checkout." (mixed order, customer chose Ship together) |
 | `logo_url` | no | | See setup notes |
 
 ```json
@@ -91,6 +96,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
   "cancel_url": "https://falcon-stock.example.workers.dev/c?t=TEST",
   "withdrawal_url": "https://eu.falconenamelware.com/pages/withdrawal",
   "earlier": false,
+  "ship_together": true,
   "logo_url": ""
 }
 ```
@@ -114,6 +120,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 | `reason` | no | `The shipment from our factory left two weeks late.` | |
 | `cancel_url` | yes | `https://falcon-stock.example.workers.dev/c?t=...` | |
 | `earlier` | yes | `false` | Boolean |
+| `ship_together` | yes | `false` | Boolean. `true` shows "The rest of your order will ship with it, as you chose at checkout." |
 | `logo_url` | no | | |
 
 ```json
@@ -127,6 +134,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
   "reason": "The shipment from our factory left two weeks late.",
   "cancel_url": "https://falcon-stock.example.workers.dev/c?t=TEST",
   "earlier": false,
+  "ship_together": false,
   "logo_url": ""
 }
 ```
@@ -150,6 +158,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
 | `keep_url` | yes | `https://falcon-stock.example.workers.dev/k?t=...` | Signed `/k` link |
 | `keep_by_date` | yes | `December 9, 2026` | The date currently promised (`old_date`), or 7 days after the notice if that date is sooner. Set by the Worker; rule flagged for legal review |
 | `cancel_url` | yes | `https://falcon-stock.example.workers.dev/c?t=...` | |
+| `ship_together` | yes | `true` | Boolean. `true` shows "The rest of your order will ship with it, as you chose at checkout." |
 | `logo_url` | no | | |
 
 ```json
@@ -164,6 +173,7 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
   "keep_url": "https://falcon-stock.example.workers.dev/k?t=TEST",
   "keep_by_date": "December 9, 2026",
   "cancel_url": "https://falcon-stock.example.workers.dev/c?t=TEST",
+  "ship_together": true,
   "logo_url": ""
 }
 ```
@@ -185,5 +195,39 @@ Brevo → Transactional → Templates → New template → **Paste your code**. 
   "subject": "Falcon UK | Daily check: 2 items need attention",
   "intro": "The daily check found these problems on the UK store.",
   "rows_html": "<table cellpadding=\"6\" cellspacing=\"0\" border=\"1\" style=\"border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px;\"><tr><th align=\"left\">Issue</th><th align=\"left\">Item</th><th align=\"left\">Action</th></tr><tr><td>Cancel requested</td><td>#UK1234, Pie Dish 26cm Pigeon Grey</td><td>Refund by 7 October 2026</td></tr><tr><td>Missing preorder_limit</td><td>Mug 8cm White (44012345678901)</td><td>Set the limit or stop selling</td></tr></table>"
+}
+```
+
+## 6. `waitlist-joined.html`: Falcon – Waitlist joined
+
+**Stores:** UK, US, EU (one template; `store` switches the footer link). Copy is spelling-neutral, identical for British and American English.
+**When:** `/subscribe` added the customer to this variant's waitlist for the first time (they did not already have `restock-{id}`). Never sent for a repeat sign-up. A send failure does not fail the sign-up.
+**Subject:** `You're on the waitlist: {{ params.product_title }}`
+**Preview text:** `We'll email you once, when it's back in stock.`
+
+Service message: "You're on the waitlist for {product}. We'll email you once, when it's back in stock." Product image, title and variant, a text link to the product page, no buy button or price (it is sold out), no marketing content. Footer: per-product opt-out and all-waitlists links.
+
+| Param | Required | Example | Notes |
+|---|---|---|---|
+| `store` | yes | `uk` | `uk`, `us` or `eu`. Picks the storefront link in the footer |
+| `product_title` | yes | `Falcon Pie Dish 26cm` | |
+| `variant_title` | no | `Pigeon Grey` | `""` for single-variant products |
+| `product_url` | yes | `https://www.falconenamelware.com/products/pie-dish?variant=44012345678901` | "View the product page" link |
+| `image_url` | no | `https://cdn.shopify.com/s/files/1/0000/0000/products/pie-dish-grey.jpg?width=800` | Block hidden if empty |
+| `optout_url` | yes | `https://falcon-stock.example.workers.dev/u?t=...` | Signed `/u` link for this product ("Don't email me about this product again") |
+| `remove_all_url` | yes | `https://falcon-stock.example.workers.dev/u?t=...` | Signed `/u` link, all waitlists |
+| `dry_run_banner` | no | | Added by the Worker in DRY_RUN only |
+| `logo_url` | no | | See setup notes |
+
+```json
+{
+  "store": "us",
+  "product_title": "Falcon Pie Dish 26cm",
+  "variant_title": "Pigeon Gray",
+  "product_url": "https://us.falconenamelware.com/products/pie-dish?variant=44012345678901",
+  "image_url": "https://cdn.shopify.com/s/files/1/0000/0000/products/pie-dish-grey.jpg?width=800",
+  "optout_url": "https://falcon-stock.example.workers.dev/u?t=TEST1",
+  "remove_all_url": "https://falcon-stock.example.workers.dev/u?t=TEST2",
+  "logo_url": ""
 }
 ```
