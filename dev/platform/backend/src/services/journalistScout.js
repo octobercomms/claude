@@ -13,7 +13,8 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const pool = require('../db');
 const aiModels = require('./aiModels');
-const { recordClaudeCost } = require('./costLog');
+const { recordClaudeCost, claudeCostFromUsage } = require('./costLog');
+const budget = require('./budget');
 const pr = require('./pr');
 
 const FALLBACK_MODEL = 'claude-sonnet-4-6';
@@ -192,7 +193,12 @@ async function findCandidates(ctx, { maxResults = 25, maxSearches = 12, log = ()
       messages: [{ role: 'user', content: buildPrompt(ctx, maxResults) }],
     });
   } catch (e) { log(`journalistScout research failed: ${e.message}`); return []; }
-  try { recordClaudeCost({ model: m, response: message, feature: 'media_db_research', clientId: ctx.client.id }); } catch { /* non-fatal */ }
+  try {
+    recordClaudeCost({ model: m, response: message, feature: 'media_db_research', clientId: ctx.client.id });
+    // Keep the budget cache current within its 30s window — see the same
+    // note in pressMediaResearch.
+    budget.noteTaskSpend('media_research', claudeCostFromUsage(m, message.usage));
+  } catch { /* non-fatal */ }
 
   const text = (message.content || []).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n');
   return extractArray(text).map(it => ({
@@ -268,12 +274,18 @@ async function scoutAllActive({ log = () => {} } = {}) {
   const { rows } = await pool.query(
     `SELECT DISTINCT client_id FROM outreach_press_releases WHERE client_id IS NOT NULL`
   );
-  let total = 0;
+  let total = 0, scouted = 0, budgetStopped = false;
   for (const r of rows) {
-    try { const out = await scoutClient(r.client_id, { log }); total += out.added; }
+    // Budget gate per client, for the reason given in pressMediaResearch:
+    // this path calls the Anthropic SDK directly for web_search, so the
+    // global cap in callClaude never sees it. Stopping between clients
+    // means the clients already scouted keep their suggestions.
+    if (await budget.taskCapReached('media_research')) { budgetStopped = true; break; }
+    try { const out = await scoutClient(r.client_id, { log }); total += out.added; scouted++; }
     catch (e) { log(`scoutClient ${r.client_id} failed: ${e.message}`); }
   }
-  return { clients: rows.length, added: total };
+  if (budgetStopped) log('journalistScout: stopped early, monthly budget for media research reached');
+  return { clients: scouted, scanned: rows.length, added: total, budget_stopped: budgetStopped };
 }
 
 module.exports = { buildContext, findCandidates, scoutClient, scoutAllActive, extractArray, guessEmail, isKnown };

@@ -10,7 +10,8 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const pool = require('../db');
 const aiModels = require('./aiModels');
-const { recordClaudeCost } = require('./costLog');
+const { recordClaudeCost, claudeCostFromUsage } = require('./costLog');
+const budget = require('./budget');
 
 const FALLBACK_MODEL = 'claude-sonnet-4-6';
 const SIX_MONTHS_MS = 183 * 24 * 3600 * 1000;
@@ -63,7 +64,13 @@ Never guess — if you can't verify, set active to null and confidence "low".`;
       messages: [{ role: 'user', content: prompt }],
     });
   } catch { return null; }
-  try { recordClaudeCost({ model: message.model, response: message, feature: 'media_db_research' }); } catch { /* non-fatal */ }
+  try {
+    recordClaudeCost({ model: message.model, response: message, feature: 'media_db_research' });
+    // Tell the budget cache about this spend straight away. The cached
+    // month-to-date total refreshes every 30s, and a sweep bills faster than
+    // that, so without this the cap is only noticed after the run is over.
+    budget.noteTaskSpend('media_research', claudeCostFromUsage(message.model, message.usage));
+  } catch { /* non-fatal */ }
   const text = (message.content || []).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n');
   return parseObject(text);
 }
@@ -114,8 +121,15 @@ async function sweep({ limit = 15, log = () => {} } = {}) {
       LIMIT $1`,
     [limit]
   );
-  let checked = 0, moved = 0, quiet = 0;
+  let checked = 0, moved = 0, quiet = 0, budgetStopped = false;
   for (const c of rows) {
+    // Per-contact budget gate. The media researchers call the Anthropic SDK
+    // directly (they need the web_search tool, which callClaude does not
+    // expose), so the global cap inside callClaude never sees them. Stop the
+    // loop cleanly rather than throwing: the contacts already checked keep
+    // their results, and the sweep picks up where it left off next run
+    // because last_byline_check orders the queue.
+    if (await budget.taskCapReached('media_research')) { budgetStopped = true; break; }
     const f = await researchJournalist({ name: c.name, outlet: c.company });
     if (!f) {
       await pool.query('UPDATE outreach_contacts SET last_byline_check = NOW() WHERE id = $1', [c.id]);
@@ -125,8 +139,9 @@ async function sweep({ limit = 15, log = () => {} } = {}) {
     checked++; if (r.moved) moved++; if (r.gone_quiet) quiet++;
     log(`media check: ${c.name} — ${f.note || 'no note'}`);
   }
-  log(`media sweep: ${checked} checked, ${moved} moves, ${quiet} gone quiet`);
-  return { checked, moved, quiet, scanned: rows.length };
+  log(`media sweep: ${checked} checked, ${moved} moves, ${quiet} gone quiet` +
+      (budgetStopped ? ' — stopped early, monthly budget for media research reached' : ''));
+  return { checked, moved, quiet, scanned: rows.length, budget_stopped: budgetStopped };
 }
 
 module.exports = { sweep, researchJournalist, applyFindings };

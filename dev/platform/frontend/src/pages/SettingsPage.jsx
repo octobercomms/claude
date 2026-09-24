@@ -618,6 +618,7 @@ export default function SettingsPage() {
       {tab === 'costs' && (<>
       <CostsPanel />
       <SpendControlsPanel />
+      <TaskBudgetsPanel />
       <KeywordSpendPanel />
       <CostLogPanel />
       </>)}
@@ -3261,6 +3262,117 @@ function SpendControlsPanel() {
           <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>Per-feature model choice (a bigger lever than the cap) lives in <strong>Settings → AI models</strong>.</p>
         </>
       )}
+    </div>
+  );
+}
+
+// Per-task budgets. The hard cap above is one number for all of OMI, which
+// means a runaway background job takes chat, reports and press pitches down
+// with it. These are per-task allowances: a task that reaches its budget
+// stops on its own and nothing else is affected. Spend resets on the 1st, so
+// a long background sweep picks up again each month without being re-armed.
+function TaskBudgetsPanel() {
+  const [tasks, setTasks] = useState(null);
+  const [drafts, setDrafts] = useState({});
+  const [savingTask, setSavingTask] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const [err, setErr] = useState(null);
+
+  const load = React.useCallback(() => {
+    api.get('/settings/usage/task-budgets')
+      .then((d) => {
+        setTasks(d.tasks || []);
+        setDrafts(Object.fromEntries((d.tasks || []).map(t =>
+          [t.task, t.monthly_cap_usd != null ? String(t.monthly_cap_usd) : ''])));
+        if (d.error) setErr(d.error);
+      })
+      .catch((e) => { setTasks([]); setErr(e.message); });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  async function save(task, body) {
+    setSavingTask(task); setMsg(null);
+    try {
+      const r = await api.put(`/settings/usage/task-budgets/${task}`, body);
+      setTasks(r.tasks || []);
+      setMsg('Saved.');
+    } catch (e) { setMsg(`Error: ${e.message}`); }
+    finally { setSavingTask(null); }
+  }
+
+  const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
+
+  return (
+    <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+      <h2 className="caption">Task budgets</h2>
+      <p className="body-sm text-muted">
+        A monthly allowance per task. When a task reaches its budget it stops and
+        everything else in OMI keeps running. Budgets reset on the 1st, so a long
+        background job carries on next month from where it stopped. Blank = no
+        budget, the task runs freely under the overall cap above.
+      </p>
+      {err && (
+        <div className="callout callout-danger" style={{ margin: 'var(--s3) 0', fontSize: 'var(--fs-body)' }}>
+          ⚠️ {err} <button className="btn btn-link btn-sm" onClick={load} style={{ padding: 0 }}>Retry</button>
+        </div>
+      )}
+      {tasks === null ? <p className="body-sm text-muted">Loading…</p> : !tasks.length ? (
+        <p className="body-sm text-muted">No tasks configured.</p>
+      ) : (
+        <div style={{ marginTop: 'var(--s3)' }}>
+          {tasks.map((t) => {
+            const pct = t.monthly_cap_usd ? Math.min(100, (t.spent_usd / t.monthly_cap_usd) * 100) : 0;
+            const barColor = !t.enabled ? 'var(--text-subtle)'
+              : pct >= 100 ? 'var(--negative)' : pct >= 75 ? 'var(--warning)' : 'var(--positive)';
+            return (
+              <div key={t.task} style={{ padding: 'var(--s3) 0', borderTop: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', gap: 'var(--s4)', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <div style={{ flex: '1 1 320px', minWidth: 260 }}>
+                    <div style={{ fontWeight: 700 }}>
+                      {t.label}
+                      {t.blocked && (
+                        <span className="body-xs" style={{ marginLeft: 'var(--s2)', color: 'var(--negative)' }}>
+                          {t.enabled ? 'stopped — budget used' : 'paused'}
+                        </span>
+                      )}
+                    </div>
+                    {t.note && <p className="body-xs text-subtle" style={{ margin: 'var(--s1) 0 0' }}>{t.note}</p>}
+                    <div className="body-sm text-muted" style={{ marginTop: 'var(--s2)' }}>
+                      {fmt(t.spent_usd)} this month
+                      {t.monthly_cap_usd != null && <> of {fmt(t.monthly_cap_usd)}, {fmt(t.remaining_usd)} left</>}
+                    </div>
+                    {t.monthly_cap_usd != null && (
+                      <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-2)', marginTop: 'var(--s2)', overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: barColor }} />
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'flex-end' }}>
+                    <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+                      <div style={{ marginBottom: 'var(--s1)' }}>Budget ($/month)</div>
+                      <input
+                        className="input" type="number" min="0" step="5"
+                        value={drafts[t.task] ?? ''}
+                        onChange={(e) => setDrafts((d) => ({ ...d, [t.task]: e.target.value }))}
+                        placeholder="none" style={{ width: 120 }}
+                      />
+                    </label>
+                    <button
+                      className="btn btn-secondary" disabled={savingTask === t.task}
+                      onClick={() => save(t.task, { monthly_cap_usd: drafts[t.task] === '' ? 0 : parseFloat(drafts[t.task]) })}
+                    >{savingTask === t.task ? 'Saving…' : 'Save'}</button>
+                    <button
+                      className="btn btn-link" disabled={savingTask === t.task}
+                      onClick={() => save(t.task, { enabled: !t.enabled })}
+                    >{t.enabled ? 'Pause' : 'Resume'}</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {msg && <p className="body-sm" style={{ marginTop: 'var(--s3)', color: msg.startsWith('Error') ? 'var(--negative)' : 'var(--text-muted)' }}>{msg}</p>}
     </div>
   );
 }

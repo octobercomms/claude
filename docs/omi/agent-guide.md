@@ -348,6 +348,14 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **AI spend has three layers**, not one: per-feature model choice, per-task
+  budgets (`ai_task_budgets`), and the global `AI_MONTHLY_HARD_CAP_USD`. See
+  `docs/omi/ai-budgets.md`. The trap: `callClaude` enforces the global cap,
+  but anything calling the Anthropic SDK directly (the researchers, which need
+  the `web_search` tool) is invisible to it and must gate itself with
+  `budget.taskCapReached(task)`. Wire up every new direct-SDK caller.
+- The `costLog.js` price table is hand-maintained and was 25% low on Haiku for
+  months. Check it against published rates before quoting any cost figure.
 - L1 masthead stays **big** (display title + kicker), matching Settings.
 - Two "Leads" screens — name which one. Owned→Email→Leads is two-pane;
   Biz dev→Leads stays a table.
