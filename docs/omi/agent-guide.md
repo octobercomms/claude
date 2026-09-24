@@ -273,6 +273,27 @@ Three phases:
 
 ## 8. Working conventions
 
+- **Keep this guide true. Do it as part of every change, before you open the
+  PR.** This file is the only thing that survives a session ending, so it is
+  the handover to the next agent. Treat it as a description of what is true
+  now, never as a log of what happened.
+  - **Correct anything your change made wrong.** A stale line here is
+    expensive: "you cannot run OMI in the sandbox" was wrong for six agents
+    and cost all of them the ability to test their own work.
+  - **Add a line only when a future agent would otherwise get it wrong or
+    waste time rediscovering it.** Hard-won gotchas, non-obvious conventions,
+    assumptions that turned out false. Today's examples: the 64-hex
+    ENCRYPTION_KEY, the embed `frame-ancestors` trap, esbuild renaming every
+    component in production builds.
+  - **Do not log what shipped.** "Added the booking widget" helps nobody. Git
+    history, PR descriptions and the per-feature docs in `docs/omi/` already
+    are the record, and they are searchable.
+  - **Edit in place; do not append.** If a section outgrows its usefulness,
+    split it into its own doc under `docs/omi/` and link it from here, as
+    `sales-pipeline.md` and `booking.md` are linked from §6.
+  - **If the change taught you nothing durable, change nothing here.** Padding
+    this file to look diligent is how it stops being read, which is the only
+    way it can fail.
 - **Branch**: develop on the assigned feature branch. After a PR merges, bring
   the branch up to latest main before the next change. Prefer the
   non-destructive form, which works when the branch holds only merged history:
@@ -313,6 +334,9 @@ progress is obvious on `platform.octobercomms.com`.
 
 ## 10. Fast facts / gotchas checklist
 
+- **Leave this guide truer than you found it** (§8). Correct what your change
+  made wrong, record what a future agent would otherwise learn the hard way,
+  and nothing else. It is a handover, not a changelog.
 - OMI = `platform.octobercomms.com` (`dev/platform`). Events app =
   `*.pages.dev` (`dev/october-platform`). Never confuse them.
 - Deploy is **manual after every merge** (auto-merge bypasses `on: push`).
