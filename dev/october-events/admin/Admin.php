@@ -335,9 +335,20 @@ final class Admin {
         $subject = sanitize_text_field(wp_unslash((string) ($_POST['subject'] ?? '')));
         $body    = sanitize_textarea_field(wp_unslash((string) ($_POST['body'] ?? '')));
 
+        // Keep what was typed so a test send (or a validation error) doesn't wipe
+        // the draft on the redirect back — the compose form repopulates from this.
+        $draft = [
+            'channel'  => $channel,
+            'subject'  => $subject,
+            'body'     => $body,
+            'test_to'  => sanitize_textarea_field(wp_unslash((string) ($_POST['test_to'] ?? ''))),
+            'opps'     => $opp_ids,
+            'statuses' => $statuses,
+        ];
+
         $back = admin_url('admin.php?page=oe-volunteers&view=compose');
-        $fail = static function (string $msg) use ($back): void {
-            set_transient('oe_vol_blast_' . get_current_user_id(), ['error' => $msg], 60);
+        $fail = static function (string $msg) use ($back, $draft): void {
+            set_transient('oe_vol_blast_' . get_current_user_id(), ['error' => $msg, 'draft' => $draft], 60);
             wp_safe_redirect($back);
             exit;
         };
@@ -379,6 +390,7 @@ final class Admin {
                 'sent'    => $tsent,
                 'skipped' => 0,
                 'failed'  => $tfailed,
+                'draft'   => $draft, // keep the message + test address for another send
             ], 60);
             wp_safe_redirect($back);
             exit;

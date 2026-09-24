@@ -50,6 +50,17 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
         <?php return; ?>
     <?php endif; ?>
 
+    <?php
+    // Repopulate from the last submission (a test send or a validation error) so
+    // the message and test address survive the redirect back.
+    $d          = is_array($sent_notice) && ! empty($sent_notice['draft']) ? (array) $sent_notice['draft'] : [];
+    $d_channel  = (string) ($d['channel'] ?? 'email');
+    $d_subject  = (string) ($d['subject'] ?? '');
+    $d_body     = (string) ($d['body'] ?? '');
+    $d_test_to  = (string) ($d['test_to'] ?? '');
+    $d_opps     = array_map('intval', (array) ($d['opps'] ?? []));
+    $d_statuses = $d ? array_map('strval', (array) ($d['statuses'] ?? [])) : ['confirmed', 'pending'];
+    ?>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="oe-blast-form">
         <input type="hidden" name="action" value="oe_volunteer_blast">
         <?php wp_nonce_field('oe_volunteer_blast'); ?>
@@ -57,8 +68,8 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
         <div class="oe-panel">
             <h3><?php esc_html_e('1. Channel', 'october-events'); ?></h3>
             <p>
-                <label style="margin-right:18px"><input type="radio" name="channel" value="email" checked> <?php esc_html_e('Email', 'october-events'); ?></label>
-                <label><input type="radio" name="channel" value="sms" <?php disabled(! $sms_ready); ?>> <?php esc_html_e('SMS', 'october-events'); ?></label>
+                <label style="margin-right:18px"><input type="radio" name="channel" value="email" <?php checked($d_channel !== 'sms'); ?>> <?php esc_html_e('Email', 'october-events'); ?></label>
+                <label><input type="radio" name="channel" value="sms" <?php disabled(! $sms_ready); ?> <?php checked($d_channel === 'sms' && $sms_ready); ?>> <?php esc_html_e('SMS', 'october-events'); ?></label>
                 <?php if (! $sms_ready) : ?>
                     <span class="description" style="margin-left:8px">— <?php echo wp_kses_post(sprintf(
                         /* translators: %s settings link */
@@ -74,8 +85,8 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
             <p class="description"><?php esc_html_e('Tick the opportunities to message, and which signup statuses to include.', 'october-events'); ?></p>
             <p>
                 <strong><?php esc_html_e('Statuses:', 'october-events'); ?></strong>
-                <label style="margin:0 14px 0 6px"><input type="checkbox" name="statuses[]" value="confirmed" checked> <?php esc_html_e('Confirmed', 'october-events'); ?></label>
-                <label><input type="checkbox" name="statuses[]" value="pending" checked> <?php esc_html_e('Pending', 'october-events'); ?></label>
+                <label style="margin:0 14px 0 6px"><input type="checkbox" name="statuses[]" value="confirmed" <?php checked(in_array('confirmed', $d_statuses, true)); ?>> <?php esc_html_e('Confirmed', 'october-events'); ?></label>
+                <label><input type="checkbox" name="statuses[]" value="pending" <?php checked(in_array('pending', $d_statuses, true)); ?>> <?php esc_html_e('Pending', 'october-events'); ?></label>
             </p>
             <p>
                 <label><a href="#" id="oe-blast-all"><?php esc_html_e('Select all', 'october-events'); ?></a> · <a href="#" id="oe-blast-none"><?php esc_html_e('none', 'october-events'); ?></a></label>
@@ -83,7 +94,7 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px">
             <?php foreach ($compose_opps as $o) : ?>
                 <label style="display:flex;gap:8px;align-items:baseline;padding:8px 10px;border:1px solid var(--oe-line,#e3e2db);border-radius:8px">
-                    <input type="checkbox" class="oe-blast-opp" name="opps[]" value="<?php echo (int) $o['id']; ?>">
+                    <input type="checkbox" class="oe-blast-opp" name="opps[]" value="<?php echo (int) $o['id']; ?>" <?php checked(in_array((int) $o['id'], $d_opps, true)); ?>>
                     <span>
                         <strong><?php echo esc_html($o['title']); ?></strong><br>
                         <span class="description"><?php echo esc_html(sprintf(__('%1$d confirmed · %2$d pending', 'october-events'), (int) $o['confirmed'], (int) $o['pending'])); ?></span>
@@ -96,9 +107,9 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
         <div class="oe-panel">
             <h3><?php esc_html_e('3. Your message', 'october-events'); ?></h3>
             <p class="oe-blast-subject"><label><strong><?php esc_html_e('Subject', 'october-events'); ?></strong><br>
-                <input type="text" name="subject" class="large-text" placeholder="<?php esc_attr_e('e.g. Your Atlanta Design Festival shift', 'october-events'); ?>"></label></p>
+                <input type="text" name="subject" class="large-text" value="<?php echo esc_attr($d_subject); ?>" placeholder="<?php esc_attr_e('e.g. Your Atlanta Design Festival shift', 'october-events'); ?>"></label></p>
             <p><label><strong><?php esc_html_e('Message', 'october-events'); ?></strong><br>
-                <textarea name="body" rows="8" class="large-text" placeholder="<?php esc_attr_e('We are looking forward to you volunteering as [volunteer-type] at [event-location]…', 'october-events'); ?>"></textarea></label></p>
+                <textarea name="body" rows="8" class="large-text" placeholder="<?php esc_attr_e('We are looking forward to you volunteering as [volunteer-type] at [event-location]…', 'october-events'); ?>"><?php echo esc_textarea($d_body); ?></textarea></label></p>
             <p class="description oe-blast-smsnote" hidden><?php esc_html_e('SMS is plain text and short — keep it brief (long texts split into several messages). No subject is used.', 'october-events'); ?></p>
             <p class="description">
                 <strong><?php esc_html_e('Merge tags', 'october-events'); ?>:</strong>
@@ -114,7 +125,7 @@ $dash_url = admin_url('admin.php?page=oe-volunteers');
             <p><label>
                 <span class="oe-test-label-email"><?php esc_html_e('Test email address(es) — comma-separated', 'october-events'); ?></span>
                 <span class="oe-test-label-sms" hidden><?php esc_html_e('Test phone number(s) — comma-separated', 'october-events'); ?></span><br>
-                <input type="text" name="test_to" id="oe-test-to" class="large-text" placeholder="you@example.com, colleague@example.com">
+                <input type="text" name="test_to" id="oe-test-to" class="large-text" value="<?php echo esc_attr($d_test_to); ?>" placeholder="you@example.com, colleague@example.com">
             </label></p>
             <p>
                 <button type="submit" name="oe_do" value="test" class="button"><?php esc_html_e('Send test to me', 'october-events'); ?></button>
