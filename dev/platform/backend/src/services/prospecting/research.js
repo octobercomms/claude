@@ -14,7 +14,8 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const pool = require('../../db');
 const aiModels = require('../aiModels');
-const { recordClaudeCost } = require('../costLog');
+const { recordClaudeCost, claudeCostFromUsage } = require('../costLog');
+const budget = require('../budget');
 const score = require('./score');
 const suppression = require('./suppression');
 
@@ -85,7 +86,10 @@ async function findCandidates(campaign, { maxResults = 15, maxSearches = 8, log 
       messages: [{ role: 'user', content: buildPrompt(campaign, maxResults) }],
     });
   } catch (e) { log(`research failed: ${e.message}`); return []; }
-  try { recordClaudeCost({ model, response: message, feature: 'outreach_research', clientId: campaign.client_id }); } catch { /* non-fatal */ }
+  try {
+    recordClaudeCost({ model, response: message, feature: 'outreach_research', clientId: campaign.client_id });
+    budget.noteTaskSpend('prospecting', claudeCostFromUsage(model, message.usage));
+  } catch { /* non-fatal */ }
 
   const text = (message.content || []).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n');
   const items = extractArray(text);
@@ -153,12 +157,17 @@ async function sourceCampaign(campaignId, { maxResults = 15, log = () => {} } = 
 // because it's the paid web-search step, mirroring the tender agent's cadence).
 async function sourceAllActive({ log = () => {} } = {}) {
   const { rows } = await pool.query(`SELECT id FROM prospecting_campaigns WHERE status = 'active'`);
-  let total = 0;
+  let total = 0, sourced = 0, budgetStopped = false;
   for (const r of rows) {
-    try { const out = await sourceCampaign(r.id, { log }); total += out.added; }
+    // Budget gate per campaign. Like the media researchers, this path calls
+    // the Anthropic SDK directly for web_search and so is invisible to the
+    // global cap inside callClaude.
+    if (await budget.taskCapReached('prospecting')) { budgetStopped = true; break; }
+    try { const out = await sourceCampaign(r.id, { log }); total += out.added; sourced++; }
     catch (e) { log(`sourceCampaign ${r.id} failed: ${e.message}`); }
   }
-  return { campaigns: rows.length, added: total };
+  if (budgetStopped) log('prospecting: stopped early, monthly budget for prospecting reached');
+  return { campaigns: sourced, scanned: rows.length, added: total, budget_stopped: budgetStopped };
 }
 
 module.exports = { findCandidates, sourceCampaign, sourceAllActive, extractArray };

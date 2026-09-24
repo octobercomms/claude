@@ -535,6 +535,49 @@ router.put('/usage/spend-controls', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Per-task budgets. The global cap above is the outer wall; these are the
+// per-task allowances that stop one background job taking every AI feature
+// down with it. Returns live month-to-date spend per task so a budget can be
+// set against a real number rather than a guess.
+router.get('/usage/task-budgets', async (req, res) => {
+  try {
+    const budget = require('../services/budget');
+    res.json({ tasks: await budget.taskSpendSummary() });
+  } catch (err) {
+    // Migration not run yet, or the spend query failed. An empty list renders
+    // the panel with nothing in it rather than breaking Settings.
+    res.json({ tasks: [], error: err.message });
+  }
+});
+
+router.put('/usage/task-budgets/:task', async (req, res) => {
+  try {
+    const budget = require('../services/budget');
+    const sets = [], vals = [req.params.task];
+    // A positive number sets the budget; 0, empty or null removes it and the
+    // task runs uncapped.
+    if ('monthly_cap_usd' in (req.body || {})) {
+      const n = parseFloat(req.body.monthly_cap_usd);
+      vals.push(Number.isFinite(n) && n > 0 ? n : null);
+      sets.push(`monthly_cap_usd = $${vals.length}`);
+    }
+    if ('enabled' in (req.body || {})) {
+      vals.push(!!req.body.enabled);
+      sets.push(`enabled = $${vals.length}`);
+    }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+    const { rows } = await db.query(
+      `UPDATE ai_task_budgets SET ${sets.join(', ')}, updated_at = NOW()
+        WHERE task = $1 RETURNING task`,
+      vals
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Unknown task' });
+    budget.clearTaskCache();
+    budget.clearTaskSpendCache();
+    res.json({ tasks: await budget.taskSpendSummary() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // DataForSEO recurring-spend estimate. Mirrors the scheduled jobs that
 // actually bill per active keyword, so the daily cap can be sized safely:
 //   - Rank checks: serp/google/organic/live/advanced at depth 50 (5 pages),

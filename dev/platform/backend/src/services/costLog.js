@@ -16,12 +16,32 @@ const CLAUDE_PRICES = {
   // Sonnet 4.6 is the platform default.
   'claude-sonnet-4-6':         { input: 3.00, output: 15.00 },
   'claude-sonnet-4-5':         { input: 3.00, output: 15.00 },
-  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
-  'claude-haiku-4-5':          { input: 0.80, output: 4.00 },
+  'claude-sonnet-5':           { input: 2.00, output: 10.00 },
+  // Haiku 4.5 was listed here at 0.80/4.00, which under-reported every Haiku
+  // call by 25%. Corrected to the current list price.
+  'claude-haiku-4-5-20251001': { input: 1.00, output: 5.00 },
+  'claude-haiku-4-5':          { input: 1.00, output: 5.00 },
+  'claude-opus-5':             { input: 15.00, output: 75.00 },
   'claude-opus-4-8':           { input: 15.00, output: 75.00 },
   'claude-opus-4-7':           { input: 15.00, output: 75.00 },
   'claude-fable-5':            { input: 3.00, output: 15.00 },
 };
+
+// Anthropic's server-side web_search tool is billed per search, on top of the
+// tokens the results occupy. The researchers are search-heavy, so leaving this
+// out of the cost log under-reports them badly — for a contact lookup the
+// search fee is larger than the tokens.
+const WEB_SEARCH_USD_PER_SEARCH = 0.01;
+
+/**
+ * Cost of the server-side searches a response performed, read off
+ * usage.server_tool_use.web_search_requests. Zero when the response used no
+ * search, so this is safe to add to every Claude cost.
+ */
+function webSearchCostFromUsage(usage) {
+  const n = Number(usage?.server_tool_use?.web_search_requests || 0);
+  return n > 0 ? n * WEB_SEARCH_USD_PER_SEARCH : 0;
+}
 
 /** Best-effort cost estimate from a Claude SDK response.usage payload. */
 function claudeCostFromUsage(model, usage) {
@@ -38,7 +58,7 @@ function claudeCostFromUsage(model, usage) {
   const writeCost = (cacheWrite / 1e6) * price.input * 1.25;
   const readCost = (cacheRead / 1e6) * price.input * 0.10;
   const outCost = (outTok / 1e6) * price.output;
-  return inCost + writeCost + readCost + outCost;
+  return inCost + writeCost + readCost + outCost + webSearchCostFromUsage(usage);
 }
 
 /** Fire-and-forget insert. Never throws. */
@@ -73,4 +93,7 @@ function recordClaudeCost({ model, response, feature, clientId, meta }) {
   });
 }
 
-module.exports = { recordApiCost, recordClaudeCost, claudeCostFromUsage, CLAUDE_PRICES };
+module.exports = {
+  recordApiCost, recordClaudeCost, claudeCostFromUsage,
+  webSearchCostFromUsage, CLAUDE_PRICES, WEB_SEARCH_USD_PER_SEARCH,
+};
