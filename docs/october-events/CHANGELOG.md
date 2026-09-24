@@ -5,6 +5,37 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.168.0 — Schedule to Meta & LinkedIn (social suite, phase 3)
+
+- From an event's **Social** box you can now schedule a caption + the featured
+  image to **Instagram**, **Facebook** and **LinkedIn** at a set time. Each
+  queued post publishes itself at its time (with an hourly safety-net sweep), and
+  the box shows its status and the live post links.
+- Connect the networks under **Settings → Social publishing**: enter the Meta App
+  ID (+ secret in Keys) and the LinkedIn Client ID / secret / organization, then
+  hit **Connect**. Tokens are stored encrypted. The section shows the exact OAuth
+  redirect URIs to register in each app.
+- **This ships inert.** Nothing posts until a network is connected, and an
+  unconnected network is simply skipped. Going live requires:
+  - a **Meta app** with an Instagram Business account linked to a Facebook Page,
+    through App Review for `pages_manage_posts` + `instagram_content_publish`;
+  - a **LinkedIn app** with the Community Management product, through App Review
+    for `w_organization_social`, and admin rights on the organization Page.
+- Instagram waits for Meta to finish ingesting the image before publishing;
+  LinkedIn does initialize-upload → put bytes → create post. Publishing needs the
+  event's image to be reachable at a public URL (the WP media URL).
+
+## 1.167.0 — Social image suite (social suite, phase 2)
+
+- The event's **Social** metabox gains an **Image suite**: from the event's
+  featured image it builds branded graphics at each platform size — Instagram
+  square (1080²), Instagram portrait (1080×1350), Story (1080×1920) and
+  Facebook / LinkedIn (1200×630) — each with the title, date, a brand-accent bar
+  and the site name over a legibility scrim. Download each as a PNG.
+- Rendered entirely in the browser (canvas), so no image API, no key and no
+  server image libraries. Uses your brand accent (Settings → theme accent).
+- Set a featured image on the event and save, then hit **Build image suite**.
+
 ## 1.166.0 — Volunteer message: keep the draft after a test send
 
 - Sending a test of a volunteer message no longer wipes the compose form. The

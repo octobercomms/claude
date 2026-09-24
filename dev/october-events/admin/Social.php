@@ -37,6 +37,7 @@ final class Social {
         add_action('add_meta_boxes', [$this, 'add_box']);
         add_action('save_post_' . $events, [$this, 'save'], 10, 2);
         add_action('wp_ajax_oe_social_generate', [$this, 'ajax_generate']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue']);
         // Auto-write captions once, in the background, on first publish.
         add_action('transition_post_status', [$this, 'on_publish'], 10, 3);
         add_action('oe_social_autogen', [$this, 'run_autogen']);
@@ -87,6 +88,16 @@ final class Social {
     }
 
     /* ---- metabox ---- */
+
+    public function enqueue(string $hook): void {
+        if ($hook !== 'post.php' && $hook !== 'post-new.php') {
+            return;
+        }
+        if (get_post_type() !== PostTypes::slug('event')) {
+            return;
+        }
+        wp_enqueue_script('oe-social-image', OE_URL . 'assets/js/social-image.js', [], OE_VERSION, true);
+    }
 
     public function add_box(): void {
         add_meta_box('oe_social', __('Social captions & tags', 'october-events'), [$this, 'render_box'], PostTypes::slug('event'), 'normal', 'default');

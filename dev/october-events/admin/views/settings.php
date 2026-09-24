@@ -222,6 +222,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             'paypal_client_secret'   => __('PayPal client secret', 'october-events'),
             'claude_api_key'         => __('Claude API key', 'october-events'),
             'google_maps_key'        => __('Google Maps key', 'october-events'),
+            'meta_app_secret'        => __('Meta app secret', 'october-events'),
+            'linkedin_client_secret' => __('LinkedIn client secret', 'october-events'),
         ];
         // Where to get each key + what to paste. The webhook hint shows this site's
         // live endpoint URL and the exact events to send.
@@ -237,6 +239,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             'paypal_client_secret'   => __('PayPal Developer dashboard → your app → “Secret”. Used server-side to capture & refund. Enable PayPal and set the Client ID / environment under the Tickets section.', 'october-events'),
             'claude_api_key'         => __('console.anthropic.com → API keys (starts sk-ant-). Powers the staff assistant, the email co-pilot and the customer support chat.', 'october-events'),
             'google_maps_key'        => __('Google Cloud Console → APIs & Services → Credentials → API key, with “Maps JavaScript API” enabled. Used by the [oe_design_map] shortcode.', 'october-events'),
+            'meta_app_secret'        => __('Meta app → Settings → Basic → “App secret”. Used server-side for the Facebook/Instagram connect. Set the App ID and connect under the Social publishing section.', 'october-events'),
+            'linkedin_client_secret' => __('LinkedIn Developer app → Auth → “Client Secret”. Used server-side for the LinkedIn connect. Set the Client ID and organization under the Social publishing section.', 'october-events'),
         ];
         ?>
         <?php if ($key_errors = get_transient('oe_settings_key_errors')) : delete_transient('oe_settings_key_errors'); ?>
@@ -394,6 +398,78 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                     <p class="description"><?php esc_html_e('The page where you placed the [oe_checkin] shortcode. When set, a “Scan tickets” button appears on the Dashboard and Tickets screens.', 'october-events'); ?></p></td>
             </tr>
         </tbody></table>
+        </div></details>
+
+        <?php
+        // ---- Social publishing (Meta + LinkedIn) --------------------------
+        $meta_conn = \OE\Connectors\MetaConnector::connection();
+        $meta_on   = \OE\Connectors\MetaConnector::is_ready();
+        $li_on     = \OE\Connectors\LinkedInConnector::is_ready();
+        $meta_ru   = \OE\Social\Scheduler::meta_redirect_uri();
+        $li_ru     = \OE\Social\Scheduler::linkedin_redirect_uri();
+        $connect   = static fn(string $net): string => wp_nonce_url(admin_url('admin-post.php?action=oe_social_connect&net=' . $net), 'oe_social_connect_' . $net);
+        $disc      = static fn(string $net): string => wp_nonce_url(admin_url('admin-post.php?action=oe_social_disconnect&net=' . $net), 'oe_social_disconnect_' . $net);
+        ?>
+        <details class="oe-acc" id="social"><summary><?php esc_html_e('Social publishing (Meta &amp; LinkedIn)', 'october-events'); ?></summary><div class="oe-acc-body">
+            <?php if (isset($_GET['social_ok'])) : ?>
+                <div class="notice notice-success inline" style="margin:0 0 10px"><p><?php echo esc_html(sprintf(__('Connected / updated: %s', 'october-events'), sanitize_text_field((string) wp_unslash($_GET['social_ok'])))); ?></p></div>
+            <?php elseif (isset($_GET['social_error'])) : ?>
+                <div class="notice notice-error inline" style="margin:0 0 10px"><p><?php echo esc_html(sprintf(__('Connection problem: %s', 'october-events'), sanitize_text_field((string) wp_unslash($_GET['social_error'])))); ?></p></div>
+            <?php endif; ?>
+
+            <p class="description" style="max-width:820px"><?php esc_html_e('Schedule an event’s captions + image straight to Meta (Facebook Page / Instagram) and LinkedIn. Go-live needs a Meta app (with an Instagram Business account linked to a Facebook Page) and a LinkedIn app with the Community Management product, each through their app-review for posting permissions. Until a network is connected, scheduling to it is simply skipped.', 'october-events'); ?></p>
+
+            <p style="margin:8px 0 2px"><strong><?php esc_html_e('OAuth redirect URIs — register these in the apps', 'october-events'); ?></strong></p>
+            <p class="description" style="margin:0 0 12px">Meta: <code><?php echo esc_html($meta_ru); ?></code><br>LinkedIn: <code><?php echo esc_html($li_ru); ?></code></p>
+
+            <h4 style="margin:14px 0 6px"><?php esc_html_e('Meta — Facebook Page &amp; Instagram', 'october-events'); ?></h4>
+            <table class="form-table" role="presentation"><tbody>
+                <tr>
+                    <th scope="row"><label><?php esc_html_e('App ID', 'october-events'); ?></label></th>
+                    <td><input type="text" name="meta_app_id" value="<?php echo esc_attr((string) ($cfg['meta_app_id'] ?? '')); ?>" class="regular-text code" autocomplete="off">
+                        <p class="description"><?php esc_html_e('Meta app → Settings → Basic → “App ID”. Add the App secret in the Keys section above.', 'october-events'); ?></p></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e('Connection', 'october-events'); ?></th>
+                    <td>
+                        <?php if ($meta_on) : ?>
+                            <span style="color:#1a7f37;font-weight:600">✓ <?php echo esc_html(sprintf(__('Connected: %s', 'october-events'), $meta_conn['page_name'] ?: $meta_conn['page_id'])); ?></span>
+                            <?php echo $meta_conn['ig_user_id'] !== '' ? '<span class="description"> · ' . esc_html__('Instagram linked', 'october-events') . '</span>' : '<span class="description"> · ' . esc_html__('no Instagram account linked to the Page', 'october-events') . '</span>'; ?>
+                            <a href="<?php echo esc_url($disc('meta')); ?>" class="button" style="margin-left:8px"><?php esc_html_e('Disconnect', 'october-events'); ?></a>
+                        <?php else : ?>
+                            <a href="<?php echo esc_url($connect('meta')); ?>" class="button button-primary"><?php esc_html_e('Connect Facebook / Instagram', 'october-events'); ?></a>
+                            <span class="description" style="margin-left:6px"><?php esc_html_e('Save the App ID + secret first.', 'october-events'); ?></span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </tbody></table>
+
+            <h4 style="margin:16px 0 6px"><?php esc_html_e('LinkedIn — organization', 'october-events'); ?></h4>
+            <table class="form-table" role="presentation"><tbody>
+                <tr>
+                    <th scope="row"><label><?php esc_html_e('Client ID', 'october-events'); ?></label></th>
+                    <td><input type="text" name="linkedin_client_id" value="<?php echo esc_attr((string) ($cfg['linkedin_client_id'] ?? '')); ?>" class="regular-text code" autocomplete="off">
+                        <p class="description"><?php esc_html_e('LinkedIn Developer app → Auth → “Client ID”. Add the Client secret in the Keys section above.', 'october-events'); ?></p></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label><?php esc_html_e('Organization', 'october-events'); ?></label></th>
+                    <td><input type="text" name="linkedin_org_urn" value="<?php echo esc_attr((string) ($cfg['linkedin_org_urn'] ?? '')); ?>" class="regular-text code" placeholder="urn:li:organization:12345" autocomplete="off">
+                        <p class="description"><?php esc_html_e('The organization to post as — its URN or bare id. Find it in the LinkedIn Page admin URL. You must be an admin of the Page.', 'october-events'); ?></p></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e('Connection', 'october-events'); ?></th>
+                    <td>
+                        <?php if ($li_on) : ?>
+                            <span style="color:#1a7f37;font-weight:600">✓ <?php esc_html_e('Connected', 'october-events'); ?></span>
+                            <a href="<?php echo esc_url($disc('linkedin')); ?>" class="button" style="margin-left:8px"><?php esc_html_e('Disconnect', 'october-events'); ?></a>
+                        <?php else : ?>
+                            <a href="<?php echo esc_url($connect('linkedin')); ?>" class="button button-primary"><?php esc_html_e('Connect LinkedIn', 'october-events'); ?></a>
+                            <span class="description" style="margin-left:6px"><?php esc_html_e('Save the Client ID + secret + organization first.', 'october-events'); ?></span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </tbody></table>
+            <p class="description" style="margin-top:6px"><?php esc_html_e('Connecting opens the network’s login in this window; you’ll return here. Tokens are stored encrypted. Schedule posts from each event’s Social box.', 'october-events'); ?></p>
         </div></details>
 
         </section>
@@ -1172,9 +1248,27 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 var b = e.target.closest('button[data-tab]');
                 if (b) { e.preventDefault(); showTab(b.dataset.tab); }
             });
-            var saved;
-            try { saved = localStorage.getItem('oeSettingsTab'); } catch (e) {}
-            if (saved) { showTab(saved); }
+            // A hash (e.g. #social from the event box or an OAuth return) points at a
+            // section that may live inside a hidden tab panel — surface its tab and
+            // open the section so the target (and any notice) is actually visible.
+            var hashHandled = false;
+            if (location.hash.length > 1) {
+                var target = document.getElementById(location.hash.slice(1));
+                if (target) {
+                    var panel = target.closest('.oe-set-panel');
+                    if (panel && panel.dataset.tab) { showTab(panel.dataset.tab); }
+                    if (target.tagName === 'DETAILS') { target.open = true; }
+                    var det = target.closest('details');
+                    if (det) { det.open = true; }
+                    try { target.scrollIntoView(); } catch (e) {}
+                    hashHandled = true;
+                }
+            }
+            if (!hashHandled) {
+                var saved;
+                try { saved = localStorage.getItem('oeSettingsTab'); } catch (e) {}
+                if (saved) { showTab(saved); }
+            }
         }
     })();
     </script>
