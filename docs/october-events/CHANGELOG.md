@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.169.0 — Preview the automated ticket emails
+
+- **Settings → Email tools** now has two **Preview** buttons: one for the ticket
+  confirmation buyers get after paying, one for the pre-event reminder that goes
+  out before an event starts. Each opens in a new tab, rendered with sample data
+  (two tickets, a sample event) and the subject line shown above the email, so
+  you can see exactly what recipients receive without waiting for a real send.
+- These emails only send on a real purchase or 24h before an event, so the email
+  log stays empty until then — the preview lets you check the design any time.
+
 ## 1.168.0 — Schedule to Meta & LinkedIn (social suite, phase 3)
 
 - From an event's **Social** box you can now schedule a caption + the featured

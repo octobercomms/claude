@@ -1101,6 +1101,13 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <?php submit_button(__('Send test email', 'october-events'), 'secondary', 'submit', false); ?>
         </form>
 
+        <h3><?php esc_html_e('Preview automated emails', 'october-events'); ?></h3>
+        <p class="description"><?php esc_html_e('Opens the ticket confirmation and pre-event reminder in a new tab, rendered with sample data so you can see exactly what buyers receive.', 'october-events'); ?></p>
+        <p>
+            <a class="button" target="_blank" rel="noopener" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_preview_ticket_email&type=ticket'), 'oe_preview_ticket_email')); ?>"><?php esc_html_e('Preview ticket confirmation', 'october-events'); ?></a>
+            <a class="button" target="_blank" rel="noopener" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_preview_ticket_email&type=reminder'), 'oe_preview_ticket_email')); ?>"><?php esc_html_e('Preview pre-event reminder', 'october-events'); ?></a>
+        </p>
+
 <?php if (\OE\Cron::DIGEST_ENABLED) : ?>
         <h3><?php esc_html_e('Monthly digest', 'october-events'); ?></h3>
         <p><?php esc_html_e('Emails every subscribed contact. Locked to once per calendar month — a second send this month is refused. Auto-send is controlled by the toggle in the Email & SMS settings (off by default).', 'october-events'); ?></p>

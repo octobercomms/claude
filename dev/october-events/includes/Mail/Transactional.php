@@ -406,6 +406,53 @@ final class Transactional {
     }
 
     /**
+     * Render the ticket confirmation or the pre-event reminder with sample data,
+     * as the exact branded document recipients receive, with the subject shown
+     * above it. $type is 'ticket' (confirmation) or 'reminder'.
+     */
+    public static function preview(string $type): string {
+        $brand = (string) Settings::get('brand_name', 'October Events');
+        $ev    = __('Opening Night', 'october-events');
+        $when  = __('Saturday, 4 October 2026 · 6:00 PM', 'october-events');
+        $where = __('Ponce City Market, Atlanta', 'october-events');
+
+        if ($type === 'reminder' || $type === 'event_reminder') {
+            $subject = sprintf(self::SUBJECTS['event_reminder'], $brand, $ev);
+            $hi      = '<p>Hi ' . esc_html('Alex') . ',</p>'; // mirror body()'s exact greeting markup
+            $inner   = self::event_reminder_body($hi, [
+                'event_name' => $ev,
+                'when'       => $when,
+                'location'   => $where,
+                'event_url'  => home_url('/'),
+            ]);
+            $doc = self::wrap($brand, $inner);
+        } else {
+            $subject = sprintf(self::SUBJECTS['ticket_delivery'], $brand, $ev);
+            $doc = self::ticket_email_html([
+                'name'       => 'Alex Taylor',
+                'event_name' => $ev,
+                'when'       => $when,
+                'location'   => $where,
+                'order_id'   => '1042',
+                'brand'      => $brand,
+                'logo'       => (string) (Settings::get('theme_logo_light', '') ?: Settings::get('theme_logo_dark', '')),
+                'has_ics'    => true,
+                'cal_url'    => home_url('/'),
+                'tickets'    => [
+                    ['number' => '1/2', 'attendee' => 'Alex Taylor', 'type' => __('General Admission', 'october-events'), 'url' => home_url('/'), 'token' => 'OE-PREVIEW-1'],
+                    ['number' => '2/2', 'attendee' => 'Sam Rivera',  'type' => __('General Admission', 'october-events'), 'url' => home_url('/'), 'token' => 'OE-PREVIEW-2'],
+                ],
+            ]);
+        }
+
+        $bar = '<div style="max-width:600px;margin:0 auto 12px;padding-top:8px;font:600 13px Arial,Helvetica,sans-serif;color:#555">'
+            . esc_html__('Subject', 'october-events') . ': ' . esc_html($subject) . '</div>';
+        // Inject the subject bar just inside the email background (both docs share
+        // this exact opening body tag).
+        return str_replace('<body style="margin:0;background:#eceae6">', '<body style="margin:0;background:#eceae6">' . $bar, $doc);
+    }
+
+    /**
      * Render one volunteer email with realistic sample data, for the admin
      * "Preview" buttons. $key is on_signup|reminder|confirmed|declined.
      */
