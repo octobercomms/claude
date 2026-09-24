@@ -18,6 +18,7 @@ Have these ready. Stop and ask if any is missing.
 | Turnstile **site key** (public, starts `0x`). Not the secret key. | Cloudflare dashboard > Turnstile > the Falcon widget. Its hostname list must include `www.falconenamelware.com`, `us.falconenamelware.com`, `eu.falconenamelware.com` |
 | All six variant metafield definitions from ARCHITECTURE §3: `falcon.expected_date` (date), `falcon.preorder_limit` (integer), `falcon.preorder_note` (single line text), `falcon.delay_reason` (single line text), `falcon.notified_date` (date, **Worker only**: staff never edit it), `falcon.delay_count` (integer, **Worker only**) | Settings > Custom data > Variants. Created in the main install. |
 | One test product with four variants you can set up (in stock, preorder, sold out, misconfigured) | Section 8 |
+| The store's **standard delivery rate** (the price a customer pays for one ordinary delivery), for the "Second delivery" product | Settings > Shipping and delivery > the store's main shipping rate. If there are several standard rates (by weight or zone), ask Falcon which one to charge for the second delivery |
 
 The store's code editor: Online Store > Themes > (duplicate theme) > `...` > **Edit code**.
 
@@ -31,6 +32,35 @@ The store's code editor: Online Store > Themes > (duplicate theme) > `...` > **E
 
 ---
 
+## 1a. Create the "Second delivery" product (split-delivery fee)
+
+Mixed baskets (a pre-order item plus anything else) let the customer choose between one delivery when the pre-order arrives, or two deliveries (in-stock items now, the pre-order later) for an extra charge. That charge is a normal product line in the cart. One per store; the Worker reads the same product.
+
+Products > **Add product**:
+
+| Field | Value |
+|---|---|
+| Title | `Second delivery` (exactly; the order confirmation block recognises it by this title, its handle and its SKU) |
+| Description | UK/EU: `Extra delivery charge so your in-stock items can ship now and your pre-order ships when it arrives.` US: `Extra delivery charge so your in-stock items can ship now and your preorder ships when it arrives.` |
+| Price | the store's standard delivery rate (section 0), in the store's currency. No compare-at price |
+| Charge tax | same setting as the store's shipping rates (ask Falcon if unsure) |
+| SKU | `SECOND-DELIVERY` |
+| Inventory | **untick** "Track quantity" (no inventory tracking) |
+| Shipping | **untick** "This is a physical product" |
+| Variants | none (a single Default Title variant) |
+| Search engine listing > URL handle | `second-delivery` (exactly; the cart looks the price up by this handle) |
+| Collections | none. Also check every **automated** collection's conditions (Products > Collections): if any would pull this product in (for example "price greater than 0", "all products"), add a condition that excludes it, such as "Title is not equal to Second delivery", and report which collections you changed |
+| Sales channels | **Online Store must stay on** (the cart adds it with `/cart/add.js`, which only works for products published to the Online Store). Turn off Google & YouTube, Facebook & Instagram, Shop and any feed apps |
+
+Hide it from the storefront:
+
+1. **Status:** if the Status box offers **Unlisted**, choose it (stays buyable by direct link and the cart, hidden from search, collections and recommendations). Otherwise choose **Active** and do step 2.
+2. **Search:** if the status is Active (not Unlisted), hide it from storefront search and the sitemap with the `seo.hidden` metafield: Settings > Custom data > Products > Add definition, namespace and key `seo.hidden`, type Integer; then on the product set it to `1`. (If the definition already exists, just set the value.)
+3. Feedoptimise: if the feed pulls every product, exclude handle `second-delivery` there (report it; do not change feed settings without instruction).
+4. Save. Copy the **variant id**: open `https://{store domain}/products/second-delivery.js` in the browser and copy `variants[0].id` (a long number, for example `44012345678901`; not the product `id` at the top). If that URL shows a 404, the product is not on the Online Store channel or the handle is wrong: fix that first. Keep the id for section 2.
+
+---
+
 ## 2. Create the snippets
 
 In Edit code > **Snippets** > **Add a new snippet**. Enter the name without `.liquid`; Shopify adds it.
@@ -41,6 +71,7 @@ In Edit code > **Snippets** > **Add a new snippet**. Enter the name without `.li
 | `falcon-variant-data` | `snippets/falcon-variant-data.liquid` | Same on all stores |
 | `preorder-message` | `snippets/preorder-message.liquid` | Same on all stores |
 | `preorder-cart-line` | `snippets/preorder-cart-line.liquid` | Same on all stores |
+| `delivery-choice` | `snippets/delivery-choice.liquid` | Same on all stores |
 | `restock-notify-form` | `snippets/restock-notify-form.liquid` | **Already exists** on the store: open it, select all, replace with the file contents |
 
 ### Edit `falcon-config` per store
@@ -55,7 +86,8 @@ In Edit code > **Snippets** > **Add a new snippet**. Enter the name without `.li
    {%- assign falcon_add_label = 'Add to cart' -%}
    ```
 4. **EU store:** change only `falcon_store` to `'eu'`. Everything else stays as UK.
-5. Save. Search the file for `REPLACE_ME` and `<account>`: there must be no matches outside the comment block at the top.
+5. Replace `REPLACE_ME_SPLIT_FEE_VARIANT_ID` with this store's "Second delivery" variant id from section 1a. Keep the quotes: `{%- assign falcon_split_fee_variant_id = '44012345678901' -%}`. It is **different on every store**.
+6. Save. Search the file for `REPLACE_ME` and `<account>`: there must be no matches outside the comment block at the top.
 
 ---
 
@@ -202,14 +234,59 @@ The cart template is `templates/cart.liquid`, or `sections/cart-template.liquid`
    {% render 'preorder-cart-line', item: item %}
    ```
 
-### 5.2 Basket notice
+### 5.2 Settings at the top of the cart file
 
-Find the checkout button: search for `name="checkout"`. Directly **before** the element that contains it (outside the items loop), add:
+At the very top of the cart file (above its first line), add:
 ```liquid
-{% render 'preorder-cart-line', mode: 'notice', cart: cart %}
+{% include 'falcon-config' %}
 ```
+(`include`, not `render`: the rest of the file needs `falcon_store` and `falcon_split_fee_variant_id`.)
 
-### 5.3 Quick cart / cart modal in `layout/theme.liquid`
+### 5.3 Basket notice and delivery choice
+
+Find the checkout button: search for `name="checkout"`. Directly **before** the element that contains it (outside the items loop, but **inside** the cart `<form>` if the button is inside it), add:
+```liquid
+{% render 'preorder-cart-line', mode: 'notice', cart: cart, store: falcon_store, fee_variant_id: falcon_split_fee_variant_id %}
+{% render 'delivery-choice', cart: cart, store: falcon_store, fee_variant_id: falcon_split_fee_variant_id %}
+```
+How it behaves:
+- The choice shows only for a **mixed basket**: at least one line with a pre-order date plus at least one in-stock line without one (the "Second delivery" line does not count). "Ship everything together..." is selected by default.
+- Choosing an option saves the cart attribute `Delivery preference` (`Ship together` or `Ship separately`), adds or removes the "Second delivery" line, then reloads the page. The checkout buttons are disabled while it updates.
+- On every cart page load the snippet checks the cart and fixes it: no longer mixed, so the fee line and the attribute are removed; mixed with no choice saved, so `Ship together` is saved; `Ship separately` without the fee line, so it is added; fee quantity always 1.
+- **Fee price:** taken from the fee line if it is in the cart, otherwise from `all_products['second-delivery']` (the variant whose id matches `falcon_split_fee_variant_id`). Vintage themes cannot look a product up by variant id, only by handle, so the handle must be exactly `second-delivery`. If no price can be found (wrong handle or id, product not on the Online Store channel), the choice is **not shown** and the order ships together. It never shows a guessed price.
+- With JavaScript off the choice is hidden (it cannot add the fee) and the order ships together.
+- The radio buttons have no `attributes[...]` name on purpose: a plain form submit cannot save "Ship separately" without adding the fee.
+
+### 5.4 Lock the "Second delivery" line
+
+The customer must not change the fee line's quantity or remove it; the snippet manages it. The cart file is not in the repo, so make these edits inside the `{% for item in cart.items %}` loop.
+
+1. Directly after the `{% for item in cart.items %}` line, add:
+   ```liquid
+   {%- assign falcon_line_variant = item.variant_id | append: '' -%}
+   {%- assign falcon_is_fee = false -%}
+   {%- if falcon_line_variant == falcon_split_fee_variant_id -%}{%- assign falcon_is_fee = true -%}{%- endif -%}
+   ```
+2. **Quantity selector.** Find the line's quantity input (search inside the loop for `updates[` or `name="quantity"`; usually a `c-quantity-selector` span with + and - buttons around it). Note the input's exact `name` (`updates[]`, `updates[{{ item.key }}]` or `updates[{{ item.id }}]`). Wrap the **whole** selector (buttons and input) like this, using that same `name`:
+   ```liquid
+   {% if falcon_is_fee %}
+     <input type="hidden" name="updates[]" value="{{ item.quantity }}">
+     <span class="c-cart-fee-qty">{{ item.quantity }}</span>
+   {% else %}
+     ...the existing quantity selector, unchanged...
+   {% endif %}
+   ```
+   Do **not** simply delete the fee line's input: with `name="updates[]"` Shopify matches quantities to lines by position, and a missing input would change the wrong line's quantity.
+3. **Remove link.** Find the line's remove link or button (search inside the loop for `remove`, `change?line=` or `quantity=0`). Wrap it:
+   ```liquid
+   {% unless falcon_is_fee %}
+     ...the existing remove link, unchanged...
+   {% endunless %}
+   ```
+4. **Product links (optional, recommended).** If the line title and image link to `{{ item.url }}`, wrap each `<a href="{{ item.url }}" ...>` / `</a>` pair so the fee line shows plain text: `{% unless falcon_is_fee %}<a href="{{ item.url }}">{% endunless %}` ... `{% unless falcon_is_fee %}</a>{% endunless %}`.
+5. Save. Report the exact names you found (quantity input name, remove link markup).
+
+### 5.5 Quick cart / cart modal in `layout/theme.liquid`
 
 1. Search `theme.liquid` for `js-quick-cart-item`. It sits inside a `{% for item in cart.items %}` loop.
 2. Inside that loop, after the element showing the product or variant title, add:
@@ -220,7 +297,16 @@ Find the checkout button: search for `name="checkout"`. Directly **before** the 
    ```liquid
    {% render 'preorder-cart-line', mode: 'notice', cart: cart %}
    ```
-4. **Known limitation, report it, do not try to fix:** after an AJAX add to cart, `assets/app.js` builds a new row from the `js-quick-cart-ghost` template using data from `/cart.js`. We do not have `app.js` in the repo, so that row will not show the "Pre-order: Ships from ..." line or the notice until the page is reloaded. The cart page and checkout always show them. Report what you see in test 9.12.
+   (`falcon-config` is not loaded in `theme.liquid`; the notice recognises the fee line by its handle `second-delivery` instead.)
+4. **Lock the fee line here too**, the same way as 5.4 steps 2 and 3, but with this check at the top of the loop (no config needed):
+   ```liquid
+   {%- assign falcon_is_fee = false -%}
+   {%- if item.product.handle == 'second-delivery' -%}{%- assign falcon_is_fee = true -%}{%- endif -%}
+   ```
+   If the quick cart's quantity buttons are handled by `app.js` with AJAX (no `updates[]` form), just wrap the buttons and remove link in `{% unless falcon_is_fee %}` ... `{% endunless %}`.
+5. **Do not** render `delivery-choice` in the quick cart. It reloads the page after every change and reconciles the cart on load, which would fight `app.js`. The choice is made on the cart page; the quick cart notice shows the saved choice.
+6. **Known limitation, report it, do not try to fix:** after an AJAX add to cart, `assets/app.js` builds a new row from the `js-quick-cart-ghost` template using data from `/cart.js`. We do not have `app.js` in the repo, so that row will not show the "Pre-order: Ships from ..." line or the notice until the page is reloaded, and a ghost row for the fee line will still show its quantity buttons. The cart page and checkout always show them. Report what you see in test 9.12.
+7. **Report:** does the quick cart have its own **checkout** button (not only "view cart")? A customer who checks out from the quick cart never loads the cart page, so the choice and the clean-up in 5.3 do not run. See section 11.
 
 ---
 
@@ -240,7 +326,7 @@ Save a copy first: select all in `theme.liquid`, copy, and keep it in a note unt
    <script async src="https://eu-library.klarnaservices.com/lib.js" data-client-id="ac6af85e-d6d6-52d7-81b4-3c7eb2385f54"></script>
    ```
    On US and EU, search for `scriptasyncsrc`. If found, fix the same way (keep that store's own URL and client id) and report it. If not found, change nothing.
-5. The quick cart insertions from 5.3.
+5. The quick cart insertions from 5.5.
 6. Save. Check: searching for `_dm`, `trackedlink` and `restockNotifySubmitted` finds nothing.
 
 ---
@@ -256,7 +342,8 @@ Settings > Notifications > **Customer notifications**. These are store-wide (not
 3. Put the cursor directly **before** that `<table class="row section">` opening tag (the one whose content includes `Order summary`).
 4. Paste the whole of `notifications/order-confirmation-preorder-block.liquid`.
 5. Check the existing line loop still shows properties: in the order summary, the template has a `{% for property in line.properties %}` loop that skips `_` names. Leave it. It is what shows "Pre-order: Ships from 12 November 2026" under the item.
-6. Save.
+6. The block also reads the order attribute `Delivery preference` (saved by the cart's delivery choice). For mixed orders it ends with "Everything in this order will ship together when the pre-order arrives." (together, or no attribute) or "In-stock items ship now. Pre-order items ship when they arrive." (separately). The "Second delivery" line is ignored by the block but still listed normally in the order summary with its price.
+7. Save.
 
 ### 7.2 Shipping confirmation
 
@@ -300,19 +387,28 @@ Record pass/fail for each. On any fail, stop and report the step, what you expec
 | 9.8 | On A, same inspection | Both inputs have the `disabled` attribute |
 | 9.9 | On B, DevTools > Network, filter `cart/add`. Click Pre-order | Request to `/cart/add.js` or `/cart/add`. Its payload (Payload tab) includes `properties[_preorder_date]` and `properties[Pre-order]` / `properties[Preorder]`. **If they are missing, `app.js` is not sending the whole form: stop and report. Open `assets/app.js`, search for `cart/add`, and copy the surrounding 30 lines into the report. Do not publish.** |
 | 9.10 | On A, add to cart, same Network check | Payload has `id` and `quantity` and **no** `properties[...]` |
-| 9.11 | Cart page after 9.9 | B's line shows "Pre-order: Ships from {date}" (US "Preorder: ..."). `_preorder_date` is **not** shown. Basket notice shows: "Pre-order items ship separately when they arrive. Anything in stock ships now." (US: "Preorder items ...") |
-| 9.12 | Quick cart / cart modal right after 9.9, then after a page reload | After reload: same line and notice as 9.11. Before reload: record whether the new row shows the property (known limitation, see 5.3.4) |
+| 9.11 | Cart page after 9.9 and 9.10 (A and B in the cart) | B's line shows "Pre-order: Ships from {date}" (US "Preorder: ..."). `_preorder_date` is **not** shown. Basket notice shows: "Everything ships together when the pre-order arrives." (US: "preorder") and the Delivery box shows (details in 9.24). Then remove A: after the reload the notice reads "Pre-order items ship when they arrive." (US: "Preorder items ...") and there is no Delivery box. Add A back for the next tests |
+| 9.12 | Quick cart / cart modal right after 9.9, then after a page reload | After reload: same line and notice as 9.11. Before reload: record whether the new row shows the property (known limitation, see 5.5 step 6) |
 | 9.13 | Quantity cap on B (limit 3, quantity 0) | The quantity cannot go above 3: type 10 and tab out, it resets to 3; the + button stops at 3. On A (quantity 5) it stops at 5 |
 | 9.14 | Notify form on C: submit with a bad email, then with your test email and the newsletter box unticked | Bad email: inline error, no request. Good email: button disabled while sending, then "Thanks. We'll email you once, when this is back in stock." Customer (Customers > search email) is tagged `restock-request` and `restock-{C id}`, and email marketing is **not** subscribed |
 | 9.15 | Repeat 9.14 on D with the box ticked, same email | Tag `restock-{D id}` added (first tag kept); marketing now subscribed |
 | 9.16 | Switch from C to D after a successful sign-up | Form resets for D (fields visible again, no success text) |
-| 9.17 | Place a test order with A and B together. On a live store use a real card for a low-value order (set the test product's price low for the test) and refund it afterwards; never switch a live store's payment provider to the Bogus/test gateway (real customers would check out with it). A development store may use test payments | Order confirmation email: "About your pre-order" box listing B with "Pre-order: expected to ship from {date}.", the "We'll email you..." sentence, and "Anything else in this order that's in stock ships now." The order summary shows "Pre-order: Ships from {date}" under B |
-| 9.18 | Order with only B | Same box without the "Anything else..." sentence |
+| 9.17 | Place a test order with A and B together, leaving the delivery choice on "Ship everything together". On a live store use a real card for a low-value order (set the test product's price low for the test) and refund it afterwards; never switch a live store's payment provider to the Bogus/test gateway (real customers would check out with it). A development store may use test payments | Order confirmation email: "About your pre-order" box listing B with "Pre-order: expected to ship from {date}.", the "We'll email you..." sentence, and "Everything in this order will ship together when the pre-order arrives." (US "preorder"). The order summary shows "Pre-order: Ships from {date}" under B. Admin order page > Additional details: `Delivery preference: Ship together` |
+| 9.18 | Order with only B | Same box without the "Everything in this order..." sentence |
 | 9.19 | Fulfil only A on the order from 9.17 | Shipping confirmation: no "on its way" pre-order line; "Still to come from this order" lists B with its date |
 | 9.20 | Then fulfil B | Shipping confirmation: "Your pre-order is on its way. Thank you for waiting." and no "Still to come" |
 | 9.21 | Browser console on the product page | No errors from the Falcon script or Turnstile |
 | 9.22 | Page source (Ctrl/Cmd+U): search `FalconVariantData` | One JSON block; paste it into a JSON validator: valid |
 | 9.23 | `theme.liquid` checks from 6.6; Klarna badge still shows on UK product page | Pass |
+| 9.24 | Cart with A and B (mixed basket) | Under the notice: a "Delivery" box with two options, "Ship everything together when the pre-order arrives. One delivery." **selected**, and "Ship in-stock items now and the pre-order when it arrives. Adds a second delivery charge of {price}." with the price of the "Second delivery" product in the store's currency (US: "preorder"). Notice reads "Everything ships together when the pre-order arrives." No "Second delivery" line. DevTools > Network: `/cart/update.js` was sent once with `attributes[Delivery preference]` = `Ship together`, and `/cart.js` shows that attribute |
+| 9.25 | Choose "Ship in-stock items now..." | Options and checkout button disabled briefly, then the page reloads. One "Second delivery" line, quantity 1, at the fee price, with **no** quantity buttons and **no** remove link, and no product link. Notice: "Pre-order items ship separately when they arrive. Anything in stock ships now." Second option selected. Network: one `update.js`, one `add.js`, no duplicates even if you click the option twice quickly |
+| 9.26 | Choose "Ship everything together..." again | Page reloads; the "Second delivery" line is gone; first option selected; notice back to "Everything ships together..." |
+| 9.27 | Choose separately again, then remove **B** from the cart | After the page reloads (it may reload twice), the "Second delivery" line and the Delivery box are gone; `/cart.js` has no `Delivery preference` attribute |
+| 9.28 | Choose separately, then in DevTools console run `jQuery.post('/cart/change.js', {id: '{fee variant id}', quantity: 3})` and reload the cart page | Page corrects itself to one fee line, quantity 1 |
+| 9.29 | With separately chosen, open `/products/second-delivery` and add it again, then open the cart | Still exactly one fee line, quantity 1. Store search for `second delivery` finds nothing; the product is in no collection page |
+| 9.30 | Mixed basket, separately chosen: click checkout | Checkout order summary lists "Second delivery" at the fee price as a line item, and shipping is charged as usual. Place the order (see 9.17 for payment rules): confirmation email says "In-stock items ship now. Pre-order items ship when they arrive."; admin Additional details shows `Delivery preference: Ship separately` |
+| 9.31 | Express checkout that skips the basket: on the product page for B use a dynamic "Buy it now" / Shop Pay / Apple Pay button if the theme shows one (otherwise note "no express button on the product page" and skip). Also: put A and B in the cart, and in DevTools run `jQuery.post('/cart/update.js', {'attributes[Delivery preference]': ''})`, then click an express button in the cart **without reloading** | The order has **no** `Delivery preference` attribute (admin Additional details) and no fee line; it is treated as together: the confirmation says "Everything in this order will ship together..." (for the product-page order with only B, no delivery sentence at all) |
+| 9.32 | Set `falcon_split_fee_variant_id` back to `REPLACE_ME_SPLIT_FEE_VARIANT_ID` temporarily, load the mixed cart | No Delivery box, no errors in the console; notice says "Everything ships together...". Restore the real id after |
 
 Clean up afterwards: cancel and refund the test orders (in full, so the card is repaid); remove the test tags from your test customer; reset the test product variants.
 
@@ -324,6 +420,9 @@ Clean up afterwards: cancel and refund the test orders (in full, so the card is 
 2. Roll back: publish the old theme again. Notification templates are not part of the theme: restore them by pasting back the copies saved in section 7.
 
 ## 11. Known limits to report, not fix
+
+- **Quick cart checkout skips the delivery clean-up.** The choice and the reconcile run on the cart page only. A customer who removes the pre-order item in the quick cart (AJAX, `app.js`) and checks out from the quick cart could keep a stale "Second delivery" line; one who fills a mixed basket and checks out from the quick cart gets no attribute (treated as together, no fee). If the quick cart has its own checkout button (5.5 step 7), report it: pointing that button at `/cart` for baskets with a pre-order line would close the gap, but needs a decision.
+- A theme cart form that posts quantity changes **and** goes to checkout in one click (`name="checkout"` submit after editing a quantity) skips the reload, so the clean-up does not run before checkout. Same exposure as above.
 
 - `app.js` is not in the repo. Whether it sends line item properties (9.9) and how it renders the quick cart ghost row (9.12) can only be checked live.
 - The notify form needs JavaScript (Turnstile). With JavaScript off it shows a message and does not submit.

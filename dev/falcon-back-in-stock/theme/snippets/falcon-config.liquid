@@ -20,11 +20,19 @@
                               as the widget's hostname list includes all three
                               domains (Cloudflare dashboard, Turnstile, widget settings)
 
-  REPLACE_ME: before install, replace the two placeholder values below:
+    falcon_split_fee_variant_id  DIFFERENT on every store: the variant id of
+                              that store's "Second delivery" product (handle
+                              second-delivery), as a quoted string
+
+  REPLACE_ME: before install, replace the three placeholder values below:
     1. falcon_worker_url: the Worker's real URL, no trailing slash,
        for example https://falcon-stock.falcon-enamelware.workers.dev
     2. falcon_turnstile_sitekey: the Turnstile widget's site key (the public
        one, starts with 0x). Never the secret key.
+    3. falcon_split_fee_variant_id: the numeric variant id of this store's
+       "Second delivery" product, in quotes, for example '44012345678901'.
+       While it is REPLACE_ME the delivery choice does not show and mixed
+       baskets ship together.
 {%- endcomment -%}
 
 {%- comment -%} UK store {%- endcomment -%}
@@ -38,6 +46,9 @@
 
 {%- comment -%} REPLACE_ME: Turnstile site key (public, starts with 0x) {%- endcomment -%}
 {%- assign falcon_turnstile_sitekey = 'REPLACE_ME_TURNSTILE_SITEKEY' -%}
+
+{%- comment -%} REPLACE_ME: variant id of this store's "Second delivery" product (split-delivery fee), in quotes {%- endcomment -%}
+{%- assign falcon_split_fee_variant_id = 'REPLACE_ME_SPLIT_FEE_VARIANT_ID' -%}
 
 {%- comment -%}
   US store: use these lines instead of the UK block above.
