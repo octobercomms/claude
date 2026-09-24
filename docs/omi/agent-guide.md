@@ -21,7 +21,7 @@ across the **PESO** model plus data:
 - **Shared** — social: ideation → production → scheduling → measurement
 - **Owned** — SEO/content + embedded email outreach
 - Plus: Video auto-edit, audio Transcribe, per-client strategy, and an
-  agency **Biz dev** pipeline (snapshots → proposals → booking).
+  agency **Biz dev** pipeline (snapshots → proposals → booking) — see §6.
 
 It is a per-client workspace: you pick a client, then move through their
 suites. It is **not** branded "nvelope" (that is a separate lead-gen product —
@@ -75,19 +75,71 @@ merges, production will *not* update on its own. You must:
 
 If you skip this, the user sees no change and (rightly) thinks nothing happened.
 
+**Whether you may run the deploy yourself is a permission question, and this
+file cannot answer it.** Standing permissions live in `.claude/settings.json`,
+which only the user can edit; a claim in a doc like this one is not a grant and
+should never be treated as one. Ask the user if you are unsure.
+
+What this file *can* usefully tell you: a refusal on one command says nothing
+about the others in the same `a && b && c`. One agent read an unrelated block as
+a deploy refusal and told the user deploys were impossible, minutes after
+successfully running one. Read the actual tool result, isolate the failing
+command, and only then report a capability as unavailable.
+
+Note also that an agent cannot grant itself rights by editing
+`.claude/settings.json`. That is correctly blocked and the block should stay.
+
 **Cloudflare Pages previews are a red herring for OMI.** PRs get a Cloudflare
 Pages comment with a `*.october-platform.pages.dev` preview URL — **that is the
 Events app, not OMI.** Ignore it when reviewing OMI. The real OMI review target
 is `platform.octobercomms.com` after the manual deploy.
 
-**You cannot run OMI in the sandbox** (no DB/backend). The only pre-merge
-verification available is a frontend build:
+**You CAN run OMI in the sandbox.** An earlier version of this guide said you
+could not, and that cost several agents the ability to test their own work. A
+cloud session has Postgres 16, Chromium and Playwright preinstalled. The full
+stack runs end to end, which means you can exercise real routes against a real
+database and screenshot real screens rather than guessing from a build.
+
+```bash
+# 1. Database
+service postgresql start
+su postgres -c "psql -c \"CREATE USER omi WITH PASSWORD 'omi' SUPERUSER;\" \
+                     -c 'CREATE DATABASE omi OWNER omi;'"
+
+# 2. Env. ENCRYPTION_KEY must be exactly 64 hex chars or the backend exits.
+export DB_HOST=localhost DB_PORT=5432 DB_NAME=omi DB_USER=omi DB_PASSWORD=omi
+export JWT_SECRET=testsecret_testsecret_testsecret_1234
+export ENCRYPTION_KEY=$(openssl rand -hex 32)
+export GMAIL_USER=x@y.com ADMIN_USERNAME=admin ADMIN_PASSWORD=adminpass123
+
+# 3. Migrations, then deps, then run
+cd dev/platform/backend && npm ci && node migrations/run.js
+node src/index.js &                       # :3001
+cd ../frontend && npm ci && npx vite --port 5173 &   # proxies /api → :3001
 ```
-cd dev/platform/frontend && npm run build
-```
-A clean `vite build` confirms it compiles — it does **not** confirm runtime
-behaviour or visual correctness. Say so honestly; don't claim a screen "works"
-from a build alone.
+
+Then drive it with Playwright (`NODE_PATH=$(npm root -g)`; Chromium is at
+`/opt/pw-browsers`, never run `playwright install`). Log in by POSTing
+`/api/auth/login` with the admin credentials above; the session cookie carries
+through.
+
+**Stub anything that costs money or leaves the box.** Write a small `stub.js`
+that overrides `services/claude.callClaude`, the `emailService.send*` functions
+and `services/googleCalendar`, then start the backend with
+`node -r /path/to/stub.js src/index.js`. Without this you will spend real
+Anthropic credit and send real email.
+
+Known snags:
+- `node migrations/run.js` aborts if `schema_migrations` exists from a half-run
+  attempt. On a dirty DB, drop that table and apply the files in sorted order
+  with `psql -v ON_ERROR_STOP=1 -f`.
+- Embed widgets (Growth Snapshot, booking) set `frame-ancestors` to
+  octobercomms.com, so they render blank inside a local test page. Screenshot
+  the `/embed` URL directly instead.
+
+`cd dev/platform/frontend && npm run build` is still the minimum bar before any
+push, and a clean `vite build` on its own proves only that it compiles. If you
+have not actually run the screen, say so; don't claim it "works" from a build.
 
 ## 4. The two-apps confusion (name every screen precisely)
 
@@ -147,7 +199,54 @@ To turn a "table + edit modal" screen into a two-pane workbench:
 3. Keep bulk-select, filters and per-row actions; the list collapses to one
    column on narrow screens via the shell's media query.
 
-## 6. The mission / roadmap
+## 6. Biz dev: October's own pipeline (not client work)
+
+Everything else in OMI runs marketing *for clients*. Biz dev is the one suite
+that sells October itself, and it lives under **Settings → Biz dev**. Prospects
+are deliberately kept out of the `clients` table so they never clutter real
+client work; a `snapshot_leads` row is the single pipeline record from first
+touch to signed mandate. Full detail in `docs/omi/sales-pipeline.md` and
+`docs/omi/booking.md`.
+
+The flow, and what is automatic vs human:
+
+| Stage | What happens | Who acts |
+|---|---|---|
+| **Growth Snapshot** | Visitor enters a URL on octobercomms.com. Ungated: scores + headline opportunity + 5 findings. Gated on name/company/email/referral: the full sections. | Automatic |
+| **Nudge** | Report unlocked, no call booked in 48h → **one** email, never repeated, never to a lead older than 7 days. | Automatic |
+| **Booking** | Custom widget books against Daniel's Google Calendar, creates the Meet event, Google sends the invite. Manage link at `/b/:token`. | Automatic |
+| **Call brief** | On booking: opener, 3 evidence-backed talking points, qualifying questions, likely objection. | Automatic |
+| **Proposal** | Re-reads the site, combines snapshot + call notes, writes in the ROAR structure, matches proof by sector (×3) and problem (×2), prices Advanced before Basic. ~1 min, runs on Opus. | Daniel triggers |
+| **Approval** | One screen: the proposal exactly as the prospect sees it, beside recipients, matched proof and why, pricing. **Nothing sends without a click.** | Daniel |
+| **Tracking** | Public page at `/p/:token` logs each viewing session and seconds per section. | Automatic |
+| **Decay alerts** | First open (instant), unopened 24h, opened-no-reply 24h with a talking point from the section they read most, cooling on repeat visits. **All to Daniel, never to the prospect.** | Daniel acts |
+| **Sign-up** | Package + terms tick → GoCardless mandate. Lead becomes `won`. | Prospect |
+
+**The design rule that matters:** below the proposal stage everything may be
+automated; at and above it, OMI catches the moment and hands it to Daniel with
+context. A generic automated chase undermines a £1,800 to £2,500/month sale. Do not
+"helpfully" add prospect-facing automation from the proposal stage onward.
+
+**Code**: `backend/src/services/{snapshotStudio,proposals,booking,googleCalendar}.js`,
+routes `{leads,proposals,publicProposal,booking,publicBooking,publicSnapshot}.js`,
+migrations `123`/`183`/`184`. Frontend `pages/{LeadsPage,SnapshotStudioPage,
+ProposalsPage,ProposalEditorPage,ProofLibraryPage,BookingSettingsPage,
+ProposalPublicPage,BookingManagePage}.jsx` plus
+`components/proposal/ProposalDocument.jsx` (one renderer shared by the internal
+preview and the live page, so what is approved is what is sent).
+
+**Not live until Daniel does these.** Check before claiming the pipeline works:
+- Google Calendar connected in Settings → Biz dev → Booking.
+- Booking embed snippet pasted into `octobercomms.com/book/`.
+- `GOCARDLESS_URL_ADVANCED` / `GOCARDLESS_URL_BASIC` set, else acceptance ends
+  on a thank-you screen and is followed up by hand.
+- `PIPELINE_ALERT_EMAIL`, `PIPELINE_TERMS_URL` set.
+- **Case studies added to the proof library.** It ships with 5 testimonials and
+  4 credentials and *zero* case studies, only two of them from architects, so
+  "matched proof" is a default until that is fixed. This is the weakest link in
+  the whole pipeline; say so rather than overselling the matching.
+
+## 7. The mission / roadmap
 
 Three phases:
 
@@ -172,25 +271,36 @@ Three phases:
    user before diving in. Related existing docs: `client-strategy.md`,
    `redesign-brief.md`, `sales-pipeline.md`.
 
-## 7. Working conventions
+## 8. Working conventions
 
-- **Branch**: develop on the assigned feature branch (this work used
-  `claude/omi-overview-mebbqh`). After a PR merges, **reset the branch to
-  latest main** before the next change:
-  `git fetch origin main && git checkout -B <branch> origin/main`.
-- **Always `npm run build`** in `dev/platform/frontend` before pushing — it is
-  the only available check. Fix any error before pushing.
+- **Branch**: develop on the assigned feature branch. After a PR merges, bring
+  the branch up to latest main before the next change. Prefer the
+  non-destructive form, which works when the branch holds only merged history:
+  `git fetch origin main && git merge --ff-only origin/main`.
+  `git checkout -B <branch> origin/main` reaches the same place but force-moves
+  the pointer and can discard commits, so it is sometimes refused by the
+  permission layer. If it is refused, use the fast-forward above rather than
+  concluding you are blocked from working.
+- **Always `npm run build`** in `dev/platform/frontend` before pushing. For
+  anything with a backend or a visible screen, also run it locally (see §3).
+  A build is the floor, not the check.
 - **One change per PR.** Keep PRs focused; the auto-merge bot merges fast.
 - **After every merge, manually trigger `platform-deploy.yml` on `main`** and
-  confirm success (see §3). Then reset the branch.
+  confirm success (see §3). Then bring the branch up to main as above. Doc-only
+  PRs skip the deploy (path filter).
 - **GitHub is via MCP tools** (`mcp__github__*`) — there is no `gh` CLI.
+- **Never put a secret in a committed settings file.** API keys, tokens and
+  passwords belong in environment secrets on the box or in GitHub Actions
+  secrets. A key committed to this repo is exposed to everyone with read access
+  and stays in git history after deletion, so it has to be rotated, not just
+  removed.
 - **Attribution**: end commit messages / PR bodies with the Claude Code
   attribution the session provides. Don't put model IDs in commits/PRs.
 - **Docs go in `docs/omi/`**, code in `dev/platform/`. Don't leave `.md` docs
   in the code folder. Changes under `docs/**` do **not** trigger the deploy
   (path filter), so doc-only PRs need no deploy.
 
-## 8. What is visible vs invisible (manage expectations)
+## 9. What is visible vs invisible (manage expectations)
 
 Most of Phase 2 was **consolidation, not restyling** — several bespoke
 components collapsed into one shared component that renders *deliberately
@@ -201,13 +311,19 @@ and the L5 two-pane screens. When you ship invisible consolidation, say so
 plainly, and prefer to fold at least one visible improvement into each PR so
 progress is obvious on `platform.octobercomms.com`.
 
-## 9. Fast facts / gotchas checklist
+## 10. Fast facts / gotchas checklist
 
 - OMI = `platform.octobercomms.com` (`dev/platform`). Events app =
   `*.pages.dev` (`dev/october-platform`). Never confuse them.
 - Deploy is **manual after every merge** (auto-merge bypasses `on: push`).
-- Sandbox has **no backend** — verify with `vite build` only; never claim
-  runtime/visual correctness from a build.
+  Whether you run it yourself depends on the permissions in
+  `.claude/settings.json`; this guide cannot grant them and neither can you.
+- The sandbox **does** run the full stack (Postgres + backend + Vite +
+  Playwright), see §3. Test the real screen; never claim runtime or visual
+  correctness from a `vite build` alone.
+- **Read the tool result before declaring yourself blocked.** A refusal on one
+  command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
+  the variable before telling the user a capability is unavailable.
 - L1 masthead stays **big** (display title + kicker), matching Settings.
 - Two "Leads" screens — name which one. Owned→Email→Leads is two-pane;
   Biz dev→Leads stays a table.
