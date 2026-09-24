@@ -50,6 +50,15 @@ Performance Marketing Platform; its code lives in `dev/platform` (backend +
 frontend) and its strategy/marketing docs live in `docs/omi/`. Do **not** brand
 the platform "nvelope", and don't introduce new "nvelope" references into OMI.
 
+> **Working on OMI? Read `docs/omi/agent-guide.md` first.** It is the handover
+> between sessions: how OMI is deployed, how to run and test it locally, the
+> design system, the biz dev pipeline, and the gotchas that have already cost
+> earlier agents time. It also asks you to leave it truer than you found it, by
+> correcting whatever your change made wrong and recording only what the next
+> agent would otherwise learn the hard way. This pointer exists because that
+> file is not loaded automatically, so a wrong line in it once survived six
+> sessions unnoticed.
+
 **nvelope.co** is a separate lead-gen platform (not OMI). Its own assets stay as
 they are: its marketing/strategy docs live in `docs/nvelope/`, its ad-integration
 code in `dev/meta-ads`, and its funnel plugins (`dev/oc-forms`, `dev/brevo-widgets`)
