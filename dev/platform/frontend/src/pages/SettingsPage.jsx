@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import ImportWizard from '../components/ImportWizard';
 import EditContactModal from '../components/EditContactModal';
+import ListDetail from '../components/shells/ListDetail';
 import ManageUsersPage from './ManageUsersPage';
 import LeadsPage from './LeadsPage';
 import ProposalsPage from './ProposalsPage';
@@ -1051,76 +1052,67 @@ function PublicationsPanel() {
       )}
 
       {!outlets ? <p className="body-sm text-muted">Loading…</p> : (
-        <div style={{ maxHeight: 600, overflow: 'auto' }}>
-          <table className="contacts-list-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>
-              <th style={{ width: 28 }}>
+        <ListDetail
+          sidebar
+          list={
+            <div className="card" style={{ padding: 0, maxHeight: 600, overflowY: 'auto' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: 'var(--border-w) solid var(--card-border)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1 }}>
                 <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="Select all visible" />
-              </th>
-              <th>Publication</th>
-              <th style={{ width: 60, textAlign: 'center' }} title="RSS feed">RSS</th>
-              <th style={{ textAlign: 'right' }}>Coverage</th>
-              <th style={{ textAlign: 'right' }}>Journalists</th>
-              <th style={{ width: 150 }}>Tier</th>
-              <th style={{ width: 28 }}></th>
-            </tr></thead>
-            <tbody>
-              {visibleOutlets.slice(0, 500).map((o) => (
-                <tr key={o.id}>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleRow(o.id)} />
-                  </td>
-                  <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer' }}>
-                    <span style={{ color: 'var(--text)', fontWeight: 500 }}>{o.name}</span>
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                Select all · {visibleOutlets.length}
+              </label>
+              {!visibleOutlets.length && (
+                <div style={{ color: 'var(--text-subtle)', padding: 'var(--s5)', fontSize: 'var(--fs-caption)' }}>No publications{outletSearch ? ' match that search' : ' yet'}.</div>
+              )}
+              {visibleOutlets.slice(0, 500).map((o) => {
+                const active = openOutlet?.id === o.id;
+                const tierLabel = (TIERS.find(([v]) => v === (o.tier || '')) || ['', '—'])[1];
+                return (
+                  <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderBottom: '1px solid var(--card-border)', background: active ? 'var(--surface-raised)' : 'transparent' }}>
+                    <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleRow(o.id)} aria-label={`Select ${o.name}`} />
+                    <button type="button" onClick={() => setOpenOutlet(o)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}>
+                      <div style={{ fontSize: 'var(--fs-body)', fontWeight: active ? 700 : 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}</div>
+                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {tierLabel !== '—' ? `${tierLabel} · ` : ''}{o.coverage} coverage · {o.contacts || 0} journ{(o.contacts || 0) === 1 ? '' : 's'}
+                      </div>
+                    </button>
                     {rssBusy === o.id ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>…</span>
                       : o.rss_status === 'found' && o.rss_url
                         ? <a href={o.rss_url} target="_blank" rel="noopener noreferrer" title={`Feed: ${o.rss_url}`} className="btn-link" style={{ fontSize: 'var(--fs-caption)' }}>feed</a>
                         : o.rss_status === 'none'
                           ? <button onClick={() => findRss(o)} title="No feed found — click to try again" className="btn-icon btn-icon-sm">—</button>
                           : <button onClick={() => findRss(o)} title="Find this publication's RSS feed" className="btn-icon btn-icon-sm">＋</button>}
-                  </td>
-                  <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.coverage}</td>
-                  <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.contacts || 0}</td>
-                  <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer' }}>
-                    {/* Tier rendered flat (no inline select) so the row sits at
-                        the same height as the Contacts list. Editing happens in
-                        the modal — one click, one fix. */}
-                    {(() => {
-                      const label = (TIERS.find(([v]) => v === (o.tier || '')) || ['', '—'])[1];
-                      return <span style={{ color: o.tier ? 'var(--text)' : 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>{label}</span>;
-                    })()}
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                    <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete"
-                      className="btn-icon danger">
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {!visibleOutlets.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 'var(--s5)' }}>No publications{outletSearch ? ' match that search' : ' yet'}.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+                    <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete" className="btn-icon danger">×</button>
+                  </div>
+                );
+              })}
+            </div>
+          }
+          detail={
+            openOutlet ? (
+              <OutletEditModal
+                key={openOutlet.id}
+                embedded
+                outletId={openOutlet.id}
+                onClose={() => setOpenOutlet(null)}
+                onSaved={(patched) => {
+                  setOutlets((list) => list.map((x) => (x.id === patched.id ? { ...x, ...patched } : x)));
+                }}
+                onDeleted={(id) => {
+                  setOutlets((list) => list.filter((x) => x.id !== id));
+                  setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
+                  setOpenOutlet(null);
+                }}
+              />
+            ) : (
+              <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 'var(--fs-body)' }}>
+                Select a publication on the left to view and edit its profile, journalists and coverage.
+              </div>
+            )
+          }
+        />
       )}
       {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginTop: 'var(--s2)' }}>{err}</div>}
     </Card>
-    {openOutlet && (
-      <OutletEditModal
-        outletId={openOutlet.id}
-        onClose={() => setOpenOutlet(null)}
-        onSaved={(patched) => {
-          setOutlets((list) => list.map((x) => (x.id === patched.id ? { ...x, ...patched } : x)));
-        }}
-        onDeleted={(id) => {
-          setOutlets((list) => list.filter((x) => x.id !== id));
-          setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
-          setOpenOutlet(null);
-        }}
-      />
-    )}
     </>
   );
 }
@@ -1129,7 +1121,7 @@ function PublicationsPanel() {
 // gets the same interaction model whether they click a contact or a
 // publication. Fetches everything fresh from /pr/outlets/:id (summary,
 // journalists, coverage history) rather than relying on the row data.
-function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
+function OutletEditModal({ outletId, onClose, onSaved, onDeleted, embedded = false }) {
   const { readOnly } = useAuth();
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
@@ -1148,16 +1140,19 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
   }, [outletId]);
 
   useEffect(() => {
+    if (embedded) return;
     function onKey(e) { if (e.key === 'Escape') onClose(); }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, embedded]);
 
   if (!data || !form) {
+    const loading = err ? <p style={{ color: 'var(--negative)' }}>{err}</p> : <p style={{ color: 'var(--text-subtle)' }}>Loading…</p>;
+    if (embedded) return <div className="card">{loading}</div>;
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()} className="modal" style={{ padding: 'var(--s6)' }}>
-          {err ? <p style={{ color: 'var(--negative)' }}>{err}</p> : <p style={{ color: 'var(--text-subtle)' }}>Loading…</p>}
+          {loading}
         </div>
       </div>
     );
@@ -1169,7 +1164,7 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
     try {
       await api.patch(`/pr/outlets/${outletId}`, form);
       onSaved({ id: outletId, name: form.name, tier: form.tier });
-      onClose();
+      if (!embedded) onClose();
     } catch (e) { setErr(e.message); }
     finally { setSaving(false); }
   }
@@ -1196,9 +1191,9 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
 
   const published = (data.coverage || []).filter((r) => r.status === 'published' || r.status === 'download').length;
 
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); save(); }} className="modal modal-wide">
+  const onSubmit = (e) => { e.preventDefault(); save(); };
+  const content = (
+    <>
         <div className="modal-head">
           <h2 style={{ fontSize: 'var(--fs-title)', fontWeight: 700, margin: 0 }}>{data.name || 'Publication'}</h2>
           <button type="button" onClick={onClose} className="modal-close">×</button>
@@ -1273,7 +1268,15 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
           <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
           <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save'}</button>
         </div>
-      </form>
+    </>
+  );
+
+  if (embedded) {
+    return <form onSubmit={onSubmit} className="card">{content}</form>;
+  }
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={onSubmit} className="modal modal-wide">{content}</form>
     </div>
   );
 }
