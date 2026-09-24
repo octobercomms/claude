@@ -390,6 +390,7 @@ describe('end to end', () => {
             email: 'jane@example.com',
             cancelledAt: null,
             closed: false,
+            customAttributes: [{ key: 'Delivery preference', value: 'Ship separately' }],
             lineItems: {
               nodes: [
                 { id: 'gid://shopify/LineItem/1', quantity: 2, unfulfilledQuantity: 2, variant: { id: 'gid://shopify/ProductVariant/111' }, customAttributes: [{ key: '_preorder_date', value: '2026-11-12' }] },
@@ -444,7 +445,7 @@ describe('end to end', () => {
 
     const gql = mock.calls.filter((c) => c.kind === 'gql');
     assert.deepEqual(gql.map((c) => c.op), ['FalconOrder', 'FalconTagsAdd', 'FalconHold', 'FalconVariant', 'FalconVariantPolicy', 'FalconTagsAdd']);
-    assert.deepEqual(gql[1].variables, { id: orderGid, tags: ['preorder-v111'] });
+    assert.deepEqual(gql[1].variables, { id: orderGid, tags: ['preorder-v111', 'ship-separately', 'split-fee-missing'] });
     const hold = gql[2].variables;
     assert.equal(hold.id, 'gid://shopify/FulfillmentOrder/9001');
     assert.equal(hold.fulfillmentHold.reason, 'OTHER');
@@ -453,7 +454,11 @@ describe('end to end', () => {
     assert.deepEqual(hold.fulfillmentHold.fulfillmentOrderLineItems, [{ id: 'gid://shopify/FulfillmentOrderLineItem/1', quantity: 2 }], 'only the preorder line is held');
     assert.deepEqual(gql[4].variables, { productId: 'gid://shopify/Product/9', variants: [{ id: 'gid://shopify/ProductVariant/111', inventoryPolicy: 'DENY' }] });
     assert.deepEqual(gql[5].variables.tags, ['preorder'], 'idempotency tag last');
-    assert.equal(mock.calls.filter((c) => c.kind === 'brevo').length, 0, 'at the cap (not over): no staff alert');
+    // At the cap (not over): the only staff alert is the missing split fee (SHOPS has no fee variant here).
+    const alerts = mock.calls.filter((c) => c.kind === 'brevo');
+    assert.equal(alerts.length, 1);
+    assert.match(alerts[0].body.params.rows_html, /Ship separately chosen, no delivery fee paid/);
+    assert.doesNotMatch(alerts[0].body.params.rows_html, /Over cap/);
     assert.ok(logs.some((l) => l.includes('"event":"mutation_ok"') && l.includes('fulfillmentOrderHold')));
   });
 

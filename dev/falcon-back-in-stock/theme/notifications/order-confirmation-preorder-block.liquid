@@ -10,6 +10,18 @@
 
   Line item properties are read defensively: `line.properties`, falling back
   to `line.line_item.properties`, and both hash-style and name/value pairs.
+
+  Delivery choice (mixed orders only: a pre-order line plus at least one in-stock
+  line that is not the split-fee line). Reads the order attribute
+  `Delivery preference` from `attributes`, falling back to `order.attributes`
+  and to name/value pairs. `Ship separately` -> "In-stock items ship now.
+  Pre-order items ship when they arrive." Anything else, or missing (express
+  checkout that skipped the basket) -> "Everything in this order will ship
+  together when the pre-order arrives."
+
+  The split-fee line ("Second delivery") is ignored here. It is recognised by
+  product handle `second-delivery`, SKU `SECOND-DELIVERY` or product title
+  `Second delivery` (the notification cannot read falcon-config).
 {%- endcomment -%}
 {%- assign fpo_store = 'uk' -%}
 {%- case shop.currency -%}
@@ -28,6 +40,9 @@
 {%- assign fpo_other_count = 0 -%}
 {%- capture fpo_rows -%}
 	{%- for line in line_items -%}
+		{%- assign fpo_handle = line.product.handle | default: '' -%}
+		{%- assign fpo_ptitle = line.product.title | default: line.title | default: '' -%}
+		{%- if fpo_handle == 'second-delivery' or line.sku == 'SECOND-DELIVERY' or fpo_ptitle == 'Second delivery' -%}{%- continue -%}{%- endif -%}
 		{%- assign fpo_props = line.properties -%}
 		{%- if fpo_props == blank -%}{%- assign fpo_props = line.line_item.properties -%}{%- endif -%}
 		{%- assign fpo_date = '' -%}
@@ -61,6 +76,26 @@
 	{%- endfor -%}
 {%- endcapture -%}
 
+{%- comment -%} Delivery preference (cart attribute, carried onto the order). {%- endcomment -%}
+{%- assign fpo_pref = '' -%}
+{%- assign fpo_attrs = attributes -%}
+{%- if fpo_attrs == blank -%}{%- assign fpo_attrs = order.attributes -%}{%- endif -%}
+{%- if fpo_attrs['Delivery preference'] != blank -%}
+	{%- assign fpo_pref = fpo_attrs['Delivery preference'] -%}
+{%- else -%}
+	{%- for fpo_attr in fpo_attrs -%}
+		{%- assign fpo_key = fpo_attr.first -%}
+		{%- assign fpo_val = fpo_attr.last -%}
+		{%- if fpo_attr.name != blank -%}
+			{%- assign fpo_key = fpo_attr.name -%}
+			{%- assign fpo_val = fpo_attr.value -%}
+		{%- endif -%}
+		{%- if fpo_key == 'Delivery preference' -%}{%- assign fpo_pref = fpo_val -%}{%- endif -%}
+	{%- endfor -%}
+{%- endif -%}
+{%- assign fpo_pref = fpo_pref | strip -%}
+{%- assign fpo_lines = fpo_pre_count | plus: fpo_other_count -%}
+
 {%- if fpo_pre_count > 0 -%}
 <table class="row section" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border-spacing:0;">
 	<tr>
@@ -83,7 +118,13 @@
 										{%- else -%}
 											We'll email you when {% if fpo_pre_count > 1 %}each item is{% else %}it's{% endif %} on its way. If the date changes we'll tell you straight away, and you can cancel for a full refund at any time before it's dispatched.
 										{%- endif -%}
-										{%- if fpo_other_count > 0 %} Anything else in this order that's in stock ships now.{%- endif -%}
+										{%- if fpo_other_count > 0 -%}
+											{%- if fpo_pref == 'Ship separately' -%}
+												{%- if fpo_store == 'us' %} In-stock items ship now. Preorder items ship when they arrive.{%- else %} In-stock items ship now. Pre-order items ship when they arrive.{%- endif -%}
+											{%- else -%}
+												{%- if fpo_store == 'us' %} Everything in this order will ship together when the preorder arrives.{%- else %} Everything in this order will ship together when the pre-order arrives.{%- endif -%}
+											{%- endif -%}
+										{%- endif -%}
 									</td>
 								</tr>
 							</table>

@@ -4,3 +4,4 @@
 import './worker.test.mjs';
 import './review-fixes.test.mjs';
 import './review-fixes-2.test.mjs';
+import './ship-together-waitlist.test.mjs';

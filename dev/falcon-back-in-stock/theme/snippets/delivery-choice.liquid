@@ -1,0 +1,291 @@
+{%- comment -%}
+  Falcon stock system: delivery choice for mixed baskets (cart page only).
+
+  Rendered once on the cart page, outside the items loop, directly after the
+  basket notice and before the element holding the checkout button. The cart
+  template must `include` falcon-config first:
+    {% include 'falcon-config' %}
+    {% render 'preorder-cart-line', mode: 'notice', cart: cart, store: falcon_store, fee_variant_id: falcon_split_fee_variant_id %}
+    {% render 'delivery-choice', cart: cart, store: falcon_store, fee_variant_id: falcon_split_fee_variant_id %}
+
+  Shared contract with the Worker (ARCHITECTURE.md):
+    Mixed basket  = at least one line with a `_preorder_date` property AND at
+                    least one line WITHOUT it (the split-fee line does not count).
+    Cart attribute `Delivery preference` = `Ship together` | `Ship separately`.
+                    Missing = together.
+    Split fee     = one line of the store's "Second delivery" variant
+                    (falcon_split_fee_variant_id), quantity 1, only when the
+                    basket is mixed and the preference is `Ship separately`.
+
+  Fee price shown to the customer, most reliable source first:
+    1. the fee line already in the cart (the price checkout will charge);
+    2. all_products['second-delivery'], the variant whose id matches
+       fee_variant_id (lookup by HANDLE, which vintage themes support; lookup
+       by variant id is not possible).
+  If neither gives a price (product unpublished, wrong handle, wrong id), the
+  choice is not shown and the order ships together. Never shows a guessed
+  price.
+
+  JavaScript (jQuery):
+    - On change: POST /cart/update.js attributes[Delivery preference], then
+      add the fee (/cart/add.js, quantity 1) or remove it (/cart/change.js,
+      quantity 0), then reload the page.
+    - On load: reads /cart.js and reconciles: not mixed -> remove fee lines
+      and clear the attribute; mixed and no attribute -> `Ship together`;
+      together -> no fee line; separately -> exactly one fee line, quantity 1.
+      Reloads once if anything changed (loop guard in sessionStorage).
+    - Requests never overlap; the checkout buttons are disabled while
+      updating.
+  Without JavaScript the choice is hidden (it cannot add the fee) and the
+  order ships together.
+
+  Nothing renders (no markup, no script) when fee_variant_id is blank or
+  still REPLACE_ME.
+{%- endcomment -%}
+{%- assign dc_fee_id = fee_variant_id | append: '' | strip -%}
+{%- assign dc_ready = true -%}
+{%- if dc_fee_id == blank or dc_fee_id contains 'REPLACE_ME' -%}{%- assign dc_ready = false -%}{%- endif -%}
+
+{%- if dc_ready -%}
+	{%- assign dc_store = store -%}
+	{%- if dc_store == blank -%}
+		{%- case shop.currency -%}
+			{%- when 'USD' -%}{%- assign dc_store = 'us' -%}
+			{%- when 'EUR' -%}{%- assign dc_store = 'eu' -%}
+			{%- else -%}{%- assign dc_store = 'uk' -%}
+		{%- endcase -%}
+	{%- endif -%}
+
+	{%- comment -%} Mixed basket check (contract above) and fee price. {%- endcomment -%}
+	{%- assign dc_pre = 0 -%}
+	{%- assign dc_lines = 0 -%}
+	{%- assign dc_fee_price = '' -%}
+	{%- for dc_item in cart.items -%}
+		{%- assign dc_item_id = dc_item.variant_id | append: '' -%}
+		{%- if dc_item_id == dc_fee_id -%}
+			{%- assign dc_fee_price = dc_item.price -%}
+			{%- continue -%}
+		{%- endif -%}
+		{%- comment -%} Lines that don't ship (gift cards, digital) never make a basket mixed. {%- endcomment -%}
+		{%- unless dc_item.requires_shipping -%}{%- continue -%}{%- endunless -%}
+		{%- assign dc_lines = dc_lines | plus: 1 -%}
+		{%- for dc_prop in dc_item.properties -%}
+			{%- if dc_prop.first == '_preorder_date' and dc_prop.last != blank -%}
+				{%- assign dc_pre = dc_pre | plus: 1 -%}
+				{%- break -%}
+			{%- endif -%}
+		{%- endfor -%}
+	{%- endfor -%}
+	{%- assign dc_mixed = false -%}
+	{%- if dc_pre > 0 and dc_lines > dc_pre -%}{%- assign dc_mixed = true -%}{%- endif -%}
+
+	{%- if dc_mixed and dc_fee_price == '' -%}
+		{%- assign dc_fee_product = all_products['second-delivery'] -%}
+		{%- for dc_v in dc_fee_product.variants -%}
+			{%- assign dc_v_id = dc_v.id | append: '' -%}
+			{%- if dc_v_id == dc_fee_id -%}
+				{%- assign dc_fee_price = dc_v.price -%}
+				{%- break -%}
+			{%- endif -%}
+		{%- endfor -%}
+	{%- endif -%}
+
+	{%- assign dc_split = false -%}
+	{%- if cart.attributes['Delivery preference'] == 'Ship separately' -%}{%- assign dc_split = true -%}{%- endif -%}
+
+	{%- if dc_store == 'us' -%}
+		{%- assign dc_pre_word = 'preorder' -%}
+	{%- else -%}
+		{%- assign dc_pre_word = 'pre-order' -%}
+	{%- endif -%}
+
+	{%- if dc_mixed and dc_fee_price != '' -%}
+	<noscript><style>.js-delivery-choice{display:none !important;}</style></noscript>
+	<fieldset class="c-delivery-choice js-delivery-choice" style="margin:0 0 12px;padding:10px 12px;border:2px solid currentColor;text-align:left;font-size:14px;line-height:1.4;">
+		<legend style="padding:0 4px;font-weight:bold;">Delivery</legend>
+		<label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 8px;cursor:pointer;">
+			<input type="radio" name="falcon-delivery-choice" class="js-delivery-choice-input" value="Ship together" style="margin-top:3px;"{% unless dc_split %} checked{% endunless %}>
+			<span>Ship everything together when the {{ dc_pre_word }} arrives. One delivery.</span>
+		</label>
+		<label style="display:flex;align-items:flex-start;gap:8px;margin:0;cursor:pointer;">
+			<input type="radio" name="falcon-delivery-choice" class="js-delivery-choice-input" value="Ship separately" style="margin-top:3px;"{% if dc_split %} checked{% endif %}>
+			<span>Ship in-stock items now and the {{ dc_pre_word }} when it arrives. Adds a second delivery charge of {{ dc_fee_price | money }}.</span>
+		</label>
+		<p class="js-delivery-choice-status" role="status" aria-live="polite" style="display:none;margin:8px 0 0;"></p>
+	</fieldset>
+	{%- endif -%}
+
+<script>
+(function defer() {
+	if (!window.jQuery) { setTimeout(defer, 50); return; }
+	jQuery(function ($) {
+		if (window.__falconDeliveryChoice) { return; }
+		window.__falconDeliveryChoice = true;
+
+		var FEE_ID = {{ dc_fee_id | json }};
+		var ATTR = 'Delivery preference';
+		var TOGETHER = 'Ship together';
+		var SEPARATELY = 'Ship separately';
+		var GUARD_KEY = 'falconDeliveryReconcile';
+		var CHECKOUT = '[name="checkout"], .js-checkout, a[href^="/checkout"]';
+		var EXPRESS = '.additional-checkout-buttons, .shopify-payment-button, [data-shopify="dynamic-checkout-cart"]';
+		var MESSAGES = {
+			updating: 'Updating...',
+			error: 'Sorry, we could not update your delivery choice. Please try again.'
+		};
+		var busy = false;
+		var $box = $('.js-delivery-choice');
+		var $inputs = $box.find('.js-delivery-choice-input');
+		var $status = $box.find('.js-delivery-choice-status');
+
+		function lock(on, message) {
+			busy = on;
+			$inputs.prop('disabled', on);
+			$(CHECKOUT).each(function () {
+				var $el = $(this);
+				if ($el.is('a')) {
+					$el.css('pointer-events', on ? 'none' : '').attr('aria-disabled', on ? 'true' : null);
+				} else {
+					$el.prop('disabled', on);
+				}
+			});
+			$(EXPRESS).css({ 'pointer-events': on ? 'none' : '', opacity: on ? '0.5' : '' });
+			if (message) {
+				$status.text(message).css('display', 'block');
+			} else if (!on) {
+				$status.text('').css('display', 'none');
+			}
+		}
+
+		function post(url, data) {
+			return $.ajax({ type: 'POST', url: url, data: data, dataType: 'json', cache: false });
+		}
+		function setAttr(value) {
+			var data = {};
+			data['attributes[' + ATTR + ']'] = value;
+			return post('/cart/update.js', data);
+		}
+		function addFee() {
+			return post('/cart/add.js', { id: FEE_ID, quantity: 1 });
+		}
+		function setQty(key, qty) {
+			return post('/cart/change.js', { id: key, quantity: qty });
+		}
+
+		function isFee(item) {
+			return String(item.variant_id) === String(FEE_ID);
+		}
+		function isPreorder(item) {
+			return !!(item.properties && item.properties._preorder_date);
+		}
+		function analyse(cart) {
+			var s = { fee: [], pre: 0, lines: 0, attr: (cart.attributes || {})[ATTR] || '' };
+			$.each(cart.items || [], function (i, item) {
+				if (isFee(item)) { s.fee.push(item); return; }
+				if (item.requires_shipping === false) { return; } // gift cards and digital lines never make a basket mixed
+				s.lines += 1;
+				if (isPreorder(item)) { s.pre += 1; }
+			});
+			s.mixed = s.pre > 0 && s.lines > s.pre;
+			return s;
+		}
+
+		// Runs the steps one after another. Resolves true if every step
+		// succeeded, false at the first failure.
+		function runSteps(steps) {
+			var d = $.Deferred();
+			var i = 0;
+			function next() {
+				if (i >= steps.length) { d.resolve(true); return; }
+				var step = steps[i++];
+				step().then(next, function () { d.resolve(false); });
+			}
+			next();
+			return d.promise();
+		}
+
+		// Steps that bring the fee lines in line with `want` (TOGETHER or SEPARATELY).
+		function feeSteps(s, want) {
+			var steps = [];
+			var keep = want === SEPARATELY && s.mixed ? 1 : 0;
+			$.each(s.fee, function (i, item) {
+				if (i < keep) {
+					if (item.quantity !== 1) { steps.push(function () { return setQty(item.key, 1); }); }
+				} else {
+					steps.push(function () { return setQty(item.key, 0); });
+				}
+			});
+			if (keep === 1 && s.fee.length === 0) { steps.push(addFee); }
+			return steps;
+		}
+
+		function reconcileSteps(s) {
+			var steps = [];
+			if (!s.mixed) {
+				steps = feeSteps(s, TOGETHER);
+				if (s.attr) { steps.push(function () { return setAttr(''); }); }
+				return steps;
+			}
+			var want = s.attr === SEPARATELY ? SEPARATELY : TOGETHER;
+			if (s.attr !== want) { steps.push(function () { return setAttr(want); }); }
+			return steps.concat(feeSteps(s, want));
+		}
+
+		function guardAllows() {
+			try {
+				var raw = window.sessionStorage.getItem(GUARD_KEY);
+				var g = raw ? JSON.parse(raw) : null;
+				var now = Date.now();
+				if (!g || now - g.t > 30000) { g = { t: now, n: 0 }; }
+				if (g.n >= 2) { return false; }
+				g.n += 1;
+				window.sessionStorage.setItem(GUARD_KEY, JSON.stringify(g));
+			} catch (e) {}
+			return true;
+		}
+
+		function reloadPage() {
+			window.location.href = window.location.pathname + window.location.search;
+		}
+
+		// On load: make the cart match the contract.
+		lock(true);
+		$.ajax({ url: '/cart.js', dataType: 'json', cache: false }).then(function (cart) {
+			var s = analyse(cart);
+			var steps = reconcileSteps(s);
+			if (!steps.length || !guardAllows()) { lock(false); return; }
+			lock(true, $box.length ? MESSAGES.updating : '');
+			runSteps(steps).then(function (ok) {
+				if (ok) { reloadPage(); return; }
+				// A fee that cannot be added (product unpublished, wrong id):
+				// fall back to together so the order and the cart agree.
+				setAttr(s.mixed ? TOGETHER : '').always(reloadPage);
+			});
+		}, function () { lock(false); });
+
+		// Customer changes the choice.
+		$inputs.on('change', function () {
+			if (busy) { return; }
+			var want = $inputs.filter(':checked').val() === SEPARATELY ? SEPARATELY : TOGETHER;
+			lock(true, MESSAGES.updating);
+			$.ajax({ url: '/cart.js', dataType: 'json', cache: false }).then(function (cart) {
+				var s = analyse(cart);
+				var steps = [function () { return setAttr(s.mixed ? want : ''); }].concat(feeSteps(s, want));
+				runSteps(steps).then(function (ok) {
+					if (ok) { reloadPage(); return; }
+					// Fall back to together, tell the customer, then reload so the
+					// on-load reconcile removes any fee line left behind.
+					setAttr(s.mixed ? TOGETHER : '').always(function () {
+						$inputs.filter('[value="' + TOGETHER + '"]').prop('checked', true);
+						$status.text(MESSAGES.error).css('display', 'block');
+						setTimeout(reloadPage, 2500);
+					});
+				});
+			}, function () {
+				lock(false, MESSAGES.error);
+			});
+		});
+	});
+})();
+</script>
+{%- endif -%}

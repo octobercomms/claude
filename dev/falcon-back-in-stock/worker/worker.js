@@ -23,6 +23,20 @@
 // ---------------------------------------------------------------------------
 
 export const HOLD_HANDLE = 'falcon-preorder';
+/** Hold on the in-stock part of a mixed order whose customer chose "Ship together". */
+export const SHIP_TOGETHER_HANDLE = 'falcon-ship-together';
+export const SHIP_TOGETHER_NOTES = 'Ship together with pre-order';
+/** Order attribute set by the theme (from the cart attribute) on mixed baskets. */
+export const DELIVERY_PREFERENCE_KEY = 'Delivery preference';
+/** Order tags for the delivery choice on mixed orders (shared contract with the theme). */
+export const DELIVERY_TAGS = {
+  together: 'ship-together',
+  separately: 'ship-separately',
+  feeMissing: 'split-fee-missing',
+  feeUnneeded: 'split-fee-unneeded',
+  /** Worker-internal marker: the ship-together holds of this order have been released. */
+  togetherReleased: 'ship-together-released',
+};
 export const DEFAULT_API_VERSION = '2026-07';
 export const TOKEN_TTL_DAYS = 120;
 export const FANOUT_MAX_PER_INVOCATION = 400;
@@ -127,7 +141,10 @@ export const orderTags = {
   oversold: (vid) => `oversold-v${vid}`,
 };
 
-/** Numeric variant ids from `restock-{id}` tags (not restock-request / restock-notified-*). */
+/** Customer tag: this customer asked not to be emailed about this variant again. */
+export const optoutTag = (vid) => `restock-optout-${numericId(vid)}`;
+
+/** Numeric variant ids from `restock-{id}` tags (not restock-request / restock-notified-* / restock-optout-*). */
 export function restockVariantIds(tags) {
   return parseTags(tags)
     .map((t) => t.match(/^restock-(\d+)$/i))
@@ -401,6 +418,57 @@ export function unlabelledOversell(order) {
 }
 
 /**
+ * Delivery preference of a mixed order, from the order attribute
+ * `Delivery preference` (key and value matched case-insensitively). A value
+ * containing "separately" means split; anything else, or no attribute, means
+ * ship together (the default).
+ */
+export function deliveryPreference(order) {
+  const attrs = (order && order.customAttributes) || [];
+  const want = DELIVERY_PREFERENCE_KEY.toLowerCase();
+  const a = attrs.find((x) => x && String(x.key || '').trim().toLowerCase() === want);
+  return a && /separately/i.test(String(a.value || '')) ? 'separately' : 'together';
+}
+
+/** Numeric id of the store's "Second delivery" fee variant ('' when not configured). */
+export function splitFeeVariantId(shop) {
+  return numericId(shop && shop.split_fee_variant_id);
+}
+
+/** True when a line is the store's "Second delivery" fee line. */
+export function isSplitFeeLine(li, feeVariantId) {
+  return !!(feeVariantId && li && li.variant && numericId(li.variant.id) === String(feeVariantId));
+}
+
+/**
+ * The order without its fee lines (shallow copy). Every preorder, mixed and
+ * oversell rule runs on this, so the fee line never counts as an item.
+ */
+export function withoutSplitFeeLines(order, feeVariantId) {
+  if (!feeVariantId || !order || !order.lineItems) return order;
+  const nodes = order.lineItems.nodes || [];
+  return { ...order, lineItems: { ...order.lineItems, nodes: nodes.filter((li) => !isSplitFeeLine(li, feeVariantId)) } };
+}
+
+/**
+ * Mixed basket (shared contract with the theme): at least one pre-order line
+ * AND at least one shippable line that is not a pre-order line. A pre-order
+ * line carries `_preorder_date` or has units held as unlabelled oversell
+ * (`heldByLine` maps line item GID -> units held as pre-order). Lines with
+ * `requiresShipping: false` or nothing left to ship never count. An order of
+ * only pre-order lines (even for several variants) is not mixed. Pass the
+ * order without its fee lines.
+ */
+export function isMixedOrder(order, heldByLine) {
+  const nodes = (order && order.lineItems && order.lineItems.nodes) || [];
+  const isPreorderLine = (li) => hasPreorderProperty(li) || (heldByLine.get(li.id) || 0) > 0;
+  let held = 0;
+  for (const q of heldByLine.values()) held += q;
+  if (!(held > 0)) return false;
+  return nodes.some((li) => !isPreorderLine(li) && li.requiresShipping !== false && lineOpenQty(li) > 0);
+}
+
+/**
  * Has a US keep-by deadline passed? The email says "by {date}" and US
  * customers read that in their own time zone, which is up to 10 hours behind
  * UTC. So the date counts as passed only once the whole following UTC day is
@@ -443,7 +511,7 @@ async function hmacKey(secret, usage) {
 /**
  * Link token: base64url(payload JSON) + '.' + base64url(HMAC-SHA256(secret, payload JSON)).
  * Payload keys: s store, a action (u|k|c), c customer id, o order id,
- * v variant id, n delay number, exp (unix seconds).
+ * v variant id (on u: optional, one product only), n delay number, exp (unix seconds).
  */
 export async function signToken(payload, secret, { nowMs = runtime.now(), ttlDays = TOKEN_TTL_DAYS } = {}) {
   const body = { ...payload };
@@ -707,11 +775,12 @@ const Q_CUSTOMERS_BY_TAG = `query FalconCustomersByTag($q: String!, $after: Stri
   customers(first: 100, after: $after, query: $q) { pageInfo { hasNextPage endCursor } nodes { ${CUSTOMER_FIELDS} } }
 }`;
 
-// VERIFY: LineItem.unfulfilledQuantity, Order.statusPageUrl, Order.email on 2026-07.
+// VERIFY: LineItem.unfulfilledQuantity, LineItem.requiresShipping, Order.customAttributes, Order.statusPageUrl, Order.email on 2026-07.
 const ORDER_CORE = `
   id name createdAt tags email cancelledAt closed statusPageUrl
   customer { id firstName }
-  lineItems(first: 30) { nodes { id quantity unfulfilledQuantity title variantTitle variant { id title inventoryQuantity inventoryPolicy inventoryItem { tracked } } product { title } customAttributes { key value } } }
+  customAttributes { key value }
+  lineItems(first: 30) { nodes { id quantity unfulfilledQuantity requiresShipping title variantTitle variant { id title inventoryQuantity inventoryPolicy inventoryItem { tracked } } product { title } customAttributes { key value } } }
 `;
 // VERIFY: FulfillmentHold.handle (added 2025-01) and FulfillmentOrderLineItem.lineItem.
 const FO_FIELDS = `
@@ -736,6 +805,11 @@ const M_WAITLIST_DONE = `mutation FalconWaitlistDone($id: ID!, $add: [String!]!,
   removed: tagsRemove(id: $id, tags: $remove) { node { id } userErrors { field message } }
 }`;
 // VERIFY: CustomerInput.email + tags on customerCreate (2026-07); no account invite is sent.
+// Per-product opt-out: add the opt-out tag first, then leave that one waitlist.
+const M_WAITLIST_OPTOUT = `mutation FalconWaitlistOptOut($id: ID!, $add: [String!]!, $remove: [String!]!) {
+  added: tagsAdd(id: $id, tags: $add) { node { id } userErrors { field message } }
+  removed: tagsRemove(id: $id, tags: $remove) { node { id } userErrors { field message } }
+}`;
 const M_CUSTOMER_CREATE = `mutation FalconCustomerCreate($input: CustomerInput!) {
   customerCreate(input: $input) { customer { ${CUSTOMER_FIELDS} } userErrors { field message } }
 }`;
@@ -854,6 +928,14 @@ async function listOpenOrdersWithTag(ctx, tag) {
 
 function ourHolds(fo) {
   return (fo.fulfillmentHolds || []).filter((h) => h && h.handle === HOLD_HANDLE);
+}
+
+function shipTogetherHolds(fo) {
+  return (fo.fulfillmentHolds || []).filter((h) => h && h.handle === SHIP_TOGETHER_HANDLE);
+}
+
+function openFoLines(fo) {
+  return ((fo.lineItems && fo.lineItems.nodes) || []).filter((l) => Number(l.remainingQuantity) > 0);
 }
 
 function foLinesForVariant(fo, variantId) {
@@ -1077,7 +1159,48 @@ async function findCustomerByEmail(ctx, email) {
   return nodes.find((c) => c.defaultEmailAddress && String(c.defaultEmailAddress.emailAddress || '').toLowerCase() === lower) || null;
 }
 
-async function handleSubscribe(request, env) {
+/** Storefront link to one variant. */
+function productUrlFor(ctx, variant) {
+  return `${String(ctx.shop.storefront || '').replace(/\/+$/, '')}/products/${variant.handle}?variant=${variant.id}`;
+}
+
+/**
+ * "You're on the waitlist" email after a NEW sign-up. Never throws: a failure
+ * is logged and the sign-up stands (the tag is already on the customer).
+ * Skipped (logged) when SHOPS[store].templates.waitlist_joined is not set.
+ */
+export async function sendWaitlistJoined(ctx, { customerId, email, name = '', variant }) {
+  try {
+    if (!(ctx.shop.templates && ctx.shop.templates.waitlist_joined)) {
+      log('waitlist_joined_no_template', { store: ctx.store, variant_id: variant.id });
+      return { ok: false, skipped: 'no_template' };
+    }
+    const cid = numericId(customerId);
+    const optoutToken = await linkToken(ctx, { s: ctx.store, a: 'u', c: cid, v: variant.id });
+    const allToken = await linkToken(ctx, { s: ctx.store, a: 'u', c: cid });
+    const res = await sendEmail(ctx, {
+      template: 'waitlist_joined',
+      to: { email, name },
+      params: {
+        store: ctx.store,
+        product_title: variant.productTitle,
+        variant_title: cleanVariantTitle(variant.title),
+        product_url: productUrlFor(ctx, variant),
+        image_url: variant.imageUrl || '',
+        optout_url: linkUrl(ctx, '/u', optoutToken),
+        remove_all_url: linkUrl(ctx, '/u', allToken),
+      },
+      key: `joined|${ctx.store}|${variant.id}|${cid}|${ctx.today}`,
+    });
+    if (!res.ok) log('waitlist_joined_failed', { store: ctx.store, customer: customerId, variant_id: variant.id, error: res.error });
+    return res;
+  } catch (err) {
+    log('waitlist_joined_failed', { store: ctx.store, customer: customerId, variant_id: variant.id, error: String(err.message || err) });
+    return { ok: false, error: 'exception' };
+  }
+}
+
+async function handleSubscribe(request, env, execCtx = null) {
   const origin = request.headers.get('Origin') || '';
   let body;
   try {
@@ -1106,12 +1229,14 @@ async function handleSubscribe(request, env) {
 
   let ctx;
   try {
-    ctx = makeCtx(env, store);
+    ctx = makeCtx(env, store, { baseUrl: new URL(request.url).origin });
     const variant = await getVariant(ctx, variantId);
     if (!variant) return reply({ ok: false, error: 'unknown_variant' });
 
     const waitTag = `restock-${variantId}`;
     let customer = await findCustomerByEmail(ctx, email);
+    // Newly on this waitlist? Only then is the "you're on the waitlist" email sent.
+    let newlyAdded = !customer || !hasExactTag(customer.tags, waitTag);
     if (!customer) {
       const created = await mutate(ctx, 'customerCreate', M_CUSTOMER_CREATE, { input: { email, tags: ['restock-request', waitTag] } }, { email: maskEmail(email), variant_id: variantId });
       if (created.ok && created.data.customerCreate.customer) {
@@ -1120,15 +1245,18 @@ async function handleSubscribe(request, env) {
         // Most likely a race ("email has already been taken"): look it up again.
         customer = await findCustomerByEmail(ctx, email);
         if (!customer) return reply({ ok: false, error: 'server' }, 500);
+        newlyAdded = !hasExactTag(customer.tags, waitTag);
       }
     }
     // tagsAdd is idempotent, so run it even for a just-created customer.
     const tagged = await addTags(ctx, customer.id, ['restock-request', waitTag], { variant_id: variantId });
     if (!tagged.ok) return reply({ ok: false, error: 'server' }, 500);
     // A new sign-up after an earlier notification: clear the old marker so the
-    // fan-out does not mistake this for an unfinished earlier send.
-    if (hasExactTag(customer.tags, `restock-notified-${variantId}`)) {
-      await removeTags(ctx, customer.id, [`restock-notified-${variantId}`], { variant_id: variantId });
+    // fan-out does not mistake this for an unfinished earlier send. A sign-up
+    // after a per-product opt-out: they asked again, so the opt-out goes.
+    const stale = [`restock-notified-${variantId}`, optoutTag(variantId)].filter((t) => hasExactTag(customer.tags, t));
+    if (stale.length) {
+      await removeTags(ctx, customer.id, stale, { variant_id: variantId });
     }
 
     // Consent: only ever upgrade to SUBSCRIBED when the box was ticked. Never downgrade.
@@ -1154,7 +1282,13 @@ async function handleSubscribe(request, env) {
         // A consent failure does not fail the waitlist sign-up; it is logged above.
       }
     }
-    log('subscribed', { store, customer: customer.id, variant_id: variantId, email: maskEmail(email), marketing: body.marketing === true });
+    log('subscribed', { store, customer: customer.id, variant_id: variantId, email: maskEmail(email), marketing: body.marketing === true, new_signup: newlyAdded });
+    if (newlyAdded) {
+      const joined = sendWaitlistJoined(ctx, { customerId: customer.id, email, name: customer.firstName || '', variant });
+      // Never delays or fails the sign-up: after the response when possible.
+      if (execCtx && typeof execCtx.waitUntil === 'function') execCtx.waitUntil(joined);
+      else await joined;
+    }
     return reply({ ok: true });
   } catch (err) {
     log('subscribe_error', { store, error: String(err.message || err) });
@@ -1211,6 +1345,71 @@ async function holdOrderLines(ctx, order, variantId, fulfillmentOrders, want, no
   return results;
 }
 
+/**
+ * Ship together: hold every fulfillment order that still has unfulfilled
+ * lines and no `falcon-preorder` hold (after the pre-order holds, these carry
+ * the in-stock lines, split off by the partial holds). Whole fulfillment
+ * orders only, handle `falcon-ship-together`. Idempotent: one already held
+ * with that handle counts as done.
+ */
+async function holdShipTogether(ctx, order, fulfillmentOrders) {
+  const results = [];
+  for (const fo of fulfillmentOrders) {
+    if (!openFoLines(fo).length) continue;
+    if (ourHolds(fo).length) continue; // the pre-order part
+    if (shipTogetherHolds(fo).length) {
+      results.push({ fo: fo.id, ok: true, already: true });
+      continue;
+    }
+    if (fo.status !== 'OPEN') {
+      results.push({ fo: fo.id, ok: false, reason: `fulfillment order status ${fo.status} (ship together)` });
+      continue;
+    }
+    const input = { reason: 'OTHER', reasonNotes: SHIP_TOGETHER_NOTES, handle: SHIP_TOGETHER_HANDLE, notifyMerchant: false };
+    const r = await mutate(ctx, 'fulfillmentOrderHold', M_HOLD, { id: fo.id, fulfillmentHold: input }, { order: order.name, fulfillment_order: fo.id, ship_together: true });
+    results.push({ fo: fo.id, ok: r.ok, reason: r.ok ? '' : r.userErrors.map((e) => e.message).join('; ') });
+  }
+  return results;
+}
+
+/**
+ * Release the `falcon-ship-together` holds of a ship-together order once no
+ * pre-order unit is left to wait for: no fulfillment order still carries a
+ * `falcon-preorder` hold with unfulfilled lines (each pre-order item was
+ * released, fulfilled, refunded or removed). Only for orders whose holds all
+ * went on (`preorder` tag, no `preorder-hold-failed`). Tags
+ * `ship-together-released` when done. Returns { released, pending, problems }.
+ */
+export async function releaseShipTogetherIfDone(ctx, order) {
+  const out = { released: false, pending: false, problems: [] };
+  const tags = order.tags;
+  if (!hasExactTag(tags, DELIVERY_TAGS.together) || hasExactTag(tags, DELIVERY_TAGS.togetherReleased)) return out;
+  if (!hasExactTag(tags, 'preorder') || hasExactTag(tags, 'preorder-hold-failed')) {
+    out.pending = true;
+    return out;
+  }
+  const fos = await getOrderFulfillmentOrders(ctx, order.id);
+  if (fos.some((fo) => ourHolds(fo).length && openFoLines(fo).length)) {
+    out.pending = true;
+    return out;
+  }
+  const held = fos.filter((fo) => shipTogetherHolds(fo).length);
+  for (const fo of held) {
+    const holdIds = shipTogetherHolds(fo).map((h) => h.id);
+    const r = await mutate(ctx, 'fulfillmentOrderReleaseHold', M_RELEASE, { id: fo.id, holdIds }, { order: order.name, fulfillment_order: fo.id, ship_together: true });
+    if (!r.ok) out.problems.push(['Ship-together release failed', order.name, `${r.userErrors.map((e) => e.message).join('; ')}. Release the "${SHIP_TOGETHER_NOTES}" hold by hand`]);
+  }
+  if (!out.problems.length) {
+    const t = await addTags(ctx, order.id, [DELIVERY_TAGS.togetherReleased], { order: order.name });
+    if (!t.ok) log('ship_together_tag_failed', { store: ctx.store, order: order.name });
+    if (!ctx.cache.shipTogetherDone) ctx.cache.shipTogetherDone = new Set();
+    ctx.cache.shipTogetherDone.add(order.id);
+    out.released = held.length > 0;
+    log('ship_together_released', { store: ctx.store, order: order.name, fulfillment_orders: held.length });
+  }
+  return out;
+}
+
 /** Same state rule as the theme, ignoring the cap (the cap check runs separately). */
 export function hasValidPreorderSetup(variant, today) {
   if (!variant || !variant.tracked) return false;
@@ -1251,9 +1450,13 @@ export async function handleOrderHook(ctx, body, { source = 'flow' } = {}) {
     log('order_hook_skip_cancelled', { store: ctx.store, order: order.name });
     return { status: 200, body: { ok: true, skipped: 'cancelled' } };
   }
-  if (!orderNeedsPreorderCheck(order)) return { status: 200, body: { ok: true, preorder: false } };
+  // The "Second delivery" fee line is never an item: every rule below runs without it.
+  const feeVid = splitFeeVariantId(ctx.shop);
+  const feeLines = ((order.lineItems && order.lineItems.nodes) || []).filter((li) => isSplitFeeLine(li, feeVid));
+  const items = withoutSplitFeeLines(order, feeVid);
+  if (!orderNeedsPreorderCheck(items) && !feeLines.length) return { status: 200, body: { ok: true, preorder: false } };
 
-  const lines = preorderLinesFromOrder(order);
+  const lines = preorderLinesFromOrder(items);
   const problems = [];
   // variantId -> Map(lineItemGid -> units to hold)
   const holdSpec = new Map();
@@ -1274,7 +1477,7 @@ export async function handleOrderHook(ctx, body, { source = 'flow' } = {}) {
   const variantCache = new Map();
   const unlabelledVariants = [];
   const oversoldTags = [];
-  for (const u of unlabelledOversell(order)) {
+  for (const u of unlabelledOversell(items)) {
     let variant;
     try {
       variant = await getVariant(ctx, u.variantId);
@@ -1306,10 +1509,38 @@ export async function handleOrderHook(ctx, body, { source = 'flow' } = {}) {
   }
 
   const variantIds = [...holdSpec.keys()];
-  if (!variantIds.length && !oversoldTags.length && !problems.length) return { status: 200, body: { ok: true, preorder: false } };
+
+  // Mixed basket: the customer's delivery choice (shared contract with the theme).
+  const heldByLine = new Map();
+  for (const m of holdSpec.values()) for (const [lineId, q] of m) heldByLine.set(lineId, (heldByLine.get(lineId) || 0) + q);
+  const mixed = isMixedOrder(items, heldByLine);
+  const delivery = mixed ? deliveryPreference(order) : null;
+  const deliveryTags = [];
+  const feeText = feeLines.length ? `${feeLines.map((li) => li.title || 'Second delivery').join(', ')}` : '';
+  const flagOnce = (tag, row) => {
+    deliveryTags.push(tag);
+    if (!hasExactTag(order.tags, tag)) problems.push(row);
+  };
+  if (delivery === 'separately') {
+    deliveryTags.push(DELIVERY_TAGS.separately);
+    if (!feeLines.length) {
+      flagOnce(DELIVERY_TAGS.feeMissing, ['Ship separately chosen, no delivery fee paid', order.name, 'The order has no Second delivery line. The pre-order item(s) will ship separately anyway, as the customer chose. Decide whether to charge the fee']);
+    }
+  } else if (delivery === 'together') {
+    deliveryTags.push(DELIVERY_TAGS.together);
+    if (feeLines.length) {
+      flagOnce(DELIVERY_TAGS.feeUnneeded, ['Delivery fee paid but not needed', `${order.name}: ${feeText}`, 'The customer chose Ship together, so everything ships in one delivery. Refund the Second delivery fee']);
+    }
+  } else if (feeLines.length) {
+    flagOnce(DELIVERY_TAGS.feeUnneeded, ['Delivery fee paid but not needed', `${order.name}: ${feeText}`, 'This order has nothing to ship separately (not a mix of pre-order and in-stock items). Refund the Second delivery fee']);
+  }
+  const shipTogether = delivery === 'together';
+
+  const newDeliveryTags = deliveryTags.filter((t) => !hasExactTag(order.tags, t));
+  if (!variantIds.length && !oversoldTags.length && !problems.length && !newDeliveryTags.length) return { status: 200, body: { ok: true, preorder: false } };
 
   // Tag per-variant first so the release and daily jobs can always find the order.
-  const firstTags = [...variantIds.map((v) => `preorder-v${v}`), ...(unlabelledVariants.length ? ['preorder-unlabelled'] : []), ...oversoldTags];
+  const firstTags = [...variantIds.map((v) => `preorder-v${v}`), ...(unlabelledVariants.length ? ['preorder-unlabelled'] : []), ...oversoldTags, ...deliveryTags];
   if (firstTags.length) {
     const vt = await addTags(ctx, order.id, firstTags, { order: order.name });
     if (!vt.ok) problems.push(['Tagging', order.name, vt.userErrors.map((e) => e.message).join('; ')]);
@@ -1322,6 +1553,15 @@ export async function handleOrderHook(ctx, body, { source = 'flow' } = {}) {
     const notes = `Pre-order, expected ${[...(notesDates.get(v) || [])].join(', ')}`;
     const res = await holdOrderLines(ctx, order, v, fos, holdSpec.get(v), notes);
     for (const r of res) if (!r.ok) problems.push(['Hold failed', `${order.name}, variant ${v}`, r.reason || 'see logs']);
+  }
+
+  // Ship together: hold the in-stock part too, but only once every pre-order
+  // hold is on (otherwise a pre-order line could end up inside the
+  // ship-together hold, and a retry could not hold it on its own).
+  if (shipTogether && variantIds.length && !problems.some((p) => p[0] === 'Hold failed')) {
+    fos = await getOrderFulfillmentOrders(ctx, order.id);
+    const res = await holdShipTogether(ctx, order, fos);
+    for (const r of res) if (!r.ok) problems.push(['Hold failed', `${order.name}, in-stock items (ship together)`, r.reason || 'see logs']);
   }
 
   // Cap: at or past the limit, stop selling. Past it: flag the order.
@@ -1359,7 +1599,7 @@ export async function handleOrderHook(ctx, body, { source = 'flow' } = {}) {
   if (problems.length && !alreadyAlerted) {
     await staffAlert(ctx, {
       subject: `Pre-order order ${order.name} needs attention`,
-      intro: `The Worker processed order ${order.name} and found the items below. Admin: ${adminOrderUrl(ctx, order.id)}${holdFailed ? '. A hold failed: hold the pre-order line(s) by hand, or wait for the automatic retry (every Flow retry and the daily job try again; you will not be emailed again about this order).' : ''}`,
+      intro: `The Worker processed order ${order.name} and found the items below. Admin: ${adminOrderUrl(ctx, order.id)}${holdFailed ? '. A hold failed: hold the pre-order line(s) (and, for Ship together, the rest of the order) by hand, or wait for the automatic retry (every Flow retry and the daily job try again; you will not be emailed again about this order).' : ''}`,
       rows: [['Issue', 'Item', 'Detail'], ...problems],
       key: `order|${numericId(order.id)}|${ctx.today}|${[...new Set(problems.map((p) => p[0]))].sort().join(',')}`,
     });
@@ -1372,14 +1612,16 @@ export async function handleOrderHook(ctx, body, { source = 'flow' } = {}) {
     return { status: 500, body: { ok: false, error: 'hold_failed', problems: problems.length } };
   }
   if (!variantIds.length) {
-    log('order_hook_oversold', { store: ctx.store, order: order.name, tags: oversoldTags });
-    return { status: 200, body: { ok: true, preorder: false, oversold: oversoldTags.map((t) => t.slice('oversold-v'.length)) } };
+    log('order_hook_no_preorder', { store: ctx.store, order: order.name, tags: [...oversoldTags, ...deliveryTags] });
+    const out = { ok: true, preorder: false, oversold: oversoldTags.map((t) => t.slice('oversold-v'.length)) };
+    if (deliveryTags.length) out.delivery_tags = deliveryTags;
+    return { status: 200, body: out };
   }
   const done = await addTags(ctx, order.id, ['preorder'], { order: order.name });
   if (!done.ok) return { status: 500, body: { ok: false, error: 'tag_failed' } };
   if (hasExactTag(order.tags, 'preorder-hold-failed')) await removeTags(ctx, order.id, ['preorder-hold-failed'], { order: order.name });
-  log('order_hook_done', { store: ctx.store, order: order.name, variants: variantIds, unlabelled: unlabelledVariants, over_cap: overCap, source });
-  return { status: 200, body: { ok: true, preorder: true, variants: variantIds, unlabelled: unlabelledVariants, over_cap: overCap } };
+  log('order_hook_done', { store: ctx.store, order: order.name, variants: variantIds, unlabelled: unlabelledVariants, over_cap: overCap, delivery, source });
+  return { status: 200, body: { ok: true, preorder: true, variants: variantIds, unlabelled: unlabelledVariants, over_cap: overCap, delivery } };
 }
 
 // ---------------------------------------------------------------------------
@@ -1430,6 +1672,7 @@ export async function releaseForVariant(ctx, variantId, inventoryQuantity, order
   log('release_plan', { store: ctx.store, variant_id: vid, inventory_quantity: inventoryQuantity, held_units: heldUnits, stock_for_preorders: stockForPreorders, held_orders: held.length, releasing: toRelease.map((o) => o.name), incomplete });
 
   const released = [];
+  const shipTogetherReleased = [];
   const problems = [];
   for (const o of toRelease) {
     if (pastDeadline()) {
@@ -1461,6 +1704,13 @@ export async function releaseForVariant(ctx, variantId, inventoryQuantity, order
       const t = await addTags(ctx, o.id, [releasedTag], { order: o.name });
       if (!t.ok) problems.push(['Tagging', o.name, `released but could not tag ${releasedTag}`]);
       released.push(o.name);
+      // Ship together: once every pre-order item is covered, the rest goes too.
+      const full = candidates.find((c) => c.id === o.id) || o;
+      if (hasExactTag(full.tags, DELIVERY_TAGS.together) && !hasExactTag(full.tags, DELIVERY_TAGS.togetherReleased)) {
+        const st = await releaseShipTogetherIfDone(ctx, full);
+        problems.push(...st.problems);
+        if (st.released) shipTogetherReleased.push(o.name);
+      }
     }
   }
   if (problems.length) {
@@ -1471,7 +1721,7 @@ export async function releaseForVariant(ctx, variantId, inventoryQuantity, order
       key: `release|${vid}|${ctx.today}`,
     });
   }
-  return { released, held_units: heldUnits, stock_for_preorders: stockForPreorders, problems: problems.length, incomplete };
+  return { released, ship_together_released: shipTogetherReleased, held_units: heldUnits, stock_for_preorders: stockForPreorders, problems: problems.length, incomplete };
 }
 
 // ---------------------------------------------------------------------------
@@ -1517,7 +1767,7 @@ export async function fanOutWaitlist(ctx, variant, budget) {
   if (!batch.length) return stats;
 
   const currency = await shopCurrency(ctx);
-  const productUrl = `${String(ctx.shop.storefront).replace(/\/+$/, '')}/products/${variant.handle}?variant=${vid}`;
+  const productUrl = productUrlFor(ctx, variant);
   const baseParams = {
     store: ctx.store,
     product_title: variant.productTitle,
@@ -1551,6 +1801,13 @@ export async function fanOutWaitlist(ctx, variant, budget) {
       return;
     }
     c = current;
+    if (hasExactTag(c.tags, optoutTag(vid))) {
+      // Asked not to be emailed about this product: no email; tidy the list (not in DRY_RUN).
+      stats.skipped++;
+      log('fanout_opted_out', { store: ctx.store, customer: c.id, variant_id: vid });
+      if (!ctx.dryRun) await removeTags(ctx, c.id, [waitTag], { variant_id: vid, reason: 'opted_out' });
+      return;
+    }
     if (hasExactTag(c.tags, notifiedTag)) {
       // Emailed already; an earlier run stopped before removing the wait tag. Finish up, no email.
       if (!ctx.dryRun) {
@@ -1572,10 +1829,11 @@ export async function fanOutWaitlist(ctx, variant, budget) {
     }
     budget.emails--;
     const removeToken = await linkToken(ctx, { s: ctx.store, a: 'u', c: cid });
+    const optoutToken = await linkToken(ctx, { s: ctx.store, a: 'u', c: cid, v: vid });
     const sent = await sendEmail(ctx, {
       template: 'bis',
       to: { email, name: c.firstName || '' },
-      params: { ...baseParams, remove_url: linkUrl(ctx, '/u', removeToken) },
+      params: { ...baseParams, remove_url: linkUrl(ctx, '/u', removeToken), optout_url: linkUrl(ctx, '/u', optoutToken) },
       key: `bis|${ctx.store}|${vid}|${cid}|${ctx.today}`,
     });
     if (!sent.ok) {
@@ -1753,6 +2011,8 @@ export async function processDateChange(ctx, v, rows, orders = null) {
       new_date: formatDate(newDate, ctx.store),
       reason: v.delayReason || '',
       cancel_url: linkUrl(ctx, '/c', cancelToken),
+      // The customer chose "Ship together": the rest of the order waits for this item.
+      ship_together: isShipTogetherWaiting(order),
     };
     if (cls.template === 'delay_uk') {
       params.withdrawal_url = ctx.store === 'eu' ? ctx.shop.withdrawal_url || '' : '';
@@ -1800,6 +2060,11 @@ export async function processDateChange(ctx, v, rows, orders = null) {
   }
   log('date_change_done', { store: ctx.store, variant_id: v.id, old_date: oldDate, new_date: newDate, later, first_setup: firstSetup, orders: pending.length, sent, failures, dry_run: ctx.dryRun });
   return { changed: true, sent, failures };
+}
+
+/** A ship-together order whose in-stock part is still waiting for its pre-order item(s). */
+export function isShipTogetherWaiting(order) {
+  return hasExactTag(order && order.tags, DELIVERY_TAGS.together) && !hasExactTag(order && order.tags, DELIVERY_TAGS.togetherReleased);
 }
 
 /** "Pie Dish Grey (111)" from the order's own line, for staff emails. */
@@ -1926,6 +2191,22 @@ export async function runDailyForStore(ctx, { budget } = {}) {
       summary.released += r.released.length;
     } catch (err) {
       rows.push(['Release job error', `${v.productTitle} (${id})`, String(err.message || err)]);
+    }
+  }
+
+  // 4b. Ship together: nothing left to wait for (e.g. the pre-order item was
+  // refunded or cancelled, or its hold released by hand): release the rest.
+  for (const o of openOrders) {
+    if (!isShipTogetherWaiting(o) || (ctx.cache.shipTogetherDone && ctx.cache.shipTogetherDone.has(o.id))) continue;
+    try {
+      const r = await releaseShipTogetherIfDone(ctx, o);
+      rows.push(...r.problems);
+      if (r.released) {
+        summary.ship_together_released = (summary.ship_together_released || 0) + 1;
+        rows.push(['Ship-together order released', o.name, 'No pre-order item left to wait for (released, shipped, refunded or cancelled), so the rest of the order has been released to ship. Check any cancelled pre-order item was refunded']);
+      }
+    } catch (err) {
+      rows.push(['Ship-together release job error', o.name, String(err.message || err)]);
     }
   }
 
@@ -2096,11 +2377,33 @@ async function handleLinkPage(request, env, action) {
   const contact = ctx.shop.sender && ctx.shop.sender.email ? ctx.shop.sender.email : '';
   const helpLine = contact ? `If you have any questions, email ${contact}.` : '';
 
-  // ---- /u: leave every back-in-stock waiting list
+  // ---- /u: with `v`, stop emails about one product; without, leave every waitlist
   if (action === 'u') {
     const customerGid = toGid('Customer', payload.c);
+    const optVid = payload.v === undefined || payload.v === null ? '' : numericId(payload.v);
+    if (optVid) {
+      const variant = await getVariant(ctx, optVid).catch(() => null);
+      const productName = variant ? `${variant.productTitle} ${cleanVariantTitle(variant.title)}`.replace(/\s+/g, ' ').trim() : '';
+      const product = productName || 'this product';
+      if (request.method === 'GET') {
+        return renderPage({
+          store,
+          title: `Stop emails about ${product}?`,
+          paragraphs: [`We will take you off the waitlist for ${product} and will not email you about it again. Other waitlists you joined are not affected.`],
+          form: { action: '/u', token, button: 'Stop these emails' },
+        });
+      }
+      const r = await mutate(ctx, 'waitlistOptOut', M_WAITLIST_OPTOUT, { id: customerGid, add: [optoutTag(optVid)], remove: [`restock-${optVid}`] }, { customer: customerGid, variant_id: optVid, reason: 'customer_optout_product' });
+      if (!r.ok) return renderPage({ store, title: 'Something went wrong', paragraphs: ['We could not update your details just now. Please try again in a few minutes.', helpLine], form: { action: '/u', token, button: 'Try again' }, status: 500 });
+      log('waitlist_optout_product', { store, customer: customerGid, variant_id: optVid });
+      return renderPage({
+        store,
+        title: `We won't email you about ${product}`,
+        paragraphs: ['Other waitlists you joined are not affected. This does not change any orders or newsletter settings. If you change your mind, join the waitlist again on the product page.', helpLine],
+      });
+    }
     if (request.method === 'GET') {
-      return renderPage({ store, title: 'Stop back-in-stock emails?', paragraphs: ['We will take you off every back-in-stock list you joined, so you will not get these emails from us.'], form: { action: '/u', token, button: 'Remove me' } });
+      return renderPage({ store, title: 'Leave all waitlists?', paragraphs: ['We will take you off every back-in-stock waitlist you joined, so you will not get these emails from us.'], form: { action: '/u', token, button: 'Leave all waitlists' } });
     }
     const data = await shopifyGraphQL(ctx, Q_CUSTOMER, { id: customerGid });
     const customer = data && data.customer;
@@ -2110,7 +2413,7 @@ async function handleLinkPage(request, env, action) {
       if (!r.ok) return renderPage({ store, title: 'Something went wrong', paragraphs: ['We could not update your details just now. Please try again in a few minutes.', helpLine], form: { action: '/u', token, button: 'Try again' }, status: 500 });
     }
     log('waitlist_removed', { store, customer: customerGid, lists: ids.length });
-    return renderPage({ store, title: 'You have been removed', paragraphs: ['You will not get back-in-stock emails from us. This does not change any orders or newsletter settings.', helpLine] });
+    return renderPage({ store, title: 'You have left all waitlists', paragraphs: ['You will not get back-in-stock emails from us. This does not change any orders or newsletter settings.', helpLine] });
   }
 
   // ---- /k and /c: order actions, always for one variant of one order
@@ -2179,7 +2482,9 @@ async function handleLinkPage(request, env, action) {
   }
   await staffAlert(ctx, {
     subject: `Cancel request: ${orderName}, ${staffItem}, refund by ${formatDate(refundBy, store)}`,
-    intro: `The customer asked to cancel one ${c.preorder} item using the link in the date-change email. Cancel only this item (${openUnits} unfulfilled unit(s)); other items in the order are not affected. The Worker does not cancel or refund; please cancel it and refund it in full${store === 'us' ? '' : ', including delivery,'} by ${formatDate(refundBy, store)}.`,
+    intro: `The customer asked to cancel one ${c.preorder} item using the link in the date-change email. Cancel only this item (${openUnits} unfulfilled unit(s)); other items in the order are not affected. The Worker does not cancel or refund; please cancel it and refund it in full${store === 'us' ? '' : ', including delivery,'} by ${formatDate(refundBy, store)}.${
+      isShipTogetherWaiting(order) ? ` The customer chose Ship together. After cancelling the pre-order item, the rest of this order will be released automatically at the next daily check (or release it now by hand).` : ''
+    }`,
     rows: [
       ['Order', 'Item', 'Quantity', 'Requested', 'Refund by', 'Admin'],
       [orderName, staffItem, String(openUnits), formatDate(ctx.today, store), formatDate(refundBy, store), adminOrderUrl(ctx, order.id)],
@@ -2252,7 +2557,7 @@ export async function handleRequest(request, env, ctx) {
       if (!originAllowed(env, origin)) return new Response(null, { status: 403 });
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
-    if (method === 'POST') return handleSubscribe(request, env);
+    if (method === 'POST') return handleSubscribe(request, env, ctx);
     return json({ ok: false, error: 'method_not_allowed' }, 405, { Allow: 'POST, OPTIONS' });
   }
   if (path === '/hooks/order' || path === '/hooks/inventory' || path === '/hooks/daily') {

@@ -9,7 +9,17 @@
 
   Mode 2: the basket notice, shown once when any line has _preorder_date.
   Place it once, outside the items loop (above the checkout button works well):
-    {% render 'preorder-cart-line', mode: 'notice', cart: cart %}
+    {% render 'preorder-cart-line', mode: 'notice', cart: cart, fee_variant_id: falcon_split_fee_variant_id %}
+  The wording follows the delivery choice (snippets/delivery-choice.liquid):
+    mixed basket, cart attribute `Delivery preference` = `Ship separately`:
+      "Pre-order items ship separately when they arrive. Anything in stock ships now."
+    mixed basket, `Ship together` or no attribute (the default):
+      "Everything ships together when the pre-order arrives."
+    only pre-order lines:
+      "Pre-order items ship when they arrive."
+  (US: "Preorder" / "preorder".) Mixed = a _preorder_date line plus at least
+  one other line that is not the split-fee line. The fee line is recognised
+  by `fee_variant_id` (optional) or by its product handle `second-delivery`.
 
   Optional in both modes: `store: falcon_store` ('uk'|'us'|'eu'). If not
   passed, the store is worked out from shop.currency (GBP uk, USD us, EUR eu),
@@ -31,20 +41,37 @@
 {%- endif -%}
 
 {%- if mode == 'notice' -%}
-	{%- assign pcl_has_preorder = false -%}
+	{%- assign pcl_fee_id = fee_variant_id | append: '' -%}
+	{%- assign pcl_pre = 0 -%}
+	{%- assign pcl_lines = 0 -%}
 	{%- for pcl_item in cart.items -%}
+		{%- assign pcl_item_id = pcl_item.variant_id | append: '' -%}
+		{%- if pcl_item.product.handle == 'second-delivery' or pcl_fee_id != blank and pcl_item_id == pcl_fee_id -%}{%- continue -%}{%- endif -%}
+		{%- assign pcl_lines = pcl_lines | plus: 1 -%}
 		{%- for pcl_prop in pcl_item.properties -%}
 			{%- if pcl_prop.first == '_preorder_date' and pcl_prop.last != blank -%}
-				{%- assign pcl_has_preorder = true -%}
+				{%- assign pcl_pre = pcl_pre | plus: 1 -%}
+				{%- break -%}
 			{%- endif -%}
 		{%- endfor -%}
 	{%- endfor -%}
-	{%- if pcl_has_preorder -%}
+	{%- if pcl_pre > 0 -%}
+		{%- if pcl_store == 'us' -%}
+			{%- assign pcl_label = 'Preorder' -%}
+			{%- assign pcl_word = 'preorder' -%}
+		{%- else -%}
+			{%- assign pcl_label = 'Pre-order' -%}
+			{%- assign pcl_word = 'pre-order' -%}
+		{%- endif -%}
 		<p class="c-preorder-notice js-preorder-notice" style="margin:0 0 12px;padding:10px 12px;border:2px solid currentColor;font-size:14px;line-height:1.4;text-align:left;">
-			{%- if pcl_store == 'us' -%}
-				Preorder items ship separately when they arrive. Anything in stock ships now.
+			{%- if pcl_lines > 1 -%}
+				{%- if cart.attributes['Delivery preference'] == 'Ship separately' -%}
+					{{ pcl_label }} items ship separately when they arrive. Anything in stock ships now.
+				{%- else -%}
+					Everything ships together when the {{ pcl_word }} arrives.
+				{%- endif -%}
 			{%- else -%}
-				Pre-order items ship separately when they arrive. Anything in stock ships now.
+				{{ pcl_label }} items ship when they arrive.
 			{%- endif -%}
 		</p>
 	{%- endif -%}
