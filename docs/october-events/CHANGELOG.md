@@ -5,6 +5,17 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.167.0 — Social image suite (social suite, phase 2)
+
+- The event's **Social** metabox gains an **Image suite**: from the event's
+  featured image it builds branded graphics at each platform size — Instagram
+  square (1080²), Instagram portrait (1080×1350), Story (1080×1920) and
+  Facebook / LinkedIn (1200×630) — each with the title, date, a brand-accent bar
+  and the site name over a legibility scrim. Download each as a PNG.
+- Rendered entirely in the browser (canvas), so no image API, no key and no
+  server image libraries. Uses your brand accent (Settings → theme accent).
+- Set a featured image on the event and save, then hit **Build image suite**.
+
 ## 1.166.0 — Volunteer message: keep the draft after a test send
 
 - Sending a test of a volunteer message no longer wipes the compose form. The

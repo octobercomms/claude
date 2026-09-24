@@ -54,6 +54,39 @@ defined('ABSPATH') || exit;
         <?php endfor; ?>
     </div>
 
+    <?php
+    // ---- Image suite ----------------------------------------------------
+    $thumb  = get_the_post_thumbnail_url($post, 'full') ?: '';
+    $ts     = \OE\Ticketing\Ics::start_ts($post->ID);
+    $when   = $ts ? wp_date('j M Y', $ts) : '';
+    $accent = (string) \OE\Settings::get('theme_accent', '') ?: '#E7CD41';
+    $acc_on = (string) \OE\Settings::get('theme_accent_on', '') ?: '#1a1a1a';
+    ?>
+    <hr style="margin:18px 0">
+    <p style="margin:0 0 4px"><strong><?php esc_html_e('Image suite', 'october-events'); ?></strong>
+        <span class="description"><?php esc_html_e('Branded graphics for each platform, built from the event’s featured image — Instagram square, portrait and story, plus Facebook / LinkedIn.', 'october-events'); ?></span></p>
+    <?php if ($thumb === '') : ?>
+        <p class="description" style="margin:2px 0 0"><?php esc_html_e('Set a featured image on this event (and save) to build the suite.', 'october-events'); ?></p>
+    <?php else : ?>
+        <div id="oe-imgsuite"
+            data-img="<?php echo esc_url($thumb); ?>"
+            data-title="<?php echo esc_attr(get_the_title($post)); ?>"
+            data-date="<?php echo esc_attr($when); ?>"
+            data-accent="<?php echo esc_attr($accent); ?>"
+            data-accent-on="<?php echo esc_attr($acc_on); ?>"
+            data-site="<?php echo esc_attr(get_bloginfo('name')); ?>">
+            <p style="margin:6px 0"><button type="button" class="button" id="oe-imgsuite-build"><?php esc_html_e('Build image suite', 'october-events'); ?></button>
+                <span id="oe-imgsuite-msg" class="description" style="margin-left:8px;font-weight:600"></span></p>
+            <div id="oe-imgsuite-out" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px"></div>
+        </div>
+        <style>
+            #oe-imgsuite-out .oe-imgsuite-item { border:1px solid #dcdcde; border-radius:8px; padding:8px; background:#f6f7f7; text-align:center }
+            #oe-imgsuite-out .oe-imgsuite-prev { width:100%; height:auto; background:#fff; border-radius:4px; display:block }
+            #oe-imgsuite-out .oe-imgsuite-cap { font-size:11px; color:#50575e; margin:6px 0 6px }
+            #oe-imgsuite-out .oe-imgsuite-dl { text-decoration:none }
+        </style>
+    <?php endif; ?>
+
     <script>
     (function () {
         var box = document.getElementById('oe-social');
