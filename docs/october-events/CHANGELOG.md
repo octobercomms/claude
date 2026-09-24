@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.166.0 — Volunteer message: keep the draft after a test send
+
+- Sending a test of a volunteer message no longer wipes the compose form. The
+  message, subject, channel, ticked opportunities/statuses and the test address
+  all survive the redirect, so you can tweak and re-test or send for real without
+  retyping. Same for a validation error (e.g. a missing subject).
+
 ## 1.165.0 — Social captions on events (social suite, phase 1)
 
 - The event editor gains a **Social** metabox: a **Parties & tags** list (name +
