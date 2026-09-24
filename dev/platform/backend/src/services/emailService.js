@@ -824,6 +824,22 @@ async function sendAutopilotDigest({ to, dateLabel, perClient }) {
 // Daily error-tracker digest. Aggregated by fingerprint so a hot bug
 // firing thousands of times shows as one row, with a count and the
 // most recent example. Designed to be skimmed in under 30 seconds.
+// Trim a stack to its first few lines for the digest. The innermost frames
+// are the ones that identify the fault; the rest is framework noise that
+// would make the email unscannable.
+function digestTrace(label, text, maxLines) {
+  const lines = String(text || '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+    .slice(0, maxLines);
+  if (!lines.length) return '';
+  return `<div style="margin-top:6px">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#999;text-transform:uppercase">${escapeHtmlLocal(label)}</div>
+    <pre style="margin:2px 0 0;padding:6px 8px;background:#fafafa;border-left:2px solid #e0e0e0;font-size:11px;line-height:1.45;color:#555;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace">${escapeHtmlLocal(lines.join('\n'))}</pre>
+  </div>`;
+}
+
 async function sendErrorDigest({ to, hours, summary }) {
   if (!to?.length) return;
   if (!summary?.groups?.length) return; // nothing to say, stay silent
@@ -836,6 +852,8 @@ async function sendErrorDigest({ to, hours, summary }) {
         <div style="font-weight:600;color:#1a1a1a;">${escapeHtmlLocal((g.message || '').slice(0, 200))}</div>
         ${g.last_context?.route ? `<div style="font-size:11px;color:#888;margin-top:2px;">${escapeHtmlLocal(g.last_context.route)}</div>` : ''}
         ${g.last_context?.url ? `<div style="font-size:11px;color:#888;margin-top:2px;">${escapeHtmlLocal(g.last_context.url)}</div>` : ''}
+        ${digestTrace('Component stack', g.last_context?.component_stack, 6)}
+        ${digestTrace('Stack', g.stack, 4)}
       </td>
       <td style="padding:6px 10px;font-size:11px;color:#888;border-bottom:1px solid #eee;white-space:nowrap;">${new Date(g.last_seen).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</td>
     </tr>`).join('');
