@@ -13,6 +13,20 @@ export default defineConfig({
       '/coverage-attachments': 'http://localhost:3001',
     },
   },
+  // Keep function and class names through minification. Without this, esbuild
+  // renames every component to a single letter, so a production React error
+  // reports its component stack as "at t / at n / at r" and the daily error
+  // digest is unreadable. Measured cost: +37 kB gzipped (615 -> 652 kB, ~6%),
+  // paid once per cached build, in exchange for production errors that name
+  // the component that actually failed.
+  //
+  // Deliberately NOT `build.sourcemap`: full source maps would publish the
+  // frontend source next to the bundle, and the digest is read in an inbox
+  // rather than a debugger, so names alone give nearly all the benefit at
+  // none of the exposure.
+  esbuild: {
+    keepNames: true,
+  },
   build: {
     outDir: 'dist',
   },
