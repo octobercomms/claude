@@ -33,6 +33,8 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
             'deleted'       => ['success', __('Order deleted, along with its tickets and any check-in scans.', 'october-events')],
             'refunded'      => ['success', __('Refund issued and the selected tickets voided.', 'october-events')],
             'refund_failed' => ['error', __('Refund failed — nothing was charged back. Check the order is a paid card order with tickets still active.', 'october-events')],
+            'transferred'   => ['success', __('Ticket transferred — the new attendee has been emailed their ticket.', 'october-events')],
+            'transfer_failed' => ['error', __('Could not transfer that ticket — check the name and a valid email, and that the ticket is still active.', 'october-events')],
         ];
         $note = $messages[$m] ?? ['error', __('Could not create that order — check the event has a ticket type.', 'october-events')]; ?>
         <div class="notice notice-<?php echo esc_attr($note[0]); ?> is-dismissible"><p><?php echo esc_html($note[1]); ?></p></div>
@@ -233,17 +235,42 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                             <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php echo esc_html(sprintf(__('Tickets (%d)', 'october-events'), count($o_tickets))); ?></div>
                             <?php if ($o_tickets) : ?>
                                 <table style="width:100%;border-collapse:collapse;margin-top:4px">
-                                    <?php foreach ($o_tickets as $tk) : ?>
+                                    <?php foreach ($o_tickets as $tk) :
+                                        $tk_email = (string) ($tk->attendee_email ?? '') !== '' ? (string) $tk->attendee_email : (string) $o->email;
+                                        $can_transfer = ((string) $tk->status === 'active');
+                                    ?>
                                         <tr style="border-bottom:1px solid #eee">
-                                            <td style="padding:3px 8px 3px 0;white-space:nowrap"><code>#<?php echo esc_html((string) $tk->ticket_number); ?></code></td>
-                                            <td style="padding:3px 8px"><?php echo esc_html($tk->attendee_name ?: '—'); ?></td>
-                                            <td style="padding:3px 0"><span class="oe-status oe-status-<?php echo esc_attr($tk->status); ?>"><?php echo esc_html($tk->status); ?></span></td>
-                                            <td style="padding:3px 0 3px 8px;white-space:nowrap">
+                                            <td style="padding:3px 8px 3px 0;white-space:nowrap;vertical-align:top"><code>#<?php echo esc_html((string) $tk->ticket_number); ?></code></td>
+                                            <td style="padding:3px 8px">
+                                                <?php echo esc_html($tk->attendee_name ?: '—'); ?>
+                                                <?php if ($tk_email !== '') : ?><br><span class="description" style="font-size:11px"><?php echo esc_html($tk_email); ?></span><?php endif; ?>
+                                            </td>
+                                            <td style="padding:3px 0;vertical-align:top"><span class="oe-status oe-status-<?php echo esc_attr($tk->status); ?>"><?php echo esc_html($tk->status); ?></span></td>
+                                            <td style="padding:3px 0 3px 8px;white-space:nowrap;vertical-align:top">
                                                 <?php if (! empty($tk->token)) : ?>
                                                     <a href="<?php echo esc_url(\OE\Ticketing\Orders::ticket_url((string) $tk->token)); ?>" target="_blank" rel="noopener"><?php esc_html_e('View', 'october-events'); ?></a>
                                                 <?php endif; ?>
+                                                <?php if ($can_transfer) : ?>
+                                                    &middot; <a href="#" class="oe-xfer-toggle" data-target="oe-xfer-<?php echo (int) $tk->id; ?>"><?php esc_html_e('Transfer', 'october-events'); ?></a>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
+                                        <?php if ($can_transfer) : ?>
+                                        <tr id="oe-xfer-<?php echo (int) $tk->id; ?>" style="display:none">
+                                            <td colspan="4" style="padding:6px 0 10px">
+                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;background:#fff;border:1px solid #e3ded3;border-radius:8px;padding:10px">
+                                                    <input type="hidden" name="action" value="oe_transfer_ticket">
+                                                    <input type="hidden" name="ticket_id" value="<?php echo (int) $tk->id; ?>">
+                                                    <?php wp_nonce_field('oe_transfer_ticket'); ?>
+                                                    <label style="font-size:12px"><?php esc_html_e('New attendee name', 'october-events'); ?><br>
+                                                        <input type="text" name="attendee_name" value="<?php echo esc_attr((string) $tk->attendee_name); ?>" required style="min-width:180px"></label>
+                                                    <label style="font-size:12px"><?php esc_html_e('New email', 'october-events'); ?><br>
+                                                        <input type="email" name="attendee_email" value="<?php echo esc_attr((string) ($tk->attendee_email ?? '')); ?>" placeholder="<?php echo esc_attr($tk_email); ?>" required style="min-width:200px"></label>
+                                                    <button type="submit" class="button button-primary" onclick="return confirm('<?php echo esc_js(__('Transfer this ticket and email the new attendee their ticket? The QR code stays the same, so any earlier copy now belongs to the new person.', 'october-events')); ?>');"><?php esc_html_e('Transfer & email ticket', 'october-events'); ?></button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        <?php endif; ?>
                                     <?php endforeach; ?>
                                 </table>
                             <?php else : ?>
@@ -265,6 +292,17 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                 var open = row.style.display !== 'none';
                 row.style.display = open ? 'none' : 'table-row';
                 btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+            });
+        });
+        // Reveal a ticket's transfer form inline.
+        document.querySelectorAll('.oe-xfer-toggle').forEach(function(link){
+            link.addEventListener('click', function(e){
+                e.preventDefault();
+                var row = document.getElementById(link.getAttribute('data-target'));
+                if (!row) { return; }
+                row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+                var input = row.querySelector('input[name="attendee_name"]');
+                if (input && row.style.display !== 'none') { input.focus(); input.select(); }
             });
         });
     })();

@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.172.0 — Transfer a ticket to another person
+
+- On **Tickets → Registrations**, expand an order and each active ticket now has
+  a **Transfer** link. Enter the new attendee's name and email, and the ticket is
+  reassigned and emailed to them (with its QR).
+- The QR token stays the same, so the pass keeps working; any earlier copy now
+  belongs to the new holder. The transfer sets a per-ticket email, so it never
+  disturbs the buyer's email or the other tickets in the same purchase.
+- For when a buyer can't attend and names a replacement. A confirm step guards
+  against an accidental reassignment, and the transfer is recorded in the audit
+  log.
+- Schema: adds an `attendee_email` column to tickets (DB version 19, auto-migrates
+  on upgrade).
+
 ## 1.171.0 — Keep the Message attendees draft after a test send
 
 - Sending a test on **Tickets → Message attendees** no longer wipes the subject

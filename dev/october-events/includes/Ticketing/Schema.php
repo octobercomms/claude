@@ -64,6 +64,7 @@ final class Schema {
             event_id BIGINT UNSIGNED NOT NULL,
             ticket_type_label VARCHAR(190) NOT NULL,
             attendee_name VARCHAR(190) DEFAULT '',
+            attendee_email VARCHAR(190) DEFAULT '',
             token VARCHAR(64) NOT NULL,
             ticket_number SMALLINT UNSIGNED DEFAULT 1,
             total_in_order SMALLINT UNSIGNED DEFAULT 1,
