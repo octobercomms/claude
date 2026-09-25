@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.171.0 — Keep the Message attendees draft after a test send
+
+- Sending a test on **Tickets → Message attendees** no longer wipes the subject
+  and message. The compose form now repopulates the event, subject, body and
+  test address after a test send or a validation error, so you can check the
+  test then hit "Send to all registrations" without retyping.
+- Mirrors the same fix already in the volunteer message blast.
+
 ## 1.170.0 — Queue ticket confirmation emails (faster manual adds)
 
 - The ticket confirmation email now sends on WP-cron just after the order is

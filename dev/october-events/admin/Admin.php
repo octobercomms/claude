@@ -597,9 +597,17 @@ final class Admin {
         $body     = sanitize_textarea_field(wp_unslash((string) ($_POST['body'] ?? '')));
         $mode     = (($_POST['oe_do'] ?? 'send') === 'test') ? 'test' : 'send';
 
+        // Keep what was typed so a test send (or a validation error) doesn't wipe
+        // the draft on the redirect back — the compose form repopulates from this.
+        $draft = [
+            'subject' => $subject,
+            'body'    => $body,
+            'test_to' => sanitize_textarea_field(wp_unslash((string) ($_POST['test_to'] ?? ''))),
+        ];
+
         $back = admin_url('admin.php?page=oe-tickets&tab=message' . ($event_id ? '&event=' . $event_id : ''));
-        $fail = static function (string $msg) use ($back): void {
-            set_transient('oe_evt_msg_' . get_current_user_id(), ['error' => $msg], 60);
+        $fail = static function (string $msg) use ($back, $draft): void {
+            set_transient('oe_evt_msg_' . get_current_user_id(), ['error' => $msg, 'draft' => $draft], 60);
             wp_safe_redirect($back);
             exit;
         };
@@ -629,7 +637,7 @@ final class Admin {
                 $html = nl2br(esc_html($this->broadcast_merge($body, __('there', 'october-events'), $event_title)));
                 if (\OE\Mail\Transactional::send('event_broadcast', ['email' => $to, 'name' => ''], [], $subj, $html)) { $sent++; } else { $failed++; }
             }
-            set_transient('oe_evt_msg_' . get_current_user_id(), ['test' => true, 'sent' => $sent, 'failed' => $failed], 60);
+            set_transient('oe_evt_msg_' . get_current_user_id(), ['test' => true, 'sent' => $sent, 'failed' => $failed, 'draft' => $draft], 60);
             wp_safe_redirect($back);
             exit;
         }

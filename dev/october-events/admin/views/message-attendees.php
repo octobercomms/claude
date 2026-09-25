@@ -38,7 +38,14 @@ $selected = isset($_GET['event']) ? absint($_GET['event']) : 0;
 
     <?php if (! $events) : ?>
         <div class="notice notice-info inline"><p><?php esc_html_e('No ticketed events yet. Add ticket types to an event and it’ll appear here once it has registrations.', 'october-events'); ?></p></div>
-    <?php else : ?>
+    <?php else :
+        // Repopulate the compose fields after a test send or a validation error,
+        // so the redirect back doesn't wipe what was typed.
+        $draft = (is_array($result) && ! empty($result['draft']) && is_array($result['draft'])) ? $result['draft'] : [];
+        $draft_subject = (string) ($draft['subject'] ?? '');
+        $draft_body    = (string) ($draft['body'] ?? '');
+        $draft_test_to = (string) ($draft['test_to'] ?? '');
+        ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="max-width:720px;margin-top:14px" id="oe-evt-msg-form">
             <input type="hidden" name="action" value="oe_event_broadcast">
             <?php wp_nonce_field('oe_event_broadcast'); ?>
@@ -64,19 +71,19 @@ $selected = isset($_GET['event']) ? absint($_GET['event']) : 0;
                 </tr>
                 <tr>
                     <th scope="row"><label for="oe-evt-subject"><?php esc_html_e('Subject', 'october-events'); ?></label></th>
-                    <td><input type="text" name="subject" id="oe-evt-subject" class="regular-text" style="width:100%" required></td>
+                    <td><input type="text" name="subject" id="oe-evt-subject" class="regular-text" style="width:100%" value="<?php echo esc_attr($draft_subject); ?>" required></td>
                 </tr>
                 <tr>
                     <th scope="row"><label for="oe-evt-body"><?php esc_html_e('Message', 'october-events'); ?></label></th>
                     <td>
-                        <textarea name="body" id="oe-evt-body" rows="10" class="large-text" required></textarea>
+                        <textarea name="body" id="oe-evt-body" rows="10" class="large-text" required><?php echo esc_textarea($draft_body); ?></textarea>
                         <p class="description"><?php esc_html_e('Plain text — line breaks are kept. Merge tags: {name} (the attendee), {event} (the event title). It’s wrapped in your brand email template automatically.', 'october-events'); ?></p>
                     </td>
                 </tr>
                 <tr>
                     <th scope="row"><label for="oe-evt-test"><?php esc_html_e('Send a test first', 'october-events'); ?></label></th>
                     <td>
-                        <input type="email" name="test_to" id="oe-evt-test" class="regular-text" placeholder="you@example.com">
+                        <input type="email" name="test_to" id="oe-evt-test" class="regular-text" placeholder="you@example.com" value="<?php echo esc_attr($draft_test_to); ?>">
                         <button type="submit" class="button" name="oe_do" value="test"><?php esc_html_e('Send test', 'october-events'); ?></button>
                         <p class="description"><?php esc_html_e('Sends only to this address, with sample merge values, so you can check it before the real send.', 'october-events'); ?></p>
                     </td>
