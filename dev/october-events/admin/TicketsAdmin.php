@@ -37,6 +37,7 @@ final class TicketsAdmin {
         add_action('admin_post_oe_delete_order', [$this, 'handle_delete_order']);
         add_action('admin_post_oe_refund_tickets', [$this, 'handle_refund_tickets']);
         add_action('admin_post_oe_resend_confirmation', [$this, 'handle_resend_confirmation']);
+        add_action('admin_post_oe_transfer_ticket', [$this, 'handle_transfer_ticket']);
         add_action('admin_post_oe_set_event_date', [$this, 'handle_set_event_date']);
         add_action('admin_post_oe_import_history', [$this, 'handle_import_history']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
@@ -575,6 +576,18 @@ final class TicketsAdmin {
         exit;
     }
 
+    /** Transfer one ticket to a new attendee name + email (and email them the pass). */
+    public function handle_transfer_ticket(): void {
+        $this->guard('oe_transfer_ticket');
+        $ticket_id = absint($_POST['ticket_id'] ?? 0);
+        $name      = sanitize_text_field(wp_unslash((string) ($_POST['attendee_name'] ?? '')));
+        $email     = sanitize_email((string) ($_POST['attendee_email'] ?? ''));
+        $result    = Orders::transfer_ticket($ticket_id, $name, $email);
+        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets');
+        wp_safe_redirect(add_query_arg('oe_msg', is_wp_error($result) ? 'transfer_failed' : 'transferred', remove_query_arg('oe_msg', $back)));
+        exit;
+    }
+
     /* ------------------------------------------------------------------ *
      * Promo codes
      * ------------------------------------------------------------------ */
@@ -998,7 +1011,7 @@ final class TicketsAdmin {
         $c = Schema::checkins();
         $where = $event ? $wpdb->prepare('AND o.event_id = %d', $event) : '';
         $rows = $wpdb->get_results(
-            "SELECT ti.id, ti.attendee_name, ti.ticket_type_label, ti.ticket_number, ti.total_in_order,
+            "SELECT ti.id, ti.attendee_name, ti.attendee_email, ti.ticket_type_label, ti.ticket_number, ti.total_in_order,
                     ti.token, ti.status AS ticket_status, o.id AS order_id, o.event_id, o.email, o.name AS buyer,
                     o.status AS order_status, o.created_at,
                     (SELECT COUNT(*) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS scans,
@@ -1009,11 +1022,15 @@ final class TicketsAdmin {
              ORDER BY o.event_id ASC, ti.id ASC"
         );
         $out = $this->csv_headers('attendees', $event);
-        fputcsv($out, ['Event', 'Attendee', 'Ticket type', 'Ticket #', 'Buyer name', 'Buyer email', 'Order', 'Ticket status', 'Checked in', 'Check-in time', 'Door', 'Order date']);
+        fputcsv($out, ['Event', 'Attendee', 'Attendee email', 'Ticket type', 'Ticket #', 'Buyer name', 'Buyer email', 'Order', 'Ticket status', 'Checked in', 'Check-in time', 'Door', 'Order date']);
         foreach (($rows ?: []) as $r) {
+            // A transferred ticket carries its own holder email; otherwise the
+            // attendee is the buyer.
+            $attendee_email = (string) ($r->attendee_email ?? '') !== '' ? (string) $r->attendee_email : (string) $r->email;
             fputcsv($out, [
                 get_the_title((int) $r->event_id),
                 $r->attendee_name,
+                $attendee_email,
                 $r->ticket_type_label,
                 $r->ticket_number . '/' . $r->total_in_order,
                 $r->buyer,

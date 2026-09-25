@@ -127,6 +127,91 @@ final class Orders {
         )) ?: [];
     }
 
+    public static function ticket_get(int $ticket_id): ?object {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM " . Schema::tickets() . " WHERE id = %d",
+            $ticket_id
+        )) ?: null;
+    }
+
+    /**
+     * Transfer one ticket to a new holder: set the attendee name + a per-ticket
+     * email, then email that person their ticket. The token (and its QR) is
+     * unchanged, so the pass keeps working and the old holder's copy is now for
+     * a ticket registered to someone else. The order's buyer/email is left
+     * alone — a single purchase can hold several people's tickets.
+     *
+     * @return true|\WP_Error
+     */
+    public static function transfer_ticket(int $ticket_id, string $new_name, string $new_email) {
+        global $wpdb;
+        $new_name  = sanitize_text_field($new_name);
+        $new_email = sanitize_email($new_email);
+        if ($new_name === '') {
+            return new \WP_Error('oe_transfer_name', __('Enter the new attendee’s name.', 'october-events'));
+        }
+        if (! is_email($new_email)) {
+            return new \WP_Error('oe_transfer_email', __('Enter a valid email address for the new attendee.', 'october-events'));
+        }
+        $ticket = self::ticket_get($ticket_id);
+        if (! $ticket) {
+            return new \WP_Error('oe_transfer_missing', __('That ticket no longer exists.', 'october-events'));
+        }
+        if ((string) $ticket->status !== 'active') {
+            return new \WP_Error('oe_transfer_inactive', __('Only an active ticket can be transferred.', 'october-events'));
+        }
+        $saved = $wpdb->update(Schema::tickets(), [
+            'attendee_name'  => $new_name,
+            'attendee_email' => $new_email,
+        ], ['id' => $ticket_id]);
+        // update() returns rows-affected (0 when the values are unchanged) or
+        // false on a real DB error — only false is a failure worth reporting.
+        if ($saved === false) {
+            return new \WP_Error('oe_transfer_save', __('Could not save the transfer — please try again.', 'october-events'));
+        }
+        // Reflect the change on the row we already loaded so the email goes out
+        // with the new holder without a second lookup.
+        $ticket->attendee_name  = $new_name;
+        $ticket->attendee_email = $new_email;
+
+        AuditLog::record('ticket_transferred', $ticket_id, 'ticket', $new_email);
+        self::email_ticket_to_holder($ticket, $new_name, $new_email);
+        return true;
+    }
+
+    /** Email one ticket (with its QR) to a named holder — used by a transfer. */
+    private static function email_ticket_to_holder(object $ticket, string $name, string $email): void {
+        if (! is_email($email)) {
+            return;
+        }
+        $event_id = (int) $ticket->event_id;
+        \OE\Mail\Contacts::capture($email, ['name' => $name, 'source' => 'ticket_transfer']);
+        $ics    = Ics::tempfile($event_id);
+        $params = [
+            'event_name' => get_the_title($event_id),
+            'order_id'   => (int) $ticket->order_id,
+            'when'       => $event_id ? Ics::when_label($event_id) : '',
+            'location'   => $event_id ? (string) \OE\Planning\Events::get($event_id, 'location', '') : '',
+            'logo'       => TicketTypes::logo_url($event_id),
+            'cal_url'    => $event_id ? Ics::gcal_url($event_id) : '',
+            'has_ics'    => $ics !== '',
+            'tickets'    => [[
+                'number'   => $ticket->ticket_number . ' / ' . $ticket->total_in_order,
+                'attendee' => $name,
+                'type'     => (string) $ticket->ticket_type_label,
+                'url'      => self::ticket_url((string) $ticket->token),
+                'token'    => (string) $ticket->token,
+            ]],
+        ];
+        $html    = \OE\Mail\Transactional::ticket_email_html(array_merge($params, ['name' => $name]));
+        $subject = self::ticket_subject($event_id, (string) $params['event_name'], [$ticket]);
+        \OE\Mail\Transactional::send('ticket_delivery', ['email' => $email, 'name' => $name], $params, $subject, $html, $ics !== '' ? [$ics] : [], false);
+        if ($ics !== '') {
+            Ics::cleanup($ics);
+        }
+    }
+
     public static function ticket_by_token(string $token): ?object {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
