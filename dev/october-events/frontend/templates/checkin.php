@@ -76,10 +76,22 @@ $brand = (string) \OE\Settings::get('brand_name', get_bloginfo('name'));
             <span class="ci-venue" id="oe-ci-venue-name"></span>
             <input type="text" id="oe-ci-manual" placeholder="<?php esc_attr_e('Type ticket code', 'october-events'); ?>">
             <button type="button" class="ci-go" id="oe-ci-manual-go"><?php esc_html_e('Check in', 'october-events'); ?></button>
+            <button type="button" class="ci-find" id="oe-ci-find"><?php esc_html_e('Find by name', 'october-events'); ?></button>
             <button type="button" class="ci-sell" id="oe-ci-sell"><?php esc_html_e('Sell', 'october-events'); ?></button>
             <button type="button" data-back="venue"><?php esc_html_e('Change venue', 'october-events'); ?></button>
         </div>
     </section>
+
+    <!-- Find-by-name panel: manual check-in for a guest with no QR. Search the
+         event's registrations and tap a name to check that ticket in. -->
+    <div class="oe-ci-find-screen" id="oe-ci-find-screen" hidden>
+        <div class="find-head">
+            <input type="search" id="oe-ci-find-input" placeholder="<?php esc_attr_e('Search name or email…', 'october-events'); ?>" autocomplete="off" autocapitalize="off" autocorrect="off">
+            <button type="button" class="find-close" id="oe-ci-find-close"><?php esc_html_e('Done', 'october-events'); ?></button>
+        </div>
+        <div class="find-venue" id="oe-ci-find-venue"></div>
+        <div class="find-results" id="oe-ci-find-results"></div>
+    </div>
 
     <!-- Sell overlay: a full-brightness white screen with a large QR the walk-up
          scans to reach the fast door checkout for this event + venue. -->

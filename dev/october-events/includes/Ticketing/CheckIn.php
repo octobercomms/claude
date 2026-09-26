@@ -84,7 +84,35 @@ final class CheckIn {
         if ((int) $ticket->event_id !== $event_id) {
             return ['status' => 'wrong_event'];
         }
+        return self::record($ticket, $event_id, $venue, $scanned_at);
+    }
 
+    /**
+     * Manual check-in by ticket id — the name-lookup path, for a guest with no
+     * QR to scan. Online only (no offline manifest lookup). Same validation,
+     * venue policy, dedup and result shape as a scan.
+     *
+     * @return array{status:string,attendee?:string,type?:string,count?:int}
+     */
+    public static function scan_ticket(int $ticket_id, int $event_id, string $venue): array {
+        $ticket = Orders::ticket_get($ticket_id);
+        if (! $ticket || $ticket->status !== 'active') {
+            return ['status' => 'invalid'];
+        }
+        if ((int) $ticket->event_id !== $event_id) {
+            return ['status' => 'wrong_event'];
+        }
+        return self::record($ticket, $event_id, $venue, null);
+    }
+
+    /**
+     * Shared check-in core: venue policy, same-door dedup, insert + audit. Called
+     * with an already-resolved, active, in-event ticket by both scan() (token)
+     * and scan_ticket() (manual by id).
+     *
+     * @return array{status:string,attendee?:string,type?:string,count?:int}
+     */
+    private static function record(object $ticket, int $event_id, string $venue, ?string $scanned_at): array {
         global $wpdb;
         $venue = sanitize_text_field($venue);
 
@@ -143,7 +171,66 @@ final class CheckIn {
             'attendee' => (string) $ticket->attendee_name,
             'type'     => (string) $ticket->ticket_type_label,
             'count'    => $count,
+            // So the manual (name-lookup) path can mark this ticket in the client's
+            // offline cache — it has no scanned token to hash itself. The hash is
+            // already shipped in the manifest, so exposing it here leaks nothing.
+            'token_hash' => self::token_hash((string) $ticket->token),
         ];
+    }
+
+    /**
+     * Search an event's active tickets by attendee/buyer name or email, for the
+     * manual (name-lookup) check-in when a guest has no QR. Each result carries
+     * its live check-in state so staff can see who is already in.
+     *
+     * @return array<int,array{id:int,attendee:string,type:string,checked_in:bool,venues:array<int,string>}>
+     */
+    public static function search(int $event_id, string $q, int $limit = 25): array {
+        global $wpdb;
+        $q = trim($q);
+        if ($event_id <= 0 || mb_strlen($q) < 2) {
+            return [];
+        }
+        $t = Schema::tickets();
+        $o = Schema::orders();
+        $c = Schema::checkins();
+        $like = '%' . $wpdb->esc_like($q) . '%';
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT ti.id, ti.attendee_name, ti.ticket_type_label, o.name AS buyer
+             FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
+             WHERE ti.event_id = %d AND ti.status = 'active'
+               AND (ti.attendee_name LIKE %s OR ti.attendee_email LIKE %s
+                    OR o.name LIKE %s OR o.email LIKE %s)
+             ORDER BY ti.attendee_name ASC, ti.id ASC
+             LIMIT %d",
+            $event_id, $like, $like, $like, $like, max(1, min(100, $limit))
+        )) ?: [];
+        if (! $rows) {
+            return [];
+        }
+        // Doors each matched ticket has already been scanned at, in one query.
+        $ids   = array_map(static fn($r) => (int) $r->id, $rows);
+        $place = implode(',', array_fill(0, count($ids), '%d'));
+        $scans = $wpdb->get_results($wpdb->prepare(
+            "SELECT ticket_id, venue_name FROM {$c} WHERE ticket_id IN ($place) ORDER BY id ASC",
+            ...$ids
+        )) ?: [];
+        $venues_by = [];
+        foreach ($scans as $s) {
+            $venues_by[(int) $s->ticket_id][] = (string) $s->venue_name;
+        }
+        $out = [];
+        foreach ($rows as $r) {
+            $venues = array_values(array_unique($venues_by[(int) $r->id] ?? []));
+            $out[] = [
+                'id'         => (int) $r->id,
+                'attendee'   => (string) ((string) $r->attendee_name !== '' ? $r->attendee_name : $r->buyer),
+                'type'       => (string) $r->ticket_type_label,
+                'checked_in' => ! empty($venues),
+                'venues'     => $venues,
+            ];
+        }
+        return $out;
     }
 
     /**
