@@ -14,10 +14,12 @@ $max   = 1;
 $tot30 = 0;
 foreach ($daily as $d) { $max = max($max, (int) $d['tickets']); $tot30 += (int) $d['tickets']; }
 ?>
+<?php if (empty($oe_embed)) : ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('sales'); ?>
+<?php endif; ?>
 
     <div class="oe-salekpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:16px 0">
         <div class="oe-skpi" style="background:#1a1a1a;color:#fff;border-radius:12px;padding:16px"><div style="font-size:28px;font-weight:800"><?php echo (int) $stats['tickets']; ?></div><div style="opacity:.7;font-size:12px;text-transform:uppercase;letter-spacing:.06em"><?php esc_html_e('Tickets sold (all time)', 'october-events'); ?></div></div>
@@ -61,4 +63,6 @@ foreach ($daily as $d) { $max = max($max, (int) $d['tickets']); $tot30 += (int) 
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+<?php if (empty($oe_embed)) : ?>
 </div>
+<?php endif; ?>

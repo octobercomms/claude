@@ -652,32 +652,63 @@ final class TicketsAdmin {
      * Sales dashboard
      * ------------------------------------------------------------------ */
 
+    /**
+     * The Sales screen is one scrolling page: the sales dashboard, then the
+     * ticket-price breakdown, then the year-over-year analytics — no sub-tabs.
+     * Each section view is rendered in its own isolated scope (they each use a
+     * `$events` variable for different things), with `$oe_embed` set so they
+     * skip their own page chrome.
+     */
     public function render_sales(): void {
-        $stats   = Orders::stats();
-        $daily   = Orders::daily_sales(30);
-        $events  = Orders::event_summary();
-        self::prime_event_titles($events);
+        echo '<div class="wrap oe-admin">';
+        echo '<h1>' . esc_html__('Tickets', 'october-events') . '</h1>';
+        \OE\Admin\Admin::bento('tickets');
+        \OE\Admin\Admin::tickets_tabs('sales');
+
         $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
-        require OE_DIR . 'admin/views/sales.php';
+        // The price breakdown and the analytics picker are two independent event
+        // filters living on the same page, so they use separate query params
+        // (`price_event` vs `event`) — picking in one must not move the other.
+        $event_filter = isset($_GET['price_event']) ? absint($_GET['price_event']) : 0;
+
+        // 1) Sales dashboard.
+        $sales_events = Orders::event_summary();
+        self::prime_event_titles($sales_events);
+        self::render_partial(OE_DIR . 'admin/views/sales.php', [
+            'stats'    => Orders::stats(),
+            'daily'    => Orders::daily_sales(30),
+            'events'   => $sales_events,
+            'currency' => $currency,
+        ]);
+
+        // 2) Ticket-price breakdown.
+        self::render_partial(OE_DIR . 'admin/views/ticket-prices.php', [
+            'data'         => Orders::price_breakdown($event_filter),
+            'events'       => get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']),
+            'event_filter' => $event_filter,
+        ]);
+
+        // 3) Year-over-year analytics (enqueues its chart script + data).
+        self::render_partial(OE_DIR . 'admin/views/analytics.php', $this->analytics_data($currency));
+
+        echo '</div>';
     }
 
-    /* ------------------------------------------------------------------ *
-     * Ticket prices — price-paid breakdown (pie + bands), group tickets
-     * divided per admission so the per-ticket average is honest.
-     * ------------------------------------------------------------------ */
-
-    public function render_prices(): void {
-        $event_filter = isset($_GET['event']) ? absint($_GET['event']) : 0;
-        $data   = Orders::price_breakdown($event_filter);
-        $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
-        require OE_DIR . 'admin/views/ticket-prices.php';
+    /** Render a view file in an isolated scope with `$oe_embed = true` (skips page chrome). */
+    private static function render_partial(string $file, array $vars): void {
+        (static function () use ($file, $vars): void {
+            $oe_embed = true;
+            extract($vars, EXTR_SKIP);
+            require $file;
+        })();
     }
 
     /* ------------------------------------------------------------------ *
      * Sales analytics — weekly sales leading up to an event's date
      * ------------------------------------------------------------------ */
 
-    public function render_analytics(): void {
+    /** Build the analytics section's view variables (and enqueue its chart script). */
+    private function analytics_data(string $currency): array {
         // Events that have ever sold a ticket, plus all published events, so the
         // picker covers both. Default to ?event=, else the event with the nearest
         // upcoming date, else the first with any date.
@@ -713,7 +744,6 @@ final class TicketsAdmin {
         $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
         $history = is_array($decoded) ? $decoded : [];
         krsort($history); // newest year first for the legend
-        $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
         $cur_sym  = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$currency] ?? ($currency . ' ');
 
         // Build the overlay series (cumulative by weeks-before) for BOTH metrics, as
@@ -754,7 +784,10 @@ final class TicketsAdmin {
         wp_enqueue_script('oe-analytics', OE_URL . 'assets/js/analytics.js', [], OE_VERSION, true);
         wp_localize_script('oe-analytics', 'octYoY', $chart_data);
 
-        require OE_DIR . 'admin/views/analytics.php';
+        return compact(
+            'events', 'event_id', 'event_ts', 'event_year', 'series', 'history',
+            'currency', 'chart_data', 'has_charts', 'paid_txns', 'fee_pct', 'fee_fixed'
+        );
     }
 
     /** Import prior-year weekly sales (CSV: year,weeks_before,quantity,revenue) for the YoY overlay. */

@@ -37,16 +37,24 @@ foreach ($bands as $b) {
 $gradient = $stops ? 'conic-gradient(' . implode(',', $stops) . ')' : '#eee';
 $free_pct = $tickets ? round($free / $tickets * 100) : 0;
 ?>
+<?php if (empty($oe_embed)) : ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('prices'); ?>
+<?php else : ?>
+    <hr style="margin:28px 0 8px;border:0;border-top:1px solid #e3ded3">
+    <h2 style="margin:0 0 4px"><?php esc_html_e('Ticket prices', 'october-events'); ?></h2>
+<?php endif; ?>
 
     <form method="get" style="margin:16px 0">
         <input type="hidden" name="page" value="oe-tickets">
-        <input type="hidden" name="tab" value="prices">
+        <input type="hidden" name="tab" value="<?php echo esc_attr(empty($oe_embed) ? 'prices' : 'sales'); ?>">
+        <?php if (! empty($oe_embed) && ! empty($_GET['event'])) : ?>
+            <input type="hidden" name="event" value="<?php echo absint($_GET['event']); ?>">
+        <?php endif; ?>
         <label><?php esc_html_e('Event', 'october-events'); ?>
-            <select name="event" onchange="this.form.submit()">
+            <select name="<?php echo esc_attr(empty($oe_embed) ? 'event' : 'price_event'); ?>" onchange="this.form.submit()">
                 <option value="0"><?php esc_html_e('All events', 'october-events'); ?></option>
                 <?php foreach ($events as $ev) : ?>
                     <option value="<?php echo (int) $ev->ID; ?>" <?php selected($event_filter, $ev->ID); ?>><?php echo esc_html(get_the_title($ev)); ?></option>
@@ -127,4 +135,6 @@ $free_pct = $tickets ? round($free / $tickets * 100) : 0;
         <?php endif; ?>
 
     <?php endif; ?>
+<?php if (empty($oe_embed)) : ?>
 </div>
+<?php endif; ?>

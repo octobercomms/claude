@@ -227,12 +227,10 @@ final class Admin {
             TicketsAdmin::get_instance()->render_checkin_log();
         } elseif ($tab === 'waitlist') {
             TicketsAdmin::get_instance()->render_waitlist();
-        } elseif ($tab === 'sales') {
+        } elseif ($tab === 'sales' || $tab === 'prices' || $tab === 'analytics') {
+            // Sales is one scrolling page (dashboard + prices + analytics); the
+            // legacy prices/analytics slugs land on it too.
             TicketsAdmin::get_instance()->render_sales();
-        } elseif ($tab === 'prices') {
-            TicketsAdmin::get_instance()->render_prices();
-        } elseif ($tab === 'analytics') {
-            TicketsAdmin::get_instance()->render_analytics();
         } elseif ($tab === 'failed') {
             TicketsAdmin::get_instance()->render_failed_payments();
         } elseif ($tab === 'abandoned') {
@@ -268,11 +266,6 @@ final class Admin {
      */
     public static function tickets_subgroups(): array {
         return [
-            'sales' => [
-                'sales'     => __('Overview', 'october-events'),
-                'prices'    => __('Ticket prices', 'october-events'),
-                'analytics' => __('Sales analytics', 'october-events'),
-            ],
             'payments' => [
                 'payments'  => __('Transactions', 'october-events'),
                 'failed'    => __('Failed payments', 'october-events'),
@@ -282,11 +275,15 @@ final class Admin {
     }
 
     /**
-     * Legacy `tab=` slugs that were renamed to a sub-tab key. Old bookmarks and
-     * redirects keep working by resolving to the current key first. (`prices` and
-     * `analytics` did not change slug — they are real sub-tab keys already.)
+     * Legacy `tab=` slugs folded into a top-level page. Old bookmarks and
+     * redirects keep working by resolving to the current parent tab. Sales is now
+     * one scrolling page, so its old sub-slugs map to `sales`.
      */
-    private const TICKETS_LEGACY = ['transactions' => 'payments'];
+    private const TICKETS_LEGACY = [
+        'transactions' => 'payments',
+        'prices'       => 'sales',
+        'analytics'    => 'sales',
+    ];
 
     /** Which top-level tab a given (possibly sub- or legacy) slug belongs to. */
     private static function tickets_parent(string $active): string {
