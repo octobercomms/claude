@@ -925,7 +925,16 @@ async function runOutreachSends() {
             cam.client_id, cam.kind,
             cl.outreach_sending,
             m.unsubscribed_at,
-            cc.stopped_at
+            m.excluded_at,
+            cc.stopped_at,
+            -- Per-release exclusion. A campaign can have more than one release
+            -- row in principle, so this asks "is this contact excluded by ANY
+            -- release on this campaign" rather than picking one arbitrarily.
+            EXISTS (
+              SELECT 1 FROM outreach_press_releases pr
+               WHERE pr.campaign_id = s.campaign_id
+                 AND s.contact_id = ANY(pr.excluded_contacts)
+            ) AS release_excluded
        FROM outreach_sends s
        JOIN outreach_sequences seq ON seq.id = s.sequence_id
        JOIN outreach_contacts con ON con.id = s.contact_id
@@ -953,9 +962,33 @@ async function runOutreachSends() {
       await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
       continue;
     }
+    // Global do-not-contact. The audience pickers and both suppression
+    // reports already treat this as suppressed, and three routes set it —
+    // including the public unsubscribe link, which sets it AFTER a send is
+    // queued. It was the one suppression state this gate did not re-check,
+    // so an opt-out arriving between queueing and dispatch was ignored.
+    if (row.contact_status === 'do_not_contact') {
+      await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
+      continue;
+    }
     // Stop the sequence if the contact has already replied to this campaign,
     // or has unsubscribed from this specific client since the queue was built.
     if (row.unsubscribed_at) {
+      await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
+      continue;
+    }
+    // Permanently excluded from this client (migration 186). The client owns
+    // the relationship with this journalist and handles them directly, so we
+    // never send on that client's behalf. Other clients are unaffected.
+    if (row.excluded_at) {
+      await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
+      continue;
+    }
+    // Held back from this release only. Checked here as well as at queue time
+    // so that excluding someone AFTER the send was queued still stops it —
+    // which is the case the operator most needs, since the realisation that a
+    // client is already talking to a journalist usually arrives late.
+    if (row.release_excluded) {
       await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
       continue;
     }
