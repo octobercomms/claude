@@ -151,6 +151,7 @@ $ab_recov = $ab_seen > 0 ? round($abandon_stats['recovered'] / $ab_seen * 100) :
                 <div><div style="font-size:24px;font-weight:800"><?php echo (int) $ab_recov; ?>%</div><div class="description" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em"><?php esc_html_e('Recovery rate', 'october-events'); ?></div></div>
                 <div><div style="font-size:24px;font-weight:800"><?php echo (int) $abandon_stats['open']; ?></div><div class="description" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em"><?php esc_html_e('In progress', 'october-events'); ?></div></div>
             </div>
+            <p class="description" style="margin:10px 0 0"><a href="<?php echo esc_url(admin_url('admin.php?page=oe-settings#recovery-email')); ?>"><?php esc_html_e('Preview or edit the recovery email →', 'october-events'); ?></a></p>
             <?php /* Manual bulk recovery — never automatic. Skips anyone already emailed or with no address. */ ?>
             <?php if ((int) $recover_ready > 0) : ?>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid #eee;padding-top:12px">

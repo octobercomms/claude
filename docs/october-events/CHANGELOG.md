@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.185.0 — Preview and edit the recovery email
+
+The abandoned-cart recovery email is now editable and previewable, like the
+ticket and guided-tour emails.
+
+- **Settings → Abandoned-cart recovery email**: edit the subject, intro line,
+  button label and code line. Use `{event}` for the event name and `{code}` for
+  the promo code (the code line only appears when you send with a code). The
+  greeting, ticket list, cart button and footer are still added automatically.
+- **Preview (no code)** and **Preview (with code)** buttons open the rendered
+  email in a new tab with sample details, so you can see both versions.
+- A "Preview or edit the recovery email" link sits on the Transactions tab's
+  abandoned-cart card, next to the send controls.
+- Blank fields fall back to the built-in defaults, so nothing breaks if you
+  clear a box.
+
 ## 1.184.0 — Fix: inflated payment totals on the Transactions list
 
 The **Amount** on a multi-ticket transaction was overstated. `Orders::transactions()`

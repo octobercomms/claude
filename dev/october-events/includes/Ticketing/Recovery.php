@@ -59,13 +59,53 @@ final class Recovery {
         $name    = (string) ($draft->name ?? '');
         $link    = self::resume_link($draft, $promo);
         $code    = $promo !== '' ? $promo : (string) ($draft->promo_code ?? '');
-        $subject = sprintf(__('You left tickets for %s', 'october-events'), $event);
+        $subject = strtr(self::copy('recovery_subject'), ['{event}' => $event, '{code}' => $code]);
         $html    = self::body($draft, $event, $name, $link, $code);
         $ok = Transactional::send('cart_recovery', ['email' => $email, 'name' => $name], [], $subject, $html, [], true);
         if ($ok) {
             Abandonment::mark_recovery_sent((int) $draft->id);
         }
         return $ok;
+    }
+
+    /**
+     * Render the recovery email exactly as it would send, with sample data, for
+     * an admin preview. $with_code shows the promo line; without it the code
+     * line is omitted (so you can see both versions).
+     */
+    public static function preview(bool $with_code): string {
+        $draft = (object) [
+            'id'         => 0,
+            'event_id'   => 0, // sample → resume link falls back to the site home
+            'email'      => 'sample@example.com',
+            'name'       => __('Alex', 'october-events'),
+            'promo_code' => '',
+            'items'      => [
+                ['type_key' => 'general', 'qty' => 2, 'label' => __('General admission', 'october-events')],
+                ['type_key' => 'vip', 'qty' => 1, 'label' => __('VIP', 'october-events')],
+            ],
+        ];
+        $event = __('Opening Night', 'october-events');
+        $code  = $with_code ? 'WELCOME10' : '';
+        $link  = self::resume_link($draft, $code);
+        $doc   = Transactional::wrap_body(self::body($draft, $event, (string) $draft->name, $link, $code));
+        // Show the (editable) subject above the email, like the ticket preview.
+        $subject = strtr(self::copy('recovery_subject'), ['{event}' => $event, '{code}' => $code]);
+        $bar = '<div style="max-width:600px;margin:0 auto 12px;padding-top:8px;font:600 13px Arial,Helvetica,sans-serif;color:#555">'
+            . esc_html__('Subject', 'october-events') . ': ' . esc_html($subject) . '</div>';
+        return str_replace('<body style="margin:0;background:#eceae6">', '<body style="margin:0;background:#eceae6">' . $bar, $doc);
+    }
+
+    /** Editable copy for a key, falling back to the built-in default when blank. */
+    private static function copy(string $key): string {
+        $defaults = [
+            'recovery_subject'   => __('You left tickets for {event}', 'october-events'),
+            'recovery_intro'     => __('You started booking for {event} but didn’t finish. Your tickets are still waiting — pick up where you left off:', 'october-events'),
+            'recovery_button'    => __('Complete your booking', 'october-events'),
+            'recovery_code_line' => __('Use code {code} at checkout.', 'october-events'),
+        ];
+        $v = trim((string) Settings::get($key, ''));
+        return $v !== '' ? $v : ($defaults[$key] ?? '');
     }
 
     /** Inner HTML for the branded shell (wrap=true adds the header/footer). */
@@ -82,11 +122,16 @@ final class Recovery {
         $greeting = $name !== ''
             ? sprintf(__('Hi %s,', 'october-events'), esc_html($name))
             : esc_html__('Hi,', 'october-events');
-        /* translators: %s: event name (bold) */
-        $intro    = sprintf(__('You started booking for %s but didn’t finish. Your tickets are still waiting — pick up where you left off:', 'october-events'), '<strong>' . esc_html($event) . '</strong>');
-        $btn      = '<a href="' . esc_url($link) . '" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">' . esc_html__('Complete your booking', 'october-events') . '</a>';
+        // Escape the editable copy (the intro is a textarea, so keep line breaks
+        // like the volunteer intro does), then swap the {event}/{code} tokens for
+        // their (already-escaped) values — braces survive esc_html, so this is safe.
+        $intro    = strtr(nl2br(esc_html(self::copy('recovery_intro'))), [
+            '{event}' => '<strong>' . esc_html($event) . '</strong>',
+            '{code}'  => esc_html($code),
+        ]);
+        $btn      = '<a href="' . esc_url($link) . '" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">' . esc_html(self::copy('recovery_button')) . '</a>';
         $codeline = $code !== ''
-            ? '<p style="margin:14px 0 0;color:#1e7a33"><strong>' . esc_html(sprintf(__('Use code %s at checkout.', 'october-events'), $code)) . '</strong></p>'
+            ? '<p style="margin:14px 0 0;color:#1e7a33"><strong>' . strtr(esc_html(self::copy('recovery_code_line')), ['{code}' => esc_html($code), '{event}' => esc_html($event)]) . '</strong></p>'
             : '';
         $cart     = $rows !== '' ? '<table style="margin:10px 0 16px;border-collapse:collapse">' . $rows . '</table>' : '';
         return '<p>' . $greeting . '</p>'

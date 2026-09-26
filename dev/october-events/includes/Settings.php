@@ -106,6 +106,13 @@ final class Settings {
             // methods in the Stripe Dashboard first, then turn this on. The card
             // checkout is unchanged either way.
             'bnpl_enabled'     => false,
+            // Abandoned-cart recovery email copy. {event} and {code} are replaced
+            // when sent; blank falls back to these defaults. The greeting, the
+            // cart list, the button link and the footer are added automatically.
+            'recovery_subject'   => 'You left tickets for {event}',
+            'recovery_intro'     => 'You started booking for {event} but didn’t finish. Your tickets are still waiting — pick up where you left off:',
+            'recovery_button'    => 'Complete your booking',
+            'recovery_code_line' => 'Use code {code} at checkout.',
             // PayPal — a second checkout gateway alongside Stripe (off until set up).
             'paypal_enabled'   => false,
             'paypal_env'       => 'sandbox',

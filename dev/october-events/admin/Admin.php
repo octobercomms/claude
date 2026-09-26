@@ -38,6 +38,7 @@ final class Admin {
         add_action('admin_post_oe_gt_reservation_add', [$this, 'handle_gt_reservation_add']);
         add_action('admin_post_oe_preview_guided_email', [$this, 'handle_preview_guided_email']);
         add_action('admin_post_oe_preview_ticket_email', [$this, 'handle_preview_ticket_email']);
+        add_action('admin_post_oe_preview_recovery', [$this, 'handle_preview_recovery']);
         add_action('admin_post_oe_gt_release_save', [$this, 'handle_gt_release_save']);
         add_action('admin_post_oe_gt_release_delete', [$this, 'handle_gt_release_delete']);
         add_action('admin_post_oe_event_broadcast', [$this, 'handle_event_broadcast']);
@@ -943,6 +944,19 @@ final class Admin {
         nocache_headers();
         header('Content-Type: text/html; charset=utf-8');
         echo \OE\Mail\Transactional::preview($type); // phpcs:ignore WordPress.Security.EscapeOutput -- a complete, self-escaped HTML email document
+        exit;
+    }
+
+    /** Preview the abandoned-cart recovery email, with or without a promo code. */
+    public function handle_preview_recovery(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_preview_recovery');
+        $with_code = ! empty($_GET['code']);
+        nocache_headers();
+        header('Content-Type: text/html; charset=utf-8');
+        echo \OE\Ticketing\Recovery::preview($with_code); // phpcs:ignore WordPress.Security.EscapeOutput -- a complete, self-escaped HTML email document
         exit;
     }
 
