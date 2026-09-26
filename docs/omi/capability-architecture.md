@@ -169,10 +169,76 @@ six.
 If the registry proves to be a nuisance, nothing is lost: the six capabilities
 still work standalone, and the duplication is still gone.
 
+## Decided: both tracks, one implementation
+
+Daniel: *"Auto edit as one button could be useful. But then the ability to
+edit manually. This allows both tracks."*
+
+This is what the model gives for free, and it is the reason to prefer it over
+picking a side:
+
+- **One button** is a saved chain: `roughcut → caption → grade → export`, run
+  unattended with the progress strip, exactly as the auto-edit does today.
+- **Manual** is the same six capabilities offered individually, exactly as Edit
+  Studio does today.
+
+Same code, two entry points. Neither is a reimplementation of the other, which
+is the failure the current pair represents. A third track falls out without
+extra work: run the chain, then open the result in a single capability to fix
+the one thing that is wrong, rather than re-running the whole pipeline or
+giving up and opening Premiere.
+
+## Licence audit (2026-09-26)
+
+Run because Daniel offered to strip anything with a licence problem. **Nothing
+needs stripping.** Recorded so it is not re-litigated.
+
+Every installed package under `dev/platform/backend`, 660 in total:
+
+| Licence | Count |
+|---|---|
+| MIT | 504 |
+| Apache-2.0 | 53 |
+| ISC | 35 |
+| BSD-2-Clause / BSD-3-Clause | 41 |
+| MPL-2.0 | 4 |
+| Other permissive (0BSD, MIT-0, Unlicense, BlueOak) | 6 |
+
+No AGPL. No GPL-only. No vendored copyleft source. `jszip` reads
+`(MIT OR GPL-3.0-or-later)`, which is a choice, and we take MIT.
+
+The discipline recorded in `video-pipeline-learnings.md` held: OpenMontage
+(AGPLv3) was learned from as a design reference and its code was never brought
+into `dev/platform`. Keep that rule.
+
+**One conditional item: Remotion.** `remotion`, `@remotion/bundler` and
+`@remotion/renderer` are production dependencies of the backend, driving
+`remotionRender.js`. Remotion is not open source in the usual sense. Its
+licence (verified against the text in the remotion-dev repository, not from
+memory) grants free use to:
+
+> "an individual", "a for-profit organization with up to 3 employees", "a
+> non-profit or not-for-profit organization", or someone "evaluating whether
+> Remotion is a good fit, and are not yet using it in a commercial way"
+
+Everyone else needs a Company Licence. Published rates: Creators at $25 per
+month per person writing Remotion code, including via an agent; Automators at
+$0.01 per render with a $100 monthly minimum, which is the tier automated
+rendering falls into.
+
+This is a bill, not a violation, and it is not a reason to strip Remotion:
+nothing comparable is both headless and React-based, and removing it would cost
+far more than the licence. **Action: confirm October's headcount against the
+three-employee threshold.** Under it, nothing to do. Over it, the automated
+pipeline puts October on Automators at $100 a month minimum.
+
+`dev/video` is a stray untouched Remotion starter template unrelated to the
+platform's video stack. Delete it, so nobody mistakes it for the real thing
+again, as this session did.
+
 ## Open questions for Daniel
 
 1. Which screens specifically feel forced? Process Rails may not be the cause.
-2. Does the auto-edit pipeline need to stay callable as one button, or is a
-   saved chain enough?
+2. ~~One button or a chain?~~ Answered above: both, from one implementation.
 3. Six types to start. Which artefacts matter most beyond video: audience,
    release, transcript, brief?
