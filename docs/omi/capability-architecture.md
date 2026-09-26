@@ -226,15 +226,25 @@ month per person writing Remotion code, including via an agent; Automators at
 $0.01 per render with a $100 monthly minimum, which is the tier automated
 rendering falls into.
 
-This is a bill, not a violation, and it is not a reason to strip Remotion:
-nothing comparable is both headless and React-based, and removing it would cost
-far more than the licence. **Action: confirm October's headcount against the
-three-employee threshold.** Under it, nothing to do. Over it, the automated
-pipeline puts October on Automators at $100 a month minimum.
+**Resolved 2026-09-26: October has one employee, so the Free Licence applies
+and nothing is owed.** No action, no cost, and Remotion stays.
 
-`dev/video` is a stray untouched Remotion starter template unrelated to the
-platform's video stack. Delete it, so nobody mistakes it for the real thing
-again, as this session did.
+This reopens only if October grows past **three** employees. At four, a
+Company Licence is required, and because the video pipeline renders
+automatically that would be the Automators tier at $0.01 a render with a $100
+monthly minimum. Anyone reading this after a hire should re-check the headcount
+before assuming the free licence still holds.
+
+Stripping Remotion was never the right answer regardless: nothing comparable is
+both headless and React-based, and removing it would cost far more than the
+licence ever would.
+
+`dev/video` was a stray untouched Remotion starter template, unrelated to the
+platform's video stack, which this session mistook for the real thing and
+reported to Daniel as evidence that OMI had no video capability. **Deleted**,
+along with `docs/video/`. The real compositions are `backend/remotion/`
+(StyleA, StyleC, StyleG, StoryboardReel), driven by
+`backend/src/services/remotionRender.js`.
 
 ## Open questions for Daniel
 

@@ -37,7 +37,7 @@ re-edit until a score threshold, then deliver.
 | Capability | Today in OMI | This build |
 |---|---|---|
 | Remotion render infra | ✅ `remotionRender.js` bundles + renders compositions (StyleA/C/G ad clips) on demand | Reused to render the **caption + motion-graphic layer** over the cut |
-| Template ad clips | ✅ `backend/remotion/*` (StyleA/C/G), `dev/video` | Different job — that's *generating* templated clips; this *edits raw footage* |
+| Template ad clips | ✅ `backend/remotion/*` (StyleA/C/G, StoryboardReel) | Different job — that's *generating* templated clips; this *edits raw footage* |
 | Replicate connector | ✅ `connectors/replicate.js` | Reused for **transcription** (Whisper) and optional generative steps |
 | HyperFrames | ✅ skills available (`hyperframes*`) | Used to author the motion-graphics layer |
 | Silence-cut / captions / QA grading / clip ingest / export | ❌ none | **All new** |

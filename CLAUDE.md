@@ -38,7 +38,7 @@ they live **with the code**, not in `docs/`:
 `hillcroft-gardens`, `landing-pages`, `loom-tutorial-player`, `meta-ads`,
 `oc-ad-manager`, `oc-forms`, `october-admin-theme`, `october-event-tickets`,
 `october-outreach`, `platform`, `ticker-link`, `tour-dates-shortcode`,
-`video`, `webp-image-optimizer`, `woo-bulk-editor`, `wordpress-lead-capture`.
+`webp-image-optimizer`, `woo-bulk-editor`, `wordpress-lead-capture`.
 
 The **Hillcroft Garden Designer** WordPress plugin lives in `dev/hillcroft-gardens`
 (WP plugin slug `hillcroft-garden-designer`); its docs are in `docs/hillcroft-gardens`.
