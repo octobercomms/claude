@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.184.0 — Fix: inflated payment totals on the Transactions list
+
+The **Amount** on a multi-ticket transaction was overstated. `Orders::transactions()`
+summed each order's total across a join to its tickets, so a payment's amount was
+multiplied by its ticket count — a 15-ticket order showed 15× its real total
+(e.g. 7,200 instead of 480). Single-ticket rows were unaffected, which is why it
+hid in plain sight, and headline revenue (a separate query) was always correct.
+
+Ticket counts now come from a derived table joined one-to-one per payment, so
+`SUM(total)` sums orders only. Amounts, and sorting by amount, are now correct.
+No data was wrong in the database — only this screen's display. No schema change.
+
 ## 1.183.0 — Abandoned-cart recovery emails (manual, resume-cart, optional code)
 
 Turn the abandoned-cart list into recovered revenue. Nothing sends

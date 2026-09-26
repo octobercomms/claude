@@ -638,12 +638,25 @@ final class Orders {
             $params[] = $event_id;
         }
         $params[] = $limit;
+        // Ticket counts come from a derived table joined one-to-one on payment_id.
+        // Joining orders → tickets directly and SUM(o.total) fans out — each
+        // order's total is added once per ticket in it, inflating a multi-ticket
+        // payment's amount by its ticket count (a 15-ticket order showed 15× its
+        // real total). Aggregating tickets separately keeps SUM(o.total) correct.
         $sql = "SELECT o.payment_id AS payment_id, MIN(o.id) AS order_id, MAX(o.name) AS name, MAX(o.email) AS email,
                        MIN(o.event_id) AS event_id, SUM(o.total) AS total, MAX(o.currency) AS currency,
                        MAX(o.created_at) AS created_at,
-                       COUNT(ti.id) AS tickets,
-                       SUM(CASE WHEN ti.status = 'active' THEN 1 ELSE 0 END) AS active
-                FROM {$o} o LEFT JOIN {$t} ti ON ti.order_id = o.id
+                       COALESCE(MAX(tc.tickets), 0) AS tickets,
+                       COALESCE(MAX(tc.active), 0) AS active
+                FROM {$o} o
+                LEFT JOIN (
+                    SELECT o2.payment_id AS pid,
+                           COUNT(t2.id) AS tickets,
+                           SUM(CASE WHEN t2.status = 'active' THEN 1 ELSE 0 END) AS active
+                    FROM {$o} o2 INNER JOIN {$t} t2 ON t2.order_id = o2.id
+                    WHERE o2.payment_id <> '' AND o2.payment_id IS NOT NULL
+                    GROUP BY o2.payment_id
+                ) tc ON tc.pid = o.payment_id
                 WHERE {$where}
                 GROUP BY o.payment_id
                 ORDER BY MAX(o.id) DESC
