@@ -7,7 +7,7 @@
  * @var int        $total        total scans (for the current filter)
  * @var int        $groups       collapsed row count (for pagination)
  * @var array      $by_venue     [{event_id,venue,scans}] scans per event + door
- * @var array      $by_hour      [0..23 => count] scans by hour of the local day
+ * @var array      $slots        ['slots'=>[['label','day','count'],…],'step'=>int,'multi_day'=>bool] check-in timeline, trimmed to the real window
  * @var array|null $stats        ['unique'=>int,'venues'=>[['venue','count'],…]] when an event is selected
  * @var int        $pages        total pages
  * @var int        $paged        current page
@@ -24,13 +24,14 @@ $ev_doors = [];
 foreach ($by_venue as $r) { $ev_doors[(int) $r->event_id][] = $r; }
 $venue_max = 0;
 foreach ($by_venue as $r) { $venue_max = max($venue_max, (int) $r->scans); }
-$hour_max  = $by_hour ? max($by_hour) : 0;
+$slot_rows = is_array($slots['slots'] ?? null) ? $slots['slots'] : [];
+$slot_step = (int) ($slots['step'] ?? 15);
+$slot_multi = ! empty($slots['multi_day']);
+$slot_max  = 0;
+foreach ($slot_rows as $s) { $slot_max = max($slot_max, (int) $s['count']); }
 $accent    = (string) \OE\Settings::get('theme_accent', '') ?: '#C8A96E';
 $venue_lbl = static fn(string $v): string => $v !== '' ? $v : __('(no door)', 'october-events');
-$hr_label  = static function (int $h): string {
-    $ampm = $h < 12 ? 'a' : 'p'; $h12 = $h % 12; if ($h12 === 0) { $h12 = 12; }
-    return $h12 . $ampm;
-};
+$export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checkins' . ($event_filter ? '&event=' . (int) $event_filter : '')), 'oe_export');
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
@@ -67,6 +68,9 @@ $hr_label  = static function (int $h): string {
             </select>
         </label>
         <span class="description" style="margin-left:8px"><?php echo esc_html(sprintf(_n('%s scan recorded', '%s scans recorded', $total, 'october-events'), number_format_i18n($total))); ?></span>
+        <?php if ($total) : ?>
+            <a class="button" style="margin-left:8px" href="<?php echo esc_url($export_url); ?>"><?php esc_html_e('Export log (CSV)', 'october-events'); ?></a>
+        <?php endif; ?>
     </form>
 
     <?php if ($stats !== null) : ?>
@@ -106,20 +110,36 @@ $hr_label  = static function (int $h): string {
             <?php endforeach; ?>
         </div>
 
-        <?php /* 2. Time of day tickets were scanned. */ ?>
+        <?php /* 2. When people checked in — trimmed to the real window, in short segments. */ ?>
         <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:14px 16px">
-            <strong><?php esc_html_e('Time of day', 'october-events'); ?></strong>
-            <p class="description" style="margin:4px 0 12px"><?php esc_html_e('When scans happened, by hour.', 'october-events'); ?></p>
-            <div style="display:flex;align-items:flex-end;gap:2px;height:140px">
-                <?php for ($h = 0; $h < 24; $h++) : $n = (int) ($by_hour[$h] ?? 0); $bh = $hour_max ? round($n / $hour_max * 100) : 0; ?>
-                    <div title="<?php echo esc_attr(sprintf(_n('%1$s scan at %2$s', '%1$s scans at %2$s', $n, 'october-events'), number_format_i18n($n), $hr_label($h))); ?>" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%">
-                        <div style="height:<?php echo (int) max(2, $bh); ?>%;background:<?php echo $n ? esc_attr($accent) : '#eee'; ?>;border-radius:2px 2px 0 0;min-height:2px"></div>
-                    </div>
-                <?php endfor; ?>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:4px">
-                <span><?php echo esc_html($hr_label(0)); ?></span><span><?php echo esc_html($hr_label(6)); ?></span><span><?php echo esc_html($hr_label(12)); ?></span><span><?php echo esc_html($hr_label(18)); ?></span><span><?php echo esc_html($hr_label(23)); ?></span>
-            </div>
+            <strong><?php esc_html_e('Check-in times', 'october-events'); ?></strong>
+            <p class="description" style="margin:4px 0 12px"><?php echo esc_html(sprintf(
+                /* translators: %d: minutes per bar */
+                __('When scans happened, in %d-minute segments across the actual check-in window.', 'october-events'),
+                $slot_step
+            )); ?></p>
+            <?php if (! $slot_rows) : ?>
+                <p class="description"><?php esc_html_e('No scans yet.', 'october-events'); ?></p>
+            <?php else : $n_slots = count($slot_rows); ?>
+                <div style="display:flex;align-items:flex-end;gap:<?php echo $n_slots > 40 ? '1' : '2'; ?>px;height:140px">
+                    <?php foreach ($slot_rows as $s) : $n = (int) $s['count']; $bh = $slot_max ? round($n / $slot_max * 100) : 0; ?>
+                        <div title="<?php echo esc_attr(sprintf(_n('%1$s scan · %2$s', '%1$s scans · %2$s', $n, 'october-events'), number_format_i18n($n), ($slot_multi ? $s['day'] . ' ' : '') . $s['label'])); ?>" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%">
+                            <div style="height:<?php echo (int) max(2, $bh); ?>%;background:<?php echo $n ? esc_attr($accent) : '#eee'; ?>;border-radius:2px 2px 0 0;min-height:2px"></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:4px">
+                    <?php
+                    $first = $slot_rows[0];
+                    $mid   = $slot_rows[(int) floor($n_slots / 2)];
+                    $last  = $slot_rows[$n_slots - 1];
+                    $tick  = static fn(array $s): string => ($slot_multi ? $s['day'] . ' ' : '') . $s['label'];
+                    ?>
+                    <span><?php echo esc_html($tick($first)); ?></span>
+                    <?php if ($n_slots > 2) : ?><span><?php echo esc_html($tick($mid)); ?></span><?php endif; ?>
+                    <span><?php echo esc_html($tick($last)); ?></span>
+                </div>
+            <?php endif; ?>
         </div>
 
         <?php /* 3. Most popular door per event (the busiest home on the tour). */ ?>

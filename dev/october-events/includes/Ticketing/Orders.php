@@ -1106,6 +1106,93 @@ final class Orders {
     }
 
     /**
+     * Price paid per ticket, for the "what are people actually paying" report.
+     * Each paid order's total is divided by its number of active admissions, so a
+     * group ticket (one payment, several admissions) is counted per person. Every
+     * admission is then bucketed into a price band, with the free/paid split and
+     * the average price. Answers "are we giving away too many free/cheap tickets".
+     *
+     * @return array{currency:string,symbol:string,tickets:int,free:int,paid:int,revenue:float,avg_all:float,avg_paid:float,bands:array<int,array{label:string,count:int}>,distinct:array<int,array{price:float,count:int}>}
+     */
+    public static function price_breakdown(int $event_id = 0): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $where = $event_id > 0 ? $wpdb->prepare('AND o.event_id = %d', $event_id) : '';
+        // One row per paid order with BOTH its original admission count (all ticket
+        // rows) and its still-active count. Dividing the total by the original count
+        // gives the true price paid per ticket; a partially-refunded order therefore
+        // doesn't inflate the per-ticket price, and only the active tickets are
+        // counted (and their share of revenue), so refunded admissions drop out.
+        $rows = $wpdb->get_results(
+            "SELECT o.total AS total,
+                    COUNT(ti.id) AS orig,
+                    SUM(CASE WHEN ti.status = 'active' THEN 1 ELSE 0 END) AS active
+             FROM {$o} o LEFT JOIN {$t} ti ON ti.order_id = o.id
+             WHERE o.status = 'paid' {$where}
+             GROUP BY o.id"
+        ) ?: [];
+
+        $cur    = strtoupper((string) Settings::get('currency', 'usd'));
+        $symbol = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$cur] ?? ($cur . ' ');
+        $band_defs = [
+            ['label' => __('Free', 'october-events'),            'max' => 0.0],
+            ['label' => sprintf(__('Under %s10', 'october-events'), $symbol), 'max' => 9.995],
+            ['label' => sprintf('%s10–%s25', $symbol, $symbol),  'max' => 24.995],
+            ['label' => sprintf('%s25–%s50', $symbol, $symbol),  'max' => 49.995],
+            ['label' => sprintf('%s50–%s100', $symbol, $symbol), 'max' => 99.995],
+            ['label' => sprintf('%s100+', $symbol),              'max' => INF],
+        ];
+        $bands    = array_map(static fn($b) => ['label' => $b['label'], 'count' => 0], $band_defs);
+        $distinct = [];
+        $tickets  = 0; $free = 0; $revenue = 0.0;
+
+        foreach ($rows as $r) {
+            $orig   = (int) $r->orig;
+            $active = (int) $r->active;
+            if ($active <= 0 || $orig <= 0) {
+                continue; // nobody still holds a ticket on this order
+            }
+            $total    = (float) $r->total;
+            $per      = $total / $orig;          // price paid per ticket (original split)
+            $tickets += $active;                 // count only tickets still valid
+            $revenue += $per * $active;          // their share of what was collected
+            if ($per <= 0.0) {
+                $free += $active;
+            }
+            // Band bucket (first band whose ceiling the per-ticket price falls under).
+            foreach ($band_defs as $i => $b) {
+                if ($per <= $b['max']) { $bands[$i]['count'] += $active; break; }
+            }
+            $key = number_format($per, 2, '.', '');
+            if (! isset($distinct[$key])) { $distinct[$key] = 0; }
+            $distinct[$key] += $active;
+        }
+
+        // Distinct prices, most common first, capped for display.
+        $dist = [];
+        foreach ($distinct as $price => $count) {
+            $dist[] = ['price' => (float) $price, 'count' => (int) $count];
+        }
+        usort($dist, static fn($a, $b) => $b['count'] <=> $a['count'] ?: ($a['price'] <=> $b['price']));
+        $dist = array_slice($dist, 0, 15);
+
+        $paid = $tickets - $free;
+        return [
+            'currency' => $cur,
+            'symbol'   => $symbol,
+            'tickets'  => $tickets,
+            'free'     => $free,
+            'paid'     => $paid,
+            'revenue'  => round($revenue, 2),
+            'avg_all'  => $tickets > 0 ? round($revenue / $tickets, 2) : 0.0,
+            'avg_paid' => $paid > 0 ? round($revenue / $paid, 2) : 0.0,
+            'bands'    => $bands,
+            'distinct' => $dist,
+        ];
+    }
+
+    /**
      * Door-sale tally for an event: paid orders grouped by the "door" tag (the
      * venue a walk-up was sold at). Online sales (empty door) are excluded.
      *

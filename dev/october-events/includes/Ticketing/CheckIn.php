@@ -343,6 +343,25 @@ final class CheckIn {
     }
 
     /**
+     * Shared SELECT … FROM … JOIN prefix for the collapsed (ticket × door)
+     * check-in log, used by both the paginated view and the CSV export so the
+     * column list stays in one place. Callers append their own WHERE / GROUP BY
+     * / ORDER BY (the aliases `c` and `t` are in scope for those clauses).
+     */
+    private static function log_grouped_select(): string {
+        $c = Schema::checkins();
+        $t = Schema::tickets();
+        // MAX() on the per-ticket columns keeps ONLY_FULL_GROUP_BY happy — they're
+        // constant for a ticket_id, so any aggregate returns the right value.
+        return "SELECT c.event_id, c.venue_name, c.ticket_id,
+                 COUNT(*) AS scans, (COUNT(*) - 1) AS rescans,
+                 MIN(c.scanned_at) AS first_at, MAX(c.scanned_at) AS last_at,
+                 MAX(t.attendee_name) AS attendee_name, MAX(t.ticket_type_label) AS ticket_type_label,
+                 MAX(t.ticket_number) AS ticket_number, MAX(t.total_in_order) AS total_in_order
+                 FROM {$c} c LEFT JOIN {$t} t ON t.id = c.ticket_id ";
+    }
+
+    /**
      * Paginated check-in log collapsed to one row per ticket + door: a second
      * scan of the same ticket at the same door isn't a new line, it bumps a
      * "rescans" count. Scanning at a *different* door is a separate row. Ordered
@@ -354,18 +373,9 @@ final class CheckIn {
      */
     public static function log_grouped(int $event_id = 0, int $limit = 50, int $offset = 0): array {
         global $wpdb;
-        $c = Schema::checkins();
-        $t = Schema::tickets();
         $limit  = max(1, min(200, $limit));
         $offset = max(0, $offset);
-        // MAX() on the per-ticket columns keeps ONLY_FULL_GROUP_BY happy — they're
-        // constant for a ticket_id, so any aggregate returns the right value.
-        $cols = "c.event_id, c.venue_name, c.ticket_id,
-                 COUNT(*) AS scans, (COUNT(*) - 1) AS rescans,
-                 MIN(c.scanned_at) AS first_at, MAX(c.scanned_at) AS last_at,
-                 MAX(t.attendee_name) AS attendee_name, MAX(t.ticket_type_label) AS ticket_type_label,
-                 MAX(t.ticket_number) AS ticket_number, MAX(t.total_in_order) AS total_in_order";
-        $sql = "SELECT {$cols} FROM {$c} c LEFT JOIN {$t} t ON t.id = c.ticket_id ";
+        $sql = self::log_grouped_select();
         $group = "GROUP BY c.event_id, c.venue_name, c.ticket_id ORDER BY last_at DESC LIMIT %d OFFSET %d";
         if ($event_id > 0) {
             return $wpdb->get_results($wpdb->prepare(
@@ -414,31 +424,88 @@ final class CheckIn {
     }
 
     /**
-     * Scans bucketed by hour of the local day (0–23, zero-filled), for the
-     * "time of day" chart. scanned_at is stored UTC, so the per-hour counts are
-     * shifted by the site's current UTC offset (good for an event's date range;
-     * a DST boundary mid-series is the only edge it doesn't track perfectly).
+     * Scans bucketed into short segments across only the window in which people
+     * actually checked in (first scan → last scan), so the chart grows or shrinks
+     * to the real hours instead of always showing a full day. The step widens
+     * automatically for long windows (15m ≤12h, 30m ≤24h, 60m ≤4d, else 4h).
+     * scanned_at is stored as a UTC wall-clock string; each bucket is converted to
+     * the site timezone for its label.
      *
-     * @return array<int,int> hour (0–23) => scan count
+     * @return array{slots:array<int,array{label:string,day:string,count:int}>,step:int,multi_day:bool}
      */
-    public static function scans_by_hour(int $event_id = 0): array {
+    public static function scans_by_slot(int $event_id = 0): array {
         global $wpdb;
         $c = Schema::checkins();
+        // LEFT(scanned_at,13) = "YYYY-MM-DD HH" (UTC), tz-safe and no % to clash
+        // with $wpdb->prepare; MINUTE()/15 splits the hour into four 15-min slots.
+        $sql = "SELECT LEFT(scanned_at, 13) AS ymdh, FLOOR(MINUTE(scanned_at) / 15) AS q, COUNT(*) AS scans FROM {$c} ";
         if ($event_id > 0) {
-            $rows = $wpdb->get_results($wpdb->prepare(
-                "SELECT HOUR(scanned_at) AS h, COUNT(*) AS scans FROM {$c} WHERE event_id = %d GROUP BY HOUR(scanned_at)",
-                $event_id
-            )) ?: [];
+            $rows = $wpdb->get_results($wpdb->prepare($sql . "WHERE event_id = %d GROUP BY ymdh, q", $event_id)) ?: [];
         } else {
-            $rows = $wpdb->get_results("SELECT HOUR(scanned_at) AS h, COUNT(*) AS scans FROM {$c} GROUP BY HOUR(scanned_at)") ?: [];
+            $rows = $wpdb->get_results($sql . "GROUP BY ymdh, q") ?: [];
         }
-        $offset = (int) round(wp_timezone()->getOffset(new \DateTimeImmutable('now')) / HOUR_IN_SECONDS);
-        $buckets = array_fill(0, 24, 0);
+        if (! $rows) {
+            return ['slots' => [], 'step' => 15, 'multi_day' => false];
+        }
+        $utc = new \DateTimeZone('UTC');
+        $counts = []; // UTC 15-min slot epoch => count
+        $min = PHP_INT_MAX; $max = PHP_INT_MIN;
         foreach ($rows as $r) {
-            $local = (((int) $r->h + $offset) % 24 + 24) % 24;
-            $buckets[$local] += (int) $r->scans;
+            $dt = \DateTimeImmutable::createFromFormat('Y-m-d H', (string) $r->ymdh, $utc);
+            if (! $dt) { continue; }
+            $epoch = $dt->getTimestamp() + ((int) $r->q) * 900;
+            $counts[$epoch] = ($counts[$epoch] ?? 0) + (int) $r->scans;
+            $min = min($min, $epoch);
+            $max = max($max, $epoch);
         }
-        return $buckets;
+        if (! $counts) {
+            return ['slots' => [], 'step' => 15, 'multi_day' => false];
+        }
+        $span = $max - $min;
+        $step = 900;                                  // 15 min
+        if ($span > 12 * HOUR_IN_SECONDS) { $step = 1800; }   // 30 min
+        if ($span > DAY_IN_SECONDS)       { $step = 3600; }   // 60 min
+        if ($span > 4 * DAY_IN_SECONDS)   { $step = 4 * 3600; }
+        // Hard cap on bar count so a very long span (e.g. "All events" across a
+        // year) can't build thousands of buckets — widen the step to fit.
+        $max_bars = 240;
+        if ((int) ($span / $step) + 1 > $max_bars) {
+            $step = (int) (ceil(($span / $max_bars) / 900) * 900); // round up to whole 15-min steps
+        }
+        // Re-bucket to the chosen step, aligned to the step grid.
+        $buckets = [];
+        foreach ($counts as $epoch => $n) {
+            $b = (int) (floor($epoch / $step) * $step);
+            $buckets[$b] = ($buckets[$b] ?? 0) + $n;
+        }
+        $tz    = wp_timezone();
+        $start = (int) (floor($min / $step) * $step);
+        $end   = (int) (floor($max / $step) * $step);
+        $slots = [];
+        $first_day = ''; $last_day = '';
+        for ($t = $start; $t <= $end; $t += $step) {
+            $local = (new \DateTimeImmutable('@' . $t))->setTimezone($tz);
+            $day   = $local->format('D j M');
+            if ($first_day === '') { $first_day = $day; }
+            $last_day = $day;
+            $slots[] = [
+                'label' => $local->format('g:i a'),
+                'day'   => $day,
+                'count' => (int) ($buckets[$t] ?? 0),
+            ];
+        }
+        return ['slots' => $slots, 'step' => (int) ($step / 60), 'multi_day' => $first_day !== $last_day];
+    }
+
+    /** Every collapsed (ticket × door) log row for an event, unpaginated — for CSV export. */
+    public static function log_grouped_export(int $event_id = 0): array {
+        global $wpdb;
+        $sql   = self::log_grouped_select();
+        $group = "GROUP BY c.event_id, c.venue_name, c.ticket_id ORDER BY c.event_id ASC, first_at ASC";
+        if ($event_id > 0) {
+            return $wpdb->get_results($wpdb->prepare($sql . "WHERE c.event_id = %d " . $group, $event_id)) ?: [];
+        }
+        return $wpdb->get_results($sql . $group) ?: [];
     }
 
     /**

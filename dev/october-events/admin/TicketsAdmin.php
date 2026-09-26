@@ -628,6 +628,18 @@ final class TicketsAdmin {
     }
 
     /* ------------------------------------------------------------------ *
+     * Ticket prices — price-paid breakdown (pie + bands), group tickets
+     * divided per admission so the per-ticket average is honest.
+     * ------------------------------------------------------------------ */
+
+    public function render_prices(): void {
+        $event_filter = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        $data   = Orders::price_breakdown($event_filter);
+        $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
+        require OE_DIR . 'admin/views/ticket-prices.php';
+    }
+
+    /* ------------------------------------------------------------------ *
      * Sales analytics — weekly sales leading up to an event's date
      * ------------------------------------------------------------------ */
 
@@ -892,10 +904,11 @@ final class TicketsAdmin {
         $stats = $event_filter ? \OE\Ticketing\CheckIn::stats($event_filter) : null;
         $pages = (int) ceil($groups / $per_page);
 
-        // Chart data: scans per event+door, and scans by hour of the local day.
+        // Chart data: scans per event+door, and scans across the actual check-in
+        // window (15-min segments, trimmed to first→last scan).
         $by_venue = \OE\Ticketing\CheckIn::scans_by_event_venue($event_filter);
         self::prime_event_titles($by_venue);
-        $by_hour  = \OE\Ticketing\CheckIn::scans_by_hour($event_filter);
+        $slots    = \OE\Ticketing\CheckIn::scans_by_slot($event_filter);
 
         // Events that have ticket types, for the filter dropdown.
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
@@ -931,7 +944,7 @@ final class TicketsAdmin {
 
     public function maybe_export_orders(): void {
         $type = isset($_GET['oe_export']) ? sanitize_key((string) $_GET['oe_export']) : '';
-        if (! in_array($type, ['orders', 'attendees', 'abandoned'], true) || ! current_user_can('manage_options')) {
+        if (! in_array($type, ['orders', 'attendees', 'abandoned', 'checkins'], true) || ! current_user_can('manage_options')) {
             return;
         }
         check_admin_referer('oe_export');
@@ -940,9 +953,33 @@ final class TicketsAdmin {
             $this->export_attendees($event);
         } elseif ($type === 'abandoned') {
             $this->export_abandoned($event);
+        } elseif ($type === 'checkins') {
+            $this->export_checkins($event);
         } else {
             $this->export_orders($event);
         }
+    }
+
+    /** One row per checked-in ticket × door (matches the on-screen log). Honours the event filter. */
+    private function export_checkins(int $event): void {
+        $rows = \OE\Ticketing\CheckIn::log_grouped_export($event);
+        $out  = $this->csv_headers('checkin-log', $event);
+        fputcsv($out, ['Event', 'Attendee', 'Ticket type', 'Ticket #', 'Door / venue', 'Total scans', 'Rescans', 'First scan', 'Last scan']);
+        foreach ($rows as $r) {
+            fputcsv($out, [
+                get_the_title((int) $r->event_id) ?: ('#' . (int) $r->event_id),
+                (string) ($r->attendee_name ?? ''),
+                (string) ($r->ticket_type_label ?? ''),
+                ((int) ($r->ticket_number ?? 1)) . '/' . ((int) ($r->total_in_order ?? 1)),
+                (string) ($r->venue_name ?? ''),
+                (int) $r->scans,
+                (int) ($r->rescans ?? 0),
+                get_date_from_gmt((string) $r->first_at, 'Y-m-d H:i:s'),
+                get_date_from_gmt((string) $r->last_at, 'Y-m-d H:i:s'),
+            ]);
+        }
+        fclose($out);
+        exit;
     }
 
     /** One row per abandoned/in-progress checkout draft. Honours the event filter. */
