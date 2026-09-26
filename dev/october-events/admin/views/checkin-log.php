@@ -73,9 +73,53 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
         <?php endif; ?>
     </form>
 
-    <?php if ($stats !== null) : ?>
+    <?php if ($stats !== null) :
+        $issued   = (int) ($stats['issued'] ?? 0);
+        $attended = (int) ($stats['attended'] ?? 0);
+        $no_show  = (int) ($stats['no_show'] ?? 0);
+        $att_pct  = $issued ? (int) round($attended / $issued * 100) : 0;
+        // Don't let rounding claim 100% attendance while no-shows remain (or 0%
+        // while someone attended); keep the two shares summing to 100.
+        if ($att_pct >= 100 && $attended < $issued) { $att_pct = 99; }
+        if ($att_pct <= 0   && $attended > 0)       { $att_pct = 1;  }
+        $ns_pct   = $issued ? 100 - $att_pct : 0;
+        // Attendance pie (conic-gradient): attended (accent) vs no-show (grey).
+        // Keep the degree an integer: a float concatenated into CSS renders with
+        // the LC_NUMERIC decimal separator on PHP 7.4 (a supported version), so a
+        // comma locale would emit "129,6deg" and break the gradient. Sub-degree
+        // precision is invisible anyway.
+        $att_deg  = $issued ? (int) round($attended / $issued * 360) : 0;
+        $att_grad = $issued
+            ? 'conic-gradient(' . $accent . ' 0deg ' . $att_deg . 'deg, #e3ded3 ' . $att_deg . 'deg 360deg)'
+            : '#eee';
+        ?>
+        <?php if ($issued) : ?>
+        <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:18px;margin-bottom:16px;max-width:680px;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+            <div style="width:150px;height:150px;border-radius:50%;flex:none;background:<?php echo esc_attr($att_grad); ?>"></div>
+            <div style="flex:1;min-width:220px">
+                <div style="font-weight:700;margin-bottom:8px"><?php esc_html_e('Attendance', 'october-events'); ?></div>
+                <div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:14px">
+                    <span style="width:12px;height:12px;border-radius:3px;flex:none;background:<?php echo esc_attr($accent); ?>"></span>
+                    <span style="flex:1"><?php esc_html_e('Attended', 'october-events'); ?></span>
+                    <strong><?php echo esc_html(number_format_i18n($attended)); ?></strong>
+                    <span class="description" style="width:44px;text-align:right"><?php echo (int) $att_pct; ?>%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:14px">
+                    <span style="width:12px;height:12px;border-radius:3px;flex:none;background:#e3ded3"></span>
+                    <span style="flex:1"><?php esc_html_e('No-show', 'october-events'); ?></span>
+                    <strong><?php echo esc_html(number_format_i18n($no_show)); ?></strong>
+                    <span class="description" style="width:44px;text-align:right"><?php echo (int) $ns_pct; ?>%</span>
+                </div>
+                <p class="description" style="margin:8px 0 0"><?php echo esc_html(sprintf(
+                    /* translators: 1: attended, 2: issued tickets */
+                    __('%1$s of %2$s valid tickets were scanned in.', 'october-events'),
+                    number_format_i18n($attended), number_format_i18n($issued)
+                )); ?></p>
+            </div>
+        </div>
+        <?php endif; ?>
         <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:14px 16px;margin-bottom:16px;max-width:680px">
-            <strong><?php echo esc_html(sprintf(__('%s unique attendees checked in', 'october-events'), number_format_i18n((int) $stats['unique']))); ?></strong>
+            <strong><?php echo esc_html(sprintf(__('%s unique attendees checked in', 'october-events'), number_format_i18n($attended))); ?></strong>
             <?php if (! empty($stats['venues'])) : ?>
                 <table class="widefat striped" style="margin-top:10px">
                     <thead><tr><th><?php esc_html_e('Door / venue', 'october-events'); ?></th><th><?php esc_html_e('Scans', 'october-events'); ?></th></tr></thead>

@@ -48,6 +48,7 @@ final class Admin {
         add_action('admin_post_oe_import_brevo', [$this, 'handle_import_brevo']);
         add_action('admin_post_oe_cleanup_contacts', [$this, 'handle_cleanup_contacts']);
         add_action('admin_init', [$this, 'maybe_export_csv']);
+        add_filter('admin_title', [$this, 'filter_tickets_title'], 10, 2);
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
         TasksAdmin::get_instance()->init();
@@ -247,32 +248,52 @@ final class Admin {
         }
     }
 
+    /** The Tickets sub-tab labels, keyed by tab slug (shared by the nav + page title). */
+    public static function tickets_tab_labels(): array {
+        return [
+            'orders'    => __('Registrations', 'october-events'),
+            'transactions' => __('Transactions', 'october-events'),
+            'sales'     => __('Sales', 'october-events'),
+            'prices'    => __('Ticket prices', 'october-events'),
+            'analytics' => __('Sales analytics', 'october-events'),
+            'promos'    => __('Promo codes', 'october-events'),
+            'waitlist'  => __('Waitlist', 'october-events'),
+            'checkin'   => __('Check-in log', 'october-events'),
+            'failed'    => __('Failed payments', 'october-events'),
+            'abandoned' => __('Abandoned carts', 'october-events'),
+            'guided'    => __('Guided tours', 'october-events'),
+            'message'   => __('Message attendees', 'october-events'),
+        ];
+    }
+
     /** Tab nav shared by the Tickets sub-screens. */
     public static function tickets_tabs(string $active): void {
-        $tabs = [
-            'orders'   => [__('Registrations', 'october-events'), admin_url('admin.php?page=oe-tickets')],
-            'transactions' => [__('Transactions', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=transactions')],
-            'sales'    => [__('Sales', 'october-events'),         admin_url('admin.php?page=oe-tickets&tab=sales')],
-            'prices'   => [__('Ticket prices', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=prices')],
-            'analytics' => [__('Sales analytics', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=analytics')],
-            'promos'   => [__('Promo codes', 'october-events'),   admin_url('admin.php?page=oe-tickets&tab=promos')],
-            'waitlist' => [__('Waitlist', 'october-events'),      admin_url('admin.php?page=oe-tickets&tab=waitlist')],
-            'checkin'  => [__('Check-in log', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=checkin')],
-            'failed'   => [__('Failed payments', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=failed')],
-            'abandoned' => [__('Abandoned carts', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=abandoned')],
-            'guided'   => [__('Guided tours', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=guided')],
-            'message'  => [__('Message attendees', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=message')],
-        ];
         echo '<h2 class="nav-tab-wrapper">';
-        foreach ($tabs as $key => $t) {
+        foreach (self::tickets_tab_labels() as $key => $label) {
+            $url = $key === 'orders'
+                ? admin_url('admin.php?page=oe-tickets')
+                : admin_url('admin.php?page=oe-tickets&tab=' . $key);
             printf(
                 '<a href="%s" class="nav-tab%s">%s</a>',
-                esc_url($t[1]),
+                esc_url($url),
                 $active === $key ? ' nav-tab-active' : '',
-                esc_html($t[0])
+                esc_html($label)
             );
         }
         echo '</h2>';
+    }
+
+    /**
+     * Put the active Tickets sub-tab in the browser tab title, so several open
+     * Tickets screens are told apart (otherwise every one reads just "Tickets").
+     */
+    public function filter_tickets_title(string $admin_title, string $title): string {
+        if (! is_admin() || ($_GET['page'] ?? '') !== 'oe-tickets') {
+            return $admin_title;
+        }
+        $tab   = isset($_GET['tab']) ? sanitize_key((string) $_GET['tab']) : 'orders';
+        $label = self::tickets_tab_labels()[$tab] ?? '';
+        return $label !== '' ? $label . ' · ' . $admin_title : $admin_title;
     }
 
     public function page_volunteers(): void {

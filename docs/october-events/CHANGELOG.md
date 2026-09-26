@@ -5,6 +5,17 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.176.0 — Attendance pie + the active tab now shows in the browser title
+
+- With an event selected, the check-in log now shows an **Attendance** pie:
+  what share of valid tickets were actually scanned in versus never turned up
+  (no-shows), with the counts and percentages. Helps see who bought a ticket but
+  didn't come. Counts every active ticket as issued and each ticket scanned at
+  least once as attended; the rest are no-shows.
+- **The browser tab title now names the active Tickets sub-tab** (e.g. "Ticket
+  prices · Tickets ‹ …"), so several open Tickets screens are easy to tell apart
+  instead of every one reading just "Tickets".
+
 ## 1.175.0 — Hotfix: fatal error on the per-event check-in log
 
 - Fix a fatal error (`Call to undefined method Orders::orders()`) that fired
