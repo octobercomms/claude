@@ -515,7 +515,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </div></details>
 
         <details class="oe-acc" id="recovery-email"><summary><?php esc_html_e('Abandoned-cart recovery email', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description" style="max-width:820px"><?php esc_html_e('The email sent when you press “Send recovery” on an abandoned cart (Tickets → Transactions). Edit the wording below. Use {event} for the event name and {code} for the promo code (the code line only appears when you send with a code). The greeting, the list of tickets they had, the button link back to their cart and the footer are added automatically. Save before previewing to see your changes.', 'october-events'); ?></p>
+        <p class="description" style="max-width:820px"><?php esc_html_e('The email sent when you press “Send recovery” on an abandoned cart (Tickets → Transactions), or automatically by Autopilot below. Edit the wording below. Tokens: {event} = event name, {code} = the promo code, {offer} = the discount that code gives (e.g. “10% off”). The greeting, the list of tickets they had, the button link back to their cart and the footer are added automatically. Save before previewing to see your changes.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
             <tr><th scope="row"><?php esc_html_e('Subject', 'october-events'); ?></th>
                 <td><input type="text" name="recovery_subject" class="large-text" value="<?php echo esc_attr((string) ($cfg['recovery_subject'] ?? 'You left tickets for {event}')); ?>" placeholder="You left tickets for {event}"></td></tr>
@@ -525,14 +525,42 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <tr><th scope="row"><?php esc_html_e('Button label', 'october-events'); ?></th>
                 <td><input type="text" name="recovery_button" class="regular-text" value="<?php echo esc_attr((string) ($cfg['recovery_button'] ?? 'Complete your booking')); ?>" placeholder="Complete your booking"></td></tr>
             <tr><th scope="row"><?php esc_html_e('Code line', 'october-events'); ?></th>
-                <td><input type="text" name="recovery_code_line" class="large-text" value="<?php echo esc_attr((string) ($cfg['recovery_code_line'] ?? 'Use code {code} at checkout.')); ?>" placeholder="Use code {code} at checkout.">
-                    <p class="description"><?php esc_html_e('Only shown when you send with a promo code. {code} is replaced with the code.', 'october-events'); ?></p></td></tr>
+                <td><input type="text" name="recovery_code_line" class="large-text" value="<?php echo esc_attr((string) ($cfg['recovery_code_line'] ?? 'Use code {code} at checkout.')); ?>" placeholder="Use code {code} for {offer} at checkout.">
+                    <p class="description"><?php esc_html_e('Only shown when a code is attached. {code} becomes a boxed code; {offer} becomes the discount (e.g. “10% off”).', 'october-events'); ?></p></td></tr>
         </tbody></table>
         <p>
             <a class="button" target="_blank" rel="noopener" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_preview_recovery'), 'oe_preview_recovery')); ?>"><?php esc_html_e('Preview (no code) →', 'october-events'); ?></a>
             <a class="button" target="_blank" rel="noopener" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_preview_recovery&code=1'), 'oe_preview_recovery')); ?>"><?php esc_html_e('Preview (with code) →', 'october-events'); ?></a>
         </p>
         <p class="description"><?php esc_html_e('Previews open in a new tab with sample details (a two-line cart, event “Opening Night”, code WELCOME10). Save your changes first — previews reflect saved text.', 'october-events'); ?></p>
+
+        <h4 style="margin:18px 0 6px"><?php esc_html_e('Autopilot', 'october-events'); ?></h4>
+        <p><label><input type="checkbox" name="recovery_autopilot" value="1" <?php checked(! empty($cfg['recovery_autopilot'])); ?>> <strong><?php esc_html_e('Auto-send the recovery email to newly abandoned carts', 'october-events'); ?></strong></label></p>
+        <p class="description" style="max-width:820px"><?php esc_html_e('Runs hourly. It only mails carts abandoned AFTER you switch this on — your existing backlog is never auto-mailed, so send to those manually from Transactions. Each cart is emailed once, about 30–90 minutes after it goes quiet. Turning it off and on again starts a fresh window.', 'october-events'); ?></p>
+        <?php
+        // Active, redeemable codes for the autopilot attach dropdown.
+        $rec_now = (int) current_time('timestamp');
+        $rec_codes = [];
+        foreach (\OE\Ticketing\Promo::all() as $rp) {
+            if (! (int) $rp->active) { continue; }
+            if (! empty($rp->expires_at) && (strtotime((string) $rp->expires_at) ?: PHP_INT_MAX) < $rec_now) { continue; }
+            if ($rp->max_uses !== null && (int) $rp->used_count >= (int) $rp->max_uses) { continue; }
+            if ((string) $rp->code !== '') { $rec_codes[] = (string) $rp->code; }
+        }
+        $rec_sel = strtoupper((string) ($cfg['recovery_autopilot_code'] ?? ''));
+        ?>
+        <p><label><?php esc_html_e('Attach a code to autopilot sends', 'october-events'); ?>
+            <select name="recovery_autopilot_code">
+                <option value=""><?php esc_html_e('No code (reminder only)', 'october-events'); ?></option>
+                <?php foreach ($rec_codes as $rc) : ?>
+                    <option value="<?php echo esc_attr($rc); ?>" <?php selected($rec_sel, strtoupper($rc)); ?>><?php echo esc_html($rc); ?></option>
+                <?php endforeach; ?>
+            </select></label>
+            <?php if ($rec_sel !== '' && ! in_array($rec_sel, array_map('strtoupper', $rec_codes), true)) : ?>
+                <span class="description" style="color:#8a6d3b"><?php echo esc_html(sprintf(__('(saved code “%s” is no longer active — autopilot sends without a code until you pick another)', 'october-events'), $rec_sel)); ?></span>
+            <?php endif; ?>
+        </p>
+        <p class="description" style="max-width:820px"><?php esc_html_e('The offer that code gives (e.g. “10% off”) fills the {offer} token automatically. Attaching a discount to every automatic send can train buyers to abandon on purpose; a reminder with no code, keeping a code for a manual second touch, often performs better.', 'october-events'); ?></p>
         </div></details>
 
         <details class="oe-acc" id="membership"><summary><?php esc_html_e('Membership (early access)', 'october-events'); ?></summary><div class="oe-acc-body">

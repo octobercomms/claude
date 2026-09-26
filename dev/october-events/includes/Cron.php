@@ -87,6 +87,9 @@ final class Cron {
         Reminders::run_due();
         // Pre-event reminder to ticket-holders (default 24h before, once per event).
         \OE\Ticketing\AttendeeReminders::run_due();
+        // Abandoned-cart recovery autopilot (no-op unless switched on) — mails
+        // carts abandoned since it was enabled; the backlog stays manual.
+        \OE\Ticketing\Recovery::run_autopilot();
         // Chip away at contact CleanUp (names + company) for any new contacts.
         \OE\Mail\Enrich::backfill(1000);
         // Keep the public Friends/Patrons footer lists warm so no visitor ever

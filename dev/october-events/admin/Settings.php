@@ -378,6 +378,17 @@ final class Settings {
         // honour "blank = keep" instead of wiping on every save.
         $existing = Config::all();
 
+        // Recovery autopilot: stamp the "future only" start time the moment it's
+        // switched on (so it never mails the existing backlog), and clear it when
+        // switched off so re-enabling starts a fresh window.
+        $ap_on    = ! empty($in['recovery_autopilot']);
+        $ap_since = (string) ($existing['recovery_autopilot_since'] ?? '');
+        if ($ap_on && $ap_since === '') {
+            $ap_since = current_time('mysql');
+        } elseif (! $ap_on) {
+            $ap_since = '';
+        }
+
         // Pricing (dollars in the form -> cents stored).
         $pricing = [];
         foreach (PostTypes::listing_types() as $type) {
@@ -435,6 +446,9 @@ final class Settings {
             'recovery_intro'     => sanitize_textarea_field((string) ($in['recovery_intro'] ?? '')),
             'recovery_button'    => sanitize_text_field((string) ($in['recovery_button'] ?? '')),
             'recovery_code_line' => sanitize_text_field((string) ($in['recovery_code_line'] ?? '')),
+            'recovery_autopilot'       => $ap_on,
+            'recovery_autopilot_code'  => strtoupper(sanitize_text_field((string) ($in['recovery_autopilot_code'] ?? ''))),
+            'recovery_autopilot_since' => $ap_since,
             'location_post_type' => sanitize_key((string) ($in['location_post_type'] ?? '')),
             'location_address_field' => sanitize_key((string) ($in['location_address_field'] ?? '')),
             'location_date_field'    => sanitize_key((string) ($in['location_date_field'] ?? '')),
