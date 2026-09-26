@@ -1200,7 +1200,7 @@ final class Orders {
      */
     public static function sold_by_door(int $event_id): array {
         global $wpdb;
-        $t    = self::orders();
+        $t    = Schema::orders();
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT door, COUNT(*) AS orders, SUM(qty) AS tickets, SUM(total) AS revenue
              FROM {$t}

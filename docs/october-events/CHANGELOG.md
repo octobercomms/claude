@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.175.0 — Hotfix: fatal error on the per-event check-in log
+
+- Fix a fatal error (`Call to undefined method Orders::orders()`) that fired
+  whenever a specific event was selected on the check-in log — the door-sales
+  tally called a non-existent helper. It now uses the correct table reference.
+  This was a latent bug exposed by selecting an event to use the new CSV export.
+
 ## 1.174.0 — Check-in log export, tighter time chart & a ticket-price report
 
 **Check-in log**
