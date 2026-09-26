@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.173.0 — Manual check-in by name (no QR needed)
+
+- The door check-in app (`/checkin`) now has a **Find by name** button. Search
+  the event's registrations by attendee or buyer name or email, and tap a person
+  to check them in — for a guest who arrives without their ticket QR.
+- Each result shows whether that ticket is already checked in (and at which
+  door), so staff don't admit a shared ticket twice.
+- Same rules as a scan: PIN-gated, venue/door policy enforced, and a second
+  check-in at the same door is blocked unless re-entry is allowed. Search and
+  manual check-in need a connection (the offline path stays QR-scan only).
+- Under the hood: new PIN-gated `checkin-search` and `checkin-manual` REST
+  endpoints; the check-in core is shared between the scan and the by-name paths.
+
 ## 1.172.0 — Transfer a ticket to another person
 
 - On **Tickets → Registrations**, expand an order and each active ticket now has

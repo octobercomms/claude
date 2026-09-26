@@ -366,6 +366,100 @@
         });
     }
 
+    /* ---- Find by name: manual check-in for a guest with no QR (online only) ---- */
+    var findScreen  = document.getElementById('oe-ci-find-screen');
+    var findInput   = document.getElementById('oe-ci-find-input');
+    var findResults = document.getElementById('oe-ci-find-results');
+    var findTimer   = null;
+    var findSeq     = 0;
+
+    function openFind() {
+        if (!findScreen) { return; }
+        var vlabel = document.getElementById('oe-ci-find-venue');
+        if (vlabel) { vlabel.textContent = state.eventTitle + (state.venue ? ' · ' + state.venue : ''); }
+        findResults.innerHTML = '';
+        findInput.value = '';
+        findScreen.hidden = false;
+        stopScanner(); // free the camera while searching
+        setTimeout(function () { findInput.focus(); }, 50);
+    }
+    function closeFind() {
+        if (!findScreen) { return; }
+        findScreen.hidden = true;
+        if (findTimer) { clearTimeout(findTimer); findTimer = null; }
+        startScanner();
+    }
+    function renderFind(rows) {
+        if (!rows || !rows.length) {
+            findResults.innerHTML = '<div class="find-empty">' + esc('No matches.') + '</div>';
+            return;
+        }
+        findResults.innerHTML = rows.map(function (r) {
+            var inHere = (r.venues || []).indexOf(state.venue) !== -1;
+            var badge = r.checked_in
+                ? '<span class="find-in">' + esc(inHere ? '✓ In at this door' : 'In: ' + (r.venues || []).join(', ')) + '</span>'
+                : '';
+            return '<button type="button" class="find-row" data-id="' + r.id + '">' +
+                '<span class="find-name">' + esc(r.attendee || '—') + '</span>' +
+                '<span class="find-type">' + esc(r.type || '') + '</span>' +
+                badge + '</button>';
+        }).join('');
+    }
+    function runFind() {
+        var q = findInput.value.trim();
+        if (q.length < 2) { findResults.innerHTML = ''; return; }
+        if (!navigator.onLine) {
+            findResults.innerHTML = '<div class="find-empty">' + esc('Name search needs a connection. Scan the QR instead, or reconnect.') + '</div>';
+            return;
+        }
+        var seq = ++findSeq;
+        get('/checkin-search', { event_id: state.eventId, pin: state.pin, q: q }).then(function (res) {
+            if (seq !== findSeq) { return; } // a newer search superseded this response
+            if (res && res.error) { return; }
+            renderFind((res && res.results) || []);
+        }).catch(function () {});
+    }
+    if (findInput) {
+        findInput.addEventListener('input', function () {
+            if (findTimer) { clearTimeout(findTimer); }
+            findTimer = setTimeout(runFind, 250);
+        });
+    }
+    if (findResults) {
+        findResults.addEventListener('click', function (e) {
+            var btn = e.target.closest ? e.target.closest('.find-row') : null;
+            if (!btn) { return; }
+            var id = parseInt(btn.getAttribute('data-id'), 10);
+            if (!id || !navigator.onLine) { return; }
+            btn.disabled = true;
+            post('/checkin-manual', { ticket_id: id, event_id: state.eventId, pin: state.pin, venue: state.venue })
+                .then(function (res) {
+                    var s = res.body || {};
+                    // An auth/connection error (bad PIN, throttle, dropped signal)
+                    // must not read as "invalid ticket" — keep the panel open and say so.
+                    if (!res.ok || s.error) {
+                        findResults.innerHTML = '<div class="find-empty">' +
+                            esc('Could not check in — check the connection and try again.') + '</div>';
+                        return;
+                    }
+                    closeFind();
+                    overlay(s.status, s);
+                    if (s.status === 'valid') {
+                        state.count++; document.getElementById('oe-ci-count').textContent = state.count;
+                        // Keep the offline checked set current so re-scanning this
+                        // ticket's QR at this door is flagged if we drop offline.
+                        if (manifest && s.token_hash) { manifest.checked[s.token_hash + '|' + state.venue] = true; }
+                    }
+                    refreshStats();
+                })
+                .catch(function () { btn.disabled = false; });
+        });
+    }
+    var findBtn = document.getElementById('oe-ci-find');
+    if (findBtn) { findBtn.addEventListener('click', openFind); }
+    var findCloseBtn = document.getElementById('oe-ci-find-close');
+    if (findCloseBtn) { findCloseBtn.addEventListener('click', closeFind); }
+
     /* Validate a token against the cached manifest, with no network. The manifest
        holds token hashes, so hash the scanned token and match on that. */
     function scanOffline(token) {

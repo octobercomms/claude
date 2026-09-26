@@ -177,6 +177,14 @@ final class RestApi {
         register_rest_route(self::NS, '/checkin-scan', [
             'methods' => 'POST', 'callback' => [$this, 'checkin_scan'], 'permission_callback' => '__return_true',
         ]);
+        // Manual (name-lookup) check-in for a guest with no QR: search, then
+        // check in by ticket id. Both PIN-gated like the scan.
+        register_rest_route(self::NS, '/checkin-search', [
+            'methods' => 'GET', 'callback' => [$this, 'checkin_search'], 'permission_callback' => '__return_true',
+        ]);
+        register_rest_route(self::NS, '/checkin-manual', [
+            'methods' => 'POST', 'callback' => [$this, 'checkin_manual'], 'permission_callback' => '__return_true',
+        ]);
         register_rest_route(self::NS, '/checkin-stats', [
             'methods' => 'GET', 'callback' => [$this, 'checkin_stats'], 'permission_callback' => '__return_true',
         ]);
@@ -1267,6 +1275,28 @@ final class RestApi {
         }
         $result = \OE\Ticketing\CheckIn::scan(
             sanitize_text_field((string) $req->get_param('token')),
+            $event_id,
+            (string) $req->get_param('venue')
+        );
+        return new \WP_REST_Response($result, 200);
+    }
+
+    public function checkin_search(\WP_REST_Request $req): \WP_REST_Response {
+        $event_id = $this->checkin_pin_guard($req);
+        if (! $event_id) {
+            return new \WP_REST_Response(['error' => 'bad_pin'], 403);
+        }
+        $results = \OE\Ticketing\CheckIn::search($event_id, (string) $req->get_param('q'), 25);
+        return new \WP_REST_Response(['results' => $results], 200);
+    }
+
+    public function checkin_manual(\WP_REST_Request $req): \WP_REST_Response {
+        $event_id = $this->checkin_pin_guard($req);
+        if (! $event_id) {
+            return new \WP_REST_Response(['error' => 'bad_pin'], 403);
+        }
+        $result = \OE\Ticketing\CheckIn::scan_ticket(
+            (int) $req->get_param('ticket_id'),
             $event_id,
             (string) $req->get_param('venue')
         );

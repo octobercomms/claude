@@ -128,7 +128,36 @@ body.oe-checkin-route { margin: 0; background: #0f0f0f; }
   padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap;
 }
 .oe-checkin .scanner-bar .ci-go { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.oe-checkin .scanner-bar .ci-find { background: #252525; color: var(--text); font-weight: 700; }
 .oe-checkin .scanner-bar .ci-sell { background: #fff; color: #111; border-color: #fff; font-weight: 700; }
+
+/* ---- Find-by-name: manual check-in for a guest with no QR ---- */
+.oe-checkin .oe-ci-find-screen {
+  position: fixed; inset: 0; z-index: 60; background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column; padding: 16px;
+}
+.oe-checkin .oe-ci-find-screen[hidden] { display: none; }
+.oe-checkin .oe-ci-find-screen .find-head { display: flex; gap: 10px; align-items: center; }
+.oe-checkin .oe-ci-find-screen .find-head input {
+  flex: 1; background: #252525; border: 1px solid var(--border); color: var(--text);
+  padding: 14px; border-radius: 10px; font-size: 16px;
+}
+.oe-checkin .oe-ci-find-screen .find-close {
+  border: 1px solid var(--border); background: #252525; color: var(--text);
+  padding: 13px 18px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.oe-checkin .oe-ci-find-screen .find-venue { font-size: 13px; font-weight: 700; color: var(--accent); margin: 12px 2px; }
+.oe-checkin .oe-ci-find-screen .find-results { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.oe-checkin .oe-ci-find-screen .find-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; text-align: left; width: 100%;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  padding: 15px 16px; border-radius: 12px; cursor: pointer; font-size: 16px;
+}
+.oe-checkin .oe-ci-find-screen .find-row:disabled { opacity: 0.5; }
+.oe-checkin .oe-ci-find-screen .find-name { font-weight: 700; flex: 1; }
+.oe-checkin .oe-ci-find-screen .find-type { font-size: 12px; color: var(--muted); }
+.oe-checkin .oe-ci-find-screen .find-in { font-size: 12px; font-weight: 700; color: var(--accent); flex-basis: 100%; }
+.oe-checkin .oe-ci-find-screen .find-empty { color: var(--muted); padding: 20px 4px; text-align: center; }
 
 /* ---- Sell screen: full-brightness white QR for a walk-up to scan ---- */
 .oe-ci-sell-screen {
