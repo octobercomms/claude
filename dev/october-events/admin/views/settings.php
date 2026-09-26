@@ -514,6 +514,27 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </tbody></table>
         </div></details>
 
+        <details class="oe-acc" id="recovery-email"><summary><?php esc_html_e('Abandoned-cart recovery email', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description" style="max-width:820px"><?php esc_html_e('The email sent when you press “Send recovery” on an abandoned cart (Tickets → Transactions). Edit the wording below. Use {event} for the event name and {code} for the promo code (the code line only appears when you send with a code). The greeting, the list of tickets they had, the button link back to their cart and the footer are added automatically. Save before previewing to see your changes.', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr><th scope="row"><?php esc_html_e('Subject', 'october-events'); ?></th>
+                <td><input type="text" name="recovery_subject" class="large-text" value="<?php echo esc_attr((string) ($cfg['recovery_subject'] ?? 'You left tickets for {event}')); ?>" placeholder="You left tickets for {event}"></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Intro line', 'october-events'); ?></th>
+                <td><textarea name="recovery_intro" rows="3" class="large-text"><?php echo esc_textarea((string) ($cfg['recovery_intro'] ?? '')); ?></textarea>
+                    <p class="description"><?php esc_html_e('Shown above the ticket list. {event} is replaced with the event name.', 'october-events'); ?></p></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Button label', 'october-events'); ?></th>
+                <td><input type="text" name="recovery_button" class="regular-text" value="<?php echo esc_attr((string) ($cfg['recovery_button'] ?? 'Complete your booking')); ?>" placeholder="Complete your booking"></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Code line', 'october-events'); ?></th>
+                <td><input type="text" name="recovery_code_line" class="large-text" value="<?php echo esc_attr((string) ($cfg['recovery_code_line'] ?? 'Use code {code} at checkout.')); ?>" placeholder="Use code {code} at checkout.">
+                    <p class="description"><?php esc_html_e('Only shown when you send with a promo code. {code} is replaced with the code.', 'october-events'); ?></p></td></tr>
+        </tbody></table>
+        <p>
+            <a class="button" target="_blank" rel="noopener" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_preview_recovery'), 'oe_preview_recovery')); ?>"><?php esc_html_e('Preview (no code) →', 'october-events'); ?></a>
+            <a class="button" target="_blank" rel="noopener" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_preview_recovery&code=1'), 'oe_preview_recovery')); ?>"><?php esc_html_e('Preview (with code) →', 'october-events'); ?></a>
+        </p>
+        <p class="description"><?php esc_html_e('Previews open in a new tab with sample details (a two-line cart, event “Opening Night”, code WELCOME10). Save your changes first — previews reflect saved text.', 'october-events'); ?></p>
+        </div></details>
+
         <details class="oe-acc" id="membership"><summary><?php esc_html_e('Membership (early access)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Members are detected from your Stripe subscriptions. Paste a Stripe product ID (starts prod_…) to count everyone subscribed to that product (e.g. the Friend product covers both its monthly and yearly prices), or a specific price ID (starts price_…) to count just that one. One per line. Anyone with a live subscription matching any of these counts as an active member. Find them in Stripe → Products. Leave off until you’re ready.', 'october-events'); ?></p>
         <p><label><input type="checkbox" name="membership_enabled" value="1" <?php checked(! empty($cfg['membership_enabled'])); ?>> <strong><?php esc_html_e('Enable membership features (member detection & rates at checkout)', 'october-events'); ?></strong></label></p>
