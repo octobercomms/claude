@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.174.0 — Check-in log export, tighter time chart & a ticket-price report
+
+**Check-in log**
+- **Export log (CSV)** button on the check-in log: one row per ticket × door,
+  with scans, rescans and first/last scan times. Honours the event filter.
+- The time chart is now **check-in times in 15-minute segments**, trimmed to the
+  actual window (first scan → last scan) instead of always showing a full 24
+  hours. The segment size widens automatically for long or multi-day windows.
+
+**New: Ticket prices report (Tickets → Ticket prices)**
+- A pie of what people actually paid per ticket, in price bands (Free, under
+  the site currency's 10, 10–25, 25–50, 50–100, 100+), plus a distinct-price
+  table.
+- **Group tickets are divided by the number they admit**, so the per-ticket
+  price and the averages are honest (one £100 ticket admitting 4 counts as four
+  £25 tickets).
+- Headline tiles: total tickets, free count and share, paid count, average per
+  ticket, average paid ticket (excluding free), and revenue. A note flags when
+  half or more of tickets are free, so it's easy to see if too many are being
+  given away.
+
 ## 1.173.0 — Manual check-in by name (no QR needed)
 
 - The door check-in app (`/checkin`) now has a **Find by name** button. Search
