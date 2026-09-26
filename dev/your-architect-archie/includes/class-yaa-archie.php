@@ -34,11 +34,12 @@ class YAA_Archie {
 		$text = self::opener_text();
 		YAA_Project::add_message( $project_id, 'assistant', $text );
 		return array(
-			'message'  => $text,
-			'package'  => YAA_Project::package( $project_id ),
-			'options'  => array(), // address is free text — nothing to tap.
-			'redirect' => false,
-			'done'     => false,
+			'message'     => $text,
+			'package'     => YAA_Project::package( $project_id ),
+			'options'     => array(), // address is free text — nothing to tap.
+			'placeholder' => self::input_hint( array(), false ),
+			'redirect'    => false,
+			'done'        => false,
 		);
 	}
 
@@ -104,11 +105,11 @@ class YAA_Archie {
 			( $addon_lines ? implode( "\n", $addon_lines ) : '- (none configured)' ),
 			'',
 			'THE INFORMATION TO COLLECT (ask in this order, and SKIP anything that clearly does not apply):',
-			'1) the property address (already asked in the opener);',
+			'1) the property address (already asked in the opener). We work ONLY on properties in the United Kingdom, and we need the FULL address INCLUDING a valid UK postcode — we cannot carry out the work without the postcode, so treat it as essential. Set the `address` field to what they give, and the `postcode` field the moment you have a postcode. If their address has no postcode, warmly ask for the postcode before moving on to anything else (e.g. "Thanks — and what is the postcode?"). If the property is clearly NOT in the UK, set outsideUk=true, kindly explain that Your Architect only works on properties in the UK so sadly you are not able to help with this one, suggest they seek a local architect, and STOP there — do not ask anything else, do not pick a service, do not build a quote.',
 			'2) WHICH SERVICE they need — offer the menu above in plain words as tappable options, plus "I\'m not sure / I need advice". Help them pick if unsure. Set the `service` field. ' . $advice . ' The MOMENT they choose the advice path (or clearly want to talk to someone rather than pick a service), set advice=true and STAY in advice mode: offer a free 15-minute call or to take their email so the team can get back to them, and do NOT present the service menu again. Asking for their email or their name are open questions — never offer tappable options for those.',
 			'3) briefly, what the work physically is (a rear/side extension, loft, garage, outbuilding, internal work, a new home) — for our notes; set projectType if clear. Keep it to one light question, do not labour it.',
 			'4) the relevant add-ons for their service (see the add-ons list): for Full planning, whether we submit & manage the application; the optional 3D visualisation; and the site visit ONLY if they are in London / the M25.',
-			'5) "Do you have existing plans of your property drawn up?" — plain words for a measured survey (an accurate set of drawings of the property as it is today, which we need before designing). If YES → survey=false. If NO or "I\'d like the pro to help" → survey=true and reassure: "' . $survey_help . '"',
+			'5) "Do you have existing plans of your property drawn up?" — plain words for a measured survey (an accurate set of drawings of the property as it is today, which we need before designing). If YES → set hasDrawings=true and survey=false, tell them it is essential we see those drawings and ask them to upload the file(s) now using the photo/paperclip button next to the message box; they should upload before finishing. If NO or "I\'d like the pro to help" → survey=true and reassure: "' . $survey_help . '" (For a full planning application an accurate measured survey is required before we can start, even if they only have estate-agent floor plans.)',
 			'6) will the work involve structural changes (removing walls, adding steel beams)? Reassure that "No / not sure" is completely fine. If they are unsure, reply: "' . $structural_line . '" and set structural only if you are confident.',
 			'7) their rough timeframe;',
 			'8) finally, the best email address to send their quote to — and their name. Frame it warmly: you would like to EMAIL them a copy of this fixed-price quote so they have it to keep, and it is how the team will confirm details and get back to them. This is how Your Architect contacts them, so an email really is needed — do NOT call it optional. Reassure them it is only ever used for their quote and their project, never marketing. If they hesitate, briefly explain why it matters and ask once more.',
@@ -123,7 +124,7 @@ class YAA_Archie {
 			'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
 			'- New dwellings and full RIBA services (concept to construction) or larger commissions are handled directly by Tiam Architects: set the `service` to "newdwelling" if that is what they want, and point them to ' . $riba . ' at the end.',
 			'',
-			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, a free description, name or email). submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have captured a valid email address to reach them on (their name too if given) — never before.',
+			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, postcode, a free description, name or email). Set `postcode` as soon as you have the UK postcode, and `outsideUk`=true if the property is not in the UK. Set `hasDrawings`=true if they already have existing plans/drawings/a survey. submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have a UK postcode AND a valid email address to reach them on (their name too if given), the property is in the UK, and — if they said they have existing drawings — they have uploaded them. Never set done before all of that.',
 		);
 
 		$known = self::address_knowledge( $state );
@@ -169,9 +170,12 @@ class YAA_Archie {
 				'input_schema' => array(
 					'type'       => 'object',
 					'properties' => array(
-						'address'     => array( 'type' => 'string' ),
+						'address'     => array( 'type' => 'string', 'description' => 'the full property address as given (house/number, street, town)' ),
+						'postcode'    => array( 'type' => 'string', 'description' => 'the UK postcode of the property once known — we cannot do the work without it' ),
+						'outsideUk'   => array( 'type' => 'boolean', 'description' => 'true if the property is clearly NOT in the United Kingdom (we only work on UK properties)' ),
 						'service'     => array( 'type' => 'string', 'enum' => $service_keys, 'description' => 'the base service the homeowner needs, chosen from the service menu' ),
 						'advice'      => array( 'type' => 'boolean', 'description' => 'true if the person is unsure what they need or wants advice / to talk to someone rather than pick a service from the menu' ),
+						'hasDrawings' => array( 'type' => 'boolean', 'description' => 'true if they say they already have existing drawings, plans or a measured survey of the property — if so they must upload the file(s)' ),
 						'projectType' => array( 'type' => 'string', 'enum' => array( 'extension', 'loft', 'garage', 'outbuilding', 'internal', 'newdwelling' ), 'description' => 'optional context — what the work physically is' ),
 						'storeys'     => array( 'type' => 'string', 'description' => 'for a rear/side extension: single, two, or unsure' ),
 						'submitApp'   => array( 'type' => 'boolean', 'description' => 'true if they want us to submit & manage the planning application (planning service only)' ),
@@ -195,7 +199,7 @@ class YAA_Archie {
 	}
 
 	/** Fields the tool may write into state (`replies` is deliberately excluded — it drives the UI, not the record). */
-	private static $allowed = array( 'address', 'service', 'advice', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
+	private static $allowed = array( 'address', 'postcode', 'outsideUk', 'service', 'advice', 'hasDrawings', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
 
 	/**
 	 * Run one conversational turn.
@@ -245,11 +249,24 @@ class YAA_Archie {
 					continue;
 				}
 				if ( 'address' === $k ) {
-					$state['postcode'] = sanitize_text_field( (string) $v );
-					$he = YAA_Historic_England::check( (string) $v );
-					$state['london']       = ! empty( $he['london'] );       // gates the site-visit question.
-					$state['listed']       = ! empty( $he['listed'] );       // drives listed-building follow-ups.
-					$state['conservation'] = ! empty( $he['conservation'] ); // drives conservation-area follow-ups.
+					$state['address'] = sanitize_text_field( (string) $v );
+					// An address line often already contains the postcode — capture it
+					// so we don't have to ask again when it was given in full.
+					if ( empty( $state['postcode'] ) ) {
+						$pc = self::extract_uk_postcode( (string) $v );
+						if ( $pc ) {
+							$state['postcode'] = $pc;
+							self::apply_address_lookup( $state, $pc );
+						}
+					}
+					continue;
+				}
+				if ( 'postcode' === $k ) {
+					$pc = self::extract_uk_postcode( (string) $v );
+					if ( $pc ) {
+						$state['postcode'] = $pc;
+						self::apply_address_lookup( $state, $pc );
+					}
 					continue;
 				}
 				if ( 'email' === $k ) {
@@ -278,12 +295,24 @@ class YAA_Archie {
 			YAA_Project::set_contact( $project_id, isset( $state['name'] ) ? $state['name'] : '', isset( $state['email'] ) ? $state['email'] : '' );
 		}
 
+		// A property outside the UK is a hard stop — we don't quote or open a
+		// project for it, so drop any service that may have slipped in.
+		if ( ! empty( $state['outsideUk'] ) ) {
+			unset( $state['service'] );
+			$done = false;
+		}
+
 		$package = YAA_Pricing::build_package( $state );
 
-		// Never treat the chat as finished until we actually have an email to reach
-		// them on — an opened project with no contact is useless to the studio.
-		if ( $done && empty( $state['email'] ) ) {
-			$done = false;
+		// Never treat the chat as finished until we have everything the studio needs
+		// to act: a UK postcode, an email to reach them on, and — if they said they
+		// already have drawings — the uploaded file(s).
+		if ( $done ) {
+			if ( empty( $state['email'] ) || empty( $state['postcode'] ) ) {
+				$done = false;
+			} elseif ( ! empty( $state['hasDrawings'] ) && ! self::has_client_upload( $project_id ) ) {
+				$done = false;
+			}
 		}
 
 		$message = '' !== $result['text'] ? $result['text'] : __( 'Got it — thanks.', 'your-architect-archie' );
@@ -295,12 +324,13 @@ class YAA_Archie {
 		}
 
 		return array(
-			'message'  => $message,
-			'package'  => $package,
-			'options'  => $options,
-			'redirect' => ! empty( $package['redirect'] ),
-			'done'     => $done,
-			'hasEmail' => ! empty( $state['email'] ),
+			'message'     => $message,
+			'package'     => $package,
+			'options'     => $options,
+			'placeholder' => self::input_hint( $state, $done ),
+			'redirect'    => ! empty( $package['redirect'] ),
+			'done'        => $done,
+			'hasEmail'    => ! empty( $state['email'] ),
 		);
 	}
 
@@ -370,6 +400,67 @@ class YAA_Archie {
 	}
 
 	/**
+	 * Pull a valid UK postcode out of a free-text address (or a bare postcode),
+	 * normalised to upper case with a single space. Returns '' if none is found —
+	 * which is how we know we still need to ask for it.
+	 */
+	public static function extract_uk_postcode( $text ) {
+		$text = strtoupper( trim( (string) $text ) );
+		if ( preg_match( '/\b([A-Z]{1,2}[0-9][A-Z0-9]?)\s*([0-9][A-Z]{2})\b/', $text, $m ) ) {
+			return $m[1] . ' ' . $m[2];
+		}
+		return '';
+	}
+
+	/** Address lookup (London/M25, listed, conservation) → drives smarter follow-ups. */
+	private static function apply_address_lookup( array &$state, $postcode ) {
+		$he = YAA_Historic_England::check( (string) $postcode );
+		$state['london']       = ! empty( $he['london'] );
+		$state['listed']       = ! empty( $he['listed'] );
+		$state['conservation'] = ! empty( $he['conservation'] );
+	}
+
+	/** True once the client has uploaded at least one file against this project. */
+	private static function has_client_upload( $project_id ) {
+		if ( ! class_exists( 'YAA_Files' ) ) {
+			return false;
+		}
+		$files = YAA_Files::for_project( $project_id, 'client' );
+		return ! empty( $files );
+	}
+
+	/**
+	 * A contextual placeholder for the answer box that reiterates what we're asking
+	 * for right now, so the field itself guides the person (an "address box", an
+	 * "email box", etc.). Mirrors the flow order in suggested_options().
+	 */
+	public static function input_hint( array $s, $done = false ) {
+		if ( $done ) {
+			return __( 'That\'s everything — thank you.', 'your-architect-archie' );
+		}
+		if ( ! empty( $s['outsideUk'] ) ) {
+			return __( 'Type your message…', 'your-architect-archie' );
+		}
+		if ( empty( $s['address'] ) && empty( $s['postcode'] ) ) {
+			return __( 'Type the full property address…', 'your-architect-archie' );
+		}
+		if ( empty( $s['postcode'] ) ) {
+			return __( 'Type the property\'s postcode…', 'your-architect-archie' );
+		}
+		if ( ! empty( $s['email'] ) && empty( $s['name'] ) ) {
+			return __( 'Type your name…', 'your-architect-archie' );
+		}
+		if ( ! empty( $s['advice'] ) ) {
+			return __( 'Type your email address…', 'your-architect-archie' );
+		}
+		$service = isset( $s['service'] ) ? (string) $s['service'] : '';
+		if ( '' === $service ) {
+			return __( 'Type your answer, or tap an option above…', 'your-architect-archie' );
+		}
+		return __( 'Type your answer, or tap an option above…', 'your-architect-archie' );
+	}
+
+	/**
 	 * Render the collected state as an ordered, form-style Q&A summary for the
 	 * admin — only the questions that apply to this project, each marked answered
 	 * or not, so Tiam can see exactly how far someone got and where they stopped.
@@ -397,7 +488,16 @@ class YAA_Archie {
 
 		// [ label, value|null, applies ]
 		$rows = array();
-		$rows[] = array( 'Property address', isset( $s['postcode'] ) ? $s['postcode'] : null, true );
+		$addr = '';
+		if ( ! empty( $s['address'] ) ) {
+			$addr = (string) $s['address'];
+			if ( ! empty( $s['postcode'] ) && false === stripos( $addr, (string) $s['postcode'] ) ) {
+				$addr .= ', ' . $s['postcode'];
+			}
+		} elseif ( ! empty( $s['postcode'] ) ) {
+			$addr = (string) $s['postcode'];
+		}
+		$rows[] = array( 'Property address', '' !== $addr ? $addr : null, true );
 		$rows[] = array( 'Service needed', $svc ? $svc['label'] : null, true );
 		$rows[] = array( 'What the work is', isset( $s['projectType'], $types[ $s['projectType'] ] ) ? $types[ $s['projectType'] ] : null, true );
 		if ( isset( $s['projectType'] ) && 'extension' === $s['projectType'] ) {

@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.5.8
+Stable tag: 0.6.0
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,24 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.6.0 =
+* Conversation layer (from the Sep 7 Tiam call):
+  * Address is captured up front and must be complete — Archie now requires a
+    valid UK postcode before a project can be submitted (we can't do the work
+    without it), and picks the postcode out of a full address automatically.
+  * Non-UK properties are declined immediately: Archie explains we only work on
+    UK properties and does not build a quote or open a project.
+  * The answer box now shows a contextual placeholder that reiterates what's
+    being asked (an address box, a postcode box, an email box, etc.).
+  * If someone says they already have drawings/plans/a survey, uploading the
+    file is now required before the project can be submitted.
+  * Always-on "Email me my quote" field (appears a couple of questions in) so
+    anyone can save their quote by email at any point without finishing — this
+    saves the address for later and does not submit the project.
+  * Default delivery estimate now reads "typically within 14 days" with a note
+    that dates are subject to availability and any survey/site visit, confirmed
+    on review.
 
 = 0.5.8 =
 * The "Could not send" confirmation-email error now shows the actual reason

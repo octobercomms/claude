@@ -25,11 +25,13 @@
       redirectBanner = el('redirectBanner'), quoteMeta = el('quoteMeta'), mValidity = el('mValidity'),
       mDelivery = el('mDelivery'), mRevisions = el('mRevisions'), submitBtn = el('submitBtn'),
       restartBtn = el('restartBtn'), panelToggle = el('panelToggle'), panel = el('packagePanel'),
-      quick = el('quickReplies'), photoBtn = el('photoBtn'), photoInput = el('photoInput');
+      quick = el('quickReplies'), photoBtn = el('photoBtn'), photoInput = el('photoInput'),
+      saveQuote = el('saveQuote'), saveEmail = el('saveEmail'), saveQuoteNote = el('saveQuoteNote');
 
   if (!msgList) return; // Archie not on this page.
 
   var busy = false, done = false, hasService = false;
+  var userMsgCount = 0, emailSaved = false; // drives the always-on "Email me my quote" field.
 
   function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
   function post(path, body) {
@@ -134,6 +136,7 @@
     if (typeof preset !== 'string') { input.value = ''; autoGrow(); }
     clearOptions();
     addMsg('user', escapeHtml(text));
+    userMsgCount++;
     setBusy(true); typing(true);
     post('message', { text: text }).then(function (res) {
       typing(false);
@@ -144,9 +147,11 @@
       addMsg('bot', escapeHtml(res.body.message));
       renderPackage(res.body.package);
       renderOptions(res.body.options);
+      if (res.body.placeholder) input.placeholder = res.body.placeholder;
+      if (res.body.hasEmail && !emailSaved) markEmailSaved('', 'Saved — we’ll email your quote to you.');
+      revealSaveQuote();
       if (res.body.done) {
         done = true; clearOptions();
-        input.placeholder = 'That’s everything — thank you.';
         // The email is the last thing we need, so submit automatically — no button click required.
         if (res.body.hasEmail) { doSubmit(); }
       }
@@ -183,9 +188,14 @@
     submitBtn.disabled = true; submitOriginal = submitBtn.textContent; submitBtn.textContent = 'Sending…';
     post('submit', {}).then(function (res) {
       var d = res.body || {};
-      if (d.needEmail) {
-        pendingSubmit = true;
-        addMsg('bot', escapeHtml(d.message || 'What’s the best email address to send your quote to?'), 'note');
+      if (d.ineligible) {
+        addMsg('bot', escapeHtml(d.message || 'Sorry — we only work on properties in the UK.'), 'note');
+        submitBtn.disabled = true; submitBtn.textContent = submitOriginal;
+        return;
+      }
+      if (d.needEmail || d.needPostcode || d.needUpload) {
+        pendingSubmit = !!d.needEmail; // only the email is auto-retried once captured in chat
+        addMsg('bot', escapeHtml(d.message || 'Just one more detail before I can save this.'), 'note');
         submitBtn.disabled = false; submitBtn.textContent = submitOriginal;
         if (!done) input.focus({ preventScroll: true });
         return;
@@ -197,6 +207,37 @@
     }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = submitOriginal; });
   }
   submitBtn.addEventListener('click', doSubmit);
+
+  // ---- Always-on "Email me my quote" (save for later) ----
+  // Appears a couple of questions in, so anyone can capture their quote by email
+  // at any point without finishing the chat. Saving does NOT submit the project.
+  function revealSaveQuote() {
+    if (!saveQuote || emailSaved || done) return;
+    if (userMsgCount >= 2) saveQuote.hidden = false;
+  }
+  function markEmailSaved(email, note) {
+    emailSaved = true;
+    if (!saveQuote) return;
+    var row = saveQuote.querySelector('.save-quote-row');
+    if (row) row.hidden = true;
+    if (saveQuoteNote) { saveQuoteNote.hidden = false; saveQuoteNote.textContent = note || ('Saved — we’ll email your quote to ' + email + '.'); }
+    saveQuote.hidden = false;
+  }
+  if (saveQuote) saveQuote.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = ((saveEmail && saveEmail.value) || '').trim();
+    if (!email) return;
+    post('save-contact', { email: email }).then(function (res) {
+      var d = res.body || {};
+      if (!res.ok || d.error) {
+        if (saveQuoteNote) { saveQuoteNote.hidden = false; saveQuoteNote.textContent = (d && d.message) || 'That didn’t look like a valid email — please check it.'; }
+        return;
+      }
+      markEmailSaved(email, d.message);
+    }).catch(function () {
+      if (saveQuoteNote) { saveQuoteNote.hidden = false; saveQuoteNote.textContent = 'Couldn’t save that just now — please try again.'; }
+    });
+  });
 
   // Start over
   if (restartBtn) restartBtn.addEventListener('click', function () {
@@ -266,11 +307,15 @@
     if (d.nonce) { NONCE = d.nonce; } // adopt the fresh, uncached nonce for all writes.
     (d.messages || []).forEach(function (m) { addMsg(m.role === 'assistant' ? 'bot' : 'user', escapeHtml(m.text)); });
     renderPackage(d.package);
+    userMsgCount = d.msgCount || 0;
+    if (d.hasEmail) emailSaved = true; // already captured — don't offer the save field.
+    if (d.placeholder) input.placeholder = d.placeholder;
     if (d.configured === false) {
       addMsg('bot', 'Archie isn’t connected yet — add a Claude API key in <em>Archie → Settings</em> to go live.', 'note');
       setBusy(true);
     } else {
       renderOptions(d.options);
+      revealSaveQuote();
       input.focus({ preventScroll: true });
     }
   }).catch(function () { addMsg('bot', 'Archie couldn’t start. Please refresh.', 'note'); });

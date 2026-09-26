@@ -137,6 +137,18 @@
 .yaa .quote-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; font-size: .84rem; color: var(--ink-soft); }
 .yaa .quote-meta div { display: flex; gap: 8px; align-items: center; }
 .yaa .quote-meta svg { width: 15px; height: 15px; color: var(--sage); flex-shrink: 0; }
+.yaa .quote-caveat { display: block; font-size: .76rem; color: var(--muted); line-height: 1.45; margin-top: 2px; }
+/* Always-on "Email me my quote" (save for later) */
+.yaa .save-quote { margin-top: 12px; }
+.yaa .save-quote[hidden] { display: none; }
+.yaa .save-quote > label { display: block; font-size: .82rem; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+.yaa .save-quote-row { display: flex; gap: 8px; align-items: center; }
+.yaa .save-quote-row[hidden] { display: none; }
+.yaa .save-quote-row input { flex: 1; min-width: 0; border: 1.5px solid var(--line-2); background: #fff; border-radius: 999px; padding: 10px 16px; font-family: inherit; font-size: .95rem; color: var(--ink); }
+.yaa .save-quote-row input:focus { outline: none; border-color: var(--blue); }
+.yaa .save-quote-row .btn { flex-shrink: 0; }
+.yaa .save-quote-note { font-size: .82rem; color: var(--ink-soft); margin-top: 8px; }
+.yaa .save-quote-note[hidden] { display: none; }
 .yaa .redirect-banner { display: none; background: var(--blush); border: 1px solid rgba(0,0,0,.06); border-radius: 12px; padding: 13px 15px; margin-bottom: 16px; }
 .yaa .redirect-banner.show { display: block; }
 .yaa .redirect-banner strong { display: block; font-size: .92rem; margin-bottom: 3px; color: var(--navy); }

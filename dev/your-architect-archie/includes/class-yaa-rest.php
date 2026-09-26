@@ -33,6 +33,7 @@ class YAA_Rest {
 		register_rest_route( self::NS, '/remove', $args + array( 'callback' => array( __CLASS__, 'remove' ) ) );
 		register_rest_route( self::NS, '/submit', $args + array( 'callback' => array( __CLASS__, 'submit' ) ) );
 		register_rest_route( self::NS, '/upload', $args + array( 'callback' => array( __CLASS__, 'upload' ) ) );
+		register_rest_route( self::NS, '/save-contact', $args + array( 'callback' => array( __CLASS__, 'save_contact' ) ) );
 		register_rest_route( self::NS, '/reset', $args + array( 'callback' => array( __CLASS__, 'reset' ) ) );
 	}
 
@@ -59,6 +60,33 @@ class YAA_Rest {
 			return new WP_REST_Response( array( 'error' => $res->get_error_code(), 'message' => __( 'Sorry, I couldn\'t save that file — please try a JPG, PNG or PDF.', 'your-architect-archie' ) ), 400 );
 		}
 		return new WP_REST_Response( array( 'ok' => true, 'message' => __( 'Thanks — I\'ve saved that with your project. A photo really helps the team picture the space.', 'your-architect-archie' ) ) );
+	}
+
+	/**
+	 * Persist an email the visitor typed into the always-on "Email me my quote"
+	 * field (save-for-later), without submitting the project. The daily follow-up
+	 * cron then reminds them if they never finish. Archie also picks the address up
+	 * from state so it won't ask for it again.
+	 */
+	public static function save_contact( $req ) {
+		if ( ! self::check_nonce( $req ) ) {
+			return new WP_REST_Response( array( 'error' => 'bad_nonce', 'message' => __( 'Your session expired — please refresh the page and try again.', 'your-architect-archie' ) ), 403 );
+		}
+		$id      = YAA_Project::current( true );
+		$session = isset( $_COOKIE[ YAA_Project::COOKIE ] ) ? sanitize_text_field( wp_unslash( $_COOKIE[ YAA_Project::COOKIE ] ) ) : (string) $id;
+		if ( ! YAA_Rate_Limit::allow_turn( $session ) ) {
+			return new WP_REST_Response( array( 'error' => 'slow_down', 'message' => __( 'One moment — please try again.', 'your-architect-archie' ) ), 429 );
+		}
+		$email = sanitize_email( (string) $req->get_param( 'email' ) );
+		if ( ! is_email( $email ) ) {
+			return new WP_REST_Response( array( 'error' => 'bad_email', 'message' => __( 'That doesn\'t look like a valid email — please check it.', 'your-architect-archie' ) ), 400 );
+		}
+		$state          = YAA_Project::state( $id );
+		$state['email'] = $email;
+		YAA_Project::set_state( $id, $state );
+		YAA_Project::set_contact( $id, isset( $state['name'] ) ? $state['name'] : '', $email );
+		YAA_Project::log_event( $id, 'email_saved' );
+		return new WP_REST_Response( array( 'ok' => true, 'message' => __( 'Saved — we\'ll email your quote to that address. You can keep going, or come back any time.', 'your-architect-archie' ) ) );
 	}
 
 	/** Abandon the current project + drop the cookie so /start makes a fresh one. */
@@ -106,20 +134,34 @@ class YAA_Rest {
 
 		if ( $id && ! empty( $messages ) ) {
 			// Returning mid-chat — resume where they left off.
+			$state = YAA_Project::state( $id );
 			return new WP_REST_Response(
-				array( 'messages' => $messages, 'package' => YAA_Project::package( $id ), 'options' => array(), 'meta' => self::meta(), 'nonce' => $nonce, 'configured' => YAA_Claude::is_configured() )
+				array(
+					'messages'    => $messages,
+					'package'     => YAA_Project::package( $id ),
+					'options'     => YAA_Archie::suggested_options( $state ),
+					'placeholder' => YAA_Archie::input_hint( $state, false ),
+					'hasEmail'    => ! empty( $state['email'] ),
+					'msgCount'    => count( array_filter( $messages, function ( $m ) { return isset( $m['role'] ) && 'user' === $m['role']; } ) ),
+					'meta'        => self::meta(),
+					'nonce'       => $nonce,
+					'configured'  => YAA_Claude::is_configured(),
+				)
 			);
 		}
 
 		// Nothing started yet — greet without persisting anything.
 		return new WP_REST_Response(
 			array(
-				'messages'   => array( array( 'role' => 'assistant', 'text' => YAA_Archie::opener_text() ) ),
-				'package'    => array( 'nodes' => array(), 'total' => 0 ),
-				'options'    => array(),
-				'meta'       => self::meta(),
-				'nonce'      => $nonce,
-				'configured' => YAA_Claude::is_configured(),
+				'messages'    => array( array( 'role' => 'assistant', 'text' => YAA_Archie::opener_text() ) ),
+				'package'     => array( 'nodes' => array(), 'total' => 0 ),
+				'options'     => array(),
+				'placeholder' => YAA_Archie::input_hint( array(), false ),
+				'hasEmail'    => false,
+				'msgCount'    => 0,
+				'meta'        => self::meta(),
+				'nonce'       => $nonce,
+				'configured'  => YAA_Claude::is_configured(),
 			)
 		);
 	}
@@ -179,12 +221,32 @@ class YAA_Rest {
 		$package  = YAA_Project::package( $id );
 		$redirect = ! empty( $package['redirect'] );
 
+		// Property outside the UK — we don't take these on, so never open a project.
+		if ( ! empty( $state['outsideUk'] ) ) {
+			$msg = __( 'I\'m sorry — Your Architect only works on properties in the UK, so we\'re not able to take this one on.', 'your-architect-archie' );
+			return new WP_REST_Response( array( 'ineligible' => true, 'message' => $msg ), 200 );
+		}
+
 		// We cannot open a project we have no way to reply to. If there's no email
 		// yet, don't submit — ask for it in the chat and let the front end retry.
 		if ( ! $redirect && empty( $state['email'] ) ) {
 			$ask = __( 'Before I save this — what\'s the best email address to send your quote to? That\'s how our architects will get back to you.', 'your-architect-archie' );
 			YAA_Project::add_message( $id, 'assistant', $ask );
 			return new WP_REST_Response( array( 'needEmail' => true, 'message' => $ask ), 200 );
+		}
+
+		// A full UK postcode is essential to do the work — ask for it before saving.
+		if ( ! $redirect && empty( $state['postcode'] ) ) {
+			$ask = __( 'One more thing before I save this — what\'s the postcode of the property? We need it to carry out the work.', 'your-architect-archie' );
+			YAA_Project::add_message( $id, 'assistant', $ask );
+			return new WP_REST_Response( array( 'needPostcode' => true, 'message' => $ask ), 200 );
+		}
+
+		// If they told us they already have drawings, we must have the file(s) first.
+		if ( ! $redirect && ! empty( $state['hasDrawings'] ) && empty( YAA_Files::for_project( $id, 'client' ) ) ) {
+			$ask = __( 'Could you upload your existing drawings first? Tap the photo/paperclip button by the message box — it\'s essential we work from your current plans.', 'your-architect-archie' );
+			YAA_Project::add_message( $id, 'assistant', $ask );
+			return new WP_REST_Response( array( 'needUpload' => true, 'message' => $ask ), 200 );
 		}
 
 		YAA_Project::set_status( $id, $redirect ? 'redirected' : 'submitted' );
