@@ -235,7 +235,7 @@ final class Admin {
             // Payments is one page (transactions + failed + abandoned); the legacy
             // slugs land on it too.
             TicketsAdmin::get_instance()->render_payments();
-        } elseif ($tab === 'guided') {
+        } elseif ($tab === 'guided' && self::guided_enabled()) {
             $this->render_guided();
         } elseif ($tab === 'message') {
             $this->render_message_attendees();
@@ -244,18 +244,27 @@ final class Admin {
         }
     }
 
-    /** Top-level Tickets tabs, keyed by slug. Sales and Payments each hold a sub-nav. */
+    /** Top-level Tickets tabs, keyed by slug. Guided tours is hidden when the feature is switched off. */
     public static function tickets_tab_labels(): array {
-        return [
+        $tabs = [
             'orders'   => __('Attendees', 'october-events'),
             'sales'    => __('Sales', 'october-events'),
-            'payments' => __('Payments', 'october-events'),
-            'promos'   => __('Promo codes', 'october-events'),
-            'waitlist' => __('Waitlist', 'october-events'),
+            'payments' => __('Transactions', 'october-events'),
             'checkin'  => __('Check-in log', 'october-events'),
             'guided'   => __('Guided tours', 'october-events'),
             'message'  => __('Message attendees', 'october-events'),
+            'waitlist' => __('Waitlist', 'october-events'),
+            'promos'   => __('Promo codes', 'october-events'),
         ];
+        if (! self::guided_enabled()) {
+            unset($tabs['guided']);
+        }
+        return $tabs;
+    }
+
+    /** Whether the guided-tours feature (and its tab) is switched on for this site. */
+    public static function guided_enabled(): bool {
+        return (bool) \OE\Settings::get('guided_enabled', true);
     }
 
     /**

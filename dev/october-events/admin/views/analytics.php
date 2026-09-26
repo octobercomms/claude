@@ -55,13 +55,17 @@ $gross_profit = max(0, $total_revenue - $fees);
         <?php esc_html_e('Track ticket sales week by week as an event approaches — pick an event, set its date, and sales are counted backwards from that date (week 0 = event week). Import prior years to overlay a year-over-year comparison and see whether this year is pacing ahead.', 'october-events'); ?>
     </p>
 
+    <?php if (! empty($oe_embed) && $event_id) : ?>
+        <p style="margin:6px 0 12px"><span class="description"><?php esc_html_e('Analysing:', 'october-events'); ?></span>
+            <strong><?php echo esc_html(get_the_title($event_id) ?: ('#' . (int) $event_id)); ?></strong>
+            <span class="description"><?php esc_html_e('— pick a different event in the selector at the top of the page.', 'october-events'); ?></span></p>
+    <?php endif; ?>
+
     <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;margin-bottom:14px">
+        <?php if (empty($oe_embed)) : // On the Sales page the one selector at the top drives this. ?>
         <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>">
             <input type="hidden" name="page" value="oe-tickets">
-            <input type="hidden" name="tab" value="<?php echo esc_attr(empty($oe_embed) ? 'analytics' : 'sales'); ?>">
-            <?php if (! empty($oe_embed) && ! empty($_GET['price_event'])) : ?>
-                <input type="hidden" name="price_event" value="<?php echo absint($_GET['price_event']); ?>">
-            <?php endif; ?>
+            <input type="hidden" name="tab" value="analytics">
             <label style="font-weight:600"><?php esc_html_e('Event', 'october-events'); ?><br>
                 <select name="event" onchange="this.form.submit()" style="min-width:260px">
                     <?php foreach ($events as $ev) :
@@ -73,6 +77,7 @@ $gross_profit = max(0, $total_revenue - $fees);
                 </select>
             </label>
         </form>
+        <?php endif; ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:8px;align-items:flex-end">
             <input type="hidden" name="action" value="oe_set_event_date">
             <input type="hidden" name="event_id" value="<?php echo (int) $event_id; ?>">

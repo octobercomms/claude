@@ -19,12 +19,12 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?>
-        <a href="<?php echo esc_url($export_attendee); ?>" class="page-title-action"><?php esc_html_e('Export attendees', 'october-events'); ?></a>
-        <a href="<?php echo esc_url($export_orders); ?>" class="page-title-action"><?php esc_html_e('Export orders', 'october-events'); ?></a>
+        <a href="<?php echo esc_url($export_attendee); ?>" id="oe-export-att" class="page-title-action"><?php esc_html_e('Export attendees', 'october-events'); ?></a>
+        <a href="<?php echo esc_url($export_orders); ?>" id="oe-export-ord" class="page-title-action"><?php esc_html_e('Export orders', 'october-events'); ?></a>
     </h1>
-    <?php if ($event_filter) : ?>
-        <p class="description" style="margin:4px 0 0"><?php echo esc_html(sprintf(__('Exports are filtered to: %s', 'october-events'), get_the_title($event_filter) ?: ('#' . $event_filter))); ?></p>
-    <?php endif; ?>
+    <p class="description" id="oe-export-note" style="margin:4px 0 0<?php echo $event_filter ? '' : ';display:none'; ?>">
+        <?php echo esc_html(sprintf(__('Exports are filtered to: %s', 'october-events'), $event_filter ? (get_the_title($event_filter) ?: ('#' . $event_filter)) : '')); ?>
+    </p>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('orders'); ?>
 
@@ -112,40 +112,49 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
 
     <?php
     $cur_sym = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$currency] ?? ($currency . ' ');
-    // Uncapped totals (attendees_for_list is capped for very large events).
+    // Uncapped whole-dataset totals (attendees_for_list is capped for huge events).
     $att_total = (int) ($attendee_stats['tickets'] ?? count($attendees));
     $att_in    = (int) ($attendee_stats['checked_in'] ?? 0);
     $att_out   = max(0, $att_total - $att_in);
     $att_pct   = $att_total ? round($att_in / $att_total * 100) : 0;
     $att_capped = count($attendees) < $att_total;
+
+    // Per-event counts for the pills + their chips (0 = all events). JS reads this
+    // map so the chips update instantly on a pill click, uncapped and exact.
+    $counts_map = ['0' => ['t' => $att_total, 'i' => $att_in]];
+    $pills = [];
+    foreach (($counts_by_event ?? []) as $eid => $c) {
+        $counts_map[(string) $eid] = ['t' => (int) $c['tickets'], 'i' => (int) $c['checked_in']];
+        $pills[$eid] = get_the_title((int) $eid) ?: ('#' . (int) $eid);
+    }
+    asort($pills, SORT_NATURAL | SORT_FLAG_CASE);
     ?>
 
     <h2 style="margin-top:22px"><?php esc_html_e('Attendees', 'october-events'); ?></h2>
-    <p class="description" style="margin:0 0 10px"><?php esc_html_e('One row per ticket. Green = checked in, red = not yet. Sort or filter to see who hasn’t arrived, and check someone in with one click if they slipped past the door.', 'october-events'); ?></p>
+    <p class="description" style="margin:0 0 10px"><?php esc_html_e('One row per ticket. Green = checked in, red = not yet. Pick an event below to focus, then sort or search. Check someone in with one click if they slipped past the door.', 'october-events'); ?></p>
+
+    <?php if ($pills) : ?>
+    <div class="oe-att-events" style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px">
+        <button type="button" class="button oe-att-ev-btn<?php echo $event_filter ? '' : ' button-primary'; ?>" data-ev="0"><?php echo esc_html(sprintf(__('All events (%s)', 'october-events'), number_format_i18n($att_total))); ?></button>
+        <?php foreach ($pills as $eid => $etitle) : ?>
+            <button type="button" class="button oe-att-ev-btn<?php echo $event_filter === (int) $eid ? ' button-primary' : ''; ?>" data-ev="<?php echo (int) $eid; ?>"><?php echo esc_html($etitle . ' (' . number_format_i18n($counts_map[(string) $eid]['t']) . ')'); ?></button>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
 
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:10px 0 12px">
         <div style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:10px 16px">
             <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Tickets', 'october-events'); ?></div>
-            <div style="font-size:20px;font-weight:800"><?php echo esc_html(number_format_i18n($att_total)); ?></div>
+            <div style="font-size:20px;font-weight:800" id="oe-chip-total"><?php echo esc_html(number_format_i18n($att_total)); ?></div>
         </div>
         <div style="background:#eaf7ec;border:1px solid #cde9d2;border-radius:12px;padding:10px 16px">
             <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Checked in', 'october-events'); ?></div>
-            <div style="font-size:20px;font-weight:800"><?php echo esc_html(number_format_i18n($att_in) . ' · ' . $att_pct . '%'); ?></div>
+            <div style="font-size:20px;font-weight:800" id="oe-chip-in"><?php echo esc_html(number_format_i18n($att_in) . ' · ' . $att_pct . '%'); ?></div>
         </div>
         <div style="background:#fdeceb;border:1px solid #f4c7c3;border-radius:12px;padding:10px 16px">
             <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Not checked in', 'october-events'); ?></div>
-            <div style="font-size:20px;font-weight:800"><?php echo esc_html(number_format_i18n($att_out)); ?></div>
+            <div style="font-size:20px;font-weight:800" id="oe-chip-out"><?php echo esc_html(number_format_i18n($att_out)); ?></div>
         </div>
-        <form method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center">
-            <input type="hidden" name="page" value="oe-tickets">
-            <label for="oe-att-ev" class="description"><?php esc_html_e('Event', 'october-events'); ?></label>
-            <select id="oe-att-ev" name="event" onchange="this.form.submit()">
-                <option value="0"><?php esc_html_e('All events', 'october-events'); ?></option>
-                <?php foreach (($events ?: []) as $ev) : ?>
-                    <option value="<?php echo (int) $ev->ID; ?>" <?php selected($event_filter, (int) $ev->ID); ?>><?php echo esc_html(get_the_title($ev) ?: ('#' . (int) $ev->ID)); ?></option>
-                <?php endforeach; ?>
-            </select>
-        </form>
     </div>
 
     <?php if (! $attendees) : ?>
@@ -164,7 +173,7 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
         <?php if ($att_capped) : ?>
             <span class="description"><?php echo esc_html(sprintf(
                 /* translators: 1: rows shown, 2: total */
-                __('Showing the first %1$s of %2$s — filter by event to see the rest.', 'october-events'),
+                __('Showing %1$s of %2$s tickets (not-checked-in first). Filter by event or export for the full list.', 'october-events'),
                 number_format_i18n(count($attendees)), number_format_i18n($att_total)
             )); ?></span>
         <?php endif; ?>
@@ -195,6 +204,7 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
         ?>
             <tr class="<?php echo $a->checked_in ? 'oe-att-in' : 'oe-att-out'; ?>"
                 data-status="<?php echo $a->checked_in ? 'in' : 'out'; ?>"
+                data-event="<?php echo (int) $a->event_id; ?>"
                 data-name="<?php echo esc_attr(strtolower($a->attendee)); ?>"
                 data-type="<?php echo esc_attr(strtolower($a->type)); ?>"
                 data-price="<?php echo esc_attr((string) $a->price); ?>"
@@ -291,6 +301,12 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
         var table = document.getElementById('oe-att-table');
         if (!table) { return; }
         var tbody = table.querySelector('tbody');
+        // Event pills: filter the table client-side (no reload). Counts are exact
+        // (uncapped SQL), so the chips are right even if the row list is capped.
+        var counts   = <?php echo wp_json_encode($counts_map); ?>;
+        var evTitles = <?php echo wp_json_encode($pills); ?>;
+        var curEvent = <?php echo (int) $event_filter; ?>;
+        var exportNote = <?php echo wp_json_encode(__('Exports are filtered to: %s', 'october-events')); ?>;
         // A ticket = its main row plus its (hidden) detail rows (order + transfer).
         // Keep each group together when sorting/filtering.
         function pairs(){
@@ -338,7 +354,8 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                 var row = p[0];
                 var okF = (f === 'all') || row.getAttribute('data-status') === f;
                 var okQ = !q || (row.getAttribute('data-search') || '').indexOf(q) !== -1;
-                var show = okF && okQ;
+                var okE = (curEvent === 0) || parseInt(row.getAttribute('data-event'), 10) === curEvent;
+                var show = okF && okQ && okE;
                 row.style.display = show ? '' : 'none';
                 if (!show) { p[1].forEach(function(s){ s.style.display = 'none'; }); }
                 if (show) { n++; }
@@ -347,6 +364,50 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
         }
         if (filter) { filter.addEventListener('change', apply); }
         if (search) { search.addEventListener('input', apply); }
+
+        // Event pills — filter, chips and export links all move client-side.
+        function fmt(n){ try { return (n | 0).toLocaleString(); } catch (e) { return '' + (n | 0); } }
+        function updateChips(){
+            var c = counts[String(curEvent)] || counts['0'] || { t: 0, i: 0 };
+            var t = c.t | 0, inn = c.i | 0, out = Math.max(0, t - inn), pct = t ? Math.round(inn / t * 100) : 0;
+            var et = document.getElementById('oe-chip-total'), ei = document.getElementById('oe-chip-in'), eo = document.getElementById('oe-chip-out');
+            if (et) { et.textContent = fmt(t); }
+            if (ei) { ei.textContent = fmt(inn) + ' · ' + pct + '%'; }
+            if (eo) { eo.textContent = fmt(out); }
+        }
+        function setExportEvent(id){
+            ['oe-export-att', 'oe-export-ord'].forEach(function(eid){
+                var a = document.getElementById(eid);
+                if (!a) { return; }
+                try {
+                    var u = new URL(a.getAttribute('href'), window.location.origin);
+                    if (id) { u.searchParams.set('event', id); } else { u.searchParams.delete('event'); }
+                    a.setAttribute('href', u.toString());
+                } catch (e) {}
+            });
+            var note = document.getElementById('oe-export-note');
+            if (note) {
+                if (id && evTitles[String(id)]) { note.textContent = exportNote.replace('%s', evTitles[String(id)]); note.style.display = ''; }
+                else { note.style.display = 'none'; }
+            }
+        }
+        var evBtns = table.ownerDocument.querySelectorAll('.oe-att-ev-btn');
+        evBtns.forEach(function(b){
+            b.addEventListener('click', function(){
+                curEvent = parseInt(b.getAttribute('data-ev'), 10) || 0;
+                evBtns.forEach(function(x){ x.classList.remove('button-primary'); });
+                b.classList.add('button-primary');
+                updateChips();
+                setExportEvent(curEvent);
+                try {
+                    var url = new URL(window.location.href);
+                    if (curEvent) { url.searchParams.set('event', curEvent); } else { url.searchParams.delete('event'); }
+                    window.history.replaceState({}, '', url.toString());
+                } catch (e) {}
+                apply();
+            });
+        });
+        updateChips();
         apply();
         // Reveal a ticket's inline order-detail or transfer row.
         table.querySelectorAll('.oe-att-toggle').forEach(function(link){

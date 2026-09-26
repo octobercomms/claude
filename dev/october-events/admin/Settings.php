@@ -430,6 +430,7 @@ final class Settings {
         Config::update([
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
             'event_field_map'  => $event_field_map,
+            'guided_enabled'   => ! empty($in['guided_enabled']),
             'location_post_type' => sanitize_key((string) ($in['location_post_type'] ?? '')),
             'location_address_field' => sanitize_key((string) ($in['location_address_field'] ?? '')),
             'location_date_field'    => sanitize_key((string) ($in['location_date_field'] ?? '')),

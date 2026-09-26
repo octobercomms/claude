@@ -47,14 +47,12 @@ $free_pct = $tickets ? round($free / $tickets * 100) : 0;
     <h2 style="margin:0 0 4px"><?php esc_html_e('Ticket prices', 'october-events'); ?></h2>
 <?php endif; ?>
 
+    <?php if (empty($oe_embed)) : // On the Sales page the one selector at the top drives this. ?>
     <form method="get" style="margin:16px 0">
         <input type="hidden" name="page" value="oe-tickets">
-        <input type="hidden" name="tab" value="<?php echo esc_attr(empty($oe_embed) ? 'prices' : 'sales'); ?>">
-        <?php if (! empty($oe_embed) && ! empty($_GET['event'])) : ?>
-            <input type="hidden" name="event" value="<?php echo absint($_GET['event']); ?>">
-        <?php endif; ?>
+        <input type="hidden" name="tab" value="prices">
         <label><?php esc_html_e('Event', 'october-events'); ?>
-            <select name="<?php echo esc_attr(empty($oe_embed) ? 'event' : 'price_event'); ?>" onchange="this.form.submit()">
+            <select name="event" onchange="this.form.submit()">
                 <option value="0"><?php esc_html_e('All events', 'october-events'); ?></option>
                 <?php foreach ($events as $ev) : ?>
                     <option value="<?php echo (int) $ev->ID; ?>" <?php selected($event_filter, $ev->ID); ?>><?php echo esc_html(get_the_title($ev)); ?></option>
@@ -62,6 +60,7 @@ $free_pct = $tickets ? round($free / $tickets * 100) : 0;
             </select>
         </label>
     </form>
+    <?php endif; ?>
 
     <?php if (! $tickets) : ?>
         <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px 18px">

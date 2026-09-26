@@ -5,6 +5,37 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.182.0 — Tickets UI rethink (attendee pills, one Sales filter, unified Transactions, tab reorder)
+
+A broad pass over the Tickets admin to cut clicks and make filtering obvious.
+
+**Attendees**
+- The event filter is now a row of **pills** under the Attendees heading (each
+  showing its ticket count). Clicking one filters the table instantly with no
+  page reload; the summary chips, export links and URL update with it. Counts
+  are exact SQL, so they stay right even when the list is capped for a huge event.
+
+**Sales**
+- One event selector at the top now drives the **whole page**. The dashboard,
+  ticket prices and analytics all reflow to the chosen event (analytics resolves
+  to that event, or the nearest one under "All events"). The per-event sales
+  table shows only under "All events". Replaces the two separate pickers.
+
+**Payments → Transactions**
+- The tab is renamed **Transactions** and is now one searchable, sortable,
+  colour-coded list of every payment: paid, part-refunded, refunded, failed and
+  abandoned. A **Status** column and filter chips (All / Paid / Refunded /
+  Failed / Abandoned) isolate a kind, and search finds a person by name or email
+  across all of them. The failed-reason chart and abandoned-cart summary sit on
+  top; refunds still run inline on paid rows. No more sub-sections.
+
+**Tabs**
+- Reordered: Attendees · Sales · Transactions · Check-in log · Guided tours ·
+  Message attendees · Waitlist · Promo codes.
+- **Guided tours** is now switchable: Settings → Guided tours → "Enable guided
+  tours". Off hides the tab (for a site that runs no tours). On by default;
+  turning it off deletes nothing.
+
 ## 1.181.0 — Attendees and order detail merged onto one page
 
 The **Attendees** tab now carries each attendee's order and payment detail

@@ -759,6 +759,37 @@ final class Orders {
         return ['tickets' => $tickets, 'checked_in' => $checked];
     }
 
+    /**
+     * Per-event attendee counts (tickets + checked-in), for the Attendees pills
+     * and their event-scoped summary chips. Uncapped SQL, so the chips stay exact
+     * even when the row list is capped for a huge event.
+     *
+     * @return array<int,array{tickets:int,checked_in:int}> keyed by event id
+     */
+    public static function attendee_counts_by_event(): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $c = Schema::checkins();
+        // COUNT(DISTINCT ti.id) on both — the LEFT JOIN to check-ins fans out one
+        // row per scan, so a plain COUNT(*) would over-count multi-scan tickets.
+        $rows = $wpdb->get_results(
+            "SELECT o.event_id AS eid,
+                    COUNT(DISTINCT ti.id) AS tickets,
+                    COUNT(DISTINCT CASE WHEN ck.ticket_id IS NOT NULL THEN ti.id END) AS checked_in
+             FROM {$t} ti
+             INNER JOIN {$o} o ON ti.order_id = o.id
+             LEFT JOIN {$c} ck ON ck.ticket_id = ti.id
+             WHERE o.status = 'paid' AND ti.status = 'active'
+             GROUP BY o.event_id"
+        ) ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r->eid] = ['tickets' => (int) $r->tickets, 'checked_in' => (int) $r->checked_in];
+        }
+        return $out;
+    }
+
     /* ------------------------------------------------------------------ */
 
     /** Cron hook that delivers a queued confirmation. Registered in Cron::init(). */
@@ -913,29 +944,35 @@ final class Orders {
      *
      * @return array{tickets:int,revenue:float,today_tickets:int,today_revenue:float}
      */
-    public static function stats(): array {
+    public static function stats(int $event_id = 0): array {
         global $wpdb;
         $o = Schema::orders();
         $t = Schema::tickets();
         $today = current_time('Y-m-d');
         $year  = current_time('Y');
 
-        $tickets = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active'");
-        $revenue = (float) $wpdb->get_var("SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid'");
+        // Optional event scope. `$ev_o` is the aliased form for the ticket joins
+        // (WHERE uses `o.`), `$ev` the bare form for the orders-only revenue sums.
+        // Each is a fully-prepared literal (int), safe to splice into the queries.
+        $ev_o = $event_id > 0 ? $wpdb->prepare(' AND o.event_id = %d', $event_id) : '';
+        $ev   = $event_id > 0 ? $wpdb->prepare(' AND event_id = %d', $event_id) : '';
+
+        $tickets = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active'{$ev_o}");
+        $revenue = (float) $wpdb->get_var("SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid'{$ev}");
         $today_tickets = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active' AND DATE(o.created_at)=%s",
+            "SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active' AND DATE(o.created_at)=%s{$ev_o}",
             $today
         ));
         $today_revenue = (float) $wpdb->get_var($wpdb->prepare(
-            "SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid' AND DATE(created_at)=%s",
+            "SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid' AND DATE(created_at)=%s{$ev}",
             $today
         ));
         $year_tickets = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active' AND YEAR(o.created_at)=%d",
+            "SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active' AND YEAR(o.created_at)=%d{$ev_o}",
             $year
         ));
         $year_revenue = (float) $wpdb->get_var($wpdb->prepare(
-            "SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid' AND YEAR(created_at)=%d",
+            "SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid' AND YEAR(created_at)=%d{$ev}",
             $year
         ));
         return compact('tickets', 'revenue') + [
@@ -956,20 +993,23 @@ final class Orders {
      *
      * @return array<int,array{date:string,tickets:int,revenue:float}>
      */
-    public static function daily_sales(int $days = 30): array {
+    public static function daily_sales(int $days = 30, int $event_id = 0): array {
         global $wpdb;
         $o = Schema::orders();
         $t = Schema::tickets();
         $days  = max(1, min(120, $days));
         $since = gmdate('Y-m-d', time() - ($days - 1) * DAY_IN_SECONDS);
+        // Optional event scope (prepared int literals, safe to splice).
+        $ev_o = $event_id > 0 ? $wpdb->prepare(' AND o.event_id = %d', $event_id) : '';
+        $ev   = $event_id > 0 ? $wpdb->prepare(' AND event_id = %d', $event_id) : '';
         $trows = $wpdb->get_results($wpdb->prepare(
             "SELECT DATE(ti.created_at) d, COUNT(*) n FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
-             WHERE o.status='paid' AND ti.status='active' AND ti.created_at >= %s GROUP BY DATE(ti.created_at)",
+             WHERE o.status='paid' AND ti.status='active' AND ti.created_at >= %s{$ev_o} GROUP BY DATE(ti.created_at)",
             $since . ' 00:00:00'
         )) ?: [];
         $rrows = $wpdb->get_results($wpdb->prepare(
             "SELECT DATE(created_at) d, COALESCE(SUM(total),0) r FROM {$o}
-             WHERE status='paid' AND created_at >= %s GROUP BY DATE(created_at)",
+             WHERE status='paid' AND created_at >= %s{$ev} GROUP BY DATE(created_at)",
             $since . ' 00:00:00'
         )) ?: [];
         $tmap = []; foreach ($trows as $r) { $tmap[$r->d] = (int) $r->n; }
