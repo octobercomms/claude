@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.178.0 — Fewer Tickets tabs: Sales & Payments groups (consolidation phases 2 & 3)
+
+The top Tickets tabs go from twelve to eight by grouping the analytics and the
+payment screens under two parents, each with a small sub-tab bar:
+
+- **Sales** now holds **Overview** (the old Sales dashboard), **Ticket prices**
+  and **Sales analytics**.
+- **Payments** now holds **Transactions**, **Failed payments** and **Abandoned
+  carts**.
+
+Nothing was removed — every screen is one click away under its parent, and old
+links (e.g. `tab=prices`, `tab=failed`) still work and land on the right sub-tab.
+The remaining top tabs are: Attendees, Sales, Payments, Promo codes, Waitlist,
+Check-in log, Guided tours, Message attendees.
+
 ## 1.177.0 — Attendee hub on the Registrations tab (phase 1 of the tab consolidation)
 
 Start of consolidating the Tickets tabs. The **Registrations** tab is now

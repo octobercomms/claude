@@ -237,7 +237,7 @@ final class Admin {
             TicketsAdmin::get_instance()->render_failed_payments();
         } elseif ($tab === 'abandoned') {
             TicketsAdmin::get_instance()->render_abandoned_carts();
-        } elseif ($tab === 'transactions') {
+        } elseif ($tab === 'transactions' || $tab === 'payments') {
             TicketsAdmin::get_instance()->render_transactions();
         } elseif ($tab === 'guided') {
             $this->render_guided();
@@ -248,26 +248,60 @@ final class Admin {
         }
     }
 
-    /** The Tickets sub-tab labels, keyed by tab slug (shared by the nav + page title). */
+    /** Top-level Tickets tabs, keyed by slug. Sales and Payments each hold a sub-nav. */
     public static function tickets_tab_labels(): array {
         return [
-            'orders'    => __('Attendees', 'october-events'),
-            'transactions' => __('Transactions', 'october-events'),
-            'sales'     => __('Sales', 'october-events'),
-            'prices'    => __('Ticket prices', 'october-events'),
-            'analytics' => __('Sales analytics', 'october-events'),
-            'promos'    => __('Promo codes', 'october-events'),
-            'waitlist'  => __('Waitlist', 'october-events'),
-            'checkin'   => __('Check-in log', 'october-events'),
-            'failed'    => __('Failed payments', 'october-events'),
-            'abandoned' => __('Abandoned carts', 'october-events'),
-            'guided'    => __('Guided tours', 'october-events'),
-            'message'   => __('Message attendees', 'october-events'),
+            'orders'   => __('Attendees', 'october-events'),
+            'sales'    => __('Sales', 'october-events'),
+            'payments' => __('Payments', 'october-events'),
+            'promos'   => __('Promo codes', 'october-events'),
+            'waitlist' => __('Waitlist', 'october-events'),
+            'checkin'  => __('Check-in log', 'october-events'),
+            'guided'   => __('Guided tours', 'october-events'),
+            'message'  => __('Message attendees', 'october-events'),
         ];
     }
 
-    /** Tab nav shared by the Tickets sub-screens. */
+    /**
+     * Second-level tabs grouped under a top-level parent. The array key is the
+     * parent tab; each child's key is its own `tab=` slug (so old links still work).
+     */
+    public static function tickets_subgroups(): array {
+        return [
+            'sales' => [
+                'sales'     => __('Overview', 'october-events'),
+                'prices'    => __('Ticket prices', 'october-events'),
+                'analytics' => __('Sales analytics', 'october-events'),
+            ],
+            'payments' => [
+                'payments'  => __('Transactions', 'october-events'),
+                'failed'    => __('Failed payments', 'october-events'),
+                'abandoned' => __('Abandoned carts', 'october-events'),
+            ],
+        ];
+    }
+
+    /**
+     * Legacy `tab=` slugs that were renamed to a sub-tab key. Old bookmarks and
+     * redirects keep working by resolving to the current key first. (`prices` and
+     * `analytics` did not change slug — they are real sub-tab keys already.)
+     */
+    private const TICKETS_LEGACY = ['transactions' => 'payments'];
+
+    /** Which top-level tab a given (possibly sub- or legacy) slug belongs to. */
+    private static function tickets_parent(string $active): string {
+        $active = self::TICKETS_LEGACY[$active] ?? $active;
+        foreach (self::tickets_subgroups() as $parent => $children) {
+            if ($active === $parent || isset($children[$active])) {
+                return $parent;
+            }
+        }
+        return $active;
+    }
+
+    /** Tab nav shared by the Tickets sub-screens (highlights the parent of a sub-tab). */
     public static function tickets_tabs(string $active): void {
+        $parent = self::tickets_parent($active);
         echo '<h2 class="nav-tab-wrapper">';
         foreach (self::tickets_tab_labels() as $key => $label) {
             $url = $key === 'orders'
@@ -276,11 +310,32 @@ final class Admin {
             printf(
                 '<a href="%s" class="nav-tab%s">%s</a>',
                 esc_url($url),
-                $active === $key ? ' nav-tab-active' : '',
+                $parent === $key ? ' nav-tab-active' : '',
                 esc_html($label)
             );
         }
         echo '</h2>';
+        // Render the sub-nav for this group, if the active tab is in one.
+        $groups = self::tickets_subgroups();
+        if (isset($groups[$parent])) {
+            // Resolve legacy slugs (e.g. transactions -> payments) to the current key.
+            $active_norm  = self::TICKETS_LEGACY[$active] ?? $active;
+            $active_child = isset($groups[$parent][$active_norm]) ? $active_norm : $parent;
+            echo '<div class="oe-subtabs" style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px">';
+            foreach ($groups[$parent] as $ckey => $clabel) {
+                $curl = admin_url('admin.php?page=oe-tickets&tab=' . $ckey);
+                $on   = $active_child === $ckey;
+                printf(
+                    '<a href="%s" style="text-decoration:none;font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid %s;background:%s;color:%s">%s</a>',
+                    esc_url($curl),
+                    $on ? '#2271b1' : '#dcdcde',
+                    $on ? '#2271b1' : '#fff',
+                    $on ? '#fff' : '#2c3338',
+                    esc_html($clabel)
+                );
+            }
+            echo '</div>';
+        }
     }
 
     /**
@@ -291,8 +346,16 @@ final class Admin {
         if (! is_admin() || ($_GET['page'] ?? '') !== 'oe-tickets') {
             return $admin_title;
         }
-        $tab   = isset($_GET['tab']) ? sanitize_key((string) $_GET['tab']) : 'orders';
+        $tab = isset($_GET['tab']) ? sanitize_key((string) $_GET['tab']) : 'orders';
+        // Resolve legacy slugs (e.g. transactions -> payments) so old links stay titled.
+        $tab = self::TICKETS_LEGACY[$tab] ?? $tab;
+        // Prefer a top-level label, else a sub-tab label.
         $label = self::tickets_tab_labels()[$tab] ?? '';
+        if ($label === '') {
+            foreach (self::tickets_subgroups() as $children) {
+                if (isset($children[$tab])) { $label = $children[$tab]; break; }
+            }
+        }
         return $label !== '' ? $label . ' · ' . $admin_title : $admin_title;
     }
 
