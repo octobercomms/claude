@@ -45,6 +45,8 @@ final class TicketsAdmin {
         add_action('admin_post_oe_delete_promo', [$this, 'handle_delete_promo']);
         add_action('admin_post_oe_waitlist_promote', [$this, 'handle_waitlist_promote']);
         add_action('admin_post_oe_waitlist_remove', [$this, 'handle_waitlist_remove']);
+        add_action('admin_post_oe_send_recovery', [$this, 'handle_send_recovery']);
+        add_action('admin_post_oe_send_recovery_bulk', [$this, 'handle_send_recovery_bulk']);
         add_action('admin_init', [$this, 'maybe_export_orders']);
     }
 
@@ -599,6 +601,45 @@ final class TicketsAdmin {
         exit;
     }
 
+    /** Send one abandoned cart its recovery email (manual — never automatic). */
+    public function handle_send_recovery(): void {
+        $this->guard('oe_send_recovery');
+        $id    = absint($_POST['draft_id'] ?? 0);
+        $promo = strtoupper(sanitize_text_field(wp_unslash((string) ($_POST['promo_code'] ?? ''))));
+        $draft = $id ? \OE\Ticketing\Abandonment::find($id) : null;
+        // Only send for a genuinely abandoned cart that hasn't already been mailed
+        // — guards against a replayed/double-submitted POST re-sending.
+        $ok = ($draft && $draft->state === 'abandoned' && empty($draft->recovery_sent_at))
+            ? \OE\Ticketing\Recovery::send($draft, $promo)
+            : false;
+        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets&tab=payments');
+        wp_safe_redirect(add_query_arg('oe_msg', $ok ? 'recovery_sent' : 'recovery_failed', remove_query_arg('oe_msg', $back)));
+        exit;
+    }
+
+    /** Send recovery emails to every not-yet-emailed abandoned cart (event filter honoured). */
+    public function handle_send_recovery_bulk(): void {
+        $this->guard('oe_send_recovery_bulk');
+        $event  = absint($_POST['event'] ?? 0);
+        $promo  = strtoupper(sanitize_text_field(wp_unslash((string) ($_POST['promo_code'] ?? ''))));
+        // Same 300-row window the button's count is computed over. Each send is
+        // stamped immediately, so if the request times out partway the sent ones
+        // are recorded and re-running simply resumes — no duplicate emails.
+        $drafts = \OE\Ticketing\Abandonment::recent(['limit' => 300, 'event_id' => $event]);
+        $sent = 0;
+        foreach ($drafts as $d) {
+            if ($d->state !== 'abandoned' || ! is_email((string) $d->email) || ! empty($d->recovery_sent_at)) {
+                continue; // still shopping, recovered, no email, or already sent
+            }
+            if (\OE\Ticketing\Recovery::send($d, $promo)) {
+                $sent++;
+            }
+        }
+        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets&tab=payments');
+        wp_safe_redirect(add_query_arg(['oe_msg' => 'recovery_bulk', 'oe_n' => $sent], remove_query_arg(['oe_msg', 'oe_n'], $back)));
+        exit;
+    }
+
     /* ------------------------------------------------------------------ *
      * Promo codes
      * ------------------------------------------------------------------ */
@@ -961,9 +1002,49 @@ final class TicketsAdmin {
                 'payment_id' => '',
                 'active'     => 0,
                 'tickets'    => 0,
+                // Recovery-email state: the draft id + whether it's already been sent.
+                'draft_id'      => (int) $r->id,
+                'recovery_sent' => (string) ($r->recovery_sent_at ?? ''),
             ];
         }
         usort($rows, static fn($a, $b) => $b->ts <=> $a->ts);
+
+        // Recovery-email support: how many abandoned carts could still be mailed,
+        // and the promo codes available to attach to a bulk send. Only genuinely
+        // abandoned carts qualify — never 'in_progress' (someone still shopping)
+        // nor 'recovered' (already bought). Counted from the same 300-row set the
+        // bulk send works over, so the button's number matches what it sends.
+        $recover_ready = 0;
+        foreach ($abandoned as $r) {
+            if ($r->state === 'abandoned' && is_email((string) $r->email) && empty($r->recovery_sent_at)) {
+                $recover_ready++;
+            }
+        }
+        // Only offer codes a resumed shopper could actually redeem: active, not
+        // expired, not used up, and — when the list is scoped to one event —
+        // either global or tied to that event. (Promo::all() returns every code,
+        // including disabled/expired ones and codes for other events.)
+        $now_ts = (int) current_time('timestamp');
+        $promo_codes = [];
+        foreach (\OE\Ticketing\Promo::all() as $p) {
+            if (! (int) $p->active) {
+                continue;
+            }
+            if (! empty($p->expires_at) && (strtotime((string) $p->expires_at) ?: PHP_INT_MAX) < $now_ts) {
+                continue;
+            }
+            if ($p->max_uses !== null && (int) $p->used_count >= (int) $p->max_uses) {
+                continue;
+            }
+            if ($event && ! empty($p->event_id) && (int) $p->event_id !== $event) {
+                continue;
+            }
+            $code = (string) $p->code;
+            if ($code !== '') {
+                $promo_codes[] = $code;
+            }
+        }
+        $promo_codes = array_values(array_unique($promo_codes));
 
         $refresh = wp_nonce_url(admin_url('admin.php?page=oe-tickets&tab=payments&refresh=1' . ($event ? '&event=' . $event : '')), 'oe_failed_refresh');
 
@@ -972,6 +1053,8 @@ final class TicketsAdmin {
             'reasons'       => $reasons,
             'failed_count'  => count($charges),
             'abandon_stats' => $abandon_stats,
+            'recover_ready' => $recover_ready,
+            'promo_codes'   => $promo_codes,
             'ready'         => $ready,
             'days'          => $days,
             'refresh'       => $refresh,

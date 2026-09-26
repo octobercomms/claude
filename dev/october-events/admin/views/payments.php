@@ -14,11 +14,14 @@
  * @var int                   $days          failed look-back window
  * @var string                $refresh       nonce URL to bust the failed-charge cache
  * @var array<string,array<int,object>> $txn_tickets active tickets keyed by payment id
+ * @var int                   $recover_ready count of abandoned carts still mailable
+ * @var string[]              $promo_codes   promo codes available for a recovery send
  * @var \WP_Post[]            $events        published events (filter)
  * @var int                   $event_filter
  * @var string                $currency
  */
 defined('ABSPATH') || exit;
+$promo_codes = $promo_codes ?? [];
 
 $sym   = $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$');
 $money = static fn(float $n, string $cur): string => number_format($n, 2) . ' ' . $cur;
@@ -70,15 +73,21 @@ $ab_recov = $ab_seen > 0 ? round($abandon_stats['recovered'] / $ab_seen * 100) :
     <?php if (! empty($_GET['oe_msg'])) :
         $m = sanitize_key((string) $_GET['oe_msg']);
         $map = [
-            'refunded'      => ['success', __('Refund issued and the selected tickets voided.', 'october-events')],
-            'refund_failed' => ['error', __('Refund failed — nothing was charged back. Check it’s a paid card transaction with tickets still active.', 'october-events')],
+            'refunded'         => ['success', __('Refund issued and the selected tickets voided.', 'october-events')],
+            'refund_failed'    => ['error', __('Refund failed — nothing was charged back. Check it’s a paid card transaction with tickets still active.', 'october-events')],
+            'recovery_sent'    => ['success', __('Recovery email sent.', 'october-events')],
+            'recovery_failed'  => ['error', __('Could not send that recovery email — the cart may have no email, already be emailed, or the shopper has since bought.', 'october-events')],
         ];
+        if ($m === 'recovery_bulk') {
+            $n = isset($_GET['oe_n']) ? absint($_GET['oe_n']) : 0;
+            $map['recovery_bulk'] = ['success', sprintf(_n('%d recovery email sent.', '%d recovery emails sent.', $n, 'october-events'), $n)];
+        }
         if (isset($map[$m])) : ?>
             <div class="notice notice-<?php echo esc_attr($map[$m][0]); ?> is-dismissible"><p><?php echo esc_html($map[$m][1]); ?></p></div>
         <?php endif; ?>
     <?php endif; ?>
 
-    <p class="description" style="margin:14px 0 10px;max-width:820px"><?php esc_html_e('Every payment in one place — paid orders, refunds, failed cards and abandoned carts. Search a name or email, sort any column, or use the status chips to focus. Contact details on failed and abandoned rows are for your analysis only; drafts auto-delete after 90 days.', 'october-events'); ?></p>
+    <p class="description" style="margin:14px 0 10px;max-width:820px"><?php esc_html_e('Every payment in one place — paid orders, refunds, failed cards and abandoned carts. Search a name or email, sort any column, or use the status chips to focus. Failed-payment details are for your analysis; abandoned carts can be sent a recovery email (a manual choice, never automatic). Drafts auto-delete after 90 days.', 'october-events'); ?></p>
 
     <?php /* One event filter for the whole page (failed charges have no event link, so they always show). */ ?>
     <form method="get" style="margin:0 0 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -142,6 +151,27 @@ $ab_recov = $ab_seen > 0 ? round($abandon_stats['recovered'] / $ab_seen * 100) :
                 <div><div style="font-size:24px;font-weight:800"><?php echo (int) $ab_recov; ?>%</div><div class="description" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em"><?php esc_html_e('Recovery rate', 'october-events'); ?></div></div>
                 <div><div style="font-size:24px;font-weight:800"><?php echo (int) $abandon_stats['open']; ?></div><div class="description" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em"><?php esc_html_e('In progress', 'october-events'); ?></div></div>
             </div>
+            <?php /* Manual bulk recovery — never automatic. Skips anyone already emailed or with no address. */ ?>
+            <?php if ((int) $recover_ready > 0) : ?>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid #eee;padding-top:12px">
+                <input type="hidden" name="action" value="oe_send_recovery_bulk">
+                <input type="hidden" name="event" value="<?php echo (int) $event_filter; ?>">
+                <?php wp_nonce_field('oe_send_recovery_bulk'); ?>
+                <?php if ($promo_codes) : ?>
+                    <label style="font-size:12px"><?php esc_html_e('Code', 'october-events'); ?>
+                        <select name="promo_code">
+                            <option value=""><?php esc_html_e('No code', 'october-events'); ?></option>
+                            <?php foreach ($promo_codes as $pc) : ?>
+                                <option value="<?php echo esc_attr($pc); ?>"><?php echo esc_html($pc); ?></option>
+                            <?php endforeach; ?>
+                        </select></label>
+                <?php endif; ?>
+                <button type="submit" class="button button-primary button-small" onclick="return confirm('<?php echo esc_js(sprintf(__('Send a recovery email to %d abandoned cart(s) not yet emailed? This sends now.', 'october-events'), (int) $recover_ready)); ?>')">
+                    <?php echo esc_html(sprintf(__('Email %d not yet contacted', 'october-events'), (int) $recover_ready)); ?>
+                </button>
+                <span class="description" style="font-size:11px"><?php echo $event_filter ? esc_html__('(this event)', 'october-events') : esc_html__('(all events)', 'october-events'); ?></span>
+            </form>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -204,7 +234,19 @@ $ab_recov = $ab_seen > 0 ? round($abandon_stats['recovered'] / $ab_seen * 100) :
                         $panel_tickets  = $tk;
                         $panel_label    = __('Refund…', 'october-events');
                         include OE_DIR . 'admin/views/_refund-panel.php';
-                    else : ?><span class="description">—</span><?php endif; ?>
+                    elseif ($r->kind === 'abandoned' && $r->email !== '') :
+                        if (! empty($r->recovery_sent)) :
+                            $sent_ts = strtotime(get_gmt_from_date((string) $r->recovery_sent) . ' UTC') ?: 0; ?>
+                            <span class="button button-small" disabled style="opacity:.55;cursor:default" title="<?php echo esc_attr($r->recovery_sent); ?>"><?php echo esc_html(sprintf(__('Sent %s', 'october-events'), $sent_ts ? wp_date('M j, g:i a', $sent_ts) : '')); ?></span>
+                        <?php else : ?>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
+                                <input type="hidden" name="action" value="oe_send_recovery">
+                                <input type="hidden" name="draft_id" value="<?php echo (int) $r->draft_id; ?>">
+                                <?php wp_nonce_field('oe_send_recovery'); ?>
+                                <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js(__('Send this shopper a recovery email now?', 'october-events')); ?>')"><?php esc_html_e('Send recovery', 'october-events'); ?></button>
+                            </form>
+                        <?php endif; ?>
+                    <?php else : ?><span class="description">—</span><?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; ?>

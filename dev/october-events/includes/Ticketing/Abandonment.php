@@ -231,6 +231,29 @@ final class Abandonment {
         return $rows;
     }
 
+    /** One draft by id, with its cart/attendees decoded and its state derived. */
+    public static function find(int $id): ?object {
+        global $wpdb;
+        $table = Schema::abandoned();
+        $r = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $id));
+        if (! $r) {
+            return null;
+        }
+        $r->items     = json_decode((string) $r->cart, true) ?: [];
+        $r->attendees = json_decode((string) ($r->attendee_names ?? ''), true) ?: [];
+        $stale_before = strtotime('-' . self::STALE_MINUTES . ' minutes', (int) current_time('timestamp'));
+        $r->state     = $r->status === 'recovered'
+            ? 'recovered'
+            : (strtotime((string) $r->updated_at) < $stale_before ? 'abandoned' : 'in_progress');
+        return $r;
+    }
+
+    /** Record that a recovery email went out for this draft (greys the button). */
+    public static function mark_recovery_sent(int $id): void {
+        global $wpdb;
+        $wpdb->update(Schema::abandoned(), ['recovery_sent_at' => current_time('mysql')], ['id' => (int) $id]);
+    }
+
     /**
      * Headline counts for the admin KPIs.
      *
