@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.6.1
+Stable tag: 0.6.2
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,18 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.6.2 =
+* Client portal security & revisions (from the Sep 7 Tiam call):
+  * One-click email sign-in: the portal now emails a secure sign-in link to the
+    address on file and keeps that browser signed in for 7 days — so only the
+    emailed recipient can view the project. No passwords.
+  * Payment-link emails sign the client straight in (the button carries the
+    one-click link).
+  * Copyright / ownership notice on the portal, and the watermark on locked
+    previews now includes "© Tiam Architects LLP".
+  * "Request a revision" form appears once the drawings are unlocked; it alerts
+    the studio notify list.
 
 = 0.6.1 =
 * Workflow & emails (from the Sep 7 Tiam call):

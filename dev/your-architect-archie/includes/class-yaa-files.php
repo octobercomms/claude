@@ -287,7 +287,7 @@ class YAA_Files {
 		}
 		imagefilter( $blur, IMG_FILTER_BRIGHTNESS, 20 );
 		$white = imagecolorallocatealpha( $blur, 255, 255, 255, 40 );
-		$tile  = 'PREVIEW · PAY TO UNLOCK  ';
+		$tile  = 'PREVIEW · PAY TO UNLOCK · © TIAM ARCHITECTS LLP  ';
 		for ( $y = 20; $y < $h; $y += 60 ) {
 			for ( $x = 10; $x < $w; $x += 260 ) {
 				imagestring( $blur, 5, $x, $y, $tile, $white );
