@@ -59,13 +59,78 @@ final class Recovery {
         $name    = (string) ($draft->name ?? '');
         $link    = self::resume_link($draft, $promo);
         $code    = $promo !== '' ? $promo : (string) ($draft->promo_code ?? '');
-        $subject = strtr(self::copy('recovery_subject'), ['{event}' => $event, '{code}' => $code]);
-        $html    = self::body($draft, $event, $name, $link, $code);
+        $offer   = self::offer_text($code);
+        $subject = strtr(self::copy('recovery_subject'), ['{event}' => $event, '{code}' => $code, '{offer}' => $offer]);
+        $html    = self::body($draft, $event, $name, $link, $code, $offer);
         $ok = Transactional::send('cart_recovery', ['email' => $email, 'name' => $name], [], $subject, $html, [], true);
         if ($ok) {
             Abandonment::mark_recovery_sent((int) $draft->id);
         }
         return $ok;
+    }
+
+    /**
+     * Autopilot: on the hourly cron, auto-send the recovery email to carts that
+     * were abandoned AFTER autopilot was switched on (recovery_autopilot_since) —
+     * the existing backlog stays manual. Each send is stamped, so a cart is
+     * mailed once. Off unless the setting is on and a start time is stamped.
+     */
+    public static function run_autopilot(): void {
+        if (! Settings::get('recovery_autopilot', false)) {
+            return;
+        }
+        $since = trim((string) Settings::get('recovery_autopilot_since', ''));
+        if ($since === '') {
+            return;
+        }
+        $code   = strtoupper((string) Settings::get('recovery_autopilot_code', ''));
+        $now    = time();
+        $drafts = Abandonment::autopilot_due($since, 200);
+        foreach ($drafts as $d) {
+            // Never auto-mail a cart whose event has already started/passed — the
+            // point of recovery is a booking that is still completable, and going
+            // automatic must not lose the manual-only safeguard against mailing a
+            // finished event.
+            $start = Ics::start_ts((int) $d->event_id);
+            if ($start && $start <= $now) {
+                continue;
+            }
+            // Only attach the configured code when it still applies to THIS cart's
+            // event. The dropdown filters codes when the setting is saved, but by
+            // the time the cron runs a code can have expired, hit its cap, or (being
+            // event-scoped) simply not apply to this event — in which case the
+            // checkout would reject it. Fall back to a code-less reminder instead.
+            $use = ($code !== '' && ! is_wp_error(Promo::validate($code, (int) $d->event_id, (float) ($d->subtotal ?? 0))))
+                ? $code
+                : '';
+            self::send($d, $use);
+        }
+    }
+
+    /** Human offer text for a code ("10% off" / "£5 off"), '' if none/unknown. */
+    public static function offer_text(string $code): string {
+        if ($code === '') {
+            return '';
+        }
+        $p = \OE\Ticketing\Promo::get_by_code($code);
+        if (! $p) {
+            return '';
+        }
+        $val = (float) ($p->discount_value ?? 0);
+        if ($val <= 0) {
+            return '';
+        }
+        $num = rtrim(rtrim(number_format($val, 2), '0'), '.');
+        if ((string) ($p->discount_type ?? 'percent') === 'percent') {
+            /* translators: %s: a percentage, e.g. "10" */
+            return sprintf(__('%s%% off', 'october-events'), $num);
+        }
+        $cur = strtoupper((string) Settings::get('currency', 'usd'));
+        $sym = $cur === 'GBP' ? '£' : ($cur === 'EUR' ? '€' : '$');
+        // A fixed code discounts each matching ticket, so say "per ticket" rather
+        // than imply a flat order discount (a £5 code on 3 tickets is £15 off).
+        /* translators: %s: a money amount, e.g. "£5" */
+        return sprintf(__('%s off per ticket', 'october-events'), $sym . $num);
     }
 
     /**
@@ -87,10 +152,11 @@ final class Recovery {
         ];
         $event = __('Opening Night', 'october-events');
         $code  = $with_code ? 'WELCOME10' : '';
+        $offer = $with_code ? __('10% off', 'october-events') : '';
         $link  = self::resume_link($draft, $code);
-        $doc   = Transactional::wrap_body(self::body($draft, $event, (string) $draft->name, $link, $code));
+        $doc   = Transactional::wrap_body(self::body($draft, $event, (string) $draft->name, $link, $code, $offer));
         // Show the (editable) subject above the email, like the ticket preview.
-        $subject = strtr(self::copy('recovery_subject'), ['{event}' => $event, '{code}' => $code]);
+        $subject = strtr(self::copy('recovery_subject'), ['{event}' => $event, '{code}' => $code, '{offer}' => $offer]);
         $bar = '<div style="max-width:600px;margin:0 auto 12px;padding-top:8px;font:600 13px Arial,Helvetica,sans-serif;color:#555">'
             . esc_html__('Subject', 'october-events') . ': ' . esc_html($subject) . '</div>';
         return str_replace('<body style="margin:0;background:#eceae6">', '<body style="margin:0;background:#eceae6">' . $bar, $doc);
@@ -109,7 +175,7 @@ final class Recovery {
     }
 
     /** Inner HTML for the branded shell (wrap=true adds the header/footer). */
-    private static function body(object $draft, string $event, string $name, string $link, string $code): string {
+    private static function body(object $draft, string $event, string $name, string $link, string $code, string $offer = ''): string {
         $rows = '';
         foreach ((array) ($draft->items ?? []) as $li) {
             $qty = (int) ($li['qty'] ?? 0);
@@ -128,6 +194,7 @@ final class Recovery {
         $intro    = strtr(nl2br(esc_html(self::copy('recovery_intro'))), [
             '{event}' => '<strong>' . esc_html($event) . '</strong>',
             '{code}'  => esc_html($code),
+            '{offer}' => esc_html($offer),
         ]);
         $btn  = '<a href="' . esc_url($link) . '" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">' . esc_html(self::copy('recovery_button')) . '</a>';
         $cart = $rows !== '' ? '<table style="margin:10px 0 16px;border-collapse:collapse">' . $rows . '</table>' : '';
@@ -139,7 +206,7 @@ final class Recovery {
             // chip; if the admin removed the token, the chip is shown on its own.
             $chip     = '<span style="display:inline-block;border:2px dashed #111;padding:6px 14px;margin:2px 0;font-family:\'Courier New\',Courier,monospace;font-size:18px;font-weight:800;letter-spacing:.08em;color:#111">' . esc_html($code) . '</span>';
             $line_tpl = self::copy('recovery_code_line');
-            $caption  = strtr(nl2br(esc_html($line_tpl)), ['{code}' => $chip, '{event}' => esc_html($event)]);
+            $caption  = strtr(nl2br(esc_html($line_tpl)), ['{code}' => $chip, '{event}' => esc_html($event), '{offer}' => esc_html($offer)]);
             if (strpos($line_tpl, '{code}') === false) {
                 $caption .= '<br>' . $chip;
             }

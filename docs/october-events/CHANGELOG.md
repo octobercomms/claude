@@ -5,6 +5,25 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.187.0 — Recovery autopilot + offer token
+
+Auto-send the recovery email, and show the actual discount.
+
+- **Autopilot** (Settings → Abandoned-cart recovery email): a checkbox that
+  auto-sends the recovery email hourly to newly abandoned carts. It only mails
+  carts abandoned *after* you switch it on — the existing backlog stays manual
+  (send those from Transactions). Each cart is emailed once, ~30–90 minutes
+  after it goes quiet. Turning it off then on starts a fresh window.
+- **Attach a code to autopilot** via a dropdown (or "No code (reminder only)"),
+  limited to active, redeemable codes.
+- **{offer} token**: the discount a code gives ("10% off", "£5 off") now fills a
+  new `{offer}` token in the subject, intro and code line, derived from the promo
+  code's own discount. Manual per-row and bulk sends resolve it too.
+
+Note: attaching a discount to every automatic send can train buyers to abandon
+on purpose; a no-code reminder, with a code reserved for a manual second touch,
+often performs better. The setting defaults to off.
+
 ## 1.186.0 — Make the recovery-email promo code stand out
 
 The promo code in the recovery email was a small green line, easy to miss. It

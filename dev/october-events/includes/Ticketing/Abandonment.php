@@ -255,6 +255,40 @@ final class Abandonment {
     }
 
     /**
+     * Carts eligible for an autopilot recovery send: genuinely abandoned (open +
+     * gone stale), with an email, not yet mailed, and started on/after $since so
+     * the pre-autopilot backlog is never auto-mailed. Cart decoded for the link.
+     *
+     * @return array<int,object>
+     */
+    public static function autopilot_due(string $since, int $limit = 200): array {
+        global $wpdb;
+        $table = Schema::abandoned();
+        $stale = gmdate('Y-m-d H:i:s', (int) strtotime('-' . self::STALE_MINUTES . ' minutes', (int) current_time('timestamp')));
+        // A rough "looks like an email" shape (has an @ and a dot after it) keeps
+        // clearly-invalid addresses out of the result set. Without it, a cart with
+        // a non-empty but invalid email is re-selected every hour forever, since
+        // Recovery::send() bails on is_email() without stamping it. send() still
+        // does the real validation; this only stops the wasted reprocessing.
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$table}
+             WHERE status = 'open' AND recovery_sent_at IS NULL AND email LIKE %s
+               AND item_count > 0 AND updated_at < %s AND created_at >= %s
+             ORDER BY updated_at ASC
+             LIMIT %d",
+            '%@%.%',
+            $stale,
+            $since,
+            max(1, min(500, $limit))
+        )) ?: [];
+        foreach ($rows as $r) {
+            $r->items = json_decode((string) $r->cart, true) ?: [];
+            $r->state = 'abandoned';
+        }
+        return $rows;
+    }
+
+    /**
      * Headline counts for the admin KPIs.
      *
      * @return array{open:int,abandoned:int,recovered:int,lost_value:float,recovered_value:float}

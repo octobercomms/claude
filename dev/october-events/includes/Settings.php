@@ -113,6 +113,13 @@ final class Settings {
             'recovery_intro'     => 'You started booking for {event} but didn’t finish. Your tickets are still waiting — pick up where you left off:',
             'recovery_button'    => 'Complete your booking',
             'recovery_code_line' => 'Use code {code} at checkout.',
+            // Autopilot: hourly cron auto-sends the recovery email to newly
+            // abandoned carts. Only carts abandoned AFTER it was switched on
+            // (recovery_autopilot_since) are auto-mailed — the backlog stays
+            // manual. An optional code is attached to every autopilot send.
+            'recovery_autopilot'       => false,
+            'recovery_autopilot_code'  => '',
+            'recovery_autopilot_since' => '',
             // PayPal — a second checkout gateway alongside Stripe (off until set up).
             'paypal_enabled'   => false,
             'paypal_env'       => 'sandbox',
