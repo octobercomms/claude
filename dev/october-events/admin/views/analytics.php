@@ -18,7 +18,6 @@
 defined('ABSPATH') || exit;
 
 $money  = static fn($n) => esc_html($currency . ' ' . number_format((float) $n, 2));
-$cur_sym = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$currency] ?? ($currency . ' ');
 $title  = $event_id ? (get_the_title($event_id) ?: ('#' . $event_id)) : '';
 $dinput = $event_ts ? wp_date('Y-m-d', $event_ts) : '';
 $week   = 7 * DAY_IN_SECONDS;
@@ -42,10 +41,15 @@ foreach ($history as $yr => $weeks) {
 $fees        = $total_revenue * ($fee_pct / 100) + $paid_txns * $fee_fixed;
 $gross_profit = max(0, $total_revenue - $fees);
 ?>
+<?php if (empty($oe_embed)) : ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('analytics'); ?>
+<?php else : ?>
+    <hr style="margin:28px 0 8px;border:0;border-top:1px solid #e3ded3">
+    <h2 style="margin:0 0 4px"><?php esc_html_e('Sales analytics', 'october-events'); ?></h2>
+<?php endif; ?>
 
     <p class="description" style="margin:10px 0 14px;max-width:820px">
         <?php esc_html_e('Track ticket sales week by week as an event approaches — pick an event, set its date, and sales are counted backwards from that date (week 0 = event week). Import prior years to overlay a year-over-year comparison and see whether this year is pacing ahead.', 'october-events'); ?>
@@ -54,7 +58,10 @@ $gross_profit = max(0, $total_revenue - $fees);
     <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;margin-bottom:14px">
         <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>">
             <input type="hidden" name="page" value="oe-tickets">
-            <input type="hidden" name="tab" value="analytics">
+            <input type="hidden" name="tab" value="<?php echo esc_attr(empty($oe_embed) ? 'analytics' : 'sales'); ?>">
+            <?php if (! empty($oe_embed) && ! empty($_GET['price_event'])) : ?>
+                <input type="hidden" name="price_event" value="<?php echo absint($_GET['price_event']); ?>">
+            <?php endif; ?>
             <label style="font-weight:600"><?php esc_html_e('Event', 'october-events'); ?><br>
                 <select name="event" onchange="this.form.submit()" style="min-width:260px">
                     <?php foreach ($events as $ev) :
@@ -190,4 +197,6 @@ $gross_profit = max(0, $total_revenue - $fees);
         <?php endif; ?>
 
     <?php endif; ?>
+<?php if (empty($oe_embed)) : ?>
 </div>
+<?php endif; ?>

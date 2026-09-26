@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.179.0 — Sales is one scrolling page
+
+The **Sales** tab no longer has sub-tabs. The dashboard, the ticket-price
+breakdown and the year-over-year analytics are now stacked as sections on a
+single scrolling page. Old links (`tab=prices`, `tab=analytics`) land on it.
+Each section keeps its own event picker. (Payments still has its sub-tabs for
+now — that merge is next.)
+
 ## 1.178.0 — Fewer Tickets tabs: Sales & Payments groups (consolidation phases 2 & 3)
 
 The top Tickets tabs go from twelve to eight by grouping the analytics and the
