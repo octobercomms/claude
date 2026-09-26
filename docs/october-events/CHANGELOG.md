@@ -5,6 +5,26 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.177.0 — Attendee hub on the Registrations tab (phase 1 of the tab consolidation)
+
+Start of consolidating the Tickets tabs. The **Registrations** tab is now
+**Attendees**: one row per ticket, built to be the day-to-day hub.
+
+- **Row colour**: light green when checked in, light red when not.
+- **Sortable** columns (attendee, ticket type, price, check-in status) and a
+  filter (All / Not checked in / Checked in) + search, so it's easy to see who
+  hasn't arrived. Defaults to not-checked-in first.
+- **Price paid per ticket** shown inline (group tickets split per admission).
+- **One-click Check in** for anyone who slipped past the door scanners (records a
+  "Manual (admin)" check-in), plus per-row **Transfer** and **View**.
+- Summary chips: total tickets, checked-in count and %, not-checked-in count.
+- The old order/refund table is kept, tucked into a collapsible "Orders &
+  payment detail" below (unchanged).
+
+Next phases will merge the analytics tabs (Sales + Ticket prices + Sales
+analytics) and the payment tabs (Transactions + Failed payments + Abandoned
+carts) to cut the tab count.
+
 ## 1.176.0 — Attendance pie + the active tab now shows in the browser title
 
 - With an event selected, the check-in log now shows an **Attendance** pie:

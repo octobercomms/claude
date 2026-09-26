@@ -35,6 +35,8 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
             'refund_failed' => ['error', __('Refund failed — nothing was charged back. Check the order is a paid card order with tickets still active.', 'october-events')],
             'transferred'   => ['success', __('Ticket transferred — the new attendee has been emailed their ticket.', 'october-events')],
             'transfer_failed' => ['error', __('Could not transfer that ticket — check the name and a valid email, and that the ticket is still active.', 'october-events')],
+            'checked_in'    => ['success', __('Checked in.', 'october-events')],
+            'checkin_failed' => ['error', __('Could not check that ticket in. If it’s a door-restricted ticket already scanned elsewhere, use the door scanner instead.', 'october-events')],
         ];
         $note = $messages[$m] ?? ['error', __('Could not create that order — check the event has a ticket type.', 'october-events')]; ?>
         <div class="notice notice-<?php echo esc_attr($note[0]); ?> is-dismissible"><p><?php echo esc_html($note[1]); ?></p></div>
@@ -104,12 +106,201 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
     })();
     </script>
 
-    <h2 style="margin-top:24px"><?php esc_html_e('Orders', 'october-events'); ?></h2>
     <?php
     $money = static function ($amount) use ($currency): string {
         return number_format((float) $amount, 2) . ' ' . $currency;
     };
+    $cur_sym = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$currency] ?? ($currency . ' ');
+    // Uncapped totals (attendees_for_list is capped for very large events).
+    $att_total = (int) ($attendee_stats['tickets'] ?? count($attendees));
+    $att_in    = (int) ($attendee_stats['checked_in'] ?? 0);
+    $att_out   = max(0, $att_total - $att_in);
+    $att_pct   = $att_total ? round($att_in / $att_total * 100) : 0;
+    $att_capped = count($attendees) < $att_total;
     ?>
+
+    <h2 style="margin-top:22px"><?php esc_html_e('Attendees', 'october-events'); ?></h2>
+    <p class="description" style="margin:0 0 10px"><?php esc_html_e('One row per ticket. Green = checked in, red = not yet. Sort or filter to see who hasn’t arrived, and check someone in with one click if they slipped past the door.', 'october-events'); ?></p>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:10px 0 12px">
+        <div style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:10px 16px">
+            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Tickets', 'october-events'); ?></div>
+            <div style="font-size:20px;font-weight:800"><?php echo esc_html(number_format_i18n($att_total)); ?></div>
+        </div>
+        <div style="background:#eaf7ec;border:1px solid #cde9d2;border-radius:12px;padding:10px 16px">
+            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Checked in', 'october-events'); ?></div>
+            <div style="font-size:20px;font-weight:800"><?php echo esc_html(number_format_i18n($att_in) . ' · ' . $att_pct . '%'); ?></div>
+        </div>
+        <div style="background:#fdeceb;border:1px solid #f4c7c3;border-radius:12px;padding:10px 16px">
+            <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Not checked in', 'october-events'); ?></div>
+            <div style="font-size:20px;font-weight:800"><?php echo esc_html(number_format_i18n($att_out)); ?></div>
+        </div>
+        <form method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <input type="hidden" name="page" value="oe-tickets">
+            <label for="oe-att-ev" class="description"><?php esc_html_e('Event', 'october-events'); ?></label>
+            <select id="oe-att-ev" name="event" onchange="this.form.submit()">
+                <option value="0"><?php esc_html_e('All events', 'october-events'); ?></option>
+                <?php foreach (($events ?: []) as $ev) : ?>
+                    <option value="<?php echo (int) $ev->ID; ?>" <?php selected($event_filter, (int) $ev->ID); ?>><?php echo esc_html(get_the_title($ev) ?: ('#' . (int) $ev->ID)); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </form>
+    </div>
+
+    <?php if (! $attendees) : ?>
+        <div class="notice notice-info inline" style="margin:0 0 18px"><p><?php esc_html_e('No tickets issued yet for this filter.', 'october-events'); ?></p></div>
+    <?php else : ?>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px">
+        <label class="description"><?php esc_html_e('Show', 'october-events'); ?>
+            <select id="oe-att-filter">
+                <option value="all"><?php esc_html_e('All', 'october-events'); ?></option>
+                <option value="out"><?php esc_html_e('Not checked in', 'october-events'); ?></option>
+                <option value="in"><?php esc_html_e('Checked in', 'october-events'); ?></option>
+            </select>
+        </label>
+        <input type="search" id="oe-att-search" placeholder="<?php esc_attr_e('Search name, email or type…', 'october-events'); ?>" style="min-width:220px">
+        <span class="description" id="oe-att-shown"></span>
+        <?php if ($att_capped) : ?>
+            <span class="description"><?php echo esc_html(sprintf(
+                /* translators: 1: rows shown, 2: total */
+                __('Showing the first %1$s of %2$s — filter by event to see the rest.', 'october-events'),
+                number_format_i18n(count($attendees)), number_format_i18n($att_total)
+            )); ?></span>
+        <?php endif; ?>
+    </div>
+
+    <table class="widefat striped oe-att-table" id="oe-att-table">
+        <thead><tr>
+            <th class="oe-att-sortable" data-key="name"><?php esc_html_e('Attendee', 'october-events'); ?> <span class="oe-att-arrow"></span></th>
+            <th class="oe-att-sortable" data-key="type"><?php esc_html_e('Ticket type', 'october-events'); ?> <span class="oe-att-arrow"></span></th>
+            <th class="oe-att-sortable" data-key="price" style="text-align:right"><?php esc_html_e('Price', 'october-events'); ?> <span class="oe-att-arrow"></span></th>
+            <th class="oe-att-sortable" data-key="status"><?php esc_html_e('Checked in', 'october-events'); ?> <span class="oe-att-arrow"></span></th>
+            <th><?php esc_html_e('Actions', 'october-events'); ?></th>
+        </tr></thead>
+        <tbody>
+        <?php foreach ($attendees as $a) :
+            $when = $a->checked_in && $a->first_scan ? get_date_from_gmt((string) $a->first_scan, 'g:i a') : '';
+            $search = strtolower(trim($a->attendee . ' ' . $a->email . ' ' . $a->type . ' ' . $a->buyer));
+            $view_url = \OE\Ticketing\Orders::ticket_url((string) $a->token);
+        ?>
+            <tr class="<?php echo $a->checked_in ? 'oe-att-in' : 'oe-att-out'; ?>"
+                data-status="<?php echo $a->checked_in ? 'in' : 'out'; ?>"
+                data-name="<?php echo esc_attr(strtolower($a->attendee)); ?>"
+                data-type="<?php echo esc_attr(strtolower($a->type)); ?>"
+                data-price="<?php echo esc_attr((string) $a->price); ?>"
+                data-search="<?php echo esc_attr($search); ?>">
+                <td><strong><?php echo esc_html($a->attendee ?: '—'); ?></strong>
+                    <?php if ($a->email !== '') : ?><br><span class="description" style="font-size:12px"><?php echo esc_html($a->email); ?></span><?php endif; ?>
+                    <?php if ($a->buyer !== '' && $a->buyer !== $a->attendee) : ?><br><span class="description" style="font-size:11px"><?php echo esc_html(sprintf(__('bought by %s', 'october-events'), $a->buyer)); ?></span><?php endif; ?></td>
+                <td><?php echo esc_html($a->type ?: '—'); ?></td>
+                <td style="text-align:right"><?php echo $a->price > 0 ? esc_html($cur_sym . number_format_i18n($a->price, 2)) : '<span class="description">' . esc_html__('Free', 'october-events') . '</span>'; ?></td>
+                <td>
+                    <?php if ($a->checked_in) : ?>
+                        <span style="color:#1e7a33;font-weight:700">✓ <?php esc_html_e('In', 'october-events'); ?></span>
+                        <span class="description" style="font-size:11px"><?php echo esc_html(trim(($a->venue !== '' ? $a->venue : '') . ($when ? ' · ' . $when : ''))); ?></span>
+                    <?php else : ?>
+                        <span style="color:#b32d2e;font-weight:700">✗ <?php esc_html_e('Not in', 'october-events'); ?></span>
+                    <?php endif; ?>
+                </td>
+                <td style="white-space:nowrap">
+                    <?php if (! $a->checked_in) : ?>
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
+                            <input type="hidden" name="action" value="oe_ticket_checkin">
+                            <input type="hidden" name="ticket_id" value="<?php echo (int) $a->id; ?>">
+                            <?php wp_nonce_field('oe_ticket_checkin'); ?>
+                            <button type="submit" class="button button-small button-primary"><?php esc_html_e('Check in', 'october-events'); ?></button>
+                        </form>
+                    <?php endif; ?>
+                    <a class="button button-small" href="<?php echo esc_url($view_url); ?>" target="_blank" rel="noopener"><?php esc_html_e('View', 'october-events'); ?></a>
+                    <a href="#" class="button button-small oe-xfer-toggle" data-target="oe-attx-<?php echo (int) $a->id; ?>"><?php esc_html_e('Transfer', 'october-events'); ?></a>
+                </td>
+            </tr>
+            <tr id="oe-attx-<?php echo (int) $a->id; ?>" class="oe-att-skip" style="display:none">
+                <td colspan="5" style="background:#faf9f5">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:8px 4px">
+                        <input type="hidden" name="action" value="oe_transfer_ticket">
+                        <input type="hidden" name="ticket_id" value="<?php echo (int) $a->id; ?>">
+                        <?php wp_nonce_field('oe_transfer_ticket'); ?>
+                        <label style="font-size:12px"><?php esc_html_e('New attendee name', 'october-events'); ?><br>
+                            <input type="text" name="attendee_name" value="<?php echo esc_attr($a->attendee); ?>" required style="min-width:180px"></label>
+                        <label style="font-size:12px"><?php esc_html_e('New email', 'october-events'); ?><br>
+                            <input type="email" name="attendee_email" placeholder="<?php echo esc_attr($a->email); ?>" required style="min-width:200px"></label>
+                        <button type="submit" class="button button-primary" onclick="return confirm('<?php echo esc_js(__('Transfer this ticket and email the new attendee their ticket? The QR code stays the same, so any earlier copy now belongs to the new person.', 'october-events')); ?>');"><?php esc_html_e('Transfer & email ticket', 'october-events'); ?></button>
+                    </form>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    <style>
+        .oe-att-table tr.oe-att-in > td { background:#eaf7ec !important; }
+        .oe-att-table tr.oe-att-out > td { background:#fdeceb !important; }
+        .oe-att-table th.oe-att-sortable { cursor:pointer; user-select:none; }
+        .oe-att-table th.oe-att-sortable:hover { color:#000; }
+    </style>
+    <script>
+    (function(){
+        var table = document.getElementById('oe-att-table');
+        if (!table) { return; }
+        var tbody = table.querySelector('tbody');
+        // A ticket = its main row plus its (hidden) transfer row. Keep them paired.
+        function pairs(){
+            var out = [], rows = tbody.children;
+            for (var i = 0; i < rows.length; i++) {
+                if (rows[i].classList.contains('oe-att-skip')) { continue; }
+                out.push([rows[i], rows[i + 1] && rows[i + 1].classList.contains('oe-att-skip') ? rows[i + 1] : null]);
+            }
+            return out;
+        }
+        var sortKey = '', sortDir = 1;
+        function val(row, key){
+            if (key === 'price') { return parseFloat(row.getAttribute('data-price')) || 0; }
+            if (key === 'status') { return row.getAttribute('data-status') === 'in' ? 1 : 0; }
+            return row.getAttribute('data-' + key) || '';
+        }
+        function sortBy(key){
+            sortDir = (sortKey === key) ? -sortDir : 1;
+            sortKey = key;
+            var ps = pairs();
+            ps.sort(function(a, b){
+                var x = val(a[0], key), y = val(b[0], key);
+                if (x < y) { return -1 * sortDir; }
+                if (x > y) { return 1 * sortDir; }
+                return 0;
+            });
+            ps.forEach(function(p){ tbody.appendChild(p[0]); if (p[1]) { tbody.appendChild(p[1]); } });
+            table.querySelectorAll('.oe-att-arrow').forEach(function(s){ s.textContent = ''; });
+            var th = table.querySelector('th[data-key="' + key + '"] .oe-att-arrow');
+            if (th) { th.textContent = sortDir > 0 ? '▲' : '▼'; }
+        }
+        table.querySelectorAll('th.oe-att-sortable').forEach(function(th){
+            th.addEventListener('click', function(){ sortBy(th.getAttribute('data-key')); });
+        });
+        var filter = document.getElementById('oe-att-filter'),
+            search = document.getElementById('oe-att-search'),
+            shown  = document.getElementById('oe-att-shown');
+        function apply(){
+            var f = filter ? filter.value : 'all', q = (search ? search.value : '').trim().toLowerCase(), n = 0;
+            pairs().forEach(function(p){
+                var row = p[0];
+                var okF = (f === 'all') || row.getAttribute('data-status') === f;
+                var okQ = !q || (row.getAttribute('data-search') || '').indexOf(q) !== -1;
+                var show = okF && okQ;
+                row.style.display = show ? '' : 'none';
+                if (p[1] && !show) { p[1].style.display = 'none'; }
+                if (show) { n++; }
+            });
+            if (shown) { shown.textContent = n + ' <?php echo esc_js(__('shown', 'october-events')); ?>'; }
+        }
+        if (filter) { filter.addEventListener('change', apply); }
+        if (search) { search.addEventListener('input', apply); }
+        apply();
+    })();
+    </script>
+    <?php endif; ?>
+
+    <details class="oe-acc" style="margin-top:22px">
+        <summary style="cursor:pointer;font-size:1.25em;font-weight:600;margin:10px 0"><?php esc_html_e('Orders & payment detail', 'october-events'); ?></summary>
     <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:14px 0 10px">
         <div style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:12px 18px">
             <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px"><?php esc_html_e('Revenue (paid)', 'october-events'); ?></div>
@@ -307,4 +498,5 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
         });
     })();
     </script>
+    </details>
 </div>

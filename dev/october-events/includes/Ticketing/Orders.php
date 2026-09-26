@@ -674,6 +674,82 @@ final class Orders {
         AuditLog::record('order_deleted', $order_id, 'order', (string) $order->payment_id);
     }
 
+    /**
+     * One row per active admission (a paid order's tickets), for the attendee
+     * hub: name, email, ticket type, price paid (the order total split across its
+     * admissions), buyer, and live check-in state. Ordered not-checked-in first
+     * so no-shows surface. Honours the event filter; capped for safety.
+     *
+     * @return array<int,object>
+     */
+    public static function attendees_for_list(int $event_id = 0, int $limit = 3000): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $c = Schema::checkins();
+        $where = $event_id > 0 ? $wpdb->prepare('AND o.event_id = %d', $event_id) : '';
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT ti.id, ti.attendee_name, ti.attendee_email, ti.ticket_type_label,
+                    ti.ticket_number, ti.total_in_order, ti.token,
+                    o.id AS order_id, o.event_id, o.name AS buyer, o.email AS buyer_email,
+                    o.total AS order_total, o.source,
+                    (SELECT COUNT(*) FROM {$t} tt WHERE tt.order_id = o.id) AS order_tickets,
+                    (SELECT COUNT(*) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS scans,
+                    (SELECT MIN(ck.scanned_at) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS first_scan,
+                    (SELECT ck.venue_name FROM {$c} ck WHERE ck.ticket_id = ti.id ORDER BY ck.scanned_at ASC, ck.id ASC LIMIT 1) AS venue
+             FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
+             WHERE o.status = 'paid' AND ti.status = 'active' {$where}
+             ORDER BY (scans > 0) ASC, ti.attendee_name ASC, ti.id ASC
+             LIMIT %d",
+            max(1, min(5000, $limit))
+        )) ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            $n = max(1, (int) $r->order_tickets);
+            $out[] = (object) [
+                'id'         => (int) $r->id,
+                'attendee'   => (string) ((string) $r->attendee_name !== '' ? $r->attendee_name : $r->buyer),
+                'email'      => (string) ((string) $r->attendee_email !== '' ? $r->attendee_email : $r->buyer_email),
+                'type'       => (string) $r->ticket_type_label,
+                'buyer'      => (string) $r->buyer,
+                'event_id'   => (int) $r->event_id,
+                'order_id'   => (int) $r->order_id,
+                'token'      => (string) $r->token,
+                'price'      => round((float) $r->order_total / $n, 2),
+                'checked_in' => ((int) $r->scans) > 0,
+                'venue'      => (string) $r->venue,
+                'first_scan' => (string) $r->first_scan,
+                'source'     => (string) $r->source,
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * True totals for the attendee summary chips — computed in SQL so they stay
+     * right even when attendees_for_list() is capped for a very large event.
+     *
+     * @return array{tickets:int,checked_in:int}
+     */
+    public static function attendee_counts(int $event_id = 0): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $c = Schema::checkins();
+        $where = $event_id > 0 ? $wpdb->prepare('AND o.event_id = %d', $event_id) : '';
+        $tickets = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
+             WHERE o.status = 'paid' AND ti.status = 'active' {$where}"
+        );
+        $checked = (int) $wpdb->get_var(
+            "SELECT COUNT(DISTINCT ti.id) FROM {$t} ti
+             INNER JOIN {$o} o ON ti.order_id = o.id
+             INNER JOIN {$c} ck ON ck.ticket_id = ti.id
+             WHERE o.status = 'paid' AND ti.status = 'active' {$where}"
+        );
+        return ['tickets' => $tickets, 'checked_in' => $checked];
+    }
+
     /* ------------------------------------------------------------------ */
 
     /** Cron hook that delivers a queued confirmation. Registered in Cron::init(). */

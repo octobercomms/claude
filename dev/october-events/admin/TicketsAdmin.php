@@ -38,6 +38,7 @@ final class TicketsAdmin {
         add_action('admin_post_oe_refund_tickets', [$this, 'handle_refund_tickets']);
         add_action('admin_post_oe_resend_confirmation', [$this, 'handle_resend_confirmation']);
         add_action('admin_post_oe_transfer_ticket', [$this, 'handle_transfer_ticket']);
+        add_action('admin_post_oe_ticket_checkin', [$this, 'handle_ticket_checkin']);
         add_action('admin_post_oe_set_event_date', [$this, 'handle_set_event_date']);
         add_action('admin_post_oe_import_history', [$this, 'handle_import_history']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
@@ -514,6 +515,12 @@ final class TicketsAdmin {
             }
         }
 
+        // Per-attendee list (one row per active admission) — the operational hub:
+        // who's checked in, who hasn't, with a one-click check-in. The summary
+        // chips use uncapped SQL counts so they stay right on a huge event.
+        $attendees      = Orders::attendees_for_list($event_filter);
+        $attendee_stats = Orders::attendee_counts($event_filter);
+
         require OE_DIR . 'admin/views/registrations.php';
     }
 
@@ -573,6 +580,33 @@ final class TicketsAdmin {
         }
         $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets');
         wp_safe_redirect(add_query_arg('oe_msg', $sent ? 'resent' : 'resend_failed', remove_query_arg('oe_msg', $back)));
+        exit;
+    }
+
+    /** One-click manual check-in from the attendee list (for someone who slipped past the door scanners). */
+    public function handle_ticket_checkin(): void {
+        $this->guard('oe_ticket_checkin');
+        $ticket_id = absint($_POST['ticket_id'] ?? 0);
+        $ticket    = $ticket_id ? Orders::ticket_get($ticket_id) : null;
+        if (! $ticket) {
+            $res = ['status' => 'invalid'];
+        } else {
+            // A venue-scoped ticket type only checks in at its listed doors, so a
+            // hardcoded label would be rejected as "wrong_venue" for those. Resolve
+            // a door the ticket is actually valid at (its first listed venue) for the
+            // admin override, falling back to a generic label for unrestricted types.
+            $venue   = __('Manual (admin)', 'october-events');
+            $order   = Orders::get((int) $ticket->order_id);
+            $type    = $order ? TicketTypes::type((int) $ticket->event_id, (string) $order->ticket_type_key) : null;
+            $allowed = $type ? TicketTypes::type_venues($type) : [];
+            if ($allowed) {
+                $venue = (string) $allowed[0];
+            }
+            $res = \OE\Ticketing\CheckIn::scan_ticket($ticket_id, (int) $ticket->event_id, $venue);
+        }
+        $ok   = in_array((string) ($res['status'] ?? ''), ['valid', 'already'], true);
+        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets');
+        wp_safe_redirect(add_query_arg('oe_msg', $ok ? 'checked_in' : 'checkin_failed', remove_query_arg('oe_msg', $back)));
         exit;
     }
 
