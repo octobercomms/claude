@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.180.0 — Payments is one page (transactions + failed + abandoned)
+
+The **Payments** tab is now a single scrolling page with a filter bar:
+
+- **Payments** — paid card transactions (grouped by payment), rows colour-coded
+  green (paid), amber (part refunded) or red (refunded), with the refund action.
+- **Failed** — live declined charges from Stripe, with the reason and card.
+- **Abandoned** — in-progress checkouts that never paid.
+
+Filter chips (All / Payments / Failed / Abandoned) narrow to one section. One
+event filter at the top drives the payments and abandoned lists (failed charges
+have no event link, so they always show). Old links (`tab=transactions`,
+`tab=failed`, `tab=abandoned`) land on the page. No more Payments sub-tabs.
+
 ## 1.179.0 — Sales is one scrolling page
 
 The **Sales** tab no longer has sub-tabs. The dashboard, the ticket-price

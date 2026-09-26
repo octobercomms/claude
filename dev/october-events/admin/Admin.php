@@ -231,12 +231,10 @@ final class Admin {
             // Sales is one scrolling page (dashboard + prices + analytics); the
             // legacy prices/analytics slugs land on it too.
             TicketsAdmin::get_instance()->render_sales();
-        } elseif ($tab === 'failed') {
-            TicketsAdmin::get_instance()->render_failed_payments();
-        } elseif ($tab === 'abandoned') {
-            TicketsAdmin::get_instance()->render_abandoned_carts();
-        } elseif ($tab === 'transactions' || $tab === 'payments') {
-            TicketsAdmin::get_instance()->render_transactions();
+        } elseif ($tab === 'payments' || $tab === 'transactions' || $tab === 'failed' || $tab === 'abandoned') {
+            // Payments is one page (transactions + failed + abandoned); the legacy
+            // slugs land on it too.
+            TicketsAdmin::get_instance()->render_payments();
         } elseif ($tab === 'guided') {
             $this->render_guided();
         } elseif ($tab === 'message') {
@@ -261,26 +259,23 @@ final class Admin {
     }
 
     /**
-     * Second-level tabs grouped under a top-level parent. The array key is the
-     * parent tab; each child's key is its own `tab=` slug (so old links still work).
+     * Second-level tabs grouped under a top-level parent. Sales and Payments are
+     * both single scrolling pages now, so there are no sub-tabs; kept for the
+     * mechanism should a future group want one.
      */
     public static function tickets_subgroups(): array {
-        return [
-            'payments' => [
-                'payments'  => __('Transactions', 'october-events'),
-                'failed'    => __('Failed payments', 'october-events'),
-                'abandoned' => __('Abandoned carts', 'october-events'),
-            ],
-        ];
+        return [];
     }
 
     /**
      * Legacy `tab=` slugs folded into a top-level page. Old bookmarks and
-     * redirects keep working by resolving to the current parent tab. Sales is now
-     * one scrolling page, so its old sub-slugs map to `sales`.
+     * redirects keep working by resolving to the current parent tab (Sales and
+     * Payments are each one scrolling page).
      */
     private const TICKETS_LEGACY = [
         'transactions' => 'payments',
+        'failed'       => 'payments',
+        'abandoned'    => 'payments',
         'prices'       => 'sales',
         'analytics'    => 'sales',
     ];
