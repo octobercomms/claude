@@ -260,7 +260,7 @@ class YAA_Rest {
 		// the client a secure portal link to pay. So no immediate checkout URL here.
 		$message = $redirect
 			? __( 'Thanks — this one is a better fit for a full commission with Tiam Architects, so I\'ve flagged it for a consultation.', 'your-architect-archie' )
-			: __( 'Project saved. Our architects will review it and email you a secure link to confirm and pay — you only pay to release the full drawings.', 'your-architect-archie' );
+			: __( 'Project saved. Our architects will review it, prepare your drawings and send a watermarked preview, then email you a secure link to confirm and pay — you only pay to release the full drawings.', 'your-architect-archie' );
 
 		return new WP_REST_Response( array( 'ref' => $ref, 'redirect' => $redirect, 'message' => $message, 'checkoutUrl' => null ) );
 	}

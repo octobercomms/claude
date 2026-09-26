@@ -22,6 +22,79 @@ class YAA_Email {
 
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
+		// Auto-send the payment receipt when a project is marked paid.
+		add_action( 'yaa_project_paid', array( __CLASS__, 'send_receipt' ), 10, 1 );
+	}
+
+	/**
+	 * The editable email stages, in workflow order. Each: the studio-facing label,
+	 * the project status set when it's sent, whether it carries the secure-payment
+	 * button, and the default subject/body (tokens: {first_name} {ref} {total}).
+	 * The defaults are overridable per-stage in Archie → Settings.
+	 */
+	public static function stages() {
+		return array(
+			'approved' => array(
+				'label'   => __( 'Approved — preparing your drawings', 'your-architect-archie' ),
+				'status'  => 'approved',
+				'cta'     => false,
+				'subject' => 'Your Architect — we\'ve reviewed your project',
+				'body'    => "Hi {first_name},\n\nGreat news — we've reviewed the details of your project and we're happy to help. Our team is now preparing your drawings.\n\nWe'll send you a watermarked preview to look over shortly. Once you're happy with it, we'll share a secure link to confirm and pay.\n\nIf anything's changed in the meantime, just reply to this email.",
+			),
+			'progress' => array(
+				'label'   => __( 'Drawings in progress', 'your-architect-archie' ),
+				'status'  => 'in_progress',
+				'cta'     => false,
+				'subject' => 'Your Architect — we\'ve started your drawings',
+				'body'    => "Hi {first_name},\n\nJust a quick update — our team has now started work on your drawings. We'll be in touch again as soon as your watermarked preview is ready to look over.\n\nIf you have any questions in the meantime, simply reply to this email.",
+			),
+			'preview'  => array(
+				'label'   => __( 'Preview ready — payment link', 'your-architect-archie' ),
+				'status'  => 'preview',
+				'cta'     => true,
+				'subject' => 'Your Architect — your preview is ready',
+				'body'    => "Hi {first_name},\n\nYour drawings are ready to preview. You can view a watermarked version in your secure project portal using the button below.\n\nOnce you're happy, complete your secure payment on the same page and the full, un-watermarked drawings unlock straight away for you to download.\n\nIf you'd like anything adjusted first, just reply and let us know.",
+			),
+			'rejected' => array(
+				'label'   => __( 'Not accepted', 'your-architect-archie' ),
+				'status'  => 'rejected',
+				'cta'     => false,
+				'subject' => 'Your Architect — about your enquiry',
+				'body'    => "Hi {first_name},\n\nThank you for your enquiry and for the details you shared. Having looked at it, this particular piece of work falls outside the service we're able to offer, so we're sorry that we won't be able to take it on this time.\n\nWe'd recommend speaking to a local specialist who can help. Wishing you the very best with your project.",
+			),
+			'receipt'  => array(
+				'label'   => __( 'Payment receipt', 'your-architect-archie' ),
+				'status'  => 'paid',
+				'cta'     => false,
+				'subject' => 'Your Architect — payment received',
+				'body'    => "Hi {first_name},\n\nThank you — we've received your payment for {total}. Your full drawings are now unlocked in your project portal, ready to download.\n\nWe'll be in touch as your project progresses. If you need anything, just reply to this email.",
+			),
+		);
+	}
+
+	/** The subject/body for a stage — a Settings override if set, else the default. */
+	public static function template( $kind ) {
+		$stages = self::stages();
+		if ( ! isset( $stages[ $kind ] ) ) {
+			return array( 'subject' => '', 'body' => '' );
+		}
+		$saved = YAA_Settings::get( 'email_templates', array() );
+		$saved = is_array( $saved ) && isset( $saved[ $kind ] ) && is_array( $saved[ $kind ] ) ? $saved[ $kind ] : array();
+		$subject = ! empty( $saved['subject'] ) ? $saved['subject'] : $stages[ $kind ]['subject'];
+		$body    = ! empty( $saved['body'] ) ? $saved['body'] : $stages[ $kind ]['body'];
+		return array( 'subject' => (string) $subject, 'body' => (string) $body );
+	}
+
+	/** Replace {first_name} {name} {ref} {total} tokens against a project row. */
+	private static function fill_tokens( $text, $project ) {
+		$first = trim( (string) $project->name ) ? strtok( trim( (string) $project->name ), ' ' ) : 'there';
+		$repl  = array(
+			'{first_name}' => $first,
+			'{name}'       => trim( (string) $project->name ) ? $project->name : 'there',
+			'{ref}'        => (string) $project->ref,
+			'{total}'      => YAA_Pricing::money( (int) $project->total ),
+		);
+		return strtr( (string) $text, $repl );
 	}
 
 	public static function routes() {
@@ -48,6 +121,27 @@ class YAA_Email {
 		global $wpdb;
 		$t = YAA_DB::emails_table();
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d", (int) $email_id ) ); // phpcs:ignore WordPress.DB
+	}
+
+	/** Newest email of a given stage kind (draft or sent). */
+	public static function latest_of_kind( $project_id, $kind ) {
+		global $wpdb;
+		$t = YAA_DB::emails_table();
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE project_id = %d AND kind = %s ORDER BY id DESC LIMIT 1", (int) $project_id, (string) $kind ) ); // phpcs:ignore WordPress.DB
+	}
+
+	/** Prefill a stage email from its (editable) template, tokens filled in. */
+	public static function draft_stage( $project_id, $kind ) {
+		$row = YAA_Project::get( $project_id );
+		if ( ! $row ) {
+			return new WP_Error( 'yaa_no_project', 'Project not found.' );
+		}
+		$stages = self::stages();
+		if ( ! isset( $stages[ $kind ] ) ) {
+			return new WP_Error( 'yaa_bad_kind', 'Unknown email type.' );
+		}
+		$tpl = self::template( $kind );
+		return self::store_draft( $project_id, self::fill_tokens( $tpl['subject'], $row ), self::fill_tokens( $tpl['body'], $row ), $kind );
 	}
 
 	/** Draft (or re-draft) the confirmation email for a project via Claude. */
@@ -109,19 +203,19 @@ class YAA_Email {
 		return implode( "\n", $lines );
 	}
 
-	/** One draft per project — replace any prior unsent draft. */
-	public static function store_draft( $project_id, $subject, $body ) {
+	/** One draft per stage kind per project — replace any prior unsent draft of that kind. */
+	public static function store_draft( $project_id, $subject, $body, $kind = 'confirmation' ) {
 		global $wpdb;
 		$t   = YAA_DB::emails_table();
-		$row = self::latest( $project_id );
-		$data = array( 'subject' => (string) $subject, 'body' => (string) $body, 'status' => 'draft' );
+		$row = self::latest_of_kind( $project_id, $kind );
+		$data = array( 'subject' => (string) $subject, 'body' => (string) $body, 'status' => 'draft', 'kind' => (string) $kind );
 		if ( $row && 'draft' === $row->status ) {
-			$wpdb->update( $t, $data, array( 'id' => (int) $row->id ), array( '%s', '%s', '%s' ), array( '%d' ) ); // phpcs:ignore WordPress.DB
+			$wpdb->update( $t, $data, array( 'id' => (int) $row->id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) ); // phpcs:ignore WordPress.DB
 			return (int) $row->id;
 		}
 		$data['project_id'] = (int) $project_id;
 		$data['created']    = current_time( 'mysql' );
-		$wpdb->insert( $t, $data, array( '%s', '%s', '%s', '%d', '%s' ) ); // phpcs:ignore WordPress.DB
+		$wpdb->insert( $t, $data, array( '%s', '%s', '%s', '%s', '%d', '%s' ) ); // phpcs:ignore WordPress.DB
 		return (int) $wpdb->insert_id;
 	}
 
@@ -170,9 +264,27 @@ class YAA_Email {
 			array( '%d' )
 		); // phpcs:ignore WordPress.DB
 
-		YAA_Project::set_status( $email->project_id, 'emailed' );
-		YAA_Project::log_event( $email->project_id, 'email_sent', array( 'email_id' => (int) $email_id ) );
+		$stages     = self::stages();
+		$kind       = isset( $email->kind ) ? (string) $email->kind : 'confirmation';
+		$new_status = isset( $stages[ $kind ]['status'] ) ? $stages[ $kind ]['status'] : 'emailed';
+		YAA_Project::set_status( $email->project_id, $new_status );
+		YAA_Project::log_event( $email->project_id, 'email_sent', array( 'email_id' => (int) $email_id, 'kind' => $kind ) );
 		return true;
+	}
+
+	/** Auto-send the payment receipt once (fired on yaa_project_paid). */
+	public static function send_receipt( $project_id ) {
+		$row = YAA_Project::get( $project_id );
+		if ( ! $row || ! is_email( $row->email ) ) {
+			return;
+		}
+		if ( self::latest_of_kind( $project_id, 'receipt' ) ) {
+			return; // don't send twice — webhooks can fire more than once.
+		}
+		$id = self::draft_stage( $project_id, 'receipt' );
+		if ( ! is_wp_error( $id ) ) {
+			self::send( $id );
+		}
 	}
 
 	private static function send_brevo( $key, $project, $email, $html, $from, $name ) {
@@ -210,9 +322,17 @@ class YAA_Email {
 				$paras .= '<p style="margin:0 0 16px;line-height:1.6;color:#1a2233">' . nl2br( esc_html( $p ) ) . '</p>';
 			}
 		}
-		$cta = $project->paid
-			? '<p style="margin:0 0 16px;line-height:1.6;color:#0f7a3d"><strong>Payment received — thank you.</strong> You can view everything in your portal below.</p>'
-			: '<a href="' . esc_url( $portal ) . '" style="display:inline-block;background:#253E94;color:#fff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:10px">Complete secure payment</a>';
+		$stages    = self::stages();
+		$kind      = isset( $email->kind ) ? (string) $email->kind : 'confirmation';
+		$wants_cta = isset( $stages[ $kind ] ) ? ! empty( $stages[ $kind ]['cta'] ) : true; // legacy 'confirmation' keeps the button.
+		if ( $project->paid ) {
+			$cta = '<p style="margin:0 0 16px;line-height:1.6;color:#0f7a3d"><strong>Payment received — thank you.</strong> You can view everything in your portal below.</p>'
+				. '<a href="' . esc_url( $portal ) . '" style="display:inline-block;background:#253E94;color:#fff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:10px">Open your portal</a>';
+		} elseif ( $wants_cta ) {
+			$cta = '<a href="' . esc_url( $portal ) . '" style="display:inline-block;background:#253E94;color:#fff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:10px">View preview &amp; pay securely</a>';
+		} else {
+			$cta = '';
+		}
 		$total = YAA_Pricing::money( (int) $project->total );
 
 		// wp_mail fallback: append a 1px open pixel (Brevo tracks natively).

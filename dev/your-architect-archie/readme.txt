@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.6.0
+Stable tag: 0.6.1
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,23 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.6.1 =
+* Workflow & emails (from the Sep 7 Tiam call):
+  * Corrected the email sequence: reviewed → we prepare drawings & send a
+    watermarked preview → then a secure link to confirm and pay. The payment
+    ask no longer appears on the approval email.
+  * New staged workflow in the project admin: Approve → (optional) mark drawings
+    started → send the "preview ready" payment-link email → paid. Plus a
+    "Not accepted / decline" path with its own email.
+  * Every client email (approval, in-progress, preview/pay, decline, receipt)
+    is an editable default in Archie → Settings, and can still be tweaked
+    per-client before sending. Tokens: {first_name}, {ref}, {total}.
+  * Payment receipt email now sends automatically when a payment clears.
+  * "Also notify (extra emails)" setting — new-project and revision-request
+    notifications can go to several studio addresses at once.
+  * Reordered the "what happens next" steps in the client's submission email to
+    match the corrected sequence.
 
 = 0.6.0 =
 * Conversation layer (from the Sep 7 Tiam call):
