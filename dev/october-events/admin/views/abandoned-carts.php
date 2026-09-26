@@ -32,10 +32,15 @@ $export_url = wp_nonce_url(
     'oe_export'
 );
 ?>
+<?php if (empty($oe_embed)) : ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('abandoned'); ?>
+<?php else : ?>
+    <hr style="margin:28px 0 8px;border:0;border-top:1px solid #e3ded3">
+    <h2 style="margin:0 0 4px"><?php esc_html_e('Abandoned carts', 'october-events'); ?></h2>
+<?php endif; ?>
 
     <p class="description" style="margin:14px 0 4px;max-width:760px">
         <?php esc_html_e('Checkouts that were started but not paid for. Use this to spot conversion problems — e.g. people reaching the pay step but not finishing, or the same tickets abandoned again and again. Contact details shown here are for your analysis only; they are not marketed to, and drafts are automatically deleted after 90 days.', 'october-events'); ?>
@@ -132,4 +137,6 @@ $export_url = wp_nonce_url(
         </table>
         <p class="description" style="margin-top:10px"><?php esc_html_e('Showing the most recent 300 drafts. “In progress” means the checkout is still recent (may still convert); “abandoned” means it went quiet.', 'october-events'); ?></p>
     <?php endif; ?>
+<?php if (empty($oe_embed)) : ?>
 </div>
+<?php endif; ?>

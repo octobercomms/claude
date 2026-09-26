@@ -10,10 +10,14 @@
  */
 defined('ABSPATH') || exit;
 ?>
+<?php if (empty($oe_embed)) : ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('transactions'); ?>
+<?php else : ?>
+    <h2 style="margin:6px 0 4px"><?php esc_html_e('Payments', 'october-events'); ?></h2>
+<?php endif; ?>
 
     <?php if (! empty($_GET['oe_msg'])) :
         $m = sanitize_key((string) $_GET['oe_msg']);
@@ -28,6 +32,7 @@ defined('ABSPATH') || exit;
 
     <p class="description" style="margin:14px 0"><?php esc_html_e('Each row is one payment. A cart with several ticket types is a single transaction here — refunding it covers every ticket bought together.', 'october-events'); ?></p>
 
+    <?php if (empty($oe_embed)) : // the Payments page provides one event filter for all sections ?>
     <form method="get" style="margin:0 0 14px">
         <input type="hidden" name="page" value="oe-tickets">
         <input type="hidden" name="tab" value="transactions">
@@ -40,6 +45,7 @@ defined('ABSPATH') || exit;
             </select>
         </label>
     </form>
+    <?php endif; ?>
 
     <table class="widefat striped">
         <thead><tr>
@@ -63,7 +69,7 @@ defined('ABSPATH') || exit;
                 : ($active < $tickets ? __('Part refunded', 'october-events') : __('Paid', 'october-events'));
             $ref = strtoupper(substr((string) $x->payment_id, -8));
             $tk  = $txn_tickets[(string) $x->payment_id] ?? []; ?>
-            <tr>
+            <tr class="oe-tx oe-tx-<?php echo esc_attr($status); ?>">
                 <td><code title="<?php echo esc_attr((string) $x->payment_id); ?>">…<?php echo esc_html($ref); ?></code></td>
                 <td><?php echo esc_html((string) $x->name); ?><br><span class="description"><?php echo esc_html((string) $x->email); ?></span></td>
                 <td><?php echo esc_html(get_the_title((int) $x->event_id) ?: ('#' . (int) $x->event_id)); ?></td>
@@ -82,4 +88,11 @@ defined('ABSPATH') || exit;
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+    <style>
+        .oe-tx-paid > td { background:#eaf7ec !important; }
+        .oe-tx-part_refunded > td { background:#fdf3e3 !important; }
+        .oe-tx-refunded > td { background:#fdeceb !important; }
+    </style>
+<?php if (empty($oe_embed)) : ?>
 </div>
+<?php endif; ?>

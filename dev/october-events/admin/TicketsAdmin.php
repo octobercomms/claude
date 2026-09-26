@@ -852,30 +852,62 @@ final class TicketsAdmin {
     }
 
     /* ------------------------------------------------------------------ *
-     * Transactions (orders grouped by payment)
+     * Payments — one page: transactions, failed charges and abandoned carts,
+     * as colour-coded sections with a filter to narrow to one.
      * ------------------------------------------------------------------ */
 
-    public function render_transactions(): void {
-        $event_filter = isset($_GET['event']) ? absint($_GET['event']) : 0;
-        $txns = Orders::transactions($event_filter, 300);
-        self::prime_event_titles($txns);
-        // Active tickets across each transaction, for the refund panel.
-        $txn_tickets = Orders::active_tickets_for_payments(array_map(static fn($x) => (string) $x->payment_id, $txns));
+    public function render_payments(): void {
+        echo '<div class="wrap oe-admin">';
+        echo '<h1>' . esc_html__('Tickets', 'october-events') . '</h1>';
+        \OE\Admin\Admin::bento('tickets');
+        \OE\Admin\Admin::tickets_tabs('payments');
+
+        $event  = isset($_GET['event']) ? absint($_GET['event']) : 0;
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
-        require OE_DIR . 'admin/views/transactions.php';
-    }
 
-    /* ------------------------------------------------------------------ *
-     * Failed payments
-     * ------------------------------------------------------------------ */
+        // Event filter (drives transactions + abandoned; failed charges have no
+        // event link so they always show).
+        echo '<form method="get" style="margin:14px 0 6px">';
+        echo '<input type="hidden" name="page" value="oe-tickets"><input type="hidden" name="tab" value="payments">';
+        echo '<label>' . esc_html__('Event', 'october-events') . ' <select name="event" onchange="this.form.submit()">';
+        echo '<option value="0">' . esc_html__('All events', 'october-events') . '</option>';
+        foreach ($events as $ev) {
+            printf('<option value="%d"%s>%s</option>', (int) $ev->ID, selected($event, (int) $ev->ID, false), esc_html(get_the_title($ev) ?: ('#' . (int) $ev->ID)));
+        }
+        echo '</select></label></form>';
 
-    public function render_failed_payments(): void {
+        // Section filter chips.
+        $chips = [
+            'all'        => __('All', 'october-events'),
+            'payments'   => __('Payments', 'october-events'),
+            'failed'     => __('Failed', 'october-events'),
+            'abandoned'  => __('Abandoned', 'october-events'),
+        ];
+        echo '<div class="oe-payfilter" style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 16px">';
+        foreach ($chips as $key => $label) {
+            printf('<button type="button" class="button oe-payfilter-btn%s" data-sec="%s">%s</button>', $key === 'all' ? ' button-primary' : '', esc_attr($key), esc_html($label));
+        }
+        echo '</div>';
+
+        // 1) Payments (paid orders grouped by Stripe payment).
+        $txns = Orders::transactions($event, 300);
+        self::prime_event_titles($txns);
+        $txn_tickets = Orders::active_tickets_for_payments(array_map(static fn($x) => (string) $x->payment_id, $txns));
+        echo '<div class="oe-paysec" data-paysec="payments">';
+        self::render_partial(OE_DIR . 'admin/views/transactions.php', [
+            'txns' => $txns, 'txn_tickets' => $txn_tickets, 'events' => $events, 'event_filter' => $event,
+        ]);
+        echo '</div>';
+
+        // 2) Failed charges (live from Stripe, cached).
         $ready = \OE\Connectors\StripeConnector::is_ready();
         $days  = 90;
-        // Cache the Stripe pull briefly — this tab can be reloaded often and each
-        // load otherwise pages the charges API. A Refresh link busts it.
         $cache_key = 'oe_failed_charges_' . $days;
-        if (! empty($_GET['refresh']) && check_admin_referer('oe_failed_refresh')) {
+        if (! empty($_GET['refresh']) && isset($_GET['_wpnonce'])
+            && wp_verify_nonce(sanitize_key(wp_unslash($_GET['_wpnonce'])), 'oe_failed_refresh')) {
+            // Verify (not check_admin_referer) so a stale/absent nonce silently
+            // skips the cache-bust instead of wp_die()-ing the whole Payments
+            // page — the refresh is a cache hint, not a sensitive mutation.
             delete_transient($cache_key);
         }
         $charges = $ready ? get_transient($cache_key) : [];
@@ -884,15 +916,33 @@ final class TicketsAdmin {
             set_transient($cache_key, $charges, 5 * MINUTE_IN_SECONDS);
         }
         $charges = is_array($charges) ? $charges : [];
-
-        // Tally failures by reason for the pie chart (most common first).
         $reasons = [];
         foreach ($charges as $c) {
             $label = self::failure_label((string) ($c['code'] ?? ''));
             $reasons[$label] = ($reasons[$label] ?? 0) + 1;
         }
         arsort($reasons);
-        require OE_DIR . 'admin/views/failed-payments.php';
+        echo '<div class="oe-paysec" data-paysec="failed">';
+        self::render_partial(OE_DIR . 'admin/views/failed-payments.php', [
+            'ready' => $ready, 'days' => $days, 'charges' => $charges, 'reasons' => $reasons,
+        ]);
+        echo '</div>';
+
+        // 3) Abandoned carts.
+        echo '<div class="oe-paysec" data-paysec="abandoned">';
+        self::render_partial(OE_DIR . 'admin/views/abandoned-carts.php', [
+            'stats' => \OE\Ticketing\Abandonment::stats(),
+            'rows'  => \OE\Ticketing\Abandonment::recent(['limit' => 300, 'event_id' => $event]),
+            'event' => $event,
+        ]);
+        echo '</div>';
+
+        // Filter chips show/hide the sections.
+        echo '<script>(function(){var b=document.querySelectorAll(".oe-payfilter-btn"),s=document.querySelectorAll(".oe-paysec");'
+            . 'b.forEach(function(x){x.addEventListener("click",function(){b.forEach(function(y){y.classList.remove("button-primary")});x.classList.add("button-primary");'
+            . 'var k=x.getAttribute("data-sec");s.forEach(function(sec){sec.style.display=(k==="all"||sec.getAttribute("data-paysec")===k)?"":"none";});});});})();</script>';
+
+        echo '</div>';
     }
 
     /** Map a Stripe decline/failure code to a short, human label for the chart. */
@@ -1076,17 +1126,6 @@ final class TicketsAdmin {
         }
         fclose($out);
         exit;
-    }
-
-    /**
-     * Abandoned carts — in-progress checkouts that didn't complete, with whatever
-     * the buyer entered, so conversion drop-off is visible. Data-only (no cards).
-     */
-    public function render_abandoned_carts(): void {
-        $event = isset($_GET['event']) ? absint($_GET['event']) : 0;
-        $stats = \OE\Ticketing\Abandonment::stats();
-        $rows  = \OE\Ticketing\Abandonment::recent(['limit' => 300, 'event_id' => $event]);
-        require OE_DIR . 'admin/views/abandoned-carts.php';
     }
 
     /** One row per order (financial view). Honours the event filter. */

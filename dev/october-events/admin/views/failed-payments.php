@@ -34,10 +34,15 @@ foreach ($reasons as $label => $n) {
 }
 $gradient = $stops ? 'conic-gradient(' . implode(',', $stops) . ')' : '#eee';
 ?>
+<?php if (empty($oe_embed)) : ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?></h1>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('failed'); ?>
+<?php else : ?>
+    <hr style="margin:28px 0 8px;border:0;border-top:1px solid #e3ded3">
+    <h2 style="margin:0 0 4px"><?php esc_html_e('Failed payments', 'october-events'); ?></h2>
+<?php endif; ?>
 
     <?php if (! $ready) : ?>
         <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px 18px;margin-top:16px">
@@ -115,4 +120,6 @@ $gradient = $stops ? 'conic-gradient(' . implode(',', $stops) . ')' : '#eee';
 
         <?php endif; ?>
     <?php endif; ?>
+<?php if (empty($oe_embed)) : ?>
 </div>
+<?php endif; ?>
