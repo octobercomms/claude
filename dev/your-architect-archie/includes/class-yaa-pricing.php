@@ -43,7 +43,7 @@ class YAA_Pricing {
 				'siteVisit'  => array( 'label' => 'Site visit (London / within the M25)', 'price' => 350, 'enabled' => 1, 'london' => 1 ),
 			),
 			'meta' => array(
-				'delivery'     => 'within 7 days',
+				'delivery'     => 'typically within 14 days',
 				'revisions'    => 2,
 				'validityDays' => 30,
 				'ribaEmail'    => 'info@tiamarchitects.com',
