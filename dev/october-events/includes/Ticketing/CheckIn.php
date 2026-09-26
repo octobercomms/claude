@@ -509,7 +509,7 @@ final class CheckIn {
     }
 
     /**
-     * @return array{unique:int,venues:array<int,array{venue:string,count:int}>}
+     * @return array{unique:int,venues:array<int,array{venue:string,count:int}>,door_sales?:array,issued?:int,attended?:int,no_show?:int}
      */
     public static function stats(int $event_id): array {
         if ($event_id === self::TEST_EVENT_ID) {
@@ -525,11 +525,27 @@ final class CheckIn {
             "SELECT venue_name AS venue, COUNT(*) AS count FROM {$c} WHERE event_id = %d GROUP BY venue_name",
             $event_id
         )) ?: [];
+        // Attendance: every valid (active) ticket issued vs how many were actually
+        // scanned in — the rest are no-shows (bought a ticket, never turned up).
+        $t = Schema::tickets();
+        $issued = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$t} WHERE event_id = %d AND status = 'active'",
+            $event_id
+        ));
+        $attended = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT c.ticket_id) FROM {$c} c INNER JOIN {$t} t ON t.id = c.ticket_id
+             WHERE c.event_id = %d AND t.status = 'active'",
+            $event_id
+        ));
         return [
             'unique' => $unique,
             'venues' => array_map(static fn($r) => ['venue' => $r->venue, 'count' => (int) $r->count], $rows),
             // Door-side ticket sales, grouped by the venue they were sold at.
             'door_sales' => \OE\Ticketing\Orders::sold_by_door($event_id),
+            // Attendance split (per active ticket).
+            'issued'   => $issued,
+            'attended' => min($attended, $issued),
+            'no_show'  => max(0, $issued - $attended),
         ];
     }
 }
