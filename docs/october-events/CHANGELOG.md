@@ -5,6 +5,28 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.183.0 — Abandoned-cart recovery emails (manual, resume-cart, optional code)
+
+Turn the abandoned-cart list into recovered revenue. Nothing sends
+automatically — you choose who gets emailed, so a finished event is never
+mailed by accident.
+
+- **Send recovery** button on each abandoned / in-progress row in the
+  Transactions list. Once sent it greys to "Sent 12 Mar 2:03pm", so you can see
+  at a glance who has had it and who hasn't.
+- **Bulk send** in the abandoned-cart summary card: "Email N not yet contacted",
+  scoped to the current event filter, skipping anyone already emailed or with no
+  address. This is how you reach all of one event's (e.g. the tours')
+  abandoners in one click.
+- **Resume their cart.** The email links back to the event with the shopper's
+  tickets pre-filled (the checkout reads a new `resume_items` parameter), so they
+  land on their cart, not an empty page.
+- **Optional promo code.** A bulk send can attach one of your existing promo
+  codes; it rides the resume link and is named in the email. Per-row sends reuse
+  whatever code that shopper already had.
+- New `recovery_sent_at` column (DB version 20, auto-migrated). The Transactions
+  copy now notes abandoned carts can be emailed (a manual choice).
+
 ## 1.182.0 — Tickets UI rethink (attendee pills, one Sales filter, unified Transactions, tab reorder)
 
 A broad pass over the Tickets admin to cut clicks and make filtering obvious.

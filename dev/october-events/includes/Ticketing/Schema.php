@@ -148,6 +148,7 @@ final class Schema {
             currency VARCHAR(3) DEFAULT 'USD',
             furthest_step VARCHAR(20) NOT NULL DEFAULT 'cart',
             status VARCHAR(20) NOT NULL DEFAULT 'open',
+            recovery_sent_at DATETIME NULL DEFAULT NULL,
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
             PRIMARY KEY  (id),

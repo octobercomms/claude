@@ -60,7 +60,28 @@
     bindMemberEmail();
     bindJoinToggle();
     bindAbandonCapture();
+    applyResumeCart();
     updateSummary();
+  }
+
+  /* ---- Resume an abandoned cart from a recovery email link ----
+     The recovery email links back here with ?resume_items=key:qty,key:qty (and
+     an optional ?code=… the promo handler already applies). We set each row's
+     qty so the shopper lands on their cart pre-filled. Additive and defensive:
+     it only acts when the param is present and skips unknown/unavailable rows. */
+  function applyResumeCart() {
+    try {
+      var raw = getParam('resume_items');
+      if (!raw) { return; }
+      raw.split(',').forEach(function (pair) {
+        var bits = pair.split(':');
+        var key = (bits[0] || '').trim();
+        var qty = parseInt(bits[1], 10) || 0;
+        if (!key || qty < 1) { return; }
+        var $row = $('.oct-ticket-row').filter(function () { return String($(this).data('key')) === key; });
+        if ($row.length && !$row.hasClass('oct-ticket-row--unavailable')) { setRowQty($row.first(), qty); }
+      });
+    } catch (e) { /* ignore a malformed resume link — normal checkout is unaffected */ }
   }
 
   /* ---- Membership ----
