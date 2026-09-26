@@ -155,12 +155,12 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     if (!tags.length) { setAudience({ total: 0, ids: [], sample: [] }); return; }
     let cancelled = false;
     setResolving(true);
-    api.get(`/press/audience?tags=${encodeURIComponent(tags.join(','))}`)
+    api.get(`/press/audience?tags=${encodeURIComponent(tags.join(','))}${clientId ? `&client_id=${encodeURIComponent(clientId)}` : ''}`)
       .then(a => { if (!cancelled) setAudience(a || { total: 0, ids: [], sample: [] }); })
       .catch(() => { if (!cancelled) setAudience({ total: 0, ids: [], sample: [] }); })
       .finally(() => { if (!cancelled) setResolving(false); });
     return () => { cancelled = true; };
-  }, [selTags]);
+  }, [selTags, clientId]);
 
   // Persist the audience (debounced) so close/reopen restores it. Skips the
   // first pass right after hydration, and never writes in read-only mode.
@@ -182,12 +182,72 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   function addExtra(c) { setExtras(prev => { const n = new Map(prev); n.set(c.id, c); return n; }); }
   function removeExtra(id) { setExtras(prev => { const n = new Map(prev); n.delete(id); return n; }); }
 
+  // Exclusions (migration 186). Two scopes, deliberately distinct:
+  //   excluded  — held back from THIS release only, a call about one story.
+  //   permanent — never send to them for this client, because the client
+  //               handles that journalist directly.
+  // Both are enforced server-side at queue time and again in the dispatch
+  // gate, so the tick boxes are a convenience, never the thing standing
+  // between a client and an awkward email.
+  const [excluded, setExcluded] = useState(new Set());
+  const [permanentExcl, setPermanentExcl] = useState(new Map());
+  const [showExclusions, setShowExclusions] = useState(false);
+
+  useEffect(() => {
+    if (!release) return;
+    api.get(`/press/releases/${release.id}/exclusions`)
+      .then(r => {
+        setExcluded(new Set((r.this_release || []).map(c => c.id)));
+        setPermanentExcl(new Map((r.permanent || []).map(c => [c.id, c])));
+      })
+      .catch(() => { /* non-fatal: the server still enforces */ });
+  }, [release]);
+
+  // Persist this release's exclusions. Immediate rather than debounced: the
+  // operator ticking "do not send to this person" should not be racing a
+  // timer against their own click on Send.
+  async function toggleExcluded(id) {
+    const next = new Set(excluded);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setExcluded(next);
+    if (!release || readOnly) return;
+    try {
+      const r = await api.put(`/press/releases/${release.id}/exclusions`, { contact_ids: [...next] });
+      if (r.cancelled_pending) toast(`Held back. ${r.cancelled_pending} queued email${r.cancelled_pending === 1 ? '' : 's'} cancelled.`, 'success');
+    } catch (e) {
+      setExcluded(excluded);  // put it back; the server is the truth
+      toast(`Could not save the exclusion: ${e.message}`, 'error');
+    }
+  }
+
+  // Permanent, per client. Applies to every release for this client, now and
+  // in future, until it is lifted here.
+  async function togglePermanent(contact, on) {
+    if (!clientId || readOnly) return;
+    try {
+      await api.put(`/press/clients/${clientId}/exclusions`, { contact_id: contact.id, excluded: on });
+      setPermanentExcl(prev => {
+        const n = new Map(prev);
+        if (on) n.set(contact.id, contact); else n.delete(contact.id);
+        return n;
+      });
+      toast(on
+        ? `${contact.name || contact.email} excluded from all sends for this client.`
+        : `${contact.name || contact.email} restored.`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
   // Combined, de-duped recipient ids (tags ∪ individual adds).
   const combinedIds = React.useMemo(() => {
     const s = new Set(audience.ids);
     for (const id of extras.keys()) s.add(id);
+    // Held back from this release. The client's permanent exclusions are
+    // already gone from audience.ids server-side, but an individually added
+    // journalist could still be one, so drop those too.
+    for (const id of excluded) s.delete(id);
+    for (const id of permanentExcl.keys()) s.delete(id);
     return s;
-  }, [audience, extras]);
+  }, [audience, extras, excluded, permanentExcl]);
   const totalRecipients = combinedIds.size;
 
   // The list you can preview/edit from (sample of the audience + every extra).
@@ -655,6 +715,41 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>recipients{selTags.size ? ` · ${selTags.size} tag${selTags.size === 1 ? '' : 's'}` : ''}{extras.size ? ` · ${extras.size} added by hand` : ''}</div>
             </div>
 
+            {/* Held back. Stated plainly, because a silently shorter list is
+                how you lose trust in the number above it. */}
+            {(excluded.size > 0 || permanentExcl.size > 0 || audience.excluded > 0) && (
+              <div style={{ marginTop: 'var(--s2)', fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+                Held back:
+                {(audience.excluded > 0 || permanentExcl.size > 0) && (
+                  <span> {Math.max(audience.excluded || 0, permanentExcl.size)} excluded for this client</span>
+                )}
+                {excluded.size > 0 && (
+                  <span>{(audience.excluded > 0 || permanentExcl.size > 0) ? ' · ' : ' '}{excluded.size} on this release only</span>
+                )}
+                {permanentExcl.size > 0 && (
+                  <button className="btn btn-link btn-sm" style={{ padding: 0, marginLeft: 'var(--s2)' }}
+                    onClick={() => setShowExclusions(v => !v)}>{showExclusions ? 'hide' : 'manage'}</button>
+                )}
+              </div>
+            )}
+
+            {showExclusions && permanentExcl.size > 0 && (
+              <div style={{ marginTop: 'var(--s2)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto' }}>
+                <div style={{ padding: 'var(--s2) var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+                  Permanently excluded for this client. They receive nothing on this client's behalf until restored.
+                </div>
+                {[...permanentExcl.values()].map(c => (
+                  <div key={c.id} className="row center" style={{ gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderTop: 'var(--border-w) solid var(--accent-soft)' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>{c.name || '(no name)'}{c.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {c.company}</span>}</div>
+                      {c.excluded_reason && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{c.excluded_reason}</div>}
+                    </div>
+                    <button className="btn btn-link btn-sm" {...roWrite(readOnly, { onClick: () => togglePermanent(c, false) })}>restore</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Individual adds */}
             <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s2)' }}>
@@ -681,9 +776,20 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                         <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>{c.name || '(no name)'}{c.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {c.company}</span>}</div>
                         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{c.email}</div>
                       </div>
-                      {extras.has(c.id)
-                        ? <button className="btn btn-secondary btn-sm" onClick={() => removeExtra(c.id)}>added ✓</button>
-                        : <button className="btn btn-secondary btn-sm" onClick={() => addExtra(c)}>add</button>}
+                      {permanentExcl.has(c.id)
+                        ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>excluded for this client</span>
+                        : (<>
+                            <label title="Hold back from this release only" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>
+                              <input type="checkbox" checked={excluded.has(c.id)} disabled={readOnly}
+                                onChange={() => toggleExcluded(c.id)} />
+                              hold back
+                            </label>
+                            <button className="btn btn-link btn-sm" title="Never send to them for this client"
+                              {...roWrite(readOnly, { onClick: () => togglePermanent(c, true) })}>always</button>
+                            {extras.has(c.id)
+                              ? <button className="btn btn-secondary btn-sm" onClick={() => removeExtra(c.id)}>added ✓</button>
+                              : <button className="btn btn-secondary btn-sm" onClick={() => addExtra(c)}>add</button>}
+                          </>)}
                     </div>
                   ))}
                 </div>

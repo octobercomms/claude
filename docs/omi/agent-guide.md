@@ -348,6 +348,13 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **Filtering a state out of a selection query is not enforcement.** Only the
+  dispatch gate in `scheduler.js runOutreachSends()` is, because only it runs
+  after the state can change. `do_not_contact` was excluded by every audience
+  picker and both suppression reports for months while the gate ignored it, so
+  anyone opting out after a send was queued still got the email. Any new
+  suppression or exclusion goes in that gate, not only in the pickers. See
+  `docs/omi/press-exclusions.md`.
 - **AI spend has three layers**, not one: per-feature model choice, per-task
   budgets (`ai_task_budgets`), and the global `AI_MONTHLY_HARD_CAP_USD`. See
   `docs/omi/ai-budgets.md`. The trap: `callClaude` enforces the global cap,

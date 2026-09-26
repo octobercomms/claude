@@ -32,6 +32,25 @@ router.param('id', async (req, res, next, id) => {
 // Fetch a downloadfor.press URL (or any public press page) and return
 // the parsed shape. Doesn't persist — the AM previews first, then
 // clicks Save to write a row.
+
+// Contacts excluded from sends for a client, or held back from one release.
+// Used by the audience pickers (so an excluded journalist is never offered)
+// and at queue time (so their sends are never created). The dispatch gate in
+// scheduler.js re-checks both independently; that is the authoritative stop,
+// because it also catches an exclusion added after the queue was built.
+/** Ids to hold back from a release: the client's permanent exclusions plus this release's own. */
+async function excludedIdsForRelease(release) {
+  const out = new Set((release.excluded_contacts || []).map(String));
+  if (release.client_id) {
+    const { rows } = await pool.query(
+      'SELECT contact_id FROM outreach_contact_clients WHERE client_id = $1 AND excluded_at IS NOT NULL',
+      [release.client_id]
+    );
+    for (const r of rows) out.add(String(r.contact_id));
+  }
+  return out;
+}
+
 router.post('/parse', async (req, res) => {
   const { url } = req.body || {};
   if (!url) return res.status(400).json({ error: 'url required' });
@@ -214,7 +233,11 @@ router.get('/tags', async (_req, res) => {
 // every matching contact id (for send), and a sample for display.
 router.get('/audience', async (req, res) => {
   const tags = String(req.query.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-  if (!tags.length) return res.json({ total: 0, ids: [], sample: [] });
+  if (!tags.length) return res.json({ total: 0, ids: [], sample: [], excluded: 0 });
+  // client_id is optional so the endpoint keeps working for callers that don't
+  // pass it, but without it we cannot know the client's permanent exclusions,
+  // so the response says so rather than implying the list is filtered.
+  const clientId = String(req.query.client_id || '').trim() || null;
   try {
     const { rows } = await pool.query(
       `SELECT id, name, email, company, contact_type, tags
@@ -222,10 +245,31 @@ router.get('/audience', async (req, res) => {
         WHERE c.kind = 'media' AND c.email IS NOT NULL AND c.email <> ''
           AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
           AND c.tags && $1::text[]
+          AND ($2::uuid IS NULL OR NOT EXISTS (
+                SELECT 1 FROM outreach_contact_clients occ
+                 WHERE occ.contact_id = c.id AND occ.client_id = $2::uuid
+                   AND occ.excluded_at IS NOT NULL))
         ORDER BY c.name LIMIT 20000`,
-      [tags]
+      [tags, clientId]
     );
-    res.json({ total: rows.length, ids: rows.map(r => r.id), sample: rows.slice(0, 200) });
+    // How many the exclusion list removed, so the UI can say "12 held back"
+    // rather than silently showing a shorter list.
+    let excluded = 0;
+    if (clientId) {
+      const { rows: ex } = await pool.query(
+        `SELECT COUNT(*)::int AS n FROM outreach_contacts c
+           JOIN outreach_contact_clients occ ON occ.contact_id = c.id AND occ.client_id = $2::uuid
+          WHERE c.kind = 'media' AND c.email IS NOT NULL AND c.email <> ''
+            AND (c.status IS NULL OR c.status <> 'do_not_contact') AND c.bounced_at IS NULL
+            AND c.tags && $1::text[] AND occ.excluded_at IS NOT NULL`,
+        [tags, clientId]
+      );
+      excluded = ex[0]?.n || 0;
+    }
+    res.json({
+      total: rows.length, ids: rows.map(r => r.id), sample: rows.slice(0, 200),
+      excluded, exclusions_applied: !!clientId,
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -526,6 +570,129 @@ router.get('/releases/:id/suppression', async (req, res) => {
 // Campaign analytics — opens/clicks per journalist (repeat-open counts, what they
 // clicked, warm flag + interest score) plus rolled-up rates. The client sorts the
 // table however they like. Powers the "24/7 watcher" view.
+
+// ---------------------------------------------------------------------------
+// Exclusions (migration 186)
+// ---------------------------------------------------------------------------
+// Two scopes. Permanent per client, for "this client talks to them directly,
+// never send on their behalf". Per release, for a one-off judgement about one
+// story that must not become part of the contact's standing record.
+
+// Everyone permanently excluded for this client.
+router.get('/clients/:clientId/exclusions', async (req, res) => {
+  try {
+    assertClientAccess(req, req.params.clientId);
+    const { rows } = await pool.query(
+      `SELECT oc.id, oc.name, oc.email, oc.company, occ.excluded_at, occ.excluded_reason
+         FROM outreach_contact_clients occ
+         JOIN outreach_contacts oc ON oc.id = occ.contact_id
+        WHERE occ.client_id = $1 AND occ.excluded_at IS NOT NULL
+        ORDER BY oc.name LIMIT 1000`,
+      [req.params.clientId]
+    );
+    res.json({ excluded: rows });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Exclude or restore a contact for a client, permanently.
+// { contact_id, excluded: true|false, reason? }
+router.put('/clients/:clientId/exclusions', async (req, res) => {
+  const { contact_id, excluded, reason } = req.body || {};
+  if (!contact_id) return res.status(400).json({ error: 'contact_id required' });
+  try {
+    assertClientAccess(req, req.params.clientId);
+    if (excluded === false) {
+      await pool.query(
+        `UPDATE outreach_contact_clients SET excluded_at = NULL, excluded_reason = NULL
+          WHERE client_id = $1 AND contact_id = $2`,
+        [req.params.clientId, contact_id]
+      );
+      return res.json({ contact_id, excluded: false });
+    }
+    // Upsert, because the contact may not be a member of this client yet.
+    // Excluding someone you have never sent to is a legitimate pre-emptive
+    // act, and the commonest one: the client mentions the relationship before
+    // the first release rather than after.
+    const { rows } = await pool.query(
+      `INSERT INTO outreach_contact_clients (contact_id, client_id, excluded_at, excluded_reason)
+       VALUES ($2, $1, NOW(), $3)
+       ON CONFLICT (contact_id, client_id)
+       DO UPDATE SET excluded_at = COALESCE(outreach_contact_clients.excluded_at, NOW()),
+                     excluded_reason = EXCLUDED.excluded_reason
+       RETURNING excluded_at, excluded_reason`,
+      [req.params.clientId, contact_id, (reason || '').trim() || null]
+    );
+    res.json({ contact_id, excluded: true, ...rows[0] });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// This release's own exclusions, plus the client's permanent ones for context,
+// so the UI can show both in one list and mark which is which.
+router.get('/releases/:id/exclusions', async (req, res) => {
+  try {
+    const { rows: rel } = await pool.query(
+      'SELECT client_id, excluded_contacts FROM outreach_press_releases WHERE id = $1', [req.params.id]
+    );
+    if (!rel.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rel[0].client_id);
+    const ids = rel[0].excluded_contacts || [];
+    const { rows: thisRelease } = ids.length ? await pool.query(
+      'SELECT id, name, email, company FROM outreach_contacts WHERE id = ANY($1::uuid[]) ORDER BY name', [ids]
+    ) : { rows: [] };
+    const { rows: permanent } = await pool.query(
+      `SELECT oc.id, oc.name, oc.email, oc.company, occ.excluded_reason
+         FROM outreach_contact_clients occ
+         JOIN outreach_contacts oc ON oc.id = occ.contact_id
+        WHERE occ.client_id = $1 AND occ.excluded_at IS NOT NULL
+        ORDER BY oc.name LIMIT 1000`,
+      [rel[0].client_id]
+    );
+    res.json({ this_release: thisRelease, permanent });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// Replace this release's exclusion list. { contact_ids: [...] }
+// A whole-list PUT rather than add/remove calls, because the UI is a set of
+// tick boxes over one list and sending the resulting set is the honest
+// representation of what the operator just did.
+router.put('/releases/:id/exclusions', async (req, res) => {
+  const { contact_ids } = req.body || {};
+  if (!Array.isArray(contact_ids)) return res.status(400).json({ error: 'contact_ids array required' });
+  try {
+    const { rows: rel } = await pool.query(
+      'SELECT client_id FROM outreach_press_releases WHERE id = $1', [req.params.id]
+    );
+    if (!rel.length) return res.status(404).json({ error: 'Press release not found' });
+    assertClientAccess(req, rel[0].client_id);
+    // Keep only ids that resolve to real contacts, so a stale browser tab
+    // cannot write junk uuids into the release row.
+    const { rows: valid } = contact_ids.length ? await pool.query(
+      'SELECT id FROM outreach_contacts WHERE id = ANY($1::uuid[])', [contact_ids]
+    ) : { rows: [] };
+    const ids = valid.map((r) => r.id);
+    await pool.query(
+      'UPDATE outreach_press_releases SET excluded_contacts = $2::uuid[] WHERE id = $1',
+      [req.params.id, ids]
+    );
+    // Cancel anything already queued for the newly excluded. The dispatch gate
+    // would catch these anyway, but cancelling now means the campaign's counts
+    // are honest immediately rather than after the next cron tick.
+    const { rows: relFull } = await pool.query(
+      'SELECT campaign_id FROM outreach_press_releases WHERE id = $1', [req.params.id]
+    );
+    let cancelled = 0;
+    if (relFull[0]?.campaign_id && ids.length) {
+      const { rowCount } = await pool.query(
+        `UPDATE outreach_sends SET status = 'cancelled'
+          WHERE campaign_id = $1 AND contact_id = ANY($2::uuid[]) AND status = 'pending'`,
+        [relFull[0].campaign_id, ids]
+      );
+      cancelled = rowCount;
+    }
+    res.json({ excluded_contacts: ids, cancelled_pending: cancelled });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 router.get('/releases/:id/analytics', async (req, res) => {
   try {
     const { rows: relRows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
@@ -1079,13 +1246,18 @@ router.get('/clients/:clientId/sender', async (req, res) => {
 // regardless (NOT EXISTS guard below) — this just makes that visible up front.
 router.post('/releases/:id/send-plan', async (req, res) => {
   const { contact_ids } = req.body || {};
-  if (!Array.isArray(contact_ids) || !contact_ids.length) return res.json({ total: 0, already: 0, new: 0 });
+  if (!Array.isArray(contact_ids) || !contact_ids.length) return res.json({ total: 0, already: 0, new: 0, held_back: 0 });
   try {
-    const { rows: relRows } = await pool.query('SELECT campaign_id FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    const { rows: relRows } = await pool.query('SELECT campaign_id, client_id, excluded_contacts FROM outreach_press_releases WHERE id = $1', [req.params.id]);
     if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
     const campaignId = relRows[0].campaign_id;
     const { rows: valid } = await pool.query('SELECT id FROM outreach_contacts WHERE id = ANY($1::uuid[])', [contact_ids]);
-    const ids = valid.map((r) => r.id);
+    // Mirror /send exactly, so the confirm dialog's numbers match what the
+    // send actually does. A plan that promises 400 and then queues 388 is
+    // worse than no plan.
+    const excluded = await excludedIdsForRelease(relRows[0]);
+    const ids = valid.map((r) => r.id).filter((id) => !excluded.has(String(id)));
+    const heldBack = valid.length - ids.length;
     let already = 0;
     if (campaignId && ids.length) {
       const { rows } = await pool.query(
@@ -1102,7 +1274,7 @@ router.post('/releases/:id/send-plan', async (req, res) => {
     let est = null;
     try { est = await require('../services/budget').estimatePressSendUsd(fresh); }
     catch { /* estimate is best-effort — never block the plan on it */ }
-    res.json({ total: ids.length, already, new: fresh, est_cost_usd: est ? est.est_usd : null });
+    res.json({ total: ids.length, already, new: fresh, held_back: heldBack, est_cost_usd: est ? est.est_usd : null });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1130,8 +1302,22 @@ router.post('/releases/:id/send', async (req, res) => {
       'SELECT id FROM outreach_contacts WHERE id = ANY($1::uuid[])',
       [contact_ids]
     );
-    const ids = valid.map((r) => r.id);
-    if (!ids.length) return res.status(400).json({ error: 'None of those contacts exist.' });
+    // Hold back anyone excluded, either permanently for this client or for
+    // this release only. The dispatch gate enforces this too and is the
+    // authoritative stop; filtering here as well means we never create sends
+    // that are only going to be cancelled, so the queued count the AM sees is
+    // the number of emails that will actually go out.
+    const excluded = await excludedIdsForRelease(release);
+    const ids = valid.map((r) => r.id).filter((id) => !excluded.has(String(id)));
+    const heldBack = valid.length - ids.length;
+    if (!ids.length) {
+      return res.status(400).json({
+        error: heldBack
+          ? `All ${heldBack} of those contacts are excluded from this release.`
+          : 'None of those contacts exist.',
+        held_back: heldBack,
+      });
+    }
 
     // Attach to the release's client + the campaign (idempotent) so the
     // unsubscribe + per-client lists stay consistent.
@@ -1166,7 +1352,7 @@ router.post('/releases/:id/send', async (req, res) => {
     // the outreach-send cron on its next tick (≤3 min), which also applies the
     // per-mailbox caps, warm-up and pacing. There is no synchronous blast here
     // by design — that's what keeps large sends paced and deliverable.
-    res.json({ campaign_id: campaignId, queued });
+    res.json({ campaign_id: campaignId, queued, held_back: heldBack });
   } catch (err) {
     console.error('[press] send failed:', err.message);
     res.status(502).json({ error: err.message });
