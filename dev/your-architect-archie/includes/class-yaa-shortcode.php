@@ -74,6 +74,14 @@ class YAA_Shortcode {
 									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
 								</button>
 							</div>
+							<form class="save-quote" id="saveQuote" hidden>
+								<label for="saveEmail"><?php esc_html_e( 'Email me my quote', 'your-architect-archie' ); ?></label>
+								<div class="save-quote-row">
+									<input type="email" id="saveEmail" inputmode="email" autocomplete="email" placeholder="<?php esc_attr_e( 'you@example.com', 'your-architect-archie' ); ?>">
+									<button type="submit" class="btn btn-outline" id="saveEmailBtn"><?php esc_html_e( 'Save', 'your-architect-archie' ); ?></button>
+								</div>
+								<p class="save-quote-note" id="saveQuoteNote" hidden></p>
+							</form>
 						</div>
 					</div>
 				</section>
@@ -89,9 +97,10 @@ class YAA_Shortcode {
 						<div class="total-row"><span class="t-label"><?php esc_html_e( 'Total', 'your-architect-archie' ); ?></span><span class="t-amt" id="totalAmt">£0</span></div>
 						<p class="total-sub" id="totalSub"><?php esc_html_e( 'Fixed price · survey & structural sourced separately', 'your-architect-archie' ); ?></p>
 						<div class="quote-meta" id="quoteMeta" hidden>
-							<div><?php esc_html_e( 'Delivery in', 'your-architect-archie' ); ?> <strong id="mDelivery">3–7 working days</strong></div>
+							<div><?php esc_html_e( 'Delivery', 'your-architect-archie' ); ?> <strong id="mDelivery">typically within 14 days</strong></div>
 							<div><span id="mRevisions">2 revisions included</span></div>
 							<div><?php esc_html_e( 'Quote valid until', 'your-architect-archie' ); ?> <strong id="mValidity">—</strong></div>
+							<p class="quote-caveat"><?php esc_html_e( 'Subject to availability, and to a site survey or visit where required. Exact dates confirmed on review.', 'your-architect-archie' ); ?></p>
 						</div>
 						<button class="btn btn-primary btn-block submit-btn" id="submitBtn" type="button" disabled><?php esc_html_e( 'Save & submit project', 'your-architect-archie' ); ?></button>
 					</div>
