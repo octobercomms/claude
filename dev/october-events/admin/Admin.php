@@ -251,7 +251,7 @@ final class Admin {
     /** The Tickets sub-tab labels, keyed by tab slug (shared by the nav + page title). */
     public static function tickets_tab_labels(): array {
         return [
-            'orders'    => __('Registrations', 'october-events'),
+            'orders'    => __('Attendees', 'october-events'),
             'transactions' => __('Transactions', 'october-events'),
             'sales'     => __('Sales', 'october-events'),
             'prices'    => __('Ticket prices', 'october-events'),
