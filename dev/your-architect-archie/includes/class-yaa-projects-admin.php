@@ -36,6 +36,8 @@ class YAA_Projects_Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_post_yaa_project_approve', array( __CLASS__, 'act_approve' ) );
+		add_action( 'admin_post_yaa_project_start', array( __CLASS__, 'act_start' ) );
+		add_action( 'admin_post_yaa_project_reject', array( __CLASS__, 'act_reject' ) );
 		add_action( 'admin_post_yaa_email_draft', array( __CLASS__, 'act_email_draft' ) );
 		add_action( 'admin_post_yaa_email_save', array( __CLASS__, 'act_email_save' ) );
 		add_action( 'admin_post_yaa_email_send', array( __CLASS__, 'act_email_send' ) );
@@ -105,10 +107,24 @@ class YAA_Projects_Admin {
 		YAA_Project::approve( $pid );
 		self::back( $pid, 'approved' );
 	}
-	public static function act_email_draft() {
+	public static function act_start() {
 		self::guard( 'yaa_workflow' );
 		$pid = (int) ( $_POST['project_id'] ?? 0 );
-		$res = YAA_Email::draft( $pid );
+		YAA_Project::ensure_token( $pid );
+		YAA_Project::set_status( $pid, 'in_progress' );
+		self::back( $pid, 'started_drawings' );
+	}
+	public static function act_reject() {
+		self::guard( 'yaa_workflow' );
+		$pid = (int) ( $_POST['project_id'] ?? 0 );
+		YAA_Project::set_status( $pid, 'rejected' );
+		self::back( $pid, 'rejected' );
+	}
+	public static function act_email_draft() {
+		self::guard( 'yaa_workflow' );
+		$pid  = (int) ( $_POST['project_id'] ?? 0 );
+		$kind = isset( $_POST['kind'] ) ? sanitize_key( wp_unslash( $_POST['kind'] ) ) : 'approved';
+		$res  = YAA_Email::draft_stage( $pid, $kind );
 		self::back( $pid, is_wp_error( $res ) ? 'draft_failed' : 'drafted' );
 	}
 	public static function act_email_save() {
@@ -448,21 +464,22 @@ class YAA_Projects_Admin {
 		<?php
 	}
 
-	// ---- Workflow card (approve → email → files → payment) ----
+	// ---- Workflow card (approve → in progress → preview & pay → paid; or decline) ----
 	private static function render_workflow( $project ) {
 		$pid    = (int) $project->id;
 		$status = $project->status;
-		$order  = array( 'submitted' => 0, 'approved' => 1, 'emailed' => 2, 'paid' => 3 );
+		$order  = array( 'submitted' => 0, 'approved' => 1, 'in_progress' => 2, 'emailed' => 3, 'preview' => 3, 'paid' => 4 );
 		$cur    = isset( $order[ $status ] ) ? $order[ $status ] : ( in_array( $status, array( 'partial', 'quoted' ), true ) ? -1 : 0 );
-		$email  = YAA_Email::latest( $pid );
 		$notice = isset( $_GET['notice'] ) ? sanitize_key( wp_unslash( $_GET['notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		$notices = array(
-			'approved'     => array( 'ok', 'Project approved.' ),
-			'drafted'      => array( 'ok', 'Draft written — review and send below.' ),
-			'draft_failed' => array( 'err', 'Could not draft the email (check the Claude key).' ),
-			'saved'        => array( 'ok', 'Draft saved.' ),
-			'sent'         => array( 'ok', 'Email sent to the client.' ),
-			'send_failed'  => array( 'err', 'Could not send — check the recipient and email settings.' ),
+			'approved'         => array( 'ok', 'Project approved — send the client the approval email below.' ),
+			'started_drawings' => array( 'ok', 'Marked as in progress.' ),
+			'rejected'         => array( 'ok', 'Marked as not accepted — send the client the decline email below.' ),
+			'drafted'          => array( 'ok', 'Email prepared — review and send below.' ),
+			'draft_failed'     => array( 'err', 'Could not prepare the email.' ),
+			'saved'            => array( 'ok', 'Draft saved.' ),
+			'sent'             => array( 'ok', 'Email sent to the client.' ),
+			'send_failed'      => array( 'err', 'Could not send — check the recipient and email settings.' ),
 		);
 		if ( 'file_failed' === $notice ) {
 			$why = get_transient( 'yaa_upload_err_' . get_current_user_id() );
@@ -477,6 +494,7 @@ class YAA_Projects_Admin {
 			}
 		}
 		$post_url = admin_url( 'admin-post.php' );
+		$pre_paid = in_array( $status, array( 'submitted', 'approved', 'in_progress', 'emailed', 'preview' ), true );
 		ob_start();
 		?>
 		<div class="yaa-card" id="workflow">
@@ -488,69 +506,51 @@ class YAA_Projects_Admin {
 				<div class="yaa-notice <?php echo esc_attr( $notices[ $notice ][0] ); ?>"><?php echo esc_html( $notices[ $notice ][1] ); ?></div>
 			<?php endif; ?>
 
-			<div class="yaa-steps">
-				<?php foreach ( array( 'Submitted', 'Approved', 'Emailed', 'Paid' ) as $i => $label ) : ?>
-					<div class="yaa-step <?php echo $cur >= $i ? 'done' : ''; ?>"><span class="yaa-step-n"><?php echo $cur > $i ? '✓' : esc_html( $i + 1 ); ?></span><?php echo esc_html( $label ); ?></div>
-				<?php endforeach; ?>
-			</div>
-
 			<?php if ( 'redirected' === $status ) : ?>
 				<p class="yaa-sub"><?php esc_html_e( 'This is a full-RIBA / larger commission handled directly by Tiam — no online payment flow.', 'your-architect-archie' ); ?></p>
+
+			<?php elseif ( 'rejected' === $status ) : ?>
+				<div class="yaa-notice err" style="background:#eef0f4;color:#5b6472;"><?php esc_html_e( 'This enquiry has been marked as not accepted.', 'your-architect-archie' ); ?></div>
+				<?php echo self::email_block( $project, 'rejected', __( 'Decline email', 'your-architect-archie' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+
 			<?php else : ?>
+
+				<div class="yaa-steps">
+					<?php foreach ( array( 'Submitted', 'Approved', 'In progress', 'Preview & pay', 'Paid' ) as $i => $label ) : ?>
+						<div class="yaa-step <?php echo $cur >= $i ? 'done' : ''; ?>"><span class="yaa-step-n"><?php echo $cur > $i ? '✓' : esc_html( $i + 1 ); ?></span><?php echo esc_html( $label ); ?></div>
+					<?php endforeach; ?>
+				</div>
 
 				<?php if ( 'submitted' === $status ) : ?>
 					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
 						<input type="hidden" name="action" value="yaa_project_approve">
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
 						<?php wp_nonce_field( 'yaa_workflow' ); ?>
-						<p class="yaa-sub"><?php esc_html_e( 'Approve to move this to the confirmation email.', 'your-architect-archie' ); ?></p>
+						<p class="yaa-sub"><?php esc_html_e( 'Approve to confirm you can do this project, then send the client their approval email.', 'your-architect-archie' ); ?></p>
 						<button class="yaa-btn"><?php esc_html_e( 'Approve project', 'your-architect-archie' ); ?></button>
 					</form>
 				<?php endif; ?>
 
-				<?php if ( $cur >= 1 ) : ?>
-					<div class="yaa-wf-block">
-						<h3><?php esc_html_e( 'Confirmation email', 'your-architect-archie' ); ?></h3>
-						<?php if ( ! $email ) : ?>
-							<form method="post" action="<?php echo esc_url( $post_url ); ?>">
-								<input type="hidden" name="action" value="yaa_email_draft">
-								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
-								<?php wp_nonce_field( 'yaa_workflow' ); ?>
-								<button class="yaa-btn"><?php esc_html_e( 'Draft with Claude', 'your-architect-archie' ); ?></button>
-							</form>
-						<?php elseif ( 'sent' === $email->status ) : ?>
-							<div class="yaa-email-sent">
-								<div class="yaa-badge green"><?php esc_html_e( 'Sent', 'your-architect-archie' ); ?></div>
-								<span class="yaa-sub"><?php echo esc_html( $email->sent_at ? self::ago( $email->sent_at ) : '' ); ?> · <?php echo esc_html( (int) $email->opens ); ?> <?php esc_html_e( 'opens', 'your-architect-archie' ); ?> · <?php echo esc_html( (int) $email->clicks ); ?> <?php esc_html_e( 'clicks', 'your-architect-archie' ); ?></span>
-								<div class="yaa-email-preview"><strong><?php echo esc_html( $email->subject ); ?></strong><p><?php echo nl2br( esc_html( $email->body ) ); ?></p></div>
-							</div>
-						<?php else : ?>
-							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-email-form">
-								<input type="hidden" name="action" value="yaa_email_save">
-								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
-								<input type="hidden" name="email_id" value="<?php echo esc_attr( (int) $email->id ); ?>">
-								<?php wp_nonce_field( 'yaa_workflow' ); ?>
-								<label><?php esc_html_e( 'Subject', 'your-architect-archie' ); ?></label>
-								<input type="text" name="subject" value="<?php echo esc_attr( $email->subject ); ?>" class="yaa-input">
-								<label><?php esc_html_e( 'Body (the secure payment button is added automatically)', 'your-architect-archie' ); ?></label>
-								<textarea name="body" rows="9" class="yaa-input"><?php echo esc_textarea( $email->body ); ?></textarea>
-								<div class="yaa-inline">
-									<button class="yaa-btn ghost" name="action" value="yaa_email_save"><?php esc_html_e( 'Save draft', 'your-architect-archie' ); ?></button>
-								</div>
-							</form>
-							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline" onsubmit="return confirm('Send this email to the client?');">
-								<input type="hidden" name="action" value="yaa_email_send">
-								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
-								<input type="hidden" name="email_id" value="<?php echo esc_attr( (int) $email->id ); ?>">
-								<?php wp_nonce_field( 'yaa_workflow' ); ?>
-								<button class="yaa-btn"><?php esc_html_e( 'Send to client', 'your-architect-archie' ); ?></button>
-							</form>
-						<?php endif; ?>
-					</div>
+				<?php if ( 'approved' === $status ) : ?>
+					<?php echo self::email_block( $project, 'approved', __( 'Approval email (preparing drawings)', 'your-architect-archie' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline">
+						<input type="hidden" name="action" value="yaa_project_start">
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+						<?php wp_nonce_field( 'yaa_workflow' ); ?>
+						<button class="yaa-btn ghost"><?php esc_html_e( 'Mark drawings started →', 'your-architect-archie' ); ?></button>
+					</form>
+				<?php endif; ?>
+
+				<?php if ( 'in_progress' === $status ) : ?>
+					<?php echo self::email_block( $project, 'progress', __( '“Drawings in progress” email (optional)', 'your-architect-archie' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 				<?php endif; ?>
 
 				<?php if ( $cur >= 1 ) : ?>
 					<?php echo self::render_files_admin( $project ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+				<?php endif; ?>
+
+				<?php if ( in_array( $status, array( 'in_progress', 'emailed', 'preview' ), true ) ) : ?>
+					<?php echo self::email_block( $project, 'preview', __( 'Preview ready — send the payment link', 'your-architect-archie' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 				<?php endif; ?>
 
 				<div class="yaa-wf-block">
@@ -558,11 +558,77 @@ class YAA_Projects_Admin {
 					<?php if ( $project->paid ) : ?>
 						<div class="yaa-badge green"><?php esc_html_e( 'Paid', 'your-architect-archie' ); ?></div>
 						<span class="yaa-sub"><?php echo esc_html( YAA_Pricing::money( (int) round( $project->amount_paid / 100 ) ) ); ?> · <?php echo esc_html( $project->paid_at ? self::ago( $project->paid_at ) : '' ); ?></span>
+						<p class="yaa-sub"><?php esc_html_e( 'A receipt was emailed automatically and the drawings are unlocked in the portal.', 'your-architect-archie' ); ?></p>
 					<?php else : ?>
-						<p class="yaa-sub"><?php esc_html_e( 'Awaiting payment. The client pays via the secure portal link in their email.', 'your-architect-archie' ); ?></p>
+						<p class="yaa-sub"><?php esc_html_e( 'Awaiting payment. The client pays via the secure portal link in the preview email.', 'your-architect-archie' ); ?></p>
 					<?php endif; ?>
 				</div>
 
+				<?php if ( $pre_paid ) : ?>
+					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline yaa-decline" onsubmit="return confirm('Mark this enquiry as not accepted? You can then send the client a decline email.');">
+						<input type="hidden" name="action" value="yaa_project_reject">
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+						<?php wp_nonce_field( 'yaa_workflow' ); ?>
+						<button class="yaa-btn ghost yaa-btn-decline"><?php esc_html_e( 'Not accepted / decline…', 'your-architect-archie' ); ?></button>
+					</form>
+				<?php endif; ?>
+
+			<?php endif; ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Compose/send block for one editable stage email (approved, progress, preview,
+	 * rejected). Shows a "prepare" button, then an editable draft, then a sent summary.
+	 */
+	private static function email_block( $project, $kind, $heading ) {
+		$pid      = (int) $project->id;
+		$email    = YAA_Email::latest_of_kind( $pid, $kind );
+		$post_url = admin_url( 'admin-post.php' );
+		$has_cta  = ( 'preview' === $kind );
+		ob_start();
+		?>
+		<div class="yaa-wf-block">
+			<h3><?php echo esc_html( $heading ); ?></h3>
+			<?php if ( ! $email || ( 'sent' === $email->status && isset( $_GET['redraft'] ) && $kind === $_GET['redraft'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<form method="post" action="<?php echo esc_url( $post_url ); ?>">
+					<input type="hidden" name="action" value="yaa_email_draft">
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+					<input type="hidden" name="kind" value="<?php echo esc_attr( $kind ); ?>">
+					<?php wp_nonce_field( 'yaa_workflow' ); ?>
+					<p class="yaa-sub"><?php esc_html_e( 'Prepare this email from your saved template — you can edit it before sending.', 'your-architect-archie' ); ?></p>
+					<button class="yaa-btn"><?php esc_html_e( 'Prepare email', 'your-architect-archie' ); ?></button>
+				</form>
+			<?php elseif ( 'sent' === $email->status ) : ?>
+				<div class="yaa-email-sent">
+					<div class="yaa-badge green"><?php esc_html_e( 'Sent', 'your-architect-archie' ); ?></div>
+					<span class="yaa-sub"><?php echo esc_html( $email->sent_at ? self::ago( $email->sent_at ) : '' ); ?> · <?php echo esc_html( (int) $email->opens ); ?> <?php esc_html_e( 'opens', 'your-architect-archie' ); ?> · <?php echo esc_html( (int) $email->clicks ); ?> <?php esc_html_e( 'clicks', 'your-architect-archie' ); ?></span>
+					<div class="yaa-email-preview"><strong><?php echo esc_html( $email->subject ); ?></strong><p><?php echo nl2br( esc_html( $email->body ) ); ?></p></div>
+					<a class="yaa-sub" href="<?php echo esc_url( add_query_arg( array( 'page' => self::SLUG, 'project' => $pid, 'redraft' => $kind ), admin_url( 'admin.php' ) ) . '#workflow' ); ?>"><?php esc_html_e( 'Send another', 'your-architect-archie' ); ?></a>
+				</div>
+			<?php else : ?>
+				<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-email-form">
+					<input type="hidden" name="action" value="yaa_email_save">
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+					<input type="hidden" name="email_id" value="<?php echo esc_attr( (int) $email->id ); ?>">
+					<?php wp_nonce_field( 'yaa_workflow' ); ?>
+					<label><?php esc_html_e( 'Subject', 'your-architect-archie' ); ?></label>
+					<input type="text" name="subject" value="<?php echo esc_attr( $email->subject ); ?>" class="yaa-input">
+					<label><?php echo $has_cta ? esc_html__( 'Body (the “view preview & pay” button is added automatically)', 'your-architect-archie' ) : esc_html__( 'Body', 'your-architect-archie' ); ?></label>
+					<textarea name="body" rows="9" class="yaa-input"><?php echo esc_textarea( $email->body ); ?></textarea>
+					<div class="yaa-inline">
+						<button class="yaa-btn ghost"><?php esc_html_e( 'Save draft', 'your-architect-archie' ); ?></button>
+					</div>
+				</form>
+				<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="yaa-inline" onsubmit="return confirm('Send this email to the client?');">
+					<input type="hidden" name="action" value="yaa_email_send">
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>">
+					<input type="hidden" name="email_id" value="<?php echo esc_attr( (int) $email->id ); ?>">
+					<?php wp_nonce_field( 'yaa_workflow' ); ?>
+					<button class="yaa-btn"><?php esc_html_e( 'Send to client', 'your-architect-archie' ); ?></button>
+				</form>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -633,6 +699,12 @@ class YAA_Projects_Admin {
 			'partial'    => array( 'Started', 'amber' ),
 			'quoted'     => array( 'Quoted', 'amber' ),
 			'submitted'  => array( 'Submitted', 'green' ),
+			'approved'   => array( 'Approved', 'green' ),
+			'in_progress' => array( 'In progress', 'green' ),
+			'emailed'    => array( 'Preview sent', 'green' ),
+			'preview'    => array( 'Preview sent', 'green' ),
+			'paid'       => array( 'Paid', 'green' ),
+			'rejected'   => array( 'Not accepted', 'grey' ),
 			'redirected' => array( 'RIBA / Tiam', 'purple' ),
 			'abandoned'  => array( 'Abandoned', 'grey' ),
 		);
@@ -767,6 +839,9 @@ class YAA_Projects_Admin {
 		.yaa-head-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
 		.yaa-btn.danger { background:#fff; color:#c0392b !important; border:2px solid #f0c9c4; }
 		.yaa-btn.danger:hover { background:#c0392b; color:#fff !important; border-color:#c0392b; }
+		.yaa-decline { border-top:1px solid var(--line); margin-top:16px; padding-top:16px; }
+		.yaa-btn-decline { color:#a15c00 !important; border-color:#f0d9b0; }
+		.yaa-btn-decline:hover { background:#fff4e5; border-color:#a15c00; }
 		.yaa-upload { display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--bg); padding:12px; border-radius:10px; }
 		.yaa-upload .yaa-input { width:auto; flex:1; min-width:140px; margin:0; }
 		.yaa-upload select { border:2px solid var(--line); border-radius:9px; padding:8px 10px; font-family:inherit; }

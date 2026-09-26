@@ -32,12 +32,28 @@ class YAA_Admin {
 			wp_die( 'Nope' );
 		}
 		$in = wp_unslash( $_POST );
+
+		// Per-stage editable email templates (subject + body).
+		$templates = array();
+		if ( isset( $in['tpl'] ) && is_array( $in['tpl'] ) ) {
+			foreach ( $in['tpl'] as $kind => $vals ) {
+				$kind = sanitize_key( $kind );
+				$subject = isset( $vals['subject'] ) ? sanitize_text_field( $vals['subject'] ) : '';
+				$body    = isset( $vals['body'] ) ? sanitize_textarea_field( $vals['body'] ) : '';
+				if ( '' !== $subject || '' !== $body ) {
+					$templates[ $kind ] = array( 'subject' => $subject, 'body' => $body );
+				}
+			}
+		}
+
 		YAA_Settings::update(
 			array(
 				'claude_api_key'     => isset( $in['claude_api_key'] ) ? $in['claude_api_key'] : '',
 				'claude_model'       => sanitize_text_field( $in['claude_model'] ?? '' ),
 				'max_output_tokens'  => (int) ( $in['max_output_tokens'] ?? 700 ),
 				'notify_email'       => sanitize_email( $in['notify_email'] ?? '' ),
+				'notify_emails'      => sanitize_text_field( $in['notify_emails'] ?? '' ),
+				'email_templates'    => $templates,
 				'arb_no'             => sanitize_text_field( $in['arb_no'] ?? '' ),
 				'company_no'         => sanitize_text_field( $in['company_no'] ?? '' ),
 				'rate_limit_per_min' => (int) ( $in['rate_limit_per_min'] ?? 12 ),
@@ -75,6 +91,7 @@ class YAA_Admin {
 					<tr><th><?php esc_html_e( 'Turns / min / session', 'your-architect-archie' ); ?></th><td><input type="number" name="rate_limit_per_min" value="<?php echo esc_attr( $s['rate_limit_per_min'] ); ?>"> <span class="description"><?php esc_html_e( 'Rate limit to protect your Claude bill.', 'your-architect-archie' ); ?></span></td></tr>
 					<tr><th><?php esc_html_e( 'Daily token cap', 'your-architect-archie' ); ?></th><td><input type="number" name="daily_token_cap" value="<?php echo esc_attr( $s['daily_token_cap'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Notification email', 'your-architect-archie' ); ?></th><td><input type="email" name="notify_email" class="regular-text" value="<?php echo esc_attr( $s['notify_email'] ); ?>"></td></tr>
+					<tr><th><?php esc_html_e( 'Also notify (extra emails)', 'your-architect-archie' ); ?></th><td><input type="text" name="notify_emails" class="regular-text" value="<?php echo esc_attr( $s['notify_emails'] ); ?>" placeholder="lawrence@…, info@…"><p class="description"><?php esc_html_e( 'Comma-separated. New-project and revision-request notifications go to all of these as well.', 'your-architect-archie' ); ?></p></td></tr>
 					<tr><th><?php esc_html_e( 'ARB reg. no.', 'your-architect-archie' ); ?></th><td><input type="text" name="arb_no" value="<?php echo esc_attr( $s['arb_no'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Company no.', 'your-architect-archie' ); ?></th><td><input type="text" name="company_no" value="<?php echo esc_attr( $s['company_no'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Historic England API', 'your-architect-archie' ); ?></th><td><label><input type="checkbox" name="historic_api_on" value="1" <?php checked( $s['historic_api_on'], 1 ); ?>> <?php esc_html_e( 'Use the live listed-building lookup (else heuristic).', 'your-architect-archie' ); ?></label></td></tr>
@@ -85,6 +102,27 @@ class YAA_Admin {
 					<tr><th><?php esc_html_e( 'Email from address', 'your-architect-archie' ); ?></th><td><input type="email" name="email_from" class="regular-text" value="<?php echo esc_attr( $s['email_from'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Email from name', 'your-architect-archie' ); ?></th><td><input type="text" name="email_from_name" class="regular-text" value="<?php echo esc_attr( $s['email_from_name'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Client portal page', 'your-architect-archie' ); ?></th><td><?php wp_dropdown_pages( array( 'name' => 'portal_page_id', 'selected' => (int) $s['portal_page_id'], 'show_option_none' => __( '— auto —', 'your-architect-archie' ), 'option_none_value' => 0 ) ); ?><p class="description"><?php esc_html_e( 'Page containing the [archie_portal] shortcode (auto-created on activation).', 'your-architect-archie' ); ?></p></td></tr>
+				</table>
+
+				<h2><?php esc_html_e( 'Client email templates', 'your-architect-archie' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'The default wording for each step. You can still edit any email per-client before sending. Tokens: {first_name}, {ref}, {total}. Leave blank to use the built-in default.', 'your-architect-archie' ); ?></p>
+				<table class="form-table" role="presentation">
+					<?php
+					$saved_tpl = is_array( $s['email_templates'] ) ? $s['email_templates'] : array();
+					foreach ( YAA_Email::stages() as $kind => $stage ) :
+						$sv  = isset( $saved_tpl[ $kind ] ) && is_array( $saved_tpl[ $kind ] ) ? $saved_tpl[ $kind ] : array();
+						$sub = isset( $sv['subject'] ) && '' !== $sv['subject'] ? $sv['subject'] : $stage['subject'];
+						$bod = isset( $sv['body'] ) && '' !== $sv['body'] ? $sv['body'] : $stage['body'];
+						?>
+						<tr>
+							<th><?php echo esc_html( $stage['label'] ); ?></th>
+							<td>
+								<input type="text" name="tpl[<?php echo esc_attr( $kind ); ?>][subject]" class="large-text" value="<?php echo esc_attr( $sub ); ?>" style="margin-bottom:6px">
+								<textarea name="tpl[<?php echo esc_attr( $kind ); ?>][body]" rows="6" class="large-text"><?php echo esc_textarea( $bod ); ?></textarea>
+								<?php if ( ! empty( $stage['cta'] ) ) : ?><p class="description"><?php esc_html_e( 'The “view preview & pay securely” button is added automatically.', 'your-architect-archie' ); ?></p><?php endif; ?>
+							</td>
+						</tr>
+					<?php endforeach; ?>
 				</table>
 				<?php submit_button(); ?>
 			</form>

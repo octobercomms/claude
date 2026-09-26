@@ -213,6 +213,7 @@ class YAA_Project {
 			array( '%d', '%d', '%s', '%s', '%s' )
 		);
 		self::log_event( $id, 'paid', array( 'amount' => (int) $amount_pennies ) );
+		do_action( 'yaa_project_paid', (int) $id );
 	}
 
 	/** Permanently delete a project and everything attached to it (files on disk, file/event/email rows). */

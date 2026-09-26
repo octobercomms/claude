@@ -50,6 +50,27 @@ class YAA_Followups {
 		return (string) apply_filters( 'yaa_notify_from_email', $from );
 	}
 
+	/**
+	 * Everyone who should get studio notifications (new project, revision request):
+	 * the primary notify address plus any extra addresses in the comma-separated
+	 * "Notify emails" setting. De-duplicated, validated.
+	 */
+	public static function studio_recipients() {
+		$list = array( (string) YAA_Settings::get( 'notify_email', get_option( 'admin_email' ) ) );
+		$extra = (string) YAA_Settings::get( 'notify_emails', '' );
+		foreach ( preg_split( '/[,;\s]+/', $extra ) as $e ) {
+			$list[] = trim( $e );
+		}
+		$out = array();
+		foreach ( $list as $e ) {
+			$e = sanitize_email( $e );
+			if ( is_email( $e ) && ! in_array( $e, $out, true ) ) {
+				$out[] = $e;
+			}
+		}
+		return $out ? $out : array( get_option( 'admin_email' ) );
+	}
+
 	/** Studio + client emails on submit. */
 	public static function notify_submit( $project_id, array $package ) {
 		$row = YAA_Project::get( $project_id );
@@ -62,7 +83,7 @@ class YAA_Followups {
 		$noreply = self::from_email();
 
 		// ---- Studio notification ----
-		$to      = YAA_Settings::get( 'notify_email', get_option( 'admin_email' ) );
+		$to      = self::studio_recipients();
 		$label   = '' !== $name ? $name : ( $row->postcode ? $row->postcode : ( $row->ref ? $row->ref : 'New enquiry' ) );
 		$subject = 'New Project | ' . $label;
 
@@ -155,7 +176,7 @@ class YAA_Followups {
 		$inner  = '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:' . self::INK . ';">'
 			. sprintf( esc_html__( 'Hi %s,', 'your-architect-archie' ), esc_html( $first ) ) . '</p>';
 		$inner .= '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:' . self::INK . ';">'
-			. esc_html__( 'Thanks for building your project with Your Architect. Here\'s a summary of everything you told Archie. Our architects will review it and email you a secure link to confirm and pay — you only pay to release the full drawings.', 'your-architect-archie' )
+			. esc_html__( 'Thanks for building your project with Your Architect. Here\'s a summary of everything you told Archie. Our architects will review it, prepare your drawings and send you a watermarked preview — then email you a secure link to confirm and pay. You only pay to release the full drawings.', 'your-architect-archie' )
 			. '</p>';
 
 		if ( $row->ref ) {
@@ -175,8 +196,8 @@ class YAA_Followups {
 		$inner .= self::section( __( 'What happens next', 'your-architect-archie' ) );
 		$inner .= '<ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.7;color:' . self::INK . ';">'
 			. '<li>' . esc_html__( 'Our architects review your project and confirm the details.', 'your-architect-archie' ) . '</li>'
-			. '<li>' . esc_html__( 'We email you a secure link to confirm and pay.', 'your-architect-archie' ) . '</li>'
-			. '<li>' . esc_html__( 'We prepare your drawings and send a watermarked preview — you only pay to release the full package.', 'your-architect-archie' ) . '</li>'
+			. '<li>' . esc_html__( 'We prepare your drawings and send you a watermarked preview to look over.', 'your-architect-archie' ) . '</li>'
+			. '<li>' . esc_html__( 'Once you\'re happy, we send a secure link to confirm and pay — you only pay to release the full drawings.', 'your-architect-archie' ) . '</li>'
 			. '</ul>';
 
 		$inner .= '<p style="margin:20px 0 0;font-size:14px;line-height:1.65;color:' . self::MUTED . ';">'
