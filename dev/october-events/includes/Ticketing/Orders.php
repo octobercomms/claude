@@ -692,7 +692,8 @@ final class Orders {
             "SELECT ti.id, ti.attendee_name, ti.attendee_email, ti.ticket_type_label,
                     ti.ticket_number, ti.total_in_order, ti.token,
                     o.id AS order_id, o.event_id, o.name AS buyer, o.email AS buyer_email,
-                    o.total AS order_total, o.source,
+                    o.total AS order_total, o.currency, o.source, o.status AS order_status,
+                    o.payment_method, o.payment_id, o.created_at,
                     (SELECT COUNT(*) FROM {$t} tt WHERE tt.order_id = o.id) AS order_tickets,
                     (SELECT COUNT(*) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS scans,
                     (SELECT MIN(ck.scanned_at) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS first_scan,
@@ -720,6 +721,14 @@ final class Orders {
                 'venue'      => (string) $r->venue,
                 'first_scan' => (string) $r->first_scan,
                 'source'     => (string) $r->source,
+                // Order-level fields for the inline order detail on the attendee row.
+                'buyer_email'    => (string) $r->buyer_email,
+                'order_total'    => (float) $r->order_total,
+                'currency'       => strtoupper((string) $r->currency),
+                'order_status'   => (string) $r->order_status,
+                'payment_method' => (string) $r->payment_method,
+                'payment_id'     => (string) $r->payment_id,
+                'created_at'     => (string) $r->created_at,
             ];
         }
         return $out;

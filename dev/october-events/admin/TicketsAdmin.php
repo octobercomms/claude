@@ -471,18 +471,7 @@ final class TicketsAdmin {
      * ------------------------------------------------------------------ */
 
     public function render_registrations(): void {
-        global $wpdb;
         $event_filter = isset($_GET['event']) ? absint($_GET['event']) : 0;
-        $where = $event_filter ? $wpdb->prepare('WHERE event_id = %d', $event_filter) : '';
-        $orders = $wpdb->get_results("SELECT * FROM " . Schema::orders() . " {$where} ORDER BY id DESC LIMIT 500");
-        // One query to load every event title the rows need (vs one per row).
-        self::prime_event_titles($orders);
-        // Active tickets per transaction (one query) for the refund panel — keyed
-        // by payment id so a mixed cart's sibling orders all appear together.
-        $txn_tickets = Orders::active_tickets_for_payments(array_map(static fn($o) => (string) $o->payment_id, (array) ($orders ?: [])));
-        // Every ticket row for the shown orders (one query) for the expandable
-        // order-detail rows.
-        $order_tickets = Orders::tickets_for_orders(array_map(static fn($o) => (int) $o->id, (array) ($orders ?: [])));
 
         // All published events, for the manual-add form + filter (the form marks
         // which have ticket types — only those can have tickets issued).
@@ -495,31 +484,17 @@ final class TicketsAdmin {
             }
         }
 
-        // Tickets sold + revenue from PAID orders, per event (accurate — computed
-        // in SQL, not from the 500-row list above). Honours the event filter.
-        $rev_where = $event_filter ? $wpdb->prepare('AND event_id = %d', $event_filter) : '';
-        $rev_rows  = $wpdb->get_results(
-            "SELECT event_id, COUNT(*) AS orders, SUM(qty) AS tickets, SUM(total) AS revenue, MAX(currency) AS currency
-             FROM " . Schema::orders() . " WHERE status = 'paid' {$rev_where}
-             GROUP BY event_id ORDER BY revenue DESC"
-        );
-        self::prime_event_titles($rev_rows);
-        $rev_total = 0.0;
-        $tix_total = 0;
-        $currency  = 'USD';
-        foreach (($rev_rows ?: []) as $r) {
-            $rev_total += (float) $r->revenue;
-            $tix_total += (int) $r->tickets;
-            if (! empty($r->currency)) {
-                $currency = (string) $r->currency;
-            }
-        }
+        $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
 
         // Per-attendee list (one row per active admission) — the operational hub:
-        // who's checked in, who hasn't, with a one-click check-in. The summary
-        // chips use uncapped SQL counts so they stay right on a huge event.
+        // who's checked in, who hasn't, with a one-click check-in, plus the order
+        // & payment detail inline. The summary chips use uncapped SQL counts so
+        // they stay right on a huge event.
         $attendees      = Orders::attendees_for_list($event_filter);
         $attendee_stats = Orders::attendee_counts($event_filter);
+        // Active tickets per payment, keyed by payment id, for the inline refund panel.
+        $pids = array_values(array_unique(array_filter(array_map(static fn($a) => (string) $a->payment_id, $attendees))));
+        $txn_tickets = $pids ? Orders::active_tickets_for_payments($pids) : [];
 
         require OE_DIR . 'admin/views/registrations.php';
     }

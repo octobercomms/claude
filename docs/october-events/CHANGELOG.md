@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.181.0 — Attendees and order detail merged onto one page
+
+The **Attendees** tab now carries each attendee's order and payment detail
+inline, so there is no separate "Orders & payment detail" section to scroll to.
+
+- Every attendee row gets an **Order ▾** action that expands the order it
+  belongs to: buyer name and email, when it was placed, source, payment method,
+  total, status and the Stripe payment id.
+- Order actions live in the same expanded row: **Resend** the confirmation,
+  **Cancel order**, **Refund** (the shared transaction-wide refund panel, or a
+  full refund for non-Stripe orders) and **Delete** (test data).
+- The old collapsible orders table, its revenue chips and per-event revenue
+  table are gone; revenue now lives on the **Sales** page. The attendee summary
+  chips (tickets, checked in, not checked in) stay at the top.
+- Sort and filter still work: expanded order and transfer rows travel with
+  their ticket and hide when the row is filtered out.
+
 ## 1.180.0 — Payments is one page (transactions + failed + abandoned)
 
 The **Payments** tab is now a single scrolling page with a filter bar:
