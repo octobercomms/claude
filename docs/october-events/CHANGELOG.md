@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.186.0 — Make the recovery-email promo code stand out
+
+The promo code in the recovery email was a small green line, easy to miss. It
+now gets the same prominence as the volunteer thank-you code: a large, dashed,
+monospace chip inside a bordered, tinted panel, with the "Complete your booking"
+button below it. `{code}` in the editable code line becomes the chip (or, if you
+remove the token, the chip shows on its own line). No code = the plain button,
+unchanged.
+
 ## 1.185.0 — Preview and edit the recovery email
 
 The abandoned-cart recovery email is now editable and previewable, like the

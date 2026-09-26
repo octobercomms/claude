@@ -129,15 +129,31 @@ final class Recovery {
             '{event}' => '<strong>' . esc_html($event) . '</strong>',
             '{code}'  => esc_html($code),
         ]);
-        $btn      = '<a href="' . esc_url($link) . '" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">' . esc_html(self::copy('recovery_button')) . '</a>';
-        $codeline = $code !== ''
-            ? '<p style="margin:14px 0 0;color:#1e7a33"><strong>' . strtr(esc_html(self::copy('recovery_code_line')), ['{code}' => esc_html($code), '{event}' => esc_html($event)]) . '</strong></p>'
-            : '';
-        $cart     = $rows !== '' ? '<table style="margin:10px 0 16px;border-collapse:collapse">' . $rows . '</table>' : '';
+        $btn  = '<a href="' . esc_url($link) . '" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">' . esc_html(self::copy('recovery_button')) . '</a>';
+        $cart = $rows !== '' ? '<table style="margin:10px 0 16px;border-collapse:collapse">' . $rows . '</table>' : '';
+
+        if ($code !== '') {
+            // Give the promo code the same prominence as the volunteer thank-you
+            // code: a dashed, monospace chip inside a bordered, tinted panel, with
+            // the CTA button below it. {code} in the editable line becomes the
+            // chip; if the admin removed the token, the chip is shown on its own.
+            $chip     = '<span style="display:inline-block;border:2px dashed #111;padding:6px 14px;margin:2px 0;font-family:\'Courier New\',Courier,monospace;font-size:18px;font-weight:800;letter-spacing:.08em;color:#111">' . esc_html($code) . '</span>';
+            $line_tpl = self::copy('recovery_code_line');
+            $caption  = strtr(nl2br(esc_html($line_tpl)), ['{code}' => $chip, '{event}' => esc_html($event)]);
+            if (strpos($line_tpl, '{code}') === false) {
+                $caption .= '<br>' . $chip;
+            }
+            $cta = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111;background:#faf7f0;margin:18px 0 0"><tr><td style="padding:16px 18px">'
+                . '<p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#222">' . $caption . '</p>'
+                . '<p style="margin:0">' . $btn . '</p>'
+                . '</td></tr></table>';
+        } else {
+            $cta = '<p style="margin:18px 0">' . $btn . '</p>';
+        }
+
         return '<p>' . $greeting . '</p>'
             . '<p>' . $intro . '</p>'
             . $cart
-            . '<p style="margin:18px 0">' . $btn . '</p>'
-            . $codeline;
+            . $cta;
     }
 }
