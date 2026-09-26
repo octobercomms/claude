@@ -314,7 +314,7 @@ class YAA_Email {
 
 	/** Branded HTML wrapper + the secure payment button (portal link). */
 	private static function html( $email, $project ) {
-		$portal = YAA_Portal::url( $project->id );
+		$portal = YAA_Portal::magic_url( $project );
 		$paras  = '';
 		foreach ( preg_split( '/\n\s*\n/', (string) $email->body ) as $p ) {
 			$p = trim( $p );
