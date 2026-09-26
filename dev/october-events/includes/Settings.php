@@ -53,6 +53,9 @@ final class Settings {
             // Guided tours: free, capacity-limited timed slots on a Location post,
             // open only to ticket holders (see includes/GuidedTours). Defaults
             // apply to every slot unless a location overrides its capacity.
+            // Feature switch: off hides the Guided tours tab (a festival site that
+            // runs no tours turns it off; a tours site leaves it on).
+            'guided_enabled'          => true,
             'guided_default_capacity' => 30,
             'guided_close_hours'      => 12,  // stop booking N hours before each slot
             'guided_reconfirm_hours'  => 48,  // send the confirm-or-release email N hours before

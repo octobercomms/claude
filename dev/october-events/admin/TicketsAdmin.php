@@ -488,10 +488,12 @@ final class TicketsAdmin {
 
         // Per-attendee list (one row per active admission) — the operational hub:
         // who's checked in, who hasn't, with a one-click check-in, plus the order
-        // & payment detail inline. The summary chips use uncapped SQL counts so
-        // they stay right on a huge event.
-        $attendees      = Orders::attendees_for_list($event_filter);
-        $attendee_stats = Orders::attendee_counts($event_filter);
+        // & payment detail inline. Load EVERY event once so the event pills filter
+        // client-side (no reload); the chips use uncapped SQL counts per event so
+        // they stay right even when the row list is capped for a huge event.
+        $attendees       = Orders::attendees_for_list(0, 5000);
+        $attendee_stats  = Orders::attendee_counts(0);
+        $counts_by_event = Orders::attendee_counts_by_event();
         // Active tickets per payment, keyed by payment id, for the inline refund panel.
         $pids = array_values(array_unique(array_filter(array_map(static fn($a) => (string) $a->payment_id, $attendees))));
         $txn_tickets = $pids ? Orders::active_tickets_for_payments($pids) : [];
@@ -641,29 +643,44 @@ final class TicketsAdmin {
         \OE\Admin\Admin::tickets_tabs('sales');
 
         $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
-        // The price breakdown and the analytics picker are two independent event
-        // filters living on the same page, so they use separate query params
-        // (`price_event` vs `event`) — picking in one must not move the other.
-        $event_filter = isset($_GET['price_event']) ? absint($_GET['price_event']) : 0;
+        // One event selector drives the whole page: 0 = all events. Every section
+        // reads this same `event` param so the dashboard, ticket prices and
+        // analytics move together (analytics always resolves to one event).
+        $event  = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
 
-        // 1) Sales dashboard.
-        $sales_events = Orders::event_summary();
+        echo '<form method="get" class="oe-sales-eventpick" style="margin:16px 0 2px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
+        echo '<input type="hidden" name="page" value="oe-tickets"><input type="hidden" name="tab" value="sales">';
+        echo '<label style="font-weight:600">' . esc_html__('Event', 'october-events') . ' <select name="event" onchange="this.form.submit()" style="min-width:260px">';
+        echo '<option value="0">' . esc_html__('All events', 'october-events') . '</option>';
+        foreach ($events as $ev) {
+            printf('<option value="%d"%s>%s</option>', (int) $ev->ID, selected($event, (int) $ev->ID, false), esc_html(get_the_title($ev) ?: ('#' . (int) $ev->ID)));
+        }
+        echo '</select></label>';
+        echo '<span class="description">' . esc_html__('Filters the whole page. Analytics always focuses on one event.', 'october-events') . '</span>';
+        echo '</form>';
+
+        // 1) Sales dashboard (scoped to the chosen event; the per-event table only
+        //    makes sense across all events, so it's hidden when one is selected).
+        $sales_events = $event ? [] : Orders::event_summary();
         self::prime_event_titles($sales_events);
         self::render_partial(OE_DIR . 'admin/views/sales.php', [
-            'stats'    => Orders::stats(),
-            'daily'    => Orders::daily_sales(30),
-            'events'   => $sales_events,
-            'currency' => $currency,
+            'stats'        => Orders::stats($event),
+            'daily'        => Orders::daily_sales(30, $event),
+            'events'       => $sales_events,
+            'currency'     => $currency,
+            'event_filter' => $event,
         ]);
 
-        // 2) Ticket-price breakdown.
+        // 2) Ticket-price breakdown (same event).
         self::render_partial(OE_DIR . 'admin/views/ticket-prices.php', [
-            'data'         => Orders::price_breakdown($event_filter),
-            'events'       => get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']),
-            'event_filter' => $event_filter,
+            'data'         => Orders::price_breakdown($event),
+            'events'       => $events,
+            'event_filter' => $event,
         ]);
 
-        // 3) Year-over-year analytics (enqueues its chart script + data).
+        // 3) Year-over-year analytics (reads the same `event` param; resolves to
+        //    the nearest event when "All events" is selected). Enqueues its chart.
         self::render_partial(OE_DIR . 'admin/views/analytics.php', $this->analytics_data($currency));
 
         echo '</div>';
@@ -827,8 +844,9 @@ final class TicketsAdmin {
     }
 
     /* ------------------------------------------------------------------ *
-     * Payments — one page: transactions, failed charges and abandoned carts,
-     * as colour-coded sections with a filter to narrow to one.
+     * Transactions — one page: every payment (paid, refunded, failed and
+     * abandoned) in a single searchable, sortable, colour-coded list, with the
+     * failed-reasons chart and abandoned-cart summary on top.
      * ------------------------------------------------------------------ */
 
     public function render_payments(): void {
@@ -837,52 +855,23 @@ final class TicketsAdmin {
         \OE\Admin\Admin::bento('tickets');
         \OE\Admin\Admin::tickets_tabs('payments');
 
-        $event  = isset($_GET['event']) ? absint($_GET['event']) : 0;
-        $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
+        $event    = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        $events   = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
+        $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
 
-        // Event filter (drives transactions + abandoned; failed charges have no
-        // event link so they always show).
-        echo '<form method="get" style="margin:14px 0 6px">';
-        echo '<input type="hidden" name="page" value="oe-tickets"><input type="hidden" name="tab" value="payments">';
-        echo '<label>' . esc_html__('Event', 'october-events') . ' <select name="event" onchange="this.form.submit()">';
-        echo '<option value="0">' . esc_html__('All events', 'october-events') . '</option>';
-        foreach ($events as $ev) {
-            printf('<option value="%d"%s>%s</option>', (int) $ev->ID, selected($event, (int) $ev->ID, false), esc_html(get_the_title($ev) ?: ('#' . (int) $ev->ID)));
-        }
-        echo '</select></label></form>';
-
-        // Section filter chips.
-        $chips = [
-            'all'        => __('All', 'october-events'),
-            'payments'   => __('Payments', 'october-events'),
-            'failed'     => __('Failed', 'october-events'),
-            'abandoned'  => __('Abandoned', 'october-events'),
-        ];
-        echo '<div class="oe-payfilter" style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 16px">';
-        foreach ($chips as $key => $label) {
-            printf('<button type="button" class="button oe-payfilter-btn%s" data-sec="%s">%s</button>', $key === 'all' ? ' button-primary' : '', esc_attr($key), esc_html($label));
-        }
-        echo '</div>';
-
-        // 1) Payments (paid orders grouped by Stripe payment).
+        // Paid orders grouped by Stripe payment.
         $txns = Orders::transactions($event, 300);
         self::prime_event_titles($txns);
         $txn_tickets = Orders::active_tickets_for_payments(array_map(static fn($x) => (string) $x->payment_id, $txns));
-        echo '<div class="oe-paysec" data-paysec="payments">';
-        self::render_partial(OE_DIR . 'admin/views/transactions.php', [
-            'txns' => $txns, 'txn_tickets' => $txn_tickets, 'events' => $events, 'event_filter' => $event,
-        ]);
-        echo '</div>';
 
-        // 2) Failed charges (live from Stripe, cached).
+        // Failed charges (live from Stripe, cached 5 min; refresh busts the cache).
         $ready = \OE\Connectors\StripeConnector::is_ready();
         $days  = 90;
         $cache_key = 'oe_failed_charges_' . $days;
         if (! empty($_GET['refresh']) && isset($_GET['_wpnonce'])
             && wp_verify_nonce(sanitize_key(wp_unslash($_GET['_wpnonce'])), 'oe_failed_refresh')) {
             // Verify (not check_admin_referer) so a stale/absent nonce silently
-            // skips the cache-bust instead of wp_die()-ing the whole Payments
-            // page — the refresh is a cache hint, not a sensitive mutation.
+            // skips the cache-bust instead of wp_die()-ing the whole page.
             delete_transient($cache_key);
         }
         $charges = $ready ? get_transient($cache_key) : [];
@@ -897,25 +886,100 @@ final class TicketsAdmin {
             $reasons[$label] = ($reasons[$label] ?? 0) + 1;
         }
         arsort($reasons);
-        echo '<div class="oe-paysec" data-paysec="failed">';
-        self::render_partial(OE_DIR . 'admin/views/failed-payments.php', [
-            'ready' => $ready, 'days' => $days, 'charges' => $charges, 'reasons' => $reasons,
-        ]);
-        echo '</div>';
 
-        // 3) Abandoned carts.
-        echo '<div class="oe-paysec" data-paysec="abandoned">';
-        self::render_partial(OE_DIR . 'admin/views/abandoned-carts.php', [
-            'stats' => \OE\Ticketing\Abandonment::stats(),
-            'rows'  => \OE\Ticketing\Abandonment::recent(['limit' => 300, 'event_id' => $event]),
-            'event' => $event,
-        ]);
-        echo '</div>';
+        // Abandoned carts.
+        $abandon_stats = \OE\Ticketing\Abandonment::stats();
+        $abandoned     = \OE\Ticketing\Abandonment::recent(['limit' => 300, 'event_id' => $event]);
+        self::prime_event_titles($abandoned); // their event titles feed the Event column too
 
-        // Filter chips show/hide the sections.
-        echo '<script>(function(){var b=document.querySelectorAll(".oe-payfilter-btn"),s=document.querySelectorAll(".oe-paysec");'
-            . 'b.forEach(function(x){x.addEventListener("click",function(){b.forEach(function(y){y.classList.remove("button-primary")});x.classList.add("button-primary");'
-            . 'var k=x.getAttribute("data-sec");s.forEach(function(sec){sec.style.display=(k==="all"||sec.getAttribute("data-paysec")===k)?"":"none";});});});})();</script>';
+        // Normalise everything into one row shape for the unified table.
+        $rows = [];
+        foreach ($txns as $x) {
+            $tickets = (int) $x->tickets;
+            $active  = (int) $x->active;
+            $kind    = $active === 0 ? 'refunded' : ($active < $tickets ? 'part_refunded' : 'paid');
+            $rows[] = (object) [
+                'kind'       => $kind,
+                'name'       => (string) $x->name,
+                'email'      => (string) $x->email,
+                'event_id'   => (int) $x->event_id,
+                'amount'     => (float) $x->total,
+                'currency'   => strtoupper((string) $x->currency) ?: $currency,
+                'ts'         => strtotime((string) $x->created_at . ' UTC') ?: 0,
+                'detail'     => $active < $tickets
+                    ? sprintf(__('%1$d of %2$d tickets active', 'october-events'), $active, $tickets)
+                    : sprintf(_n('%d ticket', '%d tickets', $tickets, 'october-events'), $tickets),
+                'order_id'   => (int) $x->order_id,
+                'payment_id' => (string) $x->payment_id,
+                'active'     => $active,
+                'tickets'    => $tickets,
+            ];
+        }
+        foreach ($charges as $c) {
+            $brand = (string) ($c['brand'] ?? '');
+            $last4 = (string) ($c['last4'] ?? '');
+            $card  = trim(($brand !== '' ? ucfirst($brand) : '') . ($last4 !== '' ? ' ····' . $last4 : ''));
+            $rows[] = (object) [
+                'kind'       => 'failed',
+                'name'       => '',
+                'email'      => (string) ($c['email'] ?? ''),
+                'event_id'   => 0,
+                'amount'     => (float) ($c['amount'] ?? 0),
+                'currency'   => $currency,
+                'ts'         => (int) ($c['created'] ?? 0),
+                'detail'     => trim(self::failure_label((string) ($c['code'] ?? '')) . ($card !== '' ? ' · ' . $card : '')),
+                'order_id'   => 0,
+                'payment_id' => '',
+                'active'     => 0,
+                'tickets'    => 0,
+            ];
+        }
+        $steps = [
+            'cart'    => __('Choosing tickets', 'october-events'),
+            'details' => __('Entered details', 'october-events'),
+            'payment' => __('Reached payment', 'october-events'),
+            'exit'    => __('Left the page', 'october-events'),
+        ];
+        foreach ($abandoned as $r) {
+            if ($r->state === 'recovered') {
+                continue; // they later bought — not an open drop-off
+            }
+            $rows[] = (object) [
+                'kind'       => $r->state === 'in_progress' ? 'in_progress' : 'abandoned',
+                'name'       => (string) $r->name,
+                'email'      => (string) $r->email,
+                'event_id'   => (int) $r->event_id,
+                'amount'     => (float) $r->total,
+                'currency'   => $currency,
+                // updated_at is stored in site-local time (current_time('mysql')),
+                // unlike orders' GMT created_at — convert to GMT so this row's
+                // epoch is comparable to the paid/failed rows and wp_date() shows
+                // the right local time (otherwise it's off by the site UTC offset).
+                'ts'         => strtotime(get_gmt_from_date((string) $r->updated_at) . ' UTC') ?: 0,
+                'detail'     => $steps[(string) $r->furthest_step] ?? (string) $r->furthest_step,
+                'order_id'   => 0,
+                'payment_id' => '',
+                'active'     => 0,
+                'tickets'    => 0,
+            ];
+        }
+        usort($rows, static fn($a, $b) => $b->ts <=> $a->ts);
+
+        $refresh = wp_nonce_url(admin_url('admin.php?page=oe-tickets&tab=payments&refresh=1' . ($event ? '&event=' . $event : '')), 'oe_failed_refresh');
+
+        self::render_partial(OE_DIR . 'admin/views/payments.php', [
+            'rows'          => $rows,
+            'reasons'       => $reasons,
+            'failed_count'  => count($charges),
+            'abandon_stats' => $abandon_stats,
+            'ready'         => $ready,
+            'days'          => $days,
+            'refresh'       => $refresh,
+            'txn_tickets'   => $txn_tickets,
+            'events'        => $events,
+            'event_filter'  => $event,
+            'currency'      => $currency,
+        ]);
 
         echo '</div>';
     }

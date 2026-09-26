@@ -849,6 +849,11 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('The connection to the partner tours site lives in the Linked site section above.', 'october-events'); ?></p>
         </div></details>
 
+        <details class="oe-acc" id="guided-tours"><summary><?php esc_html_e('Guided tours', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p><label><input type="checkbox" name="guided_enabled" value="1" <?php checked((bool) ($cfg['guided_enabled'] ?? true)); ?>> <strong><?php esc_html_e('Enable guided tours', 'october-events'); ?></strong></label></p>
+        <p class="description" style="max-width:820px"><?php esc_html_e('Guided tours are free, capacity-limited timed slots open only to ticket holders. Switch this off on a site that runs no tours (e.g. a festival) to hide the Guided tours tab under Tickets. Turning it off does not delete any existing slots or reservations.', 'october-events'); ?></p>
+        </div></details>
+
         <?php if (\OE\Features::enabled('volunteers')) : ?>
         <details class="oe-acc" id="reminders"><summary><?php esc_html_e('Volunteer reminders', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Email reminders always send. SMS is optional (see the SMS section) and only goes to volunteers who provided a mobile and opted in.', 'october-events'); ?></p>

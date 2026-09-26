@@ -3,13 +3,15 @@
  * Ticket sales dashboard — KPIs, a 30-day tickets-sold bar chart, and per-event
  * sales. Mirrors the old Event Tickets "Ticket Sales Dashboard".
  *
- * @var array  $stats    Orders::stats()
- * @var array  $daily    Orders::daily_sales(30)  [{date,tickets,revenue}]
- * @var array  $events   Orders::event_summary()  [{event_id,tickets,revenue}]
+ * @var array  $stats        Orders::stats()
+ * @var array  $daily        Orders::daily_sales(30)  [{date,tickets,revenue}]
+ * @var array  $events       Orders::event_summary()  [{event_id,tickets,revenue}] (empty when scoped)
  * @var string $currency
+ * @var int    $event_filter selected event id (0 = all)
  */
 defined('ABSPATH') || exit;
-$money = static fn($n) => esc_html($currency . ' ' . number_format((float) $n, 2));
+$money  = static fn($n) => esc_html($currency . ' ' . number_format((float) $n, 2));
+$scoped = ! empty($event_filter);
 $max   = 1;
 $tot30 = 0;
 foreach ($daily as $d) { $max = max($max, (int) $d['tickets']); $tot30 += (int) $d['tickets']; }
@@ -21,9 +23,13 @@ foreach ($daily as $d) { $max = max($max, (int) $d['tickets']); $tot30 += (int) 
     <?php \OE\Admin\Admin::tickets_tabs('sales'); ?>
 <?php endif; ?>
 
+    <?php if ($scoped) : ?>
+        <h2 style="margin:14px 0 0"><?php echo esc_html(get_the_title((int) $event_filter) ?: ('#' . (int) $event_filter)); ?></h2>
+    <?php endif; ?>
+
     <div class="oe-salekpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:16px 0">
-        <div class="oe-skpi" style="background:#1a1a1a;color:#fff;border-radius:12px;padding:16px"><div style="font-size:28px;font-weight:800"><?php echo (int) $stats['tickets']; ?></div><div style="opacity:.7;font-size:12px;text-transform:uppercase;letter-spacing:.06em"><?php esc_html_e('Tickets sold (all time)', 'october-events'); ?></div></div>
-        <div class="oe-skpi" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px"><div style="font-size:28px;font-weight:800"><?php echo $money($stats['revenue']); ?></div><div style="color:#777;font-size:12px;text-transform:uppercase;letter-spacing:.06em"><?php esc_html_e('Revenue (all time)', 'october-events'); ?></div></div>
+        <div class="oe-skpi" style="background:#1a1a1a;color:#fff;border-radius:12px;padding:16px"><div style="font-size:28px;font-weight:800"><?php echo (int) $stats['tickets']; ?></div><div style="opacity:.7;font-size:12px;text-transform:uppercase;letter-spacing:.06em"><?php echo $scoped ? esc_html__('Tickets sold', 'october-events') : esc_html__('Tickets sold (all time)', 'october-events'); ?></div></div>
+        <div class="oe-skpi" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px"><div style="font-size:28px;font-weight:800"><?php echo $money($stats['revenue']); ?></div><div style="color:#777;font-size:12px;text-transform:uppercase;letter-spacing:.06em"><?php echo $scoped ? esc_html__('Revenue', 'october-events') : esc_html__('Revenue (all time)', 'october-events'); ?></div></div>
         <div class="oe-skpi" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px"><div style="font-size:28px;font-weight:800"><?php echo (int) $stats['today_tickets']; ?></div><div style="color:#777;font-size:12px;text-transform:uppercase;letter-spacing:.06em"><?php esc_html_e('Tickets today', 'october-events'); ?></div></div>
         <div class="oe-skpi" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px"><div style="font-size:28px;font-weight:800"><?php echo $money($stats['today_revenue']); ?></div><div style="color:#777;font-size:12px;text-transform:uppercase;letter-spacing:.06em"><?php esc_html_e('Revenue today', 'october-events'); ?></div></div>
     </div>
@@ -42,6 +48,7 @@ foreach ($daily as $d) { $max = max($max, (int) $d['tickets']); $tot30 += (int) 
         <p class="description" style="margin:10px 0 0"><?php echo esc_html(sprintf(__('%d tickets sold in the last 30 days. Hover a bar for the day.', 'october-events'), $tot30)); ?></p>
     </div>
 
+    <?php if (! $scoped) : ?>
     <div class="oe-panel-label"><?php esc_html_e('Sales by event', 'october-events'); ?></div>
     <table class="widefat striped">
         <thead><tr>
@@ -58,11 +65,12 @@ foreach ($daily as $d) { $max = max($max, (int) $d['tickets']); $tot30 += (int) 
                 <td><strong><?php echo esc_html(get_the_title((int) $e->event_id) ?: ('#' . (int) $e->event_id)); ?></strong></td>
                 <td><?php echo (int) $e->tickets; ?></td>
                 <td><?php echo $money($e->revenue); ?></td>
-                <td><a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=oe-tickets&event=' . (int) $e->event_id)); ?>"><?php esc_html_e('Registrations', 'october-events'); ?></a></td>
+                <td><a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=oe-tickets&tab=sales&event=' . (int) $e->event_id)); ?>"><?php esc_html_e('View', 'october-events'); ?></a></td>
             </tr>
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+    <?php endif; ?>
 <?php if (empty($oe_embed)) : ?>
 </div>
 <?php endif; ?>
