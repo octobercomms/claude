@@ -32,6 +32,29 @@ class YAA_Rate_Limit {
 		return true;
 	}
 
+	/**
+	 * Per-session daily cap on model turns. This is the per-client guard: it stops
+	 * one visitor (or a script) from draining the GLOBAL daily token budget and
+	 * taking the funnel offline for everyone. Cheap fast-path turns don't count —
+	 * only turns that actually call the model (see count_session_turn()).
+	 */
+	public static function under_session_daily_cap( $session_id ) {
+		$cap = (int) YAA_Settings::get( 'session_daily_cap', 60 );
+		if ( $cap <= 0 ) {
+			return true;
+		}
+		$key   = 'yaa_sd_' . md5( (string) $session_id ) . '_' . gmdate( 'Ymd' );
+		$count = (int) get_transient( $key );
+		return $count < $cap;
+	}
+
+	/** Count one model turn against the per-session daily cap. */
+	public static function count_session_turn( $session_id ) {
+		$key   = 'yaa_sd_' . md5( (string) $session_id ) . '_' . gmdate( 'Ymd' );
+		$count = (int) get_transient( $key );
+		set_transient( $key, $count + 1, DAY_IN_SECONDS );
+	}
+
 	/** Add spent tokens to today's tally. */
 	public static function add_tokens( $tokens ) {
 		$key   = 'yaa_tok_' . gmdate( 'Ymd' );

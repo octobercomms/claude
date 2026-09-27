@@ -28,6 +28,7 @@ class YAA_Settings {
 			'arb_no'                => '091365K & 091921G',
 			'company_no'            => 'OC437815',
 			'rate_limit_per_min'    => 20,   // Archie turns per session per minute.
+			'session_daily_cap'     => 60,   // model turns per session per day (per-client DoS guard).
 			'terms_url'             => '',
 			'privacy_url'           => '',
 			'daily_token_cap'       => 500000, // soft cap; hard-stop new turns beyond it.
