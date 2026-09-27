@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.0
+Stable tag: 0.7.1
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,18 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.1 =
+* Project exports (Archie Projects admin):
+  * "Print / Save as PDF" on each project — a clean standalone sheet with all the
+    details as a cover page plus the full Archie transcript, ready to print or
+    save to PDF for the project file.
+  * "Export CSV" on the list — exports every project in the current tab/search
+    (ref, contact, address, services, total, paid, flags, consent, dates).
+* Fixed the root cause of the "Archie is just catching up" message: the rate
+  limiter reset its 60-second window on every turn, so a normal multi-turn
+  conversation accumulated hits and throttled itself. It now uses a true
+  per-minute window.
 
 = 0.7.0 =
 * Round of fixes from the 27 Sep QA test report:

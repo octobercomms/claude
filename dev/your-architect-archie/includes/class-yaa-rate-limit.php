@@ -13,18 +13,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class YAA_Rate_Limit {
 
-	/** Returns true if this session may make another turn now. */
+	/** Returns true if this session may make another turn now (true per-minute window). */
 	public static function allow_turn( $session_id ) {
-		$per_min = (int) YAA_Settings::get( 'rate_limit_per_min', 12 );
+		$per_min = (int) YAA_Settings::get( 'rate_limit_per_min', 20 );
 		if ( $per_min <= 0 ) {
 			return true;
 		}
-		$key   = 'yaa_rl_' . md5( (string) $session_id );
-		$count = (int) get_transient( $key );
+		// Bucket by calendar minute so the window actually resets each minute — the
+		// old code reset the transient's TTL on every turn, so a normal multi-turn
+		// conversation accumulated hits and blocked itself. Each minute is its own key.
+		$bucket = (int) floor( time() / MINUTE_IN_SECONDS );
+		$key    = 'yaa_rl_' . md5( (string) $session_id ) . '_' . $bucket;
+		$count  = (int) get_transient( $key );
 		if ( $count >= $per_min ) {
 			return false;
 		}
-		set_transient( $key, $count + 1, MINUTE_IN_SECONDS );
+		set_transient( $key, $count + 1, MINUTE_IN_SECONDS + 5 );
 		return true;
 	}
 
