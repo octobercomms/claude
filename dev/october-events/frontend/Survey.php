@@ -59,8 +59,38 @@ final class Survey {
         $this->register_assets();
         wp_enqueue_style('oe-survey');
         [$body] = $this->build($token);
-        $brand = (string) Settings::get('brand_name', get_bloginfo('name'));
-        $fav   = function_exists('get_site_icon_url') ? get_site_icon_url(32) : '';
+        $this->shell($body);
+    }
+
+    /**
+     * Preview the form for an event (managers only, nothing recorded). Reachable
+     * from the builder's "Preview the survey" link at ?oe_survey_preview=<id>.
+     */
+    public function render_preview(int $event_id): void {
+        if (! current_user_can('edit_post', $event_id)) {
+            wp_die(esc_html__('Not allowed.', 'october-events'), '', ['response' => 403]);
+        }
+        nocache_headers();
+        $this->register_assets();
+        wp_enqueue_style('oe-survey');
+        // Previewing is for checking the flow *before* turning the survey on, so
+        // it deliberately does not require the enable flag (unlike is_ready): all
+        // it needs is a question set whose first cap-counting question is a rating.
+        $core = array_values(array_filter(
+            Config::questions($event_id),
+            static fn(array $q): bool => ! in_array((string) ($q['type'] ?? ''), Config::OFFCAP_TYPES, true)
+        ));
+        if ($core === [] || (string) ($core[0]['type'] ?? '') !== 'rating') {
+            $this->shell($this->notice(__('Nothing to preview yet', 'october-events'), __('Add a first rating question (and save), then preview.', 'october-events')));
+            return;
+        }
+        $this->shell($this->form_html('', $event_id, true));
+    }
+
+    /** Print the standalone page shell around a body fragment. */
+    private function shell(string $body): void {
+        $brand  = (string) Settings::get('brand_name', get_bloginfo('name'));
+        $fav    = function_exists('get_site_icon_url') ? get_site_icon_url(32) : '';
         $accent = sanitize_hex_color((string) Settings::get('theme_accent', '')) ?: '#E7CD41';
         $ink    = sanitize_hex_color((string) Settings::get('theme_accent_on', '')) ?: '#1a1a1a';
         ?><!doctype html>
@@ -75,7 +105,7 @@ final class Survey {
 <style>.oe-survey-route{--oe-accent:<?php echo esc_html($accent); ?>;--oe-accent-on:<?php echo esc_html($ink); ?>}</style>
 </head>
 <body class="oe-survey-route">
-<?php echo $body; // built from escaped values in build() ?>
+<?php echo $body; // phpcs:ignore WordPress.Security.EscapeOutput -- built from escaped values in build()/form_html() ?>
 <?php wp_print_footer_scripts(); ?>
 </body>
 </html><?php
@@ -112,23 +142,29 @@ final class Survey {
         return [$this->form_html($token, $event_id)];
     }
 
-    private function form_html(string $token, int $event_id): string {
+    private function form_html(string $token, int $event_id, bool $preview = false): string {
         $questions = Config::questions($event_id);
         $event     = get_the_title($event_id);
 
-        // Data the front-end script drives the one-per-screen flow with.
+        // Data the front-end script drives the one-per-screen flow with. In
+        // preview mode nothing is saved: the script skips the autosave/submit
+        // calls and shows the thank-you (with the configured code) locally.
         wp_enqueue_script('oe-survey');
         wp_localize_script('oe-survey', 'OE_SURVEY_FORM', [
             'ajax'      => admin_url('admin-ajax.php'),
             'nonce'     => wp_create_nonce('oe_survey_public'),
             'token'     => $token,
             'questions' => $questions,
+            'preview'   => $preview,
+            'code'      => $preview ? Config::incentive_code($event_id) : '',
             'i18n'      => [
-                'next'   => __('Next', 'october-events'),
-                'back'   => __('Back', 'october-events'),
-                'finish' => __('Finish', 'october-events'),
-                'skip'   => __('Skip', 'october-events'),
-                'saving' => __('Saving…', 'october-events'),
+                'next'    => __('Next', 'october-events'),
+                'back'    => __('Back', 'october-events'),
+                'finish'  => __('Finish', 'october-events'),
+                'skip'    => __('Skip', 'october-events'),
+                'saving'  => __('Saving…', 'october-events'),
+                'thanks'  => __('Thank you', 'october-events'),
+                'pvThanks'=> __('Preview — nothing was saved.', 'october-events'),
             ],
         ]);
 
