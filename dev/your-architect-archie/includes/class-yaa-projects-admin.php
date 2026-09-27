@@ -43,6 +43,8 @@ class YAA_Projects_Admin {
 		add_action( 'admin_post_yaa_email_send', array( __CLASS__, 'act_email_send' ) );
 		add_action( 'admin_post_yaa_project_delete', array( __CLASS__, 'act_delete' ) );
 		add_action( 'admin_post_yaa_projects_bulk_delete', array( __CLASS__, 'act_bulk_delete' ) );
+		add_action( 'admin_post_yaa_projects_export', array( __CLASS__, 'act_export_csv' ) );
+		add_action( 'admin_post_yaa_project_print', array( __CLASS__, 'act_print' ) );
 	}
 
 	/** Permanently delete a submission/project and everything attached to it. */
@@ -85,6 +87,197 @@ class YAA_Projects_Admin {
 		}
 		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 		exit;
+	}
+
+	/** Comma-joined service labels for a project's state (multi-service aware). */
+	private static function service_labels( array $state ) {
+		$services = YAA_Pricing::table()['services'];
+		$keys     = array();
+		if ( ! empty( $state['services'] ) && is_array( $state['services'] ) ) {
+			$keys = $state['services'];
+		} elseif ( ! empty( $state['service'] ) ) {
+			$keys = array( $state['service'] );
+		}
+		$labels = array();
+		foreach ( $keys as $k ) {
+			if ( isset( $services[ $k ] ) ) {
+				$labels[] = $services[ $k ]['label'];
+			}
+		}
+		return implode( '; ', $labels );
+	}
+
+	/** Bulk CSV export of the projects matching the current tab + search. */
+	public static function act_export_csv() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'yaa_export' ) ) {
+			wp_die( 'Nope' );
+		}
+		$tab      = isset( $_POST['tab'] ) ? sanitize_key( wp_unslash( $_POST['tab'] ) ) : 'all';
+		$search   = isset( $_POST['s'] ) ? sanitize_text_field( wp_unslash( $_POST['s'] ) ) : '';
+		$tabs     = self::tabs();
+		$statuses = isset( $tabs[ $tab ] ) ? $tabs[ $tab ]['statuses'] : array();
+		$rows     = YAA_Project::query( array( 'statuses' => $statuses, 'search' => $search, 'limit' => 5000 ) );
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="archie-projects-' . gmdate( 'Y-m-d' ) . '.csv"' );
+		$out = fopen( 'php://output', 'w' );
+		fwrite( $out, "\xEF\xBB\xBF" ); // UTF-8 BOM so Excel reads accents/£ correctly.
+		fputcsv( $out, array( 'Ref', 'Status', 'Name', 'Email', 'Address', 'Postcode', 'Services', 'What the work is', 'Total (GBP)', 'Paid', 'Amount paid (GBP)', 'London', 'Listed', 'Conservation', 'Marketing opt-in', 'Started', 'Submitted', 'Approved', 'Paid at' ) );
+		foreach ( (array) $rows as $r ) {
+			$state = json_decode( (string) $r->state_json, true );
+			$state = is_array( $state ) ? $state : array();
+			fputcsv( $out, array(
+				$r->ref,
+				$r->status,
+				$r->name,
+				$r->email,
+				isset( $state['address'] ) ? $state['address'] : '',
+				$r->postcode,
+				self::service_labels( $state ),
+				self::type_label( $r->project_type ),
+				(int) $r->total,
+				$r->paid ? 'yes' : 'no',
+				$r->amount_paid ? (int) round( $r->amount_paid / 100 ) : 0,
+				$r->london ? 'yes' : 'no',
+				$r->listed ? 'yes' : 'no',
+				$r->conservation ? 'yes' : 'no',
+				! empty( $state['marketing'] ) ? 'yes' : 'no',
+				$r->created,
+				$r->submitted_at,
+				$r->approved_at,
+				$r->paid_at,
+			) );
+		}
+		fclose( $out );
+		exit;
+	}
+
+	/** Standalone printable project sheet (cover details + full transcript) → Save as PDF. */
+	public static function act_print() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'yaa_print' ) ) {
+			wp_die( 'Nope' );
+		}
+		$pid = isset( $_GET['project'] ) ? (int) $_GET['project'] : 0;
+		$row = YAA_Project::get( $pid );
+		if ( ! $row ) {
+			wp_die( esc_html__( 'Project not found.', 'your-architect-archie' ) );
+		}
+		$state    = json_decode( (string) $row->state_json, true );
+		$state    = is_array( $state ) ? $state : array();
+		$package  = json_decode( (string) $row->package_json, true );
+		$package  = is_array( $package ) ? $package : array( 'nodes' => array(), 'total' => 0 );
+		$messages = json_decode( (string) $row->messages_json, true );
+		$messages = is_array( $messages ) ? $messages : array();
+		$summary  = YAA_Archie::answer_summary( $state );
+		$who      = $row->name ? $row->name : ( $row->email ? $row->email : __( 'Anonymous enquiry', 'your-architect-archie' ) );
+
+		nocache_headers();
+		header( 'Content-Type: text/html; charset=utf-8' );
+		echo self::print_html( $row, $state, $package, $messages, $summary, $who ); // phpcs:ignore WordPress.Security.EscapeOutput
+		exit;
+	}
+
+	/** Build the standalone print document. */
+	private static function print_html( $row, $state, $package, $messages, $summary, $who ) {
+		$ref     = $row->ref ? $row->ref : ( 'ID ' . (int) $row->id );
+		$badge   = self::badge( $row->status );
+		$gen     = date_i18n( 'j M Y, H:i', current_time( 'timestamp' ) );
+		$total   = YAA_Pricing::money( (int) $row->total );
+
+		ob_start();
+		?><!doctype html><html lang="en"><head><meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<title><?php echo esc_html( 'Your Architect — Project ' . $ref ); ?></title>
+		<style>
+			:root{ --navy:#253E94; --ink:#1a2233; --muted:#6b7488; --line:#e6e9f2; }
+			*{ box-sizing:border-box; }
+			body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:var(--ink); margin:0; background:#f4f6fb; }
+			.sheet{ max-width:820px; margin:0 auto; background:#fff; padding:40px 44px; }
+			.bar{ position:sticky; top:0; background:#eef2fb; border-bottom:1px solid var(--line); padding:10px 16px; display:flex; gap:10px; align-items:center; justify-content:center; }
+			.bar button{ background:var(--navy); color:#fff; border:0; border-radius:8px; padding:9px 18px; font-weight:700; cursor:pointer; font-size:.9rem; }
+			.bar span{ color:var(--muted); font-size:.85rem; }
+			h1{ color:var(--navy); font-size:1.5rem; margin:0 0 2px; }
+			.head{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:3px solid var(--navy); padding-bottom:16px; margin-bottom:20px; }
+			.head .r{ text-align:right; font-size:.82rem; color:var(--muted); line-height:1.6; }
+			.badge{ display:inline-block; font-size:.72rem; font-weight:700; padding:3px 10px; border-radius:999px; background:#eef0f4; color:#5b6472; }
+			.badge.green{ background:#e5f6ec; color:#0f7a3d; } .badge.amber{ background:#fff4e5; color:#a15c00; }
+			.badge.purple{ background:#efe9fb; color:#5b34c7; } .badge.grey{ background:#eef0f4; color:#5b6472; }
+			h2{ color:var(--navy); font-size:.82rem; text-transform:uppercase; letter-spacing:.06em; margin:24px 0 10px; }
+			table{ width:100%; border-collapse:collapse; font-size:.9rem; }
+			.kv td{ padding:7px 0; border-bottom:1px solid #eef1f7; vertical-align:top; }
+			.kv td.k{ color:var(--muted); width:38%; }
+			.kv td.v{ color:var(--ink); font-weight:600; }
+			.pkg td{ padding:7px 0; border-bottom:1px solid #eef1f7; }
+			.pkg td.p{ text-align:right; font-weight:700; white-space:nowrap; }
+			.pkg tr.total td{ border-bottom:0; padding-top:12px; color:var(--navy); font-weight:800; font-size:1.05rem; }
+			.convo{ margin-top:6px; }
+			.turn{ margin:0 0 12px; }
+			.turn .who{ font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:2px; }
+			.turn.bot .who{ color:var(--navy); }
+			.turn .say{ font-size:.92rem; line-height:1.5; white-space:pre-wrap; }
+			.foot{ margin-top:28px; padding-top:14px; border-top:1px solid var(--line); font-size:.75rem; color:var(--muted); }
+			@media print{ .bar{ display:none; } body{ background:#fff; } .sheet{ max-width:none; padding:0; } .turn{ page-break-inside:avoid; } }
+		</style></head><body>
+		<div class="bar"><button onclick="window.print()">Print / Save as PDF</button><span>Use your browser's “Save as PDF” in the print dialog.</span></div>
+		<div class="sheet">
+			<div class="head">
+				<div>
+					<h1><?php echo esc_html( $who ); ?></h1>
+					<div><?php echo $badge; // phpcs:ignore WordPress.Security.EscapeOutput ?></div>
+				</div>
+				<div class="r">
+					<strong style="color:var(--navy);font-size:1rem;">Your Architect</strong><br>
+					Project <strong><?php echo esc_html( $ref ); ?></strong><br>
+					Generated <?php echo esc_html( $gen ); ?>
+				</div>
+			</div>
+
+			<h2>Project details</h2>
+			<table class="kv">
+				<?php foreach ( $summary as $q ) : ?>
+					<?php if ( $q['answered'] ) : ?>
+						<tr><td class="k"><?php echo esc_html( $q['label'] ); ?></td><td class="v"><?php echo esc_html( $q['value'] ); ?></td></tr>
+					<?php endif; ?>
+				<?php endforeach; ?>
+				<tr><td class="k">Status</td><td class="v"><?php echo esc_html( ucfirst( str_replace( '_', ' ', (string) $row->status ) ) ); ?></td></tr>
+				<?php if ( $row->created ) : ?><tr><td class="k">Started</td><td class="v"><?php echo esc_html( self::date( $row->created ) ); ?></td></tr><?php endif; ?>
+				<?php if ( $row->submitted_at ) : ?><tr><td class="k">Submitted</td><td class="v"><?php echo esc_html( self::date( $row->submitted_at ) ); ?></td></tr><?php endif; ?>
+				<?php if ( $row->paid ) : ?><tr><td class="k">Paid</td><td class="v"><?php echo esc_html( YAA_Pricing::money( (int) round( $row->amount_paid / 100 ) ) . ' · ' . self::date( $row->paid_at ) ); ?></td></tr><?php endif; ?>
+				<?php if ( ! empty( $state['marketing'] ) ) : ?><tr><td class="k">Marketing opt-in</td><td class="v">Yes</td></tr><?php endif; ?>
+			</table>
+
+			<?php if ( ! empty( $package['nodes'] ) ) : ?>
+				<h2>Fixed-price package</h2>
+				<table class="pkg">
+					<?php foreach ( $package['nodes'] as $n ) : ?>
+						<?php if ( isset( $n['kind'] ) && 'info' === $n['kind'] ) { continue; } ?>
+						<tr>
+							<td><?php echo esc_html( isset( $n['label'] ) ? $n['label'] : '' ); ?><?php echo ! empty( $n['sub'] ) ? ' <span style="color:#8B8A85;font-weight:400;">(' . esc_html( $n['sub'] ) . ')</span>' : ''; // phpcs:ignore ?></td>
+							<td class="p"><?php echo ( isset( $n['price'] ) && null !== $n['price'] ) ? esc_html( YAA_Pricing::money( (int) $n['price'] ) ) : esc_html__( 'quote to follow', 'your-architect-archie' ); ?></td>
+						</tr>
+					<?php endforeach; ?>
+					<tr class="total"><td>Total</td><td class="p"><?php echo esc_html( $total ); ?></td></tr>
+				</table>
+			<?php endif; ?>
+
+			<h2>Conversation with Archie</h2>
+			<div class="convo">
+				<?php if ( empty( $messages ) ) : ?>
+					<p style="color:var(--muted);">No conversation recorded.</p>
+				<?php else : foreach ( $messages as $m ) : ?>
+					<div class="turn <?php echo 'assistant' === $m['role'] ? 'bot' : 'user'; ?>">
+						<div class="who"><?php echo 'assistant' === $m['role'] ? 'Archie' : esc_html( $row->name ? $row->name : __( 'Visitor', 'your-architect-archie' ) ); ?></div>
+						<div class="say"><?php echo esc_html( $m['text'] ); ?></div>
+					</div>
+				<?php endforeach; endif; ?>
+			</div>
+
+			<div class="foot">Your Architect — a trading name of Tiam Architects LLP. ARB-registered, RIBA chartered. This document is for the project file.</div>
+		</div>
+		</body></html>
+		<?php
+		return ob_get_clean();
 	}
 
 	// ---- Workflow actions (nonce + cap checked; redirect back to the project) ----
@@ -214,7 +407,16 @@ class YAA_Projects_Admin {
 		<div class="wrap yaa-admin">
 			<div class="yaa-head">
 				<h1><?php esc_html_e( 'Archie Projects', 'your-architect-archie' ); ?></h1>
-				<a class="yaa-btn" href="<?php echo esc_url( admin_url( 'admin.php?page=yaa-settings' ) ); ?>"><?php esc_html_e( 'Settings', 'your-architect-archie' ); ?></a>
+				<div class="yaa-head-actions">
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline">
+						<input type="hidden" name="action" value="yaa_projects_export">
+						<input type="hidden" name="tab" value="<?php echo esc_attr( $active ); ?>">
+						<input type="hidden" name="s" value="<?php echo esc_attr( $search ); ?>">
+						<?php wp_nonce_field( 'yaa_export' ); ?>
+						<button class="yaa-btn ghost" type="submit"><?php esc_html_e( 'Export CSV', 'your-architect-archie' ); ?></button>
+					</form>
+					<a class="yaa-btn" href="<?php echo esc_url( admin_url( 'admin.php?page=yaa-settings' ) ); ?>"><?php esc_html_e( 'Settings', 'your-architect-archie' ); ?></a>
+				</div>
 			</div>
 
 
@@ -391,12 +593,15 @@ class YAA_Projects_Admin {
 				</div>
 				<div class="yaa-head-right">
 					<div class="yaa-total-big"><?php echo esc_html( YAA_Pricing::money( (int) $row->total ) ); ?></div>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Permanently delete this submission and all of its data? This cannot be undone.');">
-						<input type="hidden" name="action" value="yaa_project_delete">
-						<input type="hidden" name="project_id" value="<?php echo esc_attr( (int) $row->id ); ?>">
-						<?php wp_nonce_field( 'yaa_delete' ); ?>
-						<button class="yaa-btn danger" type="submit"><?php esc_html_e( 'Delete', 'your-architect-archie' ); ?></button>
-					</form>
+					<div class="yaa-inline" style="justify-content:flex-end;margin-top:0;">
+						<a class="yaa-btn ghost" target="_blank" rel="noopener" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'yaa_project_print', 'project' => (int) $row->id ), admin_url( 'admin-post.php' ) ), 'yaa_print' ) ); ?>"><?php esc_html_e( 'Print / Save as PDF', 'your-architect-archie' ); ?></a>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Permanently delete this submission and all of its data? This cannot be undone.');">
+							<input type="hidden" name="action" value="yaa_project_delete">
+							<input type="hidden" name="project_id" value="<?php echo esc_attr( (int) $row->id ); ?>">
+							<?php wp_nonce_field( 'yaa_delete' ); ?>
+							<button class="yaa-btn danger" type="submit"><?php esc_html_e( 'Delete', 'your-architect-archie' ); ?></button>
+						</form>
+					</div>
 				</div>
 			</div>
 
@@ -743,6 +948,7 @@ class YAA_Projects_Admin {
 		.yaa-admin { --navy:#253E94; --blue:#2f5fe0; --ink:#1a2233; --muted:#6b7488; --line:#e6e9f2; --bg:#f6f8fd; max-width:1180px; }
 		.yaa-admin * { box-sizing:border-box; }
 		.yaa-admin .yaa-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin:8px 0 18px; }
+		.yaa-head-actions { display:flex; gap:8px; align-items:center; }
 		.yaa-admin h1 { font-size:1.7rem; color:var(--navy); display:flex; align-items:center; gap:12px; margin:0; padding:0; }
 		.yaa-admin h2 { font-size:1rem; color:var(--navy); margin:0; }
 		.yaa-back { display:inline-block; color:var(--blue); text-decoration:none; font-weight:600; margin-bottom:6px; }
