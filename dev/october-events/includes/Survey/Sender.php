@@ -110,6 +110,13 @@ final class Sender {
         return home_url('/survey/' . rawurlencode($token));
     }
 
+    /** The invite email as it will be sent, wrapped in the brand shell (for preview). */
+    public static function preview_html(int $event_id): string {
+        $event = get_the_title($event_id) ?: __('Your event', 'october-events');
+        $inner = self::invite_html($event, home_url('/survey/…'));
+        return Transactional::wrap_body($inner);
+    }
+
     /** Branded invite body (wrapped in the brand shell by Transactional::send). */
     private static function invite_html(string $event, string $url): string {
         $brand = (string) Settings::get('brand_name', 'October Events');
@@ -127,6 +134,6 @@ final class Sender {
 
         return '<p style="font-size:16px;line-height:1.5">' . esc_html($intro) . '</p>'
             . '<p style="margin:24px 0">' . $button . '</p>'
-            . '<p style="font-size:13px;color:#777">' . esc_html__('Four quick questions. Your answers are anonymous.', 'october-events') . '</p>';
+            . '<p style="font-size:13px;color:#777">' . esc_html__('A few quick questions. Your answers are anonymous.', 'october-events') . '</p>';
     }
 }

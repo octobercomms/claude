@@ -233,6 +233,16 @@ final class Plugin {
             exit;
         }
 
+        // Survey preview for the builder (managers only; nothing recorded).
+        $survey_preview = isset($_GET['oe_survey_preview']) ? absint($_GET['oe_survey_preview']) : 0;
+        if ($survey_preview) {
+            if (! is_user_logged_in() || ! check_admin_referer('oe_survey_preview_' . $survey_preview)) {
+                wp_die(esc_html__('Not allowed.', 'october-events'), '', ['response' => 403]);
+            }
+            \OE\Frontend\Survey::get_instance()->render_preview($survey_preview);
+            exit;
+        }
+
         // Post-event survey at /survey/<token> (or ?oe_survey=<token>).
         $survey_token = get_query_var('oe_survey');
         if (! $survey_token && isset($_GET['oe_survey'])) {

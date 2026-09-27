@@ -19,6 +19,7 @@
 
     var idx = 0;
     var answers = {};
+    var preview = !!cfg.preview;
 
     if (progress) {
         steps.forEach(function () {
@@ -97,9 +98,31 @@
     }
 
     function save(qid, value) {
-        if (value === null) { return; }
+        if (preview || value === null) { return; }
         post({ action: 'oe_survey_save', nonce: cfg.nonce, token: cfg.token, question: qid, value: JSON.stringify(value) })
             .catch(function () {});
+    }
+
+    function previewThanks() {
+        var main = document.querySelector('main.oe-survey');
+        if (!main) { return; }
+        var wrap = document.createElement('main');
+        wrap.className = 'oe-survey';
+        var card = document.createElement('div');
+        card.className = 'oe-survey-card oe-survey-done';
+        var tick = document.createElement('div');
+        tick.className = 'oe-survey-tick'; tick.textContent = '✓';
+        var h1 = document.createElement('h1'); h1.textContent = i18n.thanks || 'Thank you';
+        var p = document.createElement('p'); p.textContent = i18n.pvThanks || 'Preview — nothing was saved.';
+        card.appendChild(tick); card.appendChild(h1); card.appendChild(p);
+        if (cfg.code) {
+            var code = document.createElement('div');
+            code.className = 'oe-survey-code'; code.textContent = cfg.code;
+            card.appendChild(code);
+        }
+        wrap.appendChild(card);
+        main.parentNode.replaceChild(wrap, main);
+        window.scrollTo(0, 0);
     }
 
     function required(step) {
@@ -107,6 +130,7 @@
     }
 
     function submit() {
+        if (preview) { previewThanks(); return; }
         if (next) { next.disabled = true; next.textContent = i18n.saving || 'Saving…'; }
         post({ action: 'oe_survey_submit', nonce: cfg.nonce, token: cfg.token, answers: JSON.stringify(answers) })
             .then(function (r) { return r.json(); })

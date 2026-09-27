@@ -6,8 +6,10 @@
  * @var int    $event_id   the event
  * @var string $event      event title
  * @var array<int,array<string,mixed>> $questions
+ * @var bool   $preview    true when previewing from the builder (nothing saved)
  */
 defined('ABSPATH') || exit;
+$preview = isset($preview) ? (bool) $preview : false;
 
 $rate_row = static function (string $name): void {
     echo '<div class="oe-survey-rate" role="radiogroup">';
@@ -18,6 +20,9 @@ $rate_row = static function (string $name): void {
 };
 ?>
 <main class="oe-survey">
+    <?php if ($preview) : ?>
+        <div class="oe-survey-pvbar"><?php esc_html_e('Preview — this is how attendees see it. Nothing you enter here is saved.', 'october-events'); ?></div>
+    <?php endif; ?>
     <form class="oe-survey-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" data-token="<?php echo esc_attr($token); ?>">
         <input type="hidden" name="action" value="oe_survey_form">
         <input type="hidden" name="oe_token" value="<?php echo esc_attr($token); ?>">

@@ -16,20 +16,23 @@ defined('ABSPATH') || exit;
  * incentive code, timing, plus the design rules that keep the survey short and
  * the Claude question-writer.
  *
- * The four-question cap and the research behind it live here (see advice()) so
- * they are shown in the builder, right where questions are added.
+ * The recommended question count and the research behind it live here (see
+ * advice()) so they are shown in the builder, right where questions are added.
  *
  * @see docs/october-events/POST-EVENT-SURVEY-SPEC.md
  */
 final class Config {
 
-    /** Hard cap on live, cap-counting questions (§4a). */
-    public const MAX_QUESTIONS = 4;
+    /** The recommended number of cap-counting questions — the sweet spot (§4a). */
+    public const RECOMMENDED_QUESTIONS = 4;
+
+    /** Hard ceiling on cap-counting questions (four is recommended; more is allowed). */
+    public const MAX_QUESTIONS = 12;
 
     /** Question types the builder and form understand. */
     public const TYPES = ['rating', 'choice', 'multi', 'open', 'session_rating', 'testimonial'];
 
-    /** Types that sit outside the four-question cap (§4a). */
+    /** Types that sit outside the cap-counting question total (§4a). */
     public const OFFCAP_TYPES = ['session_rating', 'testimonial'];
 
     /**
@@ -105,8 +108,8 @@ final class Config {
      * ------------------------------------------------------------------ */
 
     /**
-     * Sanitise and cap a raw question set. Enforces: max four cap-counting
-     * questions; the first cap-counting question is a rating; at most one
+     * Sanitise and cap a raw question set. Enforces: at most MAX_QUESTIONS
+     * cap-counting questions; the first cap-counting question is a rating; at most one
      * session_rating and one testimonial (both off-cap); options/sessions
      * present where the type needs them. Anything malformed is dropped rather
      * than saved half-formed.
@@ -374,6 +377,46 @@ final class Config {
             return [];
         }
 
+        $json = self::extract_json($reply);
+        if ($json === null) {
+            return [];
+        }
+        return self::sanitize_questions($json);
+    }
+
+    /**
+     * Refine an admin's own draft questions: keep their intent, types, options
+     * and count, but tighten the wording (clear, neutral, one idea each,
+     * mobile-friendly). This is the "type Elayne's questions, then let Claude
+     * polish them" path — distinct from suggest_questions(), which drafts from
+     * scratch. Returns a sanitised set, or [] on failure (nothing is saved).
+     *
+     * @param array<int,mixed> $draft
+     * @return array<int,array<string,mixed>>
+     */
+    public static function refine_questions(int $event_id, array $draft): array {
+        if (! self::ai_ready()) {
+            return [];
+        }
+        $clean = self::sanitize_questions($draft);
+        if ($clean === []) {
+            return [];
+        }
+        $name = get_the_title($event_id) ?: __('this event', 'october-events');
+
+        $system = 'You improve the wording of post-event survey questions. You are given the questions as JSON. '
+            . 'Rewrite each "label" (and each option string, and each session name) so it is clear, neutral, '
+            . 'one idea per question, mobile-friendly and under 90 characters. Fix double-barrelled questions by '
+            . 'rewording, not by adding questions. Do NOT change any question\'s "type" or "id", do NOT change the '
+            . 'number of questions, and do NOT change the number of options or their meaning. Keep exactly the same '
+            . 'JSON structure and keys. Return the JSON array only, no prose.';
+        $user = 'Event: ' . $name . '. Improve the wording of these questions, keeping their structure:' . "\n"
+            . (wp_json_encode($clean) ?: '[]');
+
+        $reply = ClaudeConnector::message($user, 1500, $system);
+        if ($reply === null) {
+            return [];
+        }
         $json = self::extract_json($reply);
         if ($json === null) {
             return [];

@@ -3,9 +3,16 @@
 Status: building. Slices A–D shipped in v1.189.0 (builder + advice panel, mobile
 form with progressive capture, day-after auto-send, results + CSV). Owner: Daniel.
 
-> **Build note (v1.189.0).** Decisions locked in code: four-question hard cap
-> everywhere; rating scale 1–5; default window 14 days; day-after auto-send via
-> the daily cron. Two refinements beyond the spec, from the code review: survey
+> **Build note (v1.191.0).** Four is now a **recommendation, not a hard cap**
+> (Daniel's call): the builder lets you add more, shows a "4 is ideal" prompt and
+> a completion warning, with a hard ceiling of 12 to keep a survey finishable.
+> Also added: preview the form and the invite email from the builder, and a
+> "Refine with Claude" button that polishes the admin's own wording (distinct from
+> the from-scratch "Suggest with Claude"). Rating scale 1–5; default window 14
+> days; day-after auto-send via the daily cron.
+>
+> **Build note (v1.189.0).** Original build shipped a four-question hard cap
+> everywhere (relaxed to a recommendation in v1.191.0 above). Two refinements beyond the spec, from the code review: survey
 > responses are stored under an **HMAC of the ticket token** (not the raw token),
 > so the pseudonymous link isn't a plain reverse-join to identity; and the
 > "Suggest with Claude" drafter uses the one-shot connector call, not the ops

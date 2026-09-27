@@ -1,5 +1,6 @@
 /* Survey builder — add/edit/reorder questions, serialise to a hidden field.
- * Four-question cap (session-ratings + quote blocks are off-cap). */
+ * Four questions recommended, hard ceiling higher (session-ratings + quote
+ * blocks are off-cap). */
 (function () {
     var cfg = window.OE_SURVEY;
     if (!cfg) { return; }
@@ -11,7 +12,10 @@
     var i18n = cfg.i18n || {};
     var types = i18n.types || {};
     var OFFCAP = ['session_rating', 'testimonial'];
-    var MAX = 4;
+    var RECOMMENDED = cfg.recommended || 4;
+    var MAX = cfg.max || 12;
+
+    function fmt(str, n) { return String(str || '').replace('%d', n); }
 
     var questions = [];
     try { questions = JSON.parse(json.value || '[]'); } catch (e) { questions = []; }
@@ -24,7 +28,15 @@
     function serialise() {
         json.value = JSON.stringify(questions);
         if (countEl) {
-            countEl.textContent = coreCount() + ' / ' + MAX;
+            var n = coreCount();
+            var word = n === 1 ? fmt(i18n.countOne, n) : fmt(i18n.countMany, n);
+            if (n > RECOMMENDED) {
+                countEl.textContent = word + ' · ' + (i18n.ideal || '4 is ideal');
+                countEl.classList.add('oe-svy-over');
+            } else {
+                countEl.textContent = n + ' / ' + RECOMMENDED;
+                countEl.classList.remove('oe-svy-over');
+            }
         }
     }
 
@@ -46,12 +58,12 @@
         sel.addEventListener('change', function () {
             var want = sel.value;
             if (isOff(want) && q.type !== want && hasOff(want)) {
-                alert(i18n.capHit);
+                alert(i18n.oneOff);
                 sel.value = q.type;
                 return;
             }
             if (!isOff(want) && isOff(q.type) && coreCount() >= MAX) {
-                alert(i18n.capHit);
+                alert(i18n.capMax);
                 sel.value = q.type;
                 return;
             }
@@ -141,7 +153,7 @@
     }
 
     document.getElementById('oe-svy-add').addEventListener('click', function () {
-        if (coreCount() >= MAX) { alert(i18n.capHit); return; }
+        if (coreCount() >= MAX) { alert(i18n.capMax); return; }
         var type = questions.length === 0 ? 'rating' : 'choice';
         var q = { type: type, label: '' };
         if (type === 'choice') { q.options = ['', '']; }
@@ -180,6 +192,33 @@
                 })
                 .catch(function () { alert(i18n.aiFail); })
                 .then(function () { aiBtn.disabled = false; aiBtn.textContent = orig; });
+        });
+    }
+
+    var refineBtn = document.getElementById('oe-svy-refine');
+    if (refineBtn) {
+        refineBtn.addEventListener('click', function () {
+            if (coreCount() === 0) { alert(i18n.refineFail); return; }
+            var orig = refineBtn.textContent;
+            refineBtn.disabled = true;
+            refineBtn.textContent = i18n.refining;
+            var body = new URLSearchParams();
+            body.set('action', 'oe_survey_refine');
+            body.set('nonce', cfg.nonce);
+            body.set('event', refineBtn.getAttribute('data-event'));
+            body.set('questions', JSON.stringify(questions));
+            fetch(cfg.ajax, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res && res.success && res.data && res.data.questions) {
+                        questions = res.data.questions;
+                        render();
+                    } else {
+                        alert((res && res.data && res.data.message) || i18n.refineFail);
+                    }
+                })
+                .catch(function () { alert(i18n.refineFail); })
+                .then(function () { refineBtn.disabled = false; refineBtn.textContent = orig; });
         });
     }
 

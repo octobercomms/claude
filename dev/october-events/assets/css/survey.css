@@ -11,6 +11,8 @@
     -webkit-font-smoothing: antialiased;
 }
 
+.oe-survey-pvbar { background: #1a1a1a; color: #fff; font-size: 13px; text-align: center; padding: 8px 12px; border-radius: 8px; margin-bottom: 16px; }
+
 .oe-survey-head { margin-bottom: 20px; }
 .oe-survey-progress { display: flex; gap: 6px; margin-bottom: 14px; }
 .oe-survey-dot { flex: 1; height: 4px; border-radius: 4px; background: #dcdcd6; transition: background .2s; }

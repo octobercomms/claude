@@ -25,8 +25,10 @@ final class Metabox {
         add_action('save_post', [self::class, 'save'], 10, 2);
         add_action('admin_enqueue_scripts', [self::class, 'assets']);
         add_action('wp_ajax_oe_survey_suggest', [self::class, 'ajax_suggest']);
+        add_action('wp_ajax_oe_survey_refine', [self::class, 'ajax_refine']);
         add_action('admin_post_oe_survey_send', [self::class, 'send_now']);
         add_action('admin_post_oe_survey_csv', [self::class, 'export_csv']);
+        add_action('admin_post_oe_survey_email_preview', [self::class, 'email_preview']);
     }
 
     private static function post_type(): string {
@@ -56,6 +58,8 @@ final class Metabox {
             'nonce'   => wp_create_nonce('oe_survey_suggest'),
             'aiReady' => Config::ai_ready(),
             'starter' => Config::starter_questions(),
+            'recommended' => Config::RECOMMENDED_QUESTIONS,
+            'max'         => Config::MAX_QUESTIONS,
             'i18n'    => [
                 'add'      => __('Add question', 'october-events'),
                 'remove'   => __('Remove', 'october-events'),
@@ -65,8 +69,14 @@ final class Metabox {
                 'addOpt'   => __('Add option', 'october-events'),
                 'addSess'  => __('Add session', 'october-events'),
                 'thinking' => __('Asking Claude…', 'october-events'),
+                'refining' => __('Refining…', 'october-events'),
                 'aiFail'   => __('Claude could not draft questions right now. Please write them below.', 'october-events'),
-                'capHit'   => __('Four questions is the limit (the session-ratings and quote blocks don’t count).', 'october-events'),
+                'refineFail' => __('Claude could not refine these right now. Add a couple of questions first, then try again.', 'october-events'),
+                'countOne' => __('%d question', 'october-events'),
+                'countMany'=> __('%d questions', 'october-events'),
+                'ideal'    => __('4 is ideal', 'october-events'),
+                'capMax'   => __('That’s the maximum. Trim some questions to keep the survey finishable.', 'october-events'),
+                'oneOff'   => __('Only one “rate each session” and one “quote” block are allowed.', 'october-events'),
                 'firstRate'=> __('The first question is always an overall rating.', 'october-events'),
                 'types'    => [
                     'rating'         => __('Rating (1–5)', 'october-events'),
@@ -104,12 +114,23 @@ final class Metabox {
                         <button type="button" class="button" id="oe-svy-starter"><?php esc_html_e('Use a starter survey', 'october-events'); ?></button>
                         <?php if (Config::ai_ready()) : ?>
                             <button type="button" class="button button-primary" id="oe-svy-ai" data-event="<?php echo (int) $id; ?>"><?php esc_html_e('Suggest with Claude', 'october-events'); ?></button>
+                            <button type="button" class="button" id="oe-svy-refine" data-event="<?php echo (int) $id; ?>"><?php esc_html_e('Refine with Claude', 'october-events'); ?></button>
                         <?php endif; ?>
                         <span class="oe-svy-count" id="oe-svy-count"></span>
                     </div>
                     <div id="oe-svy-list" class="oe-svy-list"></div>
                     <textarea name="oe_survey_questions" id="oe-svy-json" class="oe-svy-json" hidden><?php echo esc_textarea(wp_json_encode($questions) ?: '[]'); ?></textarea>
-                    <p class="oe-svy-note"><?php esc_html_e('The first question is always a 1–5 rating. Up to four questions; the “rate each session” and “quote” blocks don’t count toward the four.', 'october-events'); ?></p>
+                    <p class="oe-svy-note"><?php esc_html_e('The first question is always a 1–5 rating. Four is the sweet spot for completion — you can add more, but each extra question loses people. The “rate each session” and “quote” blocks don’t count. Write your own questions and hit “Refine with Claude” to tighten the wording.', 'october-events'); ?></p>
+                    <p class="oe-svy-preview-links">
+                        <?php
+                        $preview_form = wp_nonce_url(add_query_arg('oe_survey_preview', $id, home_url('/')), 'oe_survey_preview_' . $id);
+                        $preview_mail = wp_nonce_url(admin_url('admin-post.php?action=oe_survey_email_preview&event=' . $id), 'oe_survey_email_' . $id);
+                        ?>
+                        <a href="<?php echo esc_url($preview_form); ?>" target="_blank" rel="noopener"><?php esc_html_e('Preview the survey', 'october-events'); ?></a>
+                        &nbsp;·&nbsp;
+                        <a href="<?php echo esc_url($preview_mail); ?>" target="_blank" rel="noopener"><?php esc_html_e('Preview the invite email', 'october-events'); ?></a>
+                        <span class="oe-svy-hint"><?php esc_html_e('(save the event first to preview your latest changes)', 'october-events'); ?></span>
+                    </p>
                 </div>
 
                 <aside class="oe-svy-advice">
@@ -249,6 +270,38 @@ final class Metabox {
             wp_send_json_error(['message' => __('No draft returned.', 'october-events')]);
         }
         wp_send_json_success(['questions' => $questions]);
+    }
+
+    /** Refine the admin's own draft (sent as JSON) into tighter wording. */
+    public static function ajax_refine(): void {
+        check_ajax_referer('oe_survey_suggest', 'nonce');
+        $event_id = isset($_POST['event']) ? absint($_POST['event']) : 0;
+        if (! $event_id || ! current_user_can('edit_post', $event_id)) {
+            wp_send_json_error(['message' => __('Not allowed.', 'october-events')], 403);
+        }
+        $raw = isset($_POST['questions']) ? (string) wp_unslash($_POST['questions']) : '';
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded) || $decoded === []) {
+            wp_send_json_error(['message' => __('Add a couple of questions first.', 'october-events')]);
+        }
+        $questions = Config::refine_questions($event_id, $decoded);
+        if ($questions === []) {
+            wp_send_json_error(['message' => __('No refinement returned.', 'october-events')]);
+        }
+        wp_send_json_success(['questions' => $questions]);
+    }
+
+    /** Show the invite email exactly as it will be sent. */
+    public static function email_preview(): void {
+        $event_id = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        check_admin_referer('oe_survey_email_' . $event_id);
+        if (! $event_id || ! current_user_can('edit_post', $event_id)) {
+            wp_die(esc_html__('Not allowed.', 'october-events'), '', ['response' => 403]);
+        }
+        nocache_headers();
+        header('Content-Type: text/html; charset=utf-8');
+        echo Sender::preview_html($event_id); // phpcs:ignore WordPress.Security.EscapeOutput -- branded email HTML, escaped within
+        exit;
     }
 
     public static function send_now(): void {

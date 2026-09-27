@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.191.0 — Survey preview, email preview, refine-with-Claude, soft cap
+
+- **Preview the survey**: a link in the builder opens the live mobile form in a
+  test mode — nothing is recorded, and finishing shows the thank-you (with the
+  reward code) so you can see the whole flow.
+- **Preview the invite email**: see the branded invite exactly as attendees get
+  it, before turning the survey on.
+- **Refine with Claude**: type your own questions (e.g. straight from a planning
+  chat) and let Claude tighten the wording — clear, neutral, one idea each — while
+  keeping your intent, types and count. Separate from “Suggest with Claude”, which
+  drafts from scratch.
+- **Four is now a recommendation, not a hard limit.** You can add more than four
+  questions; the builder shows a gentle “4 is ideal” prompt and warns that
+  completion drops with each extra one. (Hard ceiling of 12 to keep a survey
+  finishable.)
+
 ## 1.190.0 — Printable attendee sheet (PDF)
 
 - **Tickets → Attendees** now has an **“Attendee list (PDF)”** action beside the
