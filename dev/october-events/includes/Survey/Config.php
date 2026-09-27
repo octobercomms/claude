@@ -372,16 +372,7 @@ final class Config {
         // not Assistant::ask() — that entry point forces the operations-assistant
         // system prompt and attaches the ops tool loop, which would derail a
         // structured JSON draft.
-        $reply = ClaudeConnector::message($user, 1024, $system);
-        if ($reply === null) {
-            return [];
-        }
-
-        $json = self::extract_json($reply);
-        if ($json === null) {
-            return [];
-        }
-        return self::sanitize_questions($json);
+        return self::ask_for_questions($system, $user, 1024);
     }
 
     /**
@@ -413,7 +404,52 @@ final class Config {
         $user = 'Event: ' . $name . '. Improve the wording of these questions, keeping their structure:' . "\n"
             . (wp_json_encode($clean) ?: '[]');
 
-        $reply = ClaudeConnector::message($user, 1500, $system);
+        return self::ask_for_questions($system, $user, 1500);
+    }
+
+    /**
+     * Build a whole survey from a planner's free-text notes: Claude picks the
+     * question type for each note, adds options, puts a rating first, and keeps
+     * it a sensible length. Returns a sanitised set, or [] on failure.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function build_from_notes(int $event_id, string $notes): array {
+        if (! self::ai_ready()) {
+            return [];
+        }
+        $notes = trim($notes);
+        if ($notes === '') {
+            return [];
+        }
+        $name = get_the_title($event_id) ?: __('this event', 'october-events');
+
+        $system = 'You turn a planner\'s rough notes into a finished post-event survey. '
+            . 'Return ONLY a JSON array of question objects {"type","label","options"?,"sessions"?}. '
+            . 'Types: "rating" (a single 1-5 rating), "choice" (single-select, needs "options"), '
+            . '"multi" (multi-select, needs "options"), "open" (free text), "session_rating" (needs "sessions": '
+            . 'a list of session names), "testimonial" (a quote / permission-to-quote ask). Rules: the FIRST '
+            . 'question MUST be a single 1-5 "rating" of the overall experience — add one if the notes do not '
+            . 'mention it. Turn each note into the most fitting type: use "choice"/"multi" with 2-6 short '
+            . '"options" when the note implies set answers, "open" for free-form asks, "session_rating" if the '
+            . 'notes ask to rate multiple sessions, "testimonial" for a quote ask. Keep 4-6 cap-counting '
+            . 'questions (rating/choice/multi/open); session_rating and testimonial are extra. One idea per '
+            . 'question, neutral wording, labels under 90 characters. Return JSON only, no prose.';
+        $user = 'Event: ' . $name . '. Notes to turn into a survey:' . "\n" . $notes;
+
+        return self::ask_for_questions($system, $user, 1600);
+    }
+
+    /**
+     * Run one structured Claude completion for the question writers: send the
+     * given system/user prompts, pull the JSON array out of the reply and return
+     * a sanitised, cap-enforced question set (or [] on any failure). Shared by
+     * suggest_questions(), refine_questions() and build_from_notes().
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private static function ask_for_questions(string $system, string $user, int $max_tokens): array {
+        $reply = ClaudeConnector::message($user, $max_tokens, $system);
         if ($reply === null) {
             return [];
         }

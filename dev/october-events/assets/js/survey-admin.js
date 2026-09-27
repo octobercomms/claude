@@ -195,6 +195,38 @@
         });
     }
 
+    var buildBtn = document.getElementById('oe-svy-build');
+    if (buildBtn) {
+        buildBtn.addEventListener('click', function () {
+            var ta = document.getElementById('oe-svy-notes-text');
+            var notes = ta ? ta.value.trim() : '';
+            if (!notes) { alert(i18n.notesEmpty); return; }
+            if (questions.length && !confirm(i18n.buildConfirm)) { return; }
+            var orig = buildBtn.textContent;
+            buildBtn.disabled = true;
+            buildBtn.textContent = i18n.building;
+            var body = new URLSearchParams();
+            body.set('action', 'oe_survey_build');
+            body.set('nonce', cfg.nonce);
+            body.set('event', buildBtn.getAttribute('data-event'));
+            body.set('notes', notes);
+            fetch(cfg.ajax, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res && res.success && res.data && res.data.questions) {
+                        questions = res.data.questions;
+                        render();
+                        var det = buildBtn.closest('details');
+                        if (det) { det.open = false; }
+                    } else {
+                        alert((res && res.data && res.data.message) || i18n.buildFail);
+                    }
+                })
+                .catch(function () { alert(i18n.buildFail); })
+                .then(function () { buildBtn.disabled = false; buildBtn.textContent = orig; });
+        });
+    }
+
     var refineBtn = document.getElementById('oe-svy-refine');
     if (refineBtn) {
         refineBtn.addEventListener('click', function () {

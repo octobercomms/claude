@@ -26,6 +26,7 @@ final class Metabox {
         add_action('admin_enqueue_scripts', [self::class, 'assets']);
         add_action('wp_ajax_oe_survey_suggest', [self::class, 'ajax_suggest']);
         add_action('wp_ajax_oe_survey_refine', [self::class, 'ajax_refine']);
+        add_action('wp_ajax_oe_survey_build', [self::class, 'ajax_build']);
         add_action('admin_post_oe_survey_send', [self::class, 'send_now']);
         add_action('admin_post_oe_survey_csv', [self::class, 'export_csv']);
         add_action('admin_post_oe_survey_email_preview', [self::class, 'email_preview']);
@@ -70,8 +71,12 @@ final class Metabox {
                 'addSess'  => __('Add session', 'october-events'),
                 'thinking' => __('Asking Claude…', 'october-events'),
                 'refining' => __('Refining…', 'october-events'),
+                'building' => __('Building…', 'october-events'),
                 'aiFail'   => __('Claude could not draft questions right now. Please write them below.', 'october-events'),
                 'refineFail' => __('Claude could not refine these right now. Add a couple of questions first, then try again.', 'october-events'),
+                'buildFail'  => __('Claude could not build a survey from those notes. Try adding a bit more detail.', 'october-events'),
+                'notesEmpty' => __('Paste your questions or notes first.', 'october-events'),
+                'buildConfirm' => __('Replace the current questions with a survey built from your notes?', 'october-events'),
                 'countOne' => __('%d question', 'october-events'),
                 'countMany'=> __('%d questions', 'october-events'),
                 'ideal'    => __('4 is ideal', 'october-events'),
@@ -100,6 +105,10 @@ final class Metabox {
         $days_after = Config::send_days_after($id);
         $window     = Config::window_days($id);
         $sent_at    = Config::sent_at($id);
+        $ready      = Config::is_ready($id);
+        $end_ts     = Config::end_ts($id);
+        $send_ts    = $end_ts > 0 ? $end_ts + $days_after * DAY_IN_SECONDS : 0;
+        $ai_ready   = Config::ai_ready();
         ?>
         <div class="oe-svy">
             <label class="oe-svy-enable">
@@ -107,17 +116,63 @@ final class Metabox {
                 <strong><?php esc_html_e('Send a survey for this event', 'october-events'); ?></strong>
             </label>
 
+            <?php
+            // Make it unmistakable WHEN the survey goes out: saving only schedules
+            // it; the send is automatic the day after the event (or manual).
+            if ($sent_at !== '') {
+                $status_class = 'is-sent';
+                $status = sprintf(/* translators: %s: date/time */ __('Sent %s. Attendees were emailed once.', 'october-events'), $sent_at);
+            } elseif (! $enabled) {
+                $status_class = 'is-off';
+                $status = __('Off. Tick the box above and click Update to schedule it — nothing sends when you save.', 'october-events');
+            } elseif (! $ready) {
+                $status_class = 'is-warn';
+                $status = __('Add a first 1–5 rating question and Update. Then it will schedule automatically.', 'october-events');
+            } elseif ($send_ts > 0 && $send_ts <= current_time('timestamp')) {
+                $status_class = 'is-scheduled';
+                $status = __('Ready. The send date has passed, so it goes out on the next daily run (within a day), once, to attendees. Or use “Send now” to send immediately.', 'october-events');
+            } elseif ($send_ts > 0) {
+                $status_class = 'is-scheduled';
+                $after = $days_after === 1
+                    ? __('the day after the event', 'october-events')
+                    : sprintf(
+                        /* translators: %d: number of days */
+                        _n('%d day after the event', '%d days after the event', $days_after, 'october-events'),
+                        $days_after
+                    );
+                $status = sprintf(
+                    /* translators: 1: date; 2: e.g. “the day after the event” */
+                    __('Scheduled. It sends automatically on %1$s (%2$s), once, to attendees. Saving does not send it — use “Send now” to send immediately.', 'october-events'),
+                    wp_date(get_option('date_format') ?: 'j M Y', $send_ts),
+                    $after
+                );
+            } else {
+                $status_class = 'is-warn';
+                $status = __('Ready, but this event has no date set, so the automatic send can’t be timed. Set the event date, or use “Send now”.', 'october-events');
+            }
+            ?>
+            <p class="oe-svy-status <?php echo esc_attr($status_class); ?>"><?php echo esc_html($status); ?></p>
+
             <div class="oe-svy-cols">
                 <div class="oe-svy-build">
                     <div class="oe-svy-toolbar">
                         <button type="button" class="button" id="oe-svy-add"><?php esc_html_e('Add question', 'october-events'); ?></button>
                         <button type="button" class="button" id="oe-svy-starter"><?php esc_html_e('Use a starter survey', 'october-events'); ?></button>
-                        <?php if (Config::ai_ready()) : ?>
+                        <?php if ($ai_ready) : ?>
                             <button type="button" class="button button-primary" id="oe-svy-ai" data-event="<?php echo (int) $id; ?>"><?php esc_html_e('Suggest with Claude', 'october-events'); ?></button>
                             <button type="button" class="button" id="oe-svy-refine" data-event="<?php echo (int) $id; ?>"><?php esc_html_e('Refine with Claude', 'october-events'); ?></button>
                         <?php endif; ?>
                         <span class="oe-svy-count" id="oe-svy-count"></span>
                     </div>
+
+                    <?php if ($ai_ready) : ?>
+                        <details class="oe-svy-notes">
+                            <summary><?php esc_html_e('Build from my notes with Claude', 'october-events'); ?></summary>
+                            <p class="oe-svy-hint"><?php esc_html_e('Paste your questions in any form — rough notes, a list, a pasted chat. Claude turns them into a finished survey (picks the question types, adds options, puts a rating first). It replaces what’s below, so you can then edit.', 'october-events'); ?></p>
+                            <textarea id="oe-svy-notes-text" class="oe-svy-notes-text" rows="5" placeholder="<?php esc_attr_e('e.g. Rate each session. Why do you attend? Do you stay all day, if not why? What topics did we miss? Which speakers do you want next year? One thing to change?', 'october-events'); ?>"></textarea>
+                            <button type="button" class="button button-primary" id="oe-svy-build" data-event="<?php echo (int) $id; ?>"><?php esc_html_e('Build with Claude', 'october-events'); ?></button>
+                        </details>
+                    <?php endif; ?>
                     <div id="oe-svy-list" class="oe-svy-list"></div>
                     <textarea name="oe_survey_questions" id="oe-svy-json" class="oe-svy-json" hidden><?php echo esc_textarea(wp_json_encode($questions) ?: '[]'); ?></textarea>
                     <p class="oe-svy-note"><?php esc_html_e('The first question is always a 1–5 rating. Four is the sweet spot for completion — you can add more, but each extra question loses people. The “rate each session” and “quote” blocks don’t count. Write your own questions and hit “Refine with Claude” to tighten the wording.', 'october-events'); ?></p>
@@ -160,15 +215,7 @@ final class Metabox {
                 </label>
             </div>
 
-            <?php if ($sent_at !== '') : ?>
-                <p class="oe-svy-sent"><?php echo esc_html(sprintf(
-                    /* translators: %s: date/time */
-                    __('Invites went out %s.', 'october-events'),
-                    $sent_at
-                )); ?></p>
-            <?php endif; ?>
-
-            <?php if (Config::is_ready($id)) : ?>
+            <?php if ($ready) : ?>
                 <div class="oe-svy-actions">
                     <?php
                     $send_url = wp_nonce_url(
@@ -176,10 +223,10 @@ final class Metabox {
                         'oe_survey_send_' . $id
                     );
                     ?>
-                    <a href="<?php echo esc_url($send_url); ?>" class="button" onclick="return confirm('<?php echo esc_js(__('Email the survey to this event’s attendees now?', 'october-events')); ?>')">
-                        <?php echo $sent_at === '' ? esc_html__('Send now', 'october-events') : esc_html__('Send again', 'october-events'); ?>
+                    <a href="<?php echo esc_url($send_url); ?>" class="button" onclick="return confirm('<?php echo esc_js(__('Email the survey to this event’s attendees right now?', 'october-events')); ?>')">
+                        <?php echo $sent_at === '' ? esc_html__('Send now', 'october-events') : esc_html__('Send again now', 'october-events'); ?>
                     </a>
-                    <span class="oe-svy-hint"><?php esc_html_e('Save the event first so your latest questions go out.', 'october-events'); ?></span>
+                    <span class="oe-svy-hint"><?php esc_html_e('Sends immediately to this event’s attendees. Save the event first so your latest questions go out. (You don’t need this for the automatic day-after send.)', 'october-events'); ?></span>
                 </div>
             <?php endif; ?>
 
@@ -287,6 +334,24 @@ final class Metabox {
         $questions = Config::refine_questions($event_id, $decoded);
         if ($questions === []) {
             wp_send_json_error(['message' => __('No refinement returned.', 'october-events')]);
+        }
+        wp_send_json_success(['questions' => $questions]);
+    }
+
+    /** Build a whole survey from free-text notes the admin pastes in. */
+    public static function ajax_build(): void {
+        check_ajax_referer('oe_survey_suggest', 'nonce');
+        $event_id = isset($_POST['event']) ? absint($_POST['event']) : 0;
+        if (! $event_id || ! current_user_can('edit_post', $event_id)) {
+            wp_send_json_error(['message' => __('Not allowed.', 'october-events')], 403);
+        }
+        $notes = isset($_POST['notes']) ? sanitize_textarea_field((string) wp_unslash($_POST['notes'])) : '';
+        if (trim($notes) === '') {
+            wp_send_json_error(['message' => __('Paste your questions or notes first.', 'october-events')]);
+        }
+        $questions = Config::build_from_notes($event_id, $notes);
+        if ($questions === []) {
+            wp_send_json_error(['message' => __('No survey returned.', 'october-events')]);
         }
         wp_send_json_success(['questions' => $questions]);
     }
