@@ -44,6 +44,18 @@ cron.schedule('* * * * *', () => { swipeProcessor.processQueue().catch(() => {})
 //    off-portal discovery). Tenders have weeks-long deadlines, so twice a week is
 //    plenty, and this is where the cost lives — keeping it off the daily run
 //    stops it ballooning.
+// Daily 08:45 — the warm-journalist digest. One email covering everyone who
+// went warm since the last, rather than one email each. Replaces a per-
+// journalist alert that produced hundreds of emails on a large release
+// (see migration 187). Runs whatever the mode is; sendWarmDigest only has
+// pending rows to send when the mode is 'digest'.
+cron.schedule('45 8 * * *', async () => {
+  try {
+    const r = await require('./pressInterest').sendWarmDigest();
+    if (r.sent) console.log(`[Scheduler] Warm digest: ${r.warm} journalist(s)`);
+  } catch (e) { console.error('[Scheduler] Warm digest failed:', e.message); }
+});
+
 cron.schedule('30 6 * * *', async () => {
   try {
     const report = await require('./tender/ingest').run({ includeSearch: false, log: (m) => console.log(m) });

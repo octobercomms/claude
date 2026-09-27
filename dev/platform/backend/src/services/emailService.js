@@ -986,6 +986,37 @@ async function sendPressInterestAlert({ clientName, contactName, outlet, score, 
   });
 }
 
+// Daily warm-journalist digest. One email covering everyone who went warm
+// since the last, replacing one-email-each. The per-journalist version buried
+// a real inbox under hundreds of alerts on a large release; see migration 187.
+async function sendWarmJournalistDigest({ items }) {
+  if (!process.env.ALERT_EMAIL || !Array.isArray(items) || !items.length) return;
+  const rows = items.map((it) => `
+    <tr>
+      <td style="padding:6px 10px 6px 0;border-bottom:1px solid #eee;">
+        <strong>${escapeForTemplate(it.name)}</strong>${it.outlet ? `<span style="color:#888;"> · ${escapeForTemplate(it.outlet)}</span>` : ''}
+      </td>
+      <td style="padding:6px 10px 6px 0;border-bottom:1px solid #eee;color:#666;font-size:13px;">${escapeForTemplate(it.client)}</td>
+      <td style="padding:6px 0;border-bottom:1px solid #eee;color:#666;font-size:13px;">${escapeForTemplate(it.reason)}</td>
+    </tr>`).join('');
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
+      <h2 style="margin:0 0 6px;color:#1a1a1a;">${items.length} journalist${items.length === 1 ? '' : 's'} warming up 🔥</h2>
+      <p style="color:#666;font-size:13px;margin:0 0 14px;">Flagged since the last digest. They are on the coverage dashboard too.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">${rows}</table>
+      <p style="color:#aaa;font-size:11px;margin-top:24px;">
+        October Marketing Intelligence — press interest watch, daily digest.
+        Change or switch off under Settings → Connections → Email.
+      </p>
+    </div>`;
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject: `🔥 ${items.length} warm journalist${items.length === 1 ? '' : 's'}`,
+    html,
+  });
+}
+
 // Reel "swipe file" result — the transcript plus a Claude idea card, mailed back
 // to whoever pasted the URL.
 async function sendSwipeIdea({ to, clientName, url, platform, title, transcript, card }) {
@@ -1224,4 +1255,5 @@ async function sendPipelineAlert({ subject, headline, lines = [], suggestion, li
   return getTransporter().sendMail({ from: getSenderAddress(), to: pipelineAlertTo(), subject, html, text });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert };
+module.exports = {
+  sendWarmJournalistDigest, sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendSnapshotLeadAlert, sendSnapshotEmailRequest, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendSpendAlert, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest, sendSwipeIdea, sendClientInvite, sendVisibilityAlerts, sendCertExpiryAlert, sendTenderDigest, sendPressInterestAlert, sendMediaDeskDigest, sendProposal, sendReportNudge, sendPipelineAlert };
