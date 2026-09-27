@@ -1,0 +1,43 @@
+/* Front-end self-serve event submission. Deliberately neutral so it inherits
+   the host theme's typography and blends into the public ADF site. */
+.oe-submit { max-width: 640px; margin: 0 auto; }
+.oe-submit-title { margin: 0 0 8px; }
+.oe-submit-form { display: flex; flex-direction: column; gap: 16px; }
+.oe-submit-field { display: flex; flex-direction: column; gap: 6px; }
+.oe-submit-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.oe-submit-row .oe-submit-field { flex: 1 1 220px; }
+.oe-submit-label { font-weight: 600; font-size: 0.95em; }
+.oe-submit-label em { color: #b23c17; font-style: normal; }
+.oe-submit-form input,
+.oe-submit-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 12px;
+    border: 1px solid #cfcabb;
+    border-radius: 8px;
+    font: inherit;
+    background: #fff;
+    color: inherit;
+}
+.oe-submit-form input:focus,
+.oe-submit-form textarea:focus { outline: 2px solid #1a1a1a; outline-offset: 1px; border-color: #1a1a1a; }
+.oe-submit-form textarea { resize: vertical; }
+.oe-submit-hint { font-size: 0.85em; color: #777; margin: 2px 0 0; }
+.oe-submit-actions { margin: 4px 0 0; }
+.oe-submit-btn {
+    display: inline-block;
+    background: #1a1a1a;
+    color: #fff;
+    text-decoration: none;
+    border: 0;
+    border-radius: 8px;
+    padding: 13px 24px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.oe-submit-btn:hover { background: #333; color: #fff; }
+.oe-submit-note { border-radius: 10px; padding: 14px 16px; margin: 0 0 18px; }
+.oe-submit-note--ok { background: #eaf7ec; border: 1px solid #cde9d2; }
+.oe-submit-note--ok p { margin: 6px 0 0; }
+.oe-submit-note--err { background: #fdeceb; border: 1px solid #f4c7c3; }

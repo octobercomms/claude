@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.188.0 — Self-serve event submission (front-end, phase 1 slice 1)
+
+The first native slice of the self-serve events platform (see
+`SELF-SERVE-PLATFORM-2027.md`).
+
+- New `[oe_submit_event]` shortcode: a branded front-end form where a logged-in
+  organiser posts an event (name, description, start, location, tickets/info
+  link). Guests see a sign-in prompt.
+- Submissions run through the existing `Submission` engine, so each event is
+  saved as a **draft and lands in the approval queue** — nothing publishes
+  until you approve it. Display fields are written through the event field map.
+- Reuses the existing account model (`Account::ensure`) and approval flow. No
+  public signup, no image upload, and no auto-publish yet — those are the next
+  slices.
+
 ## 1.187.0 — Recovery autopilot + offer token
 
 Auto-send the recovery email, and show the actual discount.
