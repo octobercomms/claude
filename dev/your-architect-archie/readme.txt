@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.6.2
+Stable tag: 0.6.3
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,15 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.6.3 =
+* Fixed two conversation bugs seen in testing:
+  * The service menu no longer appears as tappable options while Archie is still
+    asking for the address or postcode (those are free-text answers).
+  * Archie no longer dead-ends on "Got it — thanks" when the model returns a
+    tool-only turn: it now falls back to the next question (e.g. after the
+    postcode it asks which service you need), and the prompt requires a spoken
+    reply on every turn.
 
 = 0.6.2 =
 * Client portal security & revisions (from the Sep 7 Tiam call):
