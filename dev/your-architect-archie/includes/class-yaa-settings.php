@@ -23,6 +23,8 @@ class YAA_Settings {
 			'claude_model'          => 'claude-sonnet-4-6',
 			'max_output_tokens'     => 700,
 			'notify_email'          => get_option( 'admin_email' ),
+			'notify_emails'         => '', // extra studio recipients, comma-separated.
+			'email_templates'       => array(), // per-stage {subject, body} overrides.
 			'arb_no'                => '091365K & 091921G',
 			'company_no'            => 'OC437815',
 			'rate_limit_per_min'    => 12,   // Archie turns per session per minute.

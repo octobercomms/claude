@@ -94,6 +94,7 @@ class YAA_Archie {
 			'- One short question at a time, in plain everyday English. Never use jargon without immediately explaining it in a few words (e.g. "planning permission — that\'s the council\'s formal go-ahead to build").',
 			'- Keep every reply to one or two warm, direct sentences. British English.',
 			'- Write in plain, everyday text only — never use markdown, asterisks (**), bullet characters, headings or other formatting. Whatever you type is shown to the person exactly as-is, so formatting marks appear as literal characters.',
+			'- EVERY turn must include a spoken reply AND move the conversation forward with the next question — never reply with only the set_fields tool and no words, and never stop after acknowledging an answer. As soon as you have the postcode, thank them briefly and ask which service they need (offering the service menu as tappable options plus "I\'m not sure — I need advice").',
 			'- After ANY question that has a handful of natural answers, ALSO propose tappable buttons via the set_fields tool\'s `replies` field (2–5 very short labels, in the person\'s own words). The person can tap one OR type their own — both are fine.',
 			'- Whenever a question contains a term a non-expert might not know, ALWAYS include a final reply option worded like "What does that mean?" or "I\'m not sure". If they pick it (or seem confused, or ask), explain the term simply in one or two sentences with a relatable example, reassure them it\'s a normal thing not to know, then ask the same question again with the buttons.',
 			'- If someone answers "I don\'t know" to anything, that is completely fine: help them reason it out or offer a sensible default, never pressure them.',
@@ -315,7 +316,10 @@ class YAA_Archie {
 			}
 		}
 
-		$message = '' !== $result['text'] ? $result['text'] : __( 'Got it — thanks.', 'your-architect-archie' );
+		// The model sometimes returns a tool call with no spoken text (it recorded a
+		// field but didn't continue). Fall back to the next question, not a dead-end
+		// "thanks", so the conversation always moves forward.
+		$message = '' !== $result['text'] ? $result['text'] : self::next_prompt( $state, $done );
 		YAA_Project::set_state( $project_id, $state );
 		YAA_Project::add_message( $project_id, 'assistant', $message );
 		YAA_Project::set_package( $project_id, $package );
@@ -355,6 +359,12 @@ class YAA_Archie {
 		// remaining questions are open (call vs email, the email, their name), so
 		// never fall back to the service menu here.
 		if ( ! empty( $s['advice'] ) || ! empty( $s['email'] ) ) {
+			return array();
+		}
+
+		// Nothing to tap while we're still getting the address / postcode (both free
+		// text), or for a property we can't take on — don't show the service menu yet.
+		if ( empty( $s['postcode'] ) || ! empty( $s['outsideUk'] ) ) {
 			return array();
 		}
 
@@ -458,6 +468,30 @@ class YAA_Archie {
 			return __( 'Type your answer, or tap an option above…', 'your-architect-archie' );
 		}
 		return __( 'Type your answer, or tap an option above…', 'your-architect-archie' );
+	}
+
+	/**
+	 * A deterministic next-question fallback, used only when the model returns a
+	 * tool-only turn with no spoken text — so Archie never dead-ends on "thanks".
+	 * Mirrors the flow order in input_hint()/suggested_options().
+	 */
+	public static function next_prompt( array $s, $done = false ) {
+		if ( $done ) {
+			return __( 'Thanks — that\'s everything I need. I\'m emailing a copy of your fixed-price quote over now, and our team will review it and be in touch to confirm the details.', 'your-architect-archie' );
+		}
+		if ( ! empty( $s['outsideUk'] ) ) {
+			return __( 'I\'m sorry — Your Architect only works on properties in the UK, so we\'re not able to help with this one. I\'d recommend speaking to a local architect.', 'your-architect-archie' );
+		}
+		if ( empty( $s['address'] ) && empty( $s['postcode'] ) ) {
+			return __( 'To start, what\'s the address of the property?', 'your-architect-archie' );
+		}
+		if ( empty( $s['postcode'] ) ) {
+			return __( 'Thanks — and what\'s the postcode of the property? I need it to make sure we can help and to build your quote accurately.', 'your-architect-archie' );
+		}
+		if ( empty( $s['service'] ) && empty( $s['advice'] ) ) {
+			return __( 'Great — which of these best matches what you need? Tap one below, or if you\'re not sure, tap “I\'m not sure — I need advice”.', 'your-architect-archie' );
+		}
+		return __( 'Got it — thanks.', 'your-architect-archie' );
 	}
 
 	/**

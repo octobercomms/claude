@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class YAA_DB {
 
 	const SCHEMA_OPTION = 'yaa_db_version';
-	const SCHEMA        = '3';
+	const SCHEMA        = '4';
 
 	public static function projects_table() {
 		global $wpdb;
@@ -105,6 +105,7 @@ class YAA_DB {
 		$sql_emails = "CREATE TABLE {$emails} (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			project_id BIGINT UNSIGNED NOT NULL,
+			kind VARCHAR(20) NOT NULL DEFAULT 'confirmation',
 			subject TEXT NULL,
 			body LONGTEXT NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'draft',
