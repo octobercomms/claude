@@ -108,6 +108,7 @@ without a human saving it.
 id            BIGINT PK
 event_id      BIGINT        KEY
 token         VARCHAR(64)   UNIQUE per (event, attendee) — one response each
+segment       VARCHAR(120)  snapshot of the attendee's ticket type at submit
 answers       LONGTEXT      JSON {question_id: value}
 submitted_at  DATETIME
 KEY event_id, UNIQUE token
@@ -115,7 +116,35 @@ KEY event_id, UNIQUE token
 
 Tokenised links tie a response to an attendee (via the ticket token), so we get
 one response per person and can split results by ticket type, without exposing
-who said what in the open-text report.
+who said what in the open-text report. `segment` is captured at submit (from the
+token → attendee → ticket type) so reporting can group by it without re-joining
+or surfacing identity — see §7a.
+
+## 7a. Anonymity, attribution and segmentation
+
+The point the survey has to get right: **anonymous to read, attributable to
+interpret.**
+
+- **Anonymous in presentation.** Reports never show who said what. Open-text
+  answers are listed de-identified. No name or email appears next to a rating or
+  a comment. Respondents are told their feedback is anonymous, and from their
+  side it is — they answer via an unguessable token, not a login.
+- **Pseudonymous underneath.** The token links a response to the attendee, so the
+  data is internally attributable. That link is used for two things only: one
+  response per person, and **segmentation** — never to publish an individual's
+  view against their name.
+- **Why it matters (the student vs professional point).** A "too expensive" from
+  a student concession ticket and from a full-price professional are different
+  signals. The results view can split every question **by ticket type** (and any
+  attribute we already hold, e.g. member vs non-member), so October reads
+  feedback in context and weights it before acting. "Students rated price 2.1,
+  professionals 3.9" is far more useful than a single blended average.
+- **Snapshot, not live join.** The attendee's ticket type is copied into the
+  response's `segment` at submit time, so a later ticket change doesn't rewrite
+  history and the report needs no per-response identity lookup.
+- **Guardrail.** Segments only render when a group has enough responses to stay
+  non-identifying (e.g. a minimum of 4); below that the segment folds into
+  "Other" so a one-person segment can't be de-anonymised.
 
 ## 8. Timing and sending (Slice C)
 
@@ -144,9 +173,12 @@ A results view per event (under Tickets, next to the other reports):
 - **Rating questions**: average + a 1–5 distribution bar, NPS-style if it's a
   0–10 later.
 - **Choice/multi**: a horizontal bar per option with counts and share.
-- **Open text**: a readable list (paged), with a one-click Claude summary of the
-  themes (optional, reuses the connector).
-- **CSV export** of raw responses.
+- **Open text**: a readable list (paged), de-identified, with a one-click Claude
+  summary of the themes (optional, reuses the connector).
+- **Split by ticket type** (§7a): a toggle that breaks every question down by
+  segment, so e.g. price feedback from students vs professionals is read
+  separately. Segments below the minimum-size guardrail fold into "Other".
+- **CSV export** of raw responses (with the `segment`, without name/email).
 
 Reuses the chart patterns already in the Tickets admin (conic-gradient pies,
 bar rows), so it looks like the rest of the product.
@@ -164,6 +196,10 @@ bar rows), so it looks like the rest of the product.
 - Open text is sanitised and length-capped; no HTML stored.
 - No attendee PII beyond the token is exposed to the front end; the admin results
   view is `manage_options` only.
+- The data is **pseudonymous** (token-linked), presented anonymously (§7a):
+  reports show groups and de-identified open text, never an individual's answers
+  against their identity. The segment guardrail (min group size) stops small
+  segments from re-identifying a respondent.
 
 ## 12. Phased build
 
