@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.190.0 — Printable attendee sheet (PDF)
+
+- **Tickets → Attendees** now has an **“Attendee list (PDF)”** action beside the
+  CSV export. It opens a clean, branded attendee sheet and the browser’s
+  Save-as-PDF dialog — good for a printed door list (with a tick box per row and
+  a running “checked in” count), no new dependency (same print pattern as
+  tickets/door signs).
+- Both exports honour the event filter: pick an event pill and the CSV and PDF
+  scope to it.
+
 ## 1.189.0 — Post-event survey (build + collect)
 
 The first working slices of the post-event survey (see

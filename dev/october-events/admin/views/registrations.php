@@ -16,10 +16,12 @@ use OE\Ticketing\Orders;
 $ev_arg          = $event_filter ? ('&event=' . (int) $event_filter) : '';
 $export_orders   = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=orders' . $ev_arg), 'oe_export');
 $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=attendees' . $ev_arg), 'oe_export');
+$export_att_pdf  = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=attendees_pdf' . $ev_arg), 'oe_export');
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?>
-        <a href="<?php echo esc_url($export_attendee); ?>" id="oe-export-att" class="page-title-action"><?php esc_html_e('Export attendees', 'october-events'); ?></a>
+        <a href="<?php echo esc_url($export_attendee); ?>" id="oe-export-att" class="page-title-action"><?php esc_html_e('Export attendees (CSV)', 'october-events'); ?></a>
+        <a href="<?php echo esc_url($export_att_pdf); ?>" id="oe-export-att-pdf" class="page-title-action" target="_blank" rel="noopener"><?php esc_html_e('Attendee list (PDF)', 'october-events'); ?></a>
         <a href="<?php echo esc_url($export_orders); ?>" id="oe-export-ord" class="page-title-action"><?php esc_html_e('Export orders', 'october-events'); ?></a>
     </h1>
     <p class="description" id="oe-export-note" style="margin:4px 0 0<?php echo $event_filter ? '' : ';display:none'; ?>">
@@ -376,7 +378,7 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
             if (eo) { eo.textContent = fmt(out); }
         }
         function setExportEvent(id){
-            ['oe-export-att', 'oe-export-ord'].forEach(function(eid){
+            ['oe-export-att', 'oe-export-att-pdf', 'oe-export-ord'].forEach(function(eid){
                 var a = document.getElementById(eid);
                 if (!a) { return; }
                 try {
