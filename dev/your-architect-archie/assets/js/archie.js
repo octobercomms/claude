@@ -34,6 +34,7 @@
 
   var busy = false, done = false, hasService = false;
   var userMsgCount = 0, emailSaved = false; // drives the always-on "Email me my quote" field.
+  var submitted = false, submitReadyShown = false;
 
   function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
 
@@ -129,11 +130,11 @@
   function renderOptions(options) {
     if (!quick) return;
     clearOptions();
-    if (!options || !options.length || done) return;
+    if (!options || !options.length || submitted) return;
     options.forEach(function (label) {
       var b = document.createElement('button');
       b.className = 'chip'; b.type = 'button'; b.textContent = label;
-      b.addEventListener('click', function () { if (!busy && !done) send(label); });
+      b.addEventListener('click', function () { if (!busy && !submitted) send(label); });
       quick.appendChild(b);
     });
   }
@@ -141,13 +142,13 @@
   // ---- Input ----
   function setBusy(b) {
     busy = b;
-    input.disabled = b || done;
-    sendBtn.disabled = b || done;
+    input.disabled = b || submitted;
+    sendBtn.disabled = b || submitted;
   }
   // `preset` is the label of a tapped quick reply; otherwise we read the text box.
   function send(preset) {
     var text = typeof preset === 'string' ? preset : (input.value || '').trim();
-    if (!text || busy || done) return;
+    if (!text || busy || submitted) return;
     if (text.length > 1000) text = text.slice(0, 1000);
     if (typeof preset !== 'string') { input.value = ''; autoGrow(); }
     clearOptions();
@@ -176,11 +177,11 @@
       if (res.body.hasEmail && !emailSaved) markEmailSaved('', 'Saved — we’ll email your quote to you.');
       revealSaveQuote();
       if (res.body.done) {
-        done = true; clearOptions();
-        showSubmitReady(); // their explicit GO — never auto-send
+        done = true;
+        showSubmitReady(); // their explicit GO — never auto-send; chat stays open
       }
       setBusy(false);
-      if (!done) input.focus({ preventScroll: true });
+      if (!submitted) input.focus({ preventScroll: true });
       // If they pressed submit before giving an email, finish it for them now.
       if (pendingSubmit && res.body.hasEmail) { pendingSubmit = false; doSubmit(); }
     }).catch(function () { typing(false); addMsg('bot', 'We couldn’t reach Archie. Please try again in a moment.', 'note'); setBusy(false); });
@@ -189,9 +190,11 @@
   // End of chat: surface the consent notice, draw the eye to the submit button, and
   // (on mobile) open the panel so the button is visible.
   function showSubmitReady() {
+    if (submitReadyShown) return;
+    submitReadyShown = true;
     if (submitConsent && hasService) submitConsent.hidden = false;
     if (!submitBtn.disabled) submitBtn.classList.add('ready');
-    addMsg('bot', 'When you’re ready, press “Save &amp; submit project” below to send this to our team.', 'note');
+    addMsg('bot', 'Your quote’s ready — press “Save &amp; submit project” below to send it to our team. You can also keep asking me questions or add another service first.', 'note');
     if (panel && window.matchMedia && window.matchMedia('(max-width:820px)').matches) panel.classList.add('open');
   }
 
@@ -214,7 +217,7 @@
   // Submit — needs an email so the studio can reply. If none yet, the server
   // returns needEmail and Archie asks for it in the chat; once the person gives
   // it, the message handler above auto-retries this for them.
-  var pendingSubmit = false, submitOriginal = submitBtn.textContent, submitted = false;
+  var pendingSubmit = false, submitOriginal = submitBtn.textContent;
   function doSubmit() {
     if (submitted) return;
     submitBtn.disabled = true; submitOriginal = submitBtn.textContent; submitBtn.textContent = 'Sending…';
@@ -229,13 +232,14 @@
         pendingSubmit = !!d.needEmail; // only the email is auto-retried once captured in chat
         addMsg('bot', escapeHtml(d.message || 'Just one more detail before I can save this.'), 'note');
         submitBtn.disabled = false; submitBtn.textContent = submitOriginal;
-        if (!done) input.focus({ preventScroll: true });
+        if (!submitted) input.focus({ preventScroll: true });
         return;
       }
       if (d.checkoutUrl) { window.location.href = d.checkoutUrl; return; }
       pendingSubmit = false; submitted = true;
       addMsg('bot', escapeHtml(d.message || 'Project saved.') + (d.ref ? ' <strong>(ref ' + d.ref + ')</strong>' : ''), 'note');
       submitBtn.textContent = 'Submitted ✓';
+      setBusy(false); // now that submitted is true, this locks the composer
     }).catch(function () { submitBtn.disabled = false; submitBtn.textContent = submitOriginal; });
   }
   submitBtn.addEventListener('click', doSubmit);
@@ -299,11 +303,11 @@
   // send the file (multipart, nonce in header + body) to /upload, then render
   // Archie's acknowledgement. Images/PDFs only; the server re-checks the type.
   if (photoBtn && photoInput) {
-    photoBtn.addEventListener('click', function () { if (!busy && !done) photoInput.click(); });
+    photoBtn.addEventListener('click', function () { if (!busy && !submitted) photoInput.click(); });
     photoInput.addEventListener('change', function () {
       var file = photoInput.files && photoInput.files[0];
       photoInput.value = ''; // let the same file be re-picked later
-      if (!file || busy || done) return;
+      if (!file || busy || submitted) return;
       var isImg = /^image\//.test(file.type);
       var thumb = isImg
         ? '<img class="up-thumb" src="' + URL.createObjectURL(file) + '" alt="">'
@@ -324,7 +328,7 @@
           addMsg('bot', escapeHtml((res.body && res.body.message) ||
             (res.ok ? 'Thanks — I’ve saved that with your project.' : 'Sorry — I couldn’t save that file. Please try a JPG, PNG or PDF.')), 'note');
           setBusy(false);
-          if (!done) input.focus({ preventScroll: true });
+          if (!submitted) input.focus({ preventScroll: true });
         }).catch(function () {
           typing(false);
           addMsg('bot', 'We couldn’t upload that just now. Please try again in a moment.', 'note');

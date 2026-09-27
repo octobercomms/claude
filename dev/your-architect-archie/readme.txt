@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.1
+Stable tag: 0.7.2
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,22 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.2 =
+* Second round of QA-report fixes:
+  * Fixed the "Great choice!" stub at the service step — tapping a service now
+    always asks the next question (handled instantly, no model round-trip).
+  * All quick-reply chips (project type, add-ons, etc.) are now rendered from the
+    price list, so options can't go missing, get invented ("New home"), or lag
+    behind the question being asked.
+  * Archie can now read a customer their own quote and running total when they
+    ask — the live line items are passed into its context — while still never
+    inventing, changing or discounting a price.
+  * The message box stays usable after the quote is ready, so people can keep
+    asking questions or add another service without pressing Start over.
+  * The advice path no longer offers a planning opinion (e.g. "permitted
+    development") — it recommends a service and leaves the planning position for
+    the team to confirm.
 
 = 0.7.1 =
 * Project exports (Archie Projects admin):

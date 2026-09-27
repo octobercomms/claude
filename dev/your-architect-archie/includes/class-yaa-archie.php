@@ -84,7 +84,7 @@ class YAA_Archie {
 		$structural_line = ! empty( $ans['structuralUnsure'] ) ? $ans['structuralUnsure'] : 'No problem — we can confirm this with you in due course.';
 		$survey_help     = ! empty( $ans['surveyHelp'] ) ? $ans['surveyHelp'] : 'No problem — we\'ll help. We find a trusted independent local professional to carry out an accurate laser-measured survey, and we base your drawings on that.';
 
-		$advice = 'If they are unsure which service they need, DO NOT jump to a phone call — help them yourself first: ask two or three short, friendly questions about what they want to do (what the project physically is, whether it needs planning permission, whether any work has started), then recommend the specific service from our menu that fits and set `services` to it, explaining briefly why. Only if they still cannot decide after that, or clearly want to speak to a person, offer a free 15-minute phone call'
+		$advice = 'If they are unsure which service they need, DO NOT jump to a phone call — help them yourself first: ask two or three short, friendly questions about what they want to do and whether any work has started, then recommend the specific service from our menu that best fits and set `services` to it, briefly saying what that service covers. Do NOT tell them whether their project needs planning permission or is permitted development — say the team will confirm the planning position. Only if they still cannot decide after that, or clearly want to speak to a person, offer a free 15-minute phone call'
 			. ( $booking ? ' (booking link: ' . $booking . ')' : '' )
 			. ( $phone ? ' or the phone number ' . $phone : '' )
 			. ', or to take their email so the team can follow up — and only then set advice=true.';
@@ -124,8 +124,8 @@ class YAA_Archie {
 			'IF THEY NEED BUILDING REGULATIONS DRAWINGS, also gently establish (weave in naturally, do not interrogate): do they already have planning permission, or does the work even need it (you can advise); do they have approved planning drawings they could share; do they have a structural engineer already (if not, reassure we can find a trusted independent local one and coordinate); and would they like us to submit the building control pack to their local authority for them.',
 			'',
 			'HARD RULES:',
-			'- NEVER state, estimate or discuss a price, fee or number in your replies, and NEVER describe what the quote panel shows or where it is on the screen — it sits beside the chat on a computer and below it on a phone, and you cannot see it. If asked "how much?", say their fixed price is building in their quote as they answer and they will see the full figure there.',
-			'- Do NOT give planning or design advice or promise an outcome; you help scope the drawings package only.',
+			'- Do NOT invent, estimate, negotiate or discount any price, and never quote a figure that is not in "THE CUSTOMER\'S CURRENT QUOTE" below. You MAY, when they ask what is on their quote or what their total is, read back the exact line items and running total shown there — a customer asking their total is a strong lead, so help them; never say you cannot see their screen or send them away to look. Do not describe where the panel is on the screen.',
+			'- Do NOT give planning or design advice, and NEVER state or imply whether a project needs planning permission, is permitted development, or will be approved — not even on the advice path. When helping someone choose a service, recommend the service that fits what they describe and say the team will confirm the planning position; do not assert the planning position yourself.',
 			'- Do NOT state refund, cancellation, guarantee or timing terms as fact. If asked about refunds, cancellation rights or guarantees, say you cannot guarantee a planning outcome and that the fee covers the professional drawing work, then point them to our Terms of Service at ' . $terms . ' for the full terms (including any cancellation rights) rather than stating a contractual position yourself.',
 			'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
 			'- New dwellings and full RIBA services (concept to construction) or larger commissions are handled directly by Tiam Architects: include "newdwelling" in `services` if that is what they want, and point them to ' . $riba . ' at the end.',
@@ -139,7 +139,32 @@ class YAA_Archie {
 			$lines[] = $known;
 		}
 
+		$quote = self::quote_context( $state );
+		if ( $quote ) {
+			$lines[] = '';
+			$lines[] = $quote;
+		}
+
 		return implode( "\n", $lines );
+	}
+
+	/** The current priced quote, injected so Archie can read the customer's own figures back to them. */
+	private static function quote_context( array $state ) {
+		$pkg  = YAA_Pricing::build_package( $state );
+		$rows = array();
+		foreach ( $pkg['nodes'] as $n ) {
+			if ( isset( $n['kind'] ) && 'info' === $n['kind'] ) {
+				continue;
+			}
+			$price  = ( isset( $n['price'] ) && null !== $n['price'] ) ? YAA_Pricing::money( (int) $n['price'] ) : 'sourced separately (not our fee)';
+			$rows[] = '- ' . $n['label'] . ': ' . $price;
+		}
+		if ( empty( $rows ) ) {
+			return '';
+		}
+		return "THE CUSTOMER'S CURRENT QUOTE — the exact figures their panel is showing right now. You MAY read these back to them if they ask what is on their quote or what their total is. Use ONLY these figures; never invent, change, discount or add a price.\n"
+			. implode( "\n", $rows )
+			. "\nRunning total: " . YAA_Pricing::money( (int) $pkg['total'] );
 	}
 
 	/**
@@ -269,6 +294,44 @@ class YAA_Archie {
 	}
 
 	/**
+	 * Instant handling of a single service chip-tap at the service-choice step. An
+	 * exact match to one priced service label sets it and asks the next question
+	 * with no model call — so it can never stub. Free-text / multi-service phrasing
+	 * ("both planning and building regs") returns null and goes to the model.
+	 */
+	private static function service_tap_fast( $project_id, $user_text, array $state ) {
+		if ( ! self::is_service_stage( $state ) ) {
+			return null;
+		}
+		$text = trim( (string) $user_text );
+		foreach ( YAA_Pricing::services() as $key => $svc ) {
+			if ( 0 !== strcasecmp( $text, (string) $svc['label'] ) ) {
+				continue;
+			}
+			$on_request = ( ! empty( $svc['redirect'] ) || null === $svc['price'] || '' === $svc['price'] );
+			if ( $on_request ) {
+				return null; // new dwelling etc. → let the model hand off warmly.
+			}
+			$state['services'] = array( $key );
+			$reply   = __( 'Great — and to picture it: what is the work, roughly? For example a rear or side extension, a loft, a garage conversion, or something else.', 'your-architect-archie' );
+			$package = YAA_Pricing::build_package( $state );
+			YAA_Project::set_state( $project_id, $state );
+			YAA_Project::add_message( $project_id, 'assistant', $reply );
+			YAA_Project::set_package( $project_id, $package );
+			return array(
+				'message'     => $reply,
+				'package'     => $package,
+				'options'     => self::suggested_options( $state ),
+				'placeholder' => self::input_hint( $state, false ),
+				'redirect'    => ! empty( $package['redirect'] ),
+				'done'        => false,
+				'hasEmail'    => ! empty( $state['email'] ),
+			);
+		}
+		return null;
+	}
+
+	/**
 	 * Run one conversational turn.
 	 *
 	 * @return array|WP_Error { message, package, options, redirect, done }.
@@ -291,6 +354,13 @@ class YAA_Archie {
 		$fast = self::fast_path( $project_id, $user_text, $state );
 		if ( null !== $fast ) {
 			return $fast;
+		}
+
+		// Instant handling of a single service chip-tap — guarantees the next question
+		// is asked (the model sometimes stubs with just "Great choice!").
+		$svc_fast = self::service_tap_fast( $project_id, $user_text, $state );
+		if ( null !== $svc_fast ) {
+			return $svc_fast;
 		}
 
 		$result = YAA_Claude::turn( self::system_prompt( $state ), $messages, self::tools() );
@@ -390,11 +460,13 @@ class YAA_Archie {
 		// If Claude didn't propose tappable replies this turn, fall back to
 		// deterministic options for whatever the next unanswered question is — so
 		// the closed-set questions always get quick chips regardless of the model.
-		// The service menu must always come from config — the model tends to drop
-		// or reword services, so at the service stage we ignore its `replies` and use
-		// the deterministic list. Elsewhere, fall back only when it proposed none.
-		if ( self::is_service_stage( $state ) || empty( $options ) ) {
-			$options = self::suggested_options( $state );
+		// Closed-set questions ALWAYS use the config-derived chips: the model drops or
+		// invents options ("New home" as a project type, 5 where there are 6) and its
+		// chips lag the question being asked. Only genuinely open questions — where
+		// suggested_options() returns nothing — keep the model's own replies.
+		$deterministic = self::suggested_options( $state );
+		if ( ! empty( $deterministic ) ) {
+			$options = $deterministic;
 		}
 
 		if ( ! empty( $state['name'] ) || ! empty( $state['email'] ) ) {
