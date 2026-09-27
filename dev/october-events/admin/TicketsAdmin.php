@@ -1183,13 +1183,15 @@ final class TicketsAdmin {
 
     public function maybe_export_orders(): void {
         $type = isset($_GET['oe_export']) ? sanitize_key((string) $_GET['oe_export']) : '';
-        if (! in_array($type, ['orders', 'attendees', 'abandoned', 'checkins'], true) || ! current_user_can('manage_options')) {
+        if (! in_array($type, ['orders', 'attendees', 'attendees_pdf', 'abandoned', 'checkins'], true) || ! current_user_can('manage_options')) {
             return;
         }
         check_admin_referer('oe_export');
         $event = isset($_GET['event']) ? absint($_GET['event']) : 0;
         if ($type === 'attendees') {
             $this->export_attendees($event);
+        } elseif ($type === 'attendees_pdf') {
+            $this->render_attendees_pdf($event);
         } elseif ($type === 'abandoned') {
             $this->export_abandoned($event);
         } elseif ($type === 'checkins') {
@@ -1270,25 +1272,10 @@ final class TicketsAdmin {
      * Honours the event filter.
      */
     private function export_attendees(int $event): void {
-        global $wpdb;
-        $o = Schema::orders();
-        $t = Schema::tickets();
-        $c = Schema::checkins();
-        $where = $event ? $wpdb->prepare('AND o.event_id = %d', $event) : '';
-        $rows = $wpdb->get_results(
-            "SELECT ti.id, ti.attendee_name, ti.attendee_email, ti.ticket_type_label, ti.ticket_number, ti.total_in_order,
-                    ti.token, ti.status AS ticket_status, o.id AS order_id, o.event_id, o.email, o.name AS buyer,
-                    o.status AS order_status, o.created_at,
-                    (SELECT COUNT(*) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS scans,
-                    (SELECT MIN(ck.scanned_at) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS first_scan,
-                    (SELECT ck.venue_name FROM {$c} ck WHERE ck.ticket_id = ti.id ORDER BY ck.id ASC LIMIT 1) AS venue
-             FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
-             WHERE o.status = 'paid' {$where}
-             ORDER BY o.event_id ASC, ti.id ASC"
-        );
+        $rows = $this->attendee_rows($event);
         $out = $this->csv_headers('attendees', $event);
         fputcsv($out, ['Event', 'Attendee', 'Attendee email', 'Ticket type', 'Ticket #', 'Buyer name', 'Buyer email', 'Order', 'Ticket status', 'Checked in', 'Check-in time', 'Door', 'Order date']);
-        foreach (($rows ?: []) as $r) {
+        foreach ($rows as $r) {
             // A transferred ticket carries its own holder email; otherwise the
             // attendee is the buyer.
             $attendee_email = (string) ($r->attendee_email ?? '') !== '' ? (string) $r->attendee_email : (string) $r->email;
@@ -1309,6 +1296,57 @@ final class TicketsAdmin {
             ]);
         }
         fclose($out);
+        exit;
+    }
+
+    /**
+     * The attendee rows behind both the CSV and the printable PDF: one row per
+     * active admission on a paid order, with live check-in status. Honours the
+     * event filter.
+     *
+     * @return array<int,object>
+     */
+    private function attendee_rows(int $event): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $c = Schema::checkins();
+        $where = $event ? $wpdb->prepare('AND o.event_id = %d', $event) : '';
+        return $wpdb->get_results(
+            "SELECT ti.id, ti.attendee_name, ti.attendee_email, ti.ticket_type_label, ti.ticket_number, ti.total_in_order,
+                    ti.token, ti.status AS ticket_status, o.id AS order_id, o.event_id, o.email, o.name AS buyer,
+                    o.status AS order_status, o.created_at,
+                    (SELECT COUNT(*) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS scans,
+                    (SELECT MIN(ck.scanned_at) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS first_scan,
+                    (SELECT ck.venue_name FROM {$c} ck WHERE ck.ticket_id = ti.id ORDER BY ck.id ASC LIMIT 1) AS venue
+             FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
+             WHERE o.status = 'paid' {$where}
+             ORDER BY o.event_id ASC, ti.id ASC"
+        ) ?: [];
+    }
+
+    /**
+     * A branded, print-optimised attendee sheet. Renders a standalone HTML page
+     * that opens the browser's print dialog (Save as PDF), matching the plugin's
+     * ticket/door "print" pattern — no server-side PDF library needed.
+     */
+    private function render_attendees_pdf(int $event): void {
+        $rows       = $this->attendee_rows($event);
+        $brand      = (string) \OE\Settings::get('brand_name', get_bloginfo('name'));
+        $accent     = sanitize_hex_color((string) \OE\Settings::get('theme_accent', '')) ?: '#E7CD41';
+        $ink        = sanitize_hex_color((string) \OE\Settings::get('theme_accent_on', '')) ?: '#1a1a1a';
+        $title      = $event ? (get_the_title($event) ?: ('#' . $event)) : __('All events', 'october-events');
+        $generated  = wp_date('j M Y, H:i');
+        $total      = count($rows);
+        $checked_in = 0;
+        foreach ($rows as $r) {
+            if ((int) $r->scans > 0) {
+                $checked_in++;
+            }
+        }
+        nocache_headers();
+        header('Content-Type: text/html; charset=utf-8');
+        require OE_DIR . 'admin/views/attendees-pdf.php';
         exit;
     }
 
