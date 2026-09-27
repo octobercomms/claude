@@ -60,6 +60,7 @@ class YAA_Admin {
 				'company_no'         => sanitize_text_field( $in['company_no'] ?? '' ),
 				'rate_limit_per_min' => (int) ( $in['rate_limit_per_min'] ?? 12 ),
 				'daily_token_cap'    => (int) ( $in['daily_token_cap'] ?? 500000 ),
+				'session_daily_cap'  => (int) ( $in['session_daily_cap'] ?? 60 ),
 				'stripe_secret_key'     => isset( $in['stripe_secret_key'] ) ? $in['stripe_secret_key'] : '',
 				'stripe_publishable'    => sanitize_text_field( $in['stripe_publishable'] ?? '' ),
 				'stripe_webhook_secret' => isset( $in['stripe_webhook_secret'] ) ? $in['stripe_webhook_secret'] : '',
@@ -91,7 +92,8 @@ class YAA_Admin {
 					<tr><th><?php esc_html_e( 'Model', 'your-architect-archie' ); ?></th><td><input type="text" name="claude_model" class="regular-text" value="<?php echo esc_attr( $s['claude_model'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Max output tokens', 'your-architect-archie' ); ?></th><td><input type="number" name="max_output_tokens" value="<?php echo esc_attr( $s['max_output_tokens'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Turns / min / session', 'your-architect-archie' ); ?></th><td><input type="number" name="rate_limit_per_min" value="<?php echo esc_attr( $s['rate_limit_per_min'] ); ?>"> <span class="description"><?php esc_html_e( 'Rate limit to protect your Claude bill.', 'your-architect-archie' ); ?></span></td></tr>
-					<tr><th><?php esc_html_e( 'Daily token cap', 'your-architect-archie' ); ?></th><td><input type="number" name="daily_token_cap" value="<?php echo esc_attr( $s['daily_token_cap'] ); ?>"></td></tr>
+					<tr><th><?php esc_html_e( 'Daily token cap', 'your-architect-archie' ); ?></th><td><input type="number" name="daily_token_cap" value="<?php echo esc_attr( $s['daily_token_cap'] ); ?>"> <span class="description"><?php esc_html_e( 'Global Claude spend guard for the day. 0 = no cap. When reached, new quotes pause for everyone until UTC midnight.', 'your-architect-archie' ); ?></span></td></tr>
+					<tr><th><?php esc_html_e( 'Per-device daily limit', 'your-architect-archie' ); ?></th><td><input type="number" name="session_daily_cap" value="<?php echo esc_attr( $s['session_daily_cap'] ); ?>"> <span class="description"><?php esc_html_e( 'Max AI turns one visitor can use per day, so no single person can drain the global cap. 0 = no per-device limit.', 'your-architect-archie' ); ?></span></td></tr>
 					<tr><th><?php esc_html_e( 'Notification email', 'your-architect-archie' ); ?></th><td><input type="email" name="notify_email" class="regular-text" value="<?php echo esc_attr( $s['notify_email'] ); ?>"></td></tr>
 					<tr><th><?php esc_html_e( 'Also notify (extra emails)', 'your-architect-archie' ); ?></th><td><input type="text" name="notify_emails" class="regular-text" value="<?php echo esc_attr( $s['notify_emails'] ); ?>" placeholder="lawrence@…, info@…"><p class="description"><?php esc_html_e( 'Comma-separated. New-project and revision-request notifications go to all of these as well.', 'your-architect-archie' ); ?></p></td></tr>
 					<tr><th><?php esc_html_e( 'Terms of Service URL', 'your-architect-archie' ); ?></th><td><input type="url" name="terms_url" class="regular-text" value="<?php echo esc_attr( $s['terms_url'] ); ?>" placeholder="<?php echo esc_attr( home_url( '/terms-of-service/' ) ); ?>"><p class="description"><?php esc_html_e( 'Archie links here for refund/cancellation questions; also shown at submit.', 'your-architect-archie' ); ?></p></td></tr>

@@ -173,8 +173,11 @@ class YAA_Rest {
 		$id = YAA_Project::current( true );
 		$session = isset( $_COOKIE[ YAA_Project::COOKIE ] ) ? sanitize_text_field( wp_unslash( $_COOKIE[ YAA_Project::COOKIE ] ) ) : (string) $id;
 
+		if ( ! YAA_Rate_Limit::under_session_daily_cap( $session ) ) {
+			return new WP_REST_Response( array( 'error' => 'session_cap', 'message' => __( 'You\'ve reached today\'s limit for this device. Please email us and we\'ll pick it up from here.', 'your-architect-archie' ) ), 429 );
+		}
 		if ( ! YAA_Rate_Limit::under_daily_cap() ) {
-			return new WP_REST_Response( array( 'error' => 'busy', 'message' => __( 'Archie is taking a quick break — please try again shortly.', 'your-architect-archie' ) ), 429 );
+			return new WP_REST_Response( array( 'error' => 'busy', 'message' => __( 'Archie is very busy right now and has paused new quotes for a short while. Please try again a little later, or email us and we\'ll help directly.', 'your-architect-archie' ) ), 429 );
 		}
 		if ( ! YAA_Rate_Limit::allow_turn( $session ) ) {
 			return new WP_REST_Response( array( 'error' => 'slow_down', 'message' => __( 'Archie is just catching up — one moment…', 'your-architect-archie' ) ), 429 );
@@ -188,7 +191,7 @@ class YAA_Rest {
 		}
 
 		$text   = (string) $req->get_param( 'text' );
-		$result = YAA_Archie::turn( $id, $text );
+		$result = YAA_Archie::turn( $id, $text, $session );
 		if ( is_wp_error( $result ) ) {
 			return new WP_REST_Response( array( 'error' => $result->get_error_code(), 'message' => $result->get_error_message() ), 502 );
 		}

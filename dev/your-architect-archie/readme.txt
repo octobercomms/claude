@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.2
+Stable tag: 0.7.3
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,17 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.3 =
+* Fixed a silent service removal: declining an optional add-on (e.g. "no thanks,
+  just the two") could drop a chosen service from the quote with no mention.
+  Archie now only removes a service when explicitly asked to remove that service,
+  and states any add/remove and reads the quote back.
+* Hardened the daily usage cap so one visitor can't take the funnel offline: a new
+  per-device daily limit on AI turns stops a single client (or script) draining
+  the global token budget. Both caps are configurable in Settings, and the
+  messages now explain what's happening. Cheap scripted steps don't count toward
+  either cap.
 
 = 0.7.2 =
 * Second round of QA-report fixes:

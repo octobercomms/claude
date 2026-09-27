@@ -111,7 +111,7 @@ class YAA_Archie {
 			'',
 			'THE INFORMATION TO COLLECT (ask in this order, and SKIP anything that clearly does not apply):',
 			'1) the property address (already asked in the opener). We work ONLY on properties in the United Kingdom, and we need the FULL address INCLUDING a valid UK postcode — we cannot carry out the work without the postcode, so treat it as essential. Set the `address` field to what they give, and the `postcode` field the moment you have a postcode. If their address has no postcode, warmly ask for the postcode before moving on to anything else (e.g. "Thanks — and what is the postcode?"). If the property is clearly NOT in the UK, set outsideUk=true, kindly explain that Your Architect only works on properties in the UK so sadly you are not able to help with this one, suggest they seek a local architect, and STOP there — do not ask anything else, do not pick a service, do not build a quote.',
-			'2) WHICH SERVICE(S) they need — offer the menu above in plain words as tappable options, plus "I\'m not sure / I need advice". Help them pick if unsure. They can have MORE THAN ONE of our services in the same quote (e.g. a full planning application AND building regulations drawings) — whenever the set changes, set the `services` field to the COMPLETE list of our services they want, and confirm what is in their quote. ONLY our own services from the menu can go in the quote. If they ask for a measured survey, a structural engineer, or anything not on our menu, warmly explain those are arranged separately through trusted independent professionals (we help find one; they approve that quote and pay them directly), so it is not part of our fixed fee and cannot be added as a priced line — never claim you have added it. ' . $advice . ' If they tap "I\'m not sure", diagnose and recommend a service as above rather than deflecting — only set advice=true once they clearly want to talk to a person instead of getting their price online. Asking for their email or their name are open questions — never offer tappable options for those.',
+			'2) WHICH SERVICE(S) they need — offer the menu above in plain words as tappable options, plus "I\'m not sure / I need advice". Help them pick if unsure. They can have MORE THAN ONE of our services in the same quote (e.g. a full planning application AND building regulations drawings) — whenever the set changes, set the `services` field to the COMPLETE list of our services they want, and confirm what is in their quote. NEVER remove a service they have already chosen unless they clearly and specifically ask to remove that particular service. Declining an optional add-on or upsell (for example "3D visualisation? — no thanks", or "just the two"), or answering a different question, must NEVER drop a service from the quote. Any time you add OR remove a service, say plainly what changed and read back what is now in their quote. ONLY our own services from the menu can go in the quote. If they ask for a measured survey, a structural engineer, or anything not on our menu, warmly explain those are arranged separately through trusted independent professionals (we help find one; they approve that quote and pay them directly), so it is not part of our fixed fee and cannot be added as a priced line — never claim you have added it. ' . $advice . ' If they tap "I\'m not sure", diagnose and recommend a service as above rather than deflecting — only set advice=true once they clearly want to talk to a person instead of getting their price online. Asking for their email or their name are open questions — never offer tappable options for those.',
 			'3) briefly, what the work physically is (a rear/side extension, loft, garage, outbuilding, internal work, a new home) — for our notes; set projectType if clear. Keep it to one light question, do not labour it.',
 			'4) the relevant add-ons for the services they chose (see the add-ons list): for Full planning, whether we submit & manage the application; the optional 3D visualisation; and the site visit ONLY if they are in London / the M25.',
 			'5) "Do you have existing plans of your property drawn up?" — plain words for a measured survey (an accurate set of drawings of the property as it is today, which we need before designing). If YES → set hasDrawings=true and survey=false, tell them it is essential we see those drawings and ask them to upload the file(s) now using the photo/paperclip button next to the message box; they should upload before finishing. If NO or "I\'d like the pro to help" → survey=true and reassure: "' . $survey_help . '" (For a full planning application an accurate measured survey is required before we can start, even if they only have estate-agent floor plans.)',
@@ -336,7 +336,7 @@ class YAA_Archie {
 	 *
 	 * @return array|WP_Error { message, package, options, redirect, done }.
 	 */
-	public static function turn( $project_id, $user_text ) {
+	public static function turn( $project_id, $user_text, $session = '' ) {
 		$user_text = trim( (string) $user_text );
 		if ( '' === $user_text ) {
 			return new WP_Error( 'yaa_empty', __( 'Say something to Archie.', 'your-architect-archie' ) );
@@ -361,6 +361,12 @@ class YAA_Archie {
 		$svc_fast = self::service_tap_fast( $project_id, $user_text, $state );
 		if ( null !== $svc_fast ) {
 			return $svc_fast;
+		}
+
+		// This turn will call the model — count it against the per-session daily cap
+		// (fast-path turns above are free and never counted).
+		if ( '' !== $session ) {
+			YAA_Rate_Limit::count_session_turn( $session );
 		}
 
 		$result = YAA_Claude::turn( self::system_prompt( $state ), $messages, self::tools() );
