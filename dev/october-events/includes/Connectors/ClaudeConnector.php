@@ -86,7 +86,9 @@ final class ClaudeConnector {
      */
     public static function message(string $prompt, int $max_tokens = 1024, string $system = ''): ?string {
         $payload = [
-            'model'      => (string) Settings::get('ai_model', 'claude-sonnet-5'),
+            // A saved-but-empty ai_model setting would send model:"" and 400 every
+            // call, so coerce empty back to the default.
+            'model'      => (string) Settings::get('ai_model', 'claude-sonnet-5') ?: 'claude-sonnet-5',
             'max_tokens' => $max_tokens,
             'messages'   => [
                 ['role' => 'user', 'content' => $prompt],

@@ -314,7 +314,7 @@ final class Metabox {
         }
         $questions = Config::suggest_questions($event_id);
         if ($questions === []) {
-            wp_send_json_error(['message' => __('No draft returned.', 'october-events')]);
+            wp_send_json_error(['message' => Config::last_error() ?: __('No draft returned.', 'october-events')]);
         }
         wp_send_json_success(['questions' => $questions]);
     }
@@ -333,7 +333,7 @@ final class Metabox {
         }
         $questions = Config::refine_questions($event_id, $decoded);
         if ($questions === []) {
-            wp_send_json_error(['message' => __('No refinement returned.', 'october-events')]);
+            wp_send_json_error(['message' => Config::last_error() ?: __('No refinement returned.', 'october-events')]);
         }
         wp_send_json_success(['questions' => $questions]);
     }
@@ -351,7 +351,7 @@ final class Metabox {
         }
         $questions = Config::build_from_notes($event_id, $notes);
         if ($questions === []) {
-            wp_send_json_error(['message' => __('No survey returned.', 'october-events')]);
+            wp_send_json_error(['message' => Config::last_error() ?: __('No survey returned.', 'october-events')]);
         }
         wp_send_json_success(['questions' => $questions]);
     }
