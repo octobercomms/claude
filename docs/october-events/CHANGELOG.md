@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.192.0 — Build survey from notes; clear “when does it send”
+
+- **Build from my notes with Claude**: paste your questions in any form (rough
+  notes, a list, a pasted chat) and Claude builds the whole survey — picks the
+  question type for each, adds options, puts a rating first. You then edit.
+  Different from “Refine” (which tidies questions already in the builder) and
+  “Suggest” (which drafts from the event name alone).
+- **Clear send status.** The box now shows exactly what will happen: *Off*,
+  *Scheduled — sends automatically on [date] (the day after the event); saving
+  doesn’t send it*, or *Sent [date]*. Saving/Update only **schedules**; the
+  send is automatic the day after, or immediate via **Send now**. The manual
+  button says so explicitly.
+
 ## 1.191.0 — Survey preview, email preview, refine-with-Claude, soft cap
 
 - **Preview the survey**: a link in the builder opens the live mobile form in a

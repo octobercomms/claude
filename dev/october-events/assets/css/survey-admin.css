@@ -1,7 +1,17 @@
 /* Survey builder metabox. */
 .oe-svy { font-size: 13px; }
-.oe-svy-enable { display: block; margin-bottom: 14px; font-size: 14px; }
+.oe-svy-enable { display: block; margin-bottom: 8px; font-size: 14px; }
 .oe-svy-enable input { margin-right: 6px; }
+
+.oe-svy-status { margin: 0 0 14px; padding: 9px 12px; border-radius: 6px; font-size: 13px; border-left: 4px solid #ccc; background: #f6f7f7; }
+.oe-svy-status.is-scheduled { border-left-color: #2e7d32; background: #eef7ee; }
+.oe-svy-status.is-sent { border-left-color: #1565c0; background: #eaf1fb; }
+.oe-svy-status.is-warn { border-left-color: #f9a825; background: #fdf6e3; }
+.oe-svy-status.is-off { border-left-color: #bbb; }
+
+.oe-svy-notes { margin: 10px 0; padding: 10px 12px; border: 1px solid #dcdcdc; border-radius: 8px; background: #fafafa; }
+.oe-svy-notes > summary { cursor: pointer; font-weight: 600; }
+.oe-svy-notes-text { width: 100%; margin: 8px 0; box-sizing: border-box; }
 
 .oe-svy-cols { display: flex; gap: 20px; align-items: flex-start; }
 .oe-svy-build { flex: 1 1 60%; min-width: 0; }
