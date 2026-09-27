@@ -103,8 +103,8 @@ class YAA_Project {
 			'listed'       => ! empty( $state['listed'] ) ? 1 : 0,
 			'conservation' => ! empty( $state['conservation'] ) ? 1 : 0,
 			'project_type' => isset( $state['projectType'] ) ? sanitize_text_field( (string) $state['projectType'] ) : null,
-			// The DB column is named `package`; we now store the chosen service key there.
-			'package'      => isset( $state['service'] ) ? sanitize_text_field( (string) $state['service'] ) : null,
+			// The DB column is named `package`; we store the primary service key there.
+			'package'      => ! empty( $state['services'] ) && is_array( $state['services'] ) ? sanitize_text_field( (string) reset( $state['services'] ) ) : ( isset( $state['service'] ) ? sanitize_text_field( (string) $state['service'] ) : null ),
 		);
 		self::update_row( $id, $data, array( '%s', '%s', '%d', '%d', '%d', '%s', '%s' ) );
 	}

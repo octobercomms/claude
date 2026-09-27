@@ -27,7 +27,9 @@ class YAA_Settings {
 			'email_templates'       => array(), // per-stage {subject, body} overrides.
 			'arb_no'                => '091365K & 091921G',
 			'company_no'            => 'OC437815',
-			'rate_limit_per_min'    => 12,   // Archie turns per session per minute.
+			'rate_limit_per_min'    => 20,   // Archie turns per session per minute.
+			'terms_url'             => '',
+			'privacy_url'           => '',
 			'daily_token_cap'       => 500000, // soft cap; hard-stop new turns beyond it.
 			'stripe_secret_key'     => '',
 			'stripe_publishable'    => '',
