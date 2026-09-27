@@ -535,6 +535,49 @@ router.put('/usage/spend-controls', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Warm-journalist alerts. 'each' was the original behaviour and buried a real
+// inbox under hundreds of emails on a 10,656-recipient release; 'digest' is
+// now the default. The warm flag and the coverage dashboard work in every
+// mode — this only controls the email.
+router.get('/press-warm-alerts', async (req, res) => {
+  try {
+    const pi = require('../services/pressInterest');
+    let mode = null;
+    try { mode = await getSetting('PRESS_WARM_ALERTS'); } catch { /* default below */ }
+    res.json({
+      mode: pi.ALERT_MODES.includes(mode) ? mode : pi.DEFAULT_ALERT_MODE,
+      modes: pi.ALERT_MODES,
+      default: pi.DEFAULT_ALERT_MODE,
+      // Warm but not yet notified — what the next digest would carry.
+      pending: (await db.query('SELECT COUNT(*)::int AS n FROM press_interest_alerts WHERE alerted_at IS NULL')).rows[0].n,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/press-warm-alerts', async (req, res) => {
+  try {
+    const pi = require('../services/pressInterest');
+    const mode = String(req.body?.mode || '');
+    if (!pi.ALERT_MODES.includes(mode)) {
+      return res.status(400).json({ error: `mode must be one of: ${pi.ALERT_MODES.join(', ')}` });
+    }
+    await db.query(
+      `INSERT INTO platform_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+      ['PRESS_WARM_ALERTS', JSON.stringify(encrypt(mode))]
+    );
+    // Switching to 'off' clears the pending queue, so turning it back on later
+    // does not deliver a backlog of alerts about journalists who went warm
+    // while it was off.
+    let cleared = 0;
+    if (mode === 'off') {
+      const { rowCount } = await db.query('UPDATE press_interest_alerts SET alerted_at = NOW() WHERE alerted_at IS NULL');
+      cleared = rowCount;
+    }
+    res.json({ mode, cleared_pending: cleared });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Media database health. Read-only aggregates over the press database, so the
 // enrichment programme is planned against real counts rather than estimates.
 // Lives in Settings rather than Earned because it describes the whole shared

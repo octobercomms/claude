@@ -348,6 +348,11 @@ progress is obvious on `platform.octobercomms.com`.
 - **Read the tool result before declaring yourself blocked.** A refusal on one
   command in a compound `a && b && c` says nothing about `b` or `c`. Isolate
   the variable before telling the user a capability is unavailable.
+- **Email opens are not a signal.** Apple Mail Privacy Protection and Gmail's
+  image proxy fetch the tracking pixel with no human involved, repeatedly. Any
+  threshold built on `open_count` fires on machines: a 3-open "warm journalist"
+  rule produced hundreds of false alerts on one release. Clicks and replies are
+  evidence; opens are not. See `docs/omi/press-warm-alerts.md`.
 - **Filtering a state out of a selection query is not enforcement.** Only the
   dispatch gate in `scheduler.js runOutreachSends()` is, because only it runs
   after the state can change. `do_not_contact` was excluded by every audience
