@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.192.1 — Survey AI: real error messages + empty-model fix
+
+- The Suggest / Refine / Build buttons now show **why** they failed (AI request
+  failed, unexpected reply, or no usable questions) instead of a generic “No
+  survey returned”, and log the raw reply for diagnosis.
+- Fixed: a saved-but-empty **AI model** setting made every Claude call fail
+  (it sent an empty model and got rejected). Empty now falls back to the default.
+
 ## 1.192.0 — Build survey from notes; clear “when does it send”
 
 - **Build from my notes with Claude**: paste your questions in any form (rough

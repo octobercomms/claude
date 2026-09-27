@@ -449,16 +449,33 @@ final class Config {
      * @return array<int,array<string,mixed>>
      */
     private static function ask_for_questions(string $system, string $user, int $max_tokens): array {
+        self::$last_error = '';
         $reply = ClaudeConnector::message($user, $max_tokens, $system);
         if ($reply === null) {
+            self::$last_error = __('The AI request failed — check the Claude API key and model in Settings, then try again.', 'october-events');
             return [];
         }
         $json = self::extract_json($reply);
         if ($json === null) {
+            \OE\Logger::log('Survey AI: could not parse reply', ['reply' => substr($reply, 0, 600)]);
+            self::$last_error = __('Claude replied, but not in the expected format. Please try again.', 'october-events');
             return [];
         }
-        return self::sanitize_questions($json);
+        $questions = self::sanitize_questions($json);
+        if ($questions === []) {
+            \OE\Logger::log('Survey AI: reply had no usable questions', ['reply' => substr($reply, 0, 600)]);
+            self::$last_error = __('Claude’s draft had no usable questions — try adding a bit more detail.', 'october-events');
+        }
+        return $questions;
     }
+
+    /** The reason the last AI question call returned nothing (for the admin UI). */
+    public static function last_error(): string {
+        return self::$last_error;
+    }
+
+    /** @var string */
+    private static $last_error = '';
 
     /**
      * Pull the first JSON array out of a model reply (it may wrap it in prose or
