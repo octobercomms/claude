@@ -32,6 +32,7 @@ final class Transactional {
         'order_refunded'             => 'Your refund for %2$s',
         'order_cancelled'            => 'Your order has been cancelled',
         'sales_report'               => 'Daily ticket sales',
+        'survey_invite'              => 'How was %2$s?',
     ];
 
     /**

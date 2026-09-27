@@ -5,6 +5,34 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.189.0 — Post-event survey (build + collect)
+
+The first working slices of the post-event survey (see
+`POST-EVENT-SURVEY-SPEC.md`): configure it on the event, collect responses, and
+read the results.
+
+- **Builder metabox** on the event edit screen: enable the survey, write up to
+  four questions (rating / choice / multi / open, plus off-cap "rate each
+  session" and "quote" blocks), pick a reward code and the timing.
+- **Advice panel** beside the questions, with the research on what makes people
+  finish a survey — quoted, with links to the sources (SurveyMonkey, Pew).
+- **Suggest with Claude**: drafts the four highest-signal questions for the
+  event, which you then edit. Uses the existing AI connector.
+- **Mobile survey form** at `/survey/<token>`: one question per screen, big tap
+  targets, anonymous. **Answers are saved as the respondent advances** (not only
+  on submit), so a survey that is started and abandoned is still captured; the
+  final submit marks it complete and reveals the reward code. Works without
+  JavaScript too (single save-on-submit).
+- **Automatic day-after send**: turn a survey on and the daily cron emails the
+  event's attendees the tokenised link once, the set number of days after the
+  event. A manual "Send now" is there for testing / off-cycle.
+- **Results**: response counts, per-question graphs (rating distribution, option
+  bars, per-session averages), open-text and testimonials with their consent
+  state, and a CSV export. Anonymous to read, splittable by ticket type.
+- Privacy: responses are stored under an HMAC of the ticket token, not the token
+  itself — pseudonymous underneath, not reverse-joinable to identity.
+- New `oe_survey_responses` table (DB version 21).
+
 ## 1.188.0 — Self-serve event submission (front-end, phase 1 slice 1)
 
 The first native slice of the self-serve events platform (see

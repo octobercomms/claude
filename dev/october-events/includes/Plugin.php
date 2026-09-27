@@ -67,10 +67,12 @@ final class Plugin {
         if (is_admin()) {
             Admin::get_instance()->init();
             \OE\GuidedTours\Metabox::init();
+            \OE\Survey\Metabox::init();
         }
         Dashboard::get_instance()->init();
         \OE\Frontend\Checkout::get_instance()->init();
         \OE\Frontend\SubmitEvent::get_instance()->init();
+        \OE\Frontend\Survey::get_instance()->init();
         \OE\Frontend\CheckInApp::get_instance()->init();
         \OE\Frontend\SupportChat::get_instance()->init();
 
@@ -98,6 +100,9 @@ final class Plugin {
         // Fast door-sale checkout at /door (event + venue ride in the query string,
         // e.g. /door?e=123&v=Wingspan). Opened by scanning the "Sell" QR.
         add_rewrite_rule('^door/?$', 'index.php?oe_door=1', 'top');
+        // Post-event survey at /survey/<token> (token is the attendee's 64-hex
+        // ticket token). Opened from the invite email / a QR at close.
+        add_rewrite_rule('^survey/([A-Fa-f0-9]{64})/?$', 'index.php?oe_survey=$matches[1]', 'top');
         // Flush once per plugin version (covers self-updates, where no activation
         // hook fires) so /checkin resolves without re-saving permalinks.
         if (get_option('oe_rewrite_v') !== OE_VERSION) {
@@ -111,6 +116,7 @@ final class Plugin {
         $vars[] = 'oe_checkin';
         $vars[] = 'oe_checkin_sw';
         $vars[] = 'oe_door';
+        $vars[] = 'oe_survey';
         return $vars;
     }
 
@@ -224,6 +230,16 @@ final class Plugin {
                 return; // ticketing off for this site
             }
             $this->render_door();
+            exit;
+        }
+
+        // Post-event survey at /survey/<token> (or ?oe_survey=<token>).
+        $survey_token = get_query_var('oe_survey');
+        if (! $survey_token && isset($_GET['oe_survey'])) {
+            $survey_token = sanitize_text_field(wp_unslash($_GET['oe_survey']));
+        }
+        if ($survey_token) {
+            \OE\Frontend\Survey::get_instance()->render_page((string) $survey_token);
             exit;
         }
 

@@ -1,6 +1,15 @@
 # Post-event survey — spec
 
-Status: spec (approved to build after review). Owner: Daniel.
+Status: building. Slices A–D shipped in v1.189.0 (builder + advice panel, mobile
+form with progressive capture, day-after auto-send, results + CSV). Owner: Daniel.
+
+> **Build note (v1.189.0).** Decisions locked in code: four-question hard cap
+> everywhere; rating scale 1–5; default window 14 days; day-after auto-send via
+> the daily cron. Two refinements beyond the spec, from the code review: survey
+> responses are stored under an **HMAC of the ticket token** (not the raw token),
+> so the pseudonymous link isn't a plain reverse-join to identity; and the
+> "Suggest with Claude" drafter uses the one-shot connector call, not the ops
+> assistant. Reminder nudge (§13.4) is still deferred to v1.1.
 
 > **Requirements input (ADF Conference, Daniel ↔ Elayne).** A planning chat set
 > concrete asks: a 1–5 rating on each session with a comment box; "Why do you
