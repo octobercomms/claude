@@ -210,7 +210,7 @@
     setBusy(true);
     post('remove', { id: b.getAttribute('data-remove') }).then(function (res) {
       renderPackage(res.body && res.body.package); setBusy(false);
-      addMsg('bot', 'Done — I’ve taken that off. Your total’s updated on the right.', 'note');
+      addMsg('bot', 'Done — I’ve removed that. Your total’s updated.', 'note');
     }).catch(function () { setBusy(false); });
   });
 
@@ -349,6 +349,9 @@
     if (d.configured === false) {
       addMsg('bot', 'Archie isn’t connected yet — add a Claude API key in <em>Archie → Settings</em> to go live.', 'note');
       setBusy(true);
+    } else if (d.busy) {
+      addMsg('bot', 'Archie’s very busy right now and has paused new quotes for a short while. Please try again a little later, or email us and we’ll help directly.', 'note');
+      input.disabled = true; sendBtn.disabled = true;
     } else {
       renderOptions(d.options);
       revealSaveQuote();

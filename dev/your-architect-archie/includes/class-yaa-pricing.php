@@ -127,7 +127,6 @@ class YAA_Pricing {
 		$nodes    = array();
 		$total    = 0;
 		$redirect = false;
-		$multi    = count( $keys ) > 1;
 
 		foreach ( $keys as $key ) {
 			if ( ! isset( $services[ $key ] ) || empty( $services[ $key ]['enabled'] ) ) {
@@ -139,10 +138,10 @@ class YAA_Pricing {
 				if ( ! empty( $svc['redirect'] ) ) {
 					$redirect = true;
 				}
-				$nodes[] = array( 'id' => 'service_' . $key, 'label' => $svc['label'], 'sub' => isset( $svc['sub'] ) ? $svc['sub'] : '', 'price' => null, 'removable' => $multi, 'kind' => ! empty( $svc['redirect'] ) ? 'info' : 'consultant' );
+				$nodes[] = array( 'id' => 'service_' . $key, 'label' => $svc['label'], 'sub' => isset( $svc['sub'] ) ? $svc['sub'] : '', 'price' => null, 'removable' => true, 'kind' => ! empty( $svc['redirect'] ) ? 'info' : 'consultant' );
 			} else {
 				$total  += (int) $svc['price'];
-				$nodes[] = array( 'id' => 'service_' . $key, 'label' => $svc['label'], 'sub' => isset( $svc['sub'] ) ? $svc['sub'] : '', 'price' => (int) $svc['price'], 'removable' => $multi );
+				$nodes[] = array( 'id' => 'service_' . $key, 'label' => $svc['label'], 'sub' => isset( $svc['sub'] ) ? $svc['sub'] : '', 'price' => (int) $svc['price'], 'removable' => true );
 			}
 		}
 

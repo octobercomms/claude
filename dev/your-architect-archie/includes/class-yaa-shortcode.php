@@ -82,6 +82,17 @@ class YAA_Shortcode {
 									<input type="email" id="saveEmail" inputmode="email" autocomplete="email" placeholder="<?php esc_attr_e( 'you@example.com', 'your-architect-archie' ); ?>">
 									<button type="submit" class="btn btn-outline" id="saveEmailBtn"><?php esc_html_e( 'Save', 'your-architect-archie' ); ?></button>
 								</div>
+								<p class="save-quote-privacy">
+									<?php
+									$privacy_url = YAA_Settings::get( 'privacy_url', '' );
+									$privacy_url = $privacy_url ? $privacy_url : home_url( '/privacy-policy/' );
+									printf(
+										/* translators: %s: link to the privacy policy */
+										esc_html__( 'We\'ll only use your email for your quote and project, per our %s.', 'your-architect-archie' ),
+										'<a href="' . esc_url( $privacy_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Privacy Policy', 'your-architect-archie' ) . '</a>'
+									);
+									?>
+								</p>
 								<p class="save-quote-note" id="saveQuoteNote" hidden></p>
 							</form>
 						</div>
