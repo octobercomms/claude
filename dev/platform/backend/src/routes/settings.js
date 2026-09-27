@@ -535,6 +535,16 @@ router.put('/usage/spend-controls', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Media database health. Read-only aggregates over the press database, so the
+// enrichment programme is planned against real counts rather than estimates.
+// Lives in Settings rather than Earned because it describes the whole shared
+// media library, not one client's work.
+router.get('/media-health', async (req, res) => {
+  try {
+    res.json(await require('../services/mediaHealth').snapshot());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Per-task budgets. The global cap above is the outer wall; these are the
 // per-task allowances that stop one background job taking every AI feature
 // down with it. Returns live month-to-date spend per task so a budget can be

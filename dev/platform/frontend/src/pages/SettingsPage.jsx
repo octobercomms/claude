@@ -330,6 +330,7 @@ const SECTIONS = [
     { k: 'other', label: 'Other' },
   ] },
   { key: 'database', label: 'Database', subs: [
+    { k: 'health', label: 'Health' },
     { k: 'contacts', label: 'Journalists' },
     { k: 'publications', label: 'Publications' },
     { k: 'tags', label: 'Tags' },
@@ -363,7 +364,7 @@ const SECTION_GROUPS = {
     { label: 'Platform',       subs: ['integrations', 'other'] },
   ],
   database: [
-    { label: 'Library', subs: ['contacts', 'publications', 'tags'] },
+    { label: 'Library', subs: ['health', 'contacts', 'publications', 'tags'] },
     { label: 'Work',    subs: ['tasks', 'assistant'] },
   ],
   account: [
@@ -602,6 +603,7 @@ export default function SettingsPage() {
       })()}
 
       {tab === 'integrations' && <IntegrationsPage embedded />}
+      {tab === 'health' && <MediaHealthPanel />}
       {tab === 'contacts' && <ContactsLibrary />}
       {tab === 'tasks' && <JournalistTasks />}
       {tab === 'assistant' && <MediaAssistant />}
@@ -2178,6 +2180,181 @@ function JournalistTasks() {
         </div>
       )}
     </div>
+  );
+}
+
+
+// Media database health — what is actually in the press database. Read-only
+// and free (plain aggregates, no AI), so it can be opened as often as you like.
+//
+// It exists because the enrichment programme was being planned against guessed
+// volumes, which produces guessed costs. Every figure quoted before this screen
+// came from a cost model rather than a count.
+function MediaHealthPanel() {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState(null);
+
+  const load = React.useCallback(() => {
+    setErr(null);
+    api.get('/settings/media-health').then(setD).catch(e => setErr(e.message));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const n = (v) => (v == null ? '—' : Number(v).toLocaleString());
+  const usd = (v) => (v == null ? '—' : `$${Number(v).toFixed(2)}`);
+  const pct = (part, whole) => (!whole ? '—' : `${Math.round((part / whole) * 100)}%`);
+
+  const Stat = ({ label, value, sub }) => (
+    <div style={{ minWidth: 150 }}>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
+      <div style={{ fontSize: 'var(--fs-section)', fontWeight: 800, lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{sub}</div>}
+    </div>
+  );
+  const Row = ({ children }) => (
+    <div style={{ display: 'flex', gap: 'var(--s5)', flexWrap: 'wrap', marginTop: 'var(--s3)' }}>{children}</div>
+  );
+  const Bar = ({ label, part, whole }) => (
+    <div style={{ marginTop: 'var(--s2)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)' }}>
+        <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+        <span style={{ color: 'var(--text-subtle)' }}>{n(part)} · {pct(part, whole)}</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-2)', overflow: 'hidden', marginTop: 4 }}>
+        <div style={{ width: `${whole ? Math.min(100, (part / whole) * 100) : 0}%`, height: '100%', background: 'var(--accent)' }} />
+      </div>
+    </div>
+  );
+
+  if (err) return (
+    <div className="card"><h2 className="caption">Media database health</h2>
+      <div className="callout callout-danger" style={{ marginTop: 'var(--s3)' }}>⚠️ {err}{' '}
+        <button className="btn btn-link btn-sm" onClick={load} style={{ padding: 0 }}>Retry</button></div>
+    </div>
+  );
+  if (!d) return <div className="card"><h2 className="caption">Media database health</h2><p className="body-sm text-muted">Reading the database…</p></div>;
+
+  const sc = d.scale, fe = d.feeds, en = d.engagement, fl = d.fields, su = d.suppression, pj = d.projection;
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+        <h2 className="caption">Media database health</h2>
+        <p className="body-sm text-muted">
+          What is actually in the press database, counted rather than estimated. Free to run and read-only.
+        </p>
+        {d.partial && (
+          <div className="callout callout-warning" style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-body)' }}>
+            Some sections could not be read. The numbers shown are still accurate; the missing ones are blank.
+          </div>
+        )}
+        {sc && (
+          <Row>
+            <Stat label="Journalists" value={n(sc.contacts)} sub={`${n(sc.with_email)} with an email`} />
+            <Stat label="Publications" value={n(sc.outlets?.total)} sub={`${n(sc.outlets?.with_feed)} with a feed`} />
+            <Stat label="Linked to a publication" value={n(sc.contacts - sc.no_outlet)} sub={`${n(sc.no_outlet)} not linked`} />
+          </Row>
+        )}
+      </div>
+
+      {fe && (
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <h2 className="caption">Feed coverage</h2>
+          <p className="body-sm text-muted">
+            A journalist whose byline we already see in a feed stays current for nothing: activity, beat,
+            market and format all come out of real article titles. One with no feed needs paid search.
+            This ratio is what the enrichment actually costs.
+          </p>
+          <Bar label="At a publication with a working feed" part={fe.at_outlet_with_feed} whole={fe.contacts} />
+          <Bar label="Byline seen at least once" part={fe.byline_seen} whole={fe.contacts} />
+          <Bar label="Byline seen in the last 6 months" part={fe.byline_recent} whole={fe.contacts} />
+          <div style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+            {n(fe.articles?.articles)} articles ingested, {n(fe.articles?.attributed)} matched to a journalist.
+          </div>
+        </div>
+      )}
+
+      {en && (
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <h2 className="caption">What your sends already told you</h2>
+          <p className="body-sm text-muted">
+            The richest signal you own, gathered free over years of sending. Replies and coverage are
+            ground truth. Opens are softer, because Apple fires them without anyone reading.
+          </p>
+          <Row>
+            <Stat label="Ever sent to" value={n(en.ever_sent)} />
+            <Stat label="Ever opened" value={n(en.ever_opened)} sub={pct(en.ever_opened, en.ever_sent) + ' of those sent'} />
+            <Stat label="Ever replied" value={n(en.ever_replied)} sub="ground truth" />
+            <Stat label="Never sent to" value={n(en.never_sent)} sub="no signal either way" />
+          </Row>
+          <div style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+            {n(en.coverage?.entries)} coverage entries across {n(en.coverage?.outlets)} publications,
+            {' '}{n(en.coverage?.with_country)} with a country recorded.
+          </div>
+        </div>
+      )}
+
+      {fl && (
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <h2 className="caption">Field coverage</h2>
+          <p className="body-sm text-muted">Where the gaps actually are, rather than where we assume they are.</p>
+          <Bar label="Email"              part={fl.email}         whole={fl.contacts} />
+          <Bar label="Publication linked" part={fl.outlet_linked} whole={fl.contacts} />
+          <Bar label="Tagged"             part={fl.tagged}        whole={fl.contacts} />
+          <Bar label="Location"           part={fl.location}      whole={fl.contacts} />
+          <Bar label="Contact type"       part={fl.contact_type}  whole={fl.contacts} />
+          <Bar label="Beats (learned from real bylines)" part={fl.auto_topics} whole={fl.contacts} />
+        </div>
+      )}
+
+      {su && (
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <h2 className="caption">Off limits</h2>
+          <p className="body-sm text-muted">
+            These do not add up to a total: one journalist can be several of these at once.
+          </p>
+          <Row>
+            <Stat label="Unsubscribed" value={n(su.unsubscribed)} sub="per client" />
+            <Stat label="Do not contact" value={n(su.do_not_contact)} sub="global" />
+            <Stat label="Bounced" value={n(su.bounced)} />
+            <Stat label="Excluded" value={n(su.excluded)} sub="per client, by you" />
+          </Row>
+        </div>
+      )}
+
+      {pj && (
+        <div className="card">
+          <h2 className="caption">What enriching this would cost</h2>
+          <p className="body-sm text-muted">
+            Worked from the counts above. The per-item prices are <strong>estimates</strong> until a real
+            pass has run; once one has, read the true figure from the cost log and these get replaced.
+          </p>
+          <div style={{ marginTop: 'var(--s3)', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }}>
+              <thead><tr style={{ textAlign: 'left', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>
+                <th style={{ padding: '4px 0' }}>Job</th><th>Volume</th><th>Each</th><th>Total</th>
+              </tr></thead>
+              <tbody>
+                <tr><td style={{ padding: '4px 0' }}>Publication pass</td><td>{n(pj.counts.outlets)}</td><td>{usd(pj.unit_costs.outlet_pass_usd)}</td><td>{usd(pj.cost.outlets_usd)}</td></tr>
+                <tr><td style={{ padding: '4px 0' }}>Journalists at a known publication</td><td>{n(pj.counts.anchored)}</td><td>{usd(pj.unit_costs.desk_check_usd)}</td><td>{usd(pj.cost.anchored_usd)}</td></tr>
+                <tr><td style={{ padding: '4px 0' }}>Unattached (freelancers, unresolved)</td><td>{n(pj.counts.unanchored)}</td><td>{usd(pj.unit_costs.freelancer_usd)}</td><td>{usd(pj.cost.unanchored_usd)}</td></tr>
+                <tr style={{ fontWeight: 800, borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                  <td style={{ padding: '6px 0' }}>Full sweep</td><td /><td /><td>{usd(pj.cost.total_usd)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop: 'var(--s3)', display: 'flex', gap: 'var(--s5)', flexWrap: 'wrap' }}>
+            {[30, 50, 100].map(b => (
+              <Stat key={b} label={`At $${b}/month`} value={pj.months_at[b] == null ? '—' : `${pj.months_at[b]} mo`} />
+            ))}
+          </div>
+          <p className="body-xs text-subtle" style={{ marginTop: 'var(--s3)' }}>
+            Set the monthly figure under <strong>Connections → Spend → Task budgets</strong>, on
+            "Media database research". Nothing spends until you put a number in.
+          </p>
+        </div>
+      )}
+    </>
   );
 }
 
