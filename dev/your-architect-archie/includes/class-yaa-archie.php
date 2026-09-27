@@ -111,7 +111,7 @@ class YAA_Archie {
 			'',
 			'THE INFORMATION TO COLLECT (ask in this order, and SKIP anything that clearly does not apply):',
 			'1) the property address (already asked in the opener). We work ONLY on properties in the United Kingdom, and we need the FULL address INCLUDING a valid UK postcode — we cannot carry out the work without the postcode, so treat it as essential. Set the `address` field to what they give, and the `postcode` field the moment you have a postcode. If their address has no postcode, warmly ask for the postcode before moving on to anything else (e.g. "Thanks — and what is the postcode?"). If the property is clearly NOT in the UK, set outsideUk=true, kindly explain that Your Architect only works on properties in the UK so sadly you are not able to help with this one, suggest they seek a local architect, and STOP there — do not ask anything else, do not pick a service, do not build a quote.',
-			'2) WHICH SERVICE(S) they need — offer the menu above in plain words as tappable options, plus "I\'m not sure / I need advice". Help them pick if unsure. They can have MORE THAN ONE of our services in the same quote (e.g. a full planning application AND building regulations drawings) — whenever the set changes, set the `services` field to the COMPLETE list of our services they want, and confirm what is in their quote. NEVER remove a service they have already chosen unless they clearly and specifically ask to remove that particular service. Declining an optional add-on or upsell (for example "3D visualisation? — no thanks", or "just the two"), or answering a different question, must NEVER drop a service from the quote. Any time you add OR remove a service, say plainly what changed and read back what is now in their quote. ONLY our own services from the menu can go in the quote. If they ask for a measured survey, a structural engineer, or anything not on our menu, warmly explain those are arranged separately through trusted independent professionals (we help find one; they approve that quote and pay them directly), so it is not part of our fixed fee and cannot be added as a priced line — never claim you have added it. ' . $advice . ' If they tap "I\'m not sure", diagnose and recommend a service as above rather than deflecting — only set advice=true once they clearly want to talk to a person instead of getting their price online. Asking for their email or their name are open questions — never offer tappable options for those.',
+			'2) WHICH SERVICE(S) they need — offer the menu above in plain words as tappable options, plus "I\'m not sure / I need advice". Help them pick if unsure. They can have MORE THAN ONE of our services in the same quote (e.g. a full planning application AND building regulations drawings). To put a service in the quote, set `addServices` to the ones to add; to take one out, set `removeServices` — and ONLY remove a service when the customer explicitly asks to remove that specific service. Never re-send the whole cart, and never remove anything because they declined an add-on or answered another question. The customer can ALSO remove items themselves with the ✕ on their quote, so the cart may differ from earlier in the chat — ALWAYS trust "THE CUSTOMER\'S CURRENT QUOTE" below for what is in the cart right now, never your own memory. Any time you add or remove something, say plainly what changed and read the current quote back. ONLY our own services from the menu can go in the quote. If they ask for a measured survey, a structural engineer, or anything not on our menu, warmly explain those are arranged separately through trusted independent professionals (we help find one; they approve that quote and pay them directly), so it is not part of our fixed fee and cannot be added as a priced line — never claim you have added it. ' . $advice . ' If they tap "I\'m not sure", diagnose and recommend a service as above rather than deflecting — only set advice=true once they clearly want to talk to a person instead of getting their price online. Asking for their email or their name are open questions — never offer tappable options for those.',
 			'3) briefly, what the work physically is (a rear/side extension, loft, garage, outbuilding, internal work, a new home) — for our notes; set projectType if clear. Keep it to one light question, do not labour it.',
 			'4) the relevant add-ons for the services they chose (see the add-ons list): for Full planning, whether we submit & manage the application; the optional 3D visualisation; and the site visit ONLY if they are in London / the M25.',
 			'5) "Do you have existing plans of your property drawn up?" — plain words for a measured survey (an accurate set of drawings of the property as it is today, which we need before designing). If YES → set hasDrawings=true and survey=false, tell them it is essential we see those drawings and ask them to upload the file(s) now using the photo/paperclip button next to the message box; they should upload before finishing. If NO or "I\'d like the pro to help" → survey=true and reassure: "' . $survey_help . '" (For a full planning application an accurate measured survey is required before we can start, even if they only have estate-agent floor plans.)',
@@ -130,7 +130,7 @@ class YAA_Archie {
 			'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
 			'- New dwellings and full RIBA services (concept to construction) or larger commissions are handled directly by Tiam Architects: include "newdwelling" in `services` if that is what they want, and point them to ' . $riba . ' at the end.',
 			'',
-			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, postcode, a free description, name or email). Set `postcode` as soon as you have the UK postcode, and `outsideUk`=true if the property is not in the UK. Set `services` to the COMPLETE list of our services the customer wants whenever it changes. Set `hasDrawings`=true if they already have existing plans/drawings/a survey. submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have a UK postcode AND a valid email address to reach them on (their name too if given), the property is in the UK, and — if they said they have existing drawings — they have uploaded them. Never set done before all of that.',
+			'TOOL USE — EVERY turn call set_fields with: (a) any structured fields you learned this message (omit the rest), and (b) `replies` for the question you just asked (omit `replies` only for open answers like the address, postcode, a free description, name or email). Set `postcode` as soon as you have the UK postcode, and `outsideUk`=true if the property is not in the UK. Use `addServices` to add our services and `removeServices` to remove one (only when explicitly asked to remove that service); never re-send the whole cart. Set `hasDrawings`=true if they already have existing plans/drawings/a survey. submitApp=true only if they want us to submit/manage the planning application. concept=true only if they want the 3D visualisation add-on. siteVisit=true only if they want the London/M25 visit. survey=true if a measured survey needs arranging (they do NOT already have existing plans). done=true ONLY once you have a UK postcode AND a valid email address to reach them on (their name too if given), the property is in the UK, and — if they said they have existing drawings — they have uploaded them. Never set done before all of that.',
 		);
 
 		$known = self::address_knowledge( $state );
@@ -162,7 +162,7 @@ class YAA_Archie {
 		if ( empty( $rows ) ) {
 			return '';
 		}
-		return "THE CUSTOMER'S CURRENT QUOTE — the exact figures their panel is showing right now. You MAY read these back to them if they ask what is on their quote or what their total is. Use ONLY these figures; never invent, change, discount or add a price.\n"
+		return "THE CUSTOMER'S CURRENT QUOTE — the definitive contents of their cart right now, INCLUDING any items they removed with the ✕ button on their panel. This is the single source of truth: it may differ from what was said earlier in the chat, and you MUST use it (never your memory) when telling them what is on their quote or their total. Read these exact figures back if they ask; never invent, change, discount or add a price.\n"
 			. implode( "\n", $rows )
 			. "\nRunning total: " . YAA_Pricing::money( (int) $pkg['total'] );
 	}
@@ -204,10 +204,15 @@ class YAA_Archie {
 						'address'     => array( 'type' => 'string', 'description' => 'the full property address as given (house/number, street, town)' ),
 						'postcode'    => array( 'type' => 'string', 'description' => 'the UK postcode of the property once known — we cannot do the work without it' ),
 						'outsideUk'   => array( 'type' => 'boolean', 'description' => 'true if the property is clearly NOT in the United Kingdom (we only work on UK properties)' ),
-						'services'    => array(
+						'addServices'    => array(
 							'type'        => 'array',
 							'items'       => array( 'type' => 'string', 'enum' => $service_keys ),
-							'description' => 'the COMPLETE set of our fixed-price services the homeowner wants in this one quote (usually one; can be several, e.g. planning + building regulations). Set the full list every time it changes. Only our own services from the menu — never a measured survey or structural engineer (those are third-party, sourced separately).',
+							'description' => 'our services to ADD to the cart this turn (only ones not already in it). Only our own menu services — never a survey or structural engineer.',
+						),
+						'removeServices' => array(
+							'type'        => 'array',
+							'items'       => array( 'type' => 'string', 'enum' => $service_keys ),
+							'description' => 'services to REMOVE from the cart this turn — ONLY when the customer explicitly asks to remove that specific service. Never remove anything otherwise.',
 						),
 						'advice'      => array( 'type' => 'boolean', 'description' => 'true if the person is unsure what they need or wants advice / to talk to someone rather than pick a service from the menu' ),
 						'hasDrawings' => array( 'type' => 'boolean', 'description' => 'true if they say they already have existing drawings, plans or a measured survey of the property — if so they must upload the file(s)' ),
@@ -234,7 +239,7 @@ class YAA_Archie {
 	}
 
 	/** Fields the tool may write into state (`replies` is deliberately excluded — it drives the UI, not the record). */
-	private static $allowed = array( 'address', 'postcode', 'outsideUk', 'services', 'service', 'advice', 'hasDrawings', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
+	private static $allowed = array( 'address', 'postcode', 'outsideUk', 'addServices', 'removeServices', 'services', 'service', 'advice', 'hasDrawings', 'projectType', 'storeys', 'submitApp', 'concept', 'siteVisit', 'survey', 'structural', 'timeframe', 'name', 'email', 'done' );
 
 	/**
 	 * No-model fast path for the opening data-capture steps (address → postcode →
@@ -433,21 +438,22 @@ class YAA_Archie {
 					$state['name'] = sanitize_text_field( (string) $v );
 					continue;
 				}
-				if ( 'services' === $k ) {
-					// The complete set of our services the customer wants in this cart.
+				if ( 'addServices' === $k || 'services' === $k ) {
+					// ADD only. Even a stray full `services` list from the model just
+					// appends — it can never clobber the panel's ✕ removals.
 					$valid = array_keys( YAA_Pricing::services() );
-					$list  = array();
+					$cur   = isset( $state['services'] ) && is_array( $state['services'] ) ? $state['services'] : array();
 					foreach ( (array) $v as $svc ) {
 						$svc = sanitize_text_field( (string) $svc );
-						if ( in_array( $svc, $valid, true ) && ! in_array( $svc, $list, true ) ) {
-							$list[] = $svc;
+						if ( in_array( $svc, $valid, true ) && ! in_array( $svc, $cur, true ) ) {
+							$cur[] = $svc;
 						}
 					}
-					$state['services'] = $list;
+					$state['services'] = array_values( $cur );
 					continue;
 				}
 				if ( 'service' === $k ) {
-					// Back-compat: a single service key → merge into the services list.
+					// Back-compat single key → ADD.
 					$svc   = sanitize_text_field( (string) $v );
 					$valid = array_keys( YAA_Pricing::services() );
 					if ( in_array( $svc, $valid, true ) ) {
@@ -455,8 +461,20 @@ class YAA_Archie {
 						if ( ! in_array( $svc, $cur, true ) ) {
 							$cur[] = $svc;
 						}
-						$state['services'] = $cur;
+						$state['services'] = array_values( $cur );
 					}
+					continue;
+				}
+				if ( 'removeServices' === $k ) {
+					// Remove only the named services from the CURRENT cart.
+					$cur = isset( $state['services'] ) && is_array( $state['services'] ) ? $state['services'] : array();
+					foreach ( (array) $v as $svc ) {
+						$svc = sanitize_text_field( (string) $svc );
+						$cur = array_filter( $cur, function ( $x ) use ( $svc ) {
+							return (string) $x !== $svc;
+						} );
+					}
+					$state['services'] = array_values( $cur );
 					continue;
 				}
 				$state[ $k ] = is_bool( $v ) ? $v : sanitize_text_field( (string) $v );
@@ -658,22 +676,18 @@ class YAA_Archie {
 			return __( 'Type your message…', 'your-architect-archie' );
 		}
 		if ( empty( $s['address'] ) && empty( $s['postcode'] ) ) {
-			return __( 'Type the full property address…', 'your-architect-archie' );
+			return __( 'Property address…', 'your-architect-archie' );
 		}
 		if ( empty( $s['postcode'] ) ) {
-			return __( 'Type the property\'s postcode…', 'your-architect-archie' );
+			return __( 'Postcode…', 'your-architect-archie' );
 		}
 		if ( ! empty( $s['email'] ) && empty( $s['name'] ) ) {
-			return __( 'Type your name…', 'your-architect-archie' );
+			return __( 'Your name…', 'your-architect-archie' );
 		}
 		if ( ! empty( $s['advice'] ) ) {
-			return __( 'Type your email address…', 'your-architect-archie' );
+			return __( 'Your email address…', 'your-architect-archie' );
 		}
-		$service = isset( $s['service'] ) ? (string) $s['service'] : '';
-		if ( '' === $service ) {
-			return __( 'Type your answer, or tap an option above…', 'your-architect-archie' );
-		}
-		return __( 'Type your answer, or tap an option above…', 'your-architect-archie' );
+		return __( 'Type your answer…', 'your-architect-archie' );
 	}
 
 	/**

@@ -132,6 +132,11 @@ class YAA_Rest {
 		$id       = YAA_Project::current( false );
 		$messages = $id ? YAA_Project::messages( $id ) : array();
 
+		// If the global daily cap is spent, tell the widget up front so a visitor
+		// arriving mid-lockout sees a clear notice instead of a live-looking box
+		// that 429s on every message.
+		$busy = ! YAA_Rate_Limit::under_daily_cap();
+
 		if ( $id && ! empty( $messages ) ) {
 			// Returning mid-chat — resume where they left off.
 			$state = YAA_Project::state( $id );
@@ -146,6 +151,7 @@ class YAA_Rest {
 					'meta'        => self::meta(),
 					'nonce'       => $nonce,
 					'configured'  => YAA_Claude::is_configured(),
+					'busy'        => $busy,
 				)
 			);
 		}
@@ -162,6 +168,7 @@ class YAA_Rest {
 				'meta'        => self::meta(),
 				'nonce'       => $nonce,
 				'configured'  => YAA_Claude::is_configured(),
+				'busy'        => $busy,
 			)
 		);
 	}
