@@ -1,0 +1,76 @@
+/* Survey builder metabox. */
+.oe-svy { font-size: 13px; }
+.oe-svy-enable { display: block; margin-bottom: 14px; font-size: 14px; }
+.oe-svy-enable input { margin-right: 6px; }
+
+.oe-svy-cols { display: flex; gap: 20px; align-items: flex-start; }
+.oe-svy-build { flex: 1 1 60%; min-width: 0; }
+.oe-svy-advice { flex: 0 0 34%; max-width: 320px; background: #faf9f6; border: 1px solid #e6e3da; border-radius: 8px; padding: 14px 16px; }
+
+@media (max-width: 900px) {
+    .oe-svy-cols { flex-direction: column; }
+    .oe-svy-advice { max-width: none; }
+}
+
+.oe-svy-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.oe-svy-count { margin-left: auto; color: #777; font-weight: 600; }
+
+.oe-svy-list { display: flex; flex-direction: column; gap: 10px; }
+.oe-svy-card { border: 1px solid #dcdcdc; border-radius: 8px; padding: 12px; background: #fff; }
+.oe-svy-card-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.oe-svy-type { max-width: 220px; }
+.oe-svy-moves { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+.oe-svy-moves .button-link { text-decoration: none; font-size: 16px; line-height: 1; padding: 2px 4px; }
+.oe-svy-rm { color: #b32d2e !important; font-size: 13px !important; }
+.oe-svy-label { width: 100%; margin-bottom: 8px; }
+
+.oe-svy-rep { padding-left: 4px; }
+.oe-svy-rep-row { display: flex; gap: 6px; margin-bottom: 6px; }
+.oe-svy-rep-row input { flex: 1; }
+.oe-svy-rep-rm { color: #b32d2e !important; font-size: 18px !important; text-decoration: none; }
+
+.oe-svy-note { color: #777; font-style: italic; margin-top: 10px; }
+
+/* Advice */
+.oe-svy-advice h4 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #555; }
+.oe-svy-tip { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #eceae2; }
+.oe-svy-tip:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.oe-svy-tip-p { font-weight: 600; margin: 0 0 6px; }
+.oe-svy-tip-q { margin: 0 0 4px; padding: 0 0 0 10px; border-left: 3px solid #d9c65a; color: #555; font-size: 12px; line-height: 1.5; }
+.oe-svy-tip cite { font-style: normal; font-size: 11px; }
+
+/* Settings */
+.oe-svy-settings { display: flex; flex-wrap: wrap; gap: 18px; margin: 18px 0; padding-top: 14px; border-top: 1px solid #eee; }
+.oe-svy-settings label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.oe-svy-settings input[type=number] { width: 90px; }
+.oe-svy-settings select { min-width: 180px; }
+
+.oe-svy-sent { color: #2e7d32; font-weight: 600; }
+.oe-svy-actions { margin: 12px 0; }
+.oe-svy-hint { color: #999; margin-left: 8px; }
+
+/* Results */
+.oe-svy-report { margin-top: 16px; border-top: 1px solid #eee; padding-top: 12px; }
+.oe-svy-report > summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.oe-svy-results-head { font-size: 14px; }
+.oe-svy-q { margin: 14px 0; }
+.oe-svy-q-label { font-weight: 600; margin-bottom: 6px; }
+.oe-svy-avg { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.oe-svy-avg span { color: #999; font-weight: 400; font-size: 13px; }
+.oe-svy-bar { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+.oe-svy-bk { width: 18px; text-align: center; color: #666; }
+.oe-svy-bk--wide { width: 160px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oe-svy-track { flex: 1; height: 14px; background: #eee; border-radius: 4px; overflow: hidden; }
+.oe-svy-fill { display: block; height: 100%; }
+.oe-svy-bn { width: 36px; text-align: right; color: #666; }
+.oe-svy-open, .oe-svy-quotes { margin: 4px 0; padding-left: 18px; }
+.oe-svy-open li, .oe-svy-quotes li { margin-bottom: 5px; }
+.oe-svy-empty { color: #999; font-style: italic; }
+.oe-svy-srow { display: flex; gap: 8px; align-items: center; margin: 3px 0; }
+.oe-svy-sname { flex: 1; }
+.oe-svy-savg { font-weight: 700; width: 40px; text-align: right; }
+.oe-svy-sn { width: 30px; text-align: right; color: #999; }
+.oe-svy-consent { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: #eee; color: #555; }
+.oe-svy-consent--named { background: #e3f2e3; color: #2e7d32; }
+.oe-svy-consent--anon { background: #fff4d6; color: #8a6d00; }
+.oe-svy-seg-note { color: #777; font-size: 12px; }

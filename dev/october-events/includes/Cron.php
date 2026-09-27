@@ -112,6 +112,10 @@ final class Cron {
         // Retention: drop abandoned-cart drafts past the retention window.
         \OE\Ticketing\Abandonment::purge();
 
+        // Post-event surveys: email attendees the day after the event (once per
+        // event, only for events with a survey enabled and ready).
+        \OE\Survey\Sender::run_due();
+
         // Keep this year's volunteer thank-you code alive on the ticket-selling
         // site (creates it if the year rolled over; a no-op on other sites).
         \OE\Volunteers\TicketCode::maybe_ensure();
