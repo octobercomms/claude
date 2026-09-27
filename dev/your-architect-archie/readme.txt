@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.6.3
+Stable tag: 0.7.0
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,31 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.0 =
+* Round of fixes from the 27 Sep QA test report:
+  * Multiple of our own services can now be added to one quote (e.g. planning +
+    building regulations) and are all priced. Third-party work (measured survey,
+    structural engineer) stays "sourced separately" and is never added as a
+    priced line — Archie says so clearly.
+  * Archie no longer describes or invents what the quote panel shows, and never
+    states a price; it points to the customer's own quote as it builds.
+  * The chat no longer auto-submits. Pressing "Save & submit project" is the
+    customer's explicit go-ahead, with a privacy notice + Terms/Privacy links and
+    an optional marketing opt-in; details are still captured in the back office.
+  * The opening address/postcode steps are answered instantly (no model round
+    trip), cutting the slowest waits at the start.
+  * The advice path ("I'm not sure") now diagnoses and recommends a service
+    instead of deflecting to a phone call.
+  * Refund/cancellation questions link to the Terms of Service rather than
+    stating a position; new Terms/Privacy URL settings.
+  * Mobile: the widget no longer overflows narrow phones.
+  * "London pricing" badge reworded to "Site visits available" (no phantom
+    surcharge); new-dwelling referrals show "Priced on consultation" instead of
+    £0 with delivery/revisions.
+  * Service quick-replies are rendered from the price list so services can't go
+    missing; 1,000-character input cap (client + server); the rate-limit notice
+    is reworded and retries once automatically.
 
 = 0.6.3 =
 * Fixed two conversation bugs seen in testing:

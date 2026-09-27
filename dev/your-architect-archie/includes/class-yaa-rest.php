@@ -177,7 +177,7 @@ class YAA_Rest {
 			return new WP_REST_Response( array( 'error' => 'busy', 'message' => __( 'Archie is taking a quick break — please try again shortly.', 'your-architect-archie' ) ), 429 );
 		}
 		if ( ! YAA_Rate_Limit::allow_turn( $session ) ) {
-			return new WP_REST_Response( array( 'error' => 'slow_down', 'message' => __( 'One moment — you\'re going a little fast for me.', 'your-architect-archie' ) ), 429 );
+			return new WP_REST_Response( array( 'error' => 'slow_down', 'message' => __( 'Archie is just catching up — one moment…', 'your-architect-archie' ) ), 429 );
 		}
 
 		// First real message: this is where the project actually begins. Seed the
@@ -203,7 +203,18 @@ class YAA_Rest {
 		$node  = sanitize_key( (string) $req->get_param( 'id' ) ); // sanitize_key lower-cases the id.
 		$state = YAA_Project::state( $id );
 		$map   = array( 'submission' => 'submitApp', 'concept3d' => 'concept', 'sitevisit' => 'siteVisit', 'survey' => 'survey', 'structural' => 'structural' );
-		if ( isset( $map[ $node ] ) ) {
+		if ( 0 === strpos( $node, 'service_' ) ) {
+			// Drop a service line from the multi-service cart.
+			$key = substr( $node, strlen( 'service_' ) );
+			if ( ! empty( $state['services'] ) && is_array( $state['services'] ) ) {
+				$state['services'] = array_values( array_filter( $state['services'], function ( $k ) use ( $key ) {
+					return strtolower( (string) $k ) !== $key;
+				} ) );
+			}
+			if ( isset( $state['service'] ) && strtolower( (string) $state['service'] ) === $key ) {
+				unset( $state['service'] );
+			}
+		} elseif ( isset( $map[ $node ] ) ) {
 			$state[ $map[ $node ] ] = false;
 		}
 		$package = YAA_Pricing::build_package( $state );
@@ -248,6 +259,11 @@ class YAA_Rest {
 			YAA_Project::add_message( $id, 'assistant', $ask );
 			return new WP_REST_Response( array( 'needUpload' => true, 'message' => $ask ), 200 );
 		}
+
+		// Record the consent choice at the point of submission (their explicit GO).
+		$state['consentAt'] = current_time( 'mysql' );
+		$state['marketing'] = ! empty( $req->get_param( 'marketing' ) );
+		YAA_Project::set_state( $id, $state );
 
 		YAA_Project::set_status( $id, $redirect ? 'redirected' : 'submitted' );
 

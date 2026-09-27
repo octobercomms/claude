@@ -178,3 +178,17 @@
 .yaa .a-ico { width: 88%; height: 88%; object-fit: contain; display: block; }
 .yaa .archie-face .a-ico { width: 100%; height: 100%; }
 .yaa .quote-meta[hidden] { display: none; }
+/* F8: let the two-pane layout shrink below its content width on phones */
+.yaa .ob-body, .yaa .ob-chat, .yaa .ob-panel { min-width: 0; }
+.yaa .composer-row, .yaa .composer-input { min-width: 0; }
+.yaa .archie-embed, .yaa .ob-shell { max-width: 100%; }
+.yaa .msg { max-width: 100%; }
+.yaa .node .n-label { word-break: break-word; }
+/* F3: consent notice + submit-ready highlight */
+.yaa .submit-consent { margin-bottom: 12px; }
+.yaa .submit-consent[hidden] { display: none; }
+.yaa .consent-opt { display: flex; align-items: flex-start; gap: 8px; font-size: .82rem; color: var(--ink-soft); line-height: 1.4; cursor: pointer; }
+.yaa .consent-opt input { margin-top: 3px; flex-shrink: 0; }
+.yaa .consent-note { font-size: .76rem; color: var(--muted); line-height: 1.45; margin-top: 8px; }
+.yaa .consent-note a { color: var(--navy); }
+.yaa .submit-btn.ready { box-shadow: 0 0 0 3px rgba(52,120,222,.28); }

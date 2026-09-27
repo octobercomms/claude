@@ -26,7 +26,9 @@
       mDelivery = el('mDelivery'), mRevisions = el('mRevisions'), submitBtn = el('submitBtn'),
       restartBtn = el('restartBtn'), panelToggle = el('panelToggle'), panel = el('packagePanel'),
       quick = el('quickReplies'), photoBtn = el('photoBtn'), photoInput = el('photoInput'),
-      saveQuote = el('saveQuote'), saveEmail = el('saveEmail'), saveQuoteNote = el('saveQuoteNote');
+      saveQuote = el('saveQuote'), saveEmail = el('saveEmail'), saveQuoteNote = el('saveQuoteNote'),
+      submitConsent = el('submitConsent'), marketingOptIn = el('marketingOptIn'), consentNote = el('consentNote'),
+      totalSub = el('totalSub');
 
   if (!msgList) return; // Archie not on this page.
 
@@ -34,6 +36,14 @@
   var userMsgCount = 0, emailSaved = false; // drives the always-on "Email me my quote" field.
 
   function money(n) { return '£' + Number(n || 0).toLocaleString('en-GB'); }
+
+  // Consent note (privacy + terms links), shown with the quote at submit.
+  if (consentNote) {
+    var _t = D.termsUrl || '#', _p = D.privacyUrl || '#';
+    consentNote.innerHTML = 'By submitting you agree to us using your details to prepare your quote, as set out in our ' +
+      '<a href="' + _p + '" target="_blank" rel="noopener">Privacy Policy</a> and ' +
+      '<a href="' + _t + '" target="_blank" rel="noopener">Terms</a>.';
+  }
   function post(path, body) {
     // Send the nonce in the header AND the body: page caches (StackCache) can
     // serve a stale localised nonce and CDNs can strip the custom header, so the
@@ -74,7 +84,8 @@
 
   function renderPackage(pkg) {
     pkg = pkg || { nodes: [], total: 0 };
-    hasService = (pkg.nodes || []).some(function (n) { return n.id === 'service'; });
+    hasService = (pkg.nodes || []).some(function (n) { return n.id && n.id.indexOf('service_') === 0; });
+    var isRedirect = !!pkg.redirect;
     nodes.innerHTML = '';
     if (!pkg.nodes || !pkg.nodes.length) {
       nodes.appendChild(nodesEmpty);
@@ -94,17 +105,21 @@
         nodes.appendChild(div);
       });
     }
-    totalAmt.textContent = money(pkg.total);
-    if (toggleTotal) toggleTotal.textContent = money(pkg.total);
+    totalAmt.textContent = isRedirect ? 'POA' : money(pkg.total);
+    if (toggleTotal) toggleTotal.textContent = isRedirect ? 'POA' : money(pkg.total);
     londonChip.classList.toggle('show', !!pkg.london);
-    redirectBanner.classList.toggle('show', !!pkg.redirect);
-    submitBtn.textContent = pkg.redirect ? 'Contact Tiam Architects' : 'Save & submit project';
+    redirectBanner.classList.toggle('show', isRedirect);
+    submitBtn.textContent = isRedirect ? 'Contact Tiam Architects' : 'Save & submit project';
     submitBtn.disabled = !hasService;
     var meta = pkg.meta || {};
     if (mDelivery && meta.delivery) mDelivery.textContent = meta.delivery;
     if (mRevisions && meta.revisions) mRevisions.textContent = meta.revisions + ' revisions included';
     if (mValidity) mValidity.textContent = validityDate(meta.validityDays || PRICING.quoteValidityDays);
-    quoteMeta.hidden = !hasService;
+    // F12: a new-dwelling referral has no fixed price — hide delivery/revisions/validity.
+    quoteMeta.hidden = !hasService || isRedirect;
+    if (totalSub) totalSub.textContent = isRedirect ? 'Priced on consultation' : 'Fixed price · survey & structural sourced separately';
+    // F3: the consent notice appears alongside the quote, before they submit.
+    if (submitConsent) submitConsent.hidden = !hasService || isRedirect;
   }
 
   // ---- Quick replies (tap-or-type) ----
@@ -133,12 +148,22 @@
   function send(preset) {
     var text = typeof preset === 'string' ? preset : (input.value || '').trim();
     if (!text || busy || done) return;
+    if (text.length > 1000) text = text.slice(0, 1000);
     if (typeof preset !== 'string') { input.value = ''; autoGrow(); }
     clearOptions();
     addMsg('user', escapeHtml(text));
     userMsgCount++;
     setBusy(true); typing(true);
+    deliver(text, 0);
+  }
+  // Posts a turn; on a throttle (429) it waits briefly and retries once itself,
+  // instead of consuming the customer's turn and blaming them.
+  function deliver(text, attempt) {
     post('message', { text: text }).then(function (res) {
+      if (!res.ok && res.status === 429 && res.body && res.body.error === 'slow_down' && attempt < 1) {
+        setTimeout(function () { deliver(text, attempt + 1); }, 1600);
+        return;
+      }
       typing(false);
       if (!res.ok) {
         addMsg('bot', (res.body && res.body.message) || 'Sorry — something went wrong. Please try again.', 'note');
@@ -152,15 +177,22 @@
       revealSaveQuote();
       if (res.body.done) {
         done = true; clearOptions();
-        // The email is the last thing we need, so submit automatically — no button click required.
-        if (res.body.hasEmail) { doSubmit(); }
+        showSubmitReady(); // their explicit GO — never auto-send
       }
       setBusy(false);
       if (!done) input.focus({ preventScroll: true });
-      // If they clicked submit before giving an email, Archie asked for it; now
-      // that we have one, finish the submission for them automatically.
+      // If they pressed submit before giving an email, finish it for them now.
       if (pendingSubmit && res.body.hasEmail) { pendingSubmit = false; doSubmit(); }
     }).catch(function () { typing(false); addMsg('bot', 'We couldn’t reach Archie. Please try again in a moment.', 'note'); setBusy(false); });
+  }
+
+  // End of chat: surface the consent notice, draw the eye to the submit button, and
+  // (on mobile) open the panel so the button is visible.
+  function showSubmitReady() {
+    if (submitConsent && hasService) submitConsent.hidden = false;
+    if (!submitBtn.disabled) submitBtn.classList.add('ready');
+    addMsg('bot', 'When you’re ready, press “Save &amp; submit project” below to send this to our team.', 'note');
+    if (panel && window.matchMedia && window.matchMedia('(max-width:820px)').matches) panel.classList.add('open');
   }
 
   sendBtn.addEventListener('click', send);
@@ -186,7 +218,7 @@
   function doSubmit() {
     if (submitted) return;
     submitBtn.disabled = true; submitOriginal = submitBtn.textContent; submitBtn.textContent = 'Sending…';
-    post('submit', {}).then(function (res) {
+    post('submit', { marketing: (marketingOptIn && marketingOptIn.checked) ? 1 : 0 }).then(function (res) {
       var d = res.body || {};
       if (d.ineligible) {
         addMsg('bot', escapeHtml(d.message || 'Sorry — we only work on properties in the UK.'), 'note');

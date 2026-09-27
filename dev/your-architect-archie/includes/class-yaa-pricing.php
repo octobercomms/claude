@@ -101,45 +101,64 @@ class YAA_Pricing {
 	/**
 	 * Build the package from collected state.
 	 *
-	 * @param array $s Keys: service (a services key), submitApp, concept,
-	 *                 siteVisit, survey, structural, london.
+	 * Supports MULTIPLE of our own services in one cart (state key `services`, an
+	 * array of service keys; the legacy single `service` is still honoured). Only
+	 * our fixed-price services go in the cart — a measured survey / structural
+	 * engineer are third-party and shown as "sourced separately", never priced.
+	 *
+	 * @param array $s Keys: services[]|service, submitApp, concept, siteVisit,
+	 *                 survey, structural, london.
 	 * @return array { nodes:[{id,label,sub,price|null,removable,kind}], total, redirect, london, meta }
 	 */
 	public static function build_package( array $s ) {
 		$t        = self::table();
 		$services = $t['services'];
 		$addons   = $t['addons'];
-		$service  = isset( $s['service'] ) ? (string) $s['service'] : '';
+
+		// Normalise to a de-duplicated list of enabled service keys.
+		$keys = array();
+		if ( ! empty( $s['services'] ) && is_array( $s['services'] ) ) {
+			$keys = $s['services'];
+		} elseif ( ! empty( $s['service'] ) ) {
+			$keys = array( (string) $s['service'] );
+		}
+		$keys = array_values( array_unique( array_filter( array_map( 'strval', $keys ) ) ) );
+
 		$nodes    = array();
 		$total    = 0;
 		$redirect = false;
+		$multi    = count( $keys ) > 1;
 
-		if ( $service && isset( $services[ $service ] ) && ! empty( $services[ $service ]['enabled'] ) ) {
-			$svc      = $services[ $service ];
+		foreach ( $keys as $key ) {
+			if ( ! isset( $services[ $key ] ) || empty( $services[ $key ]['enabled'] ) ) {
+				continue;
+			}
+			$svc       = $services[ $key ];
 			$onRequest = ( ! empty( $svc['redirect'] ) || null === $svc['price'] || '' === $svc['price'] );
 			if ( $onRequest ) {
-				$redirect = ! empty( $svc['redirect'] );
-				$nodes[]  = array( 'id' => 'service', 'label' => $svc['label'], 'sub' => isset( $svc['sub'] ) ? $svc['sub'] : '', 'price' => null, 'removable' => false, 'kind' => $redirect ? 'info' : 'consultant' );
+				if ( ! empty( $svc['redirect'] ) ) {
+					$redirect = true;
+				}
+				$nodes[] = array( 'id' => 'service_' . $key, 'label' => $svc['label'], 'sub' => isset( $svc['sub'] ) ? $svc['sub'] : '', 'price' => null, 'removable' => $multi, 'kind' => ! empty( $svc['redirect'] ) ? 'info' : 'consultant' );
 			} else {
 				$total  += (int) $svc['price'];
-				$nodes[] = array( 'id' => 'service', 'label' => $svc['label'], 'sub' => isset( $svc['sub'] ) ? $svc['sub'] : '', 'price' => (int) $svc['price'], 'removable' => false );
+				$nodes[] = array( 'id' => 'service_' . $key, 'label' => $svc['label'], 'sub' => isset( $svc['sub'] ) ? $svc['sub'] : '', 'price' => (int) $svc['price'], 'removable' => $multi );
 			}
 		}
 
 		// Add-ons — additive: Archie asks, then adds. Never "select to remove".
-		$submission_ok = isset( $addons['submission'] ) && ! empty( $addons['submission']['enabled'] )
-			&& $service && isset( $services[ $service ]['submission'] ) && $services[ $service ]['submission'];
+		$submission_ok = isset( $addons['submission'] ) && ! empty( $addons['submission']['enabled'] ) && in_array( 'planning', $keys, true );
 		if ( ! empty( $s['submitApp'] ) && $submission_ok ) {
 			$total  += (int) $addons['submission']['price'];
-			$nodes[] = array( 'id' => 'submission', 'label' => $addons['submission']['label'], 'sub' => 'Add-on', 'price' => (int) $addons['submission']['price'], 'removable' => false, 'kind' => 'addon' );
+			$nodes[] = array( 'id' => 'submission', 'label' => $addons['submission']['label'], 'sub' => 'Add-on', 'price' => (int) $addons['submission']['price'], 'removable' => true, 'kind' => 'addon' );
 		}
 		if ( ! empty( $s['concept'] ) && isset( $addons['concept3d'] ) && ! empty( $addons['concept3d']['enabled'] ) ) {
 			$total  += (int) $addons['concept3d']['price'];
-			$nodes[] = array( 'id' => 'concept3d', 'label' => $addons['concept3d']['label'], 'sub' => 'Add-on', 'price' => (int) $addons['concept3d']['price'], 'removable' => false, 'kind' => 'addon' );
+			$nodes[] = array( 'id' => 'concept3d', 'label' => $addons['concept3d']['label'], 'sub' => 'Add-on', 'price' => (int) $addons['concept3d']['price'], 'removable' => true, 'kind' => 'addon' );
 		}
 		if ( ! empty( $s['siteVisit'] ) && ! empty( $s['london'] ) && isset( $addons['siteVisit'] ) && ! empty( $addons['siteVisit']['enabled'] ) ) {
 			$total  += (int) $addons['siteVisit']['price'];
-			$nodes[] = array( 'id' => 'siteVisit', 'label' => $addons['siteVisit']['label'], 'sub' => 'Add-on', 'price' => (int) $addons['siteVisit']['price'], 'removable' => false, 'kind' => 'addon' );
+			$nodes[] = array( 'id' => 'siteVisit', 'label' => $addons['siteVisit']['label'], 'sub' => 'Add-on', 'price' => (int) $addons['siteVisit']['price'], 'removable' => true, 'kind' => 'addon' );
 		}
 
 		// Sourced separately — never our fee.
@@ -150,7 +169,7 @@ class YAA_Pricing {
 			$nodes[] = array( 'id' => 'structural', 'label' => 'Structural engineer', 'sub' => 'Sourced separately', 'price' => null, 'removable' => false, 'kind' => 'consultant' );
 		}
 		if ( ! empty( $s['london'] ) ) {
-			$nodes[] = array( 'id' => 'london', 'label' => '✓ London project', 'sub' => '', 'price' => null, 'removable' => false, 'kind' => 'info' );
+			$nodes[] = array( 'id' => 'london', 'label' => '✓ London / M25 — site visits available', 'sub' => '', 'price' => null, 'removable' => false, 'kind' => 'info' );
 		}
 
 		return array(

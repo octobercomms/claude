@@ -30,10 +30,12 @@ class YAA_Shortcode {
 			'yaa-archie',
 			'yaaData',
 			array(
-				'rest'    => esc_url_raw( rest_url( 'yaa/v1/' ) ),
-				'nonce'   => wp_create_nonce( 'yaa_rest' ),
-				'pricing' => YAA_Pricing::public_data(),
-				'iconUrl' => esc_url_raw( YAA_URL . 'assets/archie-icon.png' ),
+				'rest'       => esc_url_raw( rest_url( 'yaa/v1/' ) ),
+				'nonce'      => wp_create_nonce( 'yaa_rest' ),
+				'pricing'    => YAA_Pricing::public_data(),
+				'iconUrl'    => esc_url_raw( YAA_URL . 'assets/archie-icon.png' ),
+				'termsUrl'   => esc_url_raw( YAA_Settings::get( 'terms_url', '' ) ? YAA_Settings::get( 'terms_url', '' ) : home_url( '/terms-of-service/' ) ),
+				'privacyUrl' => esc_url_raw( YAA_Settings::get( 'privacy_url', '' ) ? YAA_Settings::get( 'privacy_url', '' ) : home_url( '/privacy-policy/' ) ),
 			)
 		);
 	}
@@ -65,7 +67,7 @@ class YAA_Shortcode {
 								</button>
 								<input type="file" id="photoInput" accept="image/*,application/pdf" hidden>
 								<div class="composer-input">
-									<textarea id="textInput" rows="1" placeholder="<?php esc_attr_e( 'Type your answer…', 'your-architect-archie' ); ?>" autocomplete="off"></textarea>
+									<textarea id="textInput" rows="1" maxlength="1000" placeholder="<?php esc_attr_e( 'Type your answer…', 'your-architect-archie' ); ?>" autocomplete="off"></textarea>
 									<button class="icon-btn" id="micBtn" type="button" title="<?php esc_attr_e( 'Voice input', 'your-architect-archie' ); ?>" aria-label="<?php esc_attr_e( 'Voice input', 'your-architect-archie' ); ?>">
 										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg>
 									</button>
@@ -88,7 +90,7 @@ class YAA_Shortcode {
 				<aside class="ob-panel" id="packagePanel" aria-label="<?php esc_attr_e( 'Your project and price', 'your-architect-archie' ); ?>">
 					<button class="ob-panel-toggle" id="panelToggle" type="button"><span><?php esc_html_e( 'Your project', 'your-architect-archie' ); ?></span><span class="tt-amt" id="toggleTotal">£0</span></button>
 					<div class="ob-panel-head">
-						<div class="ph-row"><h2><?php esc_html_e( 'Your project', 'your-architect-archie' ); ?></h2><span class="ph-chip" id="londonChip"><?php esc_html_e( 'London pricing', 'your-architect-archie' ); ?></span></div>
+						<div class="ph-row"><h2><?php esc_html_e( 'Your project', 'your-architect-archie' ); ?></h2><span class="ph-chip" id="londonChip"><?php esc_html_e( 'Site visits available', 'your-architect-archie' ); ?></span></div>
 						<p><?php esc_html_e( 'Your price builds as you answer. Nothing is charged now.', 'your-architect-archie' ); ?></p>
 					</div>
 					<div class="ob-nodes" id="nodes"><div class="node-empty" id="nodesEmpty"><?php esc_html_e( 'Your package appears here as you answer Archie.', 'your-architect-archie' ); ?></div></div>
@@ -101,6 +103,10 @@ class YAA_Shortcode {
 							<div><span id="mRevisions">2 revisions included</span></div>
 							<div><?php esc_html_e( 'Quote valid until', 'your-architect-archie' ); ?> <strong id="mValidity">—</strong></div>
 							<p class="quote-caveat"><?php esc_html_e( 'Subject to availability, and to a site survey or visit where required. Exact dates confirmed on review.', 'your-architect-archie' ); ?></p>
+						</div>
+							<div class="submit-consent" id="submitConsent" hidden>
+							<label class="consent-opt"><input type="checkbox" id="marketingOptIn"> <?php esc_html_e( 'Keep me updated with occasional tips and offers (optional).', 'your-architect-archie' ); ?></label>
+							<p class="consent-note" id="consentNote"></p>
 						</div>
 						<button class="btn btn-primary btn-block submit-btn" id="submitBtn" type="button" disabled><?php esc_html_e( 'Save & submit project', 'your-architect-archie' ); ?></button>
 					</div>
