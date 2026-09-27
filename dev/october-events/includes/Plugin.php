@@ -70,6 +70,7 @@ final class Plugin {
         }
         Dashboard::get_instance()->init();
         \OE\Frontend\Checkout::get_instance()->init();
+        \OE\Frontend\SubmitEvent::get_instance()->init();
         \OE\Frontend\CheckInApp::get_instance()->init();
         \OE\Frontend\SupportChat::get_instance()->init();
 

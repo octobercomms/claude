@@ -217,6 +217,28 @@ matured from concierge into repeatable delivery.
 
 Ship 1 and 2 before touching 3.
 
+## 10a. Build status (native route)
+
+Decision (Sept 2026): the front-end is built **natively in the plugin**, not in
+Crocoblock, so it lives in the repo and matches October's own styling. The
+backend engine (`Submission`, `Account`, the admin approval queue, per-account
+auto-approve) already existed and is reused.
+
+Shipped slices:
+
+- **Slice 1 — logged-in submit form (v1.188.0).** `[oe_submit_event]` renders a
+  branded form (`frontend/SubmitEvent.php` + `frontend/templates/`). A logged-in
+  organiser posts an event; it runs through `Submission::create('event', …)` and
+  lands as a **draft in the approval queue** — nothing publishes without review.
+  Display fields (start, location) are written through the event field map;
+  external link stored as `_oe_external_url`. No image upload yet (see §4a), no
+  public signup yet.
+
+Next slices (not built): public organiser signup with the `pending` user model
+and anti-abuse (§3), the "approve the user once → auto-publish" trust loop and
+edit-own-events with the server-side ownership guard (§9), then the image
+quality gate (§4a), add-ons/registration (§5–7) and Connect (§3 paid).
+
 ## 11. Decisions still open
 
 1. **Add-on prices** — the checklist needs real numbers ($ per newsletter slot,
