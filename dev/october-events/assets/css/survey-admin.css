@@ -58,6 +58,7 @@
 .oe-svy-settings input[type=number] { width: 90px; }
 .oe-svy-settings select { min-width: 180px; }
 
+.oe-svy-reward-note { color: #777; font-size: 12px; font-style: italic; margin: 6px 0 0; max-width: 70ch; }
 .oe-svy-sent { color: #2e7d32; font-weight: 600; }
 .oe-svy-actions { margin: 12px 0; }
 .oe-svy-hint { color: #999; margin-left: 8px; }

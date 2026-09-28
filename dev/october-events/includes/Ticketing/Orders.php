@@ -221,6 +221,30 @@ final class Orders {
     }
 
     /**
+     * The name/email to contact for a ticket token — the attendee's own if the
+     * ticket was transferred, otherwise the buyer's. Used by the survey to send
+     * a completion thank-you. Null if the token isn't a real ticket.
+     *
+     * @return array{email:string,name:string}|null
+     */
+    public static function contact_for_token(string $token): ?array {
+        global $wpdb;
+        $r = $wpdb->get_row($wpdb->prepare(
+            "SELECT ti.attendee_name, ti.attendee_email, o.name AS buyer, o.email AS buyer_email
+             FROM " . Schema::tickets() . " ti INNER JOIN " . Schema::orders() . " o ON ti.order_id = o.id
+             WHERE ti.token = %s",
+            $token
+        ));
+        if (! $r) {
+            return null;
+        }
+        return [
+            'email' => (string) ((string) $r->attendee_email !== '' ? $r->attendee_email : $r->buyer_email),
+            'name'  => (string) ((string) $r->attendee_name !== '' ? $r->attendee_name : $r->buyer),
+        ];
+    }
+
+    /**
      * Create an order + its tickets.
      *
      * @param array $data ['event_id','email','name','type'(array),'qty','promo'(?array),'unit_price','discount','total']
