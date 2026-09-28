@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.4
+Stable tag: 0.7.5
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,18 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.5 =
+* Fixed the last cart-sync bug (critical): removing an item with the panel ✕ now
+  writes a line into the conversation, so Archie sees the removal and no longer
+  claims a removed service is "already in your quote" or re-adds it on the next
+  question. A hard rule also ties Archie's view of the cart to the live quote, so
+  if a service isn't listed it's genuinely gone and can be re-added on request.
+* If the daily / per-device usage cap is hit mid-chat, the message box now
+  disables (with the explanation) instead of looking live and failing on retry.
+* Shortened the on-screen prompts further so they can't clip on the narrowest
+  phones. (If you still see the long old placeholder, purge the site/CDN cache so
+  the new script loads.)
 
 = 0.7.4 =
 * Fixed the root cause of the cart-desync (critical): the model re-sent the whole

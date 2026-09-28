@@ -168,7 +168,10 @@
       typing(false);
       if (!res.ok) {
         addMsg('bot', (res.body && res.body.message) || 'Sorry — something went wrong. Please try again.', 'note');
-        setBusy(false); return;
+        setBusy(false);
+        var err = res.body && res.body.error;
+        if (err === 'busy' || err === 'session_cap') { input.disabled = true; sendBtn.disabled = true; } // won't recover this session
+        return;
       }
       addMsg('bot', escapeHtml(res.body.message));
       renderPackage(res.body.package);
@@ -210,7 +213,7 @@
     setBusy(true);
     post('remove', { id: b.getAttribute('data-remove') }).then(function (res) {
       renderPackage(res.body && res.body.package); setBusy(false);
-      addMsg('bot', 'Done — I’ve removed that. Your total’s updated.', 'note');
+      addMsg('bot', escapeHtml((res.body && res.body.message) || 'Done — I’ve removed that. Your total’s updated.'), 'note');
     }).catch(function () { setBusy(false); });
   });
 
