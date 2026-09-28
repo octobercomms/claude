@@ -114,6 +114,15 @@ final class Metabox {
         $ai_ready   = Config::ai_ready();
         ?>
         <div class="oe-svy">
+            <?php if (isset($_GET['oe_survey_sent'])) : // phpcs:ignore WordPress.Security.NonceVerification -- read-only confirmation, no state change
+                $just_sent = absint($_GET['oe_survey_sent']); ?>
+                <div class="oe-svy-status is-sent"><?php echo esc_html(sprintf(
+                    /* translators: %d: number of attendees emailed */
+                    _n('Survey invite sent to %d attendee just now. Check & Log Email lists each one.', 'Survey invite sent to %d attendees just now. Check & Log Email lists each one.', $just_sent, 'october-events'),
+                    $just_sent
+                )); ?></div>
+            <?php endif; ?>
+
             <label class="oe-svy-enable">
                 <input type="checkbox" name="oe_survey_enabled" value="1" <?php checked($enabled); ?>>
                 <strong><?php esc_html_e('Send a survey for this event', 'october-events'); ?></strong>

@@ -5,6 +5,12 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.194.1 — Confirm survey sends
+
+- **“Send now” now confirms the count** (“Survey invite sent to N attendees just
+  now”) and points to Check & Log Email, where every individual send (invite and
+  thank-you) is logged with its sent/failed status.
+
 ## 1.194.0 — Survey emails: legibility fix, “signing up” copy, redeem link
 
 - **Fixed unreadable white text.** The reward offer, the code, and the rating
