@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.194.2 — Survey timing reads the event date more reliably
+
+- Fixed “this event has no date set” when the event **did** have a Start/End
+  Date. If the event’s date field is mapped to the prose “Dates & Times” box
+  (which isn’t machine-readable), the survey now falls back to the structured
+  **Start Date / End Date** fields (`start-date` / `end-date`) and takes the
+  first value that parses, so the automatic day-after send can be timed.
+
 ## 1.194.1 — Confirm survey sends
 
 - **“Send now” now confirms the count** (“Survey invite sent to N attendees just
