@@ -296,11 +296,36 @@ final class Config {
      * start if there is no separate end, or 0 when neither is set.
      */
     public static function end_ts(int $event_id): int {
-        // Try each source in turn and take the FIRST that parses to a real date.
-        // A site can map the event date to the prose "Dates & Times" box, which
-        // isn't machine-readable; when that happens we skip it and fall back to
-        // the structured Start/End Date fields (start-date / end-date) directly,
-        // so the automatic send can still be timed.
+        // Try each source in turn and take the FIRST that resolves to a real
+        // date. A site can map the event date to the prose "Dates & Times" box,
+        // which isn't machine-readable; when that happens we skip it and fall
+        // back to the structured Start/End Date fields directly, so the
+        // automatic send can still be timed.
+        foreach (self::date_candidates($event_id) as $value) {
+            $ts = self::to_ts($value);
+            if ($ts > 0) {
+                return $ts;
+            }
+        }
+        // Last resort: scan the event's own meta for any date-like key. This
+        // rescues events whose Start/End Date field uses a key we don't guess
+        // and isn't mapped under Settings → Event field mapping.
+        foreach (self::scanned_dates($event_id) as $value) {
+            $ts = self::to_ts($value);
+            if ($ts > 0) {
+                return $ts;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * The values checked, in priority order, for the event's end/start date:
+     * the mapped OE fields, then the common convention keys.
+     *
+     * @return string[]
+     */
+    private static function date_candidates(int $event_id): array {
         $candidates = [
             (string) Events::get($event_id, 'end_datetime', ''),
             (string) Events::get($event_id, 'start_datetime', ''),
@@ -308,17 +333,63 @@ final class Config {
         foreach (['end-date', 'end_date', 'start-date', 'start_date'] as $key) {
             $candidates[] = (string) get_post_meta($event_id, $key, true);
         }
-        foreach ($candidates as $value) {
-            $value = trim($value);
-            if ($value === '') {
+        return $candidates;
+    }
+
+    /**
+     * Every date-like meta value on the event, keyed by meta key, for keys that
+     * look like an event date and not an unrelated timestamp (submission,
+     * created, modified, sale window, due date). Used as a fallback and to show
+     * the admin what date data the event actually holds.
+     *
+     * @return array<string,string> meta key => raw value
+     */
+    public static function scanned_dates(int $event_id): array {
+        $all = get_post_meta($event_id);
+        if (! is_array($all)) {
+            return [];
+        }
+        $out = [];
+        foreach ($all as $key => $values) {
+            $key = (string) $key;
+            if (! preg_match('/(date|datetime|_dt$|schedule|when|_on$|starts?|ends?)/i', $key)) {
                 continue;
             }
-            $ts = (int) (strtotime($value) ?: 0);
-            if ($ts > 0) {
-                return $ts;
+            if (preg_match('/(submission|submit|created|create|updated|modif|expire|sale|due|_edit|_wp_|gmt|birth)/i', $key)) {
+                continue;
+            }
+            $value = is_array($values) ? (string) reset($values) : (string) $values;
+            $value = trim($value);
+            if ($value !== '') {
+                $out[$key] = $value;
             }
         }
-        return 0;
+        return $out;
+    }
+
+    /**
+     * Parse a stored date value to a unix timestamp, tolerating the formats a
+     * JetEngine/date field can hold: a plain unix timestamp (seconds or
+     * milliseconds) as well as any string strtotime() understands. Returns 0
+     * when the value isn't a plausible date.
+     */
+    private static function to_ts(string $value): int {
+        $value = trim($value);
+        if ($value === '') {
+            return 0;
+        }
+        // A bare integer is a "save as timestamp" date (JetEngine's default for
+        // date fields). Seconds are ~10 digits; some store milliseconds (~13).
+        if (ctype_digit($value)) {
+            $n = (int) $value;
+            if ($n > 20000000000) { // 13-digit millisecond value
+                $n = (int) ($n / 1000);
+            }
+            // Only accept a plausible range (2000-01-01 .. 2100-01-01) so a
+            // stray count or ID never reads as a date.
+            return ($n >= 946684800 && $n <= 4102444800) ? $n : 0;
+        }
+        return (int) (strtotime($value) ?: 0);
     }
 
     /** Responses are accepted from the day the event ends. */

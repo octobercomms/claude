@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.194.3 — Survey timing reads timestamp dates and shows what it found
+
+- The event-date reader now understands a date stored as a **Unix timestamp**
+  (JetEngine’s “save as timestamp” default, seconds or milliseconds), not only
+  a date string. This was the remaining cause of “no date set” when a Start/End
+  Date was clearly entered.
+- Added a **last-resort scan** of the event’s own meta for any date-like field,
+  so an event whose date key isn’t one we guess (and isn’t mapped) still times
+  its send.
+- When the send still can’t read a date, the builder now **lists the date-like
+  meta keys and values found on the event**, so the correct field can be mapped
+  under Settings → Event field mapping without guesswork.
+
 ## 1.194.2 — Survey timing reads the event date more reliably
 
 - Fixed “this event has no date set” when the event **did** have a Start/End

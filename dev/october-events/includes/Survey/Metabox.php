@@ -160,10 +160,27 @@ final class Metabox {
                 );
             } else {
                 $status_class = 'is-warn';
-                $status = __('Ready, but this event has no date set, so the automatic send can’t be timed. Set the event date, or use “Send now”.', 'october-events');
+                $status = __('Ready, but this event has no date the send can read, so the automatic send can’t be timed. Set the event’s Start/End Date, map the field under Settings → Event field mapping, or use “Send now”.', 'october-events');
             }
             ?>
             <p class="oe-svy-status <?php echo esc_attr($status_class); ?>"><?php echo esc_html($status); ?></p>
+
+            <?php
+            // When we can't read a date, show what date-like meta the event does
+            // hold, so the right field can be mapped without guesswork.
+            if ($status_class === 'is-warn' && $enabled && $ready && $end_ts <= 0) :
+                $found = Config::scanned_dates($id);
+                if ($found) : ?>
+                    <p class="oe-svy-hint"><?php esc_html_e('Date fields found on this event (map one of these keys under Settings → Event field mapping → End date):', 'october-events'); ?></p>
+                    <ul class="oe-svy-datekeys">
+                        <?php foreach ($found as $key => $val) : ?>
+                            <li><code><?php echo esc_html($key); ?></code> = <?php echo esc_html($val); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php else : ?>
+                    <p class="oe-svy-hint"><?php esc_html_e('No date field was found on this event at all. Enter the Start/End Date on the event, then Update.', 'october-events'); ?></p>
+                <?php endif;
+            endif; ?>
 
             <div class="oe-svy-cols">
                 <div class="oe-svy-build">
