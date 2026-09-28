@@ -4,9 +4,11 @@
  *
  * @var string $code   incentive promo code (may be empty)
  * @var string $offer  what the reward is, e.g. "20% off tours" (may be empty)
+ * @var string $redeem optional link where the code is used (may be empty)
  */
 defined('ABSPATH') || exit;
-$offer = isset($offer) ? (string) $offer : '';
+$offer  = isset($offer) ? (string) $offer : '';
+$redeem = isset($redeem) ? (string) $redeem : '';
 ?>
 <main class="oe-survey">
     <div class="oe-survey-card oe-survey-done">
@@ -21,7 +23,11 @@ $offer = isset($offer) ? (string) $offer : '';
                     : esc_html__('Here’s your thank-you code:', 'october-events');
             ?></p>
             <div class="oe-survey-code"><?php echo esc_html($code); ?></div>
-            <p class="oe-survey-code-note"><?php esc_html_e('Use it at checkout next time.', 'october-events'); ?></p>
+            <?php if ($redeem !== '') : ?>
+                <p class="oe-survey-redeem"><a href="<?php echo esc_url($redeem); ?>" class="oe-survey-btn oe-survey-redeem-btn"><?php esc_html_e('Use your code', 'october-events'); ?></a></p>
+            <?php else : ?>
+                <p class="oe-survey-code-note"><?php esc_html_e('Use it at checkout next time.', 'october-events'); ?></p>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 </main>

@@ -88,7 +88,9 @@
     appearance: none; border: 0; cursor: pointer; font-size: 17px; font-weight: 700;
     padding: 16px 24px; border-radius: 12px; font-family: inherit;
 }
-.oe-survey-next { flex: 1; background: var(--oe-accent-on); color: #fff; }
+/* Primary buttons use the accent + its own on-colour — the one pairing that is
+   always legible (accent-on is the contrasting text colour for the accent). */
+.oe-survey-next { flex: 1; background: var(--oe-accent); color: var(--oe-accent-on); }
 .oe-survey-next:disabled { opacity: .6; }
 .oe-survey-back { background: transparent; color: #666; border: 2px solid #d7d7d1; }
 
@@ -112,6 +114,8 @@
     font-size: 26px; font-weight: 700; letter-spacing: 2px;
 }
 .oe-survey-code-note { font-size: 13px; color: #999 !important; }
+.oe-survey-redeem { margin: 16px 0 0; }
+.oe-survey-redeem-btn { display: inline-block; background: var(--oe-accent); color: var(--oe-accent-on); text-decoration: none; padding: 12px 24px; }
 
 @media (min-width: 600px) {
     .oe-survey-rate-btn span { height: 68px; }
