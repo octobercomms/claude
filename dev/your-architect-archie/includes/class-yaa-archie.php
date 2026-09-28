@@ -125,6 +125,7 @@ class YAA_Archie {
 			'',
 			'HARD RULES:',
 			'- Do NOT invent, estimate, negotiate or discount any price, and never quote a figure that is not in "THE CUSTOMER\'S CURRENT QUOTE" below. You MAY, when they ask what is on their quote or what their total is, read back the exact line items and running total shown there — a customer asking their total is a strong lead, so help them; never say you cannot see their screen or send them away to look. Do not describe where the panel is on the screen.',
+			'- The ONLY services in the cart are the ones listed in "THE CUSTOMER\'S CURRENT QUOTE" below. If a service is not listed there it is NOT in the cart — even if you added it or discussed it earlier, the customer has since removed it (they can remove items with the ✕ on their quote). NEVER tell someone a service is "already in your quote" or "already added" unless it appears in that list, and if they ask for a service that is not currently listed, ADD it with addServices — do not refuse.',
 			'- Do NOT give planning or design advice, and NEVER state or imply whether a project needs planning permission, is permitted development, or will be approved — not even on the advice path. When helping someone choose a service, recommend the service that fits what they describe and say the team will confirm the planning position; do not assert the planning position yourself.',
 			'- Do NOT state refund, cancellation, guarantee or timing terms as fact. If asked about refunds, cancellation rights or guarantees, say you cannot guarantee a planning outcome and that the fee covers the professional drawing work, then point them to our Terms of Service at ' . $terms . ' for the full terms (including any cancellation rights) rather than stating a contractual position yourself.',
 			'- A measured survey and a structural engineer are NEVER part of our fee — if one is needed we source an independent local professional and share their quote for the client\'s approval first; they pay only for that work, not our time. Say this plainly; never quote a number.',
@@ -676,7 +677,7 @@ class YAA_Archie {
 			return __( 'Type your message…', 'your-architect-archie' );
 		}
 		if ( empty( $s['address'] ) && empty( $s['postcode'] ) ) {
-			return __( 'Property address…', 'your-architect-archie' );
+			return __( 'Address…', 'your-architect-archie' );
 		}
 		if ( empty( $s['postcode'] ) ) {
 			return __( 'Postcode…', 'your-architect-archie' );
@@ -685,7 +686,7 @@ class YAA_Archie {
 			return __( 'Your name…', 'your-architect-archie' );
 		}
 		if ( ! empty( $s['advice'] ) ) {
-			return __( 'Your email address…', 'your-architect-archie' );
+			return __( 'Your email…', 'your-architect-archie' );
 		}
 		return __( 'Type your answer…', 'your-architect-archie' );
 	}

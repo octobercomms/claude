@@ -213,9 +213,12 @@ class YAA_Rest {
 		$node  = sanitize_key( (string) $req->get_param( 'id' ) ); // sanitize_key lower-cases the id.
 		$state = YAA_Project::state( $id );
 		$map   = array( 'submission' => 'submitApp', 'concept3d' => 'concept', 'sitevisit' => 'siteVisit', 'survey' => 'survey', 'structural' => 'structural' );
+		$t     = YAA_Pricing::table();
+		$label = __( 'that item', 'your-architect-archie' );
 		if ( 0 === strpos( $node, 'service_' ) ) {
 			// Drop a service line from the multi-service cart.
-			$key = substr( $node, strlen( 'service_' ) );
+			$key   = substr( $node, strlen( 'service_' ) );
+			$label = isset( $t['services'][ $key ]['label'] ) ? $t['services'][ $key ]['label'] : $label;
 			if ( ! empty( $state['services'] ) && is_array( $state['services'] ) ) {
 				$state['services'] = array_values( array_filter( $state['services'], function ( $k ) use ( $key ) {
 					return strtolower( (string) $k ) !== $key;
@@ -226,11 +229,36 @@ class YAA_Rest {
 			}
 		} elseif ( isset( $map[ $node ] ) ) {
 			$state[ $map[ $node ] ] = false;
+			$addon_labels = array(
+				'submission' => isset( $t['addons']['submission']['label'] ) ? $t['addons']['submission']['label'] : 'the submission add-on',
+				'concept3d'  => isset( $t['addons']['concept3d']['label'] ) ? $t['addons']['concept3d']['label'] : 'the 3D visualisation',
+				'sitevisit'  => isset( $t['addons']['siteVisit']['label'] ) ? $t['addons']['siteVisit']['label'] : 'the site visit',
+				'survey'     => 'the measured survey',
+				'structural' => 'the structural engineer',
+			);
+			$label = isset( $addon_labels[ $node ] ) ? $addon_labels[ $node ] : $label;
 		}
 		$package = YAA_Pricing::build_package( $state );
 		YAA_Project::set_state( $id, $state );
 		YAA_Project::set_package( $id, $package );
-		return new WP_REST_Response( array( 'package' => $package ) );
+
+		// Record the removal in the transcript so Archie SEES it next turn and never
+		// claims a removed item is "already in your quote". Also acknowledges it live.
+		$items = array();
+		foreach ( $package['nodes'] as $n ) {
+			if ( isset( $n['kind'] ) && 'info' === $n['kind'] ) {
+				continue;
+			}
+			if ( isset( $n['price'] ) && null !== $n['price'] ) {
+				$items[] = $n['label'] . ' (' . YAA_Pricing::money( (int) $n['price'] ) . ')';
+			}
+		}
+		$msg = $items
+			? sprintf( __( 'Done — I\'ve removed %1$s. Your quote now has: %2$s. Total %3$s.', 'your-architect-archie' ), $label, implode( ', ', $items ), YAA_Pricing::money( (int) $package['total'] ) )
+			: sprintf( __( 'Done — I\'ve removed %s. Your quote is empty now — just tell me what you\'d like.', 'your-architect-archie' ), $label );
+		YAA_Project::add_message( $id, 'assistant', $msg );
+
+		return new WP_REST_Response( array( 'package' => $package, 'message' => $msg ) );
 	}
 
 	public static function submit( $req ) {
