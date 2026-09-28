@@ -57,6 +57,48 @@ final class Config {
         return strtoupper(trim((string) get_post_meta($event_id, '_oe_survey_incentive_code', true)));
     }
 
+    /** Admin's description of the reward, e.g. "20% off Architecture Tours tickets". */
+    public static function incentive_desc(int $event_id): string {
+        return trim((string) get_post_meta($event_id, '_oe_survey_incentive_desc', true));
+    }
+
+    /**
+     * A human line describing the reward for the invite email and thank-you
+     * screen (or '' if there's no reward). Prefers the admin's own description
+     * (works for a code that lives on another site); otherwise derives the
+     * amount from a local promo code if the code is one.
+     */
+    public static function offer_line(int $event_id): string {
+        // Memoised per request: the invite send loop resolves this once per
+        // attendee (up to 100k), and each miss hits the DB via get_by_code().
+        // The reward is event-level, so cache it and skip the repeat queries.
+        static $cache = [];
+        if (isset($cache[$event_id])) {
+            return $cache[$event_id];
+        }
+        $desc = self::incentive_desc($event_id);
+        if ($desc !== '') {
+            return $cache[$event_id] = $desc;
+        }
+        $code = self::incentive_code($event_id);
+        if ($code === '') {
+            return $cache[$event_id] = '';
+        }
+        $promo = \OE\Ticketing\Promo::get_by_code($code);
+        if (! $promo) {
+            return $cache[$event_id] = '';
+        }
+        $val = rtrim(rtrim(number_format((float) $promo->discount_value, 2), '0'), '.');
+        if ((string) $promo->discount_type === 'percent') {
+            /* translators: %s: a percentage, e.g. "20" */
+            return $cache[$event_id] = sprintf(__('%s%% off', 'october-events'), $val);
+        }
+        $cur = strtoupper((string) Settings::get('currency', 'usd'));
+        $sym = ['USD' => '$', 'GBP' => '£', 'EUR' => '€', 'CAD' => '$', 'AUD' => '$'][$cur] ?? ($cur . ' ');
+        /* translators: %s: a money amount, e.g. "£5" */
+        return $cache[$event_id] = sprintf(__('%s off', 'october-events'), $sym . $val);
+    }
+
     public static function send_days_after(int $event_id): int {
         $v = (int) get_post_meta($event_id, '_oe_survey_send_days_after', true);
         return $v > 0 ? $v : 1;

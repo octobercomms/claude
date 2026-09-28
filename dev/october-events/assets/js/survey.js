@@ -116,6 +116,11 @@
         var p = document.createElement('p'); p.textContent = i18n.pvThanks || 'Preview — nothing was saved.';
         card.appendChild(tick); card.appendChild(h1); card.appendChild(p);
         if (cfg.code) {
+            if (cfg.offer) {
+                var oi = document.createElement('p');
+                oi.className = 'oe-survey-code-intro'; oi.textContent = cfg.offer;
+                card.appendChild(oi);
+            }
             var code = document.createElement('div');
             code.className = 'oe-survey-code'; code.textContent = cfg.code;
             card.appendChild(code);
@@ -160,6 +165,15 @@
     });
 
     if (back) { back.addEventListener('click', function () { show(idx - 1); }); }
+
+    // Pre-select a rating deep-linked from the invite email (?r=1..5).
+    if (cfg.prefill && cfg.prefill.qid) {
+        var pstep = form.querySelector('.oe-survey-step[data-qid="' + cfg.prefill.qid + '"]');
+        if (pstep) {
+            var radio = pstep.querySelector('input[type=radio][value="' + cfg.prefill.rating + '"]');
+            if (radio) { radio.checked = true; }
+        }
+    }
 
     form.classList.add('oe-survey-js');
     show(0);

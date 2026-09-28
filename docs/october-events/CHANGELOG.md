@@ -5,6 +5,28 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.193.0 — Survey emails that sell it; cross-site reward codes; thank-you email
+
+Reworked the survey invite around the evidence (see
+`SURVEY-EMAIL-BEST-PRACTICES.md`).
+
+- **Invite email now sells the survey.** States the time, lists the questions so
+  people see it’s short, and **embeds the first 1–5 rating as one-tap buttons**
+  that deep-link into the survey with that answer pre-selected (this alone lifts
+  response ~22%). Subject states the time and the offer.
+- **Reward code you can type or pick.** The reward field is now free text with
+  suggestions — use a code from another site (e.g. the tours site) without
+  recreating it here. A new **“what the reward is”** field lets the email and
+  thank-you say how much it is and what it’s for.
+- **Locked reward in the invite.** The email shows the offer and “unlocked when
+  you finish”, but never the code itself (blurring is unreliable in email and
+  leaks the code). The real code is revealed on completion.
+- **Thank-you email on completion.** When a reward is set, finishing the survey
+  now emails the attendee their code (with the offer and where to use it), so
+  they have it later — with a preview link in the builder.
+- **Three preview links** in the builder: the survey, the invite email, and the
+  thank-you email.
+
 ## 1.192.1 — Survey AI: real error messages + empty-model fix
 
 - The Suggest / Refine / Build buttons now show **why** they failed (AI request

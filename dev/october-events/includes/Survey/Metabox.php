@@ -30,6 +30,7 @@ final class Metabox {
         add_action('admin_post_oe_survey_send', [self::class, 'send_now']);
         add_action('admin_post_oe_survey_csv', [self::class, 'export_csv']);
         add_action('admin_post_oe_survey_email_preview', [self::class, 'email_preview']);
+        add_action('admin_post_oe_survey_thankyou_preview', [self::class, 'thankyou_preview']);
     }
 
     private static function post_type(): string {
@@ -102,6 +103,7 @@ final class Metabox {
         $enabled   = Config::enabled($id);
         $questions  = Config::questions($id);
         $code       = Config::incentive_code($id);
+        $desc       = Config::incentive_desc($id);
         $days_after = Config::send_days_after($id);
         $window     = Config::window_days($id);
         $sent_at    = Config::sent_at($id);
@@ -180,10 +182,13 @@ final class Metabox {
                         <?php
                         $preview_form = wp_nonce_url(add_query_arg('oe_survey_preview', $id, home_url('/')), 'oe_survey_preview_' . $id);
                         $preview_mail = wp_nonce_url(admin_url('admin-post.php?action=oe_survey_email_preview&event=' . $id), 'oe_survey_email_' . $id);
+                        $preview_ty   = wp_nonce_url(admin_url('admin-post.php?action=oe_survey_thankyou_preview&event=' . $id), 'oe_survey_thankyou_' . $id);
                         ?>
                         <a href="<?php echo esc_url($preview_form); ?>" target="_blank" rel="noopener"><?php esc_html_e('Preview the survey', 'october-events'); ?></a>
                         &nbsp;·&nbsp;
                         <a href="<?php echo esc_url($preview_mail); ?>" target="_blank" rel="noopener"><?php esc_html_e('Preview the invite email', 'october-events'); ?></a>
+                        &nbsp;·&nbsp;
+                        <a href="<?php echo esc_url($preview_ty); ?>" target="_blank" rel="noopener"><?php esc_html_e('Preview the thank-you email', 'october-events'); ?></a>
                         <span class="oe-svy-hint"><?php esc_html_e('(save the event first to preview your latest changes)', 'october-events'); ?></span>
                     </p>
                 </div>
@@ -203,7 +208,12 @@ final class Metabox {
             <div class="oe-svy-settings">
                 <label>
                     <span><?php esc_html_e('Reward code on completion', 'october-events'); ?></span>
-                    <?php self::code_dropdown($code); ?>
+                    <input type="text" name="oe_survey_incentive_code" value="<?php echo esc_attr($code); ?>" list="oe-svy-codes" placeholder="<?php esc_attr_e('Type or pick a code', 'october-events'); ?>" autocomplete="off">
+                    <?php self::code_datalist(); ?>
+                </label>
+                <label>
+                    <span><?php esc_html_e('What the reward is (shown to attendees)', 'october-events'); ?></span>
+                    <input type="text" name="oe_survey_incentive_desc" value="<?php echo esc_attr($desc); ?>" placeholder="<?php esc_attr_e('e.g. 20% off Architecture Tours tickets', 'october-events'); ?>">
                 </label>
                 <label>
                     <span><?php esc_html_e('Send this many days after the event', 'october-events'); ?></span>
@@ -214,6 +224,7 @@ final class Metabox {
                     <input type="number" name="oe_survey_window_days" min="1" max="90" value="<?php echo (int) $window; ?>">
                 </label>
             </div>
+            <p class="oe-svy-reward-note"><?php esc_html_e('You can type a code from another site (e.g. the tours site) — it doesn’t have to exist here. Fill in “what the reward is” so the email and thank-you can say how much it is and what it’s for. The code itself is only shown after someone finishes, never in the email.', 'october-events'); ?></p>
 
             <?php if ($ready) : ?>
                 <div class="oe-svy-actions">
@@ -256,11 +267,14 @@ final class Metabox {
         <?php
     }
 
-    /** Redeemable promo codes for the reward dropdown (mirrors the recovery picker). */
-    private static function code_dropdown(string $selected): void {
+    /**
+     * Suggestions for the reward-code field: this site's redeemable promo codes.
+     * The field is free text, so a code from another site (e.g. the tours site)
+     * can be typed even though it isn't listed here.
+     */
+    private static function code_datalist(): void {
         $now = current_time('timestamp');
-        echo '<select name="oe_survey_incentive_code">';
-        echo '<option value="">' . esc_html__('No reward code', 'october-events') . '</option>';
+        echo '<datalist id="oe-svy-codes">';
         foreach (Promo::all() as $p) {
             if ((int) $p->active !== 1) {
                 continue;
@@ -271,10 +285,9 @@ final class Metabox {
             if ($p->max_uses !== null && (int) $p->used_count >= (int) $p->max_uses) {
                 continue;
             }
-            $c = strtoupper((string) $p->code);
-            echo '<option value="' . esc_attr($c) . '" ' . selected($selected, $c, false) . '>' . esc_html($c) . '</option>';
+            echo '<option value="' . esc_attr(strtoupper((string) $p->code)) . '"></option>';
         }
-        echo '</select>';
+        echo '</datalist>';
     }
 
     public static function save(int $post_id, \WP_Post $post): void {
@@ -298,6 +311,9 @@ final class Metabox {
 
         $code = isset($_POST['oe_survey_incentive_code']) ? strtoupper(sanitize_text_field(wp_unslash((string) $_POST['oe_survey_incentive_code']))) : '';
         update_post_meta($post_id, '_oe_survey_incentive_code', $code);
+
+        $desc = isset($_POST['oe_survey_incentive_desc']) ? sanitize_text_field(wp_unslash((string) $_POST['oe_survey_incentive_desc'])) : '';
+        update_post_meta($post_id, '_oe_survey_incentive_desc', $desc);
 
         $days = isset($_POST['oe_survey_send_days_after']) ? (int) $_POST['oe_survey_send_days_after'] : 1;
         update_post_meta($post_id, '_oe_survey_send_days_after', max(1, min(30, $days)));
@@ -366,6 +382,19 @@ final class Metabox {
         nocache_headers();
         header('Content-Type: text/html; charset=utf-8');
         echo Sender::preview_html($event_id); // phpcs:ignore WordPress.Security.EscapeOutput -- branded email HTML, escaped within
+        exit;
+    }
+
+    /** Show the completion thank-you email exactly as it will be sent. */
+    public static function thankyou_preview(): void {
+        $event_id = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        check_admin_referer('oe_survey_thankyou_' . $event_id);
+        if (! $event_id || ! current_user_can('edit_post', $event_id)) {
+            wp_die(esc_html__('Not allowed.', 'october-events'), '', ['response' => 403]);
+        }
+        nocache_headers();
+        header('Content-Type: text/html; charset=utf-8');
+        echo Sender::preview_thankyou_html($event_id); // phpcs:ignore WordPress.Security.EscapeOutput -- branded email HTML, escaped within
         exit;
     }
 

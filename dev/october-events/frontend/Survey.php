@@ -136,7 +136,7 @@ final class Survey {
 
         $existing = Responses::find($token);
         if ($existing && (string) $existing->status === 'complete') {
-            return [$this->thanks_html(Config::incentive_code($event_id))];
+            return [$this->thanks_html(Config::incentive_code($event_id), Config::offer_line($event_id))];
         }
 
         return [$this->form_html($token, $event_id)];
@@ -145,6 +145,19 @@ final class Survey {
     private function form_html(string $token, int $event_id, bool $preview = false): string {
         $questions = Config::questions($event_id);
         $event     = get_the_title($event_id);
+
+        // A rating deep-linked from the invite email (?r=1..5): pre-select it on
+        // the first rating question so a one-tap arrival lands with it answered.
+        $prefill = null;
+        $r = isset($_GET['r']) ? (int) $_GET['r'] : 0;
+        if ($r >= 1 && $r <= 5) {
+            foreach ($questions as $q) {
+                if ((string) ($q['type'] ?? '') === 'rating') {
+                    $prefill = ['qid' => (string) ($q['id'] ?? ''), 'rating' => $r];
+                    break;
+                }
+            }
+        }
 
         // Data the front-end script drives the one-per-screen flow with. In
         // preview mode nothing is saved: the script skips the autosave/submit
@@ -157,6 +170,8 @@ final class Survey {
             'questions' => $questions,
             'preview'   => $preview,
             'code'      => $preview ? Config::incentive_code($event_id) : '',
+            'offer'     => Config::offer_line($event_id),
+            'prefill'   => $prefill,
             'i18n'      => [
                 'next'    => __('Next', 'october-events'),
                 'back'    => __('Back', 'october-events'),
@@ -173,10 +188,29 @@ final class Survey {
         return (string) ob_get_clean();
     }
 
-    private function thanks_html(string $code): string {
+    private function thanks_html(string $code, string $offer = ''): string {
         ob_start();
         require OE_DIR . 'frontend/templates/survey-thanks.php';
         return (string) ob_get_clean();
+    }
+
+    /** Email the completion thank-you (with the reward code) to the attendee. */
+    private function send_thankyou(string $token, int $event_id, string $code): void {
+        if (trim($code) === '') {
+            return; // only email when there's a reward to deliver
+        }
+        // Belt-and-braces against a double completion (two tabs, or the JS submit
+        // racing the no-JS fallback) sending two reward emails.
+        $guard = 'oe_svy_thx_' . md5($token);
+        if (get_transient($guard)) {
+            return;
+        }
+        set_transient($guard, 1, WEEK_IN_SECONDS);
+        $contact = \OE\Ticketing\Orders::contact_for_token($token);
+        if (! $contact || ! is_email($contact['email'])) {
+            return;
+        }
+        \OE\Survey\Sender::send_thankyou($event_id, $contact['email'], $contact['name'], $code);
     }
 
     private function notice(string $title, string $body): string {
@@ -207,11 +241,18 @@ final class Survey {
             wp_send_json_error([], 400);
         }
         $answers = $this->json_field('answers');
+        $before  = Responses::find($token);
+        $already = $before && (string) $before->status === 'complete';
         $code = Responses::finish($token, is_array($answers) ? $answers : []);
         if ($code === null) {
             wp_send_json_error(['message' => __('Could not save your answers.', 'october-events')], 422);
         }
-        wp_send_json_success(['html' => $this->thanks_html($code)]);
+        $ctx = Responses::context($token);
+        $offer = $ctx ? Config::offer_line($ctx['event_id']) : '';
+        if (! $already && $ctx) {
+            $this->send_thankyou($token, $ctx['event_id'], (string) $code);
+        }
+        wp_send_json_success(['html' => $this->thanks_html($code, $offer)]);
     }
 
     /**
@@ -241,7 +282,12 @@ final class Survey {
             exit;
         }
         $answers = $this->parse_noscript($ctx['event_id']);
-        Responses::finish($token, $answers);
+        $before  = Responses::find($token);
+        $already = $before && (string) $before->status === 'complete';
+        $code = Responses::finish($token, $answers);
+        if (! $already && $code !== null) {
+            $this->send_thankyou($token, $ctx['event_id'], (string) $code);
+        }
         // Redirect back to the survey link. build() reflects the true state: a
         // successful finish now renders the thank-you + code; a failed one (closed,
         // or nothing valid answered) shows the form or the closed notice.
