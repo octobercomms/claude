@@ -124,6 +124,16 @@
             var code = document.createElement('div');
             code.className = 'oe-survey-code'; code.textContent = cfg.code;
             card.appendChild(code);
+            if (cfg.redeem) {
+                var rp = document.createElement('p');
+                rp.className = 'oe-survey-redeem';
+                var a = document.createElement('a');
+                a.className = 'oe-survey-btn oe-survey-redeem-btn';
+                a.href = cfg.redeem;
+                a.textContent = cfg.useCode || 'Use your code';
+                rp.appendChild(a);
+                card.appendChild(rp);
+            }
         }
         wrap.appendChild(card);
         main.parentNode.replaceChild(wrap, main);

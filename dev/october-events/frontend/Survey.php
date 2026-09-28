@@ -136,7 +136,7 @@ final class Survey {
 
         $existing = Responses::find($token);
         if ($existing && (string) $existing->status === 'complete') {
-            return [$this->thanks_html(Config::incentive_code($event_id), Config::offer_line($event_id))];
+            return [$this->thanks_html(Config::incentive_code($event_id), Config::offer_line($event_id), Config::incentive_url($event_id))];
         }
 
         return [$this->form_html($token, $event_id)];
@@ -171,7 +171,9 @@ final class Survey {
             'preview'   => $preview,
             'code'      => $preview ? Config::incentive_code($event_id) : '',
             'offer'     => Config::offer_line($event_id),
+            'redeem'    => Config::incentive_url($event_id),
             'prefill'   => $prefill,
+            'useCode'   => __('Use your code', 'october-events'),
             'i18n'      => [
                 'next'    => __('Next', 'october-events'),
                 'back'    => __('Back', 'october-events'),
@@ -188,7 +190,7 @@ final class Survey {
         return (string) ob_get_clean();
     }
 
-    private function thanks_html(string $code, string $offer = ''): string {
+    private function thanks_html(string $code, string $offer = '', string $redeem = ''): string {
         ob_start();
         require OE_DIR . 'frontend/templates/survey-thanks.php';
         return (string) ob_get_clean();
@@ -249,10 +251,11 @@ final class Survey {
         }
         $ctx = Responses::context($token);
         $offer = $ctx ? Config::offer_line($ctx['event_id']) : '';
+        $redeem = $ctx ? Config::incentive_url($ctx['event_id']) : '';
         if (! $already && $ctx) {
             $this->send_thankyou($token, $ctx['event_id'], (string) $code);
         }
-        wp_send_json_success(['html' => $this->thanks_html($code, $offer)]);
+        wp_send_json_success(['html' => $this->thanks_html($code, $offer, $redeem)]);
     }
 
     /**

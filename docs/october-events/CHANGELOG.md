@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.194.0 — Survey emails: legibility fix, “signing up” copy, redeem link
+
+- **Fixed unreadable white text.** The reward offer, the code, and the rating
+  buttons were using the theme’s on-accent colour (white on ADF), so they
+  rendered white-on-cream. They now use a fixed dark ink; primary buttons use the
+  accent + its own on-colour, which is always legible. Same fix on the front-end
+  form’s buttons.
+- **“Thanks for signing up”** instead of “Thanks for coming”. The survey goes to
+  **all paid ticket buyers**, whether or not they checked in, so the copy no
+  longer assumes attendance.
+- **Link to use the code.** New optional “Link to use the code” field (e.g. the
+  tour ticket page). When set, the thank-you email and the completion screen show
+  a **“Use your code”** button to that URL.
+
 ## 1.193.0 — Survey emails that sell it; cross-site reward codes; thank-you email
 
 Reworked the survey invite around the evidence (see

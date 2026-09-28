@@ -62,6 +62,11 @@ final class Config {
         return trim((string) get_post_meta($event_id, '_oe_survey_incentive_desc', true));
     }
 
+    /** Optional link where the code is redeemed, e.g. the tour ticket page. */
+    public static function incentive_url(int $event_id): string {
+        return trim((string) get_post_meta($event_id, '_oe_survey_incentive_url', true));
+    }
+
     /**
      * A human line describing the reward for the invite email and thank-you
      * screen (or '' if there's no reward). Prefers the admin's own description

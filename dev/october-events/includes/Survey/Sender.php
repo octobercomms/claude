@@ -169,8 +169,11 @@ final class Sender {
      * same prominent chip design, with what the offer is and where to use it.
      */
     private static function thankyou_html(int $event_id, string $event, string $code): string {
-        $ink   = sanitize_hex_color((string) Settings::get('theme_accent_on', '')) ?: '#1a1a1a';
-        $offer = Config::offer_line($event_id);
+        $accent = sanitize_hex_color((string) Settings::get('theme_accent', '')) ?: '#E7CD41';
+        $on     = sanitize_hex_color((string) Settings::get('theme_accent_on', '')) ?: '#1a1a1a';
+        $dark   = '#1a1a1a';
+        $offer  = Config::offer_line($event_id);
+        $redeem = Config::incentive_url($event_id);
 
         $intro = sprintf(
             /* translators: %s: event name */
@@ -179,16 +182,22 @@ final class Sender {
         );
 
         $html = '<p style="font-size:16px;line-height:1.5;margin:0 0 20px">' . esc_html($intro) . '</p>';
-        $html .= '<div style="border:2px solid ' . esc_attr($ink) . ';border-radius:10px;background:#faf7f0;padding:18px;margin:0 0 20px">';
+        $html .= '<div style="border:2px solid ' . esc_attr($dark) . ';border-radius:10px;background:#faf7f0;padding:18px;margin:0 0 20px">';
         if ($offer !== '') {
             $html .= '<div style="font-size:14px;color:#555;margin-bottom:4px">' . esc_html__('Your thank-you reward', 'october-events') . '</div>';
-            $html .= '<div style="font-size:20px;font-weight:700;color:' . esc_attr($ink) . ';margin-bottom:10px">' . esc_html($offer) . '</div>';
+            $html .= '<div style="font-size:20px;font-weight:700;color:' . esc_attr($dark) . ';margin-bottom:10px">' . esc_html($offer) . '</div>';
         } else {
             $html .= '<div style="font-size:14px;color:#555;margin-bottom:8px">' . esc_html__('Your thank-you code', 'october-events') . '</div>';
         }
-        $html .= '<div style="font-family:ui-monospace,Menlo,monospace;font-size:24px;font-weight:700;letter-spacing:3px;color:' . esc_attr($ink)
-            . ';border:2px dashed ' . esc_attr($ink) . ';border-radius:8px;padding:10px 16px;display:inline-block">' . esc_html($code) . '</div>';
-        $html .= '<div style="font-size:13px;color:#777;margin-top:10px">' . esc_html__('Use it at checkout next time.', 'october-events') . '</div>';
+        $html .= '<div style="font-family:ui-monospace,Menlo,monospace;font-size:24px;font-weight:700;letter-spacing:3px;color:' . esc_attr($dark)
+            . ';border:2px dashed ' . esc_attr($dark) . ';border-radius:8px;padding:10px 16px;display:inline-block">' . esc_html($code) . '</div>';
+        if ($redeem !== '') {
+            $html .= '<div style="margin-top:14px"><a href="' . esc_url($redeem) . '" style="display:inline-block;background:' . esc_attr($accent)
+                . ';color:' . esc_attr($on) . ';text-decoration:none;font-weight:700;padding:11px 22px;border-radius:8px;font-size:15px">'
+                . esc_html__('Use your code', 'october-events') . '</a></div>';
+        } else {
+            $html .= '<div style="font-size:13px;color:#777;margin-top:10px">' . esc_html__('Use it at checkout next time.', 'october-events') . '</div>';
+        }
         $html .= '</div>';
 
         return $html;
@@ -205,7 +214,12 @@ final class Sender {
      */
     private static function invite_html(int $event_id, string $event, string $token): string {
         $accent = sanitize_hex_color((string) Settings::get('theme_accent', '')) ?: '#E7CD41';
+        // Text ON the accent button uses accent-on; everything on light panels uses
+        // a fixed dark ink (accent-on is often white, which vanishes on cream).
+        // Fallback matches the default accent (#E7CD41, light) so an unconfigured
+        // site gets legible dark-on-accent, not white-on-yellow.
         $ink    = sanitize_hex_color((string) Settings::get('theme_accent_on', '')) ?: '#1a1a1a';
+        $dark   = '#1a1a1a';
         $url    = $token !== '' ? self::link($token) : home_url('/survey/preview');
 
         // Cap-counting questions, in order, for the "here's what we'll ask" list.
@@ -227,8 +241,8 @@ final class Sender {
         $intro = sprintf(
             /* translators: 1: event name; 2: number of questions */
             _n(
-                'Thanks for coming to %1$s. It takes about a minute — just %2$d quick question — and it shapes what we do next time.',
-                'Thanks for coming to %1$s. It takes about a minute — just %2$d quick questions — and it shapes what we do next time.',
+                'Thanks for signing up for %1$s. It takes about a minute — just %2$d quick question — and it shapes what we do next time.',
+                'Thanks for signing up for %1$s. It takes about a minute — just %2$d quick questions — and it shapes what we do next time.',
                 $count,
                 'october-events'
             ),
@@ -256,7 +270,7 @@ final class Sender {
             for ($i = 1; $i <= 5; $i++) {
                 $rate_url = add_query_arg('r', $i, $url);
                 $html .= '<a href="' . esc_url($rate_url) . '" style="display:inline-block;width:44px;height:44px;line-height:44px;text-align:center;'
-                    . 'margin-right:6px;border:2px solid ' . esc_attr($ink) . ';border-radius:10px;color:' . esc_attr($ink)
+                    . 'margin-right:6px;border:2px solid ' . esc_attr($dark) . ';border-radius:10px;color:' . esc_attr($dark)
                     . ';text-decoration:none;font-weight:700;font-size:17px">' . $i . '</a>';
             }
             $html .= '</div>';
@@ -269,9 +283,9 @@ final class Sender {
         $offer = Config::offer_line($event_id);
         if ($offer !== '' || Config::incentive_code($event_id) !== '') {
             $offer_label = $offer !== '' ? $offer : __('A thank-you reward', 'october-events');
-            $html .= '<div style="border:2px solid ' . esc_attr($ink) . ';border-radius:10px;background:#faf7f0;padding:16px;margin:0 0 20px">'
+            $html .= '<div style="border:2px solid ' . esc_attr($dark) . ';border-radius:10px;background:#faf7f0;padding:16px;margin:0 0 20px">'
                 . '<div style="font-size:14px;color:#555;margin-bottom:6px">🔒 ' . esc_html__('Thank-you reward, unlocked when you finish', 'october-events') . '</div>'
-                . '<div style="font-size:20px;font-weight:700;color:' . esc_attr($ink) . '">' . esc_html($offer_label) . '</div>'
+                . '<div style="font-size:20px;font-weight:700;color:' . esc_attr($dark) . '">' . esc_html($offer_label) . '</div>'
                 . '<div style="font-family:ui-monospace,Menlo,monospace;font-size:20px;letter-spacing:3px;color:#bbb;border:2px dashed #ccc;border-radius:8px;padding:8px 12px;margin-top:10px;display:inline-block">•••••••</div>'
                 . '</div>';
         }

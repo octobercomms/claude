@@ -104,6 +104,7 @@ final class Metabox {
         $questions  = Config::questions($id);
         $code       = Config::incentive_code($id);
         $desc       = Config::incentive_desc($id);
+        $redeem     = Config::incentive_url($id);
         $days_after = Config::send_days_after($id);
         $window     = Config::window_days($id);
         $sent_at    = Config::sent_at($id);
@@ -216,6 +217,10 @@ final class Metabox {
                     <input type="text" name="oe_survey_incentive_desc" value="<?php echo esc_attr($desc); ?>" placeholder="<?php esc_attr_e('e.g. 20% off Architecture Tours tickets', 'october-events'); ?>">
                 </label>
                 <label>
+                    <span><?php esc_html_e('Link to use the code (optional)', 'october-events'); ?></span>
+                    <input type="url" name="oe_survey_incentive_url" value="<?php echo esc_attr($redeem); ?>" placeholder="<?php esc_attr_e('e.g. https://architecturetours.net/book', 'october-events'); ?>">
+                </label>
+                <label>
                     <span><?php esc_html_e('Send this many days after the event', 'october-events'); ?></span>
                     <input type="number" name="oe_survey_send_days_after" min="1" max="30" value="<?php echo (int) $days_after; ?>">
                 </label>
@@ -314,6 +319,9 @@ final class Metabox {
 
         $desc = isset($_POST['oe_survey_incentive_desc']) ? sanitize_text_field(wp_unslash((string) $_POST['oe_survey_incentive_desc'])) : '';
         update_post_meta($post_id, '_oe_survey_incentive_desc', $desc);
+
+        $redeem = isset($_POST['oe_survey_incentive_url']) ? esc_url_raw(wp_unslash((string) $_POST['oe_survey_incentive_url'])) : '';
+        update_post_meta($post_id, '_oe_survey_incentive_url', $redeem);
 
         $days = isset($_POST['oe_survey_send_days_after']) ? (int) $_POST['oe_survey_send_days_after'] : 1;
         update_post_meta($post_id, '_oe_survey_send_days_after', max(1, min(30, $days)));
