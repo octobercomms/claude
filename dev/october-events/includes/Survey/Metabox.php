@@ -273,15 +273,18 @@ final class Metabox {
             <?php endif; ?>
 
             <?php
+            // The results panel is always shown, so there is an obvious place to
+            // look. Until the first response lands it explains what will appear
+            // here; after that it renders the aggregates and the export.
             $results = Results::render($id);
-            if ($results !== '') :
-                $csv_url = wp_nonce_url(
-                    admin_url('admin-post.php?action=oe_survey_csv&event=' . $id),
-                    'oe_survey_csv_' . $id
-                );
-                ?>
-                <details class="oe-svy-report" open>
-                    <summary><?php esc_html_e('Results', 'october-events'); ?></summary>
+            $csv_url  = wp_nonce_url(
+                admin_url('admin-post.php?action=oe_survey_csv&event=' . $id),
+                'oe_survey_csv_' . $id
+            );
+            ?>
+            <details class="oe-svy-report" open>
+                <summary><?php esc_html_e('Results', 'october-events'); ?></summary>
+                <?php if ($results !== '') : ?>
                     <?php echo $results; // phpcs:ignore WordPress.Security.EscapeOutput -- built from esc_html/esc_attr in Results ?>
                     <p><a href="<?php echo esc_url($csv_url); ?>" class="button"><?php esc_html_e('Download CSV', 'october-events'); ?></a></p>
                     <?php $segments = Results::segments($id); ?>
@@ -292,8 +295,20 @@ final class Metabox {
                             implode(', ', $segments)
                         )); ?></p>
                     <?php endif; ?>
-                </details>
-            <?php endif; ?>
+                <?php else : ?>
+                    <p class="oe-svy-empty">
+                        <?php
+                        if ($sent_at !== '') {
+                            esc_html_e('No responses yet. Answers appear here as attendees reply — the summary and each person’s answers, updating live (even part-finished ones). Give it a little time after the invite.', 'october-events');
+                        } elseif ($enabled && $ready) {
+                            esc_html_e('No responses yet. Once the invite goes out and attendees start replying, their answers appear here — the summary and each person’s answers, updating live.', 'october-events');
+                        } else {
+                            esc_html_e('Responses will appear here once the survey is set up and sent.', 'october-events');
+                        }
+                        ?>
+                    </p>
+                <?php endif; ?>
+            </details>
         </div>
         <?php
     }
