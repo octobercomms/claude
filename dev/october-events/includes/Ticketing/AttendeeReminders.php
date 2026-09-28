@@ -59,7 +59,10 @@ final class AttendeeReminders {
         if (! $attendees) {
             return 0;
         }
-        $when  = (string) Events::get($event_id, 'start_datetime', '');
+        // Use the same formatter as the ticket confirmation so a date stored as
+        // a Unix timestamp (JetEngine "save as timestamp") renders as a real date
+        // ("September 29, 2026 …"), not the raw number.
+        $when  = Ics::when_label($event_id);
         $where = (string) Events::get($event_id, 'location', '');
         $name  = (string) Events::get($event_id, 'name', '') ?: get_the_title($event_id);
         $url   = (string) get_permalink($event_id);
