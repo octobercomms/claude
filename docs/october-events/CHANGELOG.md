@@ -5,6 +5,12 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.194.4 — Reminder email shows a real date, not a raw timestamp
+
+- The pre-event ticket-holder reminder printed **“When: 1790640000”** when the
+  event date was stored as a Unix timestamp. It now uses the same `when_label()`
+  formatter as the ticket confirmation, so it reads “September 29, 2026 …”.
+
 ## 1.194.3 — Survey timing reads timestamp dates and shows what it found
 
 - The event-date reader now understands a date stored as a **Unix timestamp**
