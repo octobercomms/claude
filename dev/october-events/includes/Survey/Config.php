@@ -296,11 +296,29 @@ final class Config {
      * start if there is no separate end, or 0 when neither is set.
      */
     public static function end_ts(int $event_id): int {
-        $end = (string) Events::get($event_id, 'end_datetime', '');
-        if ($end === '') {
-            $end = (string) Events::get($event_id, 'start_datetime', '');
+        // Try each source in turn and take the FIRST that parses to a real date.
+        // A site can map the event date to the prose "Dates & Times" box, which
+        // isn't machine-readable; when that happens we skip it and fall back to
+        // the structured Start/End Date fields (start-date / end-date) directly,
+        // so the automatic send can still be timed.
+        $candidates = [
+            (string) Events::get($event_id, 'end_datetime', ''),
+            (string) Events::get($event_id, 'start_datetime', ''),
+        ];
+        foreach (['end-date', 'end_date', 'start-date', 'start_date'] as $key) {
+            $candidates[] = (string) get_post_meta($event_id, $key, true);
         }
-        return $end !== '' ? (int) (strtotime($end) ?: 0) : 0;
+        foreach ($candidates as $value) {
+            $value = trim($value);
+            if ($value === '') {
+                continue;
+            }
+            $ts = (int) (strtotime($value) ?: 0);
+            if ($ts > 0) {
+                return $ts;
+            }
+        }
+        return 0;
     }
 
     /** Responses are accepted from the day the event ends. */
