@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.194.5 — Results panel always visible
+
+- The survey **Results** panel now always shows in the builder, even with zero
+  responses, so there’s an obvious place to look. Before, it was hidden until
+  the first response arrived, which read as “nothing there”. Empty state now
+  explains that answers appear (and update live) as attendees reply.
+
 ## 1.194.4 — Reminder email shows a real date, not a raw timestamp
 
 - The pre-event ticket-holder reminder printed **“When: 1790640000”** when the
