@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.5
+Stable tag: 0.7.6
 License: GPLv2 or later
 
 Archie â the conversational, fixed-price project builder for Your Architect. A
@@ -38,6 +38,11 @@ Mail should go via Brevo or an SMTP plugin. Rate limits + the daily token cap
 protect your Claude spend. On Nginx, add a deny rule for `uploads/yaa-secure/`.
 
 == Changelog ==
+
+= 0.7.6 =
+* Cart confirmations now always name each line that changed and state the new
+  total, and adding a service back adds only the one named — mitigating a rare
+  case where asking for one removed service back could also re-add another.
 
 = 0.7.5 =
 * Fixed the last cart-sync bug (critical): removing an item with the panel ✕ now
