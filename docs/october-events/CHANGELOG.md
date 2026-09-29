@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.195.2 — Volunteer roster keeps no-shows on the list
+
+- The roster excluded anyone not pending/confirmed, so a volunteer already
+  marked **no-show** dropped off — the opposite of useful, since a no-show is
+  exactly who you want to chase. It now lists everyone still expected on the
+  shift (pending, confirmed, checked in, and no-show), marking a no-show clearly;
+  only volunteers who **declined or cancelled** are left off.
+
 ## 1.195.1 — Volunteer roster finds today’s shifts reliably
 
 - The daily roster now reads each shift’s date from the **opportunity’s shift
