@@ -143,7 +143,10 @@ final class DailyDigest {
                     continue; // shift has no date, or isn't today
                 }
                 foreach (VolunteerSignups::for_shift((int) $oid, (string) $shift['id']) as $s) {
-                    if (! in_array((string) $s->status, [VolunteerSignups::STATUS_PENDING, VolunteerSignups::STATUS_CONFIRMED], true)) {
+                    // Everyone still expected on the shift — which includes a
+                    // no-show (that's precisely who you'd chase). Only people who
+                    // pulled out (declined / cancelled) are left off.
+                    if (in_array((string) $s->status, [VolunteerSignups::STATUS_DECLINED, VolunteerSignups::STATUS_CANCELLED], true)) {
                         continue;
                     }
                     if (trim((string) $s->shift_start) === '') {
@@ -303,11 +306,15 @@ final class DailyDigest {
                         ? '<a href="tel:' . esc_attr(preg_replace('/[^0-9+]/', '', $phone)) . '" style="color:' . $dark . ';text-decoration:none">' . esc_html($phone) . '</a>'
                             . ((int) $p->sms_opt_in === 1 ? ' <span style="color:' . $muted . ';font-size:11px">' . esc_html__('(SMS ok)', 'october-events') . '</span>' : '')
                         : '<span style="color:#aaa">' . esc_html__('none', 'october-events') . '</span>';
-                    $status = (int) $p->checked_in === 1
-                        ? esc_html__('checked in', 'october-events')
-                        : ((string) $p->status === VolunteerSignups::STATUS_CONFIRMED
-                            ? esc_html__('confirmed', 'october-events')
-                            : esc_html__('signed up', 'october-events'));
+                    if ((string) $p->status === VolunteerSignups::STATUS_NO_SHOW) {
+                        $status = esc_html__('NO SHOW', 'october-events');
+                    } elseif ((int) $p->checked_in === 1) {
+                        $status = esc_html__('checked in', 'october-events');
+                    } elseif ((string) $p->status === VolunteerSignups::STATUS_CONFIRMED) {
+                        $status = esc_html__('confirmed', 'october-events');
+                    } else {
+                        $status = esc_html__('signed up', 'october-events');
+                    }
                     $out .= '<tr>'
                         . '<td style="border-bottom:1px solid ' . $border . ';padding:6px 8px;color:' . $dark . '">' . esc_html((string) $p->name) . '</td>'
                         . '<td style="border-bottom:1px solid ' . $border . ';padding:6px 8px"><a href="mailto:' . esc_attr((string) $p->email) . '" style="color:' . $dark . ';text-decoration:none">' . esc_html((string) $p->email) . '</a></td>'
