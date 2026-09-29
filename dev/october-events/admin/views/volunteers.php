@@ -123,7 +123,7 @@ $clash_ids = (array) ($dash['clash_ids'] ?? []);
     <?php foreach ($opps as $opp) :
         $ocolor = Volunteers::fill_color((int) $opp['pct']);
     ?>
-        <details class="oe-acc oe-vol-opp"<?php echo $ocolor === 'red' ? ' open' : ''; ?>>
+        <details class="oe-acc oe-vol-opp">
             <summary>
                 <span class="oe-vol-title">
                     <?php echo esc_html($opp['title']); ?>

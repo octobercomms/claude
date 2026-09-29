@@ -87,6 +87,9 @@ final class Cron {
         Reminders::run_due();
         // Pre-event reminder to ticket-holders (default 24h before, once per event).
         \OE\Ticketing\AttendeeReminders::run_due();
+        // Daily volunteer roster to coordinators (once a day, at/after the set
+        // hour, only on days with shifts). Self-gates internally.
+        \OE\Volunteers\DailyDigest::run_due();
         // Abandoned-cart recovery autopilot (no-op unless switched on) — mails
         // carts abandoned since it was enabled; the backlog stays manual.
         \OE\Ticketing\Recovery::run_autopilot();

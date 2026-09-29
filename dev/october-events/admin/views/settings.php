@@ -925,6 +925,29 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('Alerts name the volunteer, the opportunity and the shift. Volunteers can cancel their own shift from a link in their confirmation email — a cancellation here means they used it.', 'october-events'); ?></p>
         </div></details>
 
+        <details class="oe-acc" id="volunteer-digest"><summary><?php esc_html_e('Daily volunteer roster (morning email)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('A single email each morning listing every volunteer shift happening that day, with each person’s name, email and phone, so you can chase anyone who doesn’t show. Sent once a day, only on days that have shifts.', 'october-events'); ?></p>
+        <p><label><input type="checkbox" name="volunteer_digest_enabled" value="1" <?php checked(! empty($cfg['volunteer_digest_enabled'])); ?>> <strong><?php esc_html_e('Send the daily roster email', 'october-events'); ?></strong></label></p>
+        <p><label><strong><?php esc_html_e('Send to', 'october-events'); ?></strong><br>
+            <textarea name="volunteer_digest_emails" rows="2" class="large-text" placeholder="you@example.com, elayne@example.com"><?php echo esc_textarea((string) ($cfg['volunteer_digest_emails'] ?? '')); ?></textarea></label>
+            <span class="description"><?php esc_html_e('One or more addresses, separated by commas. Leave blank to use the site admin address.', 'october-events'); ?></span></p>
+        <p><label><strong><?php esc_html_e('Send at (hour, site time)', 'october-events'); ?></strong><br>
+            <input type="number" name="volunteer_digest_hour" min="0" max="23" step="1" value="<?php echo esc_attr((string) ($cfg['volunteer_digest_hour'] ?? 6)); ?>" style="width:80px"></label>
+            <span class="description"><?php esc_html_e('0–23. The email goes out on the first cron run at or after this hour. 6 = 6am.', 'october-events'); ?></span></p>
+        <p class="description"><?php esc_html_e('Phone numbers only appear for volunteers who gave one. The email links back to the Volunteers dashboard.', 'october-events'); ?></p>
+        <?php if (isset($_GET['oe_vol_digest_sent'])) : // phpcs:ignore WordPress.Security.NonceVerification -- read-only confirmation
+            $vd_sent = absint($_GET['oe_vol_digest_sent']); ?>
+            <p class="oe-inline-ok" style="color:#2e7d32;font-weight:600"><?php echo esc_html($vd_sent > 0
+                ? sprintf(_n('Roster sent to %d recipient.', 'Roster sent to %d recipients.', $vd_sent, 'october-events'), $vd_sent)
+                : __('Nothing sent — no shifts scheduled today, or no recipients set.', 'october-events')); ?></p>
+        <?php endif; ?>
+        <p>
+            <a class="button" target="_blank" rel="noopener" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_vol_digest_preview'), 'oe_vol_digest')); ?>"><?php esc_html_e('Preview today’s roster', 'october-events'); ?></a>
+            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_vol_digest_send'), 'oe_vol_digest')); ?>"><?php esc_html_e('Send now (test)', 'october-events'); ?></a>
+            <span class="description"><?php esc_html_e('Preview opens the email in a new tab. Send now emails the recipients above immediately, using today’s shifts.', 'october-events'); ?></span>
+        </p>
+        </div></details>
+
         <details class="oe-acc" id="volunteer-emails"><summary><?php esc_html_e('Volunteer emails (confirmation & reminders)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('The wording your volunteers see. Edit the intro line of each email below, or leave it blank to use the default shown. The rest of the email — the shift details box, buttons and footer — is added automatically. Use Preview to see the whole email with sample details. (Save your changes before previewing to see them.)', 'october-events'); ?></p>
         <?php
