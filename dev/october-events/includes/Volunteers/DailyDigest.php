@@ -37,11 +37,11 @@ final class DailyDigest {
             wp_die(esc_html__('Not allowed.', 'october-events'), '', ['response' => 403]);
         }
         $date = wp_date('Y-m-d');
-        $rows = VolunteerSignups::due_between($date . ' 00:00:00', $date . ' 23:59:59');
+        $rows = self::collect($date);
         $inner = $rows
             ? self::build_html($rows, $date)
             : '<h2 style="font-size:20px;color:#1a1a1a">' . esc_html__('Today’s volunteer roster', 'october-events') . '</h2>'
-                . '<p style="color:#666">' . esc_html__('No volunteer shifts are scheduled for today, so no roster would send. Shifts appear here from the start time set on each shift.', 'october-events') . '</p>';
+                . '<p style="color:#666">' . esc_html__('No volunteer shifts land on today’s date, so no roster would send. A shift only appears here if it has a start date/time set (the “Start” column in the opportunity’s shift editor) — a text-only shift label isn’t enough to place it on a day.', 'october-events') . '</p>';
         // phpcs:ignore WordPress.Security.EscapeOutput -- built from esc_html/esc_url above and wrapped chrome
         echo Transactional::wrap_body($inner);
         exit;
@@ -53,7 +53,7 @@ final class DailyDigest {
             wp_die(esc_html__('Not allowed.', 'october-events'), '', ['response' => 403]);
         }
         $date = wp_date('Y-m-d');
-        $rows = VolunteerSignups::due_between($date . ' 00:00:00', $date . ' 23:59:59');
+        $rows = self::collect($date);
         $sent = $rows ? self::send($rows, $date) : 0;
         wp_safe_redirect(add_query_arg(
             ['page' => 'oe-settings', 'oe_vol_digest_sent' => $sent],
@@ -81,7 +81,7 @@ final class DailyDigest {
         }
 
         $date  = wp_date('Y-m-d');
-        $rows  = VolunteerSignups::due_between($date . ' 00:00:00', $date . ' 23:59:59');
+        $rows  = self::collect($date);
         if (! $rows) {
             return 0; // no shifts today — don't claim the lock, don't email
         }
@@ -113,6 +113,56 @@ final class DailyDigest {
             $wpdb->esc_like(self::LOCK_PREFIX) . '%',
             self::LOCK_PREFIX . $keep_date
         ));
+    }
+
+    /**
+     * All active volunteer signups whose shift falls on $date (Y-m-d, site
+     * local time).
+     *
+     * Driven primarily by the opportunities' own shift definitions, so a signup
+     * whose denormalised `shift_start` column is empty — made before the shift
+     * was given a time, or a label-only shift later dated — still shows. Falls
+     * back to the signups' own stored `shift_start`, de-duplicated by id.
+     *
+     * @return array<int,object>
+     */
+    private static function collect(string $date): array {
+        $out = [];
+
+        $opps = get_posts([
+            'post_type'   => Volunteers::slug(),
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'fields'      => 'ids',
+        ]);
+        foreach ($opps as $oid) {
+            foreach (Volunteers::shifts((int) $oid) as $shift) {
+                $start = trim((string) ($shift['start'] ?? ''));
+                $ts    = $start !== '' ? strtotime($start) : 0;
+                if (! $ts || date('Y-m-d', $ts) !== $date) {
+                    continue; // shift has no date, or isn't today
+                }
+                foreach (VolunteerSignups::for_shift((int) $oid, (string) $shift['id']) as $s) {
+                    if (! in_array((string) $s->status, [VolunteerSignups::STATUS_PENDING, VolunteerSignups::STATUS_CONFIRMED], true)) {
+                        continue;
+                    }
+                    if (trim((string) $s->shift_start) === '') {
+                        $s->shift_start = $start; // fill for sort / label
+                    }
+                    $out[(int) $s->id] = $s;
+                }
+            }
+        }
+
+        // Fallback: signups whose own stored shift_start lands on this day but
+        // whose opportunity/shift definition no longer carries the date.
+        foreach (VolunteerSignups::due_between($date . ' 00:00:00', $date . ' 23:59:59') as $s) {
+            if (! isset($out[(int) $s->id])) {
+                $out[(int) $s->id] = $s;
+            }
+        }
+
+        return array_values($out);
     }
 
     /**

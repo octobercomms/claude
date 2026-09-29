@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.195.1 — Volunteer roster finds today’s shifts reliably
+
+- The daily roster now reads each shift’s date from the **opportunity’s shift
+  definition**, not only the `shift_start` copied onto each signup row. A signup
+  made before the shift was given a time (so its stored date was blank) no
+  longer drops off the roster. The old per-signup date is kept as a fallback.
+- When nothing lands on today, the preview now explains the likely cause: a
+  shift needs a **Start** date/time in the shift editor to be placed on a day; a
+  text-only shift label isn’t enough.
+
 ## 1.195.0 — Daily volunteer roster email + collapsed shift accordions
 
 - **Daily volunteer roster (morning email).** New Settings → “Daily volunteer
