@@ -43,6 +43,7 @@ final class Plugin {
         \OE\Tasks\Rest::init();
         \OE\Volunteers\Rest::init();
         \OE\Volunteers\EventCodes::init();
+        \OE\Volunteers\DailyDigest::register();
         \OE\Brand\Rest::init();
         \OE\Mail\Mailer::init();
         \OE\Mail\SnsController::init();

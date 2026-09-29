@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.195.0 — Daily volunteer roster email + collapsed shift accordions
+
+- **Daily volunteer roster (morning email).** New Settings → “Daily volunteer
+  roster” section: send one email each morning listing every volunteer shift
+  happening that day, grouped by opportunity, with each volunteer’s name, email
+  and phone (and an “SMS ok” tag where they opted in), so a no-show can be
+  chased. Recipients are configurable (defaults to the site admin address); the
+  send hour is configurable (default 6am, site time). Sends once a day, only on
+  days that have shifts, from the hourly cron. Includes a button back to the
+  Volunteers dashboard, plus **Preview today’s roster** and **Send now (test)**.
+- **Volunteers dashboard:** every opportunity accordion now starts collapsed
+  (previously the over-subscribed ones auto-expanded), so the list is easier to
+  scan.
+
 ## 1.194.5 — Results panel always visible
 
 - The survey **Results** panel now always shows in the builder, even with zero
