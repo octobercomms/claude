@@ -555,7 +555,14 @@ final class TicketsAdmin {
         $order    = $order_id ? Orders::get($order_id) : null;
         $sent     = $order && (string) $order->email !== '';
         if ($sent) {
-            Orders::send_confirmation($order_id);
+            // For a mixed-cart purchase (several orders under one payment), resend
+            // the whole set in one email so the buyer gets every ticket, matching
+            // what a purchase now sends. A single order falls back to itself.
+            if ((string) $order->payment_id !== '') {
+                Orders::send_confirmation_for_payment((string) $order->payment_id);
+            } else {
+                Orders::send_confirmation($order_id);
+            }
         }
         $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets');
         wp_safe_redirect(add_query_arg('oe_msg', $sent ? 'resent' : 'resend_failed', remove_query_arg('oe_msg', $back)));

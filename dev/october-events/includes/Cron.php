@@ -57,6 +57,8 @@ final class Cron {
         // Ticket confirmations are queued off the order-create request and
         // delivered here (see Orders::queue_confirmation).
         add_action(\OE\Ticketing\Orders::HOOK_CONFIRM, ['\OE\Ticketing\Orders', 'send_confirmation'], 10, 1);
+        // Combined cart confirmation (a mixed/free cart: one email for all its orders).
+        add_action(\OE\Ticketing\Orders::HOOK_CONFIRM_ORDERS, ['\OE\Ticketing\Orders', 'send_confirmation_for_orders'], 10, 1);
         // Traffic-driven fallback so campaigns still send on a low-traffic site.
         add_action('init', ['\OE\Mail\Campaigns', 'maybe_dispatch']);
 

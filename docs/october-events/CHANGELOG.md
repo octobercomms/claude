@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.195.3 — Mixed-cart purchases email every ticket (bug fix)
+
+- **Fixed: a mixed cart delivered only one ticket type.** When a buyer bought
+  more than one ticket type in a single checkout (e.g. a group ticket plus a
+  single), the purchase split into one order per type — and each order queued
+  its own confirmation email and kicked WP-cron. The cron loopback could rewrite
+  the schedule and drop a sibling order’s not-yet-sent email, so the buyer got
+  one ticket type and silently lost the rest.
+- The cart now sends **one confirmation for the whole purchase**, listing every
+  ticket, queued once on the exact set of orders (works for free carts too,
+  which have no payment id). Only active tickets are included, so a resend after
+  a partial refund never re-issues a voided pass. If a later cart line fails,
+  the tickets already issued are still emailed.
+- **Admin “Resend confirmation”** on a paid order now resends the whole purchase
+  (all ticket types) in one email, matching what a purchase sends.
+
 ## 1.195.2 — Volunteer roster keeps no-shows on the list
 
 - The roster excluded anyone not pending/confirmed, so a volunteer already
