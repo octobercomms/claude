@@ -398,7 +398,12 @@ final class Orders {
         // seconds to the create call; a burst of manual adds then piles up long
         // admin requests that a host rate limiter answers with a 429. Queue it on
         // WP-cron (runs within the minute) so each add returns immediately.
-        self::queue_confirmation($order_id);
+        // A cart line defers this: create_cart queues ONE email for the whole
+        // payment after all its orders exist, so the buyer gets every ticket in a
+        // single message (and no sibling order's email is lost to a cron race).
+        if (empty($data['defer_confirmation'])) {
+            self::queue_confirmation($order_id);
+        }
 
         return ['order_id' => $order_id, 'tickets' => self::ticket_dtos($tickets)];
     }
@@ -859,12 +864,105 @@ final class Orders {
         }
     }
 
+    public const HOOK_CONFIRM_ORDERS = 'oe_send_confirmation_orders';
+
+    /**
+     * Queue ONE confirmation covering several orders (a mixed cart splits one
+     * purchase into an order per ticket type). Keyed on the exact order-id set, so
+     * the whole cart is emailed once no matter how many types it split into — and
+     * for FREE carts too, which have no payment id to key on. This replaces
+     * per-order queueing for carts, where scheduling one cron event per order and
+     * spawning cron each time raced: the loopback's rewrite of the cron option
+     * could drop a sibling order's not-yet-run event, losing that type's email.
+     *
+     * @param array<int,int> $order_ids
+     */
+    public static function queue_confirmation_for_orders(array $order_ids): void {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $order_ids))));
+        if (! $ids) {
+            return;
+        }
+        if (count($ids) === 1) {
+            self::queue_confirmation($ids[0]); // a single order — nothing to combine
+            return;
+        }
+        sort($ids); // stable key regardless of insert order
+        if (! wp_next_scheduled(self::HOOK_CONFIRM_ORDERS, [$ids])) {
+            $scheduled = wp_schedule_single_event(time(), self::HOOK_CONFIRM_ORDERS, [$ids]);
+            if ($scheduled === false || is_wp_error($scheduled)) {
+                self::send_confirmation_for_orders($ids); // don't lose the email
+                return;
+            }
+            if (function_exists('spawn_cron')) {
+                spawn_cron();
+            }
+        }
+    }
+
     public static function send_confirmation(int $order_id): void {
         $order = self::get($order_id);
         if (! $order || $order->email === '') {
             return;
         }
-        $tickets  = self::tickets($order_id);
+        self::deliver_confirmation($order, self::tickets($order_id));
+    }
+
+    /**
+     * Send ONE confirmation covering a set of orders — the buyer gets a single
+     * email with every active ticket across the cart, rather than a partial email
+     * per ticket type (and, before this, a lost email when the per-order cron
+     * events raced each other). Cancelled/refunded tickets are left out, so a
+     * resend after a partial refund never re-issues voided passes.
+     *
+     * @param array<int,int> $order_ids
+     */
+    public static function send_confirmation_for_orders(array $order_ids): void {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $order_ids))));
+        if (! $ids) {
+            return;
+        }
+        // Use the lowest order id (earliest of the cart) for the buyer/event.
+        sort($ids);
+        $order = self::get($ids[0]);
+        if (! $order || (string) $order->email === '') {
+            return;
+        }
+        $grouped = self::tickets_for_orders($ids);
+        $tickets = $grouped ? array_merge(...array_values($grouped)) : [];
+        $tickets = array_values(array_filter($tickets, static fn($t): bool => (string) $t->status === 'active'));
+        if (! $tickets) {
+            return; // nothing live to send (e.g. everything refunded)
+        }
+        // Number order is the whole-purchase sequence, so a merged cart reads 1..N.
+        usort($tickets, static fn($a, $b): int => (int) $a->ticket_number <=> (int) $b->ticket_number);
+        self::deliver_confirmation($order, $tickets);
+    }
+
+    /**
+     * Resend the whole purchase an order belongs to, in one email: its mixed-cart
+     * siblings under the same payment when there is one, else just this order (a
+     * free cart has no reliable grouping key after the fact).
+     */
+    public static function send_confirmation_for_payment(string $payment_id): void {
+        if ($payment_id === '') {
+            return;
+        }
+        global $wpdb;
+        $ids = $wpdb->get_col($wpdb->prepare(
+            'SELECT id FROM ' . Schema::orders() . ' WHERE payment_id = %s ORDER BY id ASC',
+            $payment_id
+        ));
+        self::send_confirmation_for_orders(array_map('intval', (array) $ids));
+    }
+
+    /**
+     * Build and send the branded ticket email for one buyer and a set of tickets.
+     *
+     * @param object            $order   The order carrying the buyer + event.
+     * @param array<int,object> $tickets The admissions to show in the email.
+     */
+    private static function deliver_confirmation(object $order, array $tickets): void {
+        $order_id = (int) $order->id;
         $event_id = (int) $order->event_id;
         \OE\Mail\Contacts::capture($order->email, ['name' => (string) $order->name, 'source' => 'ticket']);
         // Attach an "add to calendar" invite (.ics) when the event has a date.
@@ -1232,9 +1330,10 @@ final class Orders {
         foreach ($lines as $line) {
             $grand += max(1, (int) $line['qty']) * max(1, (int) (((array) $line['type'])['qty_per_purchase'] ?? 1));
         }
-        $tickets = [];
-        $offset  = 0;
-        $first   = true;
+        $tickets   = [];
+        $order_ids = [];
+        $offset    = 0;
+        $first     = true;
         foreach ($lines as $line) {
             $type = (array) $line['type'];
             $qty  = max(1, (int) $line['qty']);
@@ -1256,14 +1355,30 @@ final class Orders {
                 'purchase_total'  => $grand,
                 'purchase_offset' => $offset,
                 'door'            => $door,
+                // The cart sends one confirmation for the whole payment below,
+                // so each order must NOT queue its own (partial, race-prone) email.
+                'defer_confirmation' => true,
             ], $payment_id, $method, $source, true);
             if (is_wp_error($res)) {
+                // A later line failed, but earlier lines already committed their
+                // orders + tickets with their confirmation deferred. Flush the
+                // combined email for what was issued so the buyer still receives
+                // the tickets they hold, then surface the error.
+                if ($order_ids) {
+                    self::queue_confirmation_for_orders($order_ids);
+                }
                 return $res;
             }
             $tickets = array_merge($tickets, $res['tickets'] ?? []);
+            $order_ids[] = (int) ($res['order_id'] ?? 0);
             $offset += $count;
             $first   = false;
         }
+
+        // One confirmation for the whole purchase — paid or free. Queued on the
+        // exact order-id set, so the buyer gets every ticket in a single email and
+        // no sibling order's message is lost to a per-order cron race.
+        self::queue_confirmation_for_orders($order_ids);
         return ['tickets' => $tickets];
     }
 
