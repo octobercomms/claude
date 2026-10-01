@@ -480,6 +480,12 @@ final class Settings {
             'volunteer_digest_enabled' => ! empty($in['volunteer_digest_enabled']),
             'volunteer_digest_emails'  => self::parse_emails((string) ($in['volunteer_digest_emails'] ?? '')),
             'volunteer_digest_hour'    => max(0, min(23, (int) ($in['volunteer_digest_hour'] ?? 6))),
+            // Host comms (events & tours): master PDF packs + our staff contact.
+            'host_pack_tour_pdf'       => absint($in['host_pack_tour_pdf'] ?? 0),
+            'host_pack_event_pdf'      => absint($in['host_pack_event_pdf'] ?? 0),
+            'host_staff_contact_name'  => sanitize_text_field((string) ($in['host_staff_contact_name'] ?? '')),
+            'host_staff_contact_email' => sanitize_email((string) ($in['host_staff_contact_email'] ?? '')),
+            'host_reminders_enabled'   => ! empty($in['host_reminders_enabled']),
             'volunteer_email_intros' => self::parse_volunteer_intros($in['volunteer_email_intros'] ?? []),
             'volunteer_sms_templates' => self::parse_volunteer_sms($in['volunteer_sms_templates'] ?? []),
             'volunteer_faq_url'  => esc_url_raw(trim((string) ($in['volunteer_faq_url'] ?? ''))),

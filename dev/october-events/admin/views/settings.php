@@ -948,6 +948,56 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </p>
         </div></details>
 
+        <details class="oe-acc" id="host-comms"><summary><?php esc_html_e('Host comms (events & tours)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('The info pack and reminders sent to the people hosting an event or tour (homeowner, architect, organiser…). Add the host contacts on each event/tour, then send the pack from there. Reminders go automatically 2 weeks and 2 days before. The master PDF below is attached unless an event/tour has its own.', 'october-events'); ?></p>
+        <?php
+        $tour_pdf_id  = (int) ($cfg['host_pack_tour_pdf'] ?? 0);
+        $event_pdf_id = (int) ($cfg['host_pack_event_pdf'] ?? 0);
+        $pdf_label    = static function (int $id): string {
+            return $id > 0 ? (string) get_the_title($id) : __('none', 'october-events');
+        };
+        ?>
+        <p><label><strong><?php esc_html_e('Master tour pack (PDF)', 'october-events'); ?></strong></label><br>
+            <input type="hidden" name="host_pack_tour_pdf" id="oe-host-tour-pdf" value="<?php echo esc_attr((string) $tour_pdf_id); ?>">
+            <span id="oe-host-tour-pdf-name" class="oe-host-pdf-name"><?php echo esc_html($pdf_label($tour_pdf_id)); ?></span>
+            <button type="button" class="button oe-host-pdf-pick" data-target="oe-host-tour-pdf"><?php esc_html_e('Choose PDF', 'october-events'); ?></button>
+            <button type="button" class="button oe-host-pdf-clear" data-target="oe-host-tour-pdf"><?php esc_html_e('Clear', 'october-events'); ?></button>
+        </p>
+        <p><label><strong><?php esc_html_e('Master event pack (PDF)', 'october-events'); ?></strong></label><br>
+            <input type="hidden" name="host_pack_event_pdf" id="oe-host-event-pdf" value="<?php echo esc_attr((string) $event_pdf_id); ?>">
+            <span id="oe-host-event-pdf-name" class="oe-host-pdf-name"><?php echo esc_html($pdf_label($event_pdf_id)); ?></span>
+            <button type="button" class="button oe-host-pdf-pick" data-target="oe-host-event-pdf"><?php esc_html_e('Choose PDF', 'october-events'); ?></button>
+            <button type="button" class="button oe-host-pdf-clear" data-target="oe-host-event-pdf"><?php esc_html_e('Clear', 'october-events'); ?></button>
+        </p>
+        <p><label><strong><?php esc_html_e('Host contact (shown in the emails as “your contact”)', 'october-events'); ?></strong></label><br>
+            <input type="text" name="host_staff_contact_name" value="<?php echo esc_attr((string) ($cfg['host_staff_contact_name'] ?? '')); ?>" placeholder="<?php esc_attr_e('Name', 'october-events'); ?>" class="regular-text">
+            <input type="email" name="host_staff_contact_email" value="<?php echo esc_attr((string) ($cfg['host_staff_contact_email'] ?? '')); ?>" placeholder="<?php esc_attr_e('email@example.com', 'october-events'); ?>" class="regular-text">
+            <br><span class="description"><?php esc_html_e('Who hosts should reach for questions. Leave the email blank to use the site admin address.', 'october-events'); ?></span></p>
+        <p><label><input type="checkbox" name="host_reminders_enabled" value="1" <?php checked(! empty($cfg['host_reminders_enabled'] ?? true)); ?>> <?php esc_html_e('Send the automatic 2-week and 2-day reminders', 'october-events'); ?></label></p>
+        <script>
+        jQuery(function ($) {
+            var hframe;
+            $('.oe-host-pdf-pick').on('click', function (e) {
+                e.preventDefault();
+                var target = $(this).data('target');
+                hframe = wp.media({ title: 'Choose a PDF', library: { type: 'application/pdf' }, multiple: false, button: { text: 'Use this PDF' } });
+                hframe.on('select', function () {
+                    var a = hframe.state().get('selection').first().toJSON();
+                    $('#' + target).val(a.id);
+                    $('#' + target + '-name').text(a.filename || a.title || a.url);
+                });
+                hframe.open();
+            });
+            $('.oe-host-pdf-clear').on('click', function (e) {
+                e.preventDefault();
+                var target = $(this).data('target');
+                $('#' + target).val('');
+                $('#' + target + '-name').text('none');
+            });
+        });
+        </script>
+        </div></details>
+
         <details class="oe-acc" id="volunteer-emails"><summary><?php esc_html_e('Volunteer emails (confirmation & reminders)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('The wording your volunteers see. Edit the intro line of each email below, or leave it blank to use the default shown. The rest of the email — the shift details box, buttons and footer — is added automatically. Use Preview to see the whole email with sample details. (Save your changes before previewing to see them.)', 'october-events'); ?></p>
         <?php
