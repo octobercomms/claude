@@ -92,6 +92,9 @@ final class Cron {
         // Daily volunteer roster to coordinators (once a day, at/after the set
         // hour, only on days with shifts). Self-gates internally.
         \OE\Volunteers\DailyDigest::run_due();
+        // Host info-pack reminders (2 weeks / 2 days before, once each, only for
+        // events/tours whose info pack has already gone out). Self-gates.
+        \OE\Hosts\HostMailer::run_due_reminders();
         // Abandoned-cart recovery autopilot (no-op unless switched on) — mails
         // carts abandoned since it was enabled; the backlog stays manual.
         \OE\Ticketing\Recovery::run_autopilot();

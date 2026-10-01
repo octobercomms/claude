@@ -1,0 +1,10 @@
+/* Hosts & info pack metabox */
+.oe-hosts .oe-hosts-ok { color: #2e7d32; font-weight: 600; }
+.oe-hosts-table { margin: 8px 0; }
+.oe-hosts-table th { font-size: 12px; }
+.oe-hosts-table td { vertical-align: middle; }
+.oe-hosts-row .oe-host-role { max-width: 130px; }
+.oe-hosts-row .oe-host-role-other { margin-top: 4px; width: 100%; }
+.oe-hosts-del { color: #b32d2e; font-size: 18px; text-decoration: none; cursor: pointer; }
+.oe-hosts-status { background: #f6f7f7; border-left: 4px solid #ccc; padding: 8px 12px; font-size: 13px; }
+#oe-host-pdf-name { font-style: italic; color: #555; margin-right: 6px; }

@@ -5,6 +5,24 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.196.0 — Host contacts & info packs (events & tours)
+
+- **New: host contacts on each event and tour.** A “Hosts & info pack” box on
+  every event (and, on the tours site, every tour) holds the people we deal with
+  — homeowner, architect, realtor, organiser — each with name, email, phone and
+  role.
+- **Info pack email**, with the kind-appropriate copy: tours get the
+  prepare-your-home / what-happens-on-the-day pack (we bring signage, we organise
+  and brief the volunteers who scan tickets); events get the opening-times /
+  recruit-your-own-volunteers pack. A PDF is attached — the event/tour’s own, or
+  the master for that type set in Settings → Host comms.
+- **Send it from the event/tour** with one button (with a Preview), then
+  **automatic reminders** go out 2 weeks and 2 days before. Every send is logged
+  in Check & Log Email.
+- Settings → **Host comms (events & tours)**: upload the master tour and event
+  PDFs, set the “your contact” name/email shown to hosts, and toggle the
+  automatic reminders.
+
 ## 1.195.3 — Mixed-cart purchases email every ticket (bug fix)
 
 - **Fixed: a mixed cart delivered only one ticket type.** When a buyer bought
