@@ -34,11 +34,34 @@ $kpis      = (array) ($dash['kpis'] ?? []);
 $opps      = (array) ($dash['opportunities'] ?? []);
 $clashes   = (array) ($dash['clashes'] ?? []);
 $clash_ids = (array) ($dash['clash_ids'] ?? []);
+
+// Every shift with room, as move targets: value "oppId:shiftId".
+$move_opts = [];
+foreach ($opps as $mo) {
+    foreach ((array) ($mo['shifts'] ?? []) as $msh) {
+        if ((int) ($msh['left'] ?? 0) > 0) {
+            $label = (string) ($msh['label'] ?? '') !== '' ? (string) $msh['label'] : (string) $msh['id'];
+            $move_opts[] = [
+                'value' => (int) $mo['id'] . ':' . (string) $msh['id'],
+                'label' => (string) $mo['title'] . ' — ' . $label . ' (' . (int) $msh['left'] . ' ' . __('left', 'october-events') . ')',
+            ];
+        }
+    }
+}
 ?>
 <div class="wrap oe-admin oe-vol">
     <h1><?php esc_html_e('Volunteers', 'october-events'); ?>
         <a href="<?php echo esc_url($export); ?>" class="page-title-action"><?php esc_html_e('Export CSV', 'october-events'); ?></a>
     </h1>
+
+    <?php if (isset($_GET['oe_msg'])) : // phpcs:ignore WordPress.Security.NonceVerification -- read-only notice
+        $m = sanitize_key((string) $_GET['oe_msg']);
+        if ($m === 'vmove_ok') : ?>
+            <div class="notice notice-success is-dismissible inline"><p><?php esc_html_e('Volunteer moved. They’ve been emailed their new shift.', 'october-events'); ?></p></div>
+        <?php elseif ($m === 'vmove_fail') : ?>
+            <div class="notice notice-error is-dismissible inline"><p><?php esc_html_e('Couldn’t move them — the target shift may be full or already theirs.', 'october-events'); ?></p></div>
+        <?php endif;
+    endif; ?>
 
     <?php
     $k_pct     = (int) ($kpis['pct'] ?? 0);
@@ -180,6 +203,24 @@ $clash_ids = (array) ($dash['clash_ids'] ?? []);
                                         <a class="button button-small" href="<?php echo esc_url(oe_vol_action_url((int) $s->id, 'declined')); ?>" title="<?php esc_attr_e('Emails the volunteer to say the shift didn\'t go ahead.', 'october-events'); ?>"><?php esc_html_e('Decline', 'october-events'); ?></a>
                                         <a class="button button-small" href="<?php echo esc_url(oe_vol_action_url((int) $s->id, 'no_show')); ?>"><?php esc_html_e('No-show', 'october-events'); ?></a>
                                         <a class="button button-small button-link-delete" href="<?php echo esc_url(oe_vol_delete_url((int) $s->id)); ?>" onclick="return confirm('<?php echo esc_js(__('Permanently remove this signup? This frees the slot and does NOT email the volunteer.', 'october-events')); ?>');" title="<?php esc_attr_e('Removes the signup silently — no email is sent.', 'october-events'); ?>"><?php esc_html_e('Delete', 'october-events'); ?></a>
+                                        <?php
+                                        $cur = (int) $s->opportunity_id . ':' . (string) $s->shift_id;
+                                        $movable  = in_array($s->status, [\OE\VolunteerSignups::STATUS_PENDING, \OE\VolunteerSignups::STATUS_CONFIRMED], true);
+                                        $row_opts = $movable ? array_values(array_filter($move_opts, static fn($o): bool => $o['value'] !== $cur)) : [];
+                                        if ($row_opts) : ?>
+                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="oe-vol-move" title="<?php esc_attr_e('Move this volunteer to a shift that has room. They’ll be emailed the new details.', 'october-events'); ?>">
+                                                <input type="hidden" name="action" value="oe_volunteer_move">
+                                                <input type="hidden" name="id" value="<?php echo (int) $s->id; ?>">
+                                                <?php wp_nonce_field('oe_volunteer_move_' . (int) $s->id); ?>
+                                                <select name="to" required aria-label="<?php esc_attr_e('Move to shift', 'october-events'); ?>">
+                                                    <option value=""><?php esc_html_e('Move to…', 'october-events'); ?></option>
+                                                    <?php foreach ($row_opts as $o) : ?>
+                                                        <option value="<?php echo esc_attr($o['value']); ?>"><?php echo esc_html($o['label']); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <button type="submit" class="button button-small"><?php esc_html_e('Move', 'october-events'); ?></button>
+                                            </form>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

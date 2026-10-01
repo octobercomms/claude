@@ -27,6 +27,7 @@ final class Transactional {
         'ticket_delivery'            => 'Your tickets',
         'volunteer_confirmed'        => 'Your volunteer shift is confirmed',
         'volunteer_declined'         => 'About your volunteer signup',
+        'volunteer_moved'            => 'Your volunteer shift has changed',
         'volunteer_reminder'         => 'Your volunteer shift is coming up',
         'event_reminder'             => 'Reminder: %2$s is coming up',
         'order_refunded'             => 'Your refund for %2$s',
@@ -50,7 +51,7 @@ final class Transactional {
         $subject = $subject !== '' ? $subject : sprintf($tmpl, $brand, (string) ($params['event_name'] ?? ''));
         // Volunteer emails render as branded, self-styled documents (matching
         // the ticket confirmation), unless the caller supplied its own $html.
-        $volunteer_doc = $html === '' && in_array($trigger, ['volunteer_confirmed', 'volunteer_declined', 'volunteer_reminder'], true);
+        $volunteer_doc = $html === '' && in_array($trigger, ['volunteer_confirmed', 'volunteer_declined', 'volunteer_reminder', 'volunteer_moved'], true);
         if ($volunteer_doc) {
             $body = self::volunteer_email_html($trigger, $params);
         } else {
@@ -287,6 +288,8 @@ final class Transactional {
             $key = 'declined';
         } elseif ($trigger === 'volunteer_confirmed') {
             $key = 'confirmed';
+        } elseif ($trigger === 'volunteer_moved') {
+            $key = 'moved';
         } elseif ($ctx === 'on_signup') {
             $key = 'on_signup';
         } else {
@@ -391,6 +394,7 @@ final class Transactional {
             'on_signup' => __('Thanks for volunteering — you\'re all set! Here are your shift details:', 'october-events'),
             'reminder'  => __('Just a reminder — your volunteer shift is coming up. Here are the details:', 'october-events'),
             'confirmed' => __('Your volunteer shift is confirmed — thank you! Here are the details:', 'october-events'),
+            'moved'     => __('Your volunteer shift has been changed. Here are your new details:', 'october-events'),
             'declined'  => __('Thanks for offering to help. This shift didn\'t go ahead for you this time — we hope to see you at another. Here\'s what you signed up for:', 'october-events'),
         ];
     }
@@ -464,6 +468,8 @@ final class Transactional {
             $trigger = 'volunteer_confirmed';
         } elseif ($key === 'declined') {
             $trigger = 'volunteer_declined';
+        } elseif ($key === 'moved') {
+            $trigger = 'volunteer_moved';
         } elseif ($key === 'on_signup') {
             $ctx = 'on_signup';
         } elseif ($key === 'week' || $key === 'morning') {
