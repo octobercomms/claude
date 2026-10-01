@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.197.0 — Move a volunteer to another shift (admin)
+
+- **New: move a volunteer from one slot to another** instead of cancel-and-re-add.
+  On the Volunteers dashboard each signup now has a **Move** dropdown listing
+  every shift with room (across all opportunities, not just the same one). Pick
+  one and the volunteer is reassigned: the old slot frees, the target is
+  capacity-checked, their status is kept, and they’re emailed their new shift.
+- Groundwork for self-service moves (a “change my shift” link for volunteers) and
+  a rebalancing broadcast to two opportunities, which follow next.
+
 ## 1.196.0 — Host contacts & info packs (events & tours)
 
 - **New: host contacts on each event and tour.** A “Hosts & info pack” box on

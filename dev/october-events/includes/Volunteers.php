@@ -970,6 +970,76 @@ final class Volunteers {
     }
 
     /**
+     * Move a signup to a different shift — the same opportunity's other shift, or
+     * another opportunity entirely. A change, not a cancel: the person keeps their
+     * place, the target is capacity-checked, and the source slot frees. Reminders
+     * reset so the new shift's reminders fire. Optionally emails the volunteer
+     * their new details.
+     *
+     * @return true|\WP_Error
+     */
+    public static function move(int $signup_id, int $to_opportunity, string $to_shift, bool $notify = true) {
+        $s = VolunteerSignups::get($signup_id);
+        if (! $s) {
+            return new \WP_Error('oe_not_found', __('That signup no longer exists.', 'october-events'));
+        }
+        // Only a live booking can be moved. Moving a declined/cancelled/no-show
+        // signup would email the volunteer their "new shift" — contradicting the
+        // decline/cancel they already received — and reset its reminders.
+        if (! in_array($s->status, [VolunteerSignups::STATUS_PENDING, VolunteerSignups::STATUS_CONFIRMED], true)) {
+            return new \WP_Error('oe_not_movable', __('Only an active signup can be moved.', 'october-events'));
+        }
+        if ((int) $s->opportunity_id === $to_opportunity && (string) $s->shift_id === $to_shift) {
+            return new \WP_Error('oe_same_shift', __('That is already their shift.', 'october-events'));
+        }
+        if (get_post_type($to_opportunity) !== self::slug()) {
+            return new \WP_Error('oe_bad_opportunity', __('Unknown volunteer opportunity.', 'october-events'));
+        }
+        $shift = self::shift($to_opportunity, $to_shift);
+        if (! $shift) {
+            return new \WP_Error('oe_bad_shift', __('That shift no longer exists.', 'october-events'));
+        }
+        if (self::shift_full($to_opportunity, $to_shift)) {
+            return new \WP_Error('oe_shift_full', __('That shift is full.', 'october-events'));
+        }
+        // Never create a second live booking for the same person on the target.
+        // A declined/cancelled prior booking is not live, so it never blocks.
+        $dead = [VolunteerSignups::STATUS_DECLINED, VolunteerSignups::STATUS_CANCELLED];
+        foreach (VolunteerSignups::for_shift($to_opportunity, $to_shift) as $ex) {
+            if ((int) $ex->id !== $signup_id
+                && strcasecmp((string) $ex->email, (string) $s->email) === 0
+                && ! in_array($ex->status, $dead, true)) {
+                return new \WP_Error('oe_already_booked', __('They are already on that shift.', 'october-events'));
+            }
+        }
+
+        $from_opp = (int) $s->opportunity_id;
+        // Let the new shift's reminders fire, but keep the "48h" marker if it has
+        // already gone out: that reminder carries the one-time thank-you ticket
+        // code, so clearing it would mint a second code on a move.
+        $sent_keys = array_filter(array_map('trim', explode(',', (string) $s->reminders_sent)));
+        $keep_sent = in_array('48h', $sent_keys, true) ? '48h' : '';
+        VolunteerSignups::update($signup_id, [
+            'opportunity_id' => $to_opportunity,
+            'shift_id'       => $to_shift,
+            'shift_start'    => self::normalise_datetime((string) $shift['start']),
+            'reminders_sent' => $keep_sent,
+        ]);
+        AuditLog::record('volunteer_moved', $to_opportunity, 'volunteer', 'from:' . $from_opp . '/' . $s->shift_id . ' to:' . $to_shift);
+        self::sync_fully_booked($from_opp);
+        if ($from_opp !== $to_opportunity) {
+            self::sync_fully_booked($to_opportunity);
+        }
+        if ($notify) {
+            $moved = VolunteerSignups::get($signup_id);
+            if ($moved) {
+                \OE\Mail\Transactional::send('volunteer_moved', ['email' => $moved->email, 'name' => $moved->name], self::email_params($moved));
+            }
+        }
+        return true;
+    }
+
+    /**
      * The volunteer cancelled their own shift (via the link in their confirmation
      * email). Frees the slot and alerts staff — but does NOT email the volunteer:
      * they clicked cancel themselves and see an on-screen confirmation, so a

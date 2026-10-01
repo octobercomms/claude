@@ -31,6 +31,7 @@ final class Admin {
         add_action('admin_post_oe_reject', [$this, 'handle_reject']);
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
         add_action('admin_post_oe_volunteer_delete', [$this, 'handle_volunteer_delete']);
+        add_action('admin_post_oe_volunteer_move', [$this, 'handle_volunteer_move']);
         add_action('admin_post_oe_preview_volunteer_email', [$this, 'handle_preview_volunteer_email']);
         add_action('admin_post_oe_volunteer_blast', [$this, 'handle_volunteer_blast']);
         add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
@@ -895,6 +896,19 @@ final class Admin {
         $this->redirect_back();
     }
 
+    /** Move a signup to another shift/opportunity. Target is "oppId:shiftId". */
+    public function handle_volunteer_move(): void {
+        $id = $this->verify_action('oe_volunteer_move'); // signup id
+        $target = isset($_REQUEST['to']) ? sanitize_text_field(wp_unslash((string) $_REQUEST['to'])) : '';
+        [$opp, $shift] = array_pad(explode(':', $target, 2), 2, '');
+        $res = Volunteers::move($id, absint($opp), sanitize_key((string) $shift));
+        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-volunteers');
+        $back = remove_query_arg('oe_msg', $back);
+        $msg  = is_wp_error($res) ? 'vmove_fail' : 'vmove_ok';
+        wp_safe_redirect(add_query_arg('oe_msg', $msg, $back));
+        exit;
+    }
+
     /**
      * Render a volunteer email with sample data so staff can preview exactly
      * what volunteers receive. Reflects the currently SAVED intro copy.
@@ -905,7 +919,7 @@ final class Admin {
         }
         check_admin_referer('oe_preview_volunteer_email');
         $key   = isset($_GET['type']) ? sanitize_key((string) $_GET['type']) : 'on_signup';
-        $valid = ['on_signup', 'reminder', 'week', '48h', 'morning', 'confirmed', 'declined'];
+        $valid = ['on_signup', 'reminder', 'week', '48h', 'morning', 'confirmed', 'declined', 'moved'];
         if (! in_array($key, $valid, true)) {
             $key = 'on_signup';
         }
