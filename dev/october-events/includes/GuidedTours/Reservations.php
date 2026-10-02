@@ -313,6 +313,31 @@ final class Reservations {
         }
     }
 
+    /**
+     * Re-send the booking confirmation for a reservation (the building details +
+     * release link). Guided tours don't issue QR tickets; this confirmation is
+     * the "ticket", so a resend is how a lost one is recovered. Returns false for
+     * an unknown or cancelled row.
+     */
+    public static function admin_resend(int $id): bool {
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE id = %d', $id));
+        if (! $row || ! in_array((string) $row->status, self::active(), true)) {
+            return false;
+        }
+        Mailer::reserved(
+            (int) $row->location_id,
+            (string) $row->slot_uid,
+            (string) $row->email,
+            (string) $row->name,
+            (string) $row->status === self::STATUS_WAITLIST,
+            (string) $row->token,
+            max(1, (int) $row->party_size)
+        );
+        AuditLog::record('gt_resent', $id, 'guided_tour', (string) $row->email);
+        return true;
+    }
+
     public static function by_token(string $token): ?object {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE token = %s', $token)) ?: null;

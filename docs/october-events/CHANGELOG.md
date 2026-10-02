@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.197.1 — Resend a guided-tour booking confirmation
+
+- Guided-tour bookings don’t issue QR tickets; the booking confirmation email
+  (building, date/time, party size, and a release link) **is** the ticket. Added
+  a **Resend** link on each person in Tickets → Guided tours so a lost
+  confirmation can be sent again (works for waitlisted bookings too).
+
 ## 1.197.0 — Move a volunteer to another shift (admin)
 
 - **New: move a volunteer from one slot to another** instead of cancel-and-re-add.

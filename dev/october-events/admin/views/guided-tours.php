@@ -250,17 +250,22 @@ foreach ($reservations as $r) {
                         <th><?php esc_html_e('Name', 'october-events'); ?></th>
                         <th><?php esc_html_e('Email', 'october-events'); ?></th>
                         <th style="width:120px"><?php esc_html_e('Status', 'october-events'); ?></th>
-                        <th style="width:90px"></th>
+                        <th style="width:150px"></th>
                     </tr></thead>
                     <tbody>
                         <?php foreach ($rows as $r) : $shown++;
-                            $remove = wp_nonce_url(admin_url('admin-post.php?action=oe_gt_reservation_remove&id=' . (int) $r->id), 'oe_gt_reservation_remove_' . (int) $r->id); ?>
+                            $remove = wp_nonce_url(admin_url('admin-post.php?action=oe_gt_reservation_remove&id=' . (int) $r->id), 'oe_gt_reservation_remove_' . (int) $r->id);
+                            $resend = wp_nonce_url(admin_url('admin-post.php?action=oe_gt_reservation_resend&id=' . (int) $r->id), 'oe_gt_reservation_resend_' . (int) $r->id); ?>
                             <?php $seats = max(1, (int) ($r->party_size ?? 1)); ?>
                             <tr>
                                 <td><?php echo esc_html($r->name ?: '—'); ?><?php if ($seats > 1) : ?> <span style="color:#666;font-size:12px">· <?php echo esc_html(sprintf(_n('%d seat', '%d seats', $seats, 'october-events'), $seats)); ?></span><?php endif; ?></td>
                                 <td><?php echo esc_html($r->email); ?></td>
                                 <td><?php echo esc_html(ucfirst((string) $r->status)); ?></td>
-                                <td style="text-align:right"><a href="<?php echo esc_url($remove); ?>" class="button-link" style="color:#b32d2e" onclick="return confirm('<?php echo esc_js(__('Remove this person from the slot?', 'october-events')); ?>')"><?php esc_html_e('Remove', 'october-events'); ?></a></td>
+                                <td style="text-align:right">
+                                    <a href="<?php echo esc_url($resend); ?>" class="button-link" title="<?php esc_attr_e('Re-send the booking confirmation (building details + release link).', 'october-events'); ?>"><?php esc_html_e('Resend', 'october-events'); ?></a>
+                                    <span style="color:#ccc">·</span>
+                                    <a href="<?php echo esc_url($remove); ?>" class="button-link" style="color:#b32d2e" onclick="return confirm('<?php echo esc_js(__('Remove this person from the slot?', 'october-events')); ?>')"><?php esc_html_e('Remove', 'october-events'); ?></a>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

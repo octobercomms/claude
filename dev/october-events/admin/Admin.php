@@ -37,6 +37,7 @@ final class Admin {
         add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
         add_action('admin_post_oe_gt_reservation_remove', [$this, 'handle_gt_reservation_remove']);
         add_action('admin_post_oe_gt_reservation_add', [$this, 'handle_gt_reservation_add']);
+        add_action('admin_post_oe_gt_reservation_resend', [$this, 'handle_gt_reservation_resend']);
         add_action('admin_post_oe_preview_guided_email', [$this, 'handle_preview_guided_email']);
         add_action('admin_post_oe_preview_ticket_email', [$this, 'handle_preview_ticket_email']);
         add_action('admin_post_oe_preview_recovery', [$this, 'handle_preview_recovery']);
@@ -776,6 +777,20 @@ final class Admin {
         $id = isset($_REQUEST['id']) ? absint($_REQUEST['id']) : 0;
         check_admin_referer('oe_gt_reservation_remove_' . $id);
         \OE\GuidedTours\Reservations::admin_remove($id);
+        $this->redirect_back();
+    }
+
+    /** Re-send the booking confirmation (building details + release link). */
+    public function handle_gt_reservation_resend(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        $id = isset($_REQUEST['id']) ? absint($_REQUEST['id']) : 0;
+        check_admin_referer('oe_gt_reservation_resend_' . $id);
+        $ok = \OE\GuidedTours\Reservations::admin_resend($id);
+        set_transient('oe_gt_notice_' . get_current_user_id(), $ok
+            ? ['ok' => __('Re-sent the booking confirmation.', 'october-events')]
+            : ['error' => __('Couldn’t resend — the reservation may have been cancelled.', 'october-events')], 60);
         $this->redirect_back();
     }
 
