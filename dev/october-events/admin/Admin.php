@@ -32,6 +32,7 @@ final class Admin {
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
         add_action('admin_post_oe_volunteer_delete', [$this, 'handle_volunteer_delete']);
         add_action('admin_post_oe_volunteer_move', [$this, 'handle_volunteer_move']);
+        add_action('admin_post_oe_volunteer_add', [$this, 'handle_volunteer_add']);
         add_action('admin_post_oe_preview_volunteer_email', [$this, 'handle_preview_volunteer_email']);
         add_action('admin_post_oe_volunteer_blast', [$this, 'handle_volunteer_blast']);
         add_action('admin_post_oe_sync_partner_vol', [$this, 'handle_sync_partner_vol']);
@@ -921,6 +922,32 @@ final class Admin {
         $back = remove_query_arg('oe_msg', $back);
         $msg  = is_wp_error($res) ? 'vmove_fail' : 'vmove_ok';
         wp_safe_redirect(add_query_arg('oe_msg', $msg, $back));
+        exit;
+    }
+
+    /**
+     * Add a volunteer to a shift by hand (the management surface). Target is
+     * "oppId:shiftId". Takes a typed-in name/email/phone, or a person picked from
+     * the existing-volunteer list (which just pre-fills those same fields). Routes
+     * through Volunteers::admin_add, so it bypasses the capacity cap, de-dupes the
+     * person against the shift, and fires the confirmation + reminders.
+     */
+    public function handle_volunteer_add(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_volunteer_add');
+        $target = isset($_POST['to']) ? sanitize_text_field(wp_unslash((string) $_POST['to'])) : '';
+        [$opp, $shift] = array_pad(explode(':', $target, 2), 2, '');
+        $person = [
+            'name'       => sanitize_text_field(wp_unslash((string) ($_POST['name'] ?? ''))),
+            'email'      => sanitize_email(wp_unslash((string) ($_POST['email'] ?? ''))),
+            'phone'      => sanitize_text_field(wp_unslash((string) ($_POST['phone'] ?? ''))),
+            'sms_opt_in' => ! empty($_POST['sms_opt_in']),
+        ];
+        $res  = Volunteers::admin_add(absint($opp), sanitize_key((string) $shift), $person);
+        $back = remove_query_arg('oe_msg', wp_get_referer() ?: admin_url('admin.php?page=oe-volunteers'));
+        wp_safe_redirect(add_query_arg('oe_msg', is_wp_error($res) ? 'vadd_fail' : 'vadd_ok', $back));
         exit;
     }
 

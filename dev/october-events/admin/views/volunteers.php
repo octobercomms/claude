@@ -35,6 +35,10 @@ $opps      = (array) ($dash['opportunities'] ?? []);
 $clashes   = (array) ($dash['clashes'] ?? []);
 $clash_ids = (array) ($dash['clash_ids'] ?? []);
 
+// Distinct past/present volunteers, for the "choose an existing volunteer"
+// picker on each shift's Add form (pre-fills name/email/phone).
+$known = Volunteers::known_volunteers();
+
 // Every shift with room, as move targets: value "oppId:shiftId".
 $move_opts = [];
 foreach ($opps as $mo) {
@@ -60,6 +64,10 @@ foreach ($opps as $mo) {
             <div class="notice notice-success is-dismissible inline"><p><?php esc_html_e('Volunteer moved. They’ve been emailed their new shift.', 'october-events'); ?></p></div>
         <?php elseif ($m === 'vmove_fail') : ?>
             <div class="notice notice-error is-dismissible inline"><p><?php esc_html_e('Couldn’t move them — the target shift may be full or already theirs.', 'october-events'); ?></p></div>
+        <?php elseif ($m === 'vadd_ok') : ?>
+            <div class="notice notice-success is-dismissible inline"><p><?php esc_html_e('Volunteer added to the shift. They’ve been emailed a confirmation.', 'october-events'); ?></p></div>
+        <?php elseif ($m === 'vadd_fail') : ?>
+            <div class="notice notice-error is-dismissible inline"><p><?php esc_html_e('Couldn’t add them — check the name and email, or they may already be on that shift.', 'october-events'); ?></p></div>
         <?php endif;
     endif; ?>
 
@@ -226,9 +234,78 @@ foreach ($opps as $mo) {
                             <?php endforeach; ?>
                             </tbody>
                         </table>
+                        <?php $add_target = (int) $opp['id'] . ':' . (string) $shift['id']; ?>
+                        <div class="oe-vol-add">
+                            <button type="button" class="button button-small oe-vol-add-toggle" aria-expanded="false"><?php esc_html_e('+ Add volunteer', 'october-events'); ?></button>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="oe-vol-add-form" hidden>
+                                <input type="hidden" name="action" value="oe_volunteer_add">
+                                <input type="hidden" name="to" value="<?php echo esc_attr($add_target); ?>">
+                                <?php wp_nonce_field('oe_volunteer_add'); ?>
+                                <?php if ($known) : ?>
+                                    <label class="oe-vol-add-field"><?php esc_html_e('Existing volunteer', 'october-events'); ?>
+                                        <select class="oe-vol-add-pick" aria-label="<?php esc_attr_e('Choose an existing volunteer', 'october-events'); ?>">
+                                            <option value=""><?php esc_html_e('— type in new, or pick —', 'october-events'); ?></option>
+                                        </select>
+                                    </label>
+                                <?php endif; ?>
+                                <label class="oe-vol-add-field"><?php esc_html_e('Name', 'october-events'); ?>
+                                    <input type="text" name="name" required></label>
+                                <label class="oe-vol-add-field"><?php esc_html_e('Email', 'october-events'); ?>
+                                    <input type="email" name="email" required></label>
+                                <label class="oe-vol-add-field"><?php esc_html_e('Mobile (optional)', 'october-events'); ?>
+                                    <input type="tel" name="phone"></label>
+                                <label class="oe-vol-add-sms"><input type="checkbox" name="sms_opt_in" value="1"> <?php esc_html_e('SMS reminders', 'october-events'); ?></label>
+                                <button type="submit" class="button button-small button-primary"><?php esc_html_e('Add to shift', 'october-events'); ?></button>
+                            </form>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             </div>
         </details>
     <?php endforeach; ?>
+
+    <?php if ($known) : ?>
+    <template id="oe-vol-known-opts"><?php foreach ($known as $kv) : ?><option value="<?php echo esc_attr($kv['email']); ?>" data-name="<?php echo esc_attr($kv['name']); ?>" data-phone="<?php echo esc_attr($kv['phone']); ?>" data-sms="<?php echo (int) $kv['sms_opt_in']; ?>"><?php echo esc_html($kv['name'] !== '' ? $kv['name'] . ' · ' . $kv['email'] : $kv['email']); ?></option><?php endforeach; ?></template>
+    <?php endif; ?>
+
+    <style>
+    .oe-vol-add { margin: 8px 0 2px; }
+    .oe-vol-add-form { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin-top: 10px; padding: 12px 14px; background: #fff; border: 1px solid #dcdcde; border-radius: 8px; }
+    .oe-vol-add-field { display: flex; flex-direction: column; gap: 3px; font-weight: 600; font-size: 12px; }
+    .oe-vol-add-field input, .oe-vol-add-pick { min-width: 180px; }
+    .oe-vol-add-sms { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+    </style>
+    <script>
+    (function () {
+        var tpl = document.getElementById('oe-vol-known-opts');
+        function fillPick(pick) {
+            if (!pick || !tpl || pick.dataset.filled) { return; }
+            pick.appendChild(tpl.content.cloneNode(true));
+            pick.dataset.filled = '1';
+        }
+        document.querySelectorAll('.oe-vol-add').forEach(function (box) {
+            var toggle = box.querySelector('.oe-vol-add-toggle');
+            var form   = box.querySelector('.oe-vol-add-form');
+            if (!toggle || !form) { return; }
+            var pick = form.querySelector('.oe-vol-add-pick');
+            toggle.addEventListener('click', function () {
+                var open = form.hidden;
+                form.hidden = !open;
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (open) { fillPick(pick); var n = form.querySelector('[name="name"]'); if (n) { n.focus(); } }
+            });
+            if (pick) {
+                pick.addEventListener('change', function () {
+                    var o = pick.options[pick.selectedIndex];
+                    if (!o || !o.value) { return; }
+                    form.querySelector('[name="name"]').value  = o.getAttribute('data-name') || '';
+                    form.querySelector('[name="email"]').value = o.value;
+                    form.querySelector('[name="phone"]').value = o.getAttribute('data-phone') || '';
+                    var sms = form.querySelector('[name="sms_opt_in"]');
+                    if (sms) { sms.checked = o.getAttribute('data-sms') === '1'; }
+                });
+            }
+        });
+    })();
+    </script>
 </div>

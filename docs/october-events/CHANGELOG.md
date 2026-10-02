@@ -5,6 +5,17 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.199.0 — Add a volunteer to a shift (admin)
+
+- **New: add a volunteer to any shift by hand** from the Volunteers dashboard.
+  Each shift now has an **+ Add volunteer** button that opens a small form to
+  type a name, email and mobile (with an SMS-reminders tick).
+- **Pick from existing volunteers** instead of retyping: a dropdown of everyone
+  who has signed up before pre-fills their name, email, phone and SMS choice.
+- Added volunteers start confirmed and get the usual signup confirmation and
+  reminders. Like the hand-add on guided tours, it bypasses the capacity cap so
+  staff can always place someone, and it won't double-book a person on a shift.
+
 ## 1.198.0 — Guided tours: a name for every attendee
 
 - **New: collect every attendee’s name on a guided-tour booking**, not just the
