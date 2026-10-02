@@ -901,6 +901,11 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <details class="oe-acc" id="guided-tours"><summary><?php esc_html_e('Guided tours', 'october-events'); ?></summary><div class="oe-acc-body">
         <p><label><input type="checkbox" name="guided_enabled" value="1" <?php checked((bool) ($cfg['guided_enabled'] ?? true)); ?>> <strong><?php esc_html_e('Enable guided tours', 'october-events'); ?></strong></label></p>
         <p class="description" style="max-width:820px"><?php esc_html_e('Guided tours are free, capacity-limited timed slots open only to ticket holders. Switch this off on a site that runs no tours (e.g. a festival) to hide the Guided tours tab under Tickets. Turning it off does not delete any existing slots or reservations.', 'october-events'); ?></p>
+        <p style="margin-top:14px"><label><input type="checkbox" name="guided_require_names" value="1" <?php checked((bool) ($cfg['guided_require_names'] ?? true)); ?>> <strong><?php esc_html_e('Require every attendee’s name', 'october-events'); ?></strong></label></p>
+        <p class="description" style="max-width:820px"><?php esc_html_e('When a booker reserves for more than one person, ask for each attendee’s name, not just the booker’s. Several buildings request a guest list for security on the day. The names show on the admin list, in the CSV export and in the booking confirmation.', 'october-events'); ?></p>
+        <p><label><strong><?php esc_html_e('Explanation shown on the booking page', 'october-events'); ?></strong><br>
+            <textarea name="guided_names_note" rows="2" class="large-text" placeholder="<?php echo esc_attr(\OE\GuidedTours\Reservations::default_names_note()); ?>"><?php echo esc_textarea((string) ($cfg['guided_names_note'] ?? '')); ?></textarea></label>
+            <span class="description"><?php esc_html_e('Shown above the name fields. Leave blank to use the default wording in the placeholder.', 'october-events'); ?></span></p>
         </div></details>
 
         <?php if (\OE\Features::enabled('volunteers')) : ?>

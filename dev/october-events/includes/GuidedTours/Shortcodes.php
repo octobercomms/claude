@@ -140,6 +140,10 @@ final class Shortcodes {
                     <span class="oe-gt-party__label"><?php esc_html_e('People', 'october-events'); ?></span>
                     <select class="oe-gt-party__select" data-oe-gt-party aria-label="<?php esc_attr_e('How many people', 'october-events'); ?>"></select>
                 </label>
+                <div class="oe-gt-names" data-oe-gt-names hidden>
+                    <p class="oe-gt-names__note" data-oe-gt-names-note></p>
+                    <div class="oe-gt-names__fields" data-oe-gt-names-fields></div>
+                </div>
                 <button type="button" class="oe-gt-btn oe-gt-btn--primary" data-oe-gt-reserve disabled><?php esc_html_e('Select a time', 'october-events'); ?></button>
                 <span class="oe-gt-slots__msg" data-oe-gt-msg><?php esc_html_e('Enter your ticket email above to reserve.', 'october-events'); ?></span>
             </div>
@@ -160,7 +164,10 @@ final class Shortcodes {
                 'tour'      => $tour,
                 // Milliseconds so the browser can drive the countdown / lock the
                 // slot buttons until booking opens. 0 = open now.
-                'releaseAt' => $release_ts > time() ? $release_ts * 1000 : 0,
+                'releaseAt'    => $release_ts > time() ? $release_ts * 1000 : 0,
+                // Collect a name per seat (a guest list some buildings ask for).
+                'requireNames' => Reservations::require_names(),
+                'namesNote'    => Reservations::names_note(),
             ]);
         }
     }

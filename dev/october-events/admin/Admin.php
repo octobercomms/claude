@@ -1045,7 +1045,7 @@ final class Admin {
 
         if ($what === 'guided') {
             $rows = \OE\GuidedTours\Reservations::all();
-            $this->stream_csv('guided-tours.csv', ['Building', 'When', 'Name', 'Email', 'Seats', 'Status', 'Booked'], array_map(static function ($r) {
+            $this->stream_csv('guided-tours.csv', ['Building', 'When', 'Name', 'Email', 'Seats', 'Attendees', 'Status', 'Booked'], array_map(static function ($r) {
                 $ts = \OE\GuidedTours\Slots::start_ts((int) $r->location_id, (string) $r->slot_uid);
                 return [
                     get_the_title((int) $r->location_id),
@@ -1053,6 +1053,7 @@ final class Admin {
                     $r->name,
                     $r->email,
                     (string) max(1, (int) ($r->party_size ?? 1)),
+                    implode('; ', \OE\GuidedTours\Reservations::decode_names($r->attendee_names ?? null)),
                     $r->status,
                     (string) $r->created_at,
                 ];

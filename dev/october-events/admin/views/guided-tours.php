@@ -256,9 +256,11 @@ foreach ($reservations as $r) {
                         <?php foreach ($rows as $r) : $shown++;
                             $remove = wp_nonce_url(admin_url('admin-post.php?action=oe_gt_reservation_remove&id=' . (int) $r->id), 'oe_gt_reservation_remove_' . (int) $r->id);
                             $resend = wp_nonce_url(admin_url('admin-post.php?action=oe_gt_reservation_resend&id=' . (int) $r->id), 'oe_gt_reservation_resend_' . (int) $r->id); ?>
-                            <?php $seats = max(1, (int) ($r->party_size ?? 1)); ?>
+                            <?php $seats = max(1, (int) ($r->party_size ?? 1));
+                            $attendees = Reservations::decode_names($r->attendee_names ?? null); ?>
                             <tr>
-                                <td><?php echo esc_html($r->name ?: '—'); ?><?php if ($seats > 1) : ?> <span style="color:#666;font-size:12px">· <?php echo esc_html(sprintf(_n('%d seat', '%d seats', $seats, 'october-events'), $seats)); ?></span><?php endif; ?></td>
+                                <td><?php echo esc_html($r->name ?: '—'); ?><?php if ($seats > 1) : ?> <span style="color:#666;font-size:12px">· <?php echo esc_html(sprintf(_n('%d seat', '%d seats', $seats, 'october-events'), $seats)); ?></span><?php endif; ?>
+                                    <?php if (count($attendees) > 1) : ?><br><span style="color:#666;font-size:12px"><?php echo esc_html__('Attendees:', 'october-events') . ' ' . esc_html(implode(', ', $attendees)); ?></span><?php endif; ?></td>
                                 <td><?php echo esc_html($r->email); ?></td>
                                 <td><?php echo esc_html(ucfirst((string) $r->status)); ?></td>
                                 <td style="text-align:right">

@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.198.0 — Guided tours: a name for every attendee
+
+- **New: collect every attendee’s name on a guided-tour booking**, not just the
+  booker’s. When someone books for a group, the booking page now asks for a name
+  per seat, with a short explanation (some buildings ask for a guest list for
+  security on the day). The first name is pre-filled from the ticket, so a solo
+  booking stays one click.
+- Names show on the **admin list** (Tickets → Guided tours), in the **CSV
+  export** (new *Attendees* column), and in the **booking confirmation email**
+  (a “Who’s coming” list for groups).
+- Settings → **Guided tours**: a toggle to require the full guest list (on by
+  default) and an editable version of the on-page explanation.
+- Renamed the paid-order **Resend** button to **Resend all tickets**, so it’s
+  clear every ticket in the order goes out in one email.
+
 ## 1.197.1 — Resend a guided-tour booking confirmation
 
 - Guided-tour bookings don’t issue QR tickets; the booking confirmation email

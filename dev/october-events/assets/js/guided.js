@@ -220,12 +220,70 @@
         return v > 0 ? v : 1;
     }
 
+    /* ---- attendee names (a guest list some buildings require) ---- */
+    // Render one required name input per seat once a slot is picked. The first is
+    // pre-filled with the booker's name; a lone seat whose name we already have
+    // needs no input, so the block stays hidden for the common single booking.
+    function renderNames(panel) {
+        var box = panel.querySelector('[data-oe-gt-names]');
+        var fields = panel.querySelector('[data-oe-gt-names-fields]');
+        var note = panel.querySelector('[data-oe-gt-names-note]');
+        if (!box || !fields) { return; }
+        if (!CFG.requireNames || !unlocked || panel._changing || !panel._selected) {
+            box.hidden = true;
+            return;
+        }
+        var n = selectedParty(panel);
+        var prev = [];
+        fields.querySelectorAll('input').forEach(function (i) { prev.push(i.value); });
+        fields.innerHTML = '';
+        for (var i = 0; i < n; i++) {
+            var label = document.createElement('label');
+            label.className = 'oe-gt-names__field';
+            var span = document.createElement('span');
+            span.className = 'oe-gt-names__label';
+            span.textContent = i === 0 ? t('Your name') : t('Guest') + ' ' + i;
+            var inp = document.createElement('input');
+            inp.type = 'text';
+            inp.required = true;
+            inp.className = 'oe-gt-names__input';
+            inp.setAttribute('data-oe-gt-name', '');
+            inp.autocomplete = i === 0 ? 'name' : 'off';
+            inp.value = (prev[i] != null ? prev[i] : (i === 0 ? buyerName : '')) || '';
+            label.appendChild(span);
+            label.appendChild(inp);
+            fields.appendChild(label);
+        }
+        if (note) { note.textContent = CFG.namesNote || ''; }
+        // A single seat whose name we already hold: collect it silently.
+        box.hidden = (n === 1 && (buyerName || '').trim() !== '');
+    }
+
+    function collectNames(panel) {
+        var out = [];
+        panel.querySelectorAll('[data-oe-gt-names-fields] input').forEach(function (i) {
+            out.push((i.value || '').trim());
+        });
+        if (!out.length && CFG.requireNames && (buyerName || '').trim() !== '') { out.push(buyerName.trim()); }
+        return out;
+    }
+
+    // Returns true when the guest list is complete (or not required).
+    function namesComplete(panel) {
+        if (!CFG.requireNames) { return true; }
+        var n = selectedParty(panel);
+        var names = collectNames(panel).filter(Boolean);
+        return names.length >= n;
+    }
+
     /* ---- slots ---- */
     function clearSelection(panel) {
         panel.querySelectorAll('.is-selected').forEach(function (p) { p.classList.remove('is-selected'); });
         panel._selected = null;
         var wrap = panel.querySelector('[data-oe-gt-party-wrap]');
         if (wrap && !panel._changing) { wrap.hidden = true; }
+        var names = panel.querySelector('[data-oe-gt-names]');
+        if (names) { names.hidden = true; }
     }
 
     function initSlots() {
@@ -247,6 +305,7 @@
                     panel._selected = pill;
                     var wrap = panel.querySelector('[data-oe-gt-party-wrap]');
                     if (wrap && !panel._changing && (mine.remaining || 0) > 1) { wrap.hidden = false; }
+                    renderNames(panel);
                     if (reserveBtn) {
                         reserveBtn.disabled = false;
                         var time = pill.querySelector('.oe-gt-pill__time').textContent;
@@ -258,6 +317,11 @@
                     submitSlot(panel, location, panel._selected, reserveBtn);
                 }
             });
+
+            // Re-draw the name fields when the party size changes.
+            panel.addEventListener('change', function (e) {
+                if (e.target.closest('[data-oe-gt-party]')) { renderNames(panel); }
+            });
         });
     }
 
@@ -268,6 +332,8 @@
         if (reserveBtn) { reserveBtn.disabled = true; reserveBtn.textContent = t('Select a time'); }
         var wrap = panel.querySelector('[data-oe-gt-party-wrap]');
         if (wrap) { wrap.hidden = true; }
+        var names = panel.querySelector('[data-oe-gt-names]');
+        if (names) { names.hidden = true; } // a move keeps the same guest list
         var msg = panel.querySelector('[data-oe-gt-msg]');
         if (msg) { msg.textContent = t('Pick a new time, then Reserve to move your booking.'); }
         // Let them re-pick the slot they're moving.
@@ -294,7 +360,24 @@
             return;
         }
         var party = selectedParty(panel);
-        post('reserve', { location: location, slot: slot, tour: CFG.tour, name: buyerName, party: party }).then(function (res) {
+        var names = collectNames(panel);
+        if (!namesComplete(panel)) {
+            btn.disabled = false;
+            renderNames(panel);
+            var nbox = panel.querySelector('[data-oe-gt-names]');
+            if (nbox) { nbox.hidden = false; }
+            var firstEmpty = null;
+            panel.querySelectorAll('[data-oe-gt-names-fields] input').forEach(function (i) {
+                if (!firstEmpty && !(i.value || '').trim()) { firstEmpty = i; }
+            });
+            if (firstEmpty) { firstEmpty.focus(); }
+            var m = panel.querySelector('[data-oe-gt-msg]');
+            if (m) { m.textContent = t('Please add a name for everyone attending.'); }
+            var time = pill.querySelector('.oe-gt-pill__time').textContent;
+            btn.textContent = t('Reserve ') + time;
+            return;
+        }
+        post('reserve', { location: location, slot: slot, tour: CFG.tour, name: buyerName, party: party, names: names.filter(Boolean) }).then(function (res) {
             if (res && res.ok) {
                 if (res.state) { mine = res.state; }
                 clearSelection(panel);

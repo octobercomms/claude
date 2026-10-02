@@ -442,6 +442,8 @@ final class Settings {
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
             'event_field_map'  => $event_field_map,
             'guided_enabled'   => ! empty($in['guided_enabled']),
+            'guided_require_names' => ! empty($in['guided_require_names']),
+            'guided_names_note'    => sanitize_textarea_field((string) ($in['guided_names_note'] ?? '')),
             'recovery_subject'   => sanitize_text_field((string) ($in['recovery_subject'] ?? '')),
             'recovery_intro'     => sanitize_textarea_field((string) ($in['recovery_intro'] ?? '')),
             'recovery_button'    => sanitize_text_field((string) ($in['recovery_button'] ?? '')),

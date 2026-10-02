@@ -31,10 +31,10 @@ declare(strict_types=1);
 
 defined('ABSPATH') || exit;
 
-define('OE_VERSION', '1.197.1');
+define('OE_VERSION', '1.198.0');
 // Bump when the DB schema changes so tables auto-(re)build on upgrade without a
 // manual deactivate/reactivate. dbDelta makes the install routines idempotent.
-define('OE_DB_VERSION', '21');
+define('OE_DB_VERSION', '22');
 define('OE_FILE', __FILE__);
 define('OE_DIR', plugin_dir_path(__FILE__));
 define('OE_URL', plugin_dir_url(__FILE__));
