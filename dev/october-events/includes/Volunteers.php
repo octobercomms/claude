@@ -1194,6 +1194,38 @@ final class Volunteers {
         return $id;
     }
 
+    /**
+     * Distinct people who have ever signed up, for the "choose an existing
+     * volunteer" picker on the admin Add form: the latest name, phone and SMS
+     * state per email address, in one grouped query, ordered by name.
+     *
+     * @return array<int,array{name:string,email:string,phone:string,sms_opt_in:int}>
+     */
+    public static function known_volunteers(): array {
+        global $wpdb;
+        $t    = VolunteerSignups::table();
+        $rows = $wpdb->get_results(
+            "SELECT s.name, s.email, s.phone, s.sms_opt_in
+               FROM {$t} s
+               INNER JOIN (SELECT LOWER(email) AS le, MAX(id) AS mid FROM {$t} GROUP BY LOWER(email)) m
+                 ON s.id = m.mid
+              ORDER BY s.name ASC, s.email ASC"
+        ) ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            if (trim((string) $r->email) === '') {
+                continue;
+            }
+            $out[] = [
+                'name'       => (string) $r->name,
+                'email'      => (string) $r->email,
+                'phone'      => (string) ($r->phone ?? ''),
+                'sms_opt_in' => (int) ($r->sms_opt_in ?? 0),
+            ];
+        }
+        return $out;
+    }
+
     /* ------------------------------------------------------------------ *
      * Read models for the management UI (admin + platform Volunteers view)
      * ------------------------------------------------------------------ */
