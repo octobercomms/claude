@@ -3,7 +3,7 @@
  * Plugin Name: October Events
  * Plugin URI:  https://atlantadesignfestival.net
  * Description: Festival & events operations platform — accounts, listings (directory, destinations, products, events, stories), submission/approval, Stripe payments, native email (Amazon SES) with contacts, campaigns and a Claude co-pilot, ticketing + QR check-in, volunteers, and the AI Stories editorial connector. Runs on multiple sites (e.g. Atlanta Design Festival, Architecture Tours) with a per-site brand. (Ads are handled by the standalone oc-ad-manager plugin.)
- * Version:     1.197.1
+ * Version:     1.198.0
  * Author:      October Communications
  * Author URI:  https://octobercommunications.com
  * License:     GPL-2.0-or-later
