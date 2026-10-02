@@ -258,7 +258,7 @@ $export_att_pdf  = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                             <div class="description" style="text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-bottom:6px"><?php esc_html_e('Order actions', 'october-events'); ?></div>
                             <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start">
                                 <?php if ($a->buyer_email !== '') : ?>
-                                    <a class="button button-small" href="<?php echo esc_url($resend); ?>" title="<?php esc_attr_e('Email the buyer their tickets again', 'october-events'); ?>"><?php esc_html_e('Resend', 'october-events'); ?></a>
+                                    <a class="button button-small" href="<?php echo esc_url($resend); ?>" title="<?php esc_attr_e('Email the buyer every ticket in this order again, in one email', 'october-events'); ?>"><?php esc_html_e('Resend all tickets', 'october-events'); ?></a>
                                 <?php endif; ?>
                                 <a class="button button-small" href="<?php echo esc_url($cancel); ?>" onclick="return confirm('<?php echo esc_js(__('Cancel this order and void its tickets? The customer will be emailed.', 'october-events')); ?>')"><?php esc_html_e('Cancel order', 'october-events'); ?></a>
                                 <?php if ($a->payment_id !== '' && $is_stripe && $ord_tk) :

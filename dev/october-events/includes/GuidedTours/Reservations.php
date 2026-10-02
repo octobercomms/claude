@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OE\GuidedTours;
 
 use OE\AuditLog;
+use OE\Settings;
 
 defined('ABSPATH') || exit;
 
@@ -29,6 +30,65 @@ final class Reservations {
     public static function table(): string {
         global $wpdb;
         return $wpdb->prefix . 'oe_gt_reservations';
+    }
+
+    /** Whether a full guest list (a name per seat) is required to book. */
+    public static function require_names(): bool {
+        return (bool) Settings::get('guided_require_names', true);
+    }
+
+    /** The default on-page explanation for the attendee-name fields. */
+    public static function default_names_note(): string {
+        return __('Please add the name of everyone in your group. Some buildings ask for a guest list for security on the day of the tour.', 'october-events');
+    }
+
+    /** The configured explanation, or the default when none is set. */
+    public static function names_note(): string {
+        $note = trim((string) Settings::get('guided_names_note', ''));
+        return $note !== '' ? $note : self::default_names_note();
+    }
+
+    /**
+     * Clean a raw list of attendee names: trim, drop blanks, strip tags, and cap
+     * both the count and each name's length so a crafted payload can't bloat the
+     * row. Order is preserved (the booker is first).
+     *
+     * @param array<int,mixed> $names
+     * @return array<int,string>
+     */
+    public static function clean_names(array $names): array {
+        $out = [];
+        foreach ($names as $n) {
+            $n = sanitize_text_field((string) $n);
+            $n = trim($n);
+            if ($n === '') {
+                continue;
+            }
+            $out[] = mb_substr($n, 0, 120);
+            if (count($out) >= 50) {
+                break;
+            }
+        }
+        return $out;
+    }
+
+    /** Store a cleaned name list as JSON, or null when empty. */
+    private static function encode_names(array $names): ?string {
+        $names = self::clean_names($names);
+        return $names ? (string) wp_json_encode(array_values($names)) : null;
+    }
+
+    /**
+     * Decode a stored attendee-name list back to an array of strings.
+     *
+     * @return array<int,string>
+     */
+    public static function decode_names(?string $json): array {
+        if ($json === null || $json === '') {
+            return [];
+        }
+        $list = json_decode($json, true);
+        return is_array($list) ? self::clean_names($list) : [];
     }
 
     /** Statuses that occupy a seat. */
@@ -122,7 +182,7 @@ final class Reservations {
      *
      * @return array{status:string,spots_left:int,remaining:int}|\WP_Error
      */
-    public static function reserve(int $location_id, string $slot_uid, string $tour_key, string $email, string $name, int $party_size = 1, int $allowance = PHP_INT_MAX) {
+    public static function reserve(int $location_id, string $slot_uid, string $tour_key, string $email, string $name, int $party_size = 1, int $allowance = PHP_INT_MAX, array $names = [], bool $enforce_names = true) {
         global $wpdb;
         $email = strtolower(trim($email));
         if (! is_email($email)) {
@@ -132,6 +192,18 @@ final class Reservations {
         $slot = Slots::get($location_id, $slot_uid);
         if (! $slot || ! $slot['active']) {
             return new \WP_Error('oe_gt_slot', __('That time is no longer available.', 'october-events'));
+        }
+        // A guest list for the party: the booker plus everyone they're bringing.
+        // When names are required, we need one per seat before the slot is taken.
+        // Never store more names than seats booked, whatever the client sends.
+        $names = array_slice(self::clean_names($names), 0, $party_size);
+        if ($enforce_names && self::require_names() && count($names) < $party_size) {
+            return new \WP_Error('oe_gt_names', _n(
+                'Please add the name of everyone attending.',
+                'Please add the name of everyone attending — one per person in your group.',
+                $party_size,
+                'october-events'
+            ));
         }
 
         $lock = self::lock($location_id);
@@ -163,6 +235,7 @@ final class Reservations {
                 'email'       => $email,
                 'name'        => sanitize_text_field($name),
                 'party_size'  => $party_size,
+                'attendee_names' => self::encode_names($names),
                 'status'      => $status,
                 'token'       => $token,
                 'slot_start'  => Slots::start_ts($location_id, $slot_uid) ? gmdate('Y-m-d H:i:s', Slots::start_ts($location_id, $slot_uid)) : null,
@@ -174,7 +247,7 @@ final class Reservations {
         }
 
         AuditLog::record($full ? 'gt_waitlist' : 'gt_reserved', $id, 'guided_tour', $email);
-        Mailer::reserved($location_id, $slot_uid, $email, $name, $full, $token, $party_size);
+        Mailer::reserved($location_id, $slot_uid, $email, $name, $full, $token, $party_size, $names);
         $left      = max(0, $slot['capacity'] - self::count_held($location_id, $slot_uid));
         // A ticket is a pass, so the party allowance is available again on the next
         // tour — remaining is the per-booking cap (the group size), not a shrinking
@@ -233,7 +306,7 @@ final class Reservations {
         AuditLog::record('gt_moved', $id, 'guided_tour', $email);
         // Free the vacated seat(s) to whoever is waiting on the old slot.
         self::promote_waitlist($old_loc, $old_slot);
-        Mailer::reserved($new_location, $new_slot, $email, (string) $row->name, false, (string) $row->token, $party);
+        Mailer::reserved($new_location, $new_slot, $email, (string) $row->name, false, (string) $row->token, $party, self::decode_names($row->attendee_names ?? null));
         return true;
     }
 
@@ -294,8 +367,10 @@ final class Reservations {
      *
      * @return array{status:string,spots_left:int,remaining:int}|\WP_Error
      */
-    public static function admin_add(int $location_id, string $slot_uid, string $email, string $name, int $party_size = 1) {
-        return self::reserve($location_id, $slot_uid, '', $email, $name, $party_size, PHP_INT_MAX);
+    public static function admin_add(int $location_id, string $slot_uid, string $email, string $name, int $party_size = 1, array $names = []) {
+        // Admins can book a group without listing each person, so the name
+        // requirement isn't enforced here; any names supplied are still stored.
+        return self::reserve($location_id, $slot_uid, '', $email, $name, $party_size, PHP_INT_MAX, $names, false);
     }
 
     /** Admin-remove: cancel a reservation and offer the freed seats to the waitlist. */
@@ -332,7 +407,8 @@ final class Reservations {
             (string) $row->name,
             (string) $row->status === self::STATUS_WAITLIST,
             (string) $row->token,
-            max(1, (int) $row->party_size)
+            max(1, (int) $row->party_size),
+            self::decode_names($row->attendee_names ?? null)
         );
         AuditLog::record('gt_resent', $id, 'guided_tour', (string) $row->email);
         return true;
@@ -397,7 +473,7 @@ final class Reservations {
                 continue; // this group won't fit yet; a smaller one behind it might
             }
             $wpdb->update(self::table(), ['status' => self::STATUS_RESERVED], ['id' => (int) $next->id]);
-            Mailer::promoted($location_id, $slot_uid, (string) $next->email, (string) $next->name, $party);
+            Mailer::promoted($location_id, $slot_uid, (string) $next->email, (string) $next->name, $party, self::decode_names($next->attendee_names ?? null));
         }
     }
 

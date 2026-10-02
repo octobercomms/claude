@@ -59,6 +59,10 @@ final class Settings {
             'guided_default_capacity' => 30,
             'guided_close_hours'      => 12,  // stop booking N hours before each slot
             'guided_reconfirm_hours'  => 48,  // send the confirm-or-release email N hours before
+            // Require the name of every person in a guided-tour party (not just the
+            // booker). Some buildings ask for a guest list for security on the day.
+            'guided_require_names'    => true,
+            'guided_names_note'       => '', // override the on-page explanation; blank uses the default copy
             // Tour (city|year) => ticket event id. Empty = any paid ticket unlocks
             // (the single-tour default); map per tour once you run more than one.
             'guided_ticket_map'       => [],

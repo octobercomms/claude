@@ -13,6 +13,11 @@
            oe-gt-mine, oe-gt-mine__item, oe-gt-mine__label,
            oe-gt-mine__change, oe-gt-mine__cancel
    Party size selector: oe-gt-party, oe-gt-party__label, oe-gt-party__select
+   Attendee names (a guest list some buildings require):
+           oe-gt-names, oe-gt-names__note, oe-gt-names__fields,
+           oe-gt-names__field, oe-gt-names__label, oe-gt-names__input.
+           These carry a light default look (below) since they are brand new —
+           override freely in your theme.
    Body flag while unlocked: body.oe-gt-unlocked
    Pre-release: oe-gt-gate--pre, oe-gt-release, oe-gt-release__title,
            oe-gt-countdown, oe-gt-release__sub; panel .oe-gt-locked while closed.
@@ -48,7 +53,42 @@
 }
 /* Slots shown but not yet bookable: dim and block pointer interaction. */
 .oe-gt-slots.oe-gt-locked .oe-gt-pills,
-.oe-gt-slots.oe-gt-locked .oe-gt-party {
+.oe-gt-slots.oe-gt-locked .oe-gt-party,
+.oe-gt-slots.oe-gt-locked .oe-gt-names {
     opacity: .5;
     pointer-events: none;
+}
+
+/* Attendee-name fields. Light default look, easy to override in your theme. */
+.oe-gt-names {
+    width: 100%;
+    margin: 4px 0 2px;
+}
+.oe-gt-names__note {
+    margin: 0 0 8px;
+    font-size: .9rem;
+    opacity: .8;
+    max-width: 40em;
+}
+.oe-gt-names__fields {
+    display: grid;
+    gap: 8px;
+    max-width: 30em;
+}
+.oe-gt-names__field {
+    display: grid;
+    gap: 3px;
+}
+.oe-gt-names__label {
+    font-size: .8rem;
+    font-weight: 600;
+    opacity: .75;
+}
+.oe-gt-names__input {
+    padding: 8px 10px;
+    border: 1px solid currentColor;
+    border-radius: 8px;
+    font: inherit;
+    width: 100%;
+    box-sizing: border-box;
 }

@@ -113,11 +113,12 @@ final class Rest {
         $slot     = self::clean_slot((string) $req->get_param('slot'));
         $name     = sanitize_text_field((string) $req->get_param('name'));
         $party    = max(1, (int) $req->get_param('party'));
+        $names    = Reservations::clean_names((array) $req->get_param('names'));
         if ($location <= 0 || $slot === '') {
             return new \WP_REST_Response(['ok' => false, 'error' => __('Something went wrong. Please try again.', 'october-events')], 200);
         }
         $allowance = Eligibility::ticket_allowance($email, $tour);
-        $out       = Reservations::reserve($location, $slot, $tour, $email, $name, $party, $allowance);
+        $out       = Reservations::reserve($location, $slot, $tour, $email, $name, $party, $allowance, $names);
         if (is_wp_error($out)) {
             return new \WP_REST_Response(['ok' => false, 'error' => $out->get_error_message(), 'state' => self::state_payload($email, $tour)], 200);
         }

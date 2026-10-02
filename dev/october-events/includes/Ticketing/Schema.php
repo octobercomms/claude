@@ -171,6 +171,7 @@ final class Schema {
             email VARCHAR(190) NOT NULL,
             name VARCHAR(190) DEFAULT '',
             party_size SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+            attendee_names TEXT NULL,
             status VARCHAR(20) NOT NULL DEFAULT 'reserved',
             token VARCHAR(64) NOT NULL DEFAULT '',
             slot_start DATETIME NULL,

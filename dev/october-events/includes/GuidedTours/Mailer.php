@@ -16,15 +16,23 @@ defined('ABSPATH') || exit;
  */
 final class Mailer {
 
-    /** Confirmation on reserve (or a waitlist notice when the slot was full). */
-    public static function reserved(int $location_id, string $slot_uid, string $email, string $name, bool $waitlisted, string $token = '', int $party = 1): void {
-        $b = self::build_reserved($location_id, $slot_uid, $name, $waitlisted, $token, $party);
+    /**
+     * Confirmation on reserve (or a waitlist notice when the slot was full).
+     *
+     * @param array<int,string> $names Guest list (booker first), listed for groups.
+     */
+    public static function reserved(int $location_id, string $slot_uid, string $email, string $name, bool $waitlisted, string $token = '', int $party = 1, array $names = []): void {
+        $b = self::build_reserved($location_id, $slot_uid, $name, $waitlisted, $token, $party, $names);
         Transactional::send('gt_reserved', ['email' => $email, 'name' => $name], [], $b['subject'], $b['html']);
     }
 
-    /** A waitlisted person has been promoted into a real spot. */
-    public static function promoted(int $location_id, string $slot_uid, string $email, string $name, int $party = 1): void {
-        $b = self::build_promoted($location_id, $slot_uid, $name, $party);
+    /**
+     * A waitlisted person has been promoted into a real spot.
+     *
+     * @param array<int,string> $names Guest list (booker first), listed for groups.
+     */
+    public static function promoted(int $location_id, string $slot_uid, string $email, string $name, int $party = 1, array $names = []): void {
+        $b = self::build_promoted($location_id, $slot_uid, $name, $party, $names);
         Transactional::send('gt_promoted', ['email' => $email, 'name' => $name], [], $b['subject'], $b['html']);
     }
 
@@ -56,13 +64,14 @@ final class Mailer {
         }
         $name  = 'Alex Taylor';
         $token = 'preview';
+        $names = ['Alex Taylor', 'Sam Rivera'];
 
         switch ($type) {
             case 'waitlist':
-                $b = self::build_reserved($loc, $uid, $name, true, $token);
+                $b = self::build_reserved($loc, $uid, $name, true, $token, 2, $names);
                 break;
             case 'promoted':
-                $b = self::build_promoted($loc, $uid, $name, 2);
+                $b = self::build_promoted($loc, $uid, $name, 2, $names);
                 break;
             case 'reconfirm':
                 $b = self::build_reconfirm((object) [
@@ -75,7 +84,7 @@ final class Mailer {
                 break;
             case 'reserved':
             default:
-                $b = self::build_reserved($loc, $uid, $name, false, $token);
+                $b = self::build_reserved($loc, $uid, $name, false, $token, 2, $names);
                 break;
         }
 
@@ -105,7 +114,7 @@ final class Mailer {
     }
 
     /** @return array{subject:string,html:string} */
-    private static function build_reserved(int $location_id, string $slot_uid, string $name, bool $waitlisted, string $token, int $party = 1): array {
+    private static function build_reserved(int $location_id, string $slot_uid, string $name, bool $waitlisted, string $token, int $party = 1, array $names = []): array {
         $when    = self::when($location_id, $slot_uid);
         $bld     = self::building($location_id);
         $release = $token !== '' ? add_query_arg(['oe_gt' => 'release', 'token' => $token], home_url('/')) : '';
@@ -113,7 +122,8 @@ final class Mailer {
             $subject = __('You’re on the waitlist', 'october-events');
             $html    = self::p(sprintf(__('Thanks %1$s. %2$s on %3$s is full, so you’re on the waitlist. If a spot frees up we’ll email you straight away.', 'october-events'),
                 self::name($name), esc_html($bld), esc_html($when)))
-                . self::party_line($party);
+                . self::party_line($party)
+                . self::names_block($names);
             if ($release !== '') {
                 $html .= self::p(sprintf(__('Changed your mind? %s.', 'october-events'),
                     '<a href="' . esc_url($release) . '" style="color:#b23b2a;font-weight:600">' . esc_html__('Leave the waitlist', 'october-events') . '</a>'));
@@ -123,6 +133,7 @@ final class Mailer {
             $html    = self::p(sprintf(__('You’re booked for %s on %s. Please arrive a few minutes early.', 'october-events'),
                 '<strong>' . esc_html($bld) . '</strong>', '<strong>' . esc_html($when) . '</strong>'))
                 . self::party_line($party)
+                . self::names_block($names)
                 . self::details($location_id);
             if ($release !== '') {
                 $html .= self::p(sprintf(__('Can’t make it? Please %s so someone on the waitlist can take it. We’ll also email you 48 hours before to confirm.', 'october-events'),
@@ -135,7 +146,7 @@ final class Mailer {
     }
 
     /** @return array{subject:string,html:string} */
-    private static function build_promoted(int $location_id, string $slot_uid, string $name, int $party = 1): array {
+    private static function build_promoted(int $location_id, string $slot_uid, string $name, int $party = 1, array $names = []): array {
         $when = self::when($location_id, $slot_uid);
         $bld  = self::building($location_id);
         return [
@@ -143,8 +154,28 @@ final class Mailer {
             'html'    => self::p(sprintf(__('Good news %s, a spot opened for %s on %s and it’s yours. See you there.', 'october-events'),
                     self::name($name), '<strong>' . esc_html($bld) . '</strong>', '<strong>' . esc_html($when) . '</strong>'))
                 . self::party_line($party)
+                . self::names_block($names)
                 . self::details($location_id),
         ];
+    }
+
+    /**
+     * A small "Who's coming" list, shown only when a guest list was captured. For a
+     * single-person booking there's nothing to add beyond the greeting.
+     *
+     * @param array<int,string> $names
+     */
+    private static function names_block(array $names): string {
+        $names = array_values(array_filter(array_map('trim', $names), static fn($n) => $n !== ''));
+        if (count($names) < 2) {
+            return '';
+        }
+        $items = '';
+        foreach ($names as $n) {
+            $items .= '<li style="margin:0 0 4px">' . esc_html($n) . '</li>';
+        }
+        return '<p style="margin:0 0 6px;font-size:15px;line-height:1.5"><strong>' . esc_html__('Who’s coming', 'october-events') . '</strong></p>'
+            . '<ul style="margin:0 0 12px;padding-left:20px;font-size:15px;line-height:1.5">' . $items . '</ul>';
     }
 
     /** A short line stating the party size, shown only for groups of two or more. */
