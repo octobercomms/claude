@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.199.2 — "Doors per visitor" check-in chart
+
+- **New chart on the Check-in log: Doors per visitor.** Shows how many
+  different doors each attendee checked in at (1 door, 2 doors, 3+…), with the
+  average per visitor — the engagement curve across a house tour. Replaces the
+  "Most popular door" panel.
+
 ## 1.199.1 — Undo a ticket check-in
 
 - **New: Undo check-in** button on each row of Tickets → Check-in log. Removes

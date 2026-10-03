@@ -1171,6 +1171,8 @@ final class TicketsAdmin {
         $by_venue = \OE\Ticketing\CheckIn::scans_by_event_venue($event_filter);
         self::prime_event_titles($by_venue);
         $slots    = \OE\Ticketing\CheckIn::scans_by_slot($event_filter);
+        // How many doors each attendee reached — the engagement distribution.
+        $doors_dist = \OE\Ticketing\CheckIn::doors_per_attendee($event_filter);
 
         // Events that have ticket types, for the filter dropdown.
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);

@@ -446,6 +446,46 @@ final class CheckIn {
     }
 
     /**
+     * How many distinct doors each attendee checked in at, as a distribution:
+     * N people visited 1 door, M visited 2, and so on. On a house tour this is
+     * the engagement curve — how many stops people actually reached. Counts
+     * distinct venues per ticket (a ticket is one person), so a repeat scan at
+     * the same door doesn't inflate it.
+     *
+     * @return array{dist:array<int,array{doors:int,attendees:int}>,avg:float,max_doors:int,attendees:int}
+     */
+    public static function doors_per_attendee(int $event_id = 0): array {
+        global $wpdb;
+        $c = Schema::checkins();
+        $inner = "SELECT ticket_id, COUNT(DISTINCT COALESCE(venue_name, '')) AS doors FROM {$c} ";
+        if ($event_id > 0) {
+            $inner .= $wpdb->prepare('WHERE event_id = %d ', $event_id);
+        }
+        $inner .= 'GROUP BY ticket_id';
+        $rows = $wpdb->get_results(
+            "SELECT doors, COUNT(*) AS attendees FROM ({$inner}) x GROUP BY doors ORDER BY doors ASC"
+        ) ?: [];
+        $dist = [];
+        $attendees = 0;
+        $door_total = 0;
+        $max_doors = 0;
+        foreach ($rows as $r) {
+            $d = (int) $r->doors;
+            $n = (int) $r->attendees;
+            $dist[]      = ['doors' => $d, 'attendees' => $n];
+            $attendees  += $n;
+            $door_total += $d * $n;
+            $max_doors   = max($max_doors, $d);
+        }
+        return [
+            'dist'      => $dist,
+            'avg'       => $attendees > 0 ? round($door_total / $attendees, 1) : 0.0,
+            'max_doors' => $max_doors,
+            'attendees' => $attendees,
+        ];
+    }
+
+    /**
      * Scans bucketed into short segments across only the window in which people
      * actually checked in (first scan → last scan), so the chart grows or shrinks
      * to the real hours instead of always showing a full day. The step widens
