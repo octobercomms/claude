@@ -179,6 +179,28 @@ final class CheckIn {
     }
 
     /**
+     * Undo a check-in: remove every recorded scan for one ticket at one door
+     * (the granularity the log shows — a row per ticket × door). Used to reverse
+     * a mistaken check-in, e.g. the wrong person picked in the name-lookup path.
+     * Returns how many scan rows were removed; 0 if there were none to remove.
+     */
+    public static function undo(int $ticket_id, int $event_id, string $venue): int {
+        global $wpdb;
+        if ($ticket_id <= 0 || $event_id <= 0) {
+            return 0;
+        }
+        $removed = (int) $wpdb->delete(Schema::checkins(), [
+            'ticket_id'  => $ticket_id,
+            'event_id'   => $event_id,
+            'venue_name' => sanitize_text_field($venue),
+        ]);
+        if ($removed > 0) {
+            AuditLog::record('ticket_checkin_undone', $ticket_id, 'ticket', $venue);
+        }
+        return $removed;
+    }
+
+    /**
      * Search an event's active tickets by attendee/buyer name or email, for the
      * manual (name-lookup) check-in when a guest has no QR. Each result carries
      * its live check-in state so staff can see who is already in.

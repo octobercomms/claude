@@ -38,6 +38,15 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('checkin'); ?>
 
+    <?php if (isset($_GET['oe_msg'])) : // phpcs:ignore WordPress.Security.NonceVerification -- read-only notice
+        $m = sanitize_key((string) $_GET['oe_msg']);
+        if ($m === 'checkin_undone') : ?>
+            <div class="notice notice-success is-dismissible inline"><p><?php esc_html_e('Check-in removed. That person is no longer marked as checked in at that door.', 'october-events'); ?></p></div>
+        <?php elseif ($m === 'undo_failed') : ?>
+            <div class="notice notice-error is-dismissible inline"><p><?php esc_html_e('Nothing to undo — that check-in may already have been removed.', 'october-events'); ?></p></div>
+        <?php endif;
+    endif; ?>
+
     <?php $test_url = home_url('/checkin'); ?>
     <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px 18px;margin:16px 0;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
         <div id="oe-test-qr" style="width:150px;height:150px;flex:none"></div>
@@ -214,10 +223,11 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
             <th><?php esc_html_e('Door / venue', 'october-events'); ?></th>
             <th><?php esc_html_e('Rescans', 'october-events'); ?></th>
             <th><?php esc_html_e('Scanned at', 'october-events'); ?></th>
+            <th><?php esc_html_e('Actions', 'october-events'); ?></th>
         </tr></thead>
         <tbody>
         <?php if (! $rows) : ?>
-            <tr><td colspan="<?php echo $event_filter ? 6 : 7; ?>"><em><?php esc_html_e('No check-ins recorded yet.', 'october-events'); ?></em></td></tr>
+            <tr><td colspan="<?php echo $event_filter ? 7 : 8; ?>"><em><?php esc_html_e('No check-ins recorded yet.', 'october-events'); ?></em></td></tr>
         <?php else : foreach ($rows as $r) :
             $rescans = (int) ($r->rescans ?? 0);
             $first = get_date_from_gmt((string) $r->first_at, 'M j, Y g:i a');
@@ -230,6 +240,17 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
                 <td><?php echo esc_html((string) ($r->venue_name ?? '') ?: __('(no venue)', 'october-events')); ?></td>
                 <td><?php if ($rescans > 0) : ?><span title="<?php echo esc_attr(sprintf(__('Scanned %d times at this door', 'october-events'), (int) $r->scans)); ?>" style="display:inline-block;background:#f3d9a6;color:#7a5a12;font-weight:700;font-size:12px;padding:1px 8px;border-radius:999px"><?php echo esc_html('×' . $rescans); ?></span><?php else : ?><span style="color:#bbb">—</span><?php endif; ?></td>
                 <td><?php echo esc_html($first); ?><?php if ($rescans > 0 && $last !== $first) : ?><br><span style="font-size:11px;color:#888"><?php echo esc_html(sprintf(__('last %s', 'october-events'), $last)); ?></span><?php endif; ?></td>
+                <td>
+                    <?php $attendee_lbl = (string) ($r->attendee_name ?? '') ?: __('this attendee', 'october-events'); ?>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('<?php echo esc_js(sprintf(__('Remove the check-in for %s at this door?', 'october-events'), $attendee_lbl)); ?>');" style="margin:0">
+                        <input type="hidden" name="action" value="oe_checkin_undo">
+                        <input type="hidden" name="ticket_id" value="<?php echo (int) $r->ticket_id; ?>">
+                        <input type="hidden" name="event_id" value="<?php echo (int) $r->event_id; ?>">
+                        <input type="hidden" name="venue" value="<?php echo esc_attr((string) ($r->venue_name ?? '')); ?>">
+                        <?php wp_nonce_field('oe_checkin_undo'); ?>
+                        <button type="submit" class="button button-small button-link-delete" title="<?php esc_attr_e('Remove this check-in (e.g. the wrong person was checked in)', 'october-events'); ?>"><?php esc_html_e('Undo check-in', 'october-events'); ?></button>
+                    </form>
+                </td>
             </tr>
         <?php endforeach; endif; ?>
         </tbody>
