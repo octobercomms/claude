@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.199.1 — Undo a ticket check-in
+
+- **New: Undo check-in** button on each row of Tickets → Check-in log. Removes
+  the recorded scan(s) for that ticket at that door, to reverse a mistaken
+  check-in (e.g. the wrong person was picked in the name-lookup path). The
+  attendance and no-show counts correct themselves once removed.
+
 ## 1.199.0 — Add a volunteer to a shift (admin)
 
 - **New: add a volunteer to any shift by hand** from the Volunteers dashboard.

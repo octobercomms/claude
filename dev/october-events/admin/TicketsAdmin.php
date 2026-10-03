@@ -39,6 +39,7 @@ final class TicketsAdmin {
         add_action('admin_post_oe_resend_confirmation', [$this, 'handle_resend_confirmation']);
         add_action('admin_post_oe_transfer_ticket', [$this, 'handle_transfer_ticket']);
         add_action('admin_post_oe_ticket_checkin', [$this, 'handle_ticket_checkin']);
+        add_action('admin_post_oe_checkin_undo', [$this, 'handle_checkin_undo']);
         add_action('admin_post_oe_set_event_date', [$this, 'handle_set_event_date']);
         add_action('admin_post_oe_import_history', [$this, 'handle_import_history']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
@@ -593,6 +594,21 @@ final class TicketsAdmin {
         $ok   = in_array((string) ($res['status'] ?? ''), ['valid', 'already'], true);
         $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets');
         wp_safe_redirect(add_query_arg('oe_msg', $ok ? 'checked_in' : 'checkin_failed', remove_query_arg('oe_msg', $back)));
+        exit;
+    }
+
+    /**
+     * Undo a check-in from the log — remove the recorded scan(s) for one ticket
+     * at one door. Reverses a mistaken check-in (e.g. the wrong name was picked).
+     */
+    public function handle_checkin_undo(): void {
+        $this->guard('oe_checkin_undo');
+        $ticket_id = absint($_POST['ticket_id'] ?? 0);
+        $event_id  = absint($_POST['event_id'] ?? 0);
+        $venue     = sanitize_text_field(wp_unslash((string) ($_POST['venue'] ?? '')));
+        $removed   = \OE\Ticketing\CheckIn::undo($ticket_id, $event_id, $venue);
+        $back      = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets&tab=checkin');
+        wp_safe_redirect(add_query_arg('oe_msg', $removed > 0 ? 'checkin_undone' : 'undo_failed', remove_query_arg('oe_msg', $back)));
         exit;
     }
 
