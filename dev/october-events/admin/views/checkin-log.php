@@ -8,6 +8,7 @@
  * @var int        $groups       collapsed row count (for pagination)
  * @var array      $by_venue     [{event_id,venue,scans}] scans per event + door
  * @var array      $slots        ['slots'=>[['label','day','count'],…],'step'=>int,'multi_day'=>bool] check-in timeline, trimmed to the real window
+ * @var array      $doors_dist   ['dist'=>[['doors'=>int,'attendees'=>int],…],'avg'=>float,'max_doors'=>int,'attendees'=>int] doors-per-attendee distribution
  * @var array|null $stats        ['unique'=>int,'venues'=>[['venue','count'],…]] when an event is selected
  * @var int        $pages        total pages
  * @var int        $paged        current page
@@ -195,20 +196,36 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
             <?php endif; ?>
         </div>
 
-        <?php /* 3. Most popular door per event (the busiest home on the tour). */ ?>
+        <?php /* 3. Doors per visitor — how many stops each attendee reached. */
+        $dpa      = is_array($doors_dist['dist'] ?? null) ? $doors_dist['dist'] : [];
+        $dpa_max  = 0;
+        foreach ($dpa as $d) { $dpa_max = max($dpa_max, (int) $d['attendees']); }
+        $dpa_avg  = (float) ($doors_dist['avg'] ?? 0);
+        ?>
         <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:14px 16px">
-            <strong><?php esc_html_e('Most popular door', 'october-events'); ?></strong>
-            <p class="description" style="margin:4px 0 12px"><?php esc_html_e('The busiest stop on each tour, by total scans.', 'october-events'); ?></p>
-            <?php foreach ($ev_doors as $eid => $doors) : $top = $doors[0]; ?>
-                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #f0ede6">
-                    <div style="font-size:20px">🏆</div>
-                    <div style="flex:1;min-width:0">
-                        <?php if (! $event_filter) : ?><div style="font-size:11px;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?php echo esc_html(get_the_title((int) $eid) ?: ('#' . (int) $eid)); ?></div><?php endif; ?>
-                        <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?php echo esc_html($venue_lbl((string) $top->venue)); ?></div>
+            <strong><?php esc_html_e('Doors per visitor', 'october-events'); ?></strong>
+            <p class="description" style="margin:4px 0 12px"><?php esc_html_e('How many different doors each attendee checked in at — the engagement curve across the tour.', 'october-events'); ?></p>
+            <?php if (! $event_filter) : // Mixing tours into one curve is misleading; it's a per-event metric. ?>
+                <p class="description"><?php esc_html_e('Pick an event above to see its doors-per-visitor curve.', 'october-events'); ?></p>
+            <?php elseif (! $dpa) : ?>
+                <p class="description"><?php esc_html_e('No check-ins yet.', 'october-events'); ?></p>
+            <?php else : ?>
+                <div style="font-size:13px;color:#444;margin-bottom:10px"><?php echo esc_html(sprintf(
+                    /* translators: %s: average number of doors, e.g. "2.3" */
+                    __('Average %s doors per visitor', 'october-events'),
+                    number_format_i18n($dpa_avg, 1)
+                )); ?></div>
+                <?php foreach ($dpa as $d) :
+                    $doors = (int) $d['doors'];
+                    $att   = (int) $d['attendees'];
+                    $w     = $dpa_max ? round($att / $dpa_max * 100) : 0; ?>
+                    <div style="display:flex;align-items:center;gap:10px;margin:5px 0">
+                        <div style="width:72px;font-size:12px;color:#444;flex:none"><?php echo esc_html(sprintf(_n('%d door', '%d doors', $doors, 'october-events'), $doors)); ?></div>
+                        <div style="flex:1;background:#f0ede6;border-radius:4px;height:16px"><div style="width:<?php echo (int) max(2, $w); ?>%;background:<?php echo esc_attr($accent); ?>;height:16px;border-radius:4px"></div></div>
+                        <div style="width:34px;text-align:right;font-size:12px;font-weight:600"><?php echo (int) $att; ?></div>
                     </div>
-                    <div style="text-align:right"><div style="font-weight:800;font-size:16px;color:<?php echo esc_attr($accent); ?>"><?php echo (int) $top->scans; ?></div><div style="font-size:10px;color:#999"><?php esc_html_e('scans', 'october-events'); ?></div></div>
-                </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
 
     </div>
