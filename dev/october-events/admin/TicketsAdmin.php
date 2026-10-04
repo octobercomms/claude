@@ -1173,6 +1173,12 @@ final class TicketsAdmin {
         $slots    = \OE\Ticketing\CheckIn::scans_by_slot($event_filter);
         // How many doors each attendee reached — the engagement distribution.
         $doors_dist = \OE\Ticketing\CheckIn::doors_per_attendee($event_filter);
+        // Scans by time of day across every day (stacked), for the multi-day toggle.
+        // Only multi-day windows show the combined view, so skip the extra query
+        // (same full scan as scans_by_slot) for single-day events.
+        $slots_tod  = ! empty($slots['multi_day'])
+            ? \OE\Ticketing\CheckIn::scans_by_time_of_day($event_filter)
+            : ['slots' => [], 'days' => [], 'step' => 15, 'multi_day' => false];
 
         // Events that have ticket types, for the filter dropdown.
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
