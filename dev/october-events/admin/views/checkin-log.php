@@ -8,6 +8,7 @@
  * @var int        $groups       collapsed row count (for pagination)
  * @var array      $by_venue     [{event_id,venue,scans}] scans per event + door
  * @var array      $slots        ['slots'=>[['label','day','count'],…],'step'=>int,'multi_day'=>bool] check-in timeline, trimmed to the real window
+ * @var array      $slots_tod    ['slots'=>[['label','counts'=>int[]],…],'days'=>string[],'step'=>int,'multi_day'=>bool] scans by time of day, stacked per day
  * @var array      $doors_dist   ['dist'=>[['doors'=>int,'attendees'=>int],…],'avg'=>float,'max_doors'=>int,'attendees'=>int] doors-per-attendee distribution
  * @var array|null $stats        ['unique'=>int,'venues'=>[['venue','count'],…]] when an event is selected
  * @var int        $pages        total pages
@@ -164,35 +165,106 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
             <?php endforeach; ?>
         </div>
 
-        <?php /* 2. When people checked in — trimmed to the real window, in short segments. */ ?>
-        <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:14px 16px">
-            <strong><?php esc_html_e('Check-in times', 'october-events'); ?></strong>
-            <p class="description" style="margin:4px 0 12px"><?php echo esc_html(sprintf(
-                /* translators: %d: minutes per bar */
-                __('When scans happened, in %d-minute segments across the actual check-in window.', 'october-events'),
-                $slot_step
-            )); ?></p>
-            <?php if (! $slot_rows) : ?>
-                <p class="description"><?php esc_html_e('No scans yet.', 'october-events'); ?></p>
-            <?php else : $n_slots = count($slot_rows); ?>
-                <div style="display:flex;align-items:flex-end;gap:<?php echo $n_slots > 40 ? '1' : '2'; ?>px;height:140px">
-                    <?php foreach ($slot_rows as $s) : $n = (int) $s['count']; $bh = $slot_max ? round($n / $slot_max * 100) : 0; ?>
-                        <div title="<?php echo esc_attr(sprintf(_n('%1$s scan · %2$s', '%1$s scans · %2$s', $n, 'october-events'), number_format_i18n($n), ($slot_multi ? $s['day'] . ' ' : '') . $s['label'])); ?>" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%">
-                            <div style="height:<?php echo (int) max(2, $bh); ?>%;background:<?php echo $n ? esc_attr($accent) : '#eee'; ?>;border-radius:2px 2px 0 0;min-height:2px"></div>
+        <?php /* 2. When people checked in. Single day: one timeline. Multi-day: a
+                  toggle between the per-day timeline and a combined "time of day"
+                  stacked view that answers "across all days, which times were busiest". */
+        $tod_slots = is_array($slots_tod['slots'] ?? null) ? $slots_tod['slots'] : [];
+        $tod_days  = is_array($slots_tod['days'] ?? null) ? $slots_tod['days'] : [];
+        $tod_step  = (int) ($slots_tod['step'] ?? 15);
+        $tod_multi = ! empty($slots_tod['multi_day']);
+        $tod_max   = 0;
+        foreach ($tod_slots as $ts) { $tod_max = max($tod_max, array_sum((array) $ts['counts'])); }
+        // Day colours for the stack: accent first, then a few distinct tones, cycled.
+        $day_palette = [$accent, '#5b7b7a', '#b23b2a', '#8a6d3b', '#6b7280', '#2f6f4f'];
+        ?>
+        <div class="oe-panel oe-ci-times" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:14px 16px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+                <strong><?php esc_html_e('Check-in times', 'october-events'); ?></strong>
+                <?php if ($tod_multi) : ?>
+                    <span class="oe-ci-toggle" style="display:inline-flex;border:1px solid #dcdcde;border-radius:6px;overflow:hidden;font-size:12px">
+                        <button type="button" class="oe-ci-tab is-active" data-view="byday" style="border:0;background:<?php echo esc_attr($accent); ?>;color:#fff;padding:3px 10px;cursor:pointer"><?php esc_html_e('By day', 'october-events'); ?></button>
+                        <button type="button" class="oe-ci-tab" data-view="combined" style="border:0;background:#fff;color:#444;padding:3px 10px;cursor:pointer"><?php esc_html_e('Combined', 'october-events'); ?></button>
+                    </span>
+                <?php endif; ?>
+            </div>
+
+            <?php /* --- By-day timeline (default) --- */ ?>
+            <div data-ci-view="byday">
+                <p class="description" style="margin:4px 0 12px"><?php echo esc_html(sprintf(
+                    /* translators: %d: minutes per bar */
+                    __('When scans happened, in %d-minute segments across the actual check-in window.', 'october-events'),
+                    $slot_step
+                )); ?></p>
+                <?php if (! $slot_rows) : ?>
+                    <p class="description"><?php esc_html_e('No scans yet.', 'october-events'); ?></p>
+                <?php else : $n_slots = count($slot_rows); ?>
+                    <div style="display:flex;align-items:flex-end;gap:<?php echo $n_slots > 40 ? '1' : '2'; ?>px;height:140px">
+                        <?php foreach ($slot_rows as $s) : $n = (int) $s['count']; $bh = $slot_max ? round($n / $slot_max * 100) : 0; ?>
+                            <div title="<?php echo esc_attr(sprintf(_n('%1$s scan · %2$s', '%1$s scans · %2$s', $n, 'october-events'), number_format_i18n($n), ($slot_multi ? $s['day'] . ' ' : '') . $s['label'])); ?>" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%">
+                                <div style="height:<?php echo (int) max(2, $bh); ?>%;background:<?php echo $n ? esc_attr($accent) : '#eee'; ?>;border-radius:2px 2px 0 0;min-height:2px"></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:4px">
+                        <?php
+                        $first = $slot_rows[0];
+                        $mid   = $slot_rows[(int) floor($n_slots / 2)];
+                        $last  = $slot_rows[$n_slots - 1];
+                        $tick  = static fn(array $s): string => ($slot_multi ? $s['day'] . ' ' : '') . $s['label'];
+                        ?>
+                        <span><?php echo esc_html($tick($first)); ?></span>
+                        <?php if ($n_slots > 2) : ?><span><?php echo esc_html($tick($mid)); ?></span><?php endif; ?>
+                        <span><?php echo esc_html($tick($last)); ?></span>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <?php /* --- Combined time-of-day stack (multi-day only) --- */ ?>
+            <?php if ($tod_multi && $tod_slots) : $n_tod = count($tod_slots); ?>
+            <div data-ci-view="combined" hidden>
+                <p class="description" style="margin:4px 0 12px"><?php echo esc_html(sprintf(
+                    /* translators: %d: minutes per bar */
+                    __('All days combined onto one clock, in %d-minute segments — the busiest times across the event.', 'october-events'),
+                    $tod_step
+                )); ?></p>
+                <div style="display:flex;align-items:flex-end;gap:<?php echo $n_tod > 40 ? '1' : '2'; ?>px;height:140px">
+                    <?php foreach ($tod_slots as $ts) :
+                        $counts = (array) $ts['counts'];
+                        $total  = array_sum($counts);
+                        $parts  = [];
+                        foreach ($counts as $di => $cn) {
+                            if ($cn > 0) { $parts[] = $tod_days[$di] . ': ' . number_format_i18n($cn); }
+                        }
+                        $tip = $ts['label'] . ($total ? ' — ' . implode(' · ', $parts) : '');
+                        ?>
+                        <div title="<?php echo esc_attr($tip); ?>" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%">
+                            <?php // Stack from the top down so day 0 sits at the bottom; round
+                            // the first segment actually drawn (the visible top), not a day
+                            // that may be zero in this bucket.
+                            $top_drawn = false;
+                            for ($di = count($counts) - 1; $di >= 0; $di--) :
+                                $cn = (int) $counts[$di];
+                                if ($cn <= 0) { continue; }
+                                $h = $tod_max ? ($cn / $tod_max * 100) : 0;
+                                $col = $day_palette[$di % count($day_palette)];
+                                $round = ! $top_drawn; $top_drawn = true; ?>
+                                <div style="height:<?php echo (float) $h; ?>%;background:<?php echo esc_attr($col); ?>;<?php echo $round ? 'border-radius:2px 2px 0 0;' : ''; ?>min-height:1px"></div>
+                            <?php endfor; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:4px">
-                    <?php
-                    $first = $slot_rows[0];
-                    $mid   = $slot_rows[(int) floor($n_slots / 2)];
-                    $last  = $slot_rows[$n_slots - 1];
-                    $tick  = static fn(array $s): string => ($slot_multi ? $s['day'] . ' ' : '') . $s['label'];
-                    ?>
-                    <span><?php echo esc_html($tick($first)); ?></span>
-                    <?php if ($n_slots > 2) : ?><span><?php echo esc_html($tick($mid)); ?></span><?php endif; ?>
-                    <span><?php echo esc_html($tick($last)); ?></span>
+                    <?php $tf = $tod_slots[0]; $tm = $tod_slots[(int) floor($n_tod / 2)]; $tl = $tod_slots[$n_tod - 1]; ?>
+                    <span><?php echo esc_html($tf['label']); ?></span>
+                    <?php if ($n_tod > 2) : ?><span><?php echo esc_html($tm['label']); ?></span><?php endif; ?>
+                    <span><?php echo esc_html($tl['label']); ?></span>
                 </div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:#444">
+                    <?php foreach ($tod_days as $di => $day) : ?>
+                        <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:3px;background:<?php echo esc_attr($day_palette[$di % count($day_palette)]); ?>"></span><?php echo esc_html($day); ?></span>
+                    <?php endforeach; ?>
+                </div>
+            </div>
             <?php endif; ?>
         </div>
 
@@ -230,6 +302,28 @@ $export_url = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=checki
 
     </div>
     <?php endif; ?>
+
+    <script>
+    (function () {
+        var tabs = document.querySelector('.oe-ci-toggle');
+        if (!tabs) { return; }
+        var panel = tabs.closest('.oe-ci-times');
+        tabs.addEventListener('click', function (e) {
+            var btn = e.target.closest('.oe-ci-tab');
+            if (!btn || !panel) { return; }
+            var view = btn.getAttribute('data-view');
+            panel.querySelectorAll('.oe-ci-tab').forEach(function (b) {
+                var on = b === btn;
+                b.classList.toggle('is-active', on);
+                b.style.background = on ? '<?php echo esc_js($accent); ?>' : '#fff';
+                b.style.color = on ? '#fff' : '#444';
+            });
+            panel.querySelectorAll('[data-ci-view]').forEach(function (v) {
+                v.hidden = v.getAttribute('data-ci-view') !== view;
+            });
+        });
+    })();
+    </script>
 
     <table class="widefat striped">
         <thead><tr>

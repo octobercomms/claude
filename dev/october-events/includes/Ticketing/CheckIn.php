@@ -559,6 +559,94 @@ final class CheckIn {
         return ['slots' => $slots, 'step' => (int) ($step / 60), 'multi_day' => $first_day !== $last_day];
     }
 
+    /**
+     * Scans bucketed by TIME OF DAY across every day of the event, so a
+     * multi-day tour collapses onto one clock: "across both days, when were the
+     * busiest times?" Each bucket carries a per-day breakdown so the chart can
+     * stack the days. Single-day events get one series (same as the timeline).
+     * scanned_at is a UTC wall-clock string, converted to the site timezone
+     * before bucketing so the clock matches what staff saw on the day.
+     *
+     * @return array{slots:array<int,array{label:string,counts:array<int,int>}>,days:array<int,string>,step:int,multi_day:bool}
+     */
+    public static function scans_by_time_of_day(int $event_id = 0): array {
+        global $wpdb;
+        $c = Schema::checkins();
+        $sql = "SELECT LEFT(scanned_at, 13) AS ymdh, FLOOR(MINUTE(scanned_at) / 15) AS q, COUNT(*) AS scans FROM {$c} ";
+        // ORDER BY so the first-seen day is the earliest: MySQL 8+ no longer
+        // implicitly sorts GROUP BY output, so without this the day_order (and
+        // therefore the stack order, colours and legend) would be arbitrary.
+        if ($event_id > 0) {
+            $rows = $wpdb->get_results($wpdb->prepare($sql . "WHERE event_id = %d GROUP BY ymdh, q ORDER BY ymdh, q", $event_id)) ?: [];
+        } else {
+            $rows = $wpdb->get_results($sql . "GROUP BY ymdh, q ORDER BY ymdh, q") ?: [];
+        }
+        if (! $rows) {
+            return ['slots' => [], 'days' => [], 'step' => 15, 'multi_day' => false];
+        }
+        $utc = new \DateTimeZone('UTC');
+        $tz  = wp_timezone();
+        // Keyed by the actual local date (Y-m-d) so two same-weekday dates in
+        // different years (an all-events window) never merge; labels drop the
+        // year for the common single-festival case.
+        $day_order  = []; // 'Y-m-d' => index
+        $day_labels = []; // index  => 'D j M'
+        $cells      = []; // [tod_seconds][day_index] => count
+        $min_tod = PHP_INT_MAX; $max_tod = PHP_INT_MIN;
+        foreach ($rows as $r) {
+            $dt = \DateTimeImmutable::createFromFormat('Y-m-d H', (string) $r->ymdh, $utc);
+            if (! $dt) { continue; }
+            $local  = $dt->setTime((int) $dt->format('H'), 0)->setTimezone($tz)->modify('+' . ((int) $r->q * 15) . ' minutes');
+            $daykey = $local->format('Y-m-d');
+            if (! isset($day_order[$daykey])) {
+                $day_order[$daykey]  = count($day_order);
+                $day_labels[]        = $local->format('D j M');
+            }
+            $di  = $day_order[$daykey];
+            $tod = ((int) $local->format('G')) * 3600 + ((int) $local->format('i')) * 60; // seconds since local midnight
+            $cells[$tod][$di] = ($cells[$tod][$di] ?? 0) + (int) $r->scans;
+            $min_tod = min($min_tod, $tod);
+            $max_tod = max($max_tod, $tod);
+        }
+        if (! $cells) {
+            return ['slots' => [], 'days' => [], 'step' => 15, 'multi_day' => false];
+        }
+        $span = $max_tod - $min_tod;
+        $step = 900;                                       // 15 min
+        if ($span > 6 * HOUR_IN_SECONDS)  { $step = 1800; } // 30 min
+        if ($span > 12 * HOUR_IN_SECONDS) { $step = 3600; } // 60 min
+        // Re-bucket to the chosen step.
+        $buckets = [];
+        foreach ($cells as $tod => $by_day) {
+            $b = (int) (floor($tod / $step) * $step);
+            foreach ($by_day as $di => $n) {
+                $buckets[$b][$di] = ($buckets[$b][$di] ?? 0) + $n;
+            }
+        }
+        $n_days = count($day_order);
+        $start  = (int) (floor($min_tod / $step) * $step);
+        $end    = (int) (floor($max_tod / $step) * $step);
+        $slots = [];
+        for ($t = $start; $t <= $end; $t += $step) {
+            $counts = [];
+            for ($d = 0; $d < $n_days; $d++) {
+                $counts[$d] = (int) ($buckets[$t][$d] ?? 0);
+            }
+            $slots[] = [
+                // $t is seconds since local midnight, so gmdate (no offset) gives
+                // the clock label directly — no "today" / DST dependency.
+                'label'  => gmdate('g:i a', $t),
+                'counts' => $counts,
+            ];
+        }
+        return [
+            'slots'     => $slots,
+            'days'      => $day_labels,
+            'step'      => (int) ($step / 60),
+            'multi_day' => $n_days > 1,
+        ];
+    }
+
     /** Every collapsed (ticket × door) log row for an event, unpaginated — for CSV export. */
     public static function log_grouped_export(int $event_id = 0): array {
         global $wpdb;

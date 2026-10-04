@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.199.3 — Check-in times: multi-day combined view
+
+- The **Check-in times** chart now has a **By day / Combined** toggle on
+  multi-day events. "By day" is the existing per-day timeline; "Combined" lays
+  every day onto one clock as a stacked bar (coloured per day), so you can see
+  the busiest times of day across the whole event. Single-day events are
+  unchanged (no toggle needed).
+
 ## 1.199.2 — "Doors per visitor" check-in chart
 
 - **New chart on the Check-in log: Doors per visitor.** Shows how many
