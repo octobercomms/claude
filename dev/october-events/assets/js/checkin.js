@@ -312,7 +312,13 @@
     }
     function onDecode(text) {
         var now = Date.now();
-        if (text === lastToken && now - lastAt < 3000) { return; } // debounce repeats
+        // Debounce repeats of the SAME code. Crucially, slide the window on every
+        // held frame: while a QR stays in view the camera keeps decoding it (at
+        // fps), and without sliding a hold longer than the window would fire a
+        // SECOND check-in — which the server then reports as "already checked in"
+        // for someone who was only just admitted. Refreshing lastAt means a long
+        // hold never re-submits; re-presenting the code after a real 3s gap does.
+        if (text === lastToken && now - lastAt < 3000) { lastAt = now; return; }
         lastToken = text; lastAt = now;
         submit(text);
     }

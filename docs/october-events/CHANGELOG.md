@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.199.6 — Fix false "already checked in" from holding the QR
+
+- The scanner's same-code repeat guard didn't extend while a QR stayed in view.
+  Holding a code longer than the 3-second window (common now that decoding can
+  need a steady hold) fired a second check-in for the same person, which the
+  server then reported as "✗ Already checked in" moments after admitting them.
+  The guard now slides while the code is held, so a long hold never re-submits;
+  re-presenting the code after a genuine gap still scans.
+
 ## 1.199.5 — Revert the QR scanner camera change
 
 - 1.199.4's custom camera constraints (ideal resolution + continuous-autofocus
