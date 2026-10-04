@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.199.5 — Revert the QR scanner camera change
+
+- 1.199.4's custom camera constraints (ideal resolution + continuous-autofocus
+  request) stopped the camera opening on some devices. Reverted the scanner to
+  the known-good camera start so check-in works reliably again. A faster-scan
+  approach will be revisited and tested on-device before shipping.
+
 ## 1.199.4 — Faster QR check-in scanning
 
 - The door scanner now uses the phone's **native BarcodeDetector** when
