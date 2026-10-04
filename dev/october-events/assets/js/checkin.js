@@ -299,13 +299,30 @@
     /* ---- Scanner ---- */
     function startScanner() {
         if (scanning || !window.Html5Qrcode) { return; }
-        scanner = new window.Html5Qrcode('oe-ci-reader');
+        // Use the phone's native BarcodeDetector when available — it is hardware
+        // -accelerated, so a QR is read the instant it's in frame instead of after
+        // the software (jsQR) decoder locks onto a sharp, still frame.
+        scanner = new window.Html5Qrcode('oe-ci-reader', { experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
         scanning = true;
         // No qrbox: scan the whole camera frame. A fixed centred qrbox misaligns
         // with the CSS object-fit:cover view, so a QR aimed at the on-screen
         // frame can fall outside the scan region and never decode.
-        scanner.start({ facingMode: 'environment' }, { fps: 10 }, onDecode, function () {})
-            .catch(function () { scanning = false; });
+        // Ask for a sharp rear-camera stream with continuous autofocus and a
+        // higher sampling rate, so the code is in focus and decoded sooner. The
+        // resolution/focus hints are best-effort; a device that ignores them just
+        // falls back to its default. If the rich constraints are refused outright,
+        // retry with the plain facingMode so the camera still opens.
+        var rich = {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            advanced: [{ focusMode: 'continuous' }]
+        };
+        scanner.start(rich, { fps: 24 }, onDecode, function () {})
+            .catch(function () {
+                scanner.start({ facingMode: 'environment' }, { fps: 24 }, onDecode, function () {})
+                    .catch(function () { scanning = false; });
+            });
     }
     function stopScanner() {
         if (scanner && scanning) { scanner.stop().then(function () { scanning = false; }).catch(function () { scanning = false; }); }

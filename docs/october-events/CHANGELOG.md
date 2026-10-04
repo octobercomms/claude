@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.199.4 — Faster QR check-in scanning
+
+- The door scanner now uses the phone's **native BarcodeDetector** when
+  available (hardware-accelerated), instead of the software decoder, so a QR is
+  read the instant it's in frame rather than after holding the camera still.
+- Requests a sharper rear-camera stream with continuous autofocus and a higher
+  sampling rate (best-effort; falls back cleanly on devices that ignore the
+  hints, and to the plain camera config if the richer constraints are refused).
+
 ## 1.199.3 — Check-in times: multi-day combined view
 
 - The **Check-in times** chart now has a **By day / Combined** toggle on
