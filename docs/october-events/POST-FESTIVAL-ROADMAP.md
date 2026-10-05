@@ -23,10 +23,15 @@ repeating it.
 | **1.202.0** | Scanner: blue volunteer state + thank-you | Medium (touches live scanner) | Device-tested before ship; isolated change |
 | **1.203.0** | Shift check-in + cancel/no-show ticket void | Medium–High | Depends on lifecycle + scanner state |
 | **1.204.0** | End-of-event report (single + multi-event PDF) | Low | Standalone; high value for directors |
-| **1.205.0** | Locations map email | Medium | Standalone; needs address field per location |
-| **1.206.0** | Tickets dashboard UX (one page + refresh) | Medium | Consolidation; best after the above settle |
-| **1.207.0+** | Volunteer pool / location allocation | High | Large; see `volunteer-pool.md` |
+| **1.205.0** | Locations map email (location groups) | Medium | Standalone; needs location fields + groups |
+| **1.206.0** | Guided tour comms (instructions + map; 24h close + host list) | Medium | Shares map/cron machinery; recurring host ask |
+| **1.207.0** | Tickets dashboard UX (one page + refresh) | Medium | Consolidation; best after the above settle |
+| **1.208.0+** | Volunteer pool / location allocation | High | Large; see `volunteer-pool.md` |
 | **Backlog** | Batch check-in, instant-scan, volunteer chat | — | Device-dependent or held |
+
+A **1.199.7** bugfix (email logo renders tiny: relies on CSS `max-*` which
+Outlook ignores, no `width` attribute like the QR has) can ship any time,
+independent of this sequence.
 
 Versioning reminder: bump three places in lockstep — the `Version:` header in
 `october-events.php`, the `OE_VERSION` constant, and `Stable tag` in
@@ -233,8 +238,8 @@ Custom fields per location:
 |-------|---------|
 | Street address, city, state, zip | Display, Directions link, geocoding |
 | Latitude / longitude | Auto-filled by geocoding the address (`OE_GOOGLE_MAPS_KEY`); editable if a pin lands wrong |
-| Open on (day / session) | Drives section grouping and "(Oct 4 only)" labels |
-| Display order | Optional; order within a section, else alphabetical |
+| Group | Which location group it belongs to (see below) |
+| Display order | Optional; order within a group, else alphabetical |
 | Access note | Optional; parking, entrance |
 
 You type the address once → the plugin geocodes it to a pin → the same address
@@ -242,14 +247,21 @@ feeds the map, the list and the Directions link. One input, three outputs.
 Reverse-geocoding a pin is **not** used (it returns the wrong road for a private
 home).
 
-**Sectioning** comes from the **Open on** field (the KML folders map straight to
-it). Auto-group by the days a location is open, with an **optional override
-label** per group for cases like "Bonus: Lake Oconee". Auto default, manual
-wording where it matters.
+### Location groups (LOCKED)
+Sections come from user-defined **groups**, not auto-derived days (this is the
+KML-folder model, made native).
+
+- A group has a **custom name**, a **colour**, and an **order**.
+- Create as many groups as needed; a location belongs to **one** group (matches
+  the KML; multi-group can come later if ever needed).
+- On the map: one section per group, section title from the group name, **pin
+  colour from the group colour**. So "Oct 3–4", "Sun only", "Bonus" become real
+  groups you control, not guesses.
+- One group is the happy path; more when a tour needs them.
 
 **To confirm in code when building:** whether locations already exist as venues
-(the check-in doors) or need a new location type. The fields bolt onto whichever
-it is; do not guess.
+(the check-in doors) or need a new location type, and where groups attach. The
+fields bolt onto whichever it is; do not guess.
 
 ### Design
 - Branded email: a static Google Maps image (Maps Static API, using the existing
@@ -273,13 +285,45 @@ email and on the end-of-event report. Default US Letter (US-based festival).
   into per-day maps. Per-day is likely clearer.
 - Lead time: fixed 7 days, or per-event setting?
 
-A working mockup exists (12 homes, 3 days, numbered and colour-coded by day,
-name + address stacked, US Letter / A4 print toggle). Use it as the visual
-reference.
+A working mockup exists (12 homes, 3 groups, numbered and colour-coded by group,
+name + address stacked, logo top-left, US Letter / A4 print toggle). Use it as
+the visual reference.
 
 ---
 
-## 7. Tickets dashboard UX (1.206.0)
+## 7. Guided tour comms (1.206.0)
+
+Guided tours are their own audience with their own needs, handled separately
+from the general locations map.
+
+### 7a. Instructions + map email
+- Guided-tour bookers get a **separate email**: clear instructions plus their
+  own map, distinct from the self-guided locations map.
+- Instructions: meeting point, time, host, what to bring, access notes.
+- **Open — map content:** meeting point only, or the full route/stops of that
+  guided tour? Depends on how a guided tour's locations are held; confirm in
+  code.
+- **Open — send timing:** on booking (confirmation), a timed reminder before, or
+  both. Recommended: both (instructions on booking, reminder the day before).
+
+### 7b. Close bookings 24h before + host guest list
+Automates a recurring ask from hosts.
+
+- **24 hours before** the tour, close its bookings automatically (per-tour; 24h
+  default, configurable).
+- At the same trigger, email the **guest list to that tour's host**.
+- **Open — host:** a contact set per guided tour (one person, or several?).
+- **Open — guest list fields:** names + party size at minimum; also phone,
+  accessibility / dietary notes? Confirm what hosts want to see.
+- The host may be the same person as a location lead (§4 roles) or separate;
+  kept as a contact on the guided tour so it is flexible.
+
+Shares the cron and email machinery with the locations map (§6), which is why it
+sits right after it.
+
+---
+
+## 8. Tickets dashboard UX (1.207.0)
 
 ### Goal
 Kill the tab-reload pain on bad reception; one page, refresh in place, less
@@ -303,7 +347,7 @@ from a design pass.
 
 ---
 
-## 8. Volunteer pool / location allocation (1.207.0+)
+## 9. Volunteer pool / location allocation (1.208.0+)
 
 Large workstream, specified separately in [`volunteer-pool.md`](volunteer-pool.md):
 early recruitment against window × role targets with 25% contingency, pool
@@ -342,7 +386,12 @@ roles per site; final-days cover assignment manual vs fill-gaps-nearest-first.
    maps.
 5. **Report PDF route** (1.204.0): print-to-PDF now vs server PDF for auto-email
    later.
-6. **Volunteer pool open questions** (1.207.0+): see `volunteer-pool.md`.
+6. **Guided map content** (1.206.0): meeting point only vs full route/stops.
+7. **Guided instructions send timing** (1.206.0): on booking, timed reminder, or
+   both (recommended both).
+8. **Guided host + guest-list fields** (1.206.0): who the host contact is, and
+   what fields hosts want on the list.
+9. **Volunteer pool open questions** (1.208.0+): see `volunteer-pool.md`.
 
 Nothing here is blocked waiting on all answers. 1.200.0 (comp flag + reporting
 exclusion) can start immediately; the decisions above only gate their own
