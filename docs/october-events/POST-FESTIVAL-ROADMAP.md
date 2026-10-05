@@ -296,27 +296,41 @@ the visual reference.
 Guided tours are their own audience with their own needs, handled separately
 from the general locations map.
 
-### 7a. Instructions + map email
-- Guided-tour bookers get a **separate email**: clear instructions plus their
-  own map, distinct from the self-guided locations map.
-- Instructions: meeting point, time, host, what to bring, access notes.
-- **Open — map content:** meeting point only, or the full route/stops of that
-  guided tour? Depends on how a guided tour's locations are held; confirm in
-  code.
-- **Open — send timing:** on booking (confirmation), a timed reminder before, or
-  both. Recommended: both (instructions on booking, reminder the day before).
+### 7a. Instructions + map email (LOCKED)
+- Guided-tour bookers get a **separate email**, distinct from the self-guided
+  locations map.
+- **Arrival instructions**: a free-text field per guided tour for detailed,
+  custom access details (building entry, security). Always bespoke, so it is a
+  type-it-all field, not fixed sub-fields.
+- **Attachment**: optional file per tour (e.g. an access or security PDF) sent
+  with the email. Watch the transport (Brevo) attachment size cap.
+- The email **states that no ticket is scanned here** — their **name is on a
+  list on arrival**. Guided tours are list-based, not scan-based (ties to 7b:
+  the host's list is the arrival check-off sheet).
+- **Map**: the meeting point / building only (not a full route). The
+  arrival-instructions field carries the specifics. Revisit only if a stops
+  route is wanted.
+- **Send**: on booking, with the confirmation. (A timed reminder before can be
+  added later; not v1.)
 
-### 7b. Close bookings 24h before + host guest list
+### 7b. Close bookings 24h before + host guest list (LOCKED)
 Automates a recurring ask from hosts.
 
 - **24 hours before** the tour, close its bookings automatically (per-tour; 24h
   default, configurable).
-- At the same trigger, email the **guest list to that tour's host**.
-- **Open — host:** a contact set per guided tour (one person, or several?).
-- **Open — guest list fields:** names + party size at minimum; also phone,
-  accessibility / dietary notes? Confirm what hosts want to see.
+- At the same trigger, email the **guest list to that tour's host(s)**.
+- **Host**: a **contact repeater** field per guided tour — one or several hosts.
+- **Guest list fields**: name, email, party size (always). **Dietary and
+  accessibility** are an **optional capture, toggled per tour** (also serves
+  conferences that provide lunch).
 - The host may be the same person as a location lead (§4 roles) or separate;
   kept as a contact on the guided tour so it is flexible.
+
+### Implication: booking form
+If dietary / accessibility capture is enabled for a tour, those fields must be
+**asked on the booking form at purchase**, not only shown on the host list. So
+the per-tour toggle lives on the tour setup and flips the matching field(s) on
+the booking form. Minor, but it touches the booking flow, not just the email.
 
 Shares the cron and email machinery with the locations map (§6), which is why it
 sits right after it.
@@ -386,11 +400,13 @@ roles per site; final-days cover assignment manual vs fill-gaps-nearest-first.
    maps.
 5. **Report PDF route** (1.204.0): print-to-PDF now vs server PDF for auto-email
    later.
-6. **Guided map content** (1.206.0): meeting point only vs full route/stops.
-7. **Guided instructions send timing** (1.206.0): on booking, timed reminder, or
-   both (recommended both).
-8. **Guided host + guest-list fields** (1.206.0): who the host contact is, and
-   what fields hosts want on the list.
+6. ~~**Guided map content**~~ — DECIDED: meeting point / building only; the
+   arrival-instructions field carries the detail.
+7. ~~**Guided instructions send timing**~~ — DECIDED: on booking with the
+   confirmation (timed reminder later if wanted).
+8. ~~**Guided host + guest-list fields**~~ — DECIDED: host is a contact repeater
+   per tour; list = name, email, party size, with optional per-tour dietary /
+   accessibility capture.
 9. **Volunteer pool open questions** (1.208.0+): see `volunteer-pool.md`.
 
 Nothing here is blocked waiting on all answers. 1.200.0 (comp flag + reporting
