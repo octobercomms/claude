@@ -134,26 +134,37 @@ working, so the free perk can't be used without doing the shift.
 - **Cancel** auto-voids immediately (volunteer cancel link, or admin).
 - **No-show** is determined after the shift, from who did and didn't work it.
 
+### Roles (LOCKED)
+Confirmation is owned by a lead, so the admin is never the bottleneck and each
+scope has one responsible person.
+
+- **Event lead**: owns an event, or the whole festival. Confirms attendance and
+  no-shows across it, and is the fallback for any location with no lead.
+- **Location lead**: owns one location on a tour. Confirms the volunteers at
+  their location at shift end. Their roster, their call.
+- **Fallback chain**: location lead → event lead → admin. A location with no
+  assigned lead rolls up to the event lead so nothing goes unconfirmed.
+- **Access**: a lead gets a lead-level PIN (same model as the check-in PIN) that
+  unlocks the confirm roster for their scope only.
+
+A lead is a user/volunteer assigned to an event or a location with confirm
+rights. This roles concept is reused by the end-of-event report (coverage per
+lead) and the festival readiness / sign-off layer.
+
 ### Shift check-in model
 - The volunteer web app gains a "check in to my shift" area: pick the location
-  and time, tick the name off. The system marks that volunteer **started**.
+  and time, tick the name off. This is a **convenience signal only** — it helps
+  the lead see who has arrived.
 - Everyone not confirmed shows as **unknown (?)**.
-- At the **end of the shift**, the lead reviews the unknowns and marks genuine
-  **no-shows**. No-show → tickets void.
+- At the **end of the shift**, the **location lead** (or event lead by fallback)
+  reviews the roster and marks genuine **no-shows**. No-show → tickets void.
 
-### The one decision to sign off
-**Who is the authoritative presence signal?** Self-confirm (the volunteer ticks
-their own name) is gameable: a no-show can open the app from home, mark
-themselves present, and keep their free guest tickets alive, which defeats the
-whole point. Recommendation:
-
-- **Lead-confirm is authoritative.** The shift lead ticks people present from the
-  roster; that same screen is where unknowns become no-shows at shift end.
-- **Self-confirm is convenience only.** A volunteer can flag "I've arrived" to
-  help the lead, but it does **not**, by itself, keep guest tickets valid.
-
-Sign-off needed: accept lead-confirm as authoritative (recommended), or accept
-the self-confirm loophole knowingly.
+### Presence authority (DECIDED)
+**Lead-confirm is authoritative, not self-confirm.** A volunteer ticking their
+own name is gameable (a no-show could mark themselves present from home and keep
+their free guest tickets alive), so self-confirm never, by itself, keeps guest
+tickets valid. The lead who owns the location or event is the one whose
+confirmation counts.
 
 ### Reversibility
 Voiding must be one-click reversible. A no-show who turns up late with a reason,
@@ -291,8 +302,9 @@ roles per site; final-days cover assignment manual vs fill-gaps-nearest-first.
 
 ## Consolidated open decisions
 
-1. **Shift presence authority** (1.203.0): lead-confirm authoritative
-   (recommended) vs accept the self-confirm loophole.
+1. ~~**Shift presence authority** (1.203.0)~~ — DECIDED: lead-confirm
+   authoritative, via event lead / location lead roles with a fallback chain.
+   Self-confirm is convenience only.
 2. **Volunteer reminder channel** (1.201.0): email only, or email + SMS.
 3. **Map lead time** (1.205.0): fixed 7 days vs per-event setting.
 4. **Map layout for spread-out tours** (1.205.0): one auto-fit map vs per-day
