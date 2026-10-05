@@ -201,7 +201,7 @@ take-up; volunteer coverage per shift.
 - **Route A (recommended):** a branded, print-first report page with a Download
   button that uses the browser's save-as-PDF. Reuses the ticket page's print
   approach, no new dependency, charts render cleanly, two clicks to a shareable
-  PDF.
+  PDF. Honours the shared **paper size** setting (US Letter / A4, see §6).
 - **Route B (later, if needed):** bundle a PHP PDF library for a true attachable
   file that can be auto-emailed to directors. Heavier; only when auto-email is
   wanted.
@@ -222,29 +222,60 @@ them. Print it, or scan a QR to open it live on the phone.
 - **One send-flag per ticket-holder per event** stops anyone getting the map
   twice (a buyer at exactly 7 days out gets it once, not from both triggers).
 
+### Data: generated from the website, not a KML (LOCKED)
+No separate Google map, no KML import. Each location carries its own fields in
+the plugin, and the map, list, Directions links and section grouping all derive
+from them.
+
+Custom fields per location:
+
+| Field | Purpose |
+|-------|---------|
+| Street address, city, state, zip | Display, Directions link, geocoding |
+| Latitude / longitude | Auto-filled by geocoding the address (`OE_GOOGLE_MAPS_KEY`); editable if a pin lands wrong |
+| Open on (day / session) | Drives section grouping and "(Oct 4 only)" labels |
+| Display order | Optional; order within a section, else alphabetical |
+| Access note | Optional; parking, entrance |
+
+You type the address once → the plugin geocodes it to a pin → the same address
+feeds the map, the list and the Directions link. One input, three outputs.
+Reverse-geocoding a pin is **not** used (it returns the wrong road for a private
+home).
+
+**Sectioning** comes from the **Open on** field (the KML folders map straight to
+it). Auto-group by the days a location is open, with an **optional override
+label** per group for cases like "Bonus: Lake Oconee". Auto default, manual
+wording where it matters.
+
+**To confirm in code when building:** whether locations already exist as venues
+(the check-in doors) or need a new location type. The fields bolt onto whichever
+it is; do not guess.
+
 ### Design
 - Branded email: a static Google Maps image (Maps Static API, using the existing
   `OE_GOOGLE_MAPS_KEY`) with numbered markers, a matching numbered list with
-  **property name + full street address** per stop, and a **Directions** link
-  per stop.
+  **property name + full street address** per stop (name and address stacked,
+  not run together), and a **Directions** link per stop.
 - A **QR + button** opens an interactive map page on the phone (tap a pin for
   directions, add to home screen). Hosted as a plugin route so pins match the
   email and the link is reusable.
 - Reuse the daily cron for the 7-day trigger; the purchase trigger handles late
   buyers.
 
-### Open question / dependency
-- **Addresses must be a field per location.** The KML carries coordinates only,
-  and reverse-geocoding a pin near a private home returns the wrong road. Flow:
-  enter the address once per location → geocode to a pin for the map → the same
-  address feeds the list and the Directions link. One input, three outputs.
+### Print / paper size (LOCKED)
+Printable outputs honour a single **paper size** setting, **US Letter or A4**,
+in the main plugin Settings (not per email). Drives the `@page` size on the map
+email and on the end-of-event report. Default US Letter (US-based festival).
+
+### Open questions
 - Multi-day tours with tight clusters plus a far outlier (e.g. Carrollton cluster
   vs Lake Oconee) read badly on one frame. Decide: auto-fit one map, or split
   into per-day maps. Per-day is likely clearer.
 - Lead time: fixed 7 days, or per-event setting?
 
-A working mockup built from the real KML exists (12 homes, 3 days, numbered and
-colour-coded by day, address under each name). Use it as the visual reference.
+A working mockup exists (12 homes, 3 days, numbered and colour-coded by day,
+name + address stacked, US Letter / A4 print toggle). Use it as the visual
+reference.
 
 ---
 
