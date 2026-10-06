@@ -302,13 +302,13 @@ cron.schedule('0 5 * * 1', async () => {
   catch (e) { console.error('[Scheduler] PR engagement discovery failed:', e.message); }
 });
 
-// Daily SEO rank checks: 06:00 AM
-// SEO rank checks: every 4 days at 06:00. Daily was overkill and burned API
-// spend without meaningful detail; every-4-days surfaces movements in the
-// report period while keeping DataForSEO spend low (~25% cheaper than the
-// previous every-3-days cadence). Paired with depth 50 in checkRank.
-cron.schedule('0 6 */4 * *', async () => {
-  console.log('[Scheduler] Running SEO rank checks (every 4 days)...');
+// SEO rank checks: the cron runs daily at 06:00, but each CLIENT has its own
+// cadence (clients.rank_check_days, migration 188) and only its due keywords
+// are checked. So an active client can be daily while a dormant one is
+// monthly, instead of one global every-4-days that is wrong for both.
+// Paired with depth 50 in checkRank.
+cron.schedule('0 6 * * *', async () => {
+  console.log('[Scheduler] Running SEO rank checks (per-client cadence)...');
   await runDailyRankChecks();
 });
 
@@ -600,10 +600,19 @@ async function runScheduledReports(reportType) {
 
 async function runDailyRankChecks() {
   try {
+    // Only keywords whose client is due. A keyword with no history is always
+    // due, so a newly added one is picked up on the next nightly run rather
+    // than waiting out its client's cadence.
     const { rows: keywords } = await pool.query(
-      `SELECT k.*, c.domain AS client_domain FROM seo_keywords k
-       JOIN clients c ON c.id = k.client_id
-       WHERE k.active = true AND c.active = true`
+      `SELECT k.*, c.domain AS client_domain, c.rank_check_days
+         FROM seo_keywords k
+         JOIN clients c ON c.id = k.client_id
+        WHERE k.active = true AND c.active = true
+          AND c.rank_check_days > 0
+          AND COALESCE(
+                (SELECT MAX(h.checked_at) FROM seo_rank_history h WHERE h.keyword_id = k.id),
+                DATE '1970-01-01'
+              ) <= CURRENT_DATE - c.rank_check_days`
     );
 
     for (const kw of keywords) {
@@ -621,7 +630,7 @@ async function runDailyRankChecks() {
       }
     }
 
-    console.log(`[SEO] Rank checks complete for ${keywords.length} keywords`);
+    console.log(`[SEO] Rank checks complete for ${keywords.length} due keyword(s)`);
   } catch (err) {
     console.error('[SEO] Fatal error in runDailyRankChecks:', err.message);
   }
@@ -632,10 +641,20 @@ async function runDailyRankChecks() {
 // gives a real trend rather than a snapshot.
 async function runWeeklyAIOChecks() {
   try {
+    // AI Overview due-ness is its own thing: measured against aio_history,
+    // and never more often than weekly however active the client, because an
+    // AI Overview does not churn day to day. A client set slower than weekly
+    // keeps their own slower cadence; 0 pauses this as well.
     const { rows: keywords } = await pool.query(
-      `SELECT k.*, c.domain AS client_domain FROM seo_keywords k
-       JOIN clients c ON c.id = k.client_id
-       WHERE k.active = true AND c.active = true`
+      `SELECT k.*, c.domain AS client_domain, c.rank_check_days
+         FROM seo_keywords k
+         JOIN clients c ON c.id = k.client_id
+        WHERE k.active = true AND c.active = true
+          AND c.rank_check_days > 0
+          AND COALESCE(
+                (SELECT MAX(h.checked_at) FROM aio_history h WHERE h.keyword_id = k.id),
+                DATE '1970-01-01'
+              ) <= CURRENT_DATE - GREATEST(c.rank_check_days, 7)`
     );
     let ok = 0;
     for (const kw of keywords) {

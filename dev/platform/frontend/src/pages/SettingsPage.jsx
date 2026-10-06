@@ -1441,21 +1441,45 @@ function CostsPanel() {
 // incur (rank checks every 4 days at depth 50 + weekly AI Overview). Gives
 // the AM a self-sizing recommended daily spending cap to set on the
 // DataForSEO dashboard as a runaway-cost backstop.
+// Cadence options. Any whole number of days is accepted by the API; these are
+// the ones worth a click.
+const RANK_CADENCES = [
+  { days: 1,  label: 'Daily' },
+  { days: 4,  label: 'Every 4 days' },
+  { days: 15, label: 'Twice a month' },
+  { days: 30, label: 'Monthly' },
+  { days: 0,  label: 'Paused' },
+];
+
 function KeywordSpendPanel() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
+  const [saving, setSaving] = useState(null);
 
-  useEffect(() => {
+  const load = React.useCallback(() => {
     api.get('/settings/dataforseo-estimate').then(setData).catch(e => setErr(e.message));
   }, []);
+  useEffect(() => { load(); }, [load]);
+
+  // Save, then reload from the server rather than recomputing locally, so the
+  // cost figures always come from one source of truth.
+  async function setCadence(clientId, days) {
+    setSaving(clientId);
+    try {
+      await api.put(`/settings/clients/${clientId}/rank-cadence`, { rank_check_days: days });
+      await new Promise((r) => setTimeout(r, 0));
+      load();
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(null); }
+  }
 
   return (
     <div className="card" style={{ marginBottom: 'var(--s4)' }}>
       <div style={{ marginBottom: 'var(--s3)' }}>
         <h2 className="caption">DataForSEO keyword spend</h2>
         <p className="body-sm text-muted">
-          Projected from every active keyword the scheduler checks — rank checks every 4 days plus weekly AI Overview.
-          Use it to size a daily spending cap on the DataForSEO dashboard as a runaway-cost backstop.
+          Projected from every active keyword the scheduler checks, at each client's own cadence. Set a client to
+          daily when you are working on them and monthly when you are not — the cost below follows.
         </p>
       </div>
       {err && <div style={{ color: 'var(--negative)', fontSize: 'var(--fs-caption)', marginBottom: 'var(--s2)' }}>{err}</div>}
@@ -1486,6 +1510,55 @@ function KeywordSpendPanel() {
             high enough never to block legitimate checks, low enough to stop a runaway loop. Over-limit calls return
             <code> 40203</code> until the 00:00 UTC reset. This is a backstop, not a throttle; it doesn&apos;t change normal spend.
           </div>
+
+          {/* Per-client cadence. The cost of each choice sits next to the
+              choice, which is the only place the decision is actually made. */}
+          {Array.isArray(data.clients) && data.clients.length > 0 && (
+            <div style={{ marginTop: 'var(--s4)' }}>
+              <div className="caption mb-2">Check frequency per client</div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-body)' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: 'var(--text-subtle)', fontSize: 'var(--fs-caption)' }}>
+                      <th style={{ padding: '6px 10px 6px 0' }}>Client</th>
+                      <th style={{ padding: '6px 10px 6px 0' }}>Keywords</th>
+                      <th style={{ padding: '6px 10px 6px 0' }}>Checked</th>
+                      <th style={{ padding: '6px 0', textAlign: 'right' }}>Cost / month</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.clients.map((c) => (
+                      <tr key={c.id} style={{ borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                        <td style={{ padding: '8px 10px 8px 0', fontWeight: 600 }}>{c.name}</td>
+                        <td style={{ padding: '8px 10px 8px 0', color: 'var(--text-muted)' }}>{c.keywords.toLocaleString()}</td>
+                        <td style={{ padding: '8px 10px 8px 0' }}>
+                          <select
+                            className="input"
+                            value={RANK_CADENCES.some(o => o.days === c.rank_check_days) ? c.rank_check_days : 'custom'}
+                            disabled={saving === c.id}
+                            onChange={(e) => setCadence(c.id, Number(e.target.value))}
+                            style={{ padding: '4px 8px', fontSize: 'var(--fs-caption)' }}
+                          >
+                            {RANK_CADENCES.map(o => <option key={o.days} value={o.days}>{o.label}</option>)}
+                            {!RANK_CADENCES.some(o => o.days === c.rank_check_days) && (
+                              <option value="custom" disabled>Every {c.rank_check_days} days</option>
+                            )}
+                          </select>
+                        </td>
+                        <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, color: c.paused ? 'var(--text-subtle)' : 'var(--text)' }}>
+                          {c.paused ? '—' : fmtCurrency(c.monthly_usd, 'USD')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="body-xs text-subtle" style={{ marginTop: 'var(--s2)' }}>
+                AI Overview checks never run more often than weekly, however active the client, because an
+                AI Overview does not change day to day. Paused stops both.
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>

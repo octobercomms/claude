@@ -642,32 +642,70 @@ router.put('/usage/task-budgets/:task', async (req, res) => {
 const DFS_COST = {
   rankPerCheck: 0.002 + 4 * 0.0015,   // depth 50 → $0.008
   aioPerCheck: 0.002,                  // depth 10 → $0.002
-  rankCadenceDays: 4,
-  aioCadenceDays: 7,
+  aioMinCadenceDays: 7,                // AIO never runs more often than weekly
   gbpPerUsd: 0.79,                     // approx, display only
 };
 const DAYS_PER_MONTH = 30.437;
 const round2 = (n) => Math.round(n * 100) / 100;
 
+// Set a client's rank-check cadence. 0 pauses rank and AI Overview checks for
+// them entirely. Returns the refreshed estimate so the panel's cost figure
+// updates from the same source of truth rather than guessing client-side.
+router.put('/clients/:clientId/rank-cadence', async (req, res) => {
+  try {
+    const days = Number(req.body?.rank_check_days);
+    if (!Number.isInteger(days) || days < 0 || days > 365) {
+      return res.status(400).json({ error: 'rank_check_days must be a whole number from 0 to 365' });
+    }
+    const { rowCount } = await db.query(
+      'UPDATE clients SET rank_check_days = $2 WHERE id = $1', [req.params.clientId, days]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Client not found' });
+    res.json({ client_id: req.params.clientId, rank_check_days: days });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/dataforseo-estimate', async (req, res) => {
   try {
-    const { rows } = await db.query(
-      `SELECT COUNT(*)::int AS active_keywords,
-              COUNT(DISTINCT k.client_id)::int AS active_clients
+    // Per client, because each sets its own cadence (migration 188). A single
+    // blended figure would hide the thing the operator is actually deciding:
+    // which clients are worth checking often.
+    const { rows: perClient } = await db.query(
+      `SELECT c.id, c.name, c.rank_check_days,
+              COUNT(*)::int AS keywords
          FROM seo_keywords k
          JOIN clients c ON c.id = k.client_id
-        WHERE k.active = true AND c.active = true`
+        WHERE k.active = true AND c.active = true
+        GROUP BY c.id, c.name, c.rank_check_days
+        ORDER BY c.name`
     );
-    const activeKeywords = rows[0]?.active_keywords || 0;
-    const activeClients = rows[0]?.active_clients || 0;
 
-    const rankMonthly = activeKeywords * DFS_COST.rankPerCheck * (DAYS_PER_MONTH / DFS_COST.rankCadenceDays);
-    const aioMonthly = activeKeywords * DFS_COST.aioPerCheck * (DAYS_PER_MONTH / DFS_COST.aioCadenceDays);
+    let rankMonthly = 0, aioMonthly = 0, activeKeywords = 0;
+    const clients = perClient.map((c) => {
+      const days = Number(c.rank_check_days) || 0;
+      const paused = days <= 0;
+      // Checks a month at this cadence. AIO is floored at weekly, so a client
+      // on a daily cadence still gets roughly four AIO checks, not thirty.
+      const rankRuns = paused ? 0 : DAYS_PER_MONTH / days;
+      const aioRuns = paused ? 0 : DAYS_PER_MONTH / Math.max(days, DFS_COST.aioMinCadenceDays);
+      const rank = c.keywords * DFS_COST.rankPerCheck * rankRuns;
+      const aio = c.keywords * DFS_COST.aioPerCheck * aioRuns;
+      rankMonthly += rank; aioMonthly += aio; activeKeywords += c.keywords;
+      return {
+        id: c.id, name: c.name, keywords: c.keywords,
+        rank_check_days: days, paused,
+        monthly_usd: round2(rank + aio),
+      };
+    });
+    const activeClients = clients.length;
     const monthlyUsd = rankMonthly + aioMonthly;
 
-    // Peak single-day spend: the 4-day rank sweep landing on the same day as
-    // the weekly AIO sweep — worst case for sizing a daily cap.
-    const peakDayUsd = activeKeywords * (DFS_COST.rankPerCheck + DFS_COST.aioPerCheck);
+    // Peak single-day spend: every client happening to fall due on the same
+    // day, rank and AIO together. Worst case for sizing a daily cap, and it
+    // stays the same whatever the cadences, because cadence changes how OFTEN
+    // a full sweep lands, not how big one is.
+    const dueKeywords = clients.filter((c) => !c.paused).reduce((n, c) => n + c.keywords, 0);
+    const peakDayUsd = dueKeywords * (DFS_COST.rankPerCheck + DFS_COST.aioPerCheck);
     // Recommended daily cap = 3x the peak run day (headroom so a legitimate
     // sweep never trips it), floored at $5. A real runaway loop is 10-100x
     // normal, so this still catches it.
@@ -676,8 +714,9 @@ router.get('/dataforseo-estimate', async (req, res) => {
     res.json({
       active_keywords: activeKeywords,
       active_clients: activeClients,
-      rank: { per_check_usd: round2(DFS_COST.rankPerCheck), cadence_days: DFS_COST.rankCadenceDays, monthly_usd: round2(rankMonthly) },
-      aio: { per_check_usd: round2(DFS_COST.aioPerCheck), cadence_days: DFS_COST.aioCadenceDays, monthly_usd: round2(aioMonthly) },
+      clients,
+      rank: { per_check_usd: round2(DFS_COST.rankPerCheck), monthly_usd: round2(rankMonthly) },
+      aio: { per_check_usd: round2(DFS_COST.aioPerCheck), min_cadence_days: DFS_COST.aioMinCadenceDays, monthly_usd: round2(aioMonthly) },
       est_monthly_usd: round2(monthlyUsd),
       est_monthly_gbp: round2(monthlyUsd * DFS_COST.gbpPerUsd),
       peak_day_usd: round2(peakDayUsd),
