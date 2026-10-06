@@ -71,7 +71,7 @@ const SECTIONS = [
       'Two roles: **Admin** (you) sees everything and Settings; **Viewer** (e.g. a client login or a demo user) sees only the clients you assign, and no admin config.',
       'It pulls **live data** when you click — it doesn\'t store dashboards. Every view is "as of right now", never stale, but live API calls cost real money.',
       'Most actions are **pay-per-use** (Claude, DataForSEO, Replicate, Ideogram…) not subscription. Watch spend on **Settings → Connections → Spend (Costs & usage)**.',
-      'Everything is **deep-linkable** — the active tab lives in the URL (`?tab=…`), so you can bookmark or share a link straight to any page. It reflows on mobile too.',
+      'Most pages are **deep-linkable** — the active tab lives in the URL (`?tab=…`), so you can bookmark or share a link straight to them. Earned is the exception: it remembers your tab locally rather than in the URL, so you land on Overview and click through. It all reflows on mobile.',
     ],
   },
   {
@@ -146,11 +146,11 @@ const SECTIONS = [
     summary: 'PR — never pitch from memory or lose a hit again.',
     workflow: WORKFLOWS.earned,
     body: [
-      'Groups: **Overview · Track · Pitch · Build · Share**.',
-      '**Pitch** — find and profile journalists/outlets, then draft a tailored pitch with Claude.',
-      '**Build** — write the press release or shape the story angle.',
-      '**Track** — log coverage as it lands; the count on the tab is your live hit list. A **Coverage Monitor** watches for new mentions (needs a Serper key).',
-      '**Share** — a coverage report for the client.',
+      'Groups: **Overview · Health · Build**. Health holds Track and Share; Build holds Pitch and Releases.',
+      '**Pitch** (Build) — find and profile journalists/outlets, import a list by pasting it, then draft a tailored pitch with Claude.',
+      '**Releases** (Build) — write the press release or shape the story angle, then create a pitch campaign and work its five-step wizard: Who → Emails → Test → Preview → Confirm.',
+      '**Track** (Health) — log coverage as it lands; the count on the tab is your live hit list. A **Coverage Monitor** watches for new mentions (needs a Serper key).',
+      '**Share** (Health) — a coverage report for the client.',
     ],
   },
   {
@@ -189,7 +189,7 @@ const SECTIONS = [
     summary: 'Get found where buyers look — SEO, content, local, email.',
     body: [
       'The widest suite. Groups: **Overview · Search · Optimise · Build · Localise · Convert · Email**. Each group is a stepped rail; titles read as **verbs** (what you do), with the tool name in the sub-line.',
-      '**Search** — where you rank and get cited: **Review** (the headline read — ranks, rank distribution, intent split, AI-Overview coverage) · **Keywords** (rank tracking via DataForSEO, every ~4 days) · **Search Console** (real Google clicks) · **AI Visibility** (share-of-voice across Claude / ChatGPT / Gemini / Perplexity) · **Authority** (domain strength) · **Backlinks** (who links to you) · **Watch** = SEO **Drift**.',
+      '**Search** — where you rank and get cited: **Review** (the headline read — ranks, rank distribution, intent split, AI-Overview coverage) · **Keywords** (rank tracking via DataForSEO, on a cadence you set per client in Admin → Setup) · **Search Console** (real Google clicks) · **AI Visibility** (share-of-voice across Claude / ChatGPT / Gemini / Perplexity) · **Authority** (domain strength) · **Backlinks** (who links to you) · **Watch** = SEO **Drift**.',
       '**Drift** ("Watch") = a saved *before* snapshot of your SEO (ranks, audit health, backlinks, authority). Capture one **before** a migration/redesign/big content change, then "Compare to now" flags anything that dropped, severity-coded — so a change can\'t quietly tank rankings unnoticed.',
       '**Optimise** — fixes that move the needle: **Scan** (site audit) · **Grade** (content audit of one page) · **Map** (keyword footprint) · **Win** (Quick wins — keywords sitting #11–20, one refresh from page 1) · **Sharpen** (CTR/title boosters) · **Target** (AI keyword targets) · **Prep** (agent readiness).',
       '**Build** — the content pipeline: **Find → Brief → Draft → Publish → Promote** (Claude-written briefs and drafts for a target keyword).',
