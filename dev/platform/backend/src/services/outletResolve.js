@@ -58,7 +58,16 @@ If you cannot find it with reasonable confidence, return {"url":null,"confidence
     });
   } catch (e) { log(`outletResolve: "${name}" search failed — ${e.message}`); return null; }
 
-  if (costLog?.recordClaudeCost) { try { costLog.recordClaudeCost({ model: MODEL, response: message, feature: 'press_outlet_resolve' }); } catch { /* best effort */ } }
+  if (costLog?.recordClaudeCost) {
+    try {
+      costLog.recordClaudeCost({ model: MODEL, response: message, feature: 'press_outlet_resolve' });
+      // Tell the budget cache immediately. It refreshes every 30s and this
+      // sweep bills faster than that, so without this the cap is only noticed
+      // long after the run has finished — which is how a $10 budget became
+      // $20.75 of spend.
+      require('./budget').noteTaskSpend('media_research', costLog.claudeCostFromUsage(MODEL, message.usage));
+    } catch { /* best effort */ }
+  }
   const text = (message.content || []).filter((b) => b.type === 'text' && b.text).map((b) => b.text).join('\n');
   const d = extractJson(text);
   const url = cleanUrl(d.url);
@@ -106,16 +115,25 @@ async function sweepMissing({ limit = 120, log = () => {} } = {}) {
       LIMIT $1`,
     [limit]
   );
-  let websites = 0, feeds = 0;
+  const budget = require('./budget');
+  let websites = 0, feeds = 0, checked = 0, budgetStopped = false;
   for (const r of rows) {
+    // Budget gate, per outlet. This path calls the Anthropic SDK directly (it
+    // needs web_search, which callClaude does not expose), so neither the
+    // global cap nor the Pause switch sees it. Without this check the task
+    // budget counted the spend but never stopped it: 150 outlets a night at
+    // roughly 2.3c each ran a $10 monthly budget to $20.75 and kept going.
+    if (await budget.taskCapReached('media_research')) { budgetStopped = true; break; }
     try {
       const out = await resolveAndFind(r.id, { log });
+      checked++;
       if (out.url) websites++;
       if (out.status === 'found') feeds++;
     } catch (e) { log(`outletResolve.sweepMissing: ${r.id} failed: ${e.message}`); }
   }
-  log(`outletResolve.sweepMissing: ${rows.length} checked, ${websites} websites found, ${feeds} feeds found`);
-  return { checked: rows.length, websites, feeds };
+  log(`outletResolve.sweepMissing: ${checked} checked, ${websites} websites found, ${feeds} feeds found` +
+      (budgetStopped ? ' — stopped early, monthly budget for media research reached' : ''));
+  return { checked, scanned: rows.length, websites, feeds, budget_stopped: budgetStopped };
 }
 
 module.exports = { resolveOne, resolveAndFind, sweepMissing, cleanUrl };
