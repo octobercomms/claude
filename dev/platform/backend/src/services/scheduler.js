@@ -558,7 +558,16 @@ async function runScheduledReports(reportType) {
       'SELECT * FROM clients WHERE active = true'
     );
 
+    const budget = require('./budget');
     for (const client of clients) {
+      // Budget gate, per client. Report generation runs unattended and bills
+      // Anthropic for the narrative and the strategist write-up. Stopping
+      // between clients leaves the reports already produced intact; the rest
+      // generate next month when the budget resets, or sooner if it is raised.
+      if (await budget.taskCapReached('reporting')) {
+        console.warn('[Scheduler] Scheduled reports stopped early — monthly budget for reporting reached');
+        break;
+      }
       const schedule = client.report_schedule || {};
 
       // For weekly: check if today matches configured day (default Monday)

@@ -32,7 +32,18 @@ const CRON_DRIVEN = [
   // only paid tender source and runs unattended. A guard that classifies
   // wrongly is worse than none, because it reads as assurance.
   'services/tender/sources/webSearch.js',
+  // Also miscategorised at first: the scheduler runs runAllClients.
+  'services/aiVisibility.js',
 ];
+
+// Cron-driven billers whose gate lives in the CALLER rather than in the file
+// itself, because the file generates one thing and the loop is elsewhere.
+// Both halves are checked: the file's features must be budgeted, and the
+// named caller must actually hold a gate. Gating inside would also block a
+// person who clicked Generate, which is not the intent.
+const GATED_BY_CALLER = {
+  'services/strategistReport.js': 'services/scheduler.js',
+};
 
 // Interactive paths: a person clicks and waits, so the work is bounded by the
 // human. They are listed rather than detected so that moving one onto a cron
@@ -42,8 +53,8 @@ const HUMAN_TRIGGERED = new Set([
   'services/adCreative.js', 'services/refineChat.js', 'services/socialCaptions.js',
   'services/socialPlanner.js', 'services/social.js', 'services/reelScript.js',
   'services/outreachAi.js', 'services/mediaAssistant.js', 'services/contentReviewer.js',
-  'services/contactTidy.js', 'services/tagTidy.js', 'services/strategistReport.js',
-  'services/aiVisibility.js', 'services/tender/addByUrl.js', 'services/tender/chat.js',
+  'services/contactTidy.js', 'services/tagTidy.js',
+  'services/tender/addByUrl.js', 'services/tender/chat.js',
   'services/claude.js',  // the wrapper itself; it holds the global cap
 ]);
 
@@ -72,9 +83,15 @@ for (const rel of CRON_DRIVEN) {
     + `Add: if (await budget.taskCapReached('<task>')) break;`);
 }
 
+for (const [rel, caller] of Object.entries(GATED_BY_CALLER)) {
+  const callerBody = fs.readFileSync(path.join(SRC, caller), 'utf8');
+  if (/taskCapReached|assertUnderTaskCap/.test(callerBody)) pass(`${rel} is gated by ${caller}`);
+  else fail(`${rel} relies on ${caller} for its budget gate, but ${caller} has none.`);
+}
+
 // 2. No direct-SDK file is unaccounted for. A new one must be classified as
 //    cron-driven (and gated) or human-triggered, on purpose.
-const known = new Set([...CRON_DRIVEN, ...HUMAN_TRIGGERED]);
+const known = new Set([...CRON_DRIVEN, ...Object.keys(GATED_BY_CALLER), ...HUMAN_TRIGGERED]);
 for (const rel of directSdk) {
   if (!known.has(rel)) {
     fail(`${rel} calls the Anthropic SDK directly but is not classified. `
@@ -92,7 +109,7 @@ const SEEDED = fs.readdirSync(MIG)
   .filter((f) => /ai_task_budgets|task_budget/.test(f))
   .map((f) => fs.readFileSync(path.join(MIG, f), 'utf8'))
   .join('\n');
-for (const rel of CRON_DRIVEN) {
+for (const rel of [...CRON_DRIVEN, ...Object.keys(GATED_BY_CALLER)]) {
   const body = fs.readFileSync(path.join(SRC, rel), 'utf8');
   for (const m of body.matchAll(/feature:\s*'([a-z_0-9]+)'/g)) {
     if (SEEDED.includes(`'${m[1]}'`)) pass(`${rel}: feature ${m[1]} is in a task budget`);

@@ -241,7 +241,13 @@ async function runAllClients() {
       WHERE c.active = true AND p.active = true`
   );
   const summary = [];
+  const budget = require('./budget');
+  let budgetStopped = false;
   for (const c of rows) {
+    // Budget gate, per client. This runs unattended on a cron and bills
+    // Anthropic directly, so neither the global cap nor the Pause switch sees
+    // it. Stopping between clients keeps the clients already done.
+    if (await budget.taskCapReached('reporting')) { budgetStopped = true; break; }
     try {
       const r = await runAllForClient(c.id);
       summary.push({ client_id: c.id, client_name: c.name, prompts: r.length });
@@ -249,6 +255,7 @@ async function runAllClients() {
       console.error(`[aeo] runAll for ${c.name} failed:`, err.message);
     }
   }
+  if (budgetStopped) console.warn('[aeo] stopped early — monthly budget for reporting reached');
   return summary;
 }
 
