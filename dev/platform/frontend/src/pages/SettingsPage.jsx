@@ -1506,8 +1506,10 @@ function KeywordSpendPanel() {
           <div className="callout" style={{ marginTop: 'var(--s3)', fontSize: 'var(--fs-caption)', lineHeight: 1.6 }}>
             <strong>Set the backstop:</strong> DataForSEO dashboard → <em>API Settings → Spending limits</em> → set the
             <strong> General Daily Limit</strong> to <strong>{fmtCurrency(data.recommended_daily_cap_usd, 'USD')}</strong>.
-            Spend is spiky (every keyword is checked on one run day every 4 days), so this sits ~3× above a normal sweep —
-            high enough never to block legitimate checks, low enough to stop a runaway loop. Over-limit calls return
+            Spend is spiky, and more so now cadences differ: clients set to the same frequency on the same day fall due
+            together, so most days cost nothing and one day carries a whole sweep. The cap is sized against every client
+            falling due at once — high enough never to block a legitimate sweep, low enough to stop a runaway loop.
+            It does not need changing when you change a cadence. Over-limit calls return
             <code> 40203</code> until the 00:00 UTC reset. This is a backstop, not a throttle; it doesn&apos;t change normal spend.
           </div>
 
