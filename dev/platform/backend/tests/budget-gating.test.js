@@ -27,6 +27,11 @@ const CRON_DRIVEN = [
   'services/journalistScout.js',
   'services/pressMediaResearch.js',
   'services/prospecting/research.js',
+  // Weekly Mondays 06:35 via tender/ingest with onlySearch. Listed as
+  // human-triggered when this guard first shipped, which was wrong: it is the
+  // only paid tender source and runs unattended. A guard that classifies
+  // wrongly is worse than none, because it reads as assurance.
+  'services/tender/sources/webSearch.js',
 ];
 
 // Interactive paths: a person clicks and waits, so the work is bounded by the
@@ -39,7 +44,6 @@ const HUMAN_TRIGGERED = new Set([
   'services/outreachAi.js', 'services/mediaAssistant.js', 'services/contentReviewer.js',
   'services/contactTidy.js', 'services/tagTidy.js', 'services/strategistReport.js',
   'services/aiVisibility.js', 'services/tender/addByUrl.js', 'services/tender/chat.js',
-  'services/tender/sources/webSearch.js',
   'services/claude.js',  // the wrapper itself; it holds the global cap
 ]);
 
@@ -81,7 +85,13 @@ if (directSdk.every((r) => known.has(r))) pass(`all ${directSdk.length} direct-S
 
 // 3. Every feature a cron-driven biller records must belong to a task budget,
 //    or the budget cannot see the spend at all.
-const SEEDED = fs.readFileSync(path.join(__dirname, '..', 'migrations', '185_ai_task_budgets.sql'), 'utf8');
+// Every migration that seeds a task budget, so a feature added in a later one
+// still counts. Reading only 185 would fail a correctly-budgeted feature.
+const MIG = path.join(__dirname, '..', 'migrations');
+const SEEDED = fs.readdirSync(MIG)
+  .filter((f) => /ai_task_budgets|task_budget/.test(f))
+  .map((f) => fs.readFileSync(path.join(MIG, f), 'utf8'))
+  .join('\n');
 for (const rel of CRON_DRIVEN) {
   const body = fs.readFileSync(path.join(SRC, rel), 'utf8');
   for (const m of body.matchAll(/feature:\s*'([a-z_0-9]+)'/g)) {

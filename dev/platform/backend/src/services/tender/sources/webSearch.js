@@ -189,7 +189,11 @@ async function searchMarket(client, marketName, { model, maxResults, maxSearches
     try { message = await callSearchOnly(); }
     catch (e2) { log(`Web search (${marketName}) failed: ${e2.message}`); return { items: [], sourceUrls: new Set() }; }
   }
-  try { recordClaudeCost({ model, response: message, feature: 'tender_web_search' }); } catch { /* non-fatal */ }
+  try {
+    recordClaudeCost({ model, response: message, feature: 'tender_web_search' });
+    // Keep the 30s budget cache current between markets in the same run.
+    require('../../budget').noteTaskSpend('tenders', require('../../costLog').claudeCostFromUsage(model, message.usage));
+  } catch { /* non-fatal */ }
   const text = (message.content || []).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n');
   const items = extractArray(text);
   log(`Web (${marketName}): ${items.length} found`);
@@ -244,7 +248,15 @@ async function fetch(source, { log = () => {}, stats = {} } = {}) {
   const raw = [];
   const validNorms = new Set();
   const validHosts = new Set();
+  const budget = require('../../budget');
   for (const m of markets) {
+    // Budget gate, per market. This path calls the Anthropic SDK directly for
+    // web_search, so the global cap never sees it. Stopping between markets
+    // keeps whatever earlier markets found rather than losing the run.
+    if (await budget.taskCapReached('tenders')) {
+      log(`tender web search: stopped before "${m}" — monthly budget for tenders reached`);
+      break;
+    }
     const { items, sourceUrls } = await searchMarket(client, m, { model, maxResults, maxSearches, maxFetches, log });
     raw.push(...items);
     for (const u of sourceUrls) {
