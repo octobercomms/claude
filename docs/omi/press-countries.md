@@ -82,6 +82,28 @@ it says how many extra contacts that holds back.
 An exclusion is stored in its canonical spelling, so typing "uk" matches contacts
 stored as "United Kingdom".
 
+### Seeing that it worked
+
+Excluding a country changes three numbers, all of which come from the same rule:
+
+- each audience's header, "2,331 to send · 1,402 held back by country"
+- the Audiences panel total
+- the per-audience send plan on Confirm
+
+`pressSegments.list()` applies the country rules as well as counting them, and
+reports `country_excluded_count` separately from the other suppressions, so
+`member_count - suppressed_count` is always the number that will actually be
+emailed. Saving the rules (and resolving more countries, which can newly match an
+existing exclusion) refreshes the audience panel.
+
+That wiring is the point rather than a nicety: the send was already correct
+before it, because `memberIds` and the dispatch gate both applied the rules, but
+the audience header counted only the other suppressions. So excluding a country
+left "N to send" unchanged, which reads as having done nothing. A number that
+does not move is worse than no number. `contact-country.test.js` asserts the
+displayed sendable count equals what the send would queue, under both unknown
+policies.
+
 ### Enforced at dispatch, not only in the pickers
 
 The rule is applied in three places, all sharing one SQL fragment

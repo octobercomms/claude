@@ -368,6 +368,15 @@ progress is obvious on `platform.octobercomms.com`.
   `budget.taskCapReached(task)`. Wire up every new direct-SDK caller.
 - The `costLog.js` price table is hand-maintained and was 25% low on Haiku for
   months. Check it against published rates before quoting any cost figure.
+- **A count that does not move reads as "that did nothing".** Country exclusions
+  were enforced correctly at dispatch and in the send plan from the start, but
+  the audience header counted only the other suppressions, so excluding a country
+  left "N to send" unchanged and Daniel had no way to tell it had worked. Whenever
+  a rule filters who gets something, the number on screen has to apply the same
+  rule and name what it removed, and the test should assert the displayed count
+  equals what the send would queue. This is the twin of the older lesson that
+  filtering in a picker is not enforcement: enforcement without a visible count is
+  just as unusable as a count without enforcement.
 - **A hook below an early return is a crash, and `vite build` will not tell you.**
   PressCampaignDetail returns early while the release loads, so hooks added after
   that point run on the second render and not the first; React tears the whole

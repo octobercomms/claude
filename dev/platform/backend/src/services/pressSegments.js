@@ -39,6 +39,14 @@ async function get(id) {
 // members are suppressed (so the UI can show a real sendable number rather than
 // a count that shrinks at dispatch).
 async function list(campaignId) {
+  // The country rules are counted here as well as applied at send, because a
+  // number on screen that does not move when the operator excludes a country is
+  // worse than no number: it reads as "that did nothing". country_excluded is
+  // reported separately from the other suppressions so the panel can say which
+  // is which, and both are inside suppressed_count so "member_count minus
+  // suppressed_count" is always the number that will actually be emailed.
+  const countrySql = require('./contactCountry')
+    .excludedByCountrySql('c', 'pr.excluded_countries', 'pr.unknown_country_policy');
   const { rows } = await pool.query(
     `SELECT s.*,
             COUNT(cc.contact_id)::int AS member_count,
@@ -46,13 +54,16 @@ async function list(campaignId) {
               WHERE c.email IS NULL OR c.email = ''
                  OR c.status = 'do_not_contact' OR c.bounced_at IS NOT NULL
                  OR m.unsubscribed_at IS NOT NULL OR m.excluded_at IS NOT NULL
-            )::int AS suppressed_count
+                 OR ${countrySql}
+            )::int AS suppressed_count,
+            COUNT(cc.contact_id) FILTER (WHERE ${countrySql})::int AS country_excluded_count
        FROM outreach_campaign_segments s
        LEFT JOIN outreach_campaign_contacts cc ON cc.segment_id = s.id
        LEFT JOIN outreach_contacts c ON c.id = cc.contact_id
        LEFT JOIN outreach_contact_clients m
               ON m.contact_id = cc.contact_id
              AND m.client_id = (SELECT client_id FROM outreach_campaigns WHERE id = s.campaign_id)
+       LEFT JOIN outreach_press_releases pr ON pr.campaign_id = s.campaign_id
       WHERE s.campaign_id = $1
       GROUP BY s.id
       ORDER BY s.position, s.created_at`,
