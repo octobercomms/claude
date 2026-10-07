@@ -141,6 +141,66 @@ const ok=(c,l)=>{ if(c) console.log('  ok   '+l); else {console.log('  FAIL '+l)
 
     r=await call('POST',`/segments/${retail}/send-plan`,{});
     ok(r.body.tailored===false && r.body.est_cost_usd>0,'an untailored audience is quoted a per-recipient cost');
+
+    console.log('\nScheduling a send for later, and calling it back');
+    {
+      // Nobody wants a press release landing at 11pm. Scheduling is only safe
+      // if it can be cancelled before it goes, so the two are tested together.
+      const at = new Date(Date.now() + 9*3600*1000);         // ~8am tomorrow
+      let r2 = await call('POST',`/segments/${retail}/send`,{ send_at: at.toISOString() });
+      ok(r2.status===200 && r2.body.recipients===1,'the audience queues against a future time');
+      ok(r2.body.scheduled_at===at.toISOString(),'and the send reports the time it is set for');
+
+      const {rows:q}=await pool.query(
+        `SELECT seq.step_number, os.scheduled_at FROM outreach_sends os
+           JOIN outreach_sequences seq ON seq.id=os.sequence_id
+          WHERE os.campaign_id=$1 AND os.contact_id=$2 ORDER BY seq.step_number`,
+        [campaignId, (await pool.query(
+          'SELECT contact_id FROM outreach_campaign_contacts WHERE segment_id=$1 LIMIT 1',[retail])).rows[0].contact_id]);
+      ok(q.length===2,'both steps queued');
+      ok(Math.abs(new Date(q[0].scheduled_at)-at)<2000,'step 1 lands at the time chosen, not now');
+      const gapDays = (new Date(q[1].scheduled_at)-new Date(q[0].scheduled_at))/86400000;
+      ok(Math.abs(gapDays-5)<0.01,'the day-5 follow-up is 5 days after it lands, not 5 days after the click');
+
+      r2 = await call('GET',`/releases/${releaseId}/scheduled`);
+      ok(r2.body.recipients===1 && Math.abs(new Date(r2.body.send_at)-at)<2000,'the release reports what is waiting to go');
+
+      // Workplace really went out earlier in this test, so mark its first
+      // emails sent. Until the cron runs they are only 'pending', and a cancel
+      // cannot tell a sent audience from a queued one by the segment row alone.
+      await pool.query(
+        `UPDATE outreach_sends os SET status='sent', sent_at=NOW()
+           FROM outreach_sequences seq, outreach_campaign_contacts cc
+          WHERE seq.id=os.sequence_id AND seq.step_number=1
+            AND cc.campaign_id=os.campaign_id AND cc.contact_id=os.contact_id
+            AND cc.segment_id=$1`, [work]);
+
+      r2 = await call('POST',`/releases/${releaseId}/cancel-scheduled`,{});
+      ok(r2.status===200 && r2.body.cancelled===2,'cancelling drops the queued rows');
+      ok(r2.body.reopened.includes('Retail'),'and reopens the audience so the copy can be fixed');
+      ok((await call('GET',`/releases/${releaseId}/scheduled`)).body.recipients===0,'nothing is left waiting');
+
+      // Workplace was really sent earlier in this test. Its follow-ups must
+      // survive a cancel — pulling them would drop the sequence on people who
+      // have already had the release.
+      const {rows:left}=await pool.query(
+        `SELECT COUNT(*)::int n FROM outreach_sends WHERE campaign_id=$1`,[campaignId]);
+      ok(left[0].n===4,'the already-sent audience keeps its sent emails and its follow-ups');
+      const {rows:segs}=await pool.query(
+        'SELECT name,sent_at FROM outreach_campaign_segments WHERE campaign_id=$1',[campaignId]);
+      ok(segs.find(x=>x.name==='Workplace').sent_at!==null,'and stays frozen');
+
+      r2 = await call('POST',`/segments/${retail}/send`,{ send_at: at.toISOString() });
+      ok(r2.status===200 && r2.body.queued===2,'the cancelled audience can be queued again');
+      await call('POST',`/releases/${releaseId}/cancel-scheduled`,{});
+
+      r2 = await call('POST',`/segments/${retail}/send`,{ send_at: 'not a date' });
+      ok(r2.status===400,'a send time that is not a date is refused');
+      r2 = await call('POST',`/segments/${retail}/send`,{ send_at: new Date(Date.now()+200*86400000).toISOString() });
+      ok(r2.status===400,'and one 200 days out is refused');
+      r2 = await call('POST',`/segments/${retail}/send`,{ send_at: new Date(Date.now()-3600*1000).toISOString() });
+      ok(r2.status===200 && r2.body.scheduled_at===null,'a time in the past is a send now, never a queue that never fires');
+    }
   } finally {
     srv.close();
     await pool.query('DELETE FROM outreach_campaigns WHERE id=$1',[campaignId]);

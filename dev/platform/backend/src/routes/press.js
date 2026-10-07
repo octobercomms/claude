@@ -1446,6 +1446,25 @@ router.post('/releases/:id/send-plan', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// A send can be queued for later. `send_at` is an ISO timestamp from the
+// operator's browser, so it carries their offset and we never have to guess a
+// timezone. Returns null for "now", which the queue SQL COALESCEs to NOW().
+// Anything already past (or within a minute) is a send-now: a schedule that
+// quietly lands in the past would look queued and go out immediately.
+const MAX_SCHEDULE_DAYS = 90;
+function parseSendAt(raw) {
+  if (raw == null || raw === '') return null;
+  const t = new Date(raw);
+  if (Number.isNaN(t.getTime())) { const e = new Error('That send time is not a valid date.'); e.status = 400; throw e; }
+  const ms = t.getTime() - Date.now();
+  if (ms <= 60000) return null;
+  if (ms > MAX_SCHEDULE_DAYS * 86400000) {
+    const e = new Error(`That is more than ${MAX_SCHEDULE_DAYS} days away — pick a nearer send time.`);
+    e.status = 400; throw e;
+  }
+  return t.toISOString();
+}
+
 router.post('/releases/:id/send', async (req, res) => {
   const { contact_ids } = req.body || {};
   if (!Array.isArray(contact_ids) || !contact_ids.length) return res.status(400).json({ error: 'contact_ids required' });
@@ -1453,6 +1472,7 @@ router.post('/releases/:id/send', async (req, res) => {
     const { rows: relRows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
     if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
     const release = relRows[0];
+    const sendAt = parseSendAt(req.body?.send_at);
 
     // The campaign and its sequences already exist — created at release
     // save time. Just flip it to active on the first send.
@@ -1503,9 +1523,13 @@ router.post('/releases/:id/send', async (req, res) => {
     // One pending send per (recipient × sequence step). NOT EXISTS makes a
     // re-send — or a retry after a previous attempt timed out mid-way — top up
     // only the missing rows instead of double-queueing anyone.
+    // Follow-ups are dated from when the release lands, not from when the
+    // operator pressed the button. Schedule for 8am and a "day 5" follow-up is
+    // five days after 8am, not five days after the 11pm click.
     const { rowCount: queued } = await pool.query(
       `INSERT INTO outreach_sends (campaign_id, contact_id, sequence_id, status, scheduled_at)
-       SELECT $1, c.id, s.id, 'pending', NOW() + make_interval(days => s.delay_days)
+       SELECT $1, c.id, s.id, 'pending',
+              COALESCE($3::timestamptz, NOW()) + make_interval(days => s.delay_days)
          FROM unnest($2::uuid[]) AS c(id)
          CROSS JOIN outreach_sequences s
         WHERE s.campaign_id = $1
@@ -1513,20 +1537,74 @@ router.post('/releases/:id/send', async (req, res) => {
             SELECT 1 FROM outreach_sends os
              WHERE os.campaign_id = $1 AND os.contact_id = c.id AND os.sequence_id = s.id
           )`,
-      [campaignId, ids]
+      [campaignId, ids, sendAt]
     );
 
     // Step 1 sends become due immediately (delay_days 0) and are dispatched by
     // the outreach-send cron on its next tick (≤3 min), which also applies the
     // per-mailbox caps, warm-up and pacing. There is no synchronous blast here
     // by design — that's what keeps large sends paced and deliverable.
-    res.json({ campaign_id: campaignId, queued, held_back: heldBack });
+    res.json({ campaign_id: campaignId, queued, held_back: heldBack, scheduled_at: sendAt });
   } catch (err) {
     console.error('[press] send failed:', err.message);
-    res.status(502).json({ error: err.message });
+    res.status(err.status || 502).json({ error: err.message });
   }
 });
 
+
+// Call back a send that has not gone out yet. Scheduling for the morning is
+// only safe if you can change your mind before the morning: without this, a
+// release queued at 11pm for 8am could not be stopped at all.
+//
+// Everything still pending is removed, for journalists who have had nothing
+// from this campaign yet. Anyone already emailed keeps their follow-up
+// schedule — pulling those would silently drop the sequence on people who are
+// already in the middle of it. Cancelling only the future-dated rows would be
+// worse than useless: it would leave the release itself to go out with its
+// follow-ups stripped off.
+router.post('/releases/:id/cancel-scheduled', async (req, res) => {
+  try {
+    const rel = await campaignForRelease(req.params.id);
+    assertClientAccess(req, rel.client_id);
+    // DELETE rather than status='cancelled': the queue's NOT EXISTS guard keys
+    // on the row existing at all, so a cancelled row would silently block the
+    // re-send that cancelling is meant to make possible.
+    const { rowCount: cancelled } = await pool.query(
+      `DELETE FROM outreach_sends os
+        WHERE os.campaign_id = $1
+          AND os.status = 'pending'
+          AND NOT EXISTS (
+            SELECT 1 FROM outreach_sends prior
+             WHERE prior.campaign_id = os.campaign_id
+               AND prior.contact_id = os.contact_id
+               AND prior.status IN ('sent', 'sending', 'failed')
+          )`,
+      [rel.campaign_id]
+    );
+    const reopened = await pressSegments.reopenUnsent(rel.campaign_id);
+    res.json({ cancelled, reopened });
+  } catch (err) { sendErr(res, err, 'cancel scheduled send'); }
+});
+
+// What is queued but not yet gone, so the UI can say "2,180 scheduled for
+// Wednesday 08:00" and offer to call it back.
+router.get('/releases/:id/scheduled', async (req, res) => {
+  try {
+    const rel = await campaignForRelease(req.params.id);
+    assertClientAccess(req, rel.client_id);
+    const { rows } = await pool.query(
+      `SELECT COUNT(DISTINCT os.contact_id)::int AS recipients,
+              MIN(os.scheduled_at) AS send_at
+         FROM outreach_sends os
+         JOIN outreach_sequences seq ON seq.id = os.sequence_id
+        WHERE os.campaign_id = $1 AND os.status = 'pending'
+          AND os.scheduled_at > NOW() AND seq.step_number = 1`,
+      [rel.campaign_id]
+    );
+    const r = rows[0] || {};
+    res.json({ recipients: r.recipients || 0, send_at: r.send_at || null });
+  } catch (err) { sendErr(res, err, 'read scheduled send'); }
+});
 
 // ── Audiences within a release ───────────────────────────────────────────────
 //
@@ -1715,6 +1793,7 @@ router.post('/segments/:segId/send', async (req, res) => {
     const seg = await pressSegments.get(req.params.segId);
     const state = pressSegments.editableState(seg);
     if (!state.ok) return res.status(409).json({ error: state.reason });
+    const sendAt = parseSendAt(req.body?.send_at);
     const { rows } = await pool.query(
       'SELECT * FROM outreach_press_releases WHERE campaign_id = $1 LIMIT 1', [seg.campaign_id]);
     if (!rows.length) return res.status(404).json({ error: 'Press release for this audience not found' });
@@ -1743,7 +1822,8 @@ router.post('/segments/:segId/send', async (req, res) => {
     // copy at render time, not extra sequence rows — so no cross-product.
     const { rowCount: queued } = await pool.query(
       `INSERT INTO outreach_sends (campaign_id, contact_id, sequence_id, status, scheduled_at)
-       SELECT $1, c.id, s.id, 'pending', NOW() + make_interval(days => s.delay_days)
+       SELECT $1, c.id, s.id, 'pending',
+              COALESCE($3::timestamptz, NOW()) + make_interval(days => s.delay_days)
          FROM unnest($2::uuid[]) AS c(id)
          CROSS JOIN outreach_sequences s
         WHERE s.campaign_id = $1
@@ -1751,10 +1831,10 @@ router.post('/segments/:segId/send', async (req, res) => {
             SELECT 1 FROM outreach_sends os
              WHERE os.campaign_id = $1 AND os.contact_id = c.id AND os.sequence_id = s.id
           )`,
-      [seg.campaign_id, ids]
+      [seg.campaign_id, ids, sendAt]
     );
     await pressSegments.markSent(seg.id);
-    res.json({ audience: seg.name, queued, recipients: ids.length, held_back: heldBack });
+    res.json({ audience: seg.name, queued, recipients: ids.length, held_back: heldBack, scheduled_at: sendAt });
   } catch (err) { sendErr(res, err, 'audience send'); }
 });
 
