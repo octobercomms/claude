@@ -14,6 +14,8 @@
  * It creates its own client/campaign/contacts under a 'segtest-' prefix and
  * removes them afterwards, so it is safe to re-run.
  */
+const fs = require('fs');
+const path = require('path');
 const pool = require('../src/db');
 const seg = require('../src/services/pressSegments');
 
@@ -171,13 +173,48 @@ async function cleanup() {
       [campaignId, fresh[0].id]);
     ok(still.length === 1 && still[0].segment_id === null,
       'the member stays on the campaign, unfiled, rather than being dropped');
+    console.log('\nThe preview and the test render the audience\u2019s copy');
+    {
+      const byId = await seg.copyForSegment(work.id);
+      ok(byId && byId.name === 'Workplace', 'an audience\u2019s copy can be fetched by id, for previewing it directly');
+      const base = { title: 'T', followups_ai: true, custom_release_body: 'shared pitch', custom_followups: [] };
+      const over = seg.overlayRelease(base, byId);
+      ok(over.custom_release_body === 'Thought this might suit your workplace coverage.',
+        'the overlay puts the audience intro where the renderer looks for shared copy');
+      ok(over.followups_ai === false,
+        'and flips to the no-AI path, so a preview or test of a tailored audience costs nothing');
+      ok(over.custom_followups[0].subject === 'Quick nudge', 'the audience follow-ups come through');
+      ok(base.custom_release_body === 'shared pitch', 'the original release object is not mutated');
+
+      const plainSeg = await seg.copyForSegment(retail.id);
+      ok(seg.overlayRelease(base, plainSeg) === base,
+        'an untailored audience returns the release untouched, so it sends the shared pitch');
+      ok(seg.overlayRelease(base, null) === base, 'no audience at all returns the release untouched');
+
+      const routes = fs.readFileSync(path.join(__dirname, '..', 'src', 'routes', 'press.js'), 'utf8');
+      // Both the preview and the test overlay; matching on a window between the
+      // route name and the call is brittle (the handlers are long), so assert the
+      // count and that each handler reads segment_id.
+      ok((routes.match(/segments\.overlayRelease\(release, audienceCopy\)/g) || []).length === 2,
+        'both the preview and the test routes overlay the audience copy');
+      const handler = (name) => {
+        const i = routes.indexOf(`router.post('/releases/:id/${name}'`);
+        return i === -1 ? '' : routes.slice(i, routes.indexOf("\nrouter.", i + 10));
+      };
+      ok(/segment_id/.test(handler('preview')) && /overlayRelease/.test(handler('preview')),
+        'the preview handler takes segment_id and overlays it');
+      ok(/segment_id/.test(handler('test')) && /overlayRelease/.test(handler('test')),
+        'the test handler takes segment_id and overlays it');
+      const sender = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'outreachSender.js'), 'utf8');
+      ok(/const cached = authorMode[\s\S]{0,200}getOrGenerateEmails/.test(sender),
+        'sendPressTest renders shared copy instead of generating a per-recipient pitch (which showed an email nobody would receive, and billed for it)');
+    }
+
     // The copy is only worth storing if the sender reads it. These assert the
     // wiring at each render point, because exercising sendPress end to end would
     // deliver real email.
     console.log('\nThe sender is wired to the audience copy');
     {
-      const fs = require('fs');
-      const path = require('path');
       const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'outreachSender.js'), 'utf8');
       ok(/copyForContact\(campaignId, contact\.id\)/.test(src),
         'sendPress resolves the recipient to their audience');

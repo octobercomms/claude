@@ -304,7 +304,19 @@ async function copyForContact(campaignId, contactId) {
       WHERE cc.campaign_id = $1 AND cc.contact_id = $2`,
     [campaignId, contactId]
   );
-  const seg = rows[0];
+  return buildCopy(rows[0]);
+}
+
+/** The same shape for one audience by id, for a preview or test of that audience. */
+async function copyForSegment(segmentId) {
+  const { rows } = await pool.query(
+    'SELECT id, name, subjects, intro, followups FROM outreach_campaign_segments WHERE id = $1',
+    [segmentId]
+  );
+  return buildCopy(rows[0]);
+}
+
+function buildCopy(seg) {
   if (!seg) return null;
   const subjects = seg.subjects && typeof seg.subjects === 'object' ? seg.subjects : {};
   const followups = Array.isArray(seg.followups) ? seg.followups : [];
@@ -316,8 +328,34 @@ async function copyForContact(campaignId, contactId) {
     intro: norm(seg.intro) || null,
     // Step 2 is followups[0].
     followUpFor: (step) => followups[step - 2] || null,
+    followUps: followups,
     hasCopy: !!(norm(seg.intro) || followups.length || Object.keys(subjects).length),
   };
+}
+
+/**
+ * A release as this audience will actually send it.
+ *
+ * The preview and the test must render what the recipient gets, so rather than
+ * each of them reimplementing the overlay the sender does, they ask for a release
+ * object with the audience's copy already in place. An audience intro takes the
+ * author-mode path for the same reason the sender does: it is shared copy, so
+ * there is no per-recipient AI call and no per-recipient cost.
+ *
+ * Returns the release unchanged when there is no audience or it has no copy.
+ */
+function overlayRelease(release, copy) {
+  if (!copy || !copy.hasCopy) return release;
+  const out = { ...release };
+  if (copy.intro) {
+    out.custom_release_body = copy.intro;
+    out.followups_ai = false;
+  }
+  if (copy.followUps.length) {
+    out.custom_followups = copy.followUps;
+    out.followups_ai = false;
+  }
+  return out;
 }
 
 async function markSent(segmentId) {
@@ -329,6 +367,7 @@ async function markSent(segmentId) {
 
 module.exports = {
   get, list, unassigned, create, update, setLocked, remove,
-  assign, resolve, unfile, memberIds, suppressionBreakdown, copyForContact, markSent,
+  assign, resolve, unfile, memberIds, suppressionBreakdown,
+  copyForContact, copyForSegment, overlayRelease, markSent,
   editableState,
 };

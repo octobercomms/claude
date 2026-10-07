@@ -520,11 +520,18 @@ async function sendTest(campaign, step, sending, toAddress) {
 // which email in the sequence (1 = the release, 2+ = a follow-up). `contact` is
 // the journalist whose personalised copy to render (so the AM tests the real
 // thing); `toAddress` is where the test lands (usually the AM's own inbox).
-async function sendPressTest({ release, contact, toAddress, sending, clientId, stepNumber = 1 }) {
+async function sendPressTest({ release, contact, toAddress, sending, clientId, stepNumber = 1, subjectOverride = null, audienceName = null }) {
   const pool = require('../db');
   const { from, replyTo } = await senderFields(sending);
   const pressRelease = require('./pressRelease');
-  const cached = await pressRelease.getOrGenerateEmails({ pressReleaseId: release.id, contactId: contact.id, force: false, withFollowUps: stepNumber > 1 });
+  // Shared copy (an audience's intro, or the release's "one email for everyone")
+  // is what will actually send, so render that rather than generating a
+  // per-recipient AI pitch. Generating one here would show the AM an email no
+  // journalist is going to receive, and bill for the privilege.
+  const authorMode = release.followups_ai === false;
+  const cached = authorMode
+    ? { intro: release.custom_release_body || '', follow_ups: Array.isArray(release.custom_followups) ? release.custom_followups : [] }
+    : await pressRelease.getOrGenerateEmails({ pressReleaseId: release.id, contactId: contact.id, force: false, withFollowUps: stepNumber > 1 });
   const signature = await pressRelease.clientSignature(clientId);
   const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
   let subject, html, text;
@@ -533,14 +540,15 @@ async function sendPressTest({ release, contact, toAddress, sending, clientId, s
     // Prefer the AM-edited step-1 subject; fall back to the release title.
     const { rows: seqRows } = await pool.query(
       'SELECT subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number = 1 LIMIT 1', [release.campaign_id]);
-    subject = seqRows[0]?.subject || release.title;
+    subject = subjectOverride || seqRows[0]?.subject || release.title;
+    const pitch = authorMode ? fillTemplate(cached.intro || '', contact) : (cached.intro || '');
     html = pressRelease.buildEmailHtml({
-      release: releaseWithHero, pitch: cached.intro, sender,
+      release: releaseWithHero, pitch, sender,
       recipientName: contact.name, embedFull: release.embed_full_release !== false,
       includeReleaseLink: release.include_release_link !== false,
       contactId: contact.id, clientId, signature,
     });
-    text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
+    text = pitch + `\n\nPress release: ${release.source_url || ''}`;
   } else {
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     // Follow-up subjects live on the sequence rows (steps 2-4); prefer those so
@@ -549,8 +557,8 @@ async function sendPressTest({ release, contact, toAddress, sending, clientId, s
       'SELECT subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number = $2 LIMIT 1', [release.campaign_id, stepNumber]);
     const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
     const fu = followUps[stepNumber - 2] || { subject: `Re: ${release.title}`, body: '' };
-    subject = seqRows[0]?.subject || fu.subject || `Re: ${release.title}`;
-    text = fu.body || '';
+    subject = subjectOverride || seqRows[0]?.subject || fu.subject || `Re: ${release.title}`;
+    text = authorMode ? fillTemplate(fu.body || '', contact) : (fu.body || '');
     html = pressRelease.buildFollowUpHtml({
       release: releaseWithHero, body: text, sender, recipientName: contact.name,
       contactId: contact.id, clientId, signature,
@@ -558,7 +566,10 @@ async function sendPressTest({ release, contact, toAddress, sending, clientId, s
       includeReleaseLink: release.include_release_link !== false,
     });
   }
-  return deliver({ from, to: toAddress, replyTo, subject: `[TEST] ${subject}`, text, html });
+  // Name the audience in the test's own subject, so a round of tests across four
+  // audiences does not land as four identical-looking emails.
+  const tag = audienceName ? `[TEST · ${audienceName}]` : '[TEST]';
+  return deliver({ from, to: toAddress, replyTo, subject: `${tag} ${subject}`, text, html });
 }
 
 // Build the HTML+text exactly as the sender would for this step + sample

@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { roWrite } from '../utils/readOnly';
 import { useAuth } from '../context/AuthContext';
 import PressCampaignAnalytics from './PressCampaignAnalytics';
 import StepRail from './shells/StepRail';
-import PressAudiences from './PressAudiences';
+import PressAudiences, { AudienceBar, AudienceSend } from './PressAudiences';
 import PressCountryExclusions from './PressCountryExclusions';
 
 // Detail view for one press_release campaign, run as a clear five-step flow:
@@ -59,6 +59,18 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   const [globalQuery, setGlobalQuery] = useState('');
   const [globalResults, setGlobalResults] = useState(null);
   const [searchingGlobal, setSearchingGlobal] = useState(false);
+  // Audiences. The wizard stays the spine: Who defines them, then What, Test,
+  // Preview and Confirm are each worked once per audience. `activeSegId` is the
+  // audience the later steps are scoped to; null means the contacts on the
+  // release that are in no audience, who get the shared pitch.
+  const [segments, setSegments] = useState([]);
+  const [unassignedIds, setUnassignedIds] = useState([]);
+  const [activeSegId, setActiveSegId] = useState(null);
+  const [segDraft, setSegDraft] = useState(null);     // { subjects, intro, followups }
+  const [segDirty, setSegDirty] = useState(false);
+  const [savingSeg, setSavingSeg] = useState(false);
+  const [draftingSeg, setDraftingSeg] = useState(false);
+
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [dragOver, setDragOver] = useState(false);
@@ -336,7 +348,13 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     setPreviewing(contactId); setPreviewData(null); setEditIntro(null); setEditFollowUps(null); setEmailIdx(0);
     setPreviewed(true);
     try {
-      const p = await api.post(`/press/releases/${release.id}/preview`, { contact_id: contactId, force });
+      const p = await api.post(`/press/releases/${release.id}/preview`, {
+        contact_id: contactId, force,
+        // Render this audience's copy. Without it the server falls back to the
+        // contact's own audience, which is right when previewing from a list but
+        // wrong when checking an audience you have just written.
+        ...(activeSegId ? { segment_id: activeSegId } : {}),
+      });
       setPreviewData(p); setEditIntro(p.pitch || '');
       setEditFollowUps(Array.isArray(p.follow_ups) ? p.follow_ups.map(f => ({ ...f })) : []);
     } catch (e) { toast(`Preview failed: ${e.message}`, 'error'); setPreviewing(null); }
@@ -432,9 +450,13 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
       for (const sn of chosen) {
         const body = { email: testEmail.trim(), step_number: sn };
         if (previewing) body.contact_id = previewing;
+        // Test the audience currently selected, so the copy you check is the copy
+        // that audience receives rather than the release's shared pitch. The
+        // server picks one of its members to personalise for.
+        if (activeSegId) body.segment_id = activeSegId;
         await api.post(`/press/releases/${release.id}/test`, body);
       }
-      toast(`Sent ${chosen.length} test email${chosen.length === 1 ? '' : 's'} to ${testEmail.trim()}.`, 'success');
+      toast(`Sent ${chosen.length} test email${chosen.length === 1 ? '' : 's'}${activeSeg ? ` for ${activeSeg.name}` : ''} to ${testEmail.trim()}.`, 'success');
       setTested(true);
     } catch (e) { toast(e.message, 'error'); }
     finally { setTesting(false); }
@@ -460,8 +482,14 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     } catch (e) { toast(e.message, 'error'); }
     finally { setReviewing(false); }
   }
-  async function send() {
-    if (!totalRecipients || !release) return;
+  // Queue a specific set of recipients. `send()` is the whole step-1 selection;
+  // step 5 also uses this for the contacts that are in no audience, so both go
+  // through the same sender guard, duplicate check and cost estimate.
+  async function sendTo(ids, label = null) {
+    const list = Array.from(ids || []);
+    if (!list.length || !release) return;
+    const count = list.length;
+    const who = label ? `${label} (${count})` : `${count}`;
     const fuCount = Math.max(0, steps.length - 1);
     // Never let a release go out from an unconfigured (platform-default) sender
     // without an explicit, informed OK — this is what caused a blind send from
@@ -480,7 +508,7 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
     // reassure them a re-send won't double up. Falls back to a plain confirm if
     // the check fails.
     let plan = null;
-    try { plan = await api.post(`/press/releases/${release.id}/send-plan`, { contact_ids: Array.from(combinedIds) }); }
+    try { plan = await api.post(`/press/releases/${release.id}/send-plan`, { contact_ids: list }); }
     catch { /* non-fatal — fall through to the simple confirm */ }
     // Pre-spend line: each NEW recipient gets a personalised AI pitch, so a big
     // send costs real money. Show the estimate before it happens.
@@ -497,16 +525,21 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
         + `Send the release to the ${plan.new} new recipient${plan.new === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop if they reply.`
         + costLine;
       if (!confirm(msg)) return;
-    } else if (!confirm(`Send to ${totalRecipients} journalist${totalRecipients === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop automatically if they reply.${costLine}`)) {
+    } else if (!confirm(`Send to ${who} journalist${count === 1 ? '' : 's'}? ${fuCount} follow-up${fuCount === 1 ? '' : 's'} will queue on your timings and stop automatically if they reply.${costLine}`)) {
       return;
     }
     setSending(true);
     try {
-      const r = await api.post(`/press/releases/${release.id}/send`, { contact_ids: Array.from(combinedIds) });
-      toast(r.queued ? `Queued ${r.queued} emails.` : 'Nothing new to queue — everyone was already sent.', 'success');
+      const r = await api.post(`/press/releases/${release.id}/send`, { contact_ids: list });
+      toast(r.queued
+        ? `Queued ${r.queued} emails${label ? ` for ${label}` : ''}.`
+        : 'Nothing new to queue — everyone was already sent.', 'success');
+      await loadSegments();
     } catch (e) { toast(`Send failed: ${e.message}`, 'error'); }
     finally { setSending(false); }
   }
+
+  const send = () => sendTo(Array.from(combinedIds));
 
   if (loadError) {
     return (
@@ -539,6 +572,96 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
   );
 
   const stepIndex = STEPS.findIndex(s => s.key === step);
+  const activeSeg = segments.find(s => s.id === activeSegId) || null;
+  // An audience that has sent is frozen: its list and its copy are fixed.
+  const segFrozen = !!activeSeg?.sent_at;
+
+  const loadSegments = useCallback(async () => {
+    if (!release?.id) return;
+    try {
+      const r = await api.get(`/press/releases/${release.id}/segments`);
+      setSegments(r.segments || []);
+      setUnassignedIds((r.unassigned || []).map(c => c.id));
+      // If the audience being edited has gone, fall back to the shared group
+      // rather than leaving the steps pointed at nothing.
+      setActiveSegId(prev => (prev && !(r.segments || []).some(s => s.id === prev) ? null : prev));
+    } catch { /* the Who panel reports its own errors */ }
+  }, [release?.id]);
+
+  useEffect(() => { loadSegments(); }, [loadSegments]);
+
+  // Default the later steps to the first audience when every contact is filed
+  // into one. Otherwise nothing would look selected and step 2 would quietly be
+  // editing the shared copy instead.
+  useEffect(() => {
+    if (segments.length && activeSegId === null && unassignedIds.length === 0) {
+      setActiveSegId(segments[0].id);
+    }
+  }, [segments, unassignedIds.length]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load the active audience's copy into a draft when it changes, so editing is
+  // local and one Save writes it.
+  useEffect(() => {
+    if (!activeSeg) { setSegDraft(null); setSegDirty(false); return; }
+    setSegDraft({
+      subjects: { ...(activeSeg.subjects || {}) },
+      intro: activeSeg.intro || '',
+      followups: Array.isArray(activeSeg.followups) ? activeSeg.followups.map(f => ({ ...f })) : [],
+    });
+    setSegDirty(false);
+  }, [activeSegId, activeSeg?.updated_at]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  function setSegSubject(stepNumber, value) {
+    setSegDraft(d => ({ ...d, subjects: { ...d.subjects, [String(stepNumber)]: value } }));
+    setSegDirty(true);
+  }
+  function setSegBody(stepNumber, value) {
+    setSegDraft(d => (stepNumber === 1
+      ? { ...d, intro: value }
+      : {
+          ...d,
+          followups: Array.from({ length: Math.max(d.followups.length, stepNumber - 1) }, (_, i) => (
+            i === stepNumber - 2 ? { ...(d.followups[i] || {}), body: value } : (d.followups[i] || { body: '' })
+          )),
+        }));
+    setSegDirty(true);
+  }
+  function segBodyFor(stepNumber) {
+    if (!segDraft) return '';
+    return stepNumber === 1 ? segDraft.intro : (segDraft.followups[stepNumber - 2]?.body ?? '');
+  }
+
+  async function saveActiveSeg() {
+    if (!activeSeg || !segDraft) return;
+    setSavingSeg(true);
+    try {
+      // A blank override is stored as absent, so clearing a field falls back to
+      // the shared subject rather than sending an empty one.
+      const subjects = {};
+      for (const [k, v] of Object.entries(segDraft.subjects)) if (String(v || '').trim()) subjects[k] = String(v).trim();
+      await api.patch(`/press/segments/${activeSeg.id}`, {
+        subjects, intro: segDraft.intro, followups: segDraft.followups,
+      });
+      toast(`${activeSeg.name} saved.`, 'success');
+      setSegDirty(false);
+      await loadSegments();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSavingSeg(false); }
+  }
+
+  async function draftActiveSeg() {
+    if (!activeSeg) return;
+    if (segDraft?.intro?.trim()
+      && !window.confirm(`Replace ${activeSeg.name}'s intro and follow-ups with a new AI draft written for that audience?`)) return;
+    setDraftingSeg(true);
+    try {
+      await api.post(`/press/segments/${activeSeg.id}/shared-pitch`, { with_followups: true });
+      toast(`Drafted for ${activeSeg.name}.`, 'success');
+      await loadSegments();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setDraftingSeg(false); }
+  }
+
   const goNext = () => { const i = STEPS.findIndex(s => s.key === step); if (i < STEPS.length - 1) setStep(STEPS[i + 1].key); };
   const goBack = () => { const i = STEPS.findIndex(s => s.key === step); if (i > 0) setStep(STEPS[i - 1].key); };
 
@@ -881,7 +1004,10 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             releaseId={release.id}
             clientId={clientId}
             readOnly={readOnly}
-            steps={steps}
+            onChanged={(r) => {
+              setSegments(r.segments || []);
+              setUnassignedIds((r.unassigned || []).map(c => c.id));
+            }}
           />
         )}
 
@@ -892,35 +1018,76 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s1) 0 var(--s3)' }}>
               Four subjects try different angles: if they’ve opened, the follow-up sends; if not, we resend the pitch with a fresh subject. Replies stop the chase.
             </div>
-            <button {...roWrite(readOnly, { onClick: suggestSubjects, disabled: suggesting })} className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s3)' }}>
-              {suggesting ? '✨ Reading the release…' : '✨ Suggest subject lines'}
-            </button>
+
+            <AudienceBar segments={segments} unassignedCount={unassignedIds.length}
+              activeId={activeSegId} onPick={setActiveSegId}
+              label="Write the emails for" />
+
+            {activeSeg ? (
+              <>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s2)' }}>
+                  Writing <strong>{activeSeg.name}</strong>. Anything left blank falls back to the shared
+                  version below it, so you only write what differs.
+                  {segFrozen && ' This audience has already been sent, so its emails are fixed.'}
+                </div>
+                <button {...roWrite(readOnly || segFrozen, { onClick: draftActiveSeg, disabled: draftingSeg })}
+                  className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s1)' }}>
+                  {draftingSeg ? '✨ Writing…' : `✨ Draft for ${activeSeg.name} with AI`}
+                </button>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s3)' }}>
+                  One draft for the whole audience (~$0.03), aimed at its patch. No per-person cost.
+                </div>
+              </>
+            ) : (
+              <button {...roWrite(readOnly, { onClick: suggestSubjects, disabled: suggesting })} className="btn btn-secondary btn-sm" style={{ marginBottom: 'var(--s3)' }}>
+                {suggesting ? '✨ Reading the release…' : '✨ Suggest subject lines'}
+              </button>
+            )}
             {steps.map(s => (
               <div key={s.step_number} style={{ marginBottom: 'var(--s2)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s1)' }}>
                   <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)', minWidth: 60 }}>{s.step_number === 1 ? 'Release' : `Follow-up ${s.step_number - 1}`}</span>
                   {s.step_number === 1 ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>sends immediately</span> : (
                     <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: 'var(--s1)' }}>after
-                      <input type="number" min="1" value={s.delay_days ?? ''} onChange={e => setStepField(s.step_number, 'delay_days', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                      <input type="number" min="1" value={s.delay_days ?? ''} disabled={!!activeSeg}
+                        title={activeSeg ? 'Timings are shared across audiences — each audience sends on its own, so the delays run from its own send.' : undefined}
+                        onChange={e => setStepField(s.step_number, 'delay_days', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
                         className="input" style={{ width: 46 }} /> days
                     </span>
                   )}
                 </div>
-                <input value={s.subject ?? ''} onChange={e => setStepField(s.step_number, 'subject', e.target.value)}
-                  placeholder="Subject line — {{first_name}} to personalise"
+                {/* One layout, two scopes: with an audience selected these edit
+                    that audience's copy, with the shared version as the
+                    placeholder so you can see what you are overriding. */}
+                <input
+                  value={activeSeg ? (segDraft?.subjects?.[String(s.step_number)] ?? '') : (s.subject ?? '')}
+                  disabled={segFrozen}
+                  onChange={e => (activeSeg
+                    ? setSegSubject(s.step_number, e.target.value)
+                    : setStepField(s.step_number, 'subject', e.target.value))}
+                  placeholder={activeSeg
+                    ? (s.subject ? `Shared: ${s.subject}` : 'Leave blank to use the shared subject')
+                    : 'Subject line — {{first_name}} to personalise'}
                   className="input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                {release.followups_ai === false && (
+                {(activeSeg || release.followups_ai === false) && (
                   <textarea className="textarea"
-                    value={s.step_number === 1
+                    disabled={segFrozen}
+                    value={activeSeg ? segBodyFor(s.step_number) : (s.step_number === 1
                       ? (release.custom_release_body ?? '')
-                      : ((release.custom_followups?.[s.step_number - 2]?.body) ?? '')}
-                    onChange={e => s.step_number === 1
-                      ? setRelease(r => ({ ...r, custom_release_body: e.target.value }))
-                      : setCustomFollowupLocal(s.step_number - 2, e.target.value)}
-                    onBlur={s.step_number === 1 ? saveReleaseBody : saveCustomFollowups}
-                    placeholder={s.step_number === 1
-                      ? "Write the first email — your invite / announcement, sent to everyone as-is. {{first_name}} / {{company}} to personalise. (Turn off 'Embed the full release' below for a plain email.)"
-                      : "Write this follow-up email — sent to everyone as-is. {{first_name}} / {{company}} to personalise. Leave blank to just resend the first email with the new subject."}
+                      : ((release.custom_followups?.[s.step_number - 2]?.body) ?? ''))}
+                    onChange={e => (activeSeg
+                      ? setSegBody(s.step_number, e.target.value)
+                      : (s.step_number === 1
+                        ? setRelease(r => ({ ...r, custom_release_body: e.target.value }))
+                        : setCustomFollowupLocal(s.step_number - 2, e.target.value)))}
+                    onBlur={activeSeg ? undefined : (s.step_number === 1 ? saveReleaseBody : saveCustomFollowups)}
+                    placeholder={activeSeg
+                      ? (s.step_number === 1
+                        ? `Write ${activeSeg.name}'s covering note. Leave blank to send the shared pitch. {{first_name}} / {{company}} to personalise.`
+                        : `Write this follow-up for ${activeSeg.name}. Leave blank to use the shared one.`)
+                      : (s.step_number === 1
+                        ? "Write the first email — your invite / announcement, sent to everyone as-is. {{first_name}} / {{company}} to personalise. (Turn off 'Embed the full release' below for a plain email.)"
+                        : "Write this follow-up email — sent to everyone as-is. {{first_name}} / {{company}} to personalise. Leave blank to just resend the first email with the new subject.")}
                     style={{ width: '100%', minHeight: 90, marginTop: 'var(--s1)', boxSizing: 'border-box', resize: 'vertical' }} />
                 )}
               </div>
@@ -964,7 +1131,20 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             </div>
 
             <div style={{ marginTop: 'var(--s3)', paddingTop: 'var(--s3)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
-              <button {...roWrite(readOnly, { onClick: saveSteps, disabled: savingSteps })} className="btn btn-secondary btn-sm">{savingSteps ? 'Saving…' : 'Save subjects & timing'}</button>
+              {activeSeg ? (
+                <>
+                  <button {...roWrite(readOnly || segFrozen, { onClick: saveActiveSeg, disabled: savingSeg || !segDirty })}
+                    className="btn btn-primary btn-sm">
+                    {savingSeg ? 'Saving…' : `Save ${activeSeg.name}'s emails`}
+                  </button>
+                  <button {...roWrite(readOnly, { onClick: saveSteps, disabled: savingSteps })}
+                    className="btn btn-secondary btn-sm" style={{ marginLeft: 'var(--s2)' }}>
+                    {savingSteps ? 'Saving…' : 'Save shared timing'}
+                  </button>
+                </>
+              ) : (
+                <button {...roWrite(readOnly, { onClick: saveSteps, disabled: savingSteps })} className="btn btn-secondary btn-sm">{savingSteps ? 'Saving…' : 'Save subjects & timing'}</button>
+              )}
             </div>
 
             <NavRow>
@@ -980,6 +1160,16 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s1) 0 var(--s3)' }}>
               A faithful copy — the real template, a real journalist’s personalised pitch, your footer — lands in your inbox, marked <strong>[TEST]</strong>. Nothing is tracked or sent to journalists.
             </div>
+
+            <AudienceBar segments={segments} unassignedCount={unassignedIds.length}
+              activeId={activeSegId} onPick={setActiveSegId}
+              label="Test which audience" />
+            {activeSeg && (
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s3)' }}>
+                Tests arrive marked <strong>[TEST · {activeSeg.name}]</strong>, so a round across several
+                audiences does not land as identical-looking emails. Test each audience you have tailored.
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center', maxWidth: 520 }}>
               <input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com" className="input" style={{ flex: 1, minWidth: 200 }} />
               <button {...roWrite(readOnly, { onClick: sendTest, disabled: testing || !testEmail.trim() || !testSteps.size })} className="btn btn-secondary btn-sm">{testing ? 'Sending…' : `Send ${testSteps.size || 0} test${testSteps.size === 1 ? '' : 's'}`}</button>
@@ -1012,6 +1202,16 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', margin: 'var(--s1) 0 var(--s3)' }}>
               Pick a journalist to see the exact email Claude will send them. Edit the pitch or any follow-up body — subjects come from step&nbsp;2.
             </div>
+
+            <AudienceBar segments={segments} unassignedCount={unassignedIds.length}
+              activeId={activeSegId} onPick={(id) => { setActiveSegId(id); if (previewing) preview(previewing, false); }}
+              label="Preview which audience" />
+            {activeSeg && (
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)', marginBottom: 'var(--s3)' }}>
+                Showing <strong>{activeSeg.name}</strong>'s email. Preview one from each audience you have
+                tailored: an intro written for the wrong patch is only visible here.
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', alignItems: 'center', marginBottom: 'var(--s3)' }}>
               <select value={previewing || ''} onChange={e => e.target.value && preview(e.target.value)} className="input" style={{ minWidth: 240, maxWidth: 360 }}>
@@ -1160,12 +1360,43 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
               )}
             </div>
 
-            <NavRow>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
-                <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>{totalRecipients.toLocaleString()} recipient{totalRecipients === 1 ? '' : 's'}</div>
-                <button {...roWrite(readOnly, { onClick: send, disabled: !totalRecipients || sending })} className="btn btn-primary">{sending ? 'Queueing…' : `Send to ${totalRecipients.toLocaleString()}`}</button>
+            {/* With audiences, each one confirms and sends on its own, so a wrong
+                intro on one cannot take the rest of the release with it. The
+                checks above are release-level and apply to all of them. */}
+            {segments.length > 0 && (
+              <div style={{ marginTop: 'var(--s4)', paddingTop: 'var(--s3)', borderTop: 'var(--border-w) solid var(--card-border)' }}>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Send each audience</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginTop: 'var(--s1)' }}>
+                  One at a time, in whatever order suits. Each is frozen once it has gone.
+                </div>
+                {segments.map(sg => (
+                  <AudienceSend key={sg.id} seg={sg} ro={readOnly}
+                    onChanged={loadSegments} onSent={() => setTested(false)} />
+                ))}
+                {unassignedIds.length > 0 && (
+                  <div style={{ padding: 'var(--s3)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginTop: 'var(--s2)' }}>
+                    <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Everyone else</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)', marginBottom: 'var(--s2)' }}>
+                      {unassignedIds.length.toLocaleString()} on this release but in no audience. They receive the
+                      shared pitch from step 2. File them into an audience first if you want a tailored one.
+                    </div>
+                    <button {...roWrite(readOnly, { onClick: () => sendTo(unassignedIds, 'Everyone else'), disabled: sending })}
+                      className="btn btn-primary btn-sm">
+                      {sending ? 'Queueing…' : `Send to ${unassignedIds.length.toLocaleString()}`}
+                    </button>
+                  </div>
+                )}
               </div>
-            </NavRow>
+            )}
+
+            {segments.length === 0 && (
+              <NavRow>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
+                  <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>{totalRecipients.toLocaleString()} recipient{totalRecipients === 1 ? '' : 's'}</div>
+                  <button {...roWrite(readOnly, { onClick: send, disabled: !totalRecipients || sending })} className="btn btn-primary">{sending ? 'Queueing…' : `Send to ${totalRecipients.toLocaleString()}`}</button>
+                </div>
+              </NavRow>
+            )}
           </div>
         )}
       </div>
