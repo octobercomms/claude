@@ -146,6 +146,25 @@ Rules that matter when you are operating this:
 
 Full detail in `docs/omi/press-audiences.md`.
 
+### Countries
+
+The release's **Countries** panel (also on step 1) excludes journalists by country.
+
+- Country is derived from the publication, the contact's location text or their
+  email domain, never guessed. A contact whose country could not be resolved shows
+  as unknown, and the panel reports what percentage of the library has one.
+- Read that percentage before trusting a country exclusion. Excluding the United
+  States on 30% coverage filters 30% of the list.
+- Each release chooses whether unknown-country journalists still send (the
+  default) or are held back. Never change that without telling Daniel what it
+  costs; the panel shows the number.
+- "Resolve more countries" is free and runs no model. It is safe to press.
+- A country typed by hand is marked as such and survives later resolving. Correct
+  one from the media library in Settings, not from the journalist profile page,
+  which reads a different table.
+
+Full detail in `docs/omi/press-countries.md`.
+
 ### 4. What happens after he presses Send
 
 Nothing is written into recipients' inboxes immediately. Sends queue, then a job

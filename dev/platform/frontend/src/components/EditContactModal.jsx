@@ -33,6 +33,7 @@ export default function EditContactModal({ contact, onClose, onSaved, entityLabe
     contact_type: contact.contact_type || '',
     title: contact.title || contact.role || '',
     location: contact.location || '',
+    country: contact.country || '',
     linkedin_url: contact.linkedin_url || '',
     source: contact.source || '',
     status: contact.status || 'new',
@@ -70,7 +71,15 @@ export default function EditContactModal({ contact, onClose, onSaved, entityLabe
     setSaving(true);
     try {
       const combinedName = [form.first_name, form.last_name].filter(Boolean).join(' ') || null;
-      const updated = await api.put(`/outreach/contacts/${contact.id}`, { ...form, name: combinedName, role: form.title });
+      const { country, ...rest } = form;
+      const updated = await api.put(`/outreach/contacts/${contact.id}`, { ...rest, name: combinedName, role: form.title });
+      // Country goes through its own endpoint so it is stamped as hand-typed. A
+      // value saved as an ordinary field would keep whatever source the
+      // derivation gave it and could be overwritten by the next backfill.
+      if ((country || '') !== (contact.country || '')) {
+        try { await api.put(`/press/contacts/${contact.id}/country`, { country }); }
+        catch (e) { toast(`Saved, but the country did not stick: ${e.message}`, 'error'); }
+      }
       toast(`${Cap} saved`, 'success');
       onSaved(updated);
       if (!embedded) onClose();
@@ -155,6 +164,16 @@ export default function EditContactModal({ contact, onClose, onSaved, entityLabe
           <Section title="More Info">
             <Field label="Location">
               <input className="input" value={form.location} onChange={e => update('location', e.target.value)} placeholder="e.g. London, UK" />
+            </Field>
+            <Field label={`Country${contact.country_source ? ` (from ${contact.country_source})` : ''}`}>
+              <input className="input" value={form.country} onChange={e => update('country', e.target.value)}
+                placeholder="blank = unknown" list="country-options" />
+              <datalist id="country-options">
+                {['United Kingdom', 'United States', 'France', 'Germany', 'Italy', 'Spain', 'Netherlands',
+                  'Belgium', 'Denmark', 'Sweden', 'Norway', 'Switzerland', 'Austria', 'Ireland', 'Portugal',
+                  'Canada', 'Australia', 'New Zealand', 'Japan', 'China', 'Hong Kong', 'Singapore', 'India',
+                  'United Arab Emirates', 'South Africa', 'Brazil'].map(c => <option key={c} value={c} />)}
+              </datalist>
             </Field>
             <Field label="LinkedIn URL">
               <input className="input" value={form.linkedin_url} onChange={e => update('linkedin_url', e.target.value)} placeholder="https://linkedin.com/in/…" />

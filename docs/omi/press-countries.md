@@ -1,0 +1,123 @@
+# Country on a journalist, and country exclusions
+
+Journalists carry a normalised `country`, derived from data OMI already holds with
+no AI call. A release can exclude countries, and each release decides what happens
+to journalists whose country is unknown.
+
+## Why not just filter on `location`
+
+`outreach_contacts.location` is free text written by the paste importer or a CSV
+column. In practice it holds "London", "New York", "UK", "United Kingdom" or
+nothing. Filtering a send on it would be the mistake `agent-guide.md` already
+records: a query that looks like enforcement and is not. "UK" never matches
+"United Kingdom", a city matches no country, and a blank is invisible, so the
+exclusion would quietly let through the people it was meant to hold back.
+
+So there is a separate `country`, plus `country_source` saying where the value came
+from. A country inferred from an email TLD deserves less trust than one read off
+the publication, and the operator needs to see which is which before relying on a
+filter.
+
+## How a country is derived
+
+Ranked best-first. A later pass fills gaps and upgrades a weak value to a better
+one; it never downgrades, and never overwrites a hand-typed country.
+
+| Source | Where it comes from |
+|---|---|
+| `manual` | Typed by a person. Never overwritten. |
+| `outlet` | The publication's `region` when that names a country, else its `domain`'s country TLD. Strongest derived signal: it describes the title, not one person's mailbox. |
+| `location` | The contact's location text already names a country, including as the last part of "Brooklyn, New York, USA". |
+| `city` | The location text names a city in the lookup. |
+| `tld` | The contact's email has a country-code TLD. |
+
+Unresolved stays `NULL`. That is a real answer: a guess would silently send a
+release to someone the operator told it to hold back.
+
+Deliberate omissions, because a wrong country is worse than a gap:
+
+- `pr_outlets` has no `country` column. `region` is free text, so "EMEA" or
+  "North" resolves to nothing rather than becoming a country.
+- Ambiguous cities are absent. "Birmingham" (UK and Alabama) and "Cambridge" (UK
+  and Massachusetts) resolve to nothing.
+- `.co`, `.io`, `.ai`, `.me`, `.tv` and `.cc` are not treated as country codes.
+  They are sold globally and say nothing about where anyone is.
+- Contacts are matched to publications on email domain first, outlet name second,
+  because a pasted company name is not reliably the outlet's canonical name.
+
+## The backfill
+
+`POST /press/countries/backfill`, admin only, or the "Resolve more countries"
+button on the release's Countries panel. Free, no model call, idempotent: one read
+and one batched write for the whole library. `{"dry_run": true}` reports what it
+would change without writing.
+
+It returns the coverage figure, which is the number that matters. Excluding the
+United States on a library where 30% of contacts have a country means you have
+filtered 30% of your list. The panel says so rather than implying the job is done.
+
+## Exclusions
+
+Set per release: `excluded_countries TEXT[]` and `unknown_country_policy`.
+
+Unknown country is a first-class state, never a silent one:
+
+- `send` (the default) holds back only journalists positively identified in an
+  excluded country. Keeps reach.
+- `hold` also holds back anyone not positively identified as outside the excluded
+  countries. Safer, costs reach.
+
+The panel shows the unknown count next to the choice, and when `hold` is selected
+it says how many extra contacts that holds back.
+
+An exclusion is stored in its canonical spelling, so typing "uk" matches contacts
+stored as "United Kingdom".
+
+### Enforced at dispatch, not only in the pickers
+
+The rule is applied in three places, all sharing one SQL fragment
+(`contactCountry.excludedByCountrySql`) so they cannot disagree:
+
+1. The tag audience picker (`GET /press/audience` with `release_id`), so the count
+   shown is the count that sends.
+2. `pressSegments.memberIds`, so an audience's send plan matches its send.
+3. **`scheduler.js runOutreachSends()`**, which is the authoritative stop.
+
+The third is the one that matters. `do_not_contact` was excluded by every picker
+for months while the gate ignored it, so anyone opting out after a send was queued
+still got the email. A country resolved or corrected between queueing and dispatch
+is caught by the gate, and the test asserts exactly that case: a send queued
+before the exclusion existed is cancelled at dispatch.
+
+## Where it shows
+
+- The audience picker and journalist search, with the source in the tooltip.
+- The media library table in Settings, where a hand-typed country renders in full
+  colour and a derived one in muted type.
+- The contact edit modal, as an editable field. It saves through
+  `PUT /press/contacts/:id/country` rather than as an ordinary field, so it is
+  stamped `manual` and a later backfill leaves it alone.
+- The release's Countries panel, which carries the coverage summary.
+
+Not the journalist profile page at `/media/journalist/:id`. That page reads
+`pr_contacts`, a different table from the `outreach_contacts` the press sends use,
+so a country field there would be a second column to keep in sync. Correct a
+country from the media library instead.
+
+## Schema
+
+Migration `192_contact_country.sql`:
+
+- `outreach_contacts.country` and `.country_source`, with a partial index on
+  country for media contacts.
+- `outreach_press_releases.excluded_countries` and `.unknown_country_policy`, the
+  latter with a CHECK constraint on `('send','hold')`.
+
+## Tests
+
+`backend/tests/contact-country.test.js`, 55 assertions against a real database and
+no AI call. Covers normalisation, each derivation signal, the precedence order,
+that ambiguous cities and non-country TLDs resolve to nothing, that a hand-typed
+country survives a backfill, both unknown policies, the suppression breakdown, and
+the dispatch-gate case above. Verified to fail when either the gate check or the
+audience filter is removed.

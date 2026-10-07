@@ -2865,6 +2865,7 @@ function ContactsLibrary() {
                   <th style={{ textAlign: 'left' }}>Name</th>
                   <th style={{ textAlign: 'left' }}>Email</th>
                   <th style={{ textAlign: 'left' }}>Publication</th>
+                  <th style={{ textAlign: 'left' }}>Country</th>
                   <th style={{ textAlign: 'left' }}>Beat</th>
                   <th style={{ textAlign: 'left' }}>Tags</th>
                   <th style={{ textAlign: 'left' }}>Attached to</th>
@@ -2890,6 +2891,16 @@ function ContactsLibrary() {
                         <span style={{ color: 'var(--text-muted)' }}>{r.email || '—'}</span>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>{r.company || r.outlet_name || '—'}</td>
+                      {/* Country, with where it came from in the tooltip. Derived
+                          values are shown in muted type so an operator can tell a
+                          hand-typed country from one inferred off an email TLD. */}
+                      <td  onClick={() => setOpenContact(r)}
+                        title={r.country ? `from ${r.country_source || 'unknown source'}` : 'no country resolved'}>
+                        <span style={{ fontSize: 'var(--fs-caption)',
+                          color: r.country_source === 'manual' ? 'var(--text)' : 'var(--text-subtle)' }}>
+                          {r.country || '—'}
+                        </span>
+                      </td>
                       <td  onClick={() => setOpenContact(r)}>
                         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
                           {Array.isArray(r.beats) && r.beats.length ? r.beats.join(', ') : '—'}

@@ -190,7 +190,7 @@ function Audience({ seg, releaseId, clientId, readOnly, steps, isOpen, onToggle,
           )}
 
           {tab === 'who' && (
-            <Who seg={seg} clientId={clientId} ro={ro} locked={locked} busy={busy} act={act}
+            <Who seg={seg} releaseId={releaseId} clientId={clientId} ro={ro} locked={locked} busy={busy} act={act}
               conflicts={conflicts} setConflicts={setConflicts} others={others} toast={toast} />
           )}
           {tab === 'copy' && <Copy seg={seg} ro={ro} steps={steps} busy={busy} act={act} />}
@@ -203,7 +203,7 @@ function Audience({ seg, releaseId, clientId, readOnly, steps, isOpen, onToggle,
 
 // ── Who is in it ─────────────────────────────────────────────────────────────
 
-function Who({ seg, clientId, ro, locked, busy, act, conflicts, setConflicts, others, toast }) {
+function Who({ seg, releaseId, clientId, ro, locked, busy, act, conflicts, setConflicts, others, toast }) {
   const [tagList, setTagList] = useState([]);
   const [picked, setPicked] = useState(() => new Set(seg.tags || []));
   const [pasteText, setPasteText] = useState('');
@@ -217,19 +217,32 @@ function Who({ seg, clientId, ro, locked, busy, act, conflicts, setConflicts, ot
   async function addByTags() {
     const tags = [...picked];
     if (!tags.length) return;
-    const a = await api.get(`/press/audience?tags=${encodeURIComponent(tags.join(','))}&client_id=${clientId}`);
-    if (!a.ids?.length) { toast('Those tags match nobody.', 'info'); return; }
+    // release_id lets the picker apply this release's country rules, so the count
+    // it reports is the number that will actually send.
+    const a = await api.get(`/press/audience?tags=${encodeURIComponent(tags.join(','))}&client_id=${clientId}&release_id=${releaseId}`);
+    if (!a.ids?.length) {
+      toast(a.country_excluded
+        ? `Those tags match ${a.country_excluded} journalists, all held back by this release's country rules.`
+        : 'Those tags match nobody.', 'info');
+      return;
+    }
     const r = await api.post(`/press/segments/${seg.id}/members`, { contact_ids: a.ids });
     await api.patch(`/press/segments/${seg.id}`, { tags });
-    report(r);
+    report(r, a);
   }
 
-  function report(r) {
+  function report(r, audienceInfo = null) {
     if (r.conflicts?.length) setConflicts(r.conflicts);
     const bits = [];
     if (r.added) bits.push(`${r.added} added`);
     if (r.already) bits.push(`${r.already} already here`);
     if (r.conflicts?.length) bits.push(`${r.conflicts.length} in another audience`);
+    // Say what the country rules removed rather than letting the number quietly
+    // come up short.
+    if (audienceInfo?.country_excluded) {
+      bits.push(`${audienceInfo.country_excluded} held back by country`
+        + (audienceInfo.country_unknown_held ? ` (${audienceInfo.country_unknown_held} of them unknown)` : ''));
+    }
     toast(bits.length ? bits.join(', ') + '.' : 'Nothing to add.', r.added ? 'success' : 'info');
   }
 

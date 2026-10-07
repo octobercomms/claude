@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import PressCampaignAnalytics from './PressCampaignAnalytics';
 import StepRail from './shells/StepRail';
 import PressAudiences from './PressAudiences';
+import PressCountryExclusions from './PressCountryExclusions';
 
 // Detail view for one press_release campaign, run as a clear five-step flow:
 //   1 · Who     — build the audience from tags (scales to thousands) + adds.
@@ -820,7 +821,17 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
                     <div key={c.id} className="row center" style={{ gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderTop: 'var(--border-w) solid var(--accent-soft)' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>{c.name || '(no name)'}{c.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {c.company}</span>}</div>
-                        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>{c.email}</div>
+                        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>
+                          {c.email}
+                          {/* Country, with its source in the tooltip: a value from
+                              an email TLD deserves less trust than one off the
+                              outlet, and "unknown" is shown rather than hidden. */}
+                          {' · '}
+                          <span title={c.country ? `from ${c.country_source}` : 'no country resolved'}
+                            style={{ opacity: c.country ? 1 : 0.6 }}>
+                            {c.country || 'country unknown'}
+                          </span>
+                        </div>
                       </div>
                       {permanentExcl.has(c.id)
                         ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-subtle)' }}>excluded for this client</span>
@@ -861,6 +872,10 @@ export default function PressCampaignDetail({ clientId, campaignId, onExit, auto
             when the same release needs a different covering note per group, and
             each one then carries its own subjects, intro, follow-ups and Send.
             Lives on the Who step because that is where the list is decided. */}
+        {step === 'who' && release && (
+          <PressCountryExclusions releaseId={release.id} readOnly={readOnly} />
+        )}
+
         {step === 'who' && release && (
           <PressAudiences
             releaseId={release.id}
