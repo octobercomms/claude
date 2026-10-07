@@ -135,6 +135,8 @@ export default function PressAudiences({ releaseId, clientId, readOnly, onChange
           </div>
         </div>
       )}
+
+      <NeverSendTo releaseId={releaseId} clientId={clientId} readOnly={readOnly} onChanged={load} />
     </div>
   );
 }
@@ -147,7 +149,8 @@ function Audience({ seg, releaseId, clientId, readOnly, isOpen, onToggle, onChan
   const frozen = !!seg.sent_at;
   const locked = !!seg.locked_at;
   const sendable = seg.member_count - seg.suppressed_count;
-  const otherSuppressed = Math.max(0, seg.suppressed_count - (seg.country_excluded_count || 0));
+  const otherSuppressed = Math.max(0, seg.suppressed_count
+    - (seg.country_excluded_count || 0) - (seg.release_excluded_count || 0));
   const ro = readOnly || frozen;
 
   async function act(label, fn) {
@@ -172,6 +175,7 @@ function Audience({ seg, releaseId, clientId, readOnly, isOpen, onToggle, onChan
                 country should visibly move this number, otherwise it reads as
                 having done nothing. */}
             {seg.country_excluded_count > 0 && ` · ${seg.country_excluded_count.toLocaleString()} held back by country`}
+            {seg.release_excluded_count > 0 && ` · ${seg.release_excluded_count} held back by name`}
             {otherSuppressed > 0 && ` · ${otherSuppressed} suppressed`}
             {seg.intro ? ' · tailored intro written' : ' · using the shared pitch'}
           </div>
@@ -515,6 +519,169 @@ export function AudienceBar({ segments, unassignedCount, activeId, onPick, label
         A dot means no tailored intro written yet, so that audience sends the shared pitch. A tick means
         it has already been sent.
       </div>
+    </div>
+  );
+}
+
+// ── Never send to ────────────────────────────────────────────────────────────
+
+// Search the whole media library and hold specific people back. Two scopes,
+// because they mean different things and get confused otherwise:
+//
+//   this release — one-off. "They already know, I told them on Tuesday."
+//   always       — this journalist is never emailed on this client's behalf,
+//                  usually because the client handles them directly.
+//
+// Both are enforced in the dispatch gate as well as counted here, and excluding
+// someone already queued cancels their pending sends rather than leaving them to
+// be stopped later.
+function NeverSendTo({ releaseId, clientId, readOnly, onChanged }) {
+  const toast = useToast();
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [thisRelease, setThisRelease] = useState([]);
+  const [permanent, setPermanent] = useState([]);
+  const [busy, setBusy] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const r = await api.get(`/press/releases/${releaseId}/exclusions`);
+      setThisRelease(r.this_release || []);
+      setPermanent(r.permanent || []);
+    } catch (e) { toast(e.message, 'error'); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [releaseId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function search() {
+    if (!q.trim()) return;
+    setSearching(true);
+    try { setResults((await api.get(`/press/journalists?search=${encodeURIComponent(q.trim())}`)).items || []); }
+    catch (e) { toast(e.message, 'error'); }
+    finally { setSearching(false); }
+  }
+
+  async function act(label, fn, note) {
+    setBusy(label);
+    try {
+      await fn();
+      await load();
+      // The audience counts include both kinds of exclusion, so they have to be
+      // re-read or the number the operator is watching will not move.
+      await onChanged?.();
+      toast(note, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(''); }
+  }
+
+  const excludeHere = (c) => act(`r-${c.id}`,
+    () => api.put(`/press/releases/${releaseId}/exclusions`, {
+      contact_ids: [...thisRelease.map((x) => x.id), c.id],
+    }),
+    `${c.name || c.email} held back from this release.`);
+
+  const excludeAlways = (c) => act(`p-${c.id}`,
+    () => api.put(`/press/clients/${clientId}/exclusions`, { contact_id: c.id, excluded: true }),
+    `${c.name || c.email} will never be emailed for this client.`);
+
+  const undoHere = (c) => act(`u-${c.id}`,
+    () => api.put(`/press/releases/${releaseId}/exclusions`, {
+      contact_ids: thisRelease.filter((x) => x.id !== c.id).map((x) => x.id),
+    }),
+    `${c.name || c.email} is back in this release.`);
+
+  const undoAlways = (c) => act(`ua-${c.id}`,
+    () => api.put(`/press/clients/${clientId}/exclusions`, { contact_id: c.id, excluded: false }),
+    `${c.name || c.email} restored for this client.`);
+
+  const isHeld = (id) => thisRelease.some((x) => x.id === id) || permanent.some((x) => x.id === id);
+
+  return (
+    <div style={{ marginTop: 'var(--s4)', paddingTop: 'var(--s3)', borderTop: LINE }}>
+      <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Never send to</div>
+      <div style={{ ...CAP, margin: 'var(--s1) 0 var(--s2)' }}>
+        Hold specific journalists back, whichever audience they are in. Search the whole library, not
+        just this release.
+      </div>
+
+      {!readOnly && (
+        <div className="row center" style={{ gap: 'var(--s2)' }}>
+          <input className="input" style={{ flex: 1 }} value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && search()}
+            placeholder="name, outlet or email…" />
+          {/* Labelled "Find to exclude", not "Search": step 1 already has a
+              journalist search above this one that ADDS people, and two
+              identical buttons that do opposite things on the same screen is a
+              good way to send a release to someone you meant to hold back. */}
+          <button className="btn btn-secondary btn-sm" onClick={search} disabled={searching || !q.trim()}>
+            {searching ? '…' : 'Find to exclude'}
+          </button>
+        </div>
+      )}
+
+      {results && (
+        <div style={{ maxHeight: 220, overflowY: 'auto', border: LINE, borderRadius: 'var(--r-sm)', marginTop: 'var(--s2)' }}>
+          {!results.length && <div style={{ ...CAP, padding: 'var(--s3)' }}>Nobody matches that.</div>}
+          {results.map((c) => (
+            <div key={c.id} className="row center" style={{ gap: 'var(--s2)', padding: 'var(--s2) var(--s3)', borderTop: LINE }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600 }}>
+                  {c.name || '(no name)'}
+                  {c.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}> · {c.company}</span>}
+                </div>
+                <div style={CAP}>{c.email}{c.country ? ` · ${c.country}` : ''}</div>
+              </div>
+              {isHeld(c.id)
+                ? <span style={CAP}>already held back</span>
+                : (
+                  <>
+                    <button className="btn btn-secondary btn-sm" disabled={readOnly || !!busy}
+                      onClick={() => excludeHere(c)}>this release</button>
+                    <button className="btn btn-link btn-sm" disabled={readOnly || !!busy}
+                      title="Never email them for this client, on any release"
+                      onClick={() => excludeAlways(c)}>always</button>
+                  </>
+                )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {thisRelease.length > 0 && (
+        <div style={{ marginTop: 'var(--s3)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)' }}>
+            Held back from this release ({thisRelease.length})
+          </div>
+          <div className="row wrap" style={{ gap: 'var(--s1)', marginTop: 'var(--s1)' }}>
+            {thisRelease.map((c) => (
+              <span key={c.id} className="chip" style={{ cursor: readOnly ? 'default' : 'pointer' }}
+                title={readOnly ? undefined : 'click to put them back'}
+                onClick={() => !readOnly && undoHere(c)}>{c.name || c.email} ✕</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {permanent.length > 0 && (
+        <div style={{ marginTop: 'var(--s3)' }}>
+          <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--text-muted)' }}>
+            Never emailed for this client ({permanent.length})
+          </div>
+          <div className="row wrap" style={{ gap: 'var(--s1)', marginTop: 'var(--s1)' }}>
+            {permanent.map((c) => (
+              <span key={c.id} className="chip" style={{ cursor: readOnly ? 'default' : 'pointer' }}
+                title={readOnly ? undefined : 'click to restore them for this client'}
+                onClick={() => !readOnly && undoAlways(c)}>{c.name || c.email} ✕</span>
+            ))}
+          </div>
+          <div style={{ ...CAP, marginTop: 'var(--s1)' }}>
+            These apply to every release for this client, not just this one.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

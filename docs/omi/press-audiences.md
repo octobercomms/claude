@@ -81,6 +81,29 @@ journalist receives two different pitches for the same release, on consecutive
 days. That reads as a mistake, because it is one. Making it unrepresentable is
 cheaper than remembering to check.
 
+## Holding specific people back
+
+At the bottom of the Audiences panel, **Never send to** searches the whole media
+library (not just this release) and holds individuals back, whichever audience
+they are in. Two scopes, because they mean different things:
+
+- **this release** — a one-off. "They already know, I told them on Tuesday."
+- **always** — never emailed on this client's behalf, usually because the client
+  handles that journalist directly. Applies to every release for the client.
+
+Both already existed server-side (`outreach_press_releases.excluded_contacts` and
+`outreach_contact_clients.excluded_at`, migration 186) and were already enforced
+in the dispatch gate. What was missing was a way to set them from the release, and
+counting them: `pressSegments.list()` and `memberIds` ignored the per-release list,
+so naming someone left "N to send" unchanged. The audience header now reads
+"1 to send · 1 held back by name", and excluding someone already queued cancels
+their pending sends immediately rather than leaving the gate to stop them later.
+
+The search button is labelled **Find to exclude** rather than "Search", because
+step 1 already has a journalist search above it that *adds* people. Two identical
+buttons doing opposite things on one screen is a good way to send a release to
+someone you meant to hold back.
+
 ## Where the copy lives, and why not on sequences
 
 The obvious design is `outreach_sequences.segment_id`: one sequence set per
